@@ -81,6 +81,23 @@ extern Vertex *gSnowVerts;
 extern Vertex *gSnowVertexData[2];
 extern s8 gSnowVertexFlip;
 
+typedef struct TextureHeader TextureHeader;
+
+typedef struct SnowGfxData {
+    /* 0x00 */ void *pos;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ TextureHeader *texture;
+} SnowGfxData;
+
+void mempool_free(void *data);
+void tex_free(TextureHeader *tex);
+void free_rain_memory(void);
+
+extern void *gSnowTriangles;
+extern void *gSnowPhysics;
+extern SnowGfxData gSnowGfx;
+extern void *gSnowTriIndices;
+
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AB00);
 
 /**
@@ -97,7 +114,45 @@ void weather_clip_planes(s16 near, s16 far) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AC58);
+/**
+ * Free the weather assets from memory.
+ * If it's raining, then free those too.
+ * JFG: no lens flare to reset.
+ * Official Name: freeWeather
+ */
+void weather_free(void) {
+    if (gSnowTriangles != NULL) {
+        mempool_free(gSnowTriangles);
+        gSnowTriangles = NULL;
+    }
+    if (gSnowVertexData[0] != NULL) {
+        mempool_free(gSnowVertexData[0]);
+        gSnowVertexData[0] = NULL;
+    }
+    if (gSnowVertexData[1] != NULL) {
+        mempool_free(gSnowVertexData[1]);
+        gSnowVertexData[1] = NULL;
+    }
+    if (gSnowPhysics != NULL) {
+        mempool_free(gSnowPhysics);
+        gSnowPhysics = NULL;
+    }
+    if (gSnowGfx.pos != NULL) {
+        mempool_free(gSnowGfx.pos);
+        gSnowGfx.pos = NULL;
+    }
+    if (gSnowGfx.texture != NULL) {
+        tex_free(gSnowGfx.texture);
+        gSnowGfx.texture = NULL;
+    }
+    if (gSnowTriIndices != NULL) {
+        mempool_free(gSnowTriIndices);
+        gSnowTriIndices = NULL;
+    }
+    if (gWeatherType != WEATHER_SNOW) {
+        free_rain_memory();
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AD90);
 

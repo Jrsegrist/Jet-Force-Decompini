@@ -6,10 +6,12 @@ extern MtxF gViewMatrixF;
 extern f32 gCurCamFOV;
 extern s32 gActiveCameraID;
 extern Mtx gPerspectiveMatrix[];
+/* Size: 0x4C bytes (layout not worked out yet) */
 typedef struct Camera {
-    s32 unk0; // layout not worked out yet
+    u8 pad0[0x4C];
 } Camera;
 extern Camera gCameras[];
+extern s32 D_800FA634;
 extern u8 D_800A316C;
 
 /* DKR src/camera.h */
@@ -191,7 +193,14 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041DA0);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041DC0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041DE0);
+/**
+ * Returns the active camera.
+ * JFG: no cutscene camera offset.
+ * Official name: camGetPtr
+ */
+Camera *cam_get_active_camera(void) {
+    return &gCameras[D_800FA634];
+}
 
 /**
  * Returns the camera list.

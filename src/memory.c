@@ -11,6 +11,9 @@
 
 extern MemoryPool gMemoryPools[POOL_COUNT];
 extern s32 gNumberOfMemoryPools;
+extern s32 gFreeQueueTimer;
+
+void mempool_free_queue(void *dataAddress);
 
 /******************************/
 
@@ -44,11 +47,31 @@ void *mempool_alloc_pool(MemoryPoolSlot *slots, s32 size) {
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004A828);
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA08);
+/**
+ * Sets the tick timer for the free queue.
+ * JFG: only sets it (DKR also flushes the queue when it is zero).
+ * Official Name: mmSetDelay
+ */
+void mempool_free_timer(s32 state) {
+    gFreeQueueTimer = state;
+}
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA14);
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA80);
+/**
+ * Unallocates data from the pool that contains the data. Will free immediately if the free queue
+ * state is set to 0, otherwise the data will just be marked for deletion.
+ * JFG: no interrupt masking; a dummy flags value is kept on the stack.
+ * Official Name: mmFree
+ */
+void mempool_free(void *data) {
+    volatile u32 intFlags = 0x666;
+    if (gFreeQueueTimer == 0) {
+        mempool_free_addr(data);
+    } else {
+        mempool_free_queue(data);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AAC4);
 

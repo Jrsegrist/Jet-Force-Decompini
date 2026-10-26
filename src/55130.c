@@ -12,6 +12,11 @@ extern u32 gTexColourTag;
 typedef struct TextureHeader {
     /* 0x00 */ u8 pad0[8];
     /* 0x08 */ u16 numberOfInstances;
+    /* 0x0A */ u8 padA[0x12 - 0x0A];
+    /* 0x12 */ u16 numOfTextures;
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ s16 textureSize;
+    /* 0x18 */ u8 pad18[0x20 - 0x18];
 } TextureHeader;
 
 /* DKR's Sprite (renamed: libultra's sp.h has a Sprite too) */
@@ -183,7 +188,20 @@ void set_texture_colour_tag(s32 tagID) {
     gTexColourTag = tagID;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055B40);
+/**
+ * Shift the texture header by the offset and return the texture data after it.
+ * JFG: returns the data, and an offset past the last frame keeps the first.
+ * Official Name: texFrame
+ */
+TextureHeader *set_animated_texture_header(TextureHeader *texHead, s32 offset) {
+    TextureHeader *frame = texHead + 1;
+    if (offset > 0) {
+        if (offset < texHead->numOfTextures << 8) {
+            frame = (TextureHeader *) (((u8 *) texHead) + ((offset >> 16) * texHead->textureSize)) + 1;
+        }
+    }
+    return frame;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055B80);
 

@@ -11,6 +11,7 @@ extern s32 gSaveDataFlags; // Official Name: load_save_flags
 /* JFG's save flag bits (DKR has them elsewhere) */
 #define SAVE_DATA_FLAG_WRITE_SAVE_FILE_NUMBER_BITS 0x38
 #define SAVE_DATA_FLAG_WRITE_SAVE_DATA 0x40000000
+#define GAMEMODE_INGAME 0
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80044B50);
 
@@ -155,7 +156,17 @@ void force_mark_write_save_file(s32 saveFileIndex) {
     gSaveDataFlags |= (SAVE_DATA_FLAG_WRITE_SAVE_DATA | ((saveFileIndex & 7) << 3));
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048460);
+/**
+ * Marks a flag to write a save file, as long as the game is in its main mode.
+ * JFG: no tracks mode check.
+ * Official Name: mainSaveGame2
+ */
+void safe_mark_write_save_file(s32 saveFileIndex) {
+    if (gGameMode == GAMEMODE_INGAME) {
+        gSaveDataFlags &= ~SAVE_DATA_FLAG_WRITE_SAVE_FILE_NUMBER_BITS;
+        gSaveDataFlags |= (SAVE_DATA_FLAG_WRITE_SAVE_DATA | ((saveFileIndex & 7) << 3));
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800484A4);
 

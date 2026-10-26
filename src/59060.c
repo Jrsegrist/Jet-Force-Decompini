@@ -1,4 +1,10 @@
+/*
+ * Menus. Functions in C are from the Diddy Kong Racing decompilation
+ * (CC0 1.0), src/menu.c, or marked "JFG"; see CREDITS.md.
+ */
 #include "common.h"
+
+extern u8 gLanguage;
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058460);
 
@@ -56,7 +62,14 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005A79C);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A7A4);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A7D0);
+/**
+ * Returns the current language being used by the game.
+ * JFG: a stored setting (DKR decodes it from the EEPROM settings).
+ * Official Name: frontGetLanguage
+ */
+s32 get_language(void) {
+    return gLanguage;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A7E0);
 

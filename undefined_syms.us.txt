@@ -25,6 +25,11 @@ gzip_num_bits = 0x80104554;
 gHuftTablePos = 0x80104558;
 
 /* ---- asset_loading.c ---- */
+func_8004D2D0 = pi_init;
+gPIMesgQueue = 0x800FE058;
+gPIMesgBuf = 0x800FE018;
+gDmaMesgQueue = 0x800FE000;
+gDmaMesg = 0x800FDFF8;
 func_8004D424 = asset_table_load_zipped;
 func_8004D530 = asset_load;
 func_8004D5B0 = asset_rom_offset;
@@ -114,6 +119,10 @@ func_8004AE94 = get_memory_pool_address;
 func_8004AFC4 = align16;
 func_8004AFE0 = align4;
 func_8004AFFC = mempool_print_slots;
+func_8004AA08 = mempool_free_timer;
+func_8004AA80 = mempool_free;
+gFreeQueueTimer = 0x800FDD8C;
+mempool_free_queue = 0x8004AC90;
 gMemoryPools = 0x800FD840;
 gNumberOfMemoryPools = 0x800FD880;
 mempool_slot_find = 0x8004A69C;
@@ -187,6 +196,7 @@ func_80041E18 = get_projection_matrix_f32;
 func_80041E4C = get_camera_matrix;
 func_80041E24 = get_projection_matrix_s16;
 func_80041E0C = cam_get_cameras;
+func_80041DE0 = cam_get_active_camera;
 gCameras = 0x800FA4D0;
 gPerspectiveMatrix = 0x800FAB38;
 gActiveCameraID = 0x800FA630;
@@ -210,6 +220,7 @@ gVideoDeltaCounter = 0x800FECAB;
 gVideoDeltaTime = 0x800FECAC;
 func_80055A00 = tex_free;
 func_80056C14 = sprite_free;
+func_80055B40 = set_animated_texture_header;
 gTextureCache = 0x800FECE8;
 gNumberOfLoadedTextures = 0x800FECF0;
 gSpriteCache = 0x800FED0C;
@@ -222,6 +233,7 @@ func_80047580 = set_game_mode;
 func_80048364 = is_reset_pressed;
 func_80048524 = is_controller_missing;
 func_8004842C = force_mark_write_save_file;
+func_80048460 = safe_mark_write_save_file;
 gSaveDataFlags = 0x800A32A8;
 gGameMode = 0x800FD7C4;
 gNMIMesgBuf = 0x800FD818;
@@ -354,7 +366,12 @@ func_8005B1C0 = weather_set;
 func_8005CE60 = reset_particles;
 func_8005EC98 = emitter_init;
 func_8005B3CC = weather_update;
-cam_get_active_camera = 0x80041DE0;
+func_8005AC58 = weather_free;
+free_rain_memory = 0x8005BD30;
+gSnowTriangles = 0x800A59FC;
+gSnowPhysics = 0x800A59C4;
+gSnowGfx = 0x800A59C8;
+gSnowTriIndices = 0x800A5A00;
 rain_update = 0x8005C040;
 snow_update = 0x8005CC0C;
 snow_vertices = 0x8005B62C;
@@ -408,7 +425,8 @@ func_8004D194 = string_to_font_codes;
 gN64FontCodes = 0x800A3404;
 gPakFileList = 0x800A3400;
 gRumblePresent = 0x800A3468;
-get_language = 0x8005A7D0;
+func_8005A7D0 = get_language;
+gLanguage = 0x800FF386;
 pfs = 0x800FDDB8;
 sControllerMesgQueue = 0x800FDDB0;
 
@@ -419,6 +437,9 @@ gCurrentLevelHeader = 0x800FB118;
 
 /* ---- 25A70.c ---- */
 func_80026D88 = obj_loop_rangetrigger;
+func_800252EC = obj_init_animator;
+get_level_segment_index_from_position = 0x80015510;
+obj_loop_animator = 0x800253F0;
 obj_dist_racer = 0x8007E150;
 obj_spawn_particle = 0x8005F5AC;
 
@@ -442,7 +463,6 @@ gDialogueBoxBackground = 0x80103FA8;
 
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
-mempool_free = 0x8004AA80;
 
 /* ---- libultra globals still defined in asm (used by src/ultra) ---- */
 __OSGlobalIntMask = 0x800A9A6C;
