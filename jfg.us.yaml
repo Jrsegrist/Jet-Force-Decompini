@@ -255,8 +255,16 @@ segments:
       - [0x9E610, asm]
       - [0x9FE50, asm]
       - [0xA1260, data, main]
+      - [0xA6F80, .data, printf]
+      - [0xA70B0, data]
       - [0xA8080, rodata, main]
+      - [0xAE450, .rodata, printf]
+      - [0xAE6C0, rodata]
       - { start: 0xB1750, type: bss, vram: 0x800B0B50, name: main }
+      - { start: 0xB1750, type: .bss, vram: 0x800FB090, name: joypad }
+      - { start: 0xB1750, type: bss, vram: 0x800FB110, name: bss_800FB110 }
+      - { start: 0xB1750, type: .bss, vram: 0x80100960, name: printf }
+      - { start: 0xB1750, type: bss, vram: 0x801012A0, name: bss_801012A0 }
 
   # DKR-style asset table: u32 count, then count+1 offsets relative to 0xB1880.
   - name: asset_lut

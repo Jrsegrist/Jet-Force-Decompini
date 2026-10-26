@@ -2,3 +2,6 @@
 // Names recovered from the ROM's runlink tables are generated at extract
 // time into build/syms/runlink_syms.us.txt (tools/runlink_syms.py).
 entrypoint = 0x80000400; // type:func
+
+// printf.c: the string compiled into diPrintf (its print is stubbed out)
+D_800AD8B4 = 0x800AD8B4; // type:asciz

@@ -12,13 +12,18 @@ extern u16 gButtonMask; // Cleared when the anti-tamper checks fail
 
 /************ .bss ************/
 
-extern OSMesgQueue sSIMesgQueue;
-extern OSContPad gControllerCurrData[MAXCONTROLLERS];
-extern OSContPad gControllerPrevData[MAXCONTROLLERS];
-extern u16 gControllerButtonsPressed[MAXCONTROLLERS];
-extern u16 gControllerButtonsReleased[MAXCONTROLLERS];
-extern u8 sPlayerID[MAXCONTROLLERS];
-extern u8 sPlayerInputEnabled[MAXCONTROLLERS]; // JFG
+OSMesgQueue sSIMesgQueue;
+OSMesg sSIMesgBuf;
+OSMesg gSIMesg;
+OSContStatus gControllerStatus[MAXCONTROLLERS];
+OSContPad gControllerCurrData[MAXCONTROLLERS];
+OSContPad gControllerPrevData[MAXCONTROLLERS];
+u16 gControllerButtonsPressed[MAXCONTROLLERS];
+u16 gControllerButtonsReleased[MAXCONTROLLERS];
+u8 sPlayerID[MAXCONTROLLERS];
+u8 sPlayerInputEnabled[MAXCONTROLLERS]; // JFG
+s32 D_800FB108;                         // JFG
+s32 D_800FB10C;                         // JFG
 
 /******************************/
 
@@ -37,19 +42,15 @@ INCLUDE_ASM("asm/nonmatchings/joypad", func_80043130);
 /**
  * Set the first 4 player ID's to the controller numbers, so players can input in the menus after boot.
  * Official name: joyResetMap
- * DKR's C matches once sPlayerID is defined in this file (the unrolled stores
- * share one lui); that needs this file's .bss split out first.
+ * (IDO only unrolls this loop into stores through one lui because sPlayerID
+ * is defined in this file.)
  */
-#ifdef NON_MATCHING
 void input_assign_players(void) {
     s32 i;
     for (i = 0; i < MAXCONTROLLERS; i++) {
         sPlayerID[i] = i;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/joypad", func_800433E0);
-#endif
 
 /* JFG: stop taking input for this player. */
 void func_80043404(s32 player) {
