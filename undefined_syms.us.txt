@@ -80,7 +80,7 @@ func_80065C88 = debug_text_origin;
 func_80065CAC = debug_text_newline;
 func_80064DF0 = render_printf;
 func_800652E4 = debug_text_parse;
-debug_text_character = 0x800657A4;
+func_800657A4 = debug_text_character;
 /* printf.c defines its .data/.rodata/.bss; the asm still uses these names */
 D_800A6380 = gSprintfSpacingCode;
 D_800A6384 = gDebugPrintBufferEnd;

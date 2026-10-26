@@ -9,13 +9,38 @@
  */
 #include "printf.h"
 
-struct TextureHeader;
+/* Only the size matters here (DKR include/structs.h: 0x20 bytes). */
+typedef struct TextureHeader {
+    u8 pad[0x20];
+} TextureHeader;
+
+/*
+ * JFG's debug text: environment colour, texture alpha times environment alpha
+ * (DKR uses G_CC_ENV_DECALA, 0, 0, 0, ENVIRONMENT, 0, 0, 0, TEXEL0).
+ */
+#define G_CC_JFG_DEBUGTEXT 0, 0, 0, ENVIRONMENT, TEXEL0, 0, ENVIRONMENT, 0
+
+/*
+ * The texture rectangle of the older GBI this game was built with: the
+ * texture coordinates follow in G_RDPHALF_2 and G_RDPHALF_CONT commands.
+ */
+#ifndef G_RDPHALF_CONT
+#define G_RDPHALF_CONT 0xB2
+#endif
+#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                          \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12));        \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));            \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                          \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));                 \
+    }
 
 /************ .bss ************/
 
 // JFG keeps the print buffer first, and the end pointer in .data.
 char gDebugPrintBufferStart[0x900];
-struct TextureHeader *gTexture[3];
+TextureHeader *gTexture[3];
 u16 gDebugTextX;
 u16 gDebugTextY;
 u16 D_80127CB0;
@@ -400,7 +425,55 @@ void debug_text_background(Gfx **dList, u32 ulx, u32 uly, u32 lrx, u32 lry) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/printf", func_800657A4);
+/**
+ * Renders a character onscreen at the current debug text position.
+ * If necessary, load the correct font texture.
+ * Return the width of the char that was just printed.
+ */
+s32 debug_text_character(Gfx **dList, s32 asciiVal) {
+    s32 fontCharWidth;
+    s32 fontCharU;
+
+    if (asciiVal < 0x40) {
+        // Character is a symbol or number and not a letter
+        if (gDebugFontTexture != 0) {
+            if (gDebugTextOn) {
+                gDPLoadTextureBlockS((*dList)++, OS_K0_TO_PHYSICAL(gTexture[0] + 1), G_IM_FMT_IA, G_IM_SIZ_8b, 192, 11,
+                                    0, 2, 2, 0, 0, 0, 0);
+            }
+            gDebugFontTexture = 0;
+        }
+        asciiVal -= 0x21;
+    } else if (asciiVal < 0x60) {
+        // Character is a upper case letter
+        if (gDebugFontTexture != 1) {
+            if (gDebugTextOn) {
+                gDPLoadTextureBlockS((*dList)++, OS_K0_TO_PHYSICAL(gTexture[1] + 1), G_IM_FMT_IA, G_IM_SIZ_8b, 248, 11,
+                                    0, 2, 2, 0, 0, 0, 0);
+            }
+            gDebugFontTexture = 1;
+        }
+        asciiVal -= 0x40;
+    } else if (asciiVal <= 0x7F) {
+        // Character is a lower case letter
+        if (gDebugFontTexture != 2) {
+            if (gDebugTextOn) {
+                gDPLoadTextureBlockS((*dList)++, OS_K0_TO_PHYSICAL(gTexture[2] + 1), G_IM_FMT_IA, G_IM_SIZ_8b, 192, 11,
+                                    0, 2, 2, 0, 0, 0, 0);
+            }
+            gDebugFontTexture = 2;
+        }
+        asciiVal -= 0x60;
+    }
+    fontCharU = gDebugFontCoords[gDebugFontTexture][asciiVal].u;
+    fontCharWidth = (gDebugFontCoords[gDebugFontTexture][asciiVal].v - fontCharU) + 1;
+    if (gDebugTextOn) {
+        gDPSetCombineMode((*dList)++, G_CC_JFG_DEBUGTEXT, G_CC_JFG_DEBUGTEXT);
+        gSPTextureRectangleOld((*dList)++, (gDebugTextX << 2), (gDebugTextY << 2), ((gDebugTextX + fontCharWidth) << 2),
+                            ((gDebugTextY + 10) << 2), 0, (fontCharU << 5), 0, 1024, 1024);
+    }
+    return fontCharWidth;
+}
 
 /**
  * Sets the upper and lower boundaries of the debug text.
