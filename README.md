@@ -1,18 +1,32 @@
-# Jet Force Gemini decompilation
+# Jet Force Gemini Decomped
 
-A matching decompilation of Jet Force Gemini (Nintendo 64, Rare, 1999): C source
-that compiles back to a byte-identical ROM. The later goal is a native PC port
-built from that source.
+A matching decompilation of Jet Force Gemini (Nintendo 64, Rare, 1999): C
+source that compiles back to a byte-identical ROM. The later goal is a native
+Windows port built from that source.
 
 This repository contains no game data. You need your own ROM.
 
 ## Status
 
-- `make extract` + `make` rebuild a byte-identical US ROM from disassembly
-  (no C yet).
-- The main code segment is split into 167 assembly files by splat.
-- The runlink modules (most of the game logic), assets and audio are
-  still binary blobs.
+`make extract` and `make` rebuild a byte-identical US ROM. `make progress`
+prints how much of it is built from C:
+
+| Part | Functions in C | Bytes in C |
+| --- | --- | --- |
+| main segment, game code | 95 / 1319 | 8,604 / 540,064 |
+| main segment, libraries (libultra, n_audio, libc) | 58 / 343 | 7,604 / 104,204 |
+| runlink modules (157) | 0 / 1,385 (counted by returns) | 0 / 851,744 |
+
+- The game code in the main segment is split into C files (`src/`), one
+  `INCLUDE_ASM` per function that is not decompiled yet. Code shared with
+  Diddy Kong Racing comes from the DKR decompilation (see
+  [CREDITS.md](CREDITS.md)).
+- 45 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
+  (`src/ultra/`); the rest of the library region is still assembly.
+- The 157 run-time linked modules are split into assembly and rebuilt by a
+  relocation linker of our own (`tools/runlink_build.py`); see
+  [docs/runlink.md](docs/runlink.md).
+- Assets and audio are still binary blobs.
 
 ## ROM
 
@@ -24,18 +38,48 @@ Put the big-endian `.z64` ROM in the repository root as `baserom.us.z64`.
 
 ## Building
 
-You need Linux or WSL with `binutils-mips-linux-gnu`, `make` and `python3` (with `venv`).
+You need Linux or WSL with `binutils-mips-linux-gnu`, `make`, `git`, `curl` and
+`python3` (with `venv`).
 
 ```sh
-make setup      # .venv with splat64 (requirements.txt)
-make extract    # checks the ROM, recovers symbol names, splits with splat
+git submodule update --init   # or clone with --recursive
+make setup      # Python venv, IDO 5.3 recomp, m2c, submodules
+make extract    # checks the ROM, recovers symbol names, splits code and modules
 make            # builds build/jfg.us.z64 and checks its SHA-1
+make check      # checks the SHA-1 of the built ROM again
+make progress   # functions and bytes built from C
 ```
 
-`make extract` runs `tools/runlink_syms.py`. The ROM carries the names of
-about 2,400 global symbols for its run-time module linker. The script reads
-them from your ROM into `build/syms/` and splat uses them for the main
-segment. No ROM-derived file is committed.
+After changing the ROM split (`jfg.us.yaml`) or symbol files, run
+`make extract` again. `make` does not notice changed compiler flags: delete the
+object to rebuild it.
+
+### Names and ROM-derived data
+
+The ROM carries the names of about 2,400 global symbols for its run-time
+module linker. `make extract` reads them from your ROM (`tools/runlink_syms.py`)
+into `build/syms/` so that the disassembly is readable, but none of them are
+committed. Committed C refers to functions and data by address
+(`func_80012345`, `D_80012345`) or by the names the DKR decompilation uses;
+`undefined_syms.us.txt` ties those to addresses, and an alias file generated at
+extract time lets them meet the ROM names in the assembly.
+
+### Working on a function
+
+- The function's assembly is `asm/nonmatchings/<file>/func_XXXXXXXX.s`.
+- `tools/m2c/m2c.py` gives a first draft in C.
+- Replace the `INCLUDE_ASM` line with C, build, and compare with
+  `.venv/bin/python3 tools/asm-differ/diff.py -mw <function>` (it uses the
+  map file) or just `make check`.
+
+## Compiler
+
+- Game code: IDO 5.3 with `-O2 -mips1`.
+- libultra: SDK 2.0I with Nintendo's flags (os and io at -O1, the rest -O3,
+  -mips2); a few objects are the 2.0J form. The n_audio library is not in
+  ultralib and stays assembly for now.
+- Hand-written assembly: the entry point, the exception/interrupt code and
+  maths at 0x49700, the inflate routines at 0x737F0, and parts of 0x74A80.
 
 ## ROM layout (US 1.0)
 
@@ -43,29 +87,41 @@ segment. No ROM-derived file is committed.
 | --- | --- |
 | 0x0000000 | header |
 | 0x0000040 | IPL3 (CIC-6105) |
-| 0x0001000 | main code segment, uncompressed, loaded to 0x80000400. Entry point 0x80000400 clears bss 0x800B0B50-0x801059A0, sets sp, jumps to `boot` (0x8003F500). Text 0x80000450-0x800A0660, .data to 0x800A7480, .rodata to 0x800B0B50 |
+| 0x0001000 | main code segment, uncompressed, loaded to 0x80000400. The entry point clears bss 0x800B0B50-0x801059A0, sets sp and calls the boot function at 0x8003F500. Text 0x80000450-0x800A0660, .data to 0x800A7480, .rodata to 0x800B0B50 |
 | 0x00B1750 | asset table (DKR format): u32 count (71), then count+1 u32 offsets relative to 0xB1880 |
 | 0x00B1880 | 71 asset files to 0x1ECF220 (textures, models, levels, audio banks, text). Many are Rare "rzip" (5-byte header: little-endian u32 size + 1 byte, then raw deflate) |
-| 0x1ECF220 | runlink: main's relocations against module symbols (u32 count, then 8-byte entries) |
-| 0x1ED0270 | runlink: global symbol table, 2,372 u32 (module << 20 \| offset; modules 4093/4094/4095 are main's rodata/data/bss) |
-| 0x1ED2780 | runlink: module table, 157 entries of 0x20 bytes (ROM offset, text/data/bss sizes, relocation sizes, init/fini offsets) |
-| 0x1ED3B20 | runlink: 157 relocatable code modules (0xCFF20 bytes of text), uncompressed |
+| 0x1ECF220 | runlink: main's relocations against module symbols |
+| 0x1ED0270 | runlink: global symbol table |
+| 0x1ED2780 | runlink: module table, 157 entries |
+| 0x1ED3B20 | runlink: the 157 module images |
 | 0x1FEB040 | runlink: name offsets, one per symbol |
-| 0x1FED550 | runlink: symbol name strings |
+| 0x1FED550 | runlink: symbol names |
 
-The main segment holds the engine (audio manager, memory, track/level,
-lights, camera, objects core, font, particles, rzip/inflate, libultra and the
-n_audio library). Game objects, enemies, menus and the front end live in the
-runlink modules. The loader (`runlink*` functions, about 0x800527F0 in main)
-allocates each module, reads it from ROM, and patches its relocations.
+The main segment holds the engine (audio, memory, tracks and levels, lights,
+camera, the object core, fonts, particles, rzip, the runlink loader at about
+0x80052800) and the libraries. Game objects, enemies, menus and the front end
+live in the runlink modules.
 
-## Compiler
+## Credits
 
-- Game code: IDO 5.3 with `-O2 -mips1`. The code has load-delay `nop`s, no
-  branch-likely, and DKR's C for small functions compiles to identical bytes.
-  A few files are hand-written assembly or `-mips2`.
-- libultra: `-mips2` objects at the SDK's usual levels, close to SDK 2.0I.
+- The [Diddy Kong Racing decompilation](https://github.com/DavidSM64/Diddy-Kong-Racing)
+  (CC0 1.0), whose C is the basis of the shared engine code here.
+- [decompals/ultralib](https://github.com/decompals/ultralib) for libultra,
+  used as a git submodule and only `#include`d (it has no licence file, so
+  nothing is copied into this repository).
+- [ido-static-recomp](https://github.com/decompals/ido-static-recomp) (IDO 5.3,
+  fetched as a release by `make setup`; no licence file, not redistributed),
+  [splat](https://github.com/ethteck/splat),
+  [spimdisasm](https://github.com/Decompollaborate/spimdisasm) and
+  [rabbitizer](https://github.com/Decompollaborate/rabbitizer) (MIT),
+  [asm-processor](https://github.com/simonlindholm/asm-processor) and
+  [asm-differ](https://github.com/simonlindholm/asm-differ) (Unlicense, git
+  submodules), [m2c](https://github.com/matt-kempster/m2c) (GPL-3.0, fetched by
+  `make setup` and only run as a tool).
+
+Details are in [CREDITS.md](CREDITS.md).
 
 ## Licence
 
-To be decided by the project owner. MIT is intended; see LICENSE.
+MIT, see [LICENSE](LICENSE). Code adapted from the DKR decompilation is CC0
+upstream.
