@@ -13,16 +13,19 @@ prints how much of it is built from C:
 
 | Part | Functions in C | Bytes in C |
 | --- | --- | --- |
-| main segment, game code | 138 / 1,319 | 18,712 / 540,064 |
-| main segment, libraries (libultra, n_audio, libc) | 79 / 342 | 11,988 / 102,812 |
+| main segment, game code | 438 / 1,319 | 33,560 / 539,980 |
+| main segment, libraries (libultra, n_audio, libc) | 81 / 341 | 12,428 / 102,408 |
 | runlink modules (157) | 0 / 1,385 (counted by returns) | 0 / 851,744 |
 
 - The game code in the main segment is split into C files (`src/`), one
   `INCLUDE_ASM` per function that is not decompiled yet. Code shared with
   Diddy Kong Racing comes from the DKR decompilation (see
-  [CREDITS.md](CREDITS.md)).
-- 54 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
-  (`src/ultra/`); the rest of the library region is still assembly.
+  [CREDITS.md](CREDITS.md)); the rest is written from the assembly and named
+  by address.
+- 57 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
+  (`src/ultra/`); the rest of the library region is still assembly
+  (hand-written `.s` routines, n_audio, and objects from SDK revisions
+  ultralib does not model).
 - The 157 run-time linked modules are split into assembly and rebuilt by a
   relocation linker of our own (`tools/runlink_build.py`); see
   [docs/runlink.md](docs/runlink.md).
