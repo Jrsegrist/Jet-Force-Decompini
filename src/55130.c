@@ -29,6 +29,22 @@ extern s32 gNumberOfLoadedTextures;
 extern s32 *gSpriteCache;
 extern s32 gSpriteCacheCount;
 
+/* video.c (DKR); JFG's video mode table */
+#define LOGIC_30FPS 2
+
+typedef struct VideoMode {
+    /* 0x00 */ s32 width;
+    /* 0x04 */ s32 height;
+    /* 0x08 */ u8 pad8[0x28 - 0x08];
+} VideoMode;
+
+extern VideoMode D_800A392C[];
+extern s8 D_800FECA8;
+extern u8 gVideoDeltaCounter;
+extern u8 gVideoDeltaTime;
+extern u8 D_800FECAD;
+extern s32 D_800FECCC;
+
 // Used to update pulsating lights (DKR include/structs.h)
 typedef struct PulsatingLightDataFrame {
     u16 value;
@@ -58,13 +74,30 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80054CA4);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054CF0);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80054EA0);
+/**
+ * Return the current framebuffer dimensions.
+ * JFG: writes the width and height (DKR packs them into one s32).
+ * Official Name: viGetCurrentSize
+ */
+void fb_size(s32 *width, s32 *height) {
+    *width = D_800A392C[D_800FECA8].width;
+    *height = D_800A392C[D_800FECA8].height;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054EF0);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054F74);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80054F90);
+/**
+ * Sets the video counters to their default values.
+ * Official Name: viFrameRateReset
+ */
+void video_delta_reset(void) {
+    D_800FECAD = 1;
+    gVideoDeltaCounter = 0;
+    gVideoDeltaTime = LOGIC_30FPS;
+    D_800FECCC = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054FBC);
 

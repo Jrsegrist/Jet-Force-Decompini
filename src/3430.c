@@ -3,6 +3,13 @@
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
 extern u8 gJinglesOff;
 
+/* DKR src/audio_spatial.h (reduced) */
+typedef struct AudioPoint {
+    struct {
+        f32 x, y, z;
+    } pos;
+} AudioPoint;
+
 INCLUDE_ASM("asm/nonmatchings/3430", func_80002830);
 
 /**
@@ -37,7 +44,18 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_800034DC);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_800034F4);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_800035E8);
+/**
+ * Sets the position of an audio point.
+ * JFG: ignores a NULL point.
+ * Official Name: amSndSetXYZ
+ */
+void audspat_point_set_position(AudioPoint *audioPoint, f32 x, f32 y, f32 z) {
+    if (audioPoint != NULL) {
+        audioPoint->pos.x = x;
+        audioPoint->pos.y = y;
+        audioPoint->pos.z = z;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003614);
 

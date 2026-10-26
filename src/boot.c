@@ -46,4 +46,12 @@ void thread1_main(UNUSED void *unused) {
     while (1) {}
 }
 
-INCLUDE_ASM("asm/nonmatchings/boot", func_8003F5F0);
+/**
+ * Increments the start and endpoint of the stack.
+ * JFG: no stack wraparound check follows (DKR prints a warning when they differ).
+ * Official Name: bootCheckStack
+ */
+void thread3_verify_stack(void) {
+    gThread3Stack[STACKSIZE(STACK_GAME)]++;
+    gThread3Stack[0]++;
+}

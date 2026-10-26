@@ -6,6 +6,10 @@ extern MtxF gViewMatrixF;
 extern f32 gCurCamFOV;
 extern s32 gActiveCameraID;
 extern Mtx gPerspectiveMatrix[];
+typedef struct Camera {
+    s32 unk0; // layout not worked out yet
+} Camera;
+extern Camera gCameras[];
 extern u8 D_800A316C;
 
 /* DKR src/camera.h */
@@ -189,7 +193,14 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041DC0);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041DE0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E0C);
+/**
+ * Returns the camera list.
+ * JFG: always the start of the list (DKR picks the cutscene camera if active).
+ * Official name: camGetListPtr
+ */
+Camera *cam_get_cameras(void) {
+    return &gCameras[0];
+}
 
 /**
  * Return the current floating point projection matrix.

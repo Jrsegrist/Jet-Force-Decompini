@@ -6,6 +6,11 @@ extern OSMesgQueue gNMIMesgQueue;
 extern s32 gGameMode;
 extern s32 gNMIMesgBuf;          // Official Name: resetPressed;
 extern s32 sControllerStatus;
+extern s32 gSaveDataFlags; // Official Name: load_save_flags
+
+/* JFG's save flag bits (DKR has them elsewhere) */
+#define SAVE_DATA_FLAG_WRITE_SAVE_FILE_NUMBER_BITS 0x38
+#define SAVE_DATA_FLAG_WRITE_SAVE_DATA 0x40000000
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80044B50);
 
@@ -140,7 +145,15 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_800483F8);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004841C);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_8004842C);
+/**
+ * Forcefully marks a flag to write a save file.
+ * JFG: the file number is three bits at bit 3.
+ * Official Name: mainSaveGame
+ */
+void force_mark_write_save_file(s32 saveFileIndex) {
+    gSaveDataFlags &= ~SAVE_DATA_FLAG_WRITE_SAVE_FILE_NUMBER_BITS;
+    gSaveDataFlags |= (SAVE_DATA_FLAG_WRITE_SAVE_DATA | ((saveFileIndex & 7) << 3));
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048460);
 

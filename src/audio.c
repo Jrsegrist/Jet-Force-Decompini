@@ -111,7 +111,20 @@ void music_channel_volume_set(u8 channel, u8 volume) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000CFC);
+/**
+ * Resets all audio channels for the music player to the default state.
+ * JFG: no fade reset.
+ * Official Name: amTuneResetChls
+ */
+void music_channel_reset_all(void) {
+    u32 channel;
+    if (gBlockMusicChange == FALSE) {
+        for (channel = 0; channel < AUDIO_CHANNELS; channel++) {
+            music_channel_on(channel);
+            music_channel_volume_set(channel, 127);
+        }
+    }
+}
 
 /**
  * Multiplies the current tempo of the background music.

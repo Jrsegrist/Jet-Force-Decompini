@@ -42,6 +42,7 @@ void music_dynamic_set(u16 channelMask);
 void music_channel_off(u8 channel);
 void music_channel_on(u8 channel);
 void music_channel_volume_set(u8 channel, u8 volume);
+void music_channel_reset_all(void);
 void music_tempo_set_relative(f32 tempo);
 void music_tempo_set(s32 tempo);
 s16 music_tempo(void);
