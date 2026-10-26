@@ -28,7 +28,6 @@ typedef struct WindowRect {
 
 extern void func_800595F4(s32, s32, WindowRect *, s32); /* draws rectangles */
 
-#ifdef NON_MATCHING
 static WindowPiece D_m157_00180[] = {
     { 0, -4, 0, -4, 1, 4, 0, -3, 0x1A },  { 0, -3, 0, -3, 1, 3, 0, -2, 0x33 },
     { 0, -2, 0, -2, 1, 2, 0, -1, 0x4D },  { 0, -1, 0, -1, 1, 1, 0, 0, 0x66 },
@@ -38,24 +37,24 @@ static WindowPiece D_m157_00180[] = {
     { 1, 2, 0, -2, 1, 3, 1, 2, 0x33 },    { 1, 3, 0, -3, 1, 4, 1, 3, 0x1A },
     { 0, -1, 1, 0, 1, 1, 1, 1, 0x66 },    { 0, -2, 1, 1, 1, 2, 1, 2, 0x4D },
     { 0, -3, 1, 2, 1, 3, 1, 3, 0x33 },    { 0, -4, 1, 3, 1, 4, 1, 4, 0x1A },
-    { 0, 0, 0, 0, 1, 0, 1, 0, 0x7F },     { -1, -1, -1, -1, -1, -1, -1, -1, -1 },
+    { 0, 0, 0, 0, 1, 0, 1, 0, 0x7F },     { -1, -1, -1, -1, -1, -1, -1, -1, 0 },
 };
 
 static WindowPiece *D_m157_00224[] = { D_m157_00180 };
 
-/* Equivalent; the original puts `rects` 8 bytes lower in the frame and schedules two moves differently */
 void func_m157_00000(s32 arg0, u8 shape, s32 x, s32 y, s32 width, s32 height, u32 colour) {
-    WindowRect rects[24];
     WindowRect *r;
     WindowPiece *p;
+    WindowRect rects[24];
     s32 n;
     u32 alpha;
 
     p = D_m157_00224[shape];
     alpha = colour & 0xFF;
-    colour &= ~0xFF;
     r = rects;
-    for (n = 0; p->x0rel >= 0 && n < 24; n++) {
+    n = 0;
+    colour &= ~0xFF;
+    for (; p->x0rel >= 0 && n < 24; n++) {
         r->x0 = p->x0 + x;
         if (p->x0rel) {
             r->x0 += width;
@@ -78,8 +77,3 @@ void func_m157_00000(s32 arg0, u8 shape, s32 x, s32 y, s32 width, s32 height, u3
     }
     func_800595F4(arg0, n, rects, 0);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m157", func_m157_00000);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m157", data);
-#endif

@@ -42,16 +42,13 @@ void func_m093_00000(Object *obj, M093Setup *setup) {
 }
 
 #ifdef NON_MATCHING
-/*
- * Equivalent; the original keeps 0x10 bytes of the frame below `spark`
- * (mine above it) and loads the two 1s into separate registers.
- */
+/* Equivalent; the original loads the two 1s into separate registers (frame layout matches) */
 void func_m093_000BC(Object *obj, s32 updateRate) {
     ObjectInteraction *hit;
+    SparkParams spark;
     ObjectUnk5C *coll;
     Object *player;
     s32 i;
-    SparkParams spark;
 
     if (obj->modelIndex == 0 && (hit = obj->interactObj) != NULL && (coll = obj->unk5C) != NULL) {
         hit->unk6 -= coll->damage;
