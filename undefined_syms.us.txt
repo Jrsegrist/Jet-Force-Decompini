@@ -274,6 +274,20 @@ gRacers = 0x800F2D0C;
 gRacersByPort = 0x800F2D0C;
 osTvType = 0x80000300;
 
+/* ---- 12D50.c ---- */
+func_80012BA0 = set_skydome_visbility;
+func_80015228 = traverse_segments_bsp_tree;
+func_80015444 = add_segment_to_order;
+func_80015714 = get_inside_segment_count_xyz;
+func_8001587C = block_boundbox;
+func_8001B650 = get_current_level_model;
+func_8001B868 = trackMakeAbsolute;
+block_visible = 0x80015B3C;
+gCurrentLevelModel = 0x800A0D60;
+gSceneActiveCamera = 0x800F2F80;
+gSceneRenderSkyDome = 0x800F2F98;
+gSceneStartSegment = 0x800F2F90;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;
