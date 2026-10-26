@@ -58,6 +58,29 @@ extern WeatherData gWeather;
 extern s32 gParticleBehavioursAssetTableCount;
 extern s32 gWeatherType;
 
+typedef struct Vertex Vertex;
+typedef struct Triangle Triangle;
+typedef struct ObjectSegment ObjectSegment;
+
+ObjectSegment *cam_get_active_camera(void);
+MtxF *get_camera_matrix(void);
+void rain_update(s32 updateRate);
+void snow_update(s32 updateRate);
+void snow_vertices(void);
+void snow_render(void);
+
+extern Gfx *gCurrWeatherDisplayList;
+extern Mtx *gCurrWeatherMatrix;
+extern Vertex *gCurrWeatherVertexList;
+extern Triangle *gCurrWeatherTriList;
+extern ObjectSegment *gWeatherCamera;
+extern MtxF *gWeatherCameraMatrix;
+extern s32 gSnowDensity;
+extern s32 gSnowParticleCount;
+extern Vertex *gSnowVerts;
+extern Vertex *gSnowVertexData[2];
+extern s8 gSnowVertexFlip;
+
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AB00);
 
 /**
@@ -107,7 +130,57 @@ void weather_set(s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity, s32 t
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B3CC);
+/**
+ * The root function for handling all weather.
+ * Decide whether to perform rain or snow logic, execute it, then set it to render right after.
+ * Official name: doWeather
+ */
+void weather_update(Gfx **currDisplayList, Mtx **currHudMat, Vertex **currHudVerts, Triangle **currHudTris,
+                    s32 updateRate) {
+    UNUSED s32 unused;
+    gCurrWeatherDisplayList = *currDisplayList;
+    gCurrWeatherMatrix = *currHudMat;
+    gCurrWeatherVertexList = *currHudVerts;
+    gCurrWeatherTriList = *currHudTris;
+    gWeatherCamera = cam_get_active_camera();
+    gWeatherCameraMatrix = get_camera_matrix();
+    if (gWeatherType != WEATHER_SNOW) {
+        rain_update(updateRate);
+    } else {
+        if (gWeather.shiftTime > 0) {
+            if (updateRate < gWeather.shiftTime) {
+                gWeather.intensity += gWeather.intensityStep * updateRate;
+                gWeather.velX += gWeather.velXStep * updateRate;
+                gWeather.velY += gWeather.velYStep * updateRate;
+                gWeather.velZ += gWeather.velZStep * updateRate;
+                gWeather.opacity += gWeather.opacityStep * updateRate;
+                gWeather.shiftTime -= updateRate;
+            } else {
+                gWeather.intensity = gWeather.intensityTarget;
+                gWeather.velX = gWeather.velXTarget;
+                gWeather.velY = gWeather.velYTarget;
+                gWeather.velZ = gWeather.velZTarget;
+                gWeather.opacity = gWeather.opacityTarget;
+                gWeather.shiftTime = 0;
+            }
+        }
+        gSnowParticleCount = (gSnowDensity * gWeather.intensity) >> (unused = 16);
+        gSnowPlane.current =
+            (gSnowPlane.near + ((gSnowPlane.far - gSnowPlane.near) * gWeather.opacity)) >> (unused = 16);
+
+        snow_update(updateRate);
+        if (gSnowParticleCount > 0 && gSnowPlane.current < gSnowPlane.near) {
+            gSnowVerts = gSnowVertexData[gSnowVertexFlip];
+            snow_vertices();
+            snow_render();
+            gSnowVertexFlip = 1 - gSnowVertexFlip;
+        }
+    }
+    *currDisplayList = gCurrWeatherDisplayList;
+    *currHudMat = gCurrWeatherMatrix;
+    *currHudVerts = gCurrWeatherVertexList;
+    *currHudTris = gCurrWeatherTriList;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
 

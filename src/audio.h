@@ -51,6 +51,7 @@ void music_stop(void);
 void music_jingle_stop(void);
 u8 music_current_sequence(void);
 u8 music_jingle_current(void);
+u8 music_volume(void);
 void music_jingle_volume_set(u8 arg0);
 void music_jingle_pan_set(ALPan pan);
 u32 music_jingle_playing(void);

@@ -81,6 +81,8 @@ func_80065CAC = debug_text_newline;
 func_80064DF0 = render_printf;
 func_800652E4 = debug_text_parse;
 func_800657A4 = debug_text_character;
+func_80064D9C = debug_text_init;
+load_texture = 0x80055694;
 /* printf.c defines its .data/.rodata/.bss; the asm still uses these names */
 D_800A6380 = gSprintfSpacingCode;
 D_800A6384 = gDebugPrintBufferEnd;
@@ -130,6 +132,7 @@ func_80000F2C = music_stop;
 func_80000F60 = music_jingle_stop;
 func_80000F98 = music_current_sequence;
 func_80000FD4 = music_jingle_current;
+func_800010AC = music_volume;
 func_800010BC = music_jingle_volume_set;
 func_80001108 = music_jingle_pan_set;
 func_800011D4 = music_jingle_playing;
@@ -154,6 +157,7 @@ gJinglePlayer = 0x800A0664;
 gJinglePlaying = 0x800A068C;
 gMusicNextSeqID = 0x800A0698;
 gMusicPlayer = 0x800A0660;
+gMusicBaseVolume = 0x800A0668;
 gSequenceTable = 0x800E94F0;
 gSoundBank = 0x800E9504;
 gSoundCount = 0x800E9510;
@@ -193,6 +197,12 @@ func_80055668 = tex_enable_modes;
 func_80055B34 = set_texture_colour_tag;
 func_80057F40 = init_pulsating_light_data;
 func_80057F8C = update_pulsating_light_data;
+func_80055A00 = tex_free;
+func_80056C14 = sprite_free;
+gTextureCache = 0x800FECE8;
+gNumberOfLoadedTextures = 0x800FECF0;
+gSpriteCache = 0x800FED0C;
+gSpriteCacheCount = 0x800FED18;
 gBlockedRenderFlags = 0x800A4E68;
 gTexColourTag = 0x800A4E60;
 
@@ -323,6 +333,23 @@ func_8005AC04 = weather_clip_planes;
 func_8005B1C0 = weather_set;
 func_8005CE60 = reset_particles;
 func_8005EC98 = emitter_init;
+func_8005B3CC = weather_update;
+cam_get_active_camera = 0x80041DE0;
+rain_update = 0x8005C040;
+snow_update = 0x8005CC0C;
+snow_vertices = 0x8005B62C;
+snow_render = 0x8005B928;
+gCurrWeatherDisplayList = 0x8010089C;
+gCurrWeatherMatrix = 0x801008A0;
+gCurrWeatherVertexList = 0x801008A4;
+gCurrWeatherTriList = 0x801008A8;
+gWeatherCamera = 0x801008AC;
+gWeatherCameraMatrix = 0x801008B0;
+gSnowDensity = 0x80100840;
+gSnowParticleCount = 0x80100844;
+gSnowVerts = 0x800A59F4;
+gSnowVertexData = 0x800A5A04;
+gSnowVertexFlip = 0x80100898;
 emitter_init_with_pos = 0x8005EDA4;
 free_particle_buffers = 0x8005CFD0;
 free_particle_vertices_triangles = 0x8005D19C;
@@ -359,6 +386,16 @@ gRumblePresent = 0x800A3468;
 get_language = 0x8005A7D0;
 pfs = 0x800FDDB8;
 sControllerMesgQueue = 0x800FDDB0;
+
+/* ---- 44350.c ---- */
+func_800446CC = level_type;
+func_8004470C = level_header;
+gCurrentLevelHeader = 0x800FB118;
+
+/* ---- 707F0.c ---- */
+func_8006FC54 = set_text_font;
+func_80070BF8 = dialogue_clear;
+gDialogueBoxBackground = 0x80103FA8;
 
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;

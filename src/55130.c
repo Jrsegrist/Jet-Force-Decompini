@@ -1,8 +1,33 @@
 #include "common.h"
+#include "memory.h"
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
 extern s32 gBlockedRenderFlags;
 extern u32 gTexColourTag;
+
+#define ASSETCACHE_ID(x) ((x << 1) + 0)
+#define ASSETCACHE_PTR(x) ((x << 1) + 1)
+
+/* DKR include/structs.h, with JFG's field offsets */
+typedef struct TextureHeader {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ u16 numberOfInstances;
+} TextureHeader;
+
+/* DKR's Sprite (renamed: libultra's sp.h has a Sprite too) */
+typedef struct SpriteAsset {
+    /* 0x00 */ s16 numberOfFrames;
+    /* 0x02 */ s16 numberOfTextures;
+    /* 0x04 */ s16 numberOfInstances;
+    /* 0x06 */ s16 drawFlags;
+    /* 0x08 */ u8 pad8[8];
+    /* 0x10 */ TextureHeader **textures;
+} SpriteAsset;
+
+extern s32 *gTextureCache;
+extern s32 gNumberOfLoadedTextures;
+extern s32 *gSpriteCache;
+extern s32 gSpriteCacheCount;
 
 // Used to update pulsating lights (DKR include/structs.h)
 typedef struct PulsatingLightDataFrame {
@@ -89,7 +114,28 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80055684);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055694);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055A00);
+/**
+ * This function attempts to free the texture from memory.
+ * It checks if the refcount is zero, then finds the cache entry, before clearing it.
+ * Official Name: texFreeTexture
+ */
+void tex_free(TextureHeader *tex) {
+    s32 i;
+
+    if (tex != NULL) {
+        if ((--tex->numberOfInstances) <= 0) {
+            for (i = 0; i < gNumberOfLoadedTextures; i++) {
+                if ((s32) tex == gTextureCache[ASSETCACHE_PTR(i)]) {
+                    mempool_free(tex);
+
+                    gTextureCache[ASSETCACHE_ID(i)] = -1;
+                    gTextureCache[ASSETCACHE_PTR(i)] = -1;
+                    return;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055AB8);
 
@@ -120,7 +166,32 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80056070);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80056798);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80056C14);
+/**
+ * This function attempts to free the sprite from memory.
+ * It checks if the refcount is zero, then finds the cache entry, before clearing it.
+ * Official Name: texFreeSprite
+ */
+void sprite_free(SpriteAsset *sprite) {
+    s32 i;
+    s32 frame;
+
+    if (sprite != NULL) {
+        sprite->numberOfInstances--;
+        if (sprite->numberOfInstances <= 0) {
+            for (i = 0; i < gSpriteCacheCount; i++) {
+                if (sprite == (SpriteAsset *) gSpriteCache[ASSETCACHE_PTR(i)]) {
+                    for (frame = 0; frame < sprite->numberOfTextures; frame++) {
+                        tex_free(sprite->textures[frame]);
+                    }
+                    mempool_free(sprite);
+                    gSpriteCache[ASSETCACHE_ID(i)] = -1;
+                    gSpriteCache[ASSETCACHE_PTR(i)] = -1;
+                    break;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80056D24);
 

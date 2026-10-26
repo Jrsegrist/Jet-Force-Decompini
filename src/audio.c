@@ -11,6 +11,7 @@
 
 extern ALCSPlayer *gMusicPlayer;  // Official Name: tuneSeqPlayer
 extern ALCSPlayer *gJinglePlayer; // Official Name: ambientSeqPlayer
+extern u8 gMusicBaseVolume;
 extern u8 sfxRelativeVolume;
 extern u8 gCanPlayJingle;
 extern s32 gBlockMusicChange;
@@ -205,7 +206,13 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_80000FE4);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80001050);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800010AC);
+/**
+ * Return the baseline music volume, unaffected by user config.
+ * Official Name: amTuneGetVolume
+ */
+u8 music_volume(void) {
+    return gMusicBaseVolume;
+}
 
 /**
  * Set the volume for the jingle player.
