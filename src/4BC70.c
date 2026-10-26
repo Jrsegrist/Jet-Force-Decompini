@@ -36,11 +36,30 @@ extern s8 *gPakFileList;
 extern u8 gN64FontCodes[];
 extern u8 gRumblePresent; // Bits 0, 1, 2, and 3 of the bit pattern correspond to Controllers 1, 2, 3, and 4.
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B070);
+extern u8 D_800A3470;
+extern u8 D_800A3464;
+s8 func_800482F8(void);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0AC);
+int func_8004B070(void) {
+    return D_800A3470 != 0 && func_800482F8() == 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0B8);
+extern u8 D_800A3470;
+
+void func_8004B0AC(s32 arg0) {
+    D_800A3470 = arg0;
+}
+
+extern u8 D_800A346C;
+
+void func_8004B0B8(s32 on) {
+    if (on != 0 && D_800A346C == 0) {
+        D_800A3464 = 1;
+        D_800A346C = 1;
+    } else {
+        D_800A346C = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0F4);
 
@@ -50,19 +69,53 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B29C);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B3D8);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B518);
+void func_8004B204(s32 pad, s32 arg1);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B55C);
+void func_8004B518(s32 arg0) {
+    s32 i = 4;
+    while (i--) {
+        func_8004B204(i, arg0);
+    }
+}
+
+extern u8 D_800A3464;
+
+void func_8004B55C(void) {
+    D_800A3464 = 0x1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B56C);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA50);
+typedef struct RumbleState {
+    s32 unk0;
+    f32 unk4;
+} RumbleState;
+extern RumbleState D_800A344C[3];
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA98);
+void func_8004BA50(s32 pad, s32 *a, f32 *b) {
+    *a = 0;
+    *b = 0.0f;
+    if (pad >= 0 && pad < 3) {
+        *a = D_800A344C[pad].unk0;
+        *b = D_800A344C[pad].unk4;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAC8);
+s32 func_8004BA98(u8 *data, s32 size) {
+    s32 sum = 7;
+    while (size--) {
+        sum += *data++;
+    }
+    return sum;
+}
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAE0);
+s32 func_8004BAC8(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+    return 1;
+}
+
+s32 func_8004BAE0(s32 arg0, s32 arg1, s32 arg2) {
+    return 0x1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
 
@@ -72,11 +125,30 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BCB4);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BD78);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BE44);
+s32 func_8004BE44(u8 *data) {
+    s32 sum = 5;
+    s32 i = 126;
+    while (i--) {
+        sum += *data++;
+    }
+    return sum;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BE6C);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BEE4);
+s32 is_reset_pressed(void);
+s32 func_8004BE44(u8 *data);
+void func_80083EB0(s32 sector);
+void func_8004BF98(s32 sector, u8 *data);
+
+s32 func_8004BEE4(u8 *data) {
+    *(s16 *) (data + 0x7E) = func_8004BE44(data);
+    if (is_reset_pressed() == 0) {
+        func_80083EB0(0x380);
+        func_8004BF98(0x380, data);
+    }
+    return 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BF2C);
 

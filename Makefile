@@ -62,9 +62,11 @@ UL_CFLAGS := -G 0 -non_shared -Xcpluscomm -nostdinc -Wab,-r4300_mul \
 # Nintendo's optimisation levels for SDK 2.0I: os and io at -O1, the rest at
 # -O3; the long long helpers are -mips3 code.
 UL_OPT_FLAGS = $(if $(filter $(UL_O2_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-O2,$(if $(filter os io,$(word 4,$(subst /, ,$@)))$(filter ll llcvt,$(basename $(notdir $@))),-O1,-O3))
-# A few objects are the later (2.0J) form, built at -O2 like 2.0J's libultra
-UL_O2_OBJS   := io/pirawdma io/pigetcmdq
-UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,-mips2)
+# A few objects are the later (2.0J) form, built at -O2 like 2.0J's libultra;
+# the PI and VI managers are -O2 too, and the PI manager is -mips1 code.
+UL_O2_OBJS   := io/pirawdma io/pigetcmdq io/pimgr io/vimgr
+UL_MIPS1_OBJS := io/pimgr
+UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,$(if $(filter $(UL_MIPS1_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-mips1,-mips2))
 
 LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \

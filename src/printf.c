@@ -4,7 +4,7 @@
  * From the Diddy Kong Racing decompilation (CC0 1.0), src/printf.c, plus
  * memset from its src/unused_string.c. This file owns its .data, .rodata
  * and .bss (jfg.us.yaml). The character renderer is JFG's own version, on
- * the older GBI. vsprintf, diPrintfInit and diPrintfAll differ in JFG and are
+ * the older GBI. vsprintf and diPrintfAll differ in JFG and are
  * still assembly; their rodata comes in through INCLUDE_ASM/INCLUDE_RODATA in
  * source order.
  */
@@ -14,6 +14,8 @@
 typedef struct TextureHeader {
     u8 pad[0x20];
 } TextureHeader;
+
+TextureHeader *load_texture(s32 assetIndex);
 
 /*
  * JFG's debug text: environment colour, texture alpha times environment alpha
@@ -265,7 +267,16 @@ INCLUDE_RODATA("asm/nonmatchings/printf", D_800AD8AC);
 
 INCLUDE_ASM("asm/nonmatchings/printf", func_80063A14);
 
-INCLUDE_ASM("asm/nonmatchings/printf", func_80064D9C);
+/**
+ * Load the font textures for the debug text, then set the buffer to the beginning.
+ * Official Name: diPrintfInit
+ */
+void debug_text_init(void) {
+    gTexture[0] = load_texture(0);
+    gTexture[1] = load_texture(1);
+    gTexture[2] = load_texture(2);
+    gDebugPrintBufferEnd = gDebugPrintBufferStart;
+}
 
 /**
  * Add a string to the onscreen debug text buffer.

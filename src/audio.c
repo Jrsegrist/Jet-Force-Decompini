@@ -11,6 +11,9 @@
 
 extern ALCSPlayer *gMusicPlayer;  // Official Name: tuneSeqPlayer
 extern ALCSPlayer *gJinglePlayer; // Official Name: ambientSeqPlayer
+extern u8 gMusicBaseVolume;
+extern u8 gCanPlayMusic;
+extern s32 audioPrevCount;
 extern u8 sfxRelativeVolume;
 extern u8 gCanPlayJingle;
 extern s32 gBlockMusicChange;
@@ -30,6 +33,8 @@ extern u32 gSoundTableSize;    // Official Name: sfxIndexSize
 extern s16 sMusicTempo;
 extern u8 gJinglePlaying;
 extern u32 gDynamicMusicChannelMask;
+extern s32 gMusicTempo;
+extern u32 *gSequenceLengths; // JFG: byte length of each sequence
 
 /******************************/
 
@@ -38,7 +43,23 @@ INCLUDE_RODATA("asm/nonmatchings/audio", D_800A9FB0);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000450);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000510);
+/**
+ * Queue a new music sequence to play if not blocked.
+ * Stops any playing existing music beforehand.
+ * JFG: checks the sequence's length instead of the music volume slider.
+ * Official Name: amTunePlay
+ */
+void music_play(u8 seqID) {
+    if (gBlockMusicChange == FALSE && gSequenceLengths[seqID] <= 0x8000) {
+        if (gCanPlayMusic) {
+            music_stop();
+            music_sequence_start(seqID, gMusicPlayer);
+        }
+        gMusicTempo = alCSPGetTempo(gMusicPlayer);
+        audioPrevCount = osGetCount();
+        gDynamicMusicChannelMask = MUSIC_CHAN_MASK_NONE;
+    }
+}
 
 /**
  * Update the background music voice limit if not prevented from doing so.
@@ -54,17 +75,29 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_800005F8);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000724);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000798);
+extern s32 D_800A0680;
+
+void func_80000798(void) {
+    D_800A0680 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_800007A4);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800008D0);
+extern s32 D_800A0684;
+
+void func_800008D0(void) {
+    D_800A0684 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_800008DC);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000B80);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000C00);
+extern s32 D_800E9774;
+
+void func_80000C00(void) {
+    D_800E9774 = 0;
+}
 
 /**
  * Sets the channels in the sequence on or off based on the channel mask given.
@@ -110,7 +143,20 @@ void music_channel_volume_set(u8 channel, u8 volume) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000CFC);
+/**
+ * Resets all audio channels for the music player to the default state.
+ * JFG: no fade reset.
+ * Official Name: amTuneResetChls
+ */
+void music_channel_reset_all(void) {
+    u32 channel;
+    if (gBlockMusicChange == FALSE) {
+        for (channel = 0; channel < AUDIO_CHANNELS; channel++) {
+            music_channel_on(channel);
+            music_channel_volume_set(channel, 127);
+        }
+    }
+}
 
 /**
  * Multiplies the current tempo of the background music.
@@ -203,9 +249,17 @@ u8 music_jingle_current(void) {
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000FE4);
 
+extern u32 D_800A0690;
+
 INCLUDE_ASM("asm/nonmatchings/audio", func_80001050);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800010AC);
+/**
+ * Return the baseline music volume, unaffected by user config.
+ * Official Name: amTuneGetVolume
+ */
+u8 music_volume(void) {
+    return gMusicBaseVolume;
+}
 
 /**
  * Set the volume for the jingle player.
@@ -228,7 +282,17 @@ void music_jingle_pan_set(ALPan pan) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001170);
+/**
+ * Plays a sequence just once, allowing it to coexist with the music if necessary.
+ * JFG: only sequences up to 0x1000 bytes long.
+ * Official Name: amDittyPlay
+ */
+void music_jingle_play(u8 seqID) {
+    if (gSequenceLengths[seqID] <= 0x1000) {
+        gCanPlayJingle = TRUE;
+        music_sequence_start(gCurrentJingleID = seqID, gJinglePlayer);
+    }
+}
 
 /**
  * Returns the jingle that is playing, or SEQUENCE_NONE.
@@ -242,7 +306,11 @@ u32 music_jingle_playing(void) {
     return SEQUENCE_NONE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001228);
+void func_800861D4(SoundHandle soundHandle);
+
+void func_80001228(SoundHandle soundHandle) {
+    func_800861D4(soundHandle);
+}
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80001248);
 
@@ -250,7 +318,11 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_8000134C);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_800013FC);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800014D8);
+void func_800014D8(SoundHandle soundHandle, u32 pan) {
+    if (soundHandle != NULL) {
+        sndp_set_param(soundHandle, AL_SNDP_PAN_EVT, pan);
+    }
+}
 
 /**
  * Updates the pitch of the given sound mask.
@@ -325,7 +397,14 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_80001900);
 void sound_reverb_set(u8 setting) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001998);
+void func_80086640(void *a, void *b);
+void func_8008A490(void *a, void *b);
+
+/* JFG: calls two sequence player routines with NULLs (never used at run time). */
+void func_80001998(void) {
+    func_80086640(NULL, NULL);
+    func_8008A490(NULL, NULL);
+}
 
 /* JFG: halves a volume. */
 s32 func_800019C8(s32 volume) {

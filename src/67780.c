@@ -4,7 +4,23 @@
 extern s32 sLockupDelay;
 extern s32 sLockupPage;
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80066B80);
+/* DKR src/stacks.h */
+#define STACK_EPC 0x1000
+#define STACKSIZE(x) (x / sizeof(u64))
+
+extern OSThread gEPCThread;
+extern u64 gEPCStack[]; // just below gEPCThread
+void thread0_Main(void *unused);
+
+/**
+ * Start the exception program counter thread.
+ * JFG: no object stack trace to reset.
+ * Official Name: diCpuTraceInit
+ */
+void thread0_create(void) {
+    osCreateThread(&gEPCThread, 0, thread0_Main, 0, &gEPCStack[STACKSIZE(STACK_EPC)], OS_PRIORITY_MAX);
+    osStartThread(&gEPCThread);
+}
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066BD4);
 
@@ -35,7 +51,9 @@ INCLUDE_ASM("asm/nonmatchings/67780", func_80067790);
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_800678C4);
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80067950);
+s32 func_80067950(void) {
+    return 0;
+}
 
 /**
  * Counts up. Automatically switches page every second.

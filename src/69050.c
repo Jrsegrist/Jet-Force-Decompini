@@ -56,27 +56,69 @@ extern u8 gCurFadeBlue;
 extern u8 gCurFadeGreen;
 extern u8 gCurFadeRed;
 
+/* Size: 0x2C bytes */
+typedef struct LevelEffect {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ u8 type;
+    /* 0x07 */ u8 loaded;
+    /* 0x08 */ u8 pad8[0x24 - 8];
+    /* 0x24 */ void *sprite;
+    /* 0x28 */ s32 unk28;
+} LevelEffect;
+extern LevelEffect D_80102760[32];
+void tex_free(void *tex);
+void mempool_free(void *data);
+
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068450);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068494);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068874);
 
+void func_80068A14(LevelEffect *effect);
+
 INCLUDE_ASM("asm/nonmatchings/69050", func_800688D8);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068938);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800689B4);
+void func_800689B4(s32 arg0) {
+}
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800689BC);
+void *func_80056798(s32 assetID, s32 flags);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068A14);
+void func_800689BC(LevelEffect *effect) {
+    if (!effect->loaded) {
+        if (effect->type == 4) {
+            effect->sprite = func_80056798(0x57, 0);
+        }
+        effect->loaded = TRUE;
+    }
+}
+
+void sprite_free(void *sprite);
+
+void func_80068A14(LevelEffect *effect) {
+    if (effect->loaded) {
+        if (effect->type == 4) {
+            sprite_free(effect->sprite);
+        }
+        effect->loaded = FALSE;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068A64);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068B54);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068DF8);
+void func_80068DF8(void **cone) {
+    if (cone[0] != NULL) {
+        tex_free(cone[0]);
+    }
+    if (cone[1] != NULL) {
+        tex_free(cone[1]);
+    }
+    mempool_free(cone);
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068E58);
 
@@ -96,9 +138,25 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006A0C0);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A6B0);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006A894);
+void tex_free(void *tex);
+void mempool_free(void *data);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006A8D4);
+void func_8006A894(u8 *obj) {
+    void *tex = *(void **) (obj + 0x30);
+    if (tex != NULL) {
+        tex_free(tex);
+    }
+    mempool_free(obj);
+}
+
+void func_8006A8D4(u8 *ripple) {
+    if (*(void **) (ripple + 0x70) != NULL) {
+        tex_free(*(void **) (ripple + 0x70));
+    }
+    if (*(void **) (ripple + 0x84) != NULL) {
+        func_8006A894(*(void **) (ripple + 0x84));
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A924);
 
@@ -110,11 +168,27 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006B69C);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B95C);
+extern s32 D_800A6780;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B96C);
+void func_8006B95C(void) {
+    D_800A6780 = 0x1;
+}
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B978);
+extern s32 D_800A6780;
+
+void func_8006B96C(void) {
+    D_800A6780 = 0;
+}
+
+extern s32 D_800A6784;
+extern s8 D_800A67A0;
+
+s32 func_8006B978(void) {
+    if (D_800A6784 != 0 && (sTransitionFadeTimer != 0 || (gTransitionEndTimer != 0 && D_800A67A0 != 0))) {
+        return 1;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B9CC);
 
@@ -122,7 +196,11 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006BC34);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006BD54);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006BE88);
+/* JFG: clear the transition state. */
+void func_8006BE88(void) {
+    sTransitionStatus = 0;
+    sTransitionTaskNum = 0;
+}
 
 /**
  * Sets the transition timer and opacity to positive or negative depending on whether to fade in or out.
@@ -280,7 +358,19 @@ void transition_update_blank(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006CFC0);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D0D8);
+extern s32 D_80103B80[2];
+extern s32 D_80103B88[2];
+extern s32 D_80103B90;
+extern s32 D_80103B94;
+
+void func_8006D0D8(void) {
+    D_80103B80[0] = 0;
+    D_80103B80[1] = 0;
+    D_80103B88[0] = 0;
+    D_80103B88[1] = 0;
+    D_80103B90 = 0;
+    D_80103B94 = -1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D110);
 
@@ -288,7 +378,11 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006D390);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D58C);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D600);
+extern s32 D_80103B94;
+
+void func_8006D600(s32 arg0) {
+    D_80103B94 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D60C);
 
@@ -310,15 +404,42 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006E0C4);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006E188);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EDF0);
+extern s32 D_800A6D00;
+extern u8 D_800A6D08;
+extern u8 D_800A6D0C;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE28);
+void func_8006EDF0(s32 arg0) {
+    if (arg0) {
+        D_800A6D00 = 0x20;
+    } else {
+        D_800A6D00 = 1;
+    }
+    D_800A6D08 = 1;
+    D_800A6D0C = 1;
+}
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE50);
+void func_8006EE28(s32 arg0) {
+    if (arg0) {
+        D_800A6D00 = 0;
+    } else {
+        D_800A6D00 = 0x20;
+    }
+    D_800A6D08 = 0;
+}
+
+extern s32 D_800A6D00;
+
+s32 func_8006EE50(void) {
+    return D_800A6D00;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE60);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F078);
+extern u8 D_800A6D0C;
+
+void func_8006F078(void) {
+    D_800A6D0C = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F084);
 

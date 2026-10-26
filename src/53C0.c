@@ -4,11 +4,55 @@
  */
 #include "common.h"
 
-typedef struct Object Object;
+#define BHV_RACER 1
 
 typedef struct Vec3s {
     s16 x, y, z;
 } Vec3s;
+
+/* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
+typedef struct Object_Racer {
+    /* 0x000 */ u8 pad0[0x48];
+    /* 0x048 */ f32 unk48;
+    /* 0x04C */ u8 pad4C[0x140 - 0x4C];
+    /* 0x140 */ s16 y_rotation_offset;
+    /* 0x142 */ s16 z_rotation_offset;
+    /* 0x144 */ s16 x_rotation_offset;
+    /* 0x146 */ u8 pad146[0x197 - 0x146];
+    /* 0x197 */ u8 unk197;
+    /* 0x198 */ u8 pad198[0x5C0 - 0x198];
+    /* 0x5C0 */ s32 unk5C0;
+} Object_Racer;
+
+typedef struct ObjectTransform {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ s16 z_rotation;
+    /* 0x06 */ u8 pad6[0x10 - 0x06];
+    /* 0x10 */ f32 y_position;
+} ObjectTransform;
+
+typedef struct ObjectUnk5C {
+    /* 0x000 */ u8 pad0[0x134];
+    /* 0x134 */ s32 unk134;
+} ObjectUnk5C;
+
+typedef struct Object {
+    /* 0x00 */ ObjectTransform trans;
+    /* 0x14 */ u8 pad14[0x48 - 0x14];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[0x5C - 0x4A];
+    /* 0x5C */ ObjectUnk5C *unk5C;
+    /* 0x60 */ u8 pad60[0x68 - 0x60];
+    /* 0x68 */ Object_Racer *racer;
+    /* 0x6C */ u8 pad6C[0x7C - 0x6C];
+    /* 0x7C */ u8 *unk7C;
+    /* 0x80 */ u8 pad80[0xA4 - 0x80];
+    /* 0xA4 */ struct Object *prev;
+    /* 0xA8 */ struct Object *next;
+} Object;
+
+extern f32 gObjectOffsetY;
 
 extern Object **gObjPtrList;
 extern Object *(*gRacers)[10]; // Official Name: playerlist
@@ -30,7 +74,11 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80004954);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004AF4);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004C64);
+extern u8 D_800A0898;
+
+void func_80004C64(u8 arg0) {
+    D_800A0898 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004C74);
 
@@ -91,15 +139,29 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80006F2C);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800072B4);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000740C);
+/* JFG: attach a block to the object, mark it, and return a size. */
+s32 func_8000740C(Object *obj, u8 *arg1) {
+    obj->unk7C = arg1;
+    *arg1 = 2;
+    return 0x28;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007420);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007528);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80007730);
+/* JFG: attach a block to the object and return a size. */
+s32 func_80007730(Object *obj, ObjectUnk5C *arg1) {
+    obj->unk5C = arg1;
+    return 0x13C;
+}
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000773C);
+/* JFG: set a word of the object's block and return a size. */
+s32 func_8000773C(Object *obj, s32 arg1) {
+    ObjectUnk5C *block = obj->unk5C;
+    block->unk134 = arg1;
+    return 0x11C;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000774C);
 
@@ -111,7 +173,8 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80007C68);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80008F70);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FE8);
+void func_80008FE8(void) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FF0);
 
@@ -155,9 +218,23 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C6E0);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9B4);
+extern u8 D_800A0C5C;
+extern u8 D_800A0C60;
+extern u8 D_800A0C64;
+extern u8 D_800A0C68;
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9E8);
+void func_8000C9B4(u8 red, u8 green, u8 blue, u8 alpha) {
+    D_800A0C5C = red;
+    D_800A0C60 = green;
+    D_800A0C64 = blue;
+    D_800A0C68 = alpha;
+}
+
+extern u8 D_800A0C6C;
+
+void func_8000C9E8(s32 arg0) {
+    D_800A0C6C = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9F4);
 
@@ -167,9 +244,30 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DB94);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DC28);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DD14);
+/**
+ * Official Name: objUndoPlayerTumble
+ */
+void object_undo_player_tumble(Object *obj) {
+    if (obj->behaviorId == BHV_RACER) {
+        Object_Racer *racer = obj->racer;
+        obj->trans.y_rotation -= racer->y_rotation_offset;
+        obj->trans.x_rotation -= racer->x_rotation_offset;
+        obj->trans.z_rotation -= racer->z_rotation_offset;
+        obj->trans.y_position -= gObjectOffsetY;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DD78);
+extern f32 D_800F2E98;
+
+void func_8000DD78(Object *obj) {
+    f32 scale = 1.0f;
+    if (obj->behaviorId == BHV_RACER) {
+        Object_Racer *racer = obj->racer;
+        scale = racer->unk48;
+        racer->unk197 = 30;
+    }
+    D_800F2E98 = scale;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DDAC);
 
@@ -188,9 +286,21 @@ Object **get_racer_objects(s32 *numRacers) {
     return *gRacers;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E480);
+extern s32 D_800F2D1C;
+extern void **D_800F2D18;
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E4B4);
+void func_8000E480(void *obj) {
+    D_800F2D18[D_800F2D1C] = obj;
+    D_800F2D1C++;
+}
+
+extern s32 D_800F2D1C;
+extern void **D_800F2D18;
+
+void **func_8000E4B4(s32 *count) {
+    *count = D_800F2D1C;
+    return D_800F2D18;
+}
 
 /**
  * Returns the racer object specified by the player ID.
@@ -236,7 +346,11 @@ s32 *get_misc_asset(s32 index) {
     return (s32 *) &gAssetsMiscSection[gAssetsMiscTable[index]];
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E674);
+extern s16 D_800F2CC0;
+
+void func_8000E674(s32 arg0) {
+    D_800F2CC0 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E680);
 
@@ -258,19 +372,46 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800116BC);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011708);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800118F4);
+extern s32 D_800F2CD8[];
+extern s32 D_800F2CE0[];
+
+void func_800118F4(s32 *a, s32 *b, s32 index) {
+    *a = D_800F2CD8[index];
+    *b = D_800F2CE0[index];
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8001191C);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011974);
+void func_80011974(Object *obj) {
+    if (obj->next != NULL) {
+        obj->next->prev = obj->prev;
+    }
+    if (obj->prev != NULL) {
+        obj->prev->next = obj->next;
+    }
+    obj->next = NULL;
+    obj->prev = NULL;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800119B8);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011C2C);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011C84);
+/* JFG: the distance between two points. */
+f32 func_80011C84(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
+    f32 dx = x1 - x2;
+    f32 dy = y1 - y2;
+    f32 dz = z1 - z2;
+    return sqrtf(dx * dx + dy * dy + dz * dz);
+}
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011CE0);
+/* JFG: the squared distance between two points. */
+f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
+    f32 dx = x1 - x2;
+    f32 dy = y1 - y2;
+    f32 dz = z1 - z2;
+    return dx * dx + dy * dy + dz * dz;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011D1C);
 

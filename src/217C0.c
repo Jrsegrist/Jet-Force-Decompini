@@ -4,14 +4,71 @@
  */
 #include "common.h"
 
-typedef struct ObjectLight ObjectLight;
+/* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
+typedef struct ObjectLight {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 flags;
+    /* 0x03 */ u8 enabled; // bit 0
+    /* 0x04 */ u8 pad4[0x40 - 0x04];
+    /* 0x40 */ u8 colourR;
+    /* 0x41 */ u8 colourG;
+    /* 0x42 */ u8 colourB;
+    /* 0x43 */ u8 intensity;
+    /* 0x44 */ f32 intensityF;
+    /* 0x48 */ u8 pad48[0x54 - 0x48];
+    /* 0x54 */ s32 unk54;
+    /* 0x58 */ u8 pad58[0x6C - 0x58];
+    /* 0x6C */ s32 unk6C;
+} ObjectLight;
+
+typedef struct ObjectHeader {
+    /* 0x00 */ u8 pad0[0x25];
+    /* 0x25 */ s8 numLightSources;
+    /* 0x26 */ u8 pad26[0x48 - 0x26];
+    /* 0x48 */ struct ObjectHeaderLight { u8 pad[0x18]; } *lights;
+} ObjectHeader;
+
+typedef struct Object {
+    /* 0x00 */ u8 pad0[0x40];
+    /* 0x40 */ ObjectHeader *header;
+    /* 0x44 */ u8 pad44[0x74 - 0x44];
+    /* 0x74 */ ObjectLight **lightData;
+} Object;
 
 void light_update(ObjectLight *light, s32 updateRate);
+ObjectLight *light_add_from_object_header(Object *obj, struct ObjectHeaderLight *lightHeader);
 
-extern ObjectLight **gActiveLights;
+void mempool_free(void *data);
+
+extern s32 gMaxLights;
 extern s32 gNumActiveLights;
+extern ObjectLight **gActiveLights;
+extern void *gActiveLightAttrs;
+extern void *D_800A1010;
+extern void *D_800F5B20;
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80020BC0);
+/**
+ * Free all lights from RAM.
+ * JFG: two more buffers of their own.
+ * Official Name: freeLights
+ */
+void lights_free(void) {
+    if (gActiveLights != NULL) {
+        mempool_free(gActiveLights);
+        gActiveLights = NULL;
+        gActiveLightAttrs = NULL;
+    }
+    if (D_800F5B20 != NULL) {
+        mempool_free(D_800F5B20);
+        D_800F5B20 = NULL;
+    }
+    if (D_800A1010 != NULL) {
+        mempool_free(D_800A1010);
+        D_800A1010 = NULL;
+    }
+    gNumActiveLights = 0;
+    gMaxLights = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80020C50);
 
@@ -21,15 +78,42 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_80020E3C);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800210A4);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800212D0);
+/**
+ * Disable this objects light data.
+ * Official Name: turnLightOff?
+ */
+void light_disable(ObjectLight *light) {
+    light->enabled &= ~TRUE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800212E4);
+/**
+ * Enable this objects light data.
+ * Official Name: turnLightOn?
+ */
+void light_enable(ObjectLight *light) {
+    light->enabled |= TRUE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800212F8);
+/* JFG: toggle this light. */
+void func_800212F8(ObjectLight *light) {
+    light->enabled ^= TRUE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_8002130C);
+/* JFG: set a light's colour and flag it as changed. */
+void func_8002130C(ObjectLight *light, u8 red, u8 green, u8 blue) {
+    light->colourR = red;
+    light->colourG = green;
+    light->colourB = blue;
+    light->flags |= 2;
+    light->unk54 = 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80021338);
+void func_80057CEC(void *colourCycle);
+
+/* JFG: restart the light's colour cycle. */
+void func_80021338(u8 *light) {
+    func_80057CEC(light + 0x48);
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021358);
 
@@ -48,7 +132,15 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_80021434);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_8002179C);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800218A8);
+/**
+ * Return the active lights, and write how many there are.
+ * JFG: DKR's light_count only returns the count.
+ * Official Name: lightGetLights?
+ */
+ObjectLight **lightGetLights(s32 *numLights) {
+    *numLights = gNumActiveLights;
+    return gActiveLights;
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800218C4);
 
@@ -66,7 +158,15 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_800224D0);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80022520);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80022624);
+/**
+ * Official Name: lightSetupLightSources
+ */
+void light_setup_light_sources(Object *obj) {
+    s32 i;
+    for (i = 0; i < obj->header->numLightSources; i++) {
+        obj->lightData[i] = light_add_from_object_header(obj, &obj->header->lights[i]);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800226B8);
 
@@ -74,4 +174,9 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_80022744);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800228BC);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800229B8);
+void func_80023CB4(void *light);
+
+s32 func_800229B8(void *light) {
+    func_80023CB4(light);
+    return 1;
+}

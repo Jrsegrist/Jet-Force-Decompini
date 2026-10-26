@@ -58,6 +58,46 @@ extern WeatherData gWeather;
 extern s32 gParticleBehavioursAssetTableCount;
 extern s32 gWeatherType;
 
+typedef struct Vertex Vertex;
+typedef struct Triangle Triangle;
+typedef struct ObjectSegment ObjectSegment;
+
+ObjectSegment *cam_get_active_camera(void);
+MtxF *get_camera_matrix(void);
+void rain_update(s32 updateRate);
+void snow_update(s32 updateRate);
+void snow_vertices(void);
+void snow_render(void);
+
+extern Gfx *gCurrWeatherDisplayList;
+extern Mtx *gCurrWeatherMatrix;
+extern Vertex *gCurrWeatherVertexList;
+extern Triangle *gCurrWeatherTriList;
+extern ObjectSegment *gWeatherCamera;
+extern MtxF *gWeatherCameraMatrix;
+extern s32 gSnowDensity;
+extern s32 gSnowParticleCount;
+extern Vertex *gSnowVerts;
+extern Vertex *gSnowVertexData[2];
+extern s8 gSnowVertexFlip;
+
+typedef struct TextureHeader TextureHeader;
+
+typedef struct SnowGfxData {
+    /* 0x00 */ void *pos;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ TextureHeader *texture;
+} SnowGfxData;
+
+void mempool_free(void *data);
+void tex_free(TextureHeader *tex);
+void free_rain_memory(void);
+
+extern void *gSnowTriangles;
+extern void *gSnowPhysics;
+extern SnowGfxData gSnowGfx;
+extern void *gSnowTriIndices;
+
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AB00);
 
 /**
@@ -74,7 +114,45 @@ void weather_clip_planes(s16 near, s16 far) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AC58);
+/**
+ * Free the weather assets from memory.
+ * If it's raining, then free those too.
+ * JFG: no lens flare to reset.
+ * Official Name: freeWeather
+ */
+void weather_free(void) {
+    if (gSnowTriangles != NULL) {
+        mempool_free(gSnowTriangles);
+        gSnowTriangles = NULL;
+    }
+    if (gSnowVertexData[0] != NULL) {
+        mempool_free(gSnowVertexData[0]);
+        gSnowVertexData[0] = NULL;
+    }
+    if (gSnowVertexData[1] != NULL) {
+        mempool_free(gSnowVertexData[1]);
+        gSnowVertexData[1] = NULL;
+    }
+    if (gSnowPhysics != NULL) {
+        mempool_free(gSnowPhysics);
+        gSnowPhysics = NULL;
+    }
+    if (gSnowGfx.pos != NULL) {
+        mempool_free(gSnowGfx.pos);
+        gSnowGfx.pos = NULL;
+    }
+    if (gSnowGfx.texture != NULL) {
+        tex_free(gSnowGfx.texture);
+        gSnowGfx.texture = NULL;
+    }
+    if (gSnowTriIndices != NULL) {
+        mempool_free(gSnowTriIndices);
+        gSnowTriIndices = NULL;
+    }
+    if (gWeatherType != WEATHER_SNOW) {
+        free_rain_memory();
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AD90);
 
@@ -107,7 +185,57 @@ void weather_set(s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity, s32 t
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B3CC);
+/**
+ * The root function for handling all weather.
+ * Decide whether to perform rain or snow logic, execute it, then set it to render right after.
+ * Official name: doWeather
+ */
+void weather_update(Gfx **currDisplayList, Mtx **currHudMat, Vertex **currHudVerts, Triangle **currHudTris,
+                    s32 updateRate) {
+    UNUSED s32 unused;
+    gCurrWeatherDisplayList = *currDisplayList;
+    gCurrWeatherMatrix = *currHudMat;
+    gCurrWeatherVertexList = *currHudVerts;
+    gCurrWeatherTriList = *currHudTris;
+    gWeatherCamera = cam_get_active_camera();
+    gWeatherCameraMatrix = get_camera_matrix();
+    if (gWeatherType != WEATHER_SNOW) {
+        rain_update(updateRate);
+    } else {
+        if (gWeather.shiftTime > 0) {
+            if (updateRate < gWeather.shiftTime) {
+                gWeather.intensity += gWeather.intensityStep * updateRate;
+                gWeather.velX += gWeather.velXStep * updateRate;
+                gWeather.velY += gWeather.velYStep * updateRate;
+                gWeather.velZ += gWeather.velZStep * updateRate;
+                gWeather.opacity += gWeather.opacityStep * updateRate;
+                gWeather.shiftTime -= updateRate;
+            } else {
+                gWeather.intensity = gWeather.intensityTarget;
+                gWeather.velX = gWeather.velXTarget;
+                gWeather.velY = gWeather.velYTarget;
+                gWeather.velZ = gWeather.velZTarget;
+                gWeather.opacity = gWeather.opacityTarget;
+                gWeather.shiftTime = 0;
+            }
+        }
+        gSnowParticleCount = (gSnowDensity * gWeather.intensity) >> (unused = 16);
+        gSnowPlane.current =
+            (gSnowPlane.near + ((gSnowPlane.far - gSnowPlane.near) * gWeather.opacity)) >> (unused = 16);
+
+        snow_update(updateRate);
+        if (gSnowParticleCount > 0 && gSnowPlane.current < gSnowPlane.near) {
+            gSnowVerts = gSnowVertexData[gSnowVertexFlip];
+            snow_vertices();
+            snow_render();
+            gSnowVertexFlip = 1 - gSnowVertexFlip;
+        }
+    }
+    *currDisplayList = gCurrWeatherDisplayList;
+    *currHudMat = gCurrWeatherMatrix;
+    *currHudVerts = gCurrWeatherVertexList;
+    *currHudTris = gCurrWeatherTriList;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
 
@@ -131,7 +259,21 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C9B8);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CAD0);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CBBC);
+extern s32 D_801008B8;
+extern s32 D_801008BC;
+extern s32 D_801008C0;
+extern s32 D_801008C4;
+extern TextureHeader *D_800A59D0;
+extern s32 *D_800A5A0C;
+TextureHeader *load_texture(s32 assetIndex);
+
+void func_8005CBBC(void) {
+    D_801008B8 = 0;
+    D_801008BC = 0;
+    D_801008C0 = 0;
+    D_801008C4 = 0;
+    D_800A59D0 = load_texture(*D_800A5A0C);
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CC0C);
 
@@ -148,7 +290,15 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CE90);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CFD0);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D19C);
+extern void *D_800A5D8C[2];
+
+void func_8005D19C(void) {
+    if (D_800A5D8C[0] != NULL) {
+        mempool_free(D_800A5D8C[0]);
+        D_800A5D8C[0] = NULL;
+        D_800A5D8C[1] = NULL;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D1DC);
 
@@ -171,7 +321,18 @@ void emitter_init(ParticleEmitter *emitter, s32 behaviourID, s32 particleID) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005ED54);
+typedef struct ParticleEmitterUnk23 {
+    u8 pad0[0x23];
+    u8 unk23;
+} ParticleEmitterUnk23;
+
+/* JFG: emitter_init without the behaviour's position, plus a trigger byte. */
+void func_8005ED54(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s32 trigger) {
+    if (behaviourID < gParticleBehavioursAssetTableCount) {
+        emitter_init_with_pos(emitter, behaviourID, particleID, 0, 0, 0);
+        ((ParticleEmitterUnk23 *) emitter)->unk23 = trigger;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005EDA4);
 
@@ -187,7 +348,11 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F438);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F4F4);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F5A0);
+extern f32 D_800A5DDC;
+
+void func_8005F5A0(f32 arg0) {
+    D_800A5DDC = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F5AC);
 

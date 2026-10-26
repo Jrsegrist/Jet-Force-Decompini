@@ -5,6 +5,18 @@ extern MtxF gInverseViewMatrixF;
 extern MtxF gViewMatrixF;
 extern f32 gCurCamFOV;
 extern s32 gActiveCameraID;
+extern Mtx gPerspectiveMatrix[];
+/* Size: 0x4C bytes (mostly not worked out yet) */
+typedef struct Camera {
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ f32 shakeX;
+    /* 0x34 */ f32 shakeY;
+    /* 0x38 */ f32 shakeZ;
+    /* 0x3C */ u8 pad3C[0x10];
+} Camera;
+extern Camera gCameras[];
+extern s32 D_800FA634;
+extern u8 D_800A316C;
 
 /* DKR src/camera.h */
 enum ViewportFlags {
@@ -39,9 +51,17 @@ extern MtxF gOrthoMatrixF;
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003F640);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7A8);
+extern s32 D_800FAA58;
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7B8);
+void func_8003F7A8(void) {
+    D_800FAA58 = 0x1;
+}
+
+extern s32 D_800FAA58;
+
+void func_8003F7B8(void) {
+    D_800FAA58 = 0;
+}
 
 /**
  * Unused function that will return the current camera's FoV.
@@ -51,7 +71,15 @@ f32 cam_get_fov(void) {
     return gCurCamFOV;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7D4);
+extern f32 D_800FAA60;
+extern f32 D_800FAA64;
+extern s32 D_800FAA5C;
+
+void func_8003F7D4(f32 x, f32 y) {
+    D_800FAA60 = x;
+    D_800FAA64 = y;
+    D_800FAA5C = 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7F4);
 
@@ -68,15 +96,41 @@ s32 get_current_viewport(void) {
     return gActiveCameraID;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FBDC);
+s32 func_8003FBDC(s32 mode) {
+    if (mode < 0 || mode >= 4) {
+        mode = 0;
+    }
+    if ((gActiveCameraID = mode) < D_800FA634) {
+        D_800FA634 = 0;
+    }
+    return mode + 1;
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC1C);
+extern s32 D_800FA634;
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC2C);
+s32 func_8003FC1C(void) {
+    return D_800FA634;
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC4C);
+void func_8003FC2C(s32 index) {
+    if (index < 0 || index >= 4) {
+        index = 0;
+    }
+    D_800FA634 = index;
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC60);
+extern u8 D_800A3178[];
+
+/* JFG: a per-camera byte. */
+u8 func_8003FC4C(s32 index) {
+    return D_800A3178[index];
+}
+
+void func_8003FC60(s32 index, s32 value) {
+    if (index >= 0 && index < 4) {
+        D_800A3178[index] = value;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC80);
 
@@ -144,7 +198,12 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_8004046C);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800408C0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80040A70);
+extern MtxF D_800FAA70;
+void func_80048C7C(MtxF *a, MtxF *b, MtxF *out);
+
+void func_80040A70(s32 arg0, MtxF *out) {
+    func_80048C7C(&gViewMatrixF, &D_800FAA70, out);
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80040AA4);
 
@@ -165,7 +224,8 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80040F2C);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80040FE4);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041168);
+void func_80041168(s32 arg0, s32 arg1) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041174);
 
@@ -181,13 +241,36 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041BE0);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041CA0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041DA0);
+/* JFG: an old-GBI G_MOVEWORD (index 0x0A, value 0). */
+void func_80041DA0(Gfx **dList) {
+    Gfx *_g = (*dList)++;
+    _g->words.w0 = 0xBC00000A;
+    _g->words.w1 = 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041DC0);
+void func_80041DC0(Gfx **dList) {
+    Gfx *_g = (*dList)++;
+    _g->words.w0 = 0xBC00000A;
+    _g->words.w1 = 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041DE0);
+/**
+ * Returns the active camera.
+ * JFG: no cutscene camera offset.
+ * Official name: camGetPtr
+ */
+Camera *cam_get_active_camera(void) {
+    return &gCameras[D_800FA634];
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E0C);
+/**
+ * Returns the camera list.
+ * JFG: always the start of the list (DKR picks the cutscene camera if active).
+ * Official name: camGetListPtr
+ */
+Camera *cam_get_cameras(void) {
+    return &gCameras[0];
+}
 
 /**
  * Return the current floating point projection matrix.
@@ -197,9 +280,20 @@ MtxF *get_projection_matrix_f32(void) {
     return &gInverseViewMatrixF;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E24);
+/**
+ * Return the current fixed point projection matrix.
+ * JFG: one per D_800A316C (DKR has a single matrix).
+ * Official name: camGetProjOrgMtx
+ */
+Mtx *get_projection_matrix_s16(void) {
+    return &gPerspectiveMatrix[D_800A316C];
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E40);
+extern u8 D_800FAAF0[];
+
+void *func_80041E40(void) {
+    return D_800FAAF0;
+}
 
 /**
  * Return the current camera matrix.
@@ -219,12 +313,37 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800421F0);
 
+typedef struct CameraShake {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+} CameraShake;
+extern CameraShake D_800FA600[3];
+
 INCLUDE_ASM("asm/nonmatchings/40240", func_800422C4);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80042310);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042438);
+extern u8 D_800A3174[4];
+extern f32 D_800A317C[4];
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042470);
+void func_80042438(s32 index, f32 zoom) {
+    if (index >= 0 && index < 4) {
+        D_800A3174[index] = 1;
+        D_800A317C[index] = zoom;
+    }
+}
+
+typedef struct MatrixListEntry {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s16 unk4;
+} MatrixListEntry;
+extern MatrixListEntry D_800FA658[];
+extern s32 D_800A2ED0;
+
+void func_80042470(s32 arg0, s32 arg1) {
+    D_800FA658[D_800A2ED0].unk0 = arg0;
+    D_800FA658[D_800A2ED0++].unk4 = arg1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800424A0);

@@ -101,7 +101,7 @@ segments:
       - [0x69040, c]
       - [0x69050, c]
       - [0x707F0, c]
-      - [0x72F30, c]
+      - [0x72F30, c, ultra/io/pimgr]
       - [0x730A0, c, gzip]
       - [0x737F0, asm]
       - [0x74270, c]
@@ -192,14 +192,14 @@ segments:
       - [0x98F60, asm]
       - [0x99000, asm]
       - [0x99610, asm]
-      - [0x99640, asm]
+      - [0x99640, c, ultra/io/vimgr]
       - [0x99950, c, ultra/io/visetmode]
       - [0x999C0, c, ultra/io/viblack]
       - [0x99A30, c, ultra/io/visetevent]
       - [0x99AA0, asm]
       - [0x99E00, c, ultra/io/sptaskyielded]
       - [0x99E80, c, ultra/io/vigetcurrframebuf]
-      - [0x99EC0, asm]
+      - [0x99EC0, c, ultra/io/vigetnextframebuf]
       - [0x99F00, c, ultra/io/dpsetnextbuf]
       - [0x99FB0, c, ultra/io/sptaskyield]
       - [0x99FD0, c, ultra/io/visetspecial]
@@ -261,9 +261,13 @@ segments:
       - [0xA1260, data, main]
       - [0xA6F80, .data, printf]
       - [0xA70B0, data]
+      - [0xA7B70, .data, ultra/io/pimgr]
+      - [0xA7BA0, data, data_A7BA0]
       # Labelled .data so that it stays ahead of the libultra .data at 0xAAB80:
       # splat groups pieces by section, and this region holds both.
       - [0xA8080, data, data_A8080]
+      - [0xAA690, .data, ultra/io/vimgr]
+      - [0xAA6B0, data, data_AA6B0]
       - [0xAAA80, .data, ultra/os/thread]
       - [0xAAAA0, .data, ultra/io/siacs]
       - [0xAAAB0, data]
@@ -284,8 +288,12 @@ segments:
       - { start: 0xB1750, type: bss, vram: 0x800FB110, name: bss_800FB110 }
       - { start: 0xB1750, type: .bss, vram: 0x80100960, name: printf }
       - { start: 0xB1750, type: bss, vram: 0x801012A0, name: bss_801012A0 }
+      - { start: 0xB1750, type: .bss, vram: 0x80104200, name: ultra/io/pimgr }
+      - { start: 0xB1750, type: bss, vram: 0x80104550, name: bss_80104550 }
       - { start: 0xB1750, type: .bss, vram: 0x80105280, name: ultra/os/seteventmesg }
       - { start: 0xB1750, type: bss, vram: 0x80105300, name: bss_80105300 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105410, name: ultra/io/vimgr }
+      - { start: 0xB1750, type: bss, vram: 0x80105730, name: bss_80105730 }
       - { start: 0xB1750, type: .bss, vram: 0x80105940, name: ultra/io/siacs }
       - { start: 0xB1750, type: .bss, vram: 0x80105960, name: ultra/os/timerintr }
 

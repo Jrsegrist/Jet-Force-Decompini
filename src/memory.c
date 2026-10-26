@@ -11,14 +11,61 @@
 
 extern MemoryPool gMemoryPools[POOL_COUNT];
 extern s32 gNumberOfMemoryPools;
+extern s32 gFreeQueueTimer;
+extern s32 gFreeQueueCount;
+extern u8 gExpansionPak;
+extern s32 gRamEnd;
+extern u8 gMainMemoryPool[]; // the end of the game's .bss
+
+#define RAM_END 0x80400000
+#define EXPANSION_RAM_END 0x80600000
+#define MAIN_POOL_SLOT_COUNT 1600
+
+void mempool_free_queue(void *dataAddress);
+void mempool_free_timer(s32 state);
+MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots);
 
 /******************************/
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004A3D0);
+/**
+ * Creates the main memory pool, from the end of the game's .bss to the end of RAM
+ * (with or without the Expansion Pak). Contains 1600 allocation slots.
+ * Official Name: mmInit
+ */
+void mempool_init_main(void) {
+    gNumberOfMemoryPools = -1;
+    if (gExpansionPak) {
+        gRamEnd = EXPANSION_RAM_END;
+    } else {
+        gRamEnd = RAM_END;
+    }
+    mempool_init((MemoryPoolSlot *) gMainMemoryPool, gRamEnd - (s32) gMainMemoryPool, MAIN_POOL_SLOT_COUNT);
+    mempool_free_timer(2);
+    gFreeQueueCount = 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004A448);
+extern u8 gExpansionPak;
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004A458);
+u8 func_8004A448(void) {
+    return gExpansionPak;
+}
+
+/**
+ * Creates a new memory pool that's contained inside another one.
+ * JFG: no interrupt masking.
+ * Official name: mmAllocRegion
+ */
+MemoryPoolSlot *mempool_new_sub(s32 poolDataSize, s32 numSlots) {
+    s32 size;
+    MemoryPoolSlot *slots;
+    UNUSED s32 unused_2;
+    MemoryPoolSlot *newPool;
+
+    size = poolDataSize + (numSlots * sizeof(MemoryPoolSlot));
+    slots = (MemoryPoolSlot *) mempool_alloc_safe(size, COLOUR_TAG_WHITE);
+    newPool = mempool_init(slots, size, numSlots);
+    return newPool;
+}
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004A4A4);
 
@@ -44,11 +91,31 @@ void *mempool_alloc_pool(MemoryPoolSlot *slots, s32 size) {
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004A828);
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA08);
+/**
+ * Sets the tick timer for the free queue.
+ * JFG: only sets it (DKR also flushes the queue when it is zero).
+ * Official Name: mmSetDelay
+ */
+void mempool_free_timer(s32 state) {
+    gFreeQueueTimer = state;
+}
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA14);
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA80);
+/**
+ * Unallocates data from the pool that contains the data. Will free immediately if the free queue
+ * state is set to 0, otherwise the data will just be marked for deletion.
+ * JFG: no interrupt masking; a dummy flags value is kept on the stack.
+ * Official Name: mmFree
+ */
+void mempool_free(void *data) {
+    volatile u32 intFlags = 0x666;
+    if (gFreeQueueTimer == 0) {
+        mempool_free_addr(data);
+    } else {
+        mempool_free_queue(data);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AAC4);
 
@@ -81,7 +148,18 @@ void mempool_free_addr(u8 *address) {
     // (the string is not in Jet Force Gemini's ROM)
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AC90);
+extern void *gFreeQueueAddress[256];
+extern u8 gFreeQueueTimers[256];
+
+/**
+ * Adds data to the free queue, to be freed after gFreeQueueTimer ticks.
+ * JFG: addresses and timers are separate arrays.
+ */
+void mempool_free_queue(void *dataAddress) {
+    gFreeQueueAddress[gFreeQueueCount] = dataAddress;
+    gFreeQueueTimers[gFreeQueueCount] = gFreeQueueTimer;
+    gFreeQueueCount++;
+}
 
 /**
  * Returns the index of the memory pool containing the memory address.
@@ -113,7 +191,11 @@ MemoryPoolSlot *get_memory_pool_address(MemoryPools poolIndex) {
     return gMemoryPools[poolIndex].slots;
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AEAC);
+extern s32 gFreeQueueTimer;
+
+s32 func_8004AEAC(void) {
+    return gFreeQueueTimer;
+}
 
 // mempool_slot_assign: differs from DKR's
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AEBC);
