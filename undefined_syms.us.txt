@@ -340,6 +340,26 @@ gActiveLights = 0x800A1008;
 gNumActiveLights = 0x800A1004;
 light_update = 0x80021434;
 
+/* ---- 4BC70.c ---- */
+func_8004C080 = get_si_device_status;
+func_8004C290 = start_reading_controller_data;
+func_8004C498 = check_for_rumble_pak;
+func_8004C4F0 = repair_controller_pak;
+func_8004C57C = reformat_controller_pak;
+func_8004C910 = cpak_free_files;
+func_8004CC44 = get_file_number;
+func_8004CD6C = read_data_from_controller_pak;
+func_8004CE30 = write_controller_pak_file;
+func_8004D080 = get_file_size;
+func_8004D0E8 = font_codes_to_string;
+func_8004D194 = string_to_font_codes;
+gN64FontCodes = 0x800A3404;
+gPakFileList = 0x800A3400;
+gRumblePresent = 0x800A3468;
+get_language = 0x8005A7D0;
+pfs = 0x800FDDB8;
+sControllerMesgQueue = 0x800FDDB0;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;
