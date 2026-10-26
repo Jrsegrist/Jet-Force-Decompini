@@ -207,9 +207,19 @@ Working on a module:
 4. `make progress` counts module functions in C per module (`tools/progress.py
    --modules` lists them).
 
-Examples: `src/modules/m078.c` and `m045.c` (whole modules),
-`src/modules/m001.c` (C data, two C functions including the fini, the rest
-INCLUDE_ASM).
+Examples: `src/modules/m078.c`, `m045.c` and `m020.c` (whole modules;
+m045's relocation table is one of the 72 out-of-order ones), `m119.c` (an
+exported variable), `m108.c` (a call into another module), and
+`src/modules/m001.c` (C data and five C functions, among them a static one
+and the fini, next to three INCLUDE_ASM functions and the INCLUDE_ASM
+.rodata).
+
+Things that came up while matching module code (the main game's IDO -O2
+lessons apply too): unused parameters of non-leaf functions are still
+stored to their home slots; unexplained `& 0xFF` on byte fields, odd
+temporaries and unused stack slots (m020, m108) are part of the original
+source; a module's .data can be several small static variables rather
+than one struct (m001).
 
 ## Not covered yet
 
