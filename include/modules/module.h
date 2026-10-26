@@ -77,6 +77,7 @@ extern void func_80079BA8();
 extern void func_80079BB8();
 
 /* Maths (DKR math_util) */
+extern void func_8004944C(Vec3s *rotation, Vec3f *vec); /* DKR vec3f_rotate_py */
 extern s32 func_80048E2C(s32 min, s32 max); /* DKR get_random_number */
 
 /* Sound (DKR audio_spatial.c) */

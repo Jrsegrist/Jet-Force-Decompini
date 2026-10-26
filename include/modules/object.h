@@ -12,6 +12,12 @@
  * known.
  */
 
+typedef struct Vec3f {
+    f32 x;
+    f32 y;
+    f32 z;
+} Vec3f;
+
 typedef struct Vec3s {
     s16 y_rotation;
     s16 x_rotation;
@@ -62,7 +68,10 @@ typedef struct ObjectUnk5C {
 
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;            /* (DKR) */
-    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x18 */ s16 animFrame;                    /* (DKR) */
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ Vec3f velocity;                   /* (DKR: x/y/z_velocity) */
+    /* 0x28 */ u8 pad28[0x39 - 0x28];
     /* 0x39 */ u8 opacity;                       /* (DKR) */
     /* 0x3A */ s8 modelIndex;                    /* (DKR) */
     /* 0x3B */ s8 animationID;                   /* (DKR) */
@@ -78,7 +87,9 @@ typedef struct Object {
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ void *unk68;                      /* behaviour data, for behaviours that allocate it */
     /* 0x6C */ void **unk6C;                     /* model instances? */
-    /* 0x70 */ u8 pad70[0x84 - 0x70];
+    /* 0x70 */ u8 pad70[0x7C - 0x70];
+    /* 0x7C */ u8 *unk7C;
+    /* 0x80 */ u8 pad80[0x84 - 0x80];
     /* 0x84 */ s32 particleEmittersEnabled;      /* bit mask for obj_spawn_particle (DKR's use) */
     /* 0x88 */ u8 state[0x8];                    /* behaviour state kept in the object (OBJ_STATE) */
 } Object;
