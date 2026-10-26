@@ -59,7 +59,12 @@ UL_CFLAGS := -G 0 -non_shared -Xcpluscomm -nostdinc -Wab,-r4300_mul \
              -DBUILD_VERSION=VERSION_I -DBUILD_VERSION_STRING=\"2.0I\" -DF3DEX_GBI_2 \
              -I $(UL_DIR) -I $(UL_DIR)/include -I $(UL_DIR)/include/compiler/ido \
              -I $(UL_DIR)/include/PR
--include src/ultra/flags.mk
+# Nintendo's optimisation levels for SDK 2.0I: os and io at -O1, the rest at
+# -O3; the long long helpers are -mips3 code.
+UL_OPT_FLAGS = $(if $(filter $(UL_O2_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-O2,$(if $(filter os io,$(word 4,$(subst /, ,$@)))$(filter ll llcvt,$(basename $(notdir $@))),-O1,-O3))
+# A few objects are the later (2.0J) form, built at -O2 like 2.0J's libultra
+UL_O2_OBJS   := io/pirawdma io/pigetcmdq
+UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,-mips2)
 
 LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \
@@ -126,6 +131,11 @@ $(TARGET).z64: $(TARGET).elf
 $(BUILD_DIR)/asm/%.o: asm/%.s
 	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) --no-warn -o $@ $<
+
+# libultra: src/ultra/<dir>/<file>.c just #includes ultralib's source
+$(BUILD_DIR)/src/ultra/%.o: src/ultra/%.c
+	@mkdir -p $(dir $@)
+	$(CC) -c $(UL_CFLAGS) $(UL_OPT_FLAGS) $(UL_MIPSISET) -o $@ $<
 
 $(BUILD_DIR)/src/%.o: src/%.c
 	@mkdir -p $(dir $@)

@@ -197,7 +197,7 @@ func_80001EA0 = audioStartThread;
 func_80001EC4 = audioStopThread;
 sAudioMgrThread = 0x800F17C0;
 
-/* ---- 3C470.c ---- */
+/* ---- boot.c ---- */
 func_8003F500 = mainproc;
 func_8003F558 = thread1_main;
 gThread1 = 0x800F9070;
@@ -226,3 +226,17 @@ normalise_time = 0x80005064;
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;
+
+/* ---- libultra globals still defined in asm (used by src/ultra) ---- */
+__OSGlobalIntMask = 0x800A9A6C;
+__osBaseCounter = 0x80105988;
+__osCurrentTime = 0x80105980;
+__osRunQueue = 0x800A9E88;
+__osRunningThread = 0x800A9E90;
+__osThreadTail = 0x800A9E80;
+__osTimerList = 0x800A9F20;
+__osViCurr = 0x800A9F10;
+__osViNext = 0x800A9F14;
+__osPiDevMgr = 0x800A6F70;
+osRomBase = 0x80000308; /* boot info in low RAM */
+osViClock = 0x800A9F18;
