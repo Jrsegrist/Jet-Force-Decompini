@@ -487,15 +487,24 @@ gDialogueBoxBackground = 0x80103FA8;
 mempool_alloc_safe = 0x8004A57C;
 
 /* ---- libultra globals still defined in asm (used by src/ultra) ---- */
+CartRomHandle = 0x80104110;
+LeoDiskHandle = 0x80104188;
+__osPiAccessQueue = 0x80105770;
+__osPiAccessQueueEnabled = 0x800A9E70;
+/* pirawdma is the 2.0J object (__osPiRawStartDma); the 2.0I pimgr calls the old names */
+osPiRawStartDma = __osPiRawStartDma;
+osEPiRawStartDma = __osEPiRawStartDma;
 __OSGlobalIntMask = 0x800A9A6C;
 __libm_qnan_f = 0x800AFAA0;
-__osPiDevMgr = 0x800A6F70;
 __osViCurr = 0x800A9F10;
 __osViNext = 0x800A9F14;
 osRomBase = 0x80000308;
 osViClock = 0x800A9F18;
 
 /* ---- asm references into data that C/ultralib objects now define ---- */
+D_800A6F70 = __osPiDevMgr;
+D_800A6F8C = __osPiTable;
+D_800A6F90 = __osCurrentHandle;
 D_800A9E88 = 0x800A9E88;
 D_800A9E8C = 0x800A9E8C;
 D_800A9E90 = 0x800A9E90;
