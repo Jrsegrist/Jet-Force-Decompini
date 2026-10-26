@@ -38,7 +38,11 @@ extern u8 gRumblePresent; // Bits 0, 1, 2, and 3 of the bit pattern correspond t
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B070);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0AC);
+extern u8 D_800A3470;
+
+void func_8004B0AC(s32 arg0) {
+    D_800A3470 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0B8);
 
@@ -52,7 +56,11 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B3D8);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B518);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B55C);
+extern u8 D_800A3464;
+
+void func_8004B55C(void) {
+    D_800A3464 = 0x1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B56C);
 
@@ -62,7 +70,9 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA98);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAC8);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAE0);
+s32 func_8004BAE0(s32 arg0, s32 arg1, s32 arg2) {
+    return 0x1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
 

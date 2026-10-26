@@ -51,7 +51,9 @@ INCLUDE_ASM("asm/nonmatchings/67780", func_80067790);
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_800678C4);
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80067950);
+s32 func_80067950(void) {
+    return 0;
+}
 
 /**
  * Counts up. Automatically switches page every second.

@@ -85,7 +85,11 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800136B8);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013810);
+extern s32 D_800F2F88;
+
+s32 func_80013810(void) {
+    return D_800F2F88;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013820);
 

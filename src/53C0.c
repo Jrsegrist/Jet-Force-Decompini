@@ -26,12 +26,21 @@ typedef struct ObjectTransform {
     /* 0x10 */ f32 y_position;
 } ObjectTransform;
 
+typedef struct ObjectUnk5C {
+    /* 0x000 */ u8 pad0[0x134];
+    /* 0x134 */ s32 unk134;
+} ObjectUnk5C;
+
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
     /* 0x14 */ u8 pad14[0x48 - 0x14];
     /* 0x48 */ s16 behaviorId;
-    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x4A */ u8 pad4A[0x5C - 0x4A];
+    /* 0x5C */ ObjectUnk5C *unk5C;
+    /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ Object_Racer *racer;
+    /* 0x6C */ u8 pad6C[0x7C - 0x6C];
+    /* 0x7C */ u8 *unk7C;
 } Object;
 
 extern f32 gObjectOffsetY;
@@ -56,7 +65,11 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80004954);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004AF4);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004C64);
+extern u8 D_800A0898;
+
+void func_80004C64(u8 arg0) {
+    D_800A0898 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004C74);
 
@@ -117,15 +130,29 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80006F2C);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800072B4);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000740C);
+/* JFG: attach a block to the object, mark it, and return a size. */
+s32 func_8000740C(Object *obj, u8 *arg1) {
+    obj->unk7C = arg1;
+    *arg1 = 2;
+    return 0x28;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007420);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007528);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80007730);
+/* JFG: attach a block to the object and return a size. */
+s32 func_80007730(Object *obj, ObjectUnk5C *arg1) {
+    obj->unk5C = arg1;
+    return 0x13C;
+}
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000773C);
+/* JFG: set a word of the object's block and return a size. */
+s32 func_8000773C(Object *obj, s32 arg1) {
+    ObjectUnk5C *block = obj->unk5C;
+    block->unk134 = arg1;
+    return 0x11C;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000774C);
 
@@ -137,7 +164,8 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80007C68);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80008F70);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FE8);
+void func_80008FE8(void) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FF0);
 
@@ -183,7 +211,11 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C6E0);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9B4);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9E8);
+extern u8 D_800A0C6C;
+
+void func_8000C9E8(s32 arg0) {
+    D_800A0C6C = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9F4);
 
@@ -273,7 +305,11 @@ s32 *get_misc_asset(s32 index) {
     return (s32 *) &gAssetsMiscSection[gAssetsMiscTable[index]];
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E674);
+extern s16 D_800F2CC0;
+
+void func_8000E674(s32 arg0) {
+    D_800F2CC0 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E680);
 

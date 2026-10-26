@@ -116,17 +116,34 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80054FBC);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055180);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055198);
+extern s8 D_800FECAA;
+
+s8 func_80055198(void) {
+    return D_800FECAA;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800551A8);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_800551E8);
+extern u8 D_800FECA6;
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_800551F8);
+/* JFG: set a one-bit video flag. */
+void func_800551E8(s32 arg0) {
+    D_800FECA6 = arg0 & 1;
+}
+
+extern s8 D_800FECA5;
+
+s8 func_800551F8(void) {
+    return D_800FECA5;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055208);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055228);
+extern u8 D_800FECA7;
+
+void func_80055228(void) {
+    D_800FECA7 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055234);
 
@@ -156,7 +173,11 @@ void tex_enable_modes(s32 flags) {
     gBlockedRenderFlags &= ~flags;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055684);
+extern u8 D_800A4E6C;
+
+void func_80055684(u8 arg0) {
+    D_800A4E6C = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055694);
 
@@ -233,11 +254,19 @@ void rendermode_reset(Gfx **dList) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055C00);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80056000);
+extern s32 D_800A4E64;
+
+void func_80056000(s32 arg0) {
+    D_800A4E64 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005600C);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80056064);
+extern s32 D_800A4E74;
+
+void func_80056064(void) {
+    D_800A4E74 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80056070);
 

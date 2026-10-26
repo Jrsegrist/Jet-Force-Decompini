@@ -147,11 +147,13 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_80026E20);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026F38);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80026FD4);
+void func_80026FD4(s32 arg0, s32 arg1) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026FE0);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800270C8);
+void func_800270C8(s32 arg0, s32 arg1) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800270D4);
 

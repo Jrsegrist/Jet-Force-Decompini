@@ -44,7 +44,11 @@ void mempool_init_main(void) {
     gFreeQueueCount = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004A448);
+extern u8 gExpansionPak;
+
+u8 func_8004A448(void) {
+    return gExpansionPak;
+}
 
 /**
  * Creates a new memory pool that's contained inside another one.
@@ -176,7 +180,11 @@ MemoryPoolSlot *get_memory_pool_address(MemoryPools poolIndex) {
     return gMemoryPools[poolIndex].slots;
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AEAC);
+extern s32 gFreeQueueTimer;
+
+s32 func_8004AEAC(void) {
+    return gFreeQueueTimer;
+}
 
 // mempool_slot_assign: differs from DKR's
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AEBC);

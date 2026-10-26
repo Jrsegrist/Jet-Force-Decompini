@@ -37,7 +37,11 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80045B98);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045C38);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045DC0);
+extern s16 D_800A3230;
+
+s16 func_80045DC0(void) {
+    return D_800A3230;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045DD0);
 
@@ -53,19 +57,43 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80046550);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004665C);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800468A4);
+extern s16 D_800A3254;
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800468B0);
+void func_800468A4(s32 arg0) {
+    D_800A3254 = arg0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800468C0);
+extern s16 D_800A3248;
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800468CC);
+s16 func_800468B0(void) {
+    return D_800A3248;
+}
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800468DC);
+extern s16 D_800A325C;
+
+void func_800468C0(s32 arg0) {
+    D_800A325C = arg0;
+}
+
+extern s16 D_800A3260;
+
+s16 func_800468CC(void) {
+    return D_800A3260;
+}
+
+extern s16 D_800A3250;
+
+s16 func_800468DC(void) {
+    return D_800A3250;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800468EC);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047570);
+extern u8 D_800A326C;
+
+void func_80047570(void) {
+    D_800A326C = 0x1;
+}
 
 /**
  *  Sets the current game mode.
@@ -97,7 +125,11 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80047A20);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047AE0);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047C0C);
+extern s32 D_800FD7D4;
+
+s32 func_80047C0C(void) {
+    return D_800FD7D4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047C1C);
 
@@ -123,7 +155,11 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_8004822C);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800482A0);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800482F8);
+extern s8 D_800FD7BD;
+
+s8 func_800482F8(void) {
+    return D_800FD7BD;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048308);
 
@@ -138,13 +174,21 @@ s32 is_reset_pressed(void) {
     return gNMIMesgBuf;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800483B8);
+extern s16 D_800A323C;
+
+s16 func_800483B8(void) {
+    return D_800A323C;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800483C8);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800483F8);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_8004841C);
+extern s32 D_800FD7D8;
+
+s32 func_8004841C(void) {
+    return D_800FD7D8;
+}
 
 /**
  * Forcefully marks a flag to write a save file.
@@ -170,15 +214,27 @@ void safe_mark_write_save_file(s32 saveFileIndex) {
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800484A4);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800484C0);
+extern s32 gSaveDataFlags;
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800484D0);
+void func_800484C0(void) {
+    gSaveDataFlags = 0x10000000;
+}
+
+extern s32 gSaveDataFlags;
+
+void func_800484D0(void) {
+    gSaveDataFlags = 0x1000000;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800484E0);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800484FC);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048518);
+extern s16 D_800A32BC;
+
+void func_80048518(s32 arg0) {
+    D_800A32BC = arg0;
+}
 
 /**
  * Returns TRUE if the game doesn't detect any controllers.
@@ -192,7 +248,11 @@ s32 is_controller_missing(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048548);
+extern u8 D_800A4FCC;
+
+u8 func_80048548(void) {
+    return D_800A4FCC;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048558);
 

@@ -36,8 +36,6 @@ extern u32 gDynamicMusicChannelMask;
 extern s32 gMusicTempo;
 extern u32 *gSequenceLengths; // JFG: byte length of each sequence
 
-s32 n_alCSPGetTempo(ALCSPlayer *seqp);
-
 /******************************/
 
 // The debug strings of functions that are still assembly, in source order.
@@ -57,7 +55,7 @@ void music_play(u8 seqID) {
             music_stop();
             music_sequence_start(seqID, gMusicPlayer);
         }
-        gMusicTempo = n_alCSPGetTempo(gMusicPlayer);
+        gMusicTempo = alCSPGetTempo(gMusicPlayer);
         audioPrevCount = osGetCount();
         gDynamicMusicChannelMask = MUSIC_CHAN_MASK_NONE;
     }
@@ -77,17 +75,29 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_800005F8);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000724);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000798);
+extern s32 D_800A0680;
+
+void func_80000798(void) {
+    D_800A0680 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_800007A4);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800008D0);
+extern s32 D_800A0684;
+
+void func_800008D0(void) {
+    D_800A0684 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_800008DC);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000B80);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000C00);
+extern s32 D_800E9774;
+
+void func_80000C00(void) {
+    D_800E9774 = 0;
+}
 
 /**
  * Sets the channels in the sequence on or off based on the channel mask given.

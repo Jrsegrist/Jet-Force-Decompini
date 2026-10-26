@@ -70,6 +70,14 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80079AA4);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80079B6C);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80079BA8);
+extern s32 D_800A74D4;
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80079BB8);
+void func_80079BA8(void) {
+    D_800A74D4 = 0x1;
+}
+
+extern s32 D_800A74D4;
+
+void func_80079BB8(void) {
+    D_800A74D4 = 0;
+}

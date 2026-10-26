@@ -60,7 +60,8 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031F9C);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031FE8);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80032128);
+void func_80032128(s32 arg0) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80032130);
 
@@ -118,7 +119,11 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800370D0);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037194);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037244);
+extern s32 D_800F6DBC;
+
+void func_80037244(s32 arg0) {
+    D_800F6DBC = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037250);
 
@@ -178,11 +183,22 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B290);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B418);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B4D8);
+/* JFG: addresses of two tables inside an object's state block (at 0x68). */
+u8 *func_8003B4D8(u8 **obj) {
+    u8 *state = obj[0x68 / 4];
+    return state + 0x240;
+}
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B4E4);
+u8 *func_8003B4E4(u8 **obj) {
+    u8 *state = obj[0x68 / 4];
+    return state + 0x96;
+}
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B4F0);
+extern f32 D_800F6DC4;
+
+f32 func_8003B4F0(void) {
+    return D_800F6DC4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B500);
 
@@ -194,7 +210,11 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B620);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B660);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B6BC);
+extern u8 D_800A2EB0;
+
+void func_8003B6BC(void) {
+    D_800A2EB0 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B6C8);
 

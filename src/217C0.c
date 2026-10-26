@@ -83,7 +83,10 @@ void light_enable(ObjectLight *light) {
     light->enabled |= TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800212F8);
+/* JFG: toggle this light. */
+void func_800212F8(ObjectLight *light) {
+    light->enabled ^= TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_8002130C);
 

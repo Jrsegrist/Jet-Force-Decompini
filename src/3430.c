@@ -82,7 +82,8 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_80003680);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_800036C8);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_800037F8);
+void func_800037F8(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_8000380C);
 

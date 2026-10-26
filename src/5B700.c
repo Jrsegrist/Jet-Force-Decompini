@@ -315,7 +315,11 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F438);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F4F4);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F5A0);
+extern f32 D_800A5DDC;
+
+void func_8005F5A0(f32 arg0) {
+    D_800A5DDC = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F5AC);
 

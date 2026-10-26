@@ -28,9 +28,17 @@ INCLUDE_ASM("asm/nonmatchings/3C470", func_8003D150);
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003D21C);
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003DDBC);
+extern s32 D_800A2EC0;
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003DDC8);
+void func_8003DDBC(s32 arg0) {
+    D_800A2EC0 = arg0;
+}
+
+extern s32 D_800A2EC0;
+
+s32 func_8003DDC8(void) {
+    return D_800A2EC0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003DDD8);
 

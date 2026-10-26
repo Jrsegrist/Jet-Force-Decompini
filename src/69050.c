@@ -66,7 +66,8 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_800688D8);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068938);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800689B4);
+void func_800689B4(s32 arg0) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_800689BC);
 
@@ -110,9 +111,17 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006B69C);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B95C);
+extern s32 D_800A6780;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B96C);
+void func_8006B95C(void) {
+    D_800A6780 = 0x1;
+}
+
+extern s32 D_800A6780;
+
+void func_8006B96C(void) {
+    D_800A6780 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B978);
 
@@ -122,7 +131,11 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006BC34);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006BD54);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006BE88);
+/* JFG: clear the transition state. */
+void func_8006BE88(void) {
+    sTransitionStatus = 0;
+    sTransitionTaskNum = 0;
+}
 
 /**
  * Sets the transition timer and opacity to positive or negative depending on whether to fade in or out.
@@ -288,7 +301,11 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006D390);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D58C);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D600);
+extern s32 D_80103B94;
+
+void func_8006D600(s32 arg0) {
+    D_80103B94 = arg0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D60C);
 
@@ -314,11 +331,19 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006EDF0);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE28);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE50);
+extern s32 D_800A6D00;
+
+s32 func_8006EE50(void) {
+    return D_800A6D00;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE60);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F078);
+extern u8 D_800A6D0C;
+
+void func_8006F078(void) {
+    D_800A6D0C = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F084);
 

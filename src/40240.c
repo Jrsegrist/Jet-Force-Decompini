@@ -47,9 +47,17 @@ extern MtxF gOrthoMatrixF;
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003F640);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7A8);
+extern s32 D_800FAA58;
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7B8);
+void func_8003F7A8(void) {
+    D_800FAA58 = 0x1;
+}
+
+extern s32 D_800FAA58;
+
+void func_8003F7B8(void) {
+    D_800FAA58 = 0;
+}
 
 /**
  * Unused function that will return the current camera's FoV.
@@ -78,11 +86,20 @@ s32 get_current_viewport(void) {
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FBDC);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC1C);
+extern s32 D_800FA634;
+
+s32 func_8003FC1C(void) {
+    return D_800FA634;
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC2C);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC4C);
+extern u8 D_800A3178[];
+
+/* JFG: a per-camera byte. */
+u8 func_8003FC4C(s32 index) {
+    return D_800A3178[index];
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC60);
 
@@ -173,7 +190,8 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80040F2C);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80040FE4);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041168);
+void func_80041168(s32 arg0, s32 arg1) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041174);
 
@@ -228,7 +246,11 @@ Mtx *get_projection_matrix_s16(void) {
     return &gPerspectiveMatrix[D_800A316C];
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E40);
+extern u8 D_800FAAF0[];
+
+void *func_80041E40(void) {
+    return D_800FAAF0;
+}
 
 /**
  * Return the current camera matrix.

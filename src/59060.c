@@ -16,7 +16,11 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005886C);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_800589F0);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058A5C);
+extern u8 D_800A51B0;
+
+u8 func_80058A5C(void) {
+    return D_800A51B0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058A6C);
 
@@ -56,9 +60,13 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005A0D0);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A51C);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A794);
+s32 func_8005A794(void) {
+    return 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A79C);
+s32 func_8005A79C(void) {
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A7A4);
 
@@ -77,25 +85,49 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005A804);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A834);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A8C4);
+extern u8 D_800A51A4;
+extern u8 D_800A51A8;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A8D8);
+/* JFG: remember the current screen mode byte (func_8005A8D8 returns it). */
+void func_8005A8C4(void) {
+    D_800A51A4 = D_800A51A8;
+}
+
+u8 func_8005A8D8(void) {
+    return D_800A51A4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A8E8);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A950);
+extern s8 D_800FF387;
+
+s8 func_8005A950(void) {
+    return D_800FF387;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A960);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A98C);
+extern u8 D_800FF38C;
+
+u8 func_8005A98C(void) {
+    return D_800FF38C;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A99C);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A9E4);
+extern u16 D_800FF388;
+
+u16 func_8005A9E4(void) {
+    return D_800FF388;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A9F4);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AA30);
+extern u16 D_800FF38A;
+
+u16 func_8005AA30(void) {
+    return D_800FF38A;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005AA40);
 
@@ -107,4 +139,8 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005AAB8);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005AAD0);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AAE8);
+extern u8 D_800FF311;
+
+void func_8005AAE8(s32 arg0) {
+    D_800FF311 = arg0;
+}
