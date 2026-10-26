@@ -9,8 +9,8 @@ recreates them from the assembled objects. See docs/runlink.md.
 
 For work in C, every module is also split per function into
 asm/nonmatchings/modules/mNNN/func_mNNN_XXXXX.s (for INCLUDE_ASM), with
-asm/nonmatchings/modules/mNNN/data.s (the module's .data, .rodata and .bss)
-and functions.txt (the function list).
+data.s, rodata.s and bss.s (the module's sections, as far as it has them)
+and functions.txt (the function list) next to them.
 
 Symbol references in the generated assembly are by address, so that C written
 from it never contains a name from the ROM's name table:
@@ -241,12 +241,17 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     for f in funcs:
         fnames[f] = "func_m%03d_%05X" % (me, f)
 
-    def emit_labels(o, functype, glabel=True):
+    def emit_labels(o, functype, macros=False):
+        """Labels at module offset o. With macros, the prelude.inc forms
+        that asm-processor accepts (jlabel in code, dlabel in data)."""
         out = []
         if o in exported:
             out.append("/* %s */" % ", ".join(exported[o]))
         for nm in labels.get(o, []):
             if o in fnames and nm == fnames[o]:
+                continue
+            if macros:
+                out.append("%s %s" % ("jlabel" if functype else "dlabel", nm))
                 continue
             out.append(".global %s" % nm)
             if functype:
@@ -276,30 +281,30 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     ro = sorted(k for k in secbases if tsize < k < tsize + dsize)
     rodata_start = ro[0] if ro else None
 
-    def data_lines(lo, hi):
+    def data_lines(lo, hi, macros=False):
         out = []
         o = lo
         while o < hi:
             inner = [k for k in (o + 1, o + 2, o + 3) if k in labels]
             if inner and o not in sub:
                 for k in range(o, o + 4):
-                    out.extend(emit_labels(k, False))
+                    out.extend(emit_labels(k, False, macros))
                     out.append("    .byte 0x%02X" % image[k])
             else:
-                out.extend(emit_labels(o, False))
+                out.extend(emit_labels(o, False, macros))
                 e = sub[o][1] if o in sub else "0x%08X" % u32(image, o)
                 out.append("    /* %05X */ .word %s" % (o, e))
             o += 4
         return out
 
-    def bss_lines():
+    def bss_lines(macros=False):
         out = []
         pos = tsize + dsize
         for k in sorted(k for k in labels if tsize + dsize <= k <= end):
             if k > pos:
                 out.append("    .space 0x%X" % (k - pos))
                 pos = k
-            out.extend(emit_labels(k, False))
+            out.extend(emit_labels(k, False, macros))
         if end > pos:
             out.append("    .space 0x%X" % (end - pos))
         bad = [k for k in labels if k > end]
@@ -345,7 +350,7 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     for a, b in zip(bounds, bounds[1:]):
         out = ["glabel %s" % fnames[a]]
         for o in range(a, b, 4):
-            out += emit_labels(o, True)
+            out += emit_labels(o, True, True)
             out.append(text_line(o))
         if b == code_end and code_end < tsize:
             out.append("    /* padding to 16 bytes follows (IDO adds it) */")
@@ -353,21 +358,14 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
         with open("%s/%s.s" % (nm_dir, fnames[a]), "w") as f:
             f.write("\n".join(out) + "\n")
         flist.append("%s 0x%X 0x%X" % (fnames[a], a, b - a))
-    if dsize or bsize:
-        out = []
-        if dsize:
-            dend = rodata_start if rodata_start is not None else tsize + dsize
-            if dend > tsize:
-                out.append(".section .data")
-                out += data_lines(tsize, dend)
-            if dend < tsize + dsize:
-                out.append(".section .rodata")
-                out += data_lines(dend, tsize + dsize)
-        if bsize:
-            out.append(".section .bss")
-            out += bss_lines()
-        with open("%s/data.s" % nm_dir, "w") as f:
-            f.write("\n".join(out) + "\n")
+    dend = rodata_start if rodata_start is not None else tsize + dsize
+    for fn, sec, lo, hi in (("data", ".data", tsize, dend), ("rodata", ".rodata", dend, tsize + dsize)):
+        if hi > lo:
+            with open("%s/%s.s" % (nm_dir, fn), "w") as f:
+                f.write("\n".join([".section %s" % sec] + data_lines(lo, hi, True)) + "\n")
+    if bsize:
+        with open("%s/bss.s" % nm_dir, "w") as f:
+            f.write("\n".join([".section .bss"] + bss_lines(True)) + "\n")
     with open("%s/functions.txt" % nm_dir, "w") as f:
         f.write("# name offset size (module %d: text 0x%X, data 0x%X, bss 0x%X%s)\n" % (
             me, tsize, dsize, bsize,

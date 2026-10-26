@@ -176,9 +176,12 @@ def build_module(path, me, symbols, order):
             raise SystemExit("%s: section %s is not supported (build with -G 0)" % (path, s["name"]))
     tsize_p = align(tsize, 16)
     text = text + b"\0" * (tsize_p - tsize)
-    rbase = align(tsize_p + dsize, min(ralign, 16)) if rsize else tsize_p + dsize
+    # like the original linker, start each section on a 16-byte boundary
+    rbase = align(tsize_p + dsize, 16)
     block = data + b"\0" * (rbase - tsize_p - dsize) + rodata
+    block += b"\0" * (-len(block) % 16)
     dtotal = len(block)
+    bsize = align(bsize, 16)
     secbase = {ti: 0, di: tsize_p, ri: rbase, bi: tsize_p + dtotal}
     image = bytearray(text + block)
 
@@ -207,7 +210,12 @@ def build_module(path, me, symbols, order):
                     idx = symbols.lookup(name)
                     if idx is None and defined:
                         idx = symbols.byaddr.get((me, secbase[s["shndx"]] + s["value"]))
-                    if idx is None:
+                    m = MOD_RE.match(name)
+                    if idx is None and not defined and m and int(m.group(1)) == me:
+                        # this module's own unexported code or data, defined
+                        # in another part of the module (asm)
+                        local = int(m.group(2), 16)
+                    elif idx is None:
                         raise SystemExit("m%03d (%s): %s is not in the runlink symbol table%s" % (
                             me, path, name, " (a module's own unexported symbols must be static)"
                             if defined else ""))
