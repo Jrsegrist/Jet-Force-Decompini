@@ -229,7 +229,8 @@ them a static one and the fini, next to three INCLUDE_ASM functions and the
 INCLUDE_ASM .rodata).
 
 Equivalent C that does not match yet is kept under `#ifdef NON_MATCHING`
-with the INCLUDE_ASM lines in the `#else` branch (m093, m100, m118).
+with the INCLUDE_ASM lines in the `#else` branch (m089, m100, m110, m118,
+m138, m145).
 
 Shared headers (`-I include/modules`): `module.h` (the module ABI and the
 main-segment functions modules share, including module 6's message queue
@@ -258,12 +259,30 @@ lessons apply too):
 - A constant that IDO keeps in one register through the whole function is a
   local variable (m074's `one`); an address that each case of a switch
   recomputes and spills is a local pointer (m148's `turn`).
+- Types change register choice: a callee that returns a value, even one the
+  caller ignores, keeps IDO from reusing v0 right after the call (module
+  10's spark add returns its spark), and IDO shares a constant only between
+  expressions of the same signedness (the particle mask at 0x84 is u32, so
+  its 1 and a signed compare with 1 load separately: m093, m097). A loop
+  bound kept as `slt` rather than turned into `!=`, or `sltu`, tells the
+  counter's and bound's types too (m089).
+- Plain stores are scheduled freely, but loads from the setup struct are
+  not moved above stores through another pointer: write the statement whose
+  load the original hoists first (m153, m092). An if/else's branch
+  polarity decides which arm IDO speculates into the delay slot (m097).
+- `a + b` on floats can come out with the operands swapped when `a` is a
+  variable; writing the sum without the intermediate variable keeps the
+  original order (m145).
 - `switch` bodies are laid out in source order; a `default:` written first
   comes right after the compare chain (m123).
 - A static function that only assembly calls is dropped by IDO; keep it as
-  INCLUDE_ASM until its callers are C (m118). Likewise a module's .rodata
-  comes from all C or all INCLUDE_ASM, so the functions that use it (jump
-  tables, float constants) go to C together.
+  INCLUDE_ASM until its callers are C (m118). The other way round, C calls a
+  static function that is still INCLUDE_ASM by its module offset name,
+  `rl_mNNN_XXXXX` (m110). Likewise a module's .rodata comes from all C or
+  all INCLUDE_ASM, so the functions that use it (jump tables, float
+  constants) go to C together.
+- Debug prints compiled out with `stubbed_printf` still leave their format
+  strings in the module's data (m089's "GVP:" string).
 - Module data can stay assembly while its functions are C: C refers to it as
   `extern` `D_mNNN_XXXXX` (the builder resolves the module's own offset), as
   m060 does for its object table.
@@ -279,7 +298,7 @@ for its siblings. (Kinds are named here from what the code does.)
 | object behaviours | 63, e.g. 20, 74, 78, 84, 88, 92, 93, 100, 103, 108, 123, 128, 134 | an init `(Object *, level entry)` and a control `(Object *, s32 updateRate)` per behaviour, often several pairs per module; state in the object at 0x88 or in `obj->unk68`; most call `func_80079D1C` (hit box) from init |
 | switches and targets | 93, 94, 118 | a behaviour pair whose control runs one of six actions on a game flag or a hit (the same six-way jump table: `func_80079BB8`, `func_80079BA8`, `func_800767EC`, `func_8007688C`, `func_80076928`, `func_800772C4`) |
 | pickups | 43, 72, 104, 118, 132 | a behaviour pair that checks the player's distance and gives an item, a flag and a message |
-| enemy behaviours | 3, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148) |
+| enemy behaviours | 3, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148, m150); their attack decisions share one shape (`func_m003_0CAA4` then `func_m003_04260`: m141, m145, m148), and m141 and m145 share their up-and-down movement code |
 | bosses | 50, 51, 52 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions |
 | weapons | 15, 16, 17 | a large control function, a firing check and twenty-odd helpers of matching sizes |
 | front end | 6, 9, 12, 13, 18, 37, 40, 42, 57-59, 61-63 | screens with init / per-frame / cleanup functions, and the HUD (6, 13, 14) |
