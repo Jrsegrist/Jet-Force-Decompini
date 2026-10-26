@@ -39,7 +39,25 @@ INCLUDE_ASM("asm/nonmatchings/245D0", func_80023A48);
 
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80023CB4);
 
-INCLUDE_ASM("asm/nonmatchings/245D0", func_80023D48);
+extern s32 D_800A1108; // JFG: the number of camera lights in use
+void func_80023DAC(CamLight *light);
+
+/* JFG: update the active camera lights. */
+void func_80023D48(void) {
+    CamLight *light;
+    s32 i;
+
+    if (D_800A1108 > 0) {
+        light = D_800F5B60;
+        i = 49;
+        do {
+            if (light->unk6) {
+                func_80023DAC(light);
+            }
+            light++;
+        } while (i--);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80023DAC);
 

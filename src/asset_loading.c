@@ -166,4 +166,35 @@ s32 asset_table_size(u32 assetIndex) {
     return *(index + 1) - *index;
 }
 
-INCLUDE_ASM("asm/nonmatchings/asset_loading", func_8004D640);
+#define MAX_TRANSFER_SIZE 0x5000
+
+extern OSIoMesg gAssetsDmaIoMesg;
+extern s32 D_800A3530; // JFG: set when the reset button has been pressed
+void func_80044C20(void);
+
+/**
+ * Copies data from the game cartridge to a ram address.
+ * DKR's dmacopy_internal; JFG: handles a reset between transfers.
+ * Official name: romCopy
+ */
+void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes) {
+    OSMesg dmaMesg;
+    s32 numBytesToDMA;
+
+    osInvalDCache((u32 *) ramAddress, numBytes);
+    numBytesToDMA = MAX_TRANSFER_SIZE;
+    while (numBytes > 0) {
+        if (numBytes < numBytesToDMA) {
+            numBytesToDMA = numBytes;
+        }
+        osPiStartDma(&gAssetsDmaIoMesg, OS_MESG_PRI_NORMAL, OS_READ, romOffset, (u32 *) ramAddress, numBytesToDMA,
+                     &gDmaMesgQueue);
+        osRecvMesg(&gDmaMesgQueue, &dmaMesg, OS_MESG_BLOCK);
+        if (D_800A3530) {
+            func_80044C20();
+        }
+        numBytes -= numBytesToDMA;
+        romOffset += numBytesToDMA;
+        ramAddress += numBytesToDMA;
+    }
+}

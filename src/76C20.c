@@ -44,7 +44,14 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_800761E8);
 extern s32 *D_800A74BC;
 s32 func_800761E8(s32 *arg0);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_800762A0);
+/* JFG: start reading the data at D_800A74BC (its first word's low 24 bits are the offset to the start). */
+void func_800762A0(void) {
+    s32 header = *D_800A74BC;
+
+    D_800A74C8 = (s32) D_800A74BC + (header & 0xFFFFFF);
+    D_800A74CC = D_800A74C8;
+    D_800A74D0 = func_800761E8(&D_800A74C8);
+}
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800762F0);
 

@@ -5,6 +5,7 @@
 #   make           compile, assemble and link build/jfg.us.z64, check its SHA-1
 #   make check     check the SHA-1 of the built ROM
 #   make progress  functions decompiled to C, per segment
+#   make nonmatching  compile the NON_MATCHING C bodies (objects only, build_nm/)
 
 VERSION  ?= us
 BASENAME := jfg
@@ -85,7 +86,7 @@ O_FILES   := $(S_FILES:%.s=$(BUILD_DIR)/%.o) \
              $(C_FILES:%.c=$(BUILD_DIR)/%.o) \
              $(BIN_FILES:assets/%.bin=$(BUILD_DIR)/assets/%.o)
 
-.PHONY: all setup extract check verify progress clean distclean
+.PHONY: all setup extract check verify progress nonmatching clean distclean
 .SECONDARY:
 SHELL := /bin/bash -e -o pipefail
 
@@ -149,6 +150,20 @@ $(BUILD_DIR)/assets/%.o: assets/%.bin
 	@mkdir -p $(dir $@)
 	$(LD) -r -b binary -o $@ $<
 
+# Near-miss functions keep a C body behind #ifdef NON_MATCHING, with the
+# INCLUDE_ASM in the #else branch. This compiles the game files with those C
+# bodies, to keep them building; the objects are not linked.
+NM_DIR     := build_nm
+NM_C_FILES := $(filter-out src/ultra/% src/modules/%,$(C_FILES))
+NM_O_FILES := $(NM_C_FILES:%.c=$(NM_DIR)/%.o)
+
+nonmatching: $(NM_O_FILES)
+
+$(NM_DIR)/src/%.o: src/%.c
+	@mkdir -p $(dir $@)
+	$(PYTHON) $(ASM_PROC) --asm-prelude include/prelude.inc $(CC) -- $(AS) $(ASFLAGS) --no-warn -- \
+	    -c $(CFLAGS) -DNON_MATCHING $(OPT_FLAGS) $(MIPSISET) -o $@ $<
+
 # ---- runlink modules -------------------------------------------------------
 # asm/modules/mNNN.s (tools/runlink_split.py) are assembled like any other
 # asm; tools/runlink_build.py turns the objects back into the module images
@@ -176,8 +191,8 @@ include modules.mk
 -include $(shell find $(BUILD_DIR)/src -name '*.d' 2>/dev/null)
 
 clean:
-	rm -rf $(BUILD_DIR)/asm $(BUILD_DIR)/src $(BUILD_DIR)/assets $(TARGET).*
+	rm -rf $(BUILD_DIR)/asm $(BUILD_DIR)/src $(BUILD_DIR)/assets $(TARGET).* $(NM_DIR)
 
 # also removes everything extract generated from the ROM
 distclean:
-	rm -rf $(BUILD_DIR) asm assets $(LD_SCRIPT) .baserom.$(VERSION).ok
+	rm -rf $(BUILD_DIR) $(NM_DIR) asm assets $(LD_SCRIPT) .baserom.$(VERSION).ok

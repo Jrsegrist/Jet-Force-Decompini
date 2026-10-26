@@ -149,7 +149,22 @@ void func_80044A1C(void) {
     D_800A31C4->unk0 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80044A6C);
+/* JFG: reserve count object IDs in the current region; returns the first, or -1 if they don't fit in 128. */
+s32 func_80044A6C(s32 count) {
+    u8 id;
+    s32 next;
+
+    if (D_800A31C4 == NULL) {
+        return -1;
+    }
+    id = D_800A31C4->unk0;
+    next = id + count;
+    if (next > 0x80) {
+        return -1;
+    }
+    D_800A31C4->unk0 = next;
+    return id;
+}
 
 /* JFG: set bit `flag` of the level's object flags. */
 void func_80044AB4(s32 flag) {

@@ -4,8 +4,7 @@
  * From the Diddy Kong Racing decompilation (CC0 1.0), src/printf.c, plus
  * memset from its src/unused_string.c. This file owns its .data, .rodata
  * and .bss (jfg.us.yaml). The character renderer is JFG's own version, on
- * the older GBI. vsprintf and diPrintfAll differ in JFG and are
- * still assembly; their rodata comes in through INCLUDE_ASM/INCLUDE_RODATA in
+ * the older GBI. vsprintf differs in JFG and is still assembly; their rodata comes in through INCLUDE_ASM/INCLUDE_RODATA in
  * source order.
  */
 #include "printf.h"
@@ -300,7 +299,50 @@ s32 render_printf(const char *format, ...) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/printf", func_80064E8C);
+void rdp_init(Gfx **dList);
+void fb_size(u32 *width, u32 *height);
+extern Gfx dDebugFontSettings[];
+s32 debug_text_parse(Gfx **dList, char *buffer);
+
+/**
+ * At the end of a frame, iterate through the debug text buffer and print it on screen.
+ * Soft-clear the buffer afterwards by setting the endpoint to the start point.
+ * JFG: gets the size through pointers.
+ * Official Name: diPrintfAll
+ */
+void debug_text_print(Gfx **dList) {
+    u32 width;
+    u32 height;
+    char *buffer;
+
+    rdp_init(dList);
+    fb_size(&width, &height);
+    gDebugScreenWidth = width;
+    gDebugScreenHeight = height;
+    gDPSetScissor((*dList)++, 0, 0, 0, gDebugScreenWidth, gDebugScreenHeight);
+    debug_text_bounds();
+    gSPDisplayList((*dList)++, dDebugFontSettings);
+    buffer = gDebugPrintBufferStart;
+    debug_text_origin();
+    gDebugFontTexture = -1;
+    gDebugFixedWidthMode = FALSE;
+    D_80127CB0 = gDebugTextX;
+    D_80127CB2 = gDebugTextY;
+    while (buffer != gDebugPrintBufferEnd) {
+        gDebugTextOn = FALSE;
+        buffer += debug_text_parse(dList, buffer);
+    }
+    debug_text_background(dList, D_80127CB0, D_80127CB2, gDebugTextX, gDebugTextY + 10);
+    buffer = gDebugPrintBufferStart;
+    debug_text_origin();
+    gDebugFontTexture = -1;
+    gDebugFixedWidthMode = FALSE;
+    while (buffer != gDebugPrintBufferEnd) {
+        gDebugTextOn = TRUE;
+        buffer += debug_text_parse(dList, buffer);
+    }
+    gDebugPrintBufferEnd = gDebugPrintBufferStart;
+}
 
 /**
  * Set the colour of the current debug text.

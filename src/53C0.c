@@ -14,11 +14,14 @@ typedef struct Vec3s {
 typedef struct Object_Racer {
     /* 0x000 */ u8 pad0[0x48];
     /* 0x048 */ f32 unk48;
-    /* 0x04C */ u8 pad4C[0x140 - 0x4C];
+    /* 0x04C */ u8 pad4C[0x64 - 0x4C];
+    /* 0x064 */ f32 unk64; // DKR: unkD0
+    /* 0x068 */ u8 pad68[0x140 - 0x68];
     /* 0x140 */ s16 y_rotation_offset;
     /* 0x142 */ s16 z_rotation_offset;
     /* 0x144 */ s16 x_rotation_offset;
-    /* 0x146 */ u8 pad146[0x197 - 0x146];
+    /* 0x146 */ s16 unk146; // DKR: unk166
+    /* 0x148 */ u8 pad148[0x197 - 0x148];
     /* 0x197 */ u8 unk197;
     /* 0x198 */ u8 pad198[0x5C0 - 0x198];
     /* 0x5C0 */ s32 unk5C0;
@@ -28,8 +31,11 @@ typedef struct ObjectTransform {
     /* 0x00 */ s16 y_rotation;
     /* 0x02 */ s16 x_rotation;
     /* 0x04 */ s16 z_rotation;
-    /* 0x06 */ u8 pad6[0x10 - 0x06];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x_position;
     /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
 } ObjectTransform;
 
 typedef struct ObjectUnk5C {
@@ -39,15 +45,20 @@ typedef struct ObjectUnk5C {
 
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x14 */ u8 pad14[0x48 - 0x14];
+    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x2E */ s16 segmentID;
+    /* 0x30 */ u8 pad30[0x48 - 0x30];
     /* 0x48 */ s16 behaviorId;
-    /* 0x4A */ u8 pad4A[0x5C - 0x4A];
+    /* 0x4A */ s16 unk4A;
+    /* 0x4C */ u8 pad4C[0x5C - 0x4C];
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ Object_Racer *racer;
     /* 0x6C */ u8 pad6C[0x7C - 0x6C];
     /* 0x7C */ u8 *unk7C;
-    /* 0x80 */ u8 pad80[0xA4 - 0x80];
+    /* 0x80 */ u8 pad80[0xA0 - 0x80];
+    /* 0xA0 */ u8 freed; // JFG: already on the free list
+    /* 0xA1 */ u8 padA1[0xA4 - 0xA1];
     /* 0xA4 */ struct Object *prev;
     /* 0xA8 */ struct Object *next;
 } Object;
@@ -66,7 +77,37 @@ extern s32 gObjectCount;
 extern s32 gObjectListStart;
 extern s8 gNoBoundsCheck;
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800047C0);
+extern s8 D_800F2C60;
+extern s32 D_800F2C6C;
+extern s32 D_800F2C70;
+extern s32 D_800F2CA8;
+extern s32 D_800F2CAC;
+extern s32 D_800F2CB8;
+extern s32 D_800F2CBC;
+extern s16 D_800F2CC0;
+extern s16 D_800F2CC2;
+extern s32 D_800F2CC4;
+extern s32 D_800F2D08;
+extern s32 D_800F2D1C; // JFG: the number of animated objects in D_800F2D18
+extern s32 D_800F2D40;
+
+/* JFG: reset the object system's variables. */
+void func_800047C0(void) {
+    D_800F2C60 = 1;
+    D_800F2C6C = 0;
+    D_800F2C70 = 0;
+    D_800F2D08 = 0;
+    gNumRacers = 0;
+    D_800F2D1C = 0;
+    D_800F2CA8 = 0;
+    D_800F2CAC = 0;
+    D_800F2CB8 = 0;
+    D_800F2CBC = 0;
+    D_800F2CC4 = 0;
+    D_800F2CC0 = 0;
+    D_800F2CC2 = 0;
+    D_800F2D40 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004838);
 
@@ -165,13 +206,49 @@ s32 func_8000773C(Object *obj, s32 arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000774C);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800079B8);
+extern Object **gParticlePtrList;
+extern s32 gFreeListCount;
+extern s32 D_800F2F20[16];
+extern u8 D_800A097C;
+void func_80026E20(Object *obj);
+
+/**
+ * Adds the object to the free list.
+ * This object will be deallocated on the next update cycle.
+ * JFG: only once per object; keeps a ring of the last 16 freed objects' IDs.
+ * Official Name: objFreeObject
+ */
+void free_object(Object *object) {
+    if (object->freed == FALSE) {
+        gParticlePtrList[gFreeListCount] = object;
+        gFreeListCount++;
+        object->freed = TRUE;
+        func_80026E20(object);
+        D_800F2F20[D_800A097C] = (object->behaviorId << 16) | object->unk4A;
+        D_800A097C++;
+        D_800A097C &= 0xF;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007A54);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007C68);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80008F70);
+extern void **D_800F2D18; // JFG: the animated objects
+
+/* JFG: take an object off the animated list (the last one takes its place). */
+void func_80008F70(void *obj) {
+    s32 i;
+
+    if (D_800F2D1C > 0) {
+        for (i = 0; i < D_800F2D1C; i++) {
+            if (obj == D_800F2D18[i]) {
+                D_800F2D18[i] = D_800F2D18[D_800F2D1C - 1];
+            }
+        }
+        D_800F2D1C--;
+    }
+}
 
 void func_80008FE8(void) {
 }
@@ -192,7 +269,139 @@ void ignore_bounds_check(void) {
     gNoBoundsCheck = TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80009A04);
+/* DKR include/structs.h (JFG: the bounds at 0x20) */
+typedef struct LevelModelSegmentBoundingBox {
+    /* 0x00 */ s16 x1;
+    /* 0x02 */ s16 y1;
+    /* 0x04 */ s16 z1;
+    /* 0x06 */ s16 x2;
+    /* 0x08 */ s16 y2;
+    /* 0x0A */ s16 z2;
+} LevelModelSegmentBoundingBox;
+
+typedef struct LevelModel {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ s16 lowerXBounds;
+    /* 0x22 */ s16 upperXBounds;
+    /* 0x24 */ s16 lowerYBounds;
+    /* 0x26 */ s16 upperYBounds;
+    /* 0x28 */ s16 lowerZBounds;
+    /* 0x2A */ s16 upperZBounds;
+} LevelModel;
+
+LevelModel *get_current_level_model(void);
+LevelModelSegmentBoundingBox *block_boundbox(s32 segmentID);
+s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
+void func_800339D8(Object *obj, Object_Racer *racer); // JFG: restart a player
+extern f32 D_800AA840; // 3000.0f, in .rodata (not split out yet)
+
+/**
+ * Sets the new position of the object using the differences given.
+ * Compares against the outer edges of the level geometry to decide wether or not to apply a segment ID.
+ * JFG: single-precision bounds (all 1000 but the top, 3000); some objects out of bounds
+ * are freed, and a racer is restarted; the segment lookup takes floats.
+ * Official Name: objMoveXYZ
+ */
+s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos) {
+    s32 segmentID;
+    f32 x1, x2, y1, y2, z1, z2;
+    f32 newXPos;
+    f32 newYPos;
+    f32 newZPos;
+    LevelModel *levelModel;
+    LevelModelSegmentBoundingBox *box;
+    s32 outsideBBox;
+    s32 outOfBounds;
+    s32 intXPos, intYPos, intZPos;
+
+    levelModel = get_current_level_model();
+    newXPos = obj->trans.x_position + xPos;
+    newYPos = obj->trans.y_position + yPos;
+    newZPos = obj->trans.z_position + zPos;
+    if (levelModel == NULL) {
+        gNoBoundsCheck = FALSE;
+        return FALSE;
+    }
+    outOfBounds = FALSE;
+    x2 = levelModel->upperXBounds + 1000.0f;
+    //!@bug should've compared against "obj->trans.x_position"
+    if (newXPos > x2) {
+        outOfBounds = TRUE;
+    }
+    x1 = levelModel->lowerXBounds - 1000.0f;
+    if (obj->trans.x_position < x1) {
+        outOfBounds = TRUE;
+    }
+    y2 = levelModel->upperYBounds + D_800AA840;
+    if (obj->trans.y_position > y2) {
+        outOfBounds = TRUE;
+    }
+    y1 = levelModel->lowerYBounds - 1000.0f;
+    if (obj->trans.y_position < y1) {
+        outOfBounds = TRUE;
+    }
+    z2 = levelModel->upperZBounds + 1000.0f;
+    if (obj->trans.z_position > z2) {
+        outOfBounds = TRUE;
+    }
+    z1 = levelModel->lowerZBounds - 1000.0f;
+    if (obj->trans.z_position < z1) {
+        outOfBounds = TRUE;
+    }
+    if (1) {}
+    if (1) {}
+    if (1) {} // Fakematch (as in DKR)
+    if (gNoBoundsCheck) {
+        outOfBounds = FALSE;
+    }
+
+    gNoBoundsCheck = FALSE;
+    if (outOfBounds) {
+        if (obj->behaviorId == 0x99 || obj->behaviorId == 0x9B || obj->behaviorId == 0x3D ||
+            obj->behaviorId == 0x18 || obj->behaviorId == 0xAB || obj->behaviorId == 0xAD ||
+            obj->behaviorId == 0x97 || obj->behaviorId == 0x86 || obj->behaviorId == 0x59 ||
+            obj->behaviorId == 0xA6 || obj->behaviorId == 0xA7) {
+            free_object(obj);
+            return TRUE;
+        }
+        if (obj->behaviorId == BHV_RACER) {
+            func_800339D8(obj, obj->racer);
+        }
+        obj->segmentID = -1;
+        return TRUE;
+    }
+
+    obj->trans.x_position = newXPos;
+    obj->trans.y_position = newYPos;
+    obj->trans.z_position = newZPos;
+    box = block_boundbox(obj->segmentID);
+
+    // For some reason the XYZ positions are converted into integers for the next section
+    intXPos = newXPos, intYPos = newYPos, intZPos = newZPos;
+
+    if (box == NULL) {
+        obj->segmentID = get_level_segment_index_from_position(intXPos, intYPos, intZPos);
+        return FALSE;
+    } else {
+        outsideBBox = FALSE;
+        if (box->x2 < intXPos || intXPos < box->x1) {
+            outsideBBox = TRUE;
+        }
+        if (box->y2 < intYPos || intYPos < box->y1) {
+            outsideBBox = TRUE;
+        }
+        if (box->z2 < intZPos || intZPos < box->z1) {
+            outsideBBox = TRUE;
+        }
+        if (outsideBBox) {
+            segmentID = get_level_segment_index_from_position(intXPos, intYPos, intZPos);
+            if (segmentID != -1) {
+                obj->segmentID = segmentID;
+            }
+        }
+    }
+    return FALSE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80009E58);
 
@@ -202,7 +411,15 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A154);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A9EC);
+void func_8006D7F0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
+
+/* JFG: draw a line from the point in the object's block at 0x68 to the object. */
+void func_8000A9EC(Object *obj) {
+    f32 *from = (f32 *) obj->racer;
+
+    func_8006D7F0(from[1], from[2], from[3], obj->trans.x_position, obj->trans.y_position,
+                  obj->trans.z_position, 0x13);
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000AA34);
 
@@ -240,9 +457,70 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9F4);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000CC64);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DB94);
+/* DKR include/structs.h */
+typedef struct Vertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} Vertex;
 
+extern Gfx *gObjectCurrDisplayList;
+extern Mtx *gObjectCurrMatrix;
+extern Vertex *gObjectCurrVertexList;
+void func_8000DDAC(Object *obj);
+
+/**
+ * Set the draw pointers, then begin rendering the object.
+ * JFG: no stack trace, and the scale is not saved.
+ * Official Name: objPrintObject
+ */
+void render_object(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj) {
+    if (obj->trans.flags & 0xC00) { // JFG's flag bits (DKR: OBJ_FLAGS_INVISIBLE | OBJ_FLAGS_SHADOW_ONLY)
+        return;
+    }
+    gObjectCurrDisplayList = *dList;
+    gObjectCurrMatrix = *mtx;
+    gObjectCurrVertexList = *verts;
+    func_8000DDAC(obj);
+    *dList = gObjectCurrDisplayList;
+    *mtx = gObjectCurrMatrix;
+    *verts = gObjectCurrVertexList;
+}
+
+#ifdef NON_MATCHING
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+
+/**
+ * JFG: no vehicle check.
+ * Official Name: objDoPlayerTumble
+ * NON_MATCHING: the right length, but the cosine is kept at sp+0x18 (target 0x1C) and the
+ * ternary's 0.0f reuses the compare's register (target: a second mtc1 into $f0).
+ */
+void object_do_player_tumble(Object *this) {
+    UNUSED s32 unused1;
+    Object_Racer *sp_20;
+    f32 tmp_f2;
+    f32 offsetY;
+
+    if (this->behaviorId == BHV_RACER) {
+        sp_20 = this->racer;
+        this->trans.y_rotation += sp_20->y_rotation_offset;
+        this->trans.x_rotation += sp_20->x_rotation_offset;
+        this->trans.z_rotation += sp_20->z_rotation_offset;
+        offsetY = func_80049C30(sp_20->z_rotation_offset);
+        tmp_f2 = func_80049C30(sp_20->x_rotation_offset - sp_20->unk146) * offsetY;
+        offsetY = (1.0f - ((tmp_f2 < 0.0f) ? 0.0f : tmp_f2 * tmp_f2)) * 24.0f + sp_20->unk64;
+        this->trans.y_position = this->trans.y_position + offsetY;
+        gObjectOffsetY = offsetY;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DC28);
+#endif
 
 /**
  * Official Name: objUndoPlayerTumble
@@ -380,7 +658,25 @@ void func_800118F4(s32 *a, s32 *b, s32 index) {
     *b = D_800F2CE0[index];
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8001191C);
+/* JFG: link obj into the list after its head, unless it is already in it. */
+void func_8001191C(Object *obj, Object *list) {
+    Object *it = list;
+
+    if (list != NULL) {
+        while (it != NULL) {
+            if (it == obj) {
+                return;
+            }
+            it = it->next;
+        }
+        obj->prev = list;
+        obj->next = list->next;
+        if (list->next != NULL) {
+            list->next->prev = obj;
+        }
+        list->next = obj;
+    }
+}
 
 void func_80011974(Object *obj) {
     if (obj->next != NULL) {
@@ -395,7 +691,19 @@ void func_80011974(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800119B8);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011C2C);
+/* JFG: whether any racer has its unk5C0 set. */
+s32 func_80011C2C(void) {
+    s32 i;
+    Object_Racer *racer;
+
+    for (i = 0; i < gNumRacers; i++) {
+        racer = (*gRacers)[i]->racer;
+        if (racer->unk5C0 != 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 /* JFG: the distance between two points. */
 f32 func_80011C84(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {

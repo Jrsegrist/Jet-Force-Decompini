@@ -271,7 +271,105 @@ SIDeviceStatus reformat_controller_pak(s32 controllerIndex) {
     return ret;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004C618);
+#define SAVE_FILE_BYTES 24
+#define SAVE_FILE_TYPE_UNSET 0xFF
+#define SAVE_FILE_TYPE_CPAK_OTHER 1
+#define COLOUR_TAG_BLACK 0xFF
+
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+char *font_codes_to_string(char *inString, char *outString, s32 stringLength);
+u8 func_8004D250(s32 controllerIndex, s32 fileNum); // DKR: get_file_type
+
+/**
+ * Lists the files on the controller pak.
+ * JFG: the statuses are returned without the controller index.
+ * Official name: packDirectory
+ */
+s32 get_controller_pak_file_list(s32 controllerIndex, s32 maxNumOfFilesToGet, char **fileNames, char **fileExtensions,
+                                 u32 *fileSizes, u8 *fileTypes) {
+    OSPfsState state;
+    s32 ret;
+    s32 maxNumOfFilesOnCpak;
+    s32 files_used;
+    s8 *list;
+    s32 i;
+    u32 gameCode;
+
+    ret = get_si_device_status(controllerIndex);
+    if (ret != CONTROLLER_PAK_GOOD) {
+        start_reading_controller_data(controllerIndex);
+        return ret;
+    }
+
+    if (osPfsNumFiles(&pfs[controllerIndex], &maxNumOfFilesOnCpak, &files_used) != 0) {
+        start_reading_controller_data(controllerIndex);
+        return CONTROLLER_PAK_BAD_DATA;
+    }
+
+    if (get_language() == LANGUAGE_JAPANESE) {
+        gameCode = JPN_GAME_CODE;
+    } else if (osTvType == OS_TV_TYPE_PAL) {
+        gameCode = PAL_GAME_CODE;
+    } else {
+        gameCode = NTSC_GAME_CODE;
+    }
+
+    if (maxNumOfFilesToGet < maxNumOfFilesOnCpak) {
+        maxNumOfFilesOnCpak = maxNumOfFilesToGet;
+    }
+
+    if (gPakFileList != NULL) {
+        mempool_free(gPakFileList);
+    }
+
+    files_used = maxNumOfFilesOnCpak * SAVE_FILE_BYTES;
+
+    gPakFileList = mempool_alloc_safe(files_used, COLOUR_TAG_BLACK);
+    bzero(gPakFileList, files_used);
+    list = gPakFileList;
+
+    for (i = 0; i < maxNumOfFilesOnCpak; i++) {
+        fileNames[i] = (char *) list;
+        list += 0x12;
+        fileExtensions[i] = (char *) list;
+        fileSizes[i] = 0;
+        fileTypes[i] = SAVE_FILE_TYPE_UNSET;
+        list += 6;
+    }
+
+    while (i < maxNumOfFilesToGet) {
+        fileExtensions[i] = 0;
+        fileNames[i] = 0;
+        fileSizes[i] = 0;
+        fileTypes[i] = SAVE_FILE_TYPE_UNSET;
+        i++;
+    }
+
+    for (i = 0; i < maxNumOfFilesOnCpak; i++) {
+        ret = osPfsFileState(&pfs[controllerIndex], i, &state);
+        if (ret == PFS_ERR_INVALID) {
+            fileNames[i] = 0;
+            continue;
+        }
+
+        if (ret != 0) {
+            start_reading_controller_data(controllerIndex);
+            return CONTROLLER_PAK_BAD_DATA;
+        }
+
+        font_codes_to_string((char *) &state.game_name, (char *) fileNames[i], PFS_FILE_NAME_LEN);
+        font_codes_to_string((char *) &state.ext_name, (char *) fileExtensions[i], PFS_FILE_EXT_LEN);
+        fileSizes[i] = state.file_size;
+        fileTypes[i] = SAVE_FILE_TYPE_CPAK_OTHER;
+
+        if ((state.game_code == gameCode) && (state.company_code == COMPANY_CODE)) {
+            fileTypes[i] = func_8004D250(controllerIndex, i);
+        }
+    }
+
+    start_reading_controller_data(controllerIndex);
+    return CONTROLLER_PAK_GOOD;
+}
 
 /**
  * Free the controller pak file list from memory.
@@ -284,11 +382,124 @@ void cpak_free_files(void) {
     gPakFileList = NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004C940);
+#define MAX_CPAK_FILES 16
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004CA58);
+/**
+ * Get the number of free bytes and free notes on the controller pak.
+ * JFG: the status is returned without the controller index.
+ * Official name: packFreeSpace
+ */
+s32 get_free_space(s32 controllerIndex, u32 *bytesFree, s32 *notesFree) {
+    s32 ret;
+    s32 bytesNotUsed;
+    s32 maxNotes;
+    s32 notesUsed;
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004CB10);
+    ret = get_si_device_status(controllerIndex);
+    if (ret == CONTROLLER_PAK_GOOD) {
+        if (bytesFree != 0) {
+            ret = osPfsFreeBlocks(&pfs[controllerIndex], &bytesNotUsed);
+            if (ret != 0) {
+                start_reading_controller_data(controllerIndex);
+                return CONTROLLER_PAK_BAD_DATA;
+            }
+            *bytesFree = bytesNotUsed;
+        }
+        if (notesFree != 0) {
+            ret = osPfsNumFiles(&pfs[controllerIndex], &maxNotes, &notesUsed);
+            if (ret != 0) {
+                start_reading_controller_data(controllerIndex);
+                return CONTROLLER_PAK_BAD_DATA;
+            }
+            if (notesUsed >= MAX_CPAK_FILES) {
+                *notesFree = 0;
+            } else {
+                *notesFree = MAX_CPAK_FILES - notesUsed;
+            }
+        }
+    }
+    start_reading_controller_data(controllerIndex);
+    return ret;
+}
+
+/**
+ * Deletes a file from the controller pak.
+ * JFG: the status is returned without the controller index.
+ * Official name: packDeleteFile
+ */
+s32 delete_file(s32 controllerIndex, s32 fileNum) {
+    OSPfsState state;
+    s32 ret;
+
+    ret = get_si_device_status(controllerIndex);
+    if (ret != CONTROLLER_PAK_GOOD) {
+        start_reading_controller_data(controllerIndex);
+        return ret;
+    }
+
+    ret = CONTROLLER_PAK_BAD_DATA;
+
+    if (osPfsFileState(&pfs[controllerIndex], fileNum, &state) == 0) {
+        if (osPfsDeleteFile(&pfs[controllerIndex], state.company_code, state.game_code, (u8 *) &state.game_name,
+                            (u8 *) &state.ext_name) == 0) {
+            ret = CONTROLLER_PAK_GOOD;
+        }
+    }
+
+    start_reading_controller_data(controllerIndex);
+
+    return ret;
+}
+
+#define COLOUR_TAG_BLACK 0xFF
+SIDeviceStatus read_data_from_controller_pak(s32 controllerIndex, s32 fileNum, u8 *data, s32 dataLength);
+SIDeviceStatus write_controller_pak_file(s32 controllerIndex, s32 fileNumber, char *fileName, char *fileExt,
+                                         u8 *dataToWrite, s32 fileSize);
+char *font_codes_to_string(char *inString, char *outString, s32 stringLength);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+
+/**
+ * Copies a file from one controller pak to another.
+ * JFG: the statuses are returned without the controller index.
+ * Official name: packCopyFile
+ */
+s32 copy_controller_pak_data(s32 controllerIndex, s32 fileNumber, s32 secondControllerIndex) {
+    UNUSED s32 pad;
+    char fileName[PFS_FILE_NAME_LEN];
+    UNUSED s32 pad2;
+    char fileExt[PFS_FILE_EXT_LEN];
+    OSPfsState state;
+    s32 status;
+    u8 *alloc;
+
+    status = get_si_device_status(controllerIndex);
+    if (status != CONTROLLER_PAK_GOOD) {
+        start_reading_controller_data(controllerIndex);
+        return status;
+    }
+
+    if (osPfsFileState(&pfs[controllerIndex], fileNumber, &state) != 0) {
+        start_reading_controller_data(controllerIndex);
+        return CONTROLLER_PAK_BAD_DATA;
+    }
+
+    alloc = mempool_alloc_safe(state.file_size, COLOUR_TAG_BLACK);
+
+    status = read_data_from_controller_pak(controllerIndex, fileNumber, alloc, state.file_size);
+    start_reading_controller_data(controllerIndex);
+    if (status != CONTROLLER_PAK_GOOD) {
+        mempool_free(alloc);
+        return status;
+    }
+
+    font_codes_to_string((char *) state.game_name, fileName, PFS_FILE_NAME_LEN);
+    font_codes_to_string((char *) state.ext_name, fileExt, PFS_FILE_EXT_LEN);
+
+    status = write_controller_pak_file(secondControllerIndex, -1, fileName, fileExt, alloc, state.file_size);
+
+    mempool_free(alloc);
+    return status;
+}
 
 SIDeviceStatus get_file_number(s32 controllerIndex, char *fileName, char *fileExt, s32 *fileNumber) {
     u32 gameCode;

@@ -11,7 +11,29 @@ INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B8AC);
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B9E8);
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003C0C4);
+/* JFG: set count matrices to the identity. */
+void func_8003C0C4(s32 count, MtxF *mtx) {
+    while (count > 0) {
+        count--;
+        (*mtx)[0][0] = 1.0f;
+        (*mtx)[0][1] = 0.0f;
+        (*mtx)[0][2] = 0.0f;
+        (*mtx)[0][3] = 0.0f;
+        (*mtx)[1][0] = 0.0f;
+        (*mtx)[1][1] = 1.0f;
+        (*mtx)[1][2] = 0.0f;
+        (*mtx)[1][3] = 0.0f;
+        (*mtx)[2][0] = 0.0f;
+        (*mtx)[2][1] = 0.0f;
+        (*mtx)[2][2] = 1.0f;
+        (*mtx)[2][3] = 0.0f;
+        (*mtx)[3][0] = 0.0f;
+        (*mtx)[3][1] = 0.0f;
+        (*mtx)[3][2] = 0.0f;
+        (*mtx)[3][3] = 1.0f;
+        mtx++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003C12C);
 

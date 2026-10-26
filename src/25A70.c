@@ -71,7 +71,14 @@ void obj_spawn_particle(Object *obj, s32 updateRate);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80024E70);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80024EF4);
+void func_800577A8(void *sprite, s32 *arg1, void *arg2, void *arg3, s32 arg4); // JFG: animate a sprite
+
+/* JFG: animate the object's sprite (mode 9) by the update rate. */
+void func_80024EF4(u8 *obj, s32 updateRate) {
+    s32 flags = 9;
+
+    func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F40);
 
@@ -178,9 +185,31 @@ void func_800270EC(Object *obj, s32 updateRate) {
     state->unk8 = 0x1000;
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027120);
+void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800271A0);
+/* JFG: an animation event handler: events 1 and 2 play sounds 0xDD and 0xDE at the object. */
+void func_80027120(f32 *obj, s32 event) {
+    switch (event) {
+        case 1:
+            audspat_play_sound_at_position(0xDD, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+        case 2:
+            audspat_play_sound_at_position(0xDE, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+    }
+}
+
+/* JFG: the same handler for another object type. */
+void func_800271A0(f32 *obj, s32 event) {
+    switch (event) {
+        case 1:
+            audspat_play_sound_at_position(0xDD, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+        case 2:
+            audspat_play_sound_at_position(0xDE, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027220);
 

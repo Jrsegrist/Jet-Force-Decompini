@@ -89,7 +89,60 @@ void *mempool_alloc_pool(MemoryPoolSlot *slots, s32 size) {
     return (void *) NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004A828);
+extern s32 D_800A33F4; // JFG: a forced colour tag (or -1)
+extern s32 D_800A33F8; // JFG: a second forced colour tag (or -1)
+void func_80054368(s32 address, s32 *module, s32 *offset, s32 arg3);
+
+/**
+ * Allocates memory from the main pool at a fixed address.
+ * Rearranges the memory slots to place one at that address if possible.
+ * JFG: no interrupt masking; the colour tag is replaced by a debug tag (a forced
+ * one, or the caller's runtime-linked module and offset).
+ * Official Name: mmAllocAtAddr
+ */
+void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag) {
+    s32 i;
+    MemoryPoolSlot *curSlot;
+    MemoryPoolSlot *slots;
+    s32 module;
+    s32 offset;
+    UNUSED s32 pad;
+    volatile s32 ra;
+
+    ra = 0x666; // the return address in debug builds
+    if (D_800A33F4 != -1) {
+        colourTag = D_800A33F4 | 0xFF000000;
+    } else if (D_800A33F8 != -1) {
+        colourTag = D_800A33F8 | 0xFE000000;
+    } else {
+        func_80054368(ra - 8, &module, &offset, 0);
+        colourTag = (module << 24) | offset;
+    }
+    if ((gMemoryPools[POOL_MAIN].curNumSlots + 1) == gMemoryPools[POOL_MAIN].maxNumSlots) {
+        return NULL;
+    }
+    if (size & 0xF) {
+        size = (size & ~0xF) + 0x10;
+    }
+    slots = gMemoryPools[POOL_MAIN].slots;
+    for (i = 0; i != MEMSLOT_NONE; i = curSlot->nextIndex) {
+        curSlot = &slots[i];
+        if (curSlot->flags == SLOT_FREE) {
+            if ((u32) address >= (u32) curSlot->data &&
+                (u32) address + size <= (u32) curSlot->data + curSlot->size) {
+                if (address == (u8 *) curSlot->data) {
+                    mempool_slot_assign(POOL_MAIN, i, size, 1, 0, colourTag);
+                    return curSlot->data;
+                } else {
+                    i = mempool_slot_assign(POOL_MAIN, i, (u32) address - (u32) curSlot->data, 0, 1, colourTag);
+                    mempool_slot_assign(POOL_MAIN, i, size, 1, 0, colourTag);
+                    return (slots + i)->data;
+                }
+            }
+        }
+    }
+    return NULL;
+}
 
 /**
  * Sets the tick timer for the free queue.
@@ -100,7 +153,14 @@ void mempool_free_timer(s32 state) {
     gFreeQueueTimer = state;
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AA14);
+extern void *gFreeQueueAddress[256];
+
+/* DKR: the flush loop of mempool_free_timer - frees everything in the free queue now. */
+void func_8004AA14(void) {
+    while (gFreeQueueCount > 0) {
+        mempool_free_addr(gFreeQueueAddress[--gFreeQueueCount]);
+    }
+}
 
 /**
  * Unallocates data from the pool that contains the data. Will free immediately if the free queue
@@ -117,7 +177,42 @@ void mempool_free(void *data) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AAC4);
+extern void *gFreeQueueAddress[256];
+extern u8 gFreeQueueTimers[256];
+extern s32 D_800FDD90; // JFG: free RAM (bytes)
+void func_800542C4(void);
+s32 func_80053370(s32 module);
+void func_80054530(void); // a module function (patched in by the runtime linker)
+
+/**
+ * Frees all the addresses in the free queue.
+ * JFG: first reacts to low memory (through the runtime linker); no interrupt masking.
+ * Official Name: mmFreeTick
+ */
+void mempool_free_queue_clear(void) {
+    s32 i;
+
+    if (D_800FDD90 < 0x14000) {
+        func_800542C4();
+        if (D_800FDD90 < 0xC000) {
+            if (func_80053370(3)) {
+                func_80054530();
+            }
+        }
+    }
+
+    for (i = 0; i < gFreeQueueCount;) {
+        gFreeQueueTimers[i]--;
+        if (gFreeQueueTimers[i] == 0) {
+            mempool_free_addr(gFreeQueueAddress[i]);
+            gFreeQueueAddress[i] = gFreeQueueAddress[gFreeQueueCount - 1];
+            gFreeQueueTimers[i] = gFreeQueueTimers[gFreeQueueCount - 1];
+            gFreeQueueCount--;
+        } else {
+            i++;
+        }
+    }
+}
 
 /**
  * Searches the memory pools for a slot matching the given address.
@@ -147,9 +242,6 @@ void mempool_free_addr(u8 *address) {
     // DKR: stubbed_printf("\n*** mm Error *** ---> No match found for mmFree.\n");
     // (the string is not in Jet Force Gemini's ROM)
 }
-
-extern void *gFreeQueueAddress[256];
-extern u8 gFreeQueueTimers[256];
 
 /**
  * Adds data to the free queue, to be freed after gFreeQueueTimer ticks.

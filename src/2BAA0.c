@@ -128,7 +128,16 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035894);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035AEC);
+/* JFG: in some racer states (6, 7, 8 and 12), copy the racer's angle at 0x17E to 0x120 and to the object. */
+void func_80035AEC(u8 *obj, u8 *racer, UNUSED s32 arg2) {
+    u8 state = racer[0x568];
+
+    if (state == 8 || state == 6 || state == 7 || state == 0xC) {
+        s16 angle = *(s16 *) (racer + 0x17E);
+        *(s16 *) (racer + 0x120) = angle;
+        *(s16 *) (obj + 4) = angle;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035B30);
 
@@ -280,4 +289,19 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B6C8);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B740);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B820);
+/* JFG: empty a player's hand (the held object at 0x5CC); a held object 0x59 is also stopped and reset. */
+void func_8003B820(u8 *obj) {
+    u8 *racer = *(u8 **) (obj + 0x68);
+    u8 *held = *(u8 **) (racer + 0x5CC);
+
+    if (held != NULL) {
+        if (*(s16 *) (held + 0x48) == 0x59) {
+            s32 *state = *(s32 **) (held + 0x68);
+            *(f32 *) (held + 0x1C) = 0.0f;
+            *(f32 *) (held + 0x20) = 0.0f;
+            *(f32 *) (held + 0x24) = 0.0f;
+            *state = 0;
+        }
+        *(u8 **) (racer + 0x5CC) = NULL;
+    }
+}

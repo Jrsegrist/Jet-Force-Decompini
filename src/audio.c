@@ -41,7 +41,36 @@ extern u32 *gSequenceLengths; // JFG: byte length of each sequence
 // The debug strings of functions that are still assembly, in source order.
 INCLUDE_RODATA("asm/nonmatchings/audio", D_800A9FB0);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000450);
+#define AL_SNDP_GROUP_VOLUME_MAX 0x7FFF
+#define VOLUME_LOWER 1
+#define VOLUME_LOWER_AMBIENT 2
+
+void sndp_set_group_volume(s32 group, s32 volume);
+extern u8 gAudioVolumeSetting;
+
+/**
+ * Changes the volume of each sound channel depending on what value is passed through.
+ * JFG: two groups; lowering leaves the music alone.
+ * Official Name: amSetMuteMode
+ */
+void sound_volume_change(s32 behaviour) {
+    switch (behaviour) {
+        case VOLUME_LOWER:
+            sndp_set_group_volume(0, 0);
+            sndp_set_group_volume(1, AL_SNDP_GROUP_VOLUME_MAX);
+            alCSPSetVol(gJinglePlayer, 0);
+            break;
+        case VOLUME_LOWER_AMBIENT:
+            sndp_set_group_volume(0, 0);
+            break;
+        default:
+            sndp_set_group_volume(0, AL_SNDP_GROUP_VOLUME_MAX);
+            sndp_set_group_volume(1, AL_SNDP_GROUP_VOLUME_MAX);
+            alCSPSetVol(gJinglePlayer, (s16) (sndp_get_global_volume() * sfxRelativeVolume));
+            break;
+    }
+    gAudioVolumeSetting = behaviour;
+}
 
 /**
  * Queue a new music sequence to play if not blocked.
@@ -89,9 +118,116 @@ void func_800008D0(void) {
     D_800A0684 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800008DC);
+/* JFG's sequence player (n_audio) has its target sequence at 0x18 */
+typedef struct N_ALCSPlayerHead {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ ALCSeq *target;
+} N_ALCSPlayerHead;
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000B80);
+/* DKR src/audio.h */
+typedef struct DelayedSound {
+    /* 0x00 */ u16 soundId;
+    /* 0x02 */ s16 timer;
+    /* 0x04 */ SoundHandle *handlePtr;
+} DelayedSound;
+
+extern OSMesgQueue D_800E9780; // JFG: a queue polled each tick
+extern s32 D_800E9774;
+extern s32 D_800A06A8;
+extern s32 D_800E9524; // JFG: music fade: base volume
+extern s32 D_800E9528; // JFG: music fade: volume per tick (16.16)
+extern s32 D_800E952C; // JFG: jingle fade: base volume
+extern s32 D_800E9530; // JFG: jingle fade: volume per tick (16.16)
+extern s32 gDelayedSoundsCount;
+extern DelayedSound gDelayedSounds[8];
+extern u8 gMusicSequenceData[];
+extern u8 gJingleSequenceData[];
+extern ALCSeq *D_800E9670; // JFG: the music sequence
+extern ALCSeq gJingleSequence;
+extern u8 D_800A06B0;
+extern u8 D_800A06B4;
+void music_volume_set(u8 volume);
+void music_jingle_volume_set(u8 volume);
+void sound_play(u16 soundID, SoundHandle *handlePtr);
+void music_sequence_init(ALCSPlayer *seqPlayer, void *sequence, u8 *nextSeqID, ALCSeq *seq);
+
+/**
+ * Run every frame, this handles the transitions in and out of music sequences.
+ * If there's something in the queue, then begin to play that.
+ * Additionally, it also handles the delayed audio queue, counting down and playing any sounds.
+ * JFG: linear fades of the music and jingle volumes; two flags are cleared.
+ * Official Name: amAudioTick
+ */
+void sound_update_queue(u8 updateRate) {
+    s32 i;
+    s32 j;
+    s32 volume;
+    OSMesg mesg;
+
+    if (osRecvMesg(&D_800E9780, &mesg, OS_MESG_NOBLOCK) == 0) {
+        D_800E9774 = 1;
+    }
+    if (D_800A0680 > 0 || D_800A06A8 != -1) {
+        D_800A0680 -= updateRate;
+        if (D_800A0680 < 0) {
+            D_800A0680 = 0;
+        }
+        volume = ((D_800E9528 * D_800A0680) >> 16) + D_800E9524;
+        music_volume_set(volume);
+    }
+    if (D_800A0684 > 0) {
+        D_800A0684 -= updateRate;
+        if (D_800A0684 < 0) {
+            D_800A0684 = 0;
+        }
+        volume = ((D_800E9530 * D_800A0684) >> 16) + D_800E952C;
+        music_jingle_volume_set(volume);
+    }
+
+    if (gDelayedSoundsCount > 0) {
+        for (i = 0; i < gDelayedSoundsCount;) {
+            gDelayedSounds[i].timer -= updateRate;
+            if (gDelayedSounds[i].timer <= 0) {
+                j = i;
+                sound_play(gDelayedSounds[i].soundId, gDelayedSounds[i].handlePtr);
+
+                gDelayedSoundsCount -= 1;
+                while (j < gDelayedSoundsCount) {
+                    gDelayedSounds[i].soundId = gDelayedSounds[i + 1].soundId;
+                    gDelayedSounds[i].timer = gDelayedSounds[i + 1].timer;
+                    gDelayedSounds[i].handlePtr = gDelayedSounds[i + 1].handlePtr;
+                    j++;
+                }
+                j++;
+            } else {
+                i++;
+            }
+        }
+    }
+
+    music_sequence_init(gMusicPlayer, gMusicSequenceData, &gMusicNextSeqID, D_800E9670);
+    music_sequence_init(gJinglePlayer, gJingleSequenceData, &gJingleNextSeqID, &gJingleSequence);
+    if (sMusicTempo == -1 && ((N_ALCSPlayerHead *) gMusicPlayer)->target) {
+        sMusicTempo = 60000000 / alCSPGetTempo(gMusicPlayer);
+    }
+    D_800A06B0 = 0;
+    D_800A06B4 = 0;
+}
+
+void func_80044C20(void);
+
+/* JFG: skip one poll if flagged, otherwise call func_80044C20 until a message arrives. */
+void func_80000B80(void) {
+    OSMesg msg;
+
+    if (D_800E9774) {
+        D_800E9774 = 0;
+    } else {
+        while (osRecvMesg(&D_800E9780, &msg, OS_MESG_NOBLOCK) != 0) {
+            func_80044C20();
+        }
+    }
+}
 
 extern s32 D_800E9774;
 
@@ -247,11 +383,38 @@ u8 music_jingle_current(void) {
     return gCurrentJingleID;
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000FE4);
+extern u32 D_800A0690; // JFG: the user's music volume setting (0 to 256)
+extern u8 D_800A06B0;
 
-extern u32 D_800A0690;
+/**
+ * Set the volume of the music.
+ * Update music volume with this new setting.
+ * JFG: clamped to 127, scaled by the volume setting; sets a flag.
+ * Official Name: amTuneSetVolume
+ */
+void music_volume_set(u8 volume) {
+    u32 newVolume;
+    if (volume > 127) {
+        volume = 127;
+    }
+    gMusicBaseVolume = volume;
+    newVolume = gMusicBaseVolume * D_800A0690;
+    alCSPSetVol(gMusicPlayer, (s16) newVolume);
+    D_800A06B0 = TRUE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001050);
+/**
+ * Set the user configured music volume (0 to 256).
+ * Update music volume with this new setting.
+ * Official Name: amTuneSetGlobalVolume
+ */
+void music_volume_config_set(u32 slider_val) {
+    u32 volume;
+    slider_val = (slider_val <= 256) ? slider_val : 256;
+    D_800A0690 = slider_val;
+    volume = gMusicBaseVolume * D_800A0690;
+    alCSPSetVol(gMusicPlayer, (s16) volume);
+}
 
 /**
  * Return the baseline music volume, unaffected by user config.
@@ -312,11 +475,65 @@ void func_80001228(SoundHandle soundHandle) {
     func_800861D4(soundHandle);
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001248);
+s32 func_800019C8(s32 volume);
+void sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_8000134C);
+/**
+ * Plays the requested sound from the sound table.
+ * JFG: one call to the sound player with the table's volume (halved), a centred pan
+ * and the pitch; the handle must be given.
+ * Official Name: amSndPlay
+ */
+void sound_play(u16 soundID, SoundHandle *handlePtr) {
+    f32 pitch;
+    s32 soundBite;
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800013FC);
+    if (soundID > gSoundCount) {
+        if (handlePtr != NULL) {
+            *handlePtr = NULL;
+        }
+        return;
+    }
+    soundBite = gSoundTable[soundID].soundBite;
+    if (soundBite == 0) {
+        if (handlePtr != NULL) {
+            *handlePtr = NULL;
+        }
+        return;
+    }
+    pitch = (u32) gSoundTable[soundID].pitch / 100.0f;
+    sndp_play(gSoundBank->bankArray[0], (s16) soundBite, func_800019C8(gSoundTable[soundID].volume << 8), 0x40, pitch,
+              0, handlePtr);
+}
+
+s32 func_800019C8(s32 volume);
+void sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
+
+/**
+ * Official Name: amSndPlayDirect
+ * JFG: takes the volume, pan, pitch and effect mix; the handle must be given.
+ */
+void sound_play_direct(u16 soundID, u8 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr) {
+    if (soundID <= 0 || sound_count() < soundID) {
+        if (handlePtr) {
+            *handlePtr = NULL;
+        }
+        return;
+    }
+    sndp_play(gSoundBank->bankArray[0], (s16) soundID, func_800019C8(volume << 8), pan, pitch, fxMix, handlePtr);
+}
+
+/**
+ * Set the volume of the sound relative to the baseline volume of the sound ID.
+ * JFG: the volume goes through func_800019C8 (halved).
+ * Official Name: amSndSetVol
+ */
+void sound_volume_set_relative(u16 soundID, SoundHandle soundHandle, u8 volume) {
+    s32 newVolume = (s32) ((u32) gSoundTable[soundID].volume * ((u32) volume / 127.0f)) << 8;
+    if (soundHandle) {
+        sndp_set_param(soundHandle, AL_SNDP_VOL_EVT, func_800019C8(newVolume));
+    }
+}
 
 void func_800014D8(SoundHandle soundHandle, u32 pan) {
     if (soundHandle != NULL) {

@@ -98,7 +98,40 @@ extern void *gSnowPhysics;
 extern SnowGfxData gSnowGfx;
 extern void *gSnowTriIndices;
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AB00);
+extern s32 gSnowVertOffset;
+extern s32 gSnowTriCount;
+extern s32 *D_800A5A0C; // DKR: gWeatherAssetTable
+extern s8 gWeatherAssetTableLength;
+s32 *asset_table_load(u32 assetIndex);
+
+/**
+ * Zero out all the weather data.
+ * Load the weather table into memory.
+ * JFG: no lens flare.
+ * Official Name: initWeather
+ */
+void weather_init(void) {
+    gSnowGfx.pos = NULL;
+    gSnowGfx.unk4 = 0;
+    gSnowPhysics = NULL;
+    gSnowDensity = 0;
+    gSnowVertOffset = 6;
+    gSnowVertOffset <<= 2;
+    gSnowTriCount = gSnowVertOffset >> 1; // One triangle per two verts
+    gSnowVertexData[0] = 0;
+    gSnowVertexData[1] = 0;
+    gSnowTriangles = 0;
+    gSnowPlane.near = -1;
+    gSnowPlane.far = -512;
+    if (D_800A5A0C == NULL) {
+        D_800A5A0C = asset_table_load(0x1B);
+        gWeatherAssetTableLength = 0;
+        while (D_800A5A0C[gWeatherAssetTableLength] != -1) {
+            gWeatherAssetTableLength++;
+        }
+    }
+    gSnowVertexFlip = 0;
+}
 
 /**
  * Set the near and far culling distances for the weather effects.
@@ -247,9 +280,46 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005BD30);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005BDB8);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005BEF8);
+/* DKR include/level.h LevelHeader, reduced (JFG offsets) */
+typedef struct LevelHeader {
+    /* 0x00 */ u8 pad0[0xA2];
+    /* 0xA2 */ u8 unkA2; // JFG: bit 0 = no rain fog
+} LevelHeader;
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005BFC4);
+extern s32 gLightningFrequency;
+s32 get_current_viewport(void);
+LevelHeader *level_header(void);
+void set_fog(s32 fogIdx, s16 near, s16 far, s16 unk, u8 red, u8 green, u8 blue, s8 unk2);
+
+/**
+ * If it's currently raining, update the fog levels to match the intensity of the storm.
+ * JFG: skipped on levels flagged in the header; set_fog takes more arguments.
+ * Official Name: rainSetFog
+ */
+void rain_fog(void) {
+    s32 a, b;
+    if (gWeatherType != WEATHER_SNOW && get_current_viewport() == 0 && !(level_header()->unkA2 & 1)) {
+        a = ((gLightningFrequency * -38) >> 16) + 1018;
+        b = ((gLightningFrequency * -20) >> 16) + 1023;
+        set_fog(0, a, b, a, 28, 15, 36, 0);
+    }
+}
+
+extern s32 D_800A5D28;
+extern u32 D_800A5D1C;
+
+/* JFG: the rain density, 0.0 to 1.0. */
+f32 func_8005BFC4(void) {
+    f32 density = (f32) ((s32) ((D_800A5D28 >> 2) * D_800A5D1C) >> 14) / 65536.0f;
+
+    if (density < 0.0f) {
+        density = 0.0f;
+    }
+    if (density > 1.0f) {
+        density = 1.0f;
+    }
+    return density;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C040);
 

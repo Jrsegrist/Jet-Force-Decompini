@@ -10,7 +10,26 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D500);
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D800);
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D938);
+extern s32 D_800A0E80[4];
+extern s32 D_800A0E90[4];
+extern s32 D_800A0EA0[4];
+void mempool_free(void *data);
+
+/* JFG: free the three shadow buffers. */
+void func_8001D938(void) {
+    if (((void **) D_800A0E80)[0] != NULL) {
+        mempool_free(((void **) D_800A0E80)[0]);
+        ((void **) D_800A0E80)[0] = NULL;
+    }
+    if (((void **) D_800A0E90)[0] != NULL) {
+        mempool_free(((void **) D_800A0E90)[0]);
+        ((void **) D_800A0E90)[0] = NULL;
+    }
+    if (((void **) D_800A0EA0)[0] != NULL) {
+        mempool_free(((void **) D_800A0EA0)[0]);
+        ((void **) D_800A0EA0)[0] = NULL;
+    }
+}
 
 extern s32 D_800A0EC8;
 
@@ -18,10 +37,6 @@ extern s32 D_800A0EC8;
 void func_8001D9B4(void) {
     D_800A0EC8 ^= 1;
 }
-
-extern s32 D_800A0E80[4];
-extern s32 D_800A0E90[4];
-extern s32 D_800A0EA0[4];
 
 void func_8001D9D0(s32 flags, s32 *a, s32 *b, s32 *c) {
     s32 index = D_800A0EC8;

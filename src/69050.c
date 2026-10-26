@@ -69,17 +69,61 @@ extern LevelEffect D_80102760[32];
 void tex_free(void *tex);
 void mempool_free(void *data);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068450);
+/* JFG: clear the level effects. */
+void func_80068450(void) {
+    s32 i;
+    LevelEffect *effect;
+
+    for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
+        effect->type = 0;
+        effect->loaded = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068494);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068874);
+void func_80068A14(LevelEffect *effect);
+
+/* JFG: free the loaded level effects and clear their types. */
+void func_80068874(void) {
+    s32 i;
+    LevelEffect *effect;
+
+    for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
+        if (effect->loaded) {
+            func_80068A14(effect);
+        }
+        effect->type = 0;
+    }
+}
 
 void func_80068A14(LevelEffect *effect);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800688D8);
+/* JFG: free the loaded level effects. */
+void func_800688D8(void) {
+    s32 i;
+    LevelEffect *effect = D_80102760;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068938);
+    for (i = 0; i < 32; i++, effect++) {
+        if (effect->loaded) {
+            func_80068A14(effect);
+        }
+    }
+}
+
+void func_800689BC(LevelEffect *effect);
+
+/* JFG: release every active level effect whose id (s16 at 0x1C) matches. */
+void func_80068938(s32 id) {
+    s32 i;
+    LevelEffect *effect;
+
+    for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
+        if (effect->type && id == *(s16 *) ((u8 *) effect + 0x1C)) {
+            func_800689BC(effect);
+        }
+    }
+}
 
 void func_800689B4(s32 arg0) {
 }
@@ -376,7 +420,16 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006D110);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D390);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D58C);
+void func_8006D390(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour);
+
+/* JFG: draw a line with D_80103B94 temporarily set to `window`. */
+void func_8006D58C(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
+    s32 prevWindow = D_80103B94;
+
+    D_80103B94 = window;
+    func_8006D390(x1, y1, x2, y2, colour);
+    D_80103B94 = prevWindow;
+}
 
 extern s32 D_80103B94;
 
@@ -443,7 +496,35 @@ void func_8006F078(void) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F084);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F424);
+typedef struct ScreenEffect {
+    /* 0x00 */ s32 type;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ s32 unk10;
+} ScreenEffect;
+extern s32 D_800A6E18;
+extern ScreenEffect D_80102CE8[4];
+
+/* JFG: queue a screen effect (up to 4 per frame). */
+void func_8006F424(s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g) {
+    ScreenEffect *fx;
+
+    if (D_800A6E18 < 4) {
+        fx = &D_80102CE8[D_800A6E18++];
+        fx->type = type;
+        fx->unk4 = a;
+        fx->unk6 = b;
+        fx->unk8 = c;
+        fx->unkA = d;
+        fx->unkC = e;
+        fx->unkE = f;
+        fx->unk10 = g;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F4A0);
 

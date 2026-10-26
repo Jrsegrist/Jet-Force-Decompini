@@ -13,7 +13,47 @@ extern s32 gSaveDataFlags; // Official Name: load_save_flags
 #define SAVE_DATA_FLAG_WRITE_SAVE_DATA 0x40000000
 #define GAMEMODE_INGAME 0
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80044B50);
+extern s32 D_800A331C;
+extern s32 D_800A3320;
+extern s16 D_800A3260;
+extern s32 sBootDelayTimer;
+s32 func_800841A0(void);
+s32 func_800841CC(void);
+void func_80044DFC(void);
+void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+void func_80044C20(void);
+void func_80044FAC(void);
+void thread3_verify_stack(void);
+s32 input_update(s32 saveDataFlags, s32 updateRate);
+
+/**
+ * Main looping function for the main thread.
+ * JFG: hangs on a PAL console, runs two boot checks, and starts at a level
+ * instead of checking for a reset in the loop.
+ * Official Name: mainThread
+ */
+void thread3_main(UNUSED void *unused) {
+    u32 *mem;
+    if (osTvType == OS_TV_PAL) {
+        // Clear memory downwards from the end of the first 4 MB until it crashes.
+        mem = (u32 *) 0x80400000;
+        while (1) {
+            *--mem = 0;
+        }
+    }
+    D_800A331C = func_800841A0();
+    D_800A3320 = func_800841CC();
+    func_80044DFC();
+    gSaveDataFlags = input_update(gSaveDataFlags, 0);
+    sBootDelayTimer = 0;
+    gGameMode = 6;
+    func_8004665C(0, D_800A3260, 0, 0, 1, 0);
+    while (1) {
+        func_80044C20();
+        func_80044FAC();
+        thread3_verify_stack();
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80044C20);
 
@@ -175,21 +215,67 @@ GameStats *func_80047C0C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047C1C);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047C9C);
-
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047D0C);
-
 u8 *func_80047C1C(s32 player, s32 character);
+extern s32 D_800A32C8; // JFG: characters whose items changed (one bit each)
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047D80);
+/* JFG: give a player's character an item. */
+void func_80047C9C(s32 player, s32 character, s32 item) {
+    u8 *chr = func_80047C1C(player, character);
+
+    if (chr != NULL) {
+        (chr + 0x66)[item >> 3] |= 0x80 >> (item & 7);
+        D_800A32C8 |= 1 << (character & 3);
+    }
+}
+
+/* JFG: take an item from a player's character. */
+void func_80047D0C(s32 player, s32 character, s32 item) {
+    u8 *chr = func_80047C1C(player, character);
+
+    if (chr != NULL) {
+        (chr + 0x66)[item >> 3] &= ~(0x80 >> (item & 7));
+        D_800A32C8 |= 1 << (character & 3);
+    }
+}
+
+/* JFG: whether a player's character has an item (a bit array at 0x66, highest bit first). */
+s32 func_80047D80(s32 player, s32 character, s32 item) {
+    UNUSED s32 pad;
+    u8 *chr;
+    s32 has = 0;
+
+    chr = func_80047C1C(player, character);
+    if (chr != NULL) {
+        if ((chr + 0x66)[item >> 3] & (0x80 >> (item & 7))) {
+            has = 1;
+        }
+    }
+    return has;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047DD8);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047E44);
+/* JFG: whether a player's character has a weapon (a bit mask at 0xA). */
+s32 func_80047E44(s32 player, s32 character, s32 weapon) {
+    u8 *chr = func_80047C1C(player, character);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047E8C);
+    if (chr != NULL) {
+        if (*(u16 *) (chr + 0xA) & (1 << weapon)) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
 
-s32 func_80047E8C(GameStats *game, s32 flag);
+/* JFG: read one of the game's 0x480 flags (a bit array at 0x30, lowest bit first). */
+s32 func_80047E8C(GameStats *game, s32 flag) {
+    if (flag >= 0 && flag < 0x480) {
+        if (((u8 *) game)[(flag >> 3) + 0x30] & (1 << (flag & 7))) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
 
 s32 func_80047ED0(s32 flag) {
     return func_80047E8C(D_800FD7D4, flag);

@@ -13,7 +13,7 @@ prints how much of it is built from C:
 
 | Part | Functions in C | Bytes in C |
 | --- | --- | --- |
-| main segment, game code | 438 / 1,319 | 33,560 / 539,980 |
+| main segment, game code | 552 / 1,319 | 62,080 / 539,960 |
 | main segment, libraries (libultra, n_audio, libc) | 81 / 341 | 12,428 / 102,408 |
 | runlink modules (157) | 0 / 1,385 (counted by returns) | 0 / 851,744 |
 
@@ -74,6 +74,22 @@ extract time lets them meet the ROM names in the assembly.
 - Replace the `INCLUDE_ASM` line with C, build, and compare with
   `.venv/bin/python3 tools/asm-differ/diff.py -mw <function>` (it uses the
   map file) or just `make check`.
+- A function whose C is right but does not match yet keeps that C behind
+  `#ifdef NON_MATCHING`, with its `INCLUDE_ASM` in the `#else` branch and a
+  `NON_MATCHING:` comment saying what still differs. The normal build uses the
+  assembly; `make nonmatching` compiles the C bodies (into `build_nm/`, not
+  linked) so that they keep building. These functions count as assembly in
+  `make progress`.
+
+```c
+#ifdef NON_MATCHING
+void func_80012345(void) {
+    ...
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/12D50", func_80012345);
+#endif
+```
 
 ## Compiler
 
