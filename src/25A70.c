@@ -56,6 +56,10 @@ typedef struct Object {
     /* 0x68 */ Object_Animator *animator;
     /* 0x6C */ u8 pad6C[0x84 - 0x6C];
     /* 0x84 */ s32 particleEmittersEnabled;
+    /* 0x88 */ s16 unk88;
+    /* 0x8A */ s16 unk8A;
+    /* 0x8C */ s16 unk8C;
+    /* 0x8E */ s16 unk8E;
 } Object;
 
 LevelModel *get_current_level_model(void);
@@ -160,7 +164,19 @@ void func_800270D4(Object *obj, s32 arg1) {
     *speed = 0x1000;
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800270EC);
+typedef struct AnimDroidState {
+    /* 0x00 */ s32 angle;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+} AnimDroidState;
+
+void func_800270EC(Object *obj, s32 updateRate) {
+    AnimDroidState *state = (AnimDroidState *) obj->animator;
+    state->angle += updateRate * 0x4800;
+    state->unk4 = 0x2008, state->unk6 = state->angle;
+    state->unk8 = 0x1000;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027120);
 
@@ -198,6 +214,11 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80028274);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80028414);
+void func_80028414(Object *obj, s8 *entry) {
+    obj->unk88 = entry[0xA] * 60;
+    obj->unk8A = entry[0xB] * 60;
+    obj->unk8C = 0;
+    obj->unk8E = 0xFF;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_8002844C);

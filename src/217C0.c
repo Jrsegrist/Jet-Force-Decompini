@@ -6,8 +6,15 @@
 
 /* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
 typedef struct ObjectLight {
-    /* 0x00 */ u8 pad0[3];
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 flags;
     /* 0x03 */ u8 enabled; // bit 0
+    /* 0x04 */ u8 pad4[0x40 - 0x04];
+    /* 0x40 */ u8 colourR;
+    /* 0x41 */ u8 colourG;
+    /* 0x42 */ u8 colourB;
+    /* 0x43 */ u8 pad43[0x54 - 0x43];
+    /* 0x54 */ s32 unk54;
 } ObjectLight;
 
 typedef struct ObjectHeader {
@@ -88,7 +95,14 @@ void func_800212F8(ObjectLight *light) {
     light->enabled ^= TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_8002130C);
+/* JFG: set a light's colour and flag it as changed. */
+void func_8002130C(ObjectLight *light, u8 red, u8 green, u8 blue) {
+    light->colourR = red;
+    light->colourG = green;
+    light->colourB = blue;
+    light->flags |= 2;
+    light->unk54 = 0;
+}
 
 void func_80057CEC(void *colourCycle);
 
