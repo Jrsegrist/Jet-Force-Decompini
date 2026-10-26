@@ -411,6 +411,17 @@ func_8006FC54 = set_text_font;
 func_80070BF8 = dialogue_clear;
 func_8007078C = set_current_dialogue_box_coords;
 func_80070C78 = dialogue_close;
+func_8006FC68 = set_text_colour;
+func_8006FC8C = set_text_background_colour;
+func_8006FCA8 = draw_text;
+func_8007082C = set_dialogue_font;
+func_80070848 = set_current_dialogue_background_colour;
+func_80070888 = set_current_text_colour;
+func_800708D0 = set_current_text_background_colour;
+func_80070C4C = open_dialogue_box;
+func_80070CA4 = s32_to_string;
+draw_dialogue_text_pos_unused = 0x8006FCEC;
+gDescPowsOf10 = 0x800A6EB4;
 gDialogueBoxBackground = 0x80103FA8;
 
 /* ---- not decompiled yet ---- */

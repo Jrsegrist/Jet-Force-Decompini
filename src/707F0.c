@@ -8,6 +8,7 @@
 #define DIALOGUE_NUM_NULL 0xFF
 #define DIALOGUEBOXBACKGROUND_COUNT 8
 #define DIALOGUE_BOX_CLOSED 0x7FFF
+#define DIALOGUE_BOX_OPEN 0x8000
 
 typedef struct DialogueBox {
     /* 0x00 */ u8 unk00;
@@ -48,12 +49,35 @@ typedef struct DialogueBoxBackground {
 
 extern DialogueBoxBackground gDialogueBoxBackground[]; // Official Name: Window
 extern u8 fontInUse;                                    // Official Name: fontInUse
+extern s32 gDescPowsOf10[]; // JFG: zero-terminated
+extern u8 D_8010410D;
+extern s32 D_800A6EA8;
+extern s32 D_800A6EAC;
+extern s32 D_800A6EB0;
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FBF0);
+void draw_dialogue_text_pos_unused(Gfx **displayList, s32 dialogueBoxID, s32 xpos, s32 ypos, char *text,
+                                   s32 alignmentFlags);
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FC14);
+/* JFG: set the size of dialogue box 0 (the whole screen). */
+void func_8006FBF0(s32 width, s32 height) {
+    DialogueBoxBackground *box = &gDialogueBoxBackground[0];
+    box->x2 = width - 1;
+    box->y2 = height - 1;
+    box->width = width;
+    box->height = height;
+}
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FC20);
+/* JFG: set a text mode byte. */
+void func_8006FC14(s32 mode) {
+    D_8010410D = mode;
+}
+
+/* JFG: set three colour components (stored as words). */
+void func_8006FC20(u8 red, u8 green, u8 blue) {
+    D_800A6EA8 = red;
+    D_800A6EAC = green;
+    D_800A6EB0 = blue;
+}
 
 /**
  * Set the font of the current dialogue box's text (as DKR's Japanese version).
@@ -64,11 +88,36 @@ void set_text_font(s32 fontID) {
     gDialogueBoxBackground[0].font = fontID;
 }
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FC68);
+/**
+ * Sets the colour of the current dialogue box's text.
+ * Official Name: fontColour
+ */
+void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity) {
+    gDialogueBoxBackground[0].textColourR = red;
+    gDialogueBoxBackground[0].textColourG = green;
+    gDialogueBoxBackground[0].textColourB = blue;
+    gDialogueBoxBackground[0].textColourA = alpha;
+    gDialogueBoxBackground[0].opacity = opacity;
+}
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FC8C);
+/**
+ * Sets the colour of the current dialogue box's text background.
+ * Official Name: fontBackground
+ */
+void set_text_background_colour(s32 red, s32 green, s32 blue, s32 alpha) {
+    gDialogueBoxBackground[0].textBGColourR = red;
+    gDialogueBoxBackground[0].textBGColourG = green;
+    gDialogueBoxBackground[0].textBGColourB = blue;
+    gDialogueBoxBackground[0].textBGColourA = alpha;
+}
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FCA8);
+/**
+ * Renders the given text at a given position in dialogue box 0.
+ * JFG: a wrapper of draw_dialogue_text_pos_unused.
+ */
+void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentFlags) {
+    draw_dialogue_text_pos_unused(displayList, 0, xpos, ypos, text, alignmentFlags);
+}
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FCEC);
 
@@ -104,13 +153,60 @@ void set_current_dialogue_box_coords(s32 dialogueBoxID, s32 x1, s32 y1, s32 x2, 
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8007082C);
+/**
+ * Sets the active front of the current dialogue box (as DKR's Japanese version).
+ * Official Name: fontWindowUseFont
+ */
+void set_dialogue_font(s32 dialogueBoxID, s32 font) {
+    gDialogueBoxBackground[dialogueBoxID].font = font;
+}
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_80070848);
+/**
+ * Sets the background colour of the current dialogue box.
+ * Official Name: fontWindowColour
+ */
+void set_current_dialogue_background_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha) {
+    if (dialogueBoxID > 0 && dialogueBoxID < DIALOGUEBOXBACKGROUND_COUNT) {
+        DialogueBoxBackground *temp = &gDialogueBoxBackground[dialogueBoxID];
+        temp->backgroundColourR = red;
+        temp->backgroundColourG = green;
+        temp->backgroundColourB = blue;
+        temp->backgroundColourA = alpha;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_80070888);
+/**
+ * Sets the text colour of the current dialogue box.
+ * Official Name: fontWindowFontColour
+ */
+void set_current_text_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha, s32 opacity) {
+    DialogueBoxBackground *temp;
+    if (dialogueBoxID <= 0 || dialogueBoxID >= DIALOGUEBOXBACKGROUND_COUNT) {
+        return;
+    }
+    temp = &gDialogueBoxBackground[dialogueBoxID];
+    temp->textColourR = red;
+    temp->textColourG = green;
+    temp->textColourB = blue;
+    temp->textColourA = alpha;
+    temp->opacity = opacity;
+}
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_800708D0);
+/**
+ * Sets text background colour of the current dialogue box.
+ * Official Name: fontWindowFontBackground
+ */
+void set_current_text_background_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha) {
+    DialogueBoxBackground *dialogueBox;
+    if (dialogueBoxID <= 0 || dialogueBoxID >= DIALOGUEBOXBACKGROUND_COUNT) {
+        return;
+    }
+    dialogueBox = &gDialogueBoxBackground[dialogueBoxID];
+    dialogueBox->textBGColourR = red;
+    dialogueBox->textBGColourG = green;
+    dialogueBox->textBGColourB = blue;
+    dialogueBox->textBGColourA = alpha;
+}
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80070910);
 
@@ -134,7 +230,12 @@ void dialogue_clear(s32 dialogueBoxID) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_80070C4C);
+/**
+ * Mark the selected dialogue box as open
+ */
+void open_dialogue_box(s32 dialogueBoxID) {
+    gDialogueBoxBackground[dialogueBoxID].flags |= DIALOGUE_BOX_OPEN;
+}
 
 /**
  * Mark the selected dialogue box as closed
@@ -144,7 +245,46 @@ void dialogue_close(s32 dialogueBoxID) {
     gDialogueBoxBackground[dialogueBoxID].flags &= DIALOGUE_BOX_CLOSED;
 }
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_80070CA4);
+/**
+ * Convert an integer to a string.
+ * JFG: the table of powers of ten ends with a zero instead of a count.
+ * Official Name: fontStringAddNumber
+ */
+void s32_to_string(char **outString, s32 number) {
+    u8 digit;
+    s32 i;
+    s32 hasDigit; // boolean
+    s32 div;
+    char *ret = *outString;
+
+    // Check for a negative number
+    if (number < 0) {
+        *ret = '-';
+        ret++;
+        number = -number;
+    }
+
+    // Loop through digit places.
+    hasDigit = FALSE;
+    for (i = 0; gDescPowsOf10[i] != 0; i++) {
+        digit = '0';
+        if (number >= gDescPowsOf10[i]) {
+            div = number / gDescPowsOf10[i];
+            hasDigit = TRUE;
+            number -= div * gDescPowsOf10[i];
+            digit = div + '0';
+        }
+        if (hasDigit) {
+            *ret = digit;
+            ret++;
+        }
+    }
+
+    // One's digit place
+    *ret = '0' + number;
+    ret++;
+    *outString = ret;
+}
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80070D68);
 
