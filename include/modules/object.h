@@ -40,7 +40,10 @@ typedef struct ObjectTransform {
  */
 typedef struct LevelObjectEntryCommon {
     /* 0x00 */ s16 objectID;
-    /* 0x02 */ u8 pad2[0xA - 0x2];
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
 } LevelObjectEntryCommon;
 
 /* What object->interactObj points at (JFG's own layout) */
@@ -51,6 +54,13 @@ typedef struct ObjectInteraction {
     /* 0x0A */ u16 flags;
 } ObjectInteraction;
 
+/* What object->header->unk50 points at */
+typedef struct ObjectHeaderUnk50 {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 radius;
+    /* 0x10 */ u8 unk10;
+} ObjectHeaderUnk50;
+
 /* What object->header points at (JFG's own layout) */
 typedef struct ObjectHeader {
     /* 0x00 */ f32 scale;
@@ -58,6 +68,8 @@ typedef struct ObjectHeader {
     /* 0x1F */ s8 numberOfModelIds;
     /* 0x20 */ u8 pad20[0x22 - 0x20];
     /* 0x22 */ s8 particleCount;
+    /* 0x23 */ u8 pad23[0x50 - 0x23];
+    /* 0x50 */ ObjectHeaderUnk50 *unk50;
 } ObjectHeader;
 
 /* What object->unk5C points at */

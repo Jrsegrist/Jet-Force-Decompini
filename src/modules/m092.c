@@ -22,8 +22,6 @@ typedef struct M092State {
 } M092State;
 
 extern void func_800541B0(s32, s32, s32);
-extern void func_8001CE10(s32, Vec3f *, Vec3f *, f32 *, s32, s32, s32);
-extern s32 func_80016208(s32, Vec3f *, Vec3f *, f32, s32, void *);
 
 s32 D_m092_00330 = 92; /* the module's number */
 
@@ -47,7 +45,7 @@ void func_m092_00000(Object *obj, M092Setup *setup) {
     to.z = obj->trans.z_position + obj->velocity.z * radius;
     radius = 10.0f;
     func_8001CE10(1, &from, &to, &radius, 0, 0, 0);
-    if (func_80016208(0, &from, &to, radius, 1, hit) != 0) {
+    if (func_80016208(NULL, &from, &to, radius, 1, hit) != 0) {
         obj->trans.x_position = to.x;
         obj->trans.y_position = to.y;
         obj->trans.z_position = to.z;

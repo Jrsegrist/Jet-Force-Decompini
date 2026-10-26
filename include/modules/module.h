@@ -37,6 +37,10 @@ extern void func_8001149C(Object *obj, s32 anim, f32 frame);
 extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 
+/* Collision: sweeps a sphere from `from` to `to`, and finds what it hits */
+extern void func_8001CE10(s32 arg0, Vec3f *from, Vec3f *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
+extern s32 func_80016208(void *obj, Vec3f *from, Vec3f *to, f32 radius, s32 arg4, void *hit);
+
 /* the player's object; callers pass one or two arguments (no prototype) */
 extern Object *func_8000E4D0();
 
