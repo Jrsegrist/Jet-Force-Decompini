@@ -46,6 +46,7 @@ void music_tempo_set_relative(f32 tempo);
 void music_tempo_set(s32 tempo);
 s16 music_tempo(void);
 void music_jingle_play_safe(u8 jingleID);
+void sound_jingle_tempo_set(s32 tempo);
 void music_stop(void);
 void music_jingle_stop(void);
 u8 music_current_sequence(void);

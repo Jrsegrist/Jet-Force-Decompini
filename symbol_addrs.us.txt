@@ -5,3 +5,5 @@ entrypoint = 0x80000400; // type:func
 
 // printf.c: the string compiled into diPrintf (its print is stubbed out)
 D_800AD8B4 = 0x800AD8B4; // type:asciz
+// audio.c: the string compiled into music_sequence_start
+D_800AA0D4 = 0x800AA0D4; // type:asciz

@@ -33,6 +33,9 @@ extern u32 gDynamicMusicChannelMask;
 
 /******************************/
 
+// The debug strings of functions that are still assembly, in source order.
+INCLUDE_RODATA("asm/nonmatchings/audio", D_800A9FB0);
+
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000450);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000510);
@@ -117,7 +120,17 @@ void music_tempo_set_relative(f32 tempo) {
     music_tempo_set((s32) ((f32) (u32) (music_tempo() & 0xFF) * tempo));
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000DD8);
+/**
+ * Set the tempo of the current playing background music.
+ * Official name: amTuneSetTempoBPM
+ */
+void music_tempo_set(s32 tempo) {
+    if (tempo != 0) {
+        f32 inv_tempo = (1.0f / tempo);
+        alCSPSetTempo(gMusicPlayer, (s32) (inv_tempo * 60000000.0f));
+        sMusicTempo = tempo;
+    }
+}
 
 /**
  * Return the tempo of the current playing background music.
@@ -138,7 +151,14 @@ void music_jingle_play_safe(u8 jingleID) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000EBC);
+/**
+ * Sets the tempo for the jingle player.
+ * Official Name: amAmbientSetTempoBPM
+ */
+void sound_jingle_tempo_set(s32 tempo) {
+    f32 inv_tempo = (1.0f / tempo);
+    alCSPSetTempo(gJinglePlayer, (s32) (inv_tempo * 60000000.0f));
+}
 
 /**
  * Stops the background music.
@@ -289,8 +309,9 @@ void music_sequence_start(u8 seqID, ALCSPlayer *seqPlayer) {
         } else {
             gJingleNextSeqID = seqID;
         }
+    } else {
+        stubbed_printf("Invalid midi sequence index\n");
     }
-    // DKR: else stubbed_printf("Invalid midi sequence index\n");
 }
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_8000167C);
