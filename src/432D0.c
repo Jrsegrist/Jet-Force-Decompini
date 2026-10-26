@@ -12,7 +12,11 @@ void func_800426DC(s32 arg0) {
     D_800FB084 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/432D0", func_800426E8);
+void func_800426E8(s32 id) {
+    if (id == D_800FB084) {
+        D_800FB084 = 0;
+    }
+}
 
 extern s32 D_800FB080;
 

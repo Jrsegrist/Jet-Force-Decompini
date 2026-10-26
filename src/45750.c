@@ -182,7 +182,12 @@ s16 func_800483B8(void) {
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800483C8);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800483F8);
+extern s32 D_800FD7D8;
+
+void func_800483F8(s32 games) {
+    D_800FD7D8 = games;
+    gSaveDataFlags |= 0x8000000;
+}
 
 extern s32 D_800FD7D8;
 
@@ -212,7 +217,9 @@ void safe_mark_write_save_file(s32 saveFileIndex) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800484A4);
+void func_800484A4(s32 saveFileIndex) {
+    gSaveDataFlags = ((saveFileIndex & 7) << 6) | 0x20000000;
+}
 
 extern s32 gSaveDataFlags;
 
@@ -226,9 +233,13 @@ void func_800484D0(void) {
     gSaveDataFlags = 0x1000000;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800484E0);
+void func_800484E0(void) {
+    gSaveDataFlags |= 0x4000000;
+}
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800484FC);
+void func_800484FC(void) {
+    gSaveDataFlags |= 0x2000000;
+}
 
 extern s16 D_800A32BC;
 

@@ -16,7 +16,11 @@ void *func_8004F958(u8 *sc) {
     return sc + 0x40;
 }
 
-INCLUDE_ASM("asm/nonmatchings/50300", func_8004F960);
+void func_8004F960(f32 *a, f32 *b, f32 *c) {
+    *a = 0.0f;
+    *b = 0.0f;
+    *c = 0.0f;
+}
 
 INCLUDE_ASM("asm/nonmatchings/50300", func_8004F978);
 

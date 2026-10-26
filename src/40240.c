@@ -67,7 +67,15 @@ f32 cam_get_fov(void) {
     return gCurCamFOV;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7D4);
+extern f32 D_800FAA60;
+extern f32 D_800FAA64;
+extern s32 D_800FAA5C;
+
+void func_8003F7D4(f32 x, f32 y) {
+    D_800FAA60 = x;
+    D_800FAA64 = y;
+    D_800FAA5C = 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7F4);
 
@@ -92,7 +100,12 @@ s32 func_8003FC1C(void) {
     return D_800FA634;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC2C);
+void func_8003FC2C(s32 index) {
+    if (index < 0 || index >= 4) {
+        index = 0;
+    }
+    D_800FA634 = index;
+}
 
 extern u8 D_800A3178[];
 
@@ -101,7 +114,11 @@ u8 func_8003FC4C(s32 index) {
     return D_800A3178[index];
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC60);
+void func_8003FC60(s32 index, s32 value) {
+    if (index >= 0 && index < 4) {
+        D_800A3178[index] = value;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC80);
 
@@ -207,9 +224,18 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041BE0);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041CA0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041DA0);
+/* JFG: an old-GBI G_MOVEWORD (index 0x0A, value 0). */
+void func_80041DA0(Gfx **dList) {
+    Gfx *_g = (*dList)++;
+    _g->words.w0 = 0xBC00000A;
+    _g->words.w1 = 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041DC0);
+void func_80041DC0(Gfx **dList) {
+    Gfx *_g = (*dList)++;
+    _g->words.w0 = 0xBC00000A;
+    _g->words.w1 = 0;
+}
 
 /**
  * Returns the active camera.

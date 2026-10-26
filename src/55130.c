@@ -99,7 +99,13 @@ void fb_size(s32 *width, s32 *height) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054EF0);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80054F74);
+extern f32 D_800A391C;
+extern f32 D_800A3920;
+
+void func_80054F74(f32 *x, f32 *y) {
+    *x = D_800A391C;
+    *y = D_800A3920;
+}
 
 /**
  * Sets the video counters to their default values.
@@ -114,7 +120,9 @@ void video_delta_reset(void) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054FBC);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055180);
+s32 func_80055180(void) {
+    return D_800FECA8 & 3;
+}
 
 extern s8 D_800FECAA;
 
@@ -124,7 +132,7 @@ s8 func_80055198(void) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800551A8);
 
-extern u8 D_800FECA6;
+extern s8 D_800FECA6;
 
 /* JFG: set a one-bit video flag. */
 void func_800551E8(s32 arg0) {
@@ -137,7 +145,9 @@ s8 func_800551F8(void) {
     return D_800FECA5;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055208);
+s32 func_80055208(void) {
+    return D_800FECA5 != D_800FECA6;
+}
 
 extern u8 D_800FECA7;
 

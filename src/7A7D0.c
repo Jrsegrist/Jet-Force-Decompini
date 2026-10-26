@@ -36,7 +36,13 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E150);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E328);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E484);
+extern s32 D_801047E0;
+extern void *D_801047E4;
+
+void *func_8007E484(s32 *count) {
+    *count = D_801047E0;
+    return D_801047E4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E4A0);
 

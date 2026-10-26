@@ -5,9 +5,13 @@ extern u8 gJinglesOff;
 
 /* DKR src/audio_spatial.h (reduced) */
 typedef struct AudioPoint {
-    struct {
+    /* 0x00 */ struct {
         f32 x, y, z;
     } pos;
+    /* 0x0C */ u8 unkC;
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 volume;
+    /* 0x0F */ u8 pitch;
 } AudioPoint;
 
 extern AudioPoint **gAudioPoints;
@@ -42,9 +46,17 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_800032B4);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003410);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_800034C4);
+void func_800034C4(AudioPoint *point, u8 volume) {
+    if (point != NULL) {
+        point->volume = volume;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_800034DC);
+void func_800034DC(AudioPoint *point, u8 pitch) {
+    if (point != NULL) {
+        point->pitch = pitch;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_800034F4);
 
@@ -101,6 +113,12 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_80003E40);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80004164);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_8000474C);
+extern void *D_800F2B10;
+
+/* JFG: push a node onto a free list. */
+void func_8000474C(void **node) {
+    *node = D_800F2B10;
+    D_800F2B10 = node;
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80004768);

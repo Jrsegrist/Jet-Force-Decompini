@@ -200,7 +200,12 @@ f32 func_8003B4F0(void) {
     return D_800F6DC4;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B500);
+extern u8 D_800A1490[][0x30];
+
+/* JFG: an entry of a table of 0x30-byte records. */
+u8 *func_8003B500(s32 index) {
+    return D_800A1490[index];
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B51C);
 

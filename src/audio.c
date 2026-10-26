@@ -304,7 +304,11 @@ u32 music_jingle_playing(void) {
     return SEQUENCE_NONE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001228);
+void func_800861D4(SoundHandle soundHandle);
+
+void func_80001228(SoundHandle soundHandle) {
+    func_800861D4(soundHandle);
+}
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80001248);
 

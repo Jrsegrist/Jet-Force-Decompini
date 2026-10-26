@@ -259,7 +259,13 @@ Object **get_racer_objects(s32 *numRacers) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E480);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E4B4);
+extern s32 D_800F2D1C;
+extern void *D_800F2D18;
+
+void *func_8000E4B4(s32 *count) {
+    *count = D_800F2D1C;
+    return D_800F2D18;
+}
 
 /**
  * Returns the racer object specified by the player ID.

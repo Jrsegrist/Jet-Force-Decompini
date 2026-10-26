@@ -321,6 +321,14 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C3D0);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C650);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C758);
+/* JFG: the index of the highest set bit (-1 for zero). */
+s32 func_8001C758(u32 value) {
+    s32 bit = -1;
+    while (value != 0) {
+        bit++;
+        value >>= 1;
+    }
+    return bit;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C778);

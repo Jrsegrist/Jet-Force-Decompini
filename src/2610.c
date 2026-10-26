@@ -38,7 +38,14 @@ INCLUDE_ASM("asm/nonmatchings/2610", func_80002694);
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_800026CC);
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_800027D8);
+extern s32 D_800A06DC;
+extern s32 D_800A06E4;
+
+void func_800027D8(s32 mode) {
+    if ((D_800A06DC = mode) == 1) {
+        D_800A06E4 = 0;
+    }
+}
 
 extern s32 D_800A06E8;
 
@@ -46,4 +53,8 @@ s32 func_800027FC(void) {
     return D_800A06E8;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_8000280C);
+extern s32 D_800A06C0;
+
+s32 func_8000280C(void) {
+    return D_800A06C0 == 0;
+}

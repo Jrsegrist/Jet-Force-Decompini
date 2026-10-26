@@ -155,7 +155,10 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_80026FE0);
 void func_800270C8(s32 arg0, s32 arg1) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800270D4);
+void func_800270D4(Object *obj, s32 arg1) {
+    s16 *speed = (s16 *) obj->animator + 2;
+    *speed = 0x1000;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800270EC);
 
@@ -171,7 +174,11 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_800274FC);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027564);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800275CC);
+void func_800275CC(Object *obj, u8 *entry) {
+    u8 *state = (u8 *) obj->animator;
+    state[0] = entry[0xA];
+    state[1] = entry[0xB];
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800275E8);
 

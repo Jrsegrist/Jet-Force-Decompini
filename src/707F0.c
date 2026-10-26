@@ -302,4 +302,14 @@ INCLUDE_ASM("asm/nonmatchings/707F0", func_800720FC);
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_8007216C);
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8007230C);
+/* Size: 0x10 bytes */
+typedef struct FontData {
+    u8 pad0[3];
+    u8 unk3;
+    u8 pad4[0xC];
+} FontData;
+extern FontData *gFonts; // Official Name: Font
+
+u8 func_8007230C(s32 font) {
+    return gFonts[font].unk3;
+}

@@ -483,6 +483,7 @@ func_80070CA4 = s32_to_string;
 draw_dialogue_text_pos_unused = 0x8006FCEC;
 gDescPowsOf10 = 0x800A6EB4;
 gDialogueBoxBackground = 0x80103FA8;
+gFonts = 0x80103BA4;
 
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;

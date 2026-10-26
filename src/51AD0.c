@@ -2,7 +2,13 @@
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050ED0);
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050F44);
+extern s32 D_800FE9F0;
+extern void *D_800A38E4;
+
+void *func_80050F44(s32 *count) {
+    *count = D_800FE9F0;
+    return D_800A38E4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050F60);
 
@@ -32,7 +38,12 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051CCC);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051EA4);
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052678);
+extern u32 *D_800A38E0;
+u32 *asset_table_load(u32 assetIndex);
+
+void func_80052678(void) {
+    D_800A38E0 = asset_table_load(0x3E);
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005269C);
 
@@ -52,7 +63,16 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800531C8);
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053370);
+/* Size: 0x20 bytes */
+typedef struct ModuleEntry {
+    s32 unk0;
+    u8 pad4[0x1C];
+} ModuleEntry;
+extern ModuleEntry *D_800FEAA0;
+
+s32 func_80053370(s32 index) {
+    return D_800FEAA0[index].unk0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005338C);
 

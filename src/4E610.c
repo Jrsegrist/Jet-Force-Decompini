@@ -37,7 +37,11 @@ INCLUDE_ASM("asm/nonmatchings/4E610", func_8004DFC4);
 
 INCLUDE_ASM("asm/nonmatchings/4E610", func_8004E338);
 
-INCLUDE_ASM("asm/nonmatchings/4E610", func_8004E3E8);
+extern Gfx D_800A3698[];
+
+void func_8004E3E8(Gfx **dList) {
+    gSPDisplayList((*dList)++, D_800A3698);
+}
 
 /**
  * Calls the draw command that sets all the OtherModes, ready for use.

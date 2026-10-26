@@ -12,7 +12,12 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D800);
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D938);
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D9B4);
+extern s32 D_800A0EC8;
+
+/* JFG: flip between two buffers. */
+void func_8001D9B4(void) {
+    D_800A0EC8 ^= 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D9D0);
 

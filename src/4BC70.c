@@ -68,7 +68,9 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA50);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA98);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAC8);
+s32 func_8004BAC8(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+    return 1;
+}
 
 s32 func_8004BAE0(s32 arg0, s32 arg1, s32 arg2) {
     return 0x1;

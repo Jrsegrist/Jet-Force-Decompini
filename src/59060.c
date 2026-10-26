@@ -79,7 +79,12 @@ s32 get_language(void) {
     return gLanguage;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A7E0);
+void func_80058460(s32 language);
+
+void func_8005A7E0(s32 language) {
+    gLanguage = language;
+    func_80058460(language);
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A804);
 
@@ -131,13 +136,33 @@ u16 func_8005AA30(void) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005AA40);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AA7C);
+/* JFG: settings flags (the language and volume bytes above sit in the same block). */
+typedef struct SettingsFlags {
+    /* 0x00 */ u8 pad0[0x6C];
+    /* 0x6C */ u32 unk6C_0 : 3;
+    /* 0x6C */ u32 unk6C_3 : 1;
+    /* 0x6C */ u32 unk6C_4 : 28;
+} SettingsFlags;
+extern SettingsFlags D_800FF318;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AA94);
+s32 func_8005AA7C(void) {
+    s32 value = D_800FF318.unk6C_3;
+    return value;
+}
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AAB8);
+void func_8005AA94(s32 value) {
+    D_800FF318.unk6C_3 = value & 1;
+}
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AAD0);
+extern u8 D_800FF38D[4];
+
+u8 func_8005AAB8(s32 index) {
+    return D_800FF38D[index & 3];
+}
+
+void func_8005AAD0(s32 index, s32 value) {
+    D_800FF38D[index & 3] = value & 1;
+}
 
 extern u8 D_800FF311;
 

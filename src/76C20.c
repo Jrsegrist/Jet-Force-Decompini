@@ -1,6 +1,14 @@
 #include "common.h"
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80076020);
+extern s32 *D_801047C8;
+extern s32 D_801047CC;
+extern s32 D_801047D0;
+
+void func_80076020(s32 *arg0) {
+    D_801047C8 = arg0;
+    D_801047CC = *arg0;
+    D_801047D0 = 0x80;
+}
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076044);
 
@@ -10,7 +18,11 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80076154);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076198);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_800761C8);
+extern s8 D_800A74F0[];
+
+s8 func_800761C8(u16 *arg0) {
+    return D_800A74F0[(u8) (arg0[1] >> 8)];
+}
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800761E8);
 

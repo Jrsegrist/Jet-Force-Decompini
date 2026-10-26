@@ -90,7 +90,12 @@ void func_800212F8(ObjectLight *light) {
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_8002130C);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80021338);
+void func_80057CEC(void *colourCycle);
+
+/* JFG: restart the light's colour cycle. */
+void func_80021338(u8 *light) {
+    func_80057CEC(light + 0x48);
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021358);
 
@@ -151,4 +156,9 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_80022744);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800228BC);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800229B8);
+void func_80023CB4(void *light);
+
+s32 func_800229B8(void *light) {
+    func_80023CB4(light);
+    return 1;
+}
