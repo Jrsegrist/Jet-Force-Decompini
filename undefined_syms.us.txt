@@ -56,6 +56,40 @@ gControllerButtonsReleased = 0x800FB0F8;
 sPlayerID = 0x800FB100;
 sPlayerInputEnabled = 0x800FB104;
 
+/* ---- printf.c ---- */
+func_800650FC = set_render_printf_colour;
+func_800651A4 = set_render_printf_background_colour;
+func_8006524C = set_render_printf_position;
+func_80065704 = debug_text_background;
+func_80065BF8 = debug_text_bounds;
+func_80065C88 = debug_text_origin;
+func_80065CAC = debug_text_newline;
+gSprintfSpacingCode = 0x800A6380;
+gDebugPrintBufferEnd = 0x800A6384;
+_itoa_lower_digits = 0x800AD850;
+_itoa_upper_digits = 0x800AD878;
+gDebugTextX = 0x8010126C;
+gDebugTextY = 0x8010126E;
+gDebugBoundsX1 = 0x8010127C;
+gDebugBoundsX2 = 0x80101280;
+gDebugBoundsY1 = 0x80101284;
+gDebugBoundsY2 = 0x80101288;
+gDebugScreenWidth = 0x80101290;
+gDebugScreenHeight = 0x80101292;
+
+/* ---- memory.c ---- */
+func_8004A7C0 = mempool_alloc_pool;
+func_8004ABF4 = mempool_free_addr;
+func_8004ACCC = mempool_get_pool;
+func_8004AE94 = get_memory_pool_address;
+func_8004AFC4 = align16;
+func_8004AFE0 = align4;
+func_8004AFFC = mempool_print_slots;
+gMemoryPools = 0x800FD840;
+gNumberOfMemoryPools = 0x800FD880;
+mempool_slot_find = 0x8004A69C;
+mempool_slot_clear = 0x8004AD2C;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;

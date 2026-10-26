@@ -15,4 +15,13 @@
 
 #define ARRAY_COUNT(arr) (s32)(sizeof(arr) / sizeof(arr[0]))
 
+#define UNUSED
+
+/* Debug prints compiled out of the retail build (as in the DKR decompilation). */
+#ifdef __GNUC__
+#define stubbed_printf(...)
+#else
+#define stubbed_printf
+#endif
+
 #endif
