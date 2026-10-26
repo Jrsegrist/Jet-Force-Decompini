@@ -36,7 +36,13 @@ extern s8 *gPakFileList;
 extern u8 gN64FontCodes[];
 extern u8 gRumblePresent; // Bits 0, 1, 2, and 3 of the bit pattern correspond to Controllers 1, 2, 3, and 4.
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B070);
+extern u8 D_800A3470;
+extern u8 D_800A3464;
+s8 func_800482F8(void);
+
+int func_8004B070(void) {
+    return D_800A3470 != 0 && func_800482F8() == 0;
+}
 
 extern u8 D_800A3470;
 
@@ -44,7 +50,16 @@ void func_8004B0AC(s32 arg0) {
     D_800A3470 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0B8);
+extern u8 D_800A346C;
+
+void func_8004B0B8(s32 on) {
+    if (on != 0 && D_800A346C == 0) {
+        D_800A3464 = 1;
+        D_800A346C = 1;
+    } else {
+        D_800A346C = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0F4);
 
@@ -66,7 +81,13 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B56C);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA50);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA98);
+s32 func_8004BA98(u8 *data, s32 size) {
+    s32 sum = 7;
+    while (size--) {
+        sum += *data++;
+    }
+    return sum;
+}
 
 s32 func_8004BAC8(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
     return 1;
@@ -84,7 +105,14 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BCB4);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BD78);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BE44);
+s32 func_8004BE44(u8 *data) {
+    s32 sum = 5;
+    s32 i = 126;
+    while (i--) {
+        sum += *data++;
+    }
+    return sum;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BE6C);
 

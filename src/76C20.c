@@ -16,7 +16,17 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_800760C0);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076154);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80076198);
+extern s32 D_800A74C8;
+extern s32 D_800A74CC;
+extern s32 D_800A74D0;
+
+void func_80076198(void) {
+    if (D_800A74C8) {
+        D_800A74C8 = 0;
+        D_800A74CC = 0;
+        D_800A74D0 = 0;
+    }
+}
 
 extern s8 D_800A74F0[];
 
@@ -40,9 +50,25 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_8007688C);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076928);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_800769DC);
+typedef struct AnimPath {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ u8 flags;
+} AnimPath;
+extern AnimPath **D_801045B0;
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80076A1C);
+void func_800769DC(u8 index) {
+    AnimPath *path = D_801045B0[index];
+    if (path != NULL) {
+        path->flags |= 8;
+    }
+}
+
+void func_80076A1C(u8 index) {
+    AnimPath *path = D_801045B0[index];
+    if (path != NULL) {
+        path->flags &= ~8;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076A5C);
 
@@ -64,7 +90,14 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80077158);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800772C4);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_800773AC);
+void func_8007637C(u8 index);
+
+void func_800773AC(void) {
+    s32 i;
+    for (i = 0; i < 256; i++) {
+        func_8007637C(i);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800773EC);
 
@@ -80,7 +113,15 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80079930);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80079AA4);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80079B6C);
+s32 func_80079B6C(void) {
+    s32 i = 256;
+    while (i--) {
+        if (D_801045B0[i] == NULL) {
+            return i;
+        }
+    }
+    return -1;
+}
 
 extern s32 D_800A74D4;
 

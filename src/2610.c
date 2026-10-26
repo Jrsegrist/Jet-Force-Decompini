@@ -34,7 +34,24 @@ INCLUDE_ASM("asm/nonmatchings/2610", func_80002484);
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_800024C4);
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_80002694);
+typedef struct AudioMgrHandle {
+    /* 0x00 */ u8 initialised;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ void *unk8;
+} AudioMgrHandle;
+extern AudioMgrHandle D_800F1B68;
+extern u8 D_800F1B78[];
+void func_800024C4(void);
+
+void *func_80002694(AudioMgrHandle **out) {
+    if (!D_800F1B68.initialised) {
+        D_800F1B68.unk4 = 0;
+        D_800F1B68.unk8 = D_800F1B78;
+        D_800F1B68.initialised = TRUE;
+    }
+    *out = &D_800F1B68;
+    return func_800024C4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_800026CC);
 

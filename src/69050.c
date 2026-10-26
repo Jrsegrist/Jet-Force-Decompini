@@ -97,7 +97,16 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006A0C0);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A6B0);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006A894);
+void tex_free(void *tex);
+void mempool_free(void *data);
+
+void func_8006A894(u8 *obj) {
+    void *tex = *(void **) (obj + 0x30);
+    if (tex != NULL) {
+        tex_free(tex);
+    }
+    mempool_free(obj);
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A8D4);
 
@@ -293,7 +302,19 @@ void transition_update_blank(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006CFC0);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D0D8);
+extern s32 D_80103B80[2];
+extern s32 D_80103B88[2];
+extern s32 D_80103B90;
+extern s32 D_80103B94;
+
+void func_8006D0D8(void) {
+    D_80103B80[0] = 0;
+    D_80103B80[1] = 0;
+    D_80103B88[0] = 0;
+    D_80103B88[1] = 0;
+    D_80103B90 = 0;
+    D_80103B94 = -1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D110);
 
@@ -327,9 +348,28 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006E0C4);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006E188);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EDF0);
+extern s32 D_800A6D00;
+extern u8 D_800A6D08;
+extern u8 D_800A6D0C;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE28);
+void func_8006EDF0(s32 arg0) {
+    if (arg0) {
+        D_800A6D00 = 0x20;
+    } else {
+        D_800A6D00 = 1;
+    }
+    D_800A6D08 = 1;
+    D_800A6D0C = 1;
+}
+
+void func_8006EE28(s32 arg0) {
+    if (arg0) {
+        D_800A6D00 = 0;
+    } else {
+        D_800A6D00 = 0x20;
+    }
+    D_800A6D08 = 0;
+}
 
 extern s32 D_800A6D00;
 

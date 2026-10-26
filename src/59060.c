@@ -68,7 +68,12 @@ s32 func_8005A79C(void) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A7A4);
+extern char **D_800A51C8;
+extern u16 D_800A5918[];
+
+char *func_8005A7A4(s32 world) {
+    return D_800A51C8[D_800A5918[world]];
+}
 
 /**
  * Returns the current language being used by the game.
@@ -110,7 +115,14 @@ s8 func_8005A950(void) {
     return D_800FF387;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A960);
+s8 func_80055198(void);
+void func_800551A8(s32 adjust);
+extern s8 D_800FF387;
+
+void func_8005A960(s32 adjust) {
+    func_800551A8(adjust);
+    D_800FF387 = func_80055198();
+}
 
 extern u8 D_800FF38C;
 
@@ -126,7 +138,19 @@ u16 func_8005A9E4(void) {
     return D_800FF388;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A9F4);
+extern u16 D_800FF388;
+void func_80086510(s32 volume);
+
+void func_8005A9F4(s32 volume) {
+    if (volume < 0) {
+        volume = 0;
+    }
+    if (volume > 256) {
+        volume = 256;
+    }
+    D_800FF388 = volume;
+    func_80086510(volume);
+}
 
 extern u16 D_800FF38A;
 
@@ -134,7 +158,19 @@ u16 func_8005AA30(void) {
     return D_800FF38A;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005AA40);
+extern u16 D_800FF38A;
+void func_80001050(s32 volume);
+
+void func_8005AA40(s32 volume) {
+    if (volume < 0) {
+        volume = 0;
+    }
+    if (volume > 256) {
+        volume = 256;
+    }
+    D_800FF38A = volume;
+    func_80001050(volume);
+}
 
 /* JFG: settings flags (the language and volume bytes above sit in the same block). */
 typedef struct SettingsFlags {

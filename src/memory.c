@@ -148,7 +148,18 @@ void mempool_free_addr(u8 *address) {
     // (the string is not in Jet Force Gemini's ROM)
 }
 
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AC90);
+extern void *gFreeQueueAddress[256];
+extern u8 gFreeQueueTimers[256];
+
+/**
+ * Adds data to the free queue, to be freed after gFreeQueueTimer ticks.
+ * JFG: addresses and timers are separate arrays.
+ */
+void mempool_free_queue(void *dataAddress) {
+    gFreeQueueAddress[gFreeQueueCount] = dataAddress;
+    gFreeQueueTimers[gFreeQueueCount] = gFreeQueueTimer;
+    gFreeQueueCount++;
+}
 
 /**
  * Returns the index of the memory pool containing the memory address.

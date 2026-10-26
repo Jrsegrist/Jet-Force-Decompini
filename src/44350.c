@@ -18,13 +18,44 @@ extern u8 D_800FB170;
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043750);
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043B78);
+/* Size: 5 bytes */
+typedef struct LevelListEntry {
+    /* 0x00 */ u8 type;
+    /* 0x01 */ s8 world;
+    /* 0x02 */ u8 region;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u8 tune;
+} LevelListEntry;
+extern s32 D_800FB124;
+extern LevelListEntry *D_800FB12C;
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043BB8);
+s32 func_80043B78(s32 level) {
+    if (level >= 0 && level < D_800FB124) {
+        return D_800FB12C[level].type;
+    }
+    return -1;
+}
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043BF8);
+s32 func_80043BB8(s32 level) {
+    if (level >= 0 && level < D_800FB124) {
+        return D_800FB12C[level].tune;
+    }
+    return -1;
+}
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043C38);
+s32 func_80043BF8(s32 level) {
+    if (level >= 0 && level < D_800FB124) {
+        return D_800FB12C[level].world;
+    }
+    return 0;
+}
+
+s32 func_80043C38(s32 level) {
+    if (level >= 0 && level < D_800FB124) {
+        return D_800FB12C[level].region;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043C78);
 
@@ -88,6 +119,17 @@ INCLUDE_ASM("asm/nonmatchings/44350", func_80044A1C);
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80044A6C);
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80044AB4);
+typedef struct ObjectFlags {
+    u8 unk0;
+    u8 bits[1]; // variable length
+} ObjectFlags;
+extern ObjectFlags *D_800A31C4;
+
+/* JFG: set bit `flag` of the level's object flags. */
+void func_80044AB4(s32 flag) {
+    if (D_800A31C4 != NULL) {
+        D_800A31C4->bits[flag >> 3] |= (1 << (flag & 7));
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80044AE8);

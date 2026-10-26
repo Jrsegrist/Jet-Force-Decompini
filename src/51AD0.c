@@ -14,7 +14,13 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050F60);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005122C);
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005131C);
+extern s32 D_800FE9A0;
+extern s32 *D_800FE9AC;
+
+void func_8005131C(s32 arg0) {
+    D_800FE9AC[D_800FE9A0] = arg0;
+    D_800FE9A0++;
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051350);
 

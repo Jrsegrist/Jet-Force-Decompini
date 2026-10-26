@@ -316,7 +316,11 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_8000134C);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_800013FC);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800014D8);
+void func_800014D8(SoundHandle soundHandle, u32 pan) {
+    if (soundHandle != NULL) {
+        sndp_set_param(soundHandle, AL_SNDP_PAN_EVT, pan);
+    }
+}
 
 /**
  * Updates the pitch of the given sound mask.
@@ -391,7 +395,14 @@ INCLUDE_ASM("asm/nonmatchings/audio", func_80001900);
 void sound_reverb_set(u8 setting) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001998);
+void func_80086640(void *a, void *b);
+void func_8008A490(void *a, void *b);
+
+/* JFG: calls two sequence player routines with NULLs (never used at run time). */
+void func_80001998(void) {
+    func_80086640(NULL, NULL);
+    func_8008A490(NULL, NULL);
+}
 
 /* JFG: halves a volume. */
 s32 func_800019C8(s32 volume) {

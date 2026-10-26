@@ -12,10 +12,14 @@ typedef struct Vec3s {
 
 /* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
 typedef struct Object_Racer {
-    /* 0x000 */ u8 pad0[0x140];
+    /* 0x000 */ u8 pad0[0x48];
+    /* 0x048 */ f32 unk48;
+    /* 0x04C */ u8 pad4C[0x140 - 0x4C];
     /* 0x140 */ s16 y_rotation_offset;
     /* 0x142 */ s16 z_rotation_offset;
     /* 0x144 */ s16 x_rotation_offset;
+    /* 0x146 */ u8 pad146[0x197 - 0x146];
+    /* 0x197 */ u8 unk197;
 } Object_Racer;
 
 typedef struct ObjectTransform {
@@ -209,7 +213,17 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C6E0);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9B4);
+extern u8 D_800A0C5C;
+extern u8 D_800A0C60;
+extern u8 D_800A0C64;
+extern u8 D_800A0C68;
+
+void func_8000C9B4(u8 red, u8 green, u8 blue, u8 alpha) {
+    D_800A0C5C = red;
+    D_800A0C60 = green;
+    D_800A0C64 = blue;
+    D_800A0C68 = alpha;
+}
 
 extern u8 D_800A0C6C;
 
@@ -238,7 +252,17 @@ void object_undo_player_tumble(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DD78);
+extern f32 D_800F2E98;
+
+void func_8000DD78(Object *obj) {
+    f32 scale = 1.0f;
+    if (obj->behaviorId == BHV_RACER) {
+        Object_Racer *racer = obj->racer;
+        scale = racer->unk48;
+        racer->unk197 = 30;
+    }
+    D_800F2E98 = scale;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DDAC);
 
@@ -257,12 +281,18 @@ Object **get_racer_objects(s32 *numRacers) {
     return *gRacers;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E480);
+extern s32 D_800F2D1C;
+extern void **D_800F2D18;
+
+void func_8000E480(void *obj) {
+    D_800F2D18[D_800F2D1C] = obj;
+    D_800F2D1C++;
+}
 
 extern s32 D_800F2D1C;
-extern void *D_800F2D18;
+extern void **D_800F2D18;
 
-void *func_8000E4B4(s32 *count) {
+void **func_8000E4B4(s32 *count) {
     *count = D_800F2D1C;
     return D_800F2D18;
 }
@@ -337,7 +367,13 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800116BC);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011708);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800118F4);
+extern s32 D_800F2CD8[];
+extern s32 D_800F2CE0[];
+
+void func_800118F4(s32 *a, s32 *b, s32 index) {
+    *a = D_800F2CD8[index];
+    *b = D_800F2CE0[index];
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8001191C);
 
@@ -349,7 +385,13 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80011C2C);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011C84);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011CE0);
+/* JFG: the squared distance between two points. */
+f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
+    f32 dx = x1 - x2;
+    f32 dy = y1 - y2;
+    f32 dz = z1 - z2;
+    return dx * dx + dy * dy + dz * dz;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011D1C);
 

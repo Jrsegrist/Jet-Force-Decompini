@@ -1,6 +1,11 @@
 #include "common.h"
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B870);
+void func_8003B870(u16 *src, u16 *dst, s32 size) {
+    size = (size + 1) >> 1;
+    while (size--) {
+        *dst++ = *src++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B8AC);
 
@@ -42,7 +47,16 @@ s32 func_8003DDC8(void) {
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003DDD8);
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E35C);
+extern s8 D_800F6F48[3];
+extern s16 D_800F6F4C[3];
+
+void func_8003E35C(void) {
+    s32 i;
+    for (i = 0; i < 3; i++) {
+        D_800F6F48[i] = -1;
+        D_800F6F4C[i] = 1000;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E398);
 

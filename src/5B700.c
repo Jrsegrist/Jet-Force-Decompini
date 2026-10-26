@@ -276,7 +276,15 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CE90);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CFD0);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D19C);
+extern void *D_800A5D8C[2];
+
+void func_8005D19C(void) {
+    if (D_800A5D8C[0] != NULL) {
+        mempool_free(D_800A5D8C[0]);
+        D_800A5D8C[0] = NULL;
+        D_800A5D8C[1] = NULL;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D1DC);
 

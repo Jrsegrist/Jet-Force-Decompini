@@ -92,7 +92,15 @@ s32 get_current_viewport(void) {
     return gActiveCameraID;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FBDC);
+s32 func_8003FBDC(s32 mode) {
+    if (mode < 0 || mode >= 4) {
+        mode = 0;
+    }
+    if ((gActiveCameraID = mode) < D_800FA634) {
+        D_800FA634 = 0;
+    }
+    return mode + 1;
+}
 
 extern s32 D_800FA634;
 
@@ -186,7 +194,12 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_8004046C);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800408C0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80040A70);
+extern MtxF D_800FAA70;
+void func_80048C7C(MtxF *a, MtxF *b, MtxF *out);
+
+void func_80040A70(s32 arg0, MtxF *out) {
+    func_80048C7C(&gViewMatrixF, &D_800FAA70, out);
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80040AA4);
 
@@ -300,8 +313,26 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_800422C4);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80042310);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042438);
+extern u8 D_800A3174[4];
+extern f32 D_800A317C[4];
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042470);
+void func_80042438(s32 index, f32 zoom) {
+    if (index >= 0 && index < 4) {
+        D_800A3174[index] = 1;
+        D_800A317C[index] = zoom;
+    }
+}
+
+typedef struct MatrixListEntry {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s16 unk4;
+} MatrixListEntry;
+extern MatrixListEntry D_800FA658[];
+extern s32 D_800A2ED0;
+
+void func_80042470(s32 arg0, s32 arg1) {
+    D_800FA658[D_800A2ED0].unk0 = arg0;
+    D_800FA658[D_800A2ED0++].unk4 = arg1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800424A0);

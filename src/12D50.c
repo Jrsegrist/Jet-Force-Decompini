@@ -103,11 +103,27 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80013D3C);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013F08);
+extern s32 D_800A0D74;
+
+/* JFG: switch a track light off (its intensity at 0xC), keeping a count of lit ones. */
+void func_80013F08(f32 *light) {
+    if (light != NULL) {
+        if (light[3] != 0.0f) {
+            light[3] = 0.0f;
+            D_800A0D74--;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013F48);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013FE0);
+void func_80013FE0(f32 *light, f32 x, f32 y, f32 z) {
+    if (light != NULL) {
+        light[0] = x;
+        light[1] = y;
+        light[2] = z;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001400C);
 

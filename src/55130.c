@@ -130,7 +130,18 @@ s8 func_80055198(void) {
     return D_800FECAA;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_800551A8);
+void func_80054CF0(void);
+
+void func_800551A8(s32 adjust) {
+    if (adjust < -30) {
+        adjust = -30;
+    }
+    if (adjust > 30) {
+        adjust = 30;
+    }
+    D_800FECAA = adjust;
+    func_80054CF0();
+}
 
 extern s8 D_800FECA6;
 
@@ -155,7 +166,15 @@ void func_80055228(void) {
     D_800FECA7 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055234);
+extern s32 D_800FECB8;
+extern s32 D_800A3910;
+
+s32 func_80055234(void) {
+    if (D_800A3910 == D_800FECB8) {
+        return 1;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055260);
 
@@ -163,7 +182,11 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_800552DC);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005539C);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055480);
+void func_80055480(u8 *src, u8 *dst, s32 size) {
+    while (size--) {
+        *dst++ = *src++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800554B0);
 
@@ -216,7 +239,16 @@ void tex_free(TextureHeader *tex) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055AB8);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055B0C);
+extern s32 D_800A4E7C;
+TextureHeader *load_texture(s32 assetIndex);
+
+TextureHeader *func_80055B0C(s32 textureID, s32 address) {
+    TextureHeader *tex;
+    D_800A4E7C = address;
+    tex = load_texture(textureID);
+    D_800A4E7C = 0;
+    return tex;
+}
 
 /**
  * Set the colour tag that determines which memory pool textures will be loaded into.
@@ -321,9 +353,29 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80057A10);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80057A54);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80057CEC);
+typedef struct ColourCycle {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ u8 colour[4];
+    /* 0x0C */ struct ColourCycle *source;
+} ColourCycle;
+s32 *get_misc_asset(s32 index);
+void func_80057D1C(ColourCycle *cycle);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80057D1C);
+void func_80057CEC(ColourCycle *cycle, s32 assetID) {
+    cycle->source = (ColourCycle *) get_misc_asset(assetID);
+    func_80057D1C(cycle);
+}
+
+void func_80057D1C(ColourCycle *cycle) {
+    ColourCycle *source = cycle->source;
+    cycle->unk0 = 0;
+    cycle->unk4 = 0;
+    cycle->colour[0] = source->colour[0];
+    cycle->colour[1] = source->colour[1];
+    cycle->colour[2] = source->colour[2];
+    cycle->colour[3] = source->colour[3];
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80057D58);
 

@@ -29,7 +29,14 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_8004581C);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045914);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045A14);
+extern s8 D_800FD757[];
+
+s32 func_80045A14(s32 index) {
+    if (index < 0 || index >= 8) {
+        return 1;
+    }
+    return D_800FD757[index * 8];
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045A44);
 
@@ -43,7 +50,17 @@ s16 func_80045DC0(void) {
     return D_800A3230;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045DD0);
+extern s16 D_800A3220;
+extern s16 D_800A3224;
+extern s16 D_800A3228;
+extern s16 D_800A322C;
+
+void func_80045DD0(s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
+    *x1 = D_800A3220;
+    *y1 = D_800A3224;
+    *x2 = D_800A3228;
+    *y2 = D_800A322C;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045E04);
 
@@ -111,11 +128,31 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80047674);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800476F0);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047868);
+typedef struct GameStats {
+    /* 0x000 */ u8 pad0[0x474];
+    /* 0x474 */ u32 shots[16];
+    /* 0x4B4 */ u32 hits[16];
+    /* 0x4F4 */ u16 kills[16];
+} GameStats;
+extern GameStats *D_800FD7D4;
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800478A4);
+void func_80047868(s32 weapon) {
+    if (weapon >= 0 && weapon < 16 && D_800FD7D4->kills[weapon] < 0xFFFF) {
+        D_800FD7D4->kills[weapon]++;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800478E0);
+void func_800478A4(s32 weapon) {
+    if (weapon >= 0 && weapon < 16 && D_800FD7D4->shots[weapon] < 0xFFFFFFFF) {
+        D_800FD7D4->shots[weapon]++;
+    }
+}
+
+void func_800478E0(s32 weapon) {
+    if (weapon >= 0 && weapon < 16 && D_800FD7D4->hits[weapon] < 0xFFFFFFFF) {
+        D_800FD7D4->hits[weapon]++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004791C);
 
@@ -125,9 +162,7 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80047A20);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047AE0);
 
-extern s32 D_800FD7D4;
-
-s32 func_80047C0C(void) {
+GameStats *func_80047C0C(void) {
     return D_800FD7D4;
 }
 
@@ -145,7 +180,11 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80047E44);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047E8C);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047ED0);
+s32 func_80047E8C(GameStats *game, s32 flag);
+
+s32 func_80047ED0(s32 flag) {
+    return func_80047E8C(D_800FD7D4, flag);
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047EFC);
 
@@ -180,7 +219,10 @@ s16 func_800483B8(void) {
     return D_800A323C;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800483C8);
+void func_800483C8(s32 saveFileIndex) {
+    gSaveDataFlags &= ~7;
+    gSaveDataFlags |= (0x80000000 | (saveFileIndex & 7));
+}
 
 extern s32 D_800FD7D8;
 
