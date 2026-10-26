@@ -1,0 +1,4 @@
+// Hand-maintained symbols for Jet Force Gemini (US 1.0).
+// Names recovered from the ROM's runlink tables are generated at extract
+// time into build/syms/runlink_syms.us.txt (tools/runlink_syms.py).
+entrypoint = 0x80000400; // type:func

@@ -1,0 +1,1 @@
+/* Hand-maintained absolute symbols for the US build (linker script syntax). */
