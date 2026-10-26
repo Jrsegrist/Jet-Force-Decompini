@@ -125,7 +125,7 @@ $(TARGET).z64: $(TARGET).elf
 
 $(BUILD_DIR)/asm/%.o: asm/%.s
 	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) -o $@ $<
+	$(AS) $(ASFLAGS) --no-warn -o $@ $<
 
 $(BUILD_DIR)/src/%.o: src/%.c
 	@mkdir -p $(dir $@)

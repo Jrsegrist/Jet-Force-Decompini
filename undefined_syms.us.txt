@@ -1,1 +1,61 @@
-/* Hand-maintained absolute symbols for the US build (linker script syntax). */
+/*
+ * Hand-maintained symbols for the US build (linker script syntax).
+ *
+ * C code names functions and data after the Diddy Kong Racing decompilation
+ * (CC0) where the code comes from there, or by address (func_XXXXXXXX,
+ * D_XXXXXXXX) otherwise. Symbols still defined in assembly are given here by
+ * address; functions defined in C get a func_XXXXXXXX alias so that the
+ * assembly (which refers to them by their runlink names, aliased to
+ * func_XXXXXXXX at extract time) links against them.
+ */
+
+/* ---- gzip.c ---- */
+func_800724A0 = gzip_init;
+func_800724DC = byteswap32;
+func_8007250C = gzip_size_uncompressed;
+func_80072548 = gzip_inflate;
+func_800725A4 = gzip_huft_build;
+gzip_inflate_block = 0x80072BF0; /* asm/737F0.s */
+gHuftTable = 0x800A6FA0;
+gPackedHeader = 0x800A6FA4;
+gzip_inflate_input = 0x800A6FA8;
+gzip_inflate_output = 0x800A6FAC;
+gzip_bit_buffer = 0x80104550;
+gzip_num_bits = 0x80104554;
+gHuftTablePos = 0x80104558;
+
+/* ---- asset_loading.c ---- */
+func_8004D424 = asset_table_load_zipped;
+func_8004D530 = asset_load;
+func_8004D5B0 = asset_rom_offset;
+func_8004D5F8 = asset_table_size;
+dmacopy = 0x8004D640;
+gAssetsLookupTable = 0x800FE070;
+__ASSETS_LUT_START = 0x000B1750;
+__ASSETS_LUT_END = 0x000B1880;
+
+/* ---- set_rsp_segment.c ---- */
+func_80050E90 = rsp_segment;
+
+/* ---- joypad.c ---- */
+func_80042FE0 = si_mesg;
+func_80043430 = charselect_assign_players;
+func_800434D0 = input_player_id;
+func_800434E4 = input_held;
+func_80043510 = input_pressed;
+func_80043534 = input_released;
+func_80043558 = input_clamp_stick_x;
+func_800435C8 = input_clamp_stick_y;
+func_80043638 = input_clamp_stick_mag;
+func_800436B4 = drm_disable_input;
+gButtonMask = 0x800A3194;
+sSIMesgQueue = 0x800FB090;
+gControllerCurrData = 0x800FB0C0;
+gControllerButtonsPressed = 0x800FB0F0;
+gControllerButtonsReleased = 0x800FB0F8;
+sPlayerID = 0x800FB100;
+sPlayerInputEnabled = 0x800FB104;
+
+/* ---- not decompiled yet ---- */
+mempool_alloc_safe = 0x8004A57C;
+mempool_free = 0x8004AA80;
