@@ -249,6 +249,8 @@ u8 music_jingle_current(void) {
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000FE4);
 
+extern u32 D_800A0690;
+
 INCLUDE_ASM("asm/nonmatchings/audio", func_80001050);
 
 /**

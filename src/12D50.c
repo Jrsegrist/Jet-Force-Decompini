@@ -93,7 +93,16 @@ s32 func_80013810(void) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013820);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013924);
+extern s32 D_800A0D8C;
+extern s32 D_800F3370[16];
+
+/* JFG: queue a texture scroll (up to 16 a frame). */
+void func_80013924(s32 arg0, s32 arg1, s32 arg2) {
+    if (D_800A0D8C < 16) {
+        D_800F3370[D_800A0D8C] = (arg0 << 24) | ((arg1 & 0xFFF) << 12) | (arg2 & 0xFFF);
+        D_800A0D8C++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013970);
 

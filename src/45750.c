@@ -66,7 +66,14 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80045E04);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045F00);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80046334);
+void func_80046334(s32 *level, s32 *a, s32 *b) {
+    s32 value = *level;
+    if (value == 0xF5 || value == 0xFA || value == 0x11D || value == 0x16B || value == 0x196) {
+        *level = 0xF5;
+        *a = 0;
+        *b = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80046378);
 
@@ -172,6 +179,8 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_80047C9C);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047D0C);
 
+u8 *func_80047C1C(s32 player, s32 character);
+
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047D80);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047DD8);
@@ -200,7 +209,22 @@ s8 func_800482F8(void) {
     return D_800FD7BD;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048308);
+s32 func_80053370(s32 module);
+void func_8005342C(s32 module);
+void func_80000450(s32 mode);
+extern s8 D_800FD7BD;
+
+void func_80048308(s32 mode) {
+    D_800FD7BD = mode;
+    if (D_800FD7BD == 0) {
+        if (func_80053370(0x13) != 0) {
+            func_8005342C(0x13);
+        }
+        func_80000450(0);
+        return;
+    }
+    func_80000450(1);
+}
 
 /**
  * Sets and returns (nonzero) the message set when pressing the reset button.

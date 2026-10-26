@@ -69,7 +69,14 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B29C);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B3D8);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B518);
+void func_8004B204(s32 pad, s32 arg1);
+
+void func_8004B518(s32 arg0) {
+    s32 i = 4;
+    while (i--) {
+        func_8004B204(i, arg0);
+    }
+}
 
 extern u8 D_800A3464;
 
@@ -79,7 +86,20 @@ void func_8004B55C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B56C);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BA50);
+typedef struct RumbleState {
+    s32 unk0;
+    f32 unk4;
+} RumbleState;
+extern RumbleState D_800A344C[3];
+
+void func_8004BA50(s32 pad, s32 *a, f32 *b) {
+    *a = 0;
+    *b = 0.0f;
+    if (pad >= 0 && pad < 3) {
+        *a = D_800A344C[pad].unk0;
+        *b = D_800A344C[pad].unk4;
+    }
+}
 
 s32 func_8004BA98(u8 *data, s32 size) {
     s32 sum = 7;
@@ -116,7 +136,19 @@ s32 func_8004BE44(u8 *data) {
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BE6C);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BEE4);
+s32 is_reset_pressed(void);
+s32 func_8004BE44(u8 *data);
+void func_80083EB0(s32 sector);
+void func_8004BF98(s32 sector, u8 *data);
+
+s32 func_8004BEE4(u8 *data) {
+    *(s16 *) (data + 0x7E) = func_8004BE44(data);
+    if (is_reset_pressed() == 0) {
+        func_80083EB0(0x380);
+        func_8004BF98(0x380, data);
+    }
+    return 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BF2C);
 

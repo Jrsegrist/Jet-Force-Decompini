@@ -22,7 +22,15 @@ void func_8005131C(s32 arg0) {
     D_800FE9A0++;
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051350);
+extern s32 *D_800FE9A4;
+extern s32 D_800FE9A8;
+
+void func_80051350(s32 arg0) {
+    D_800FE9A4[D_800FE9A8] = arg0;
+    if (++D_800FE9A8 >= D_800FE9A0) {
+        D_800FE9A8 = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800513A0);
 
@@ -54,6 +62,11 @@ void func_80052678(void) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005269C);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052734);
+
+extern void *D_800FEA08;
+extern s32 D_800FEA0C;
+extern void *D_800FEA10;
+extern s32 D_800FEA14;
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052798);
 
@@ -95,6 +108,12 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053C44);
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053D2C);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005414C);
+
+typedef struct DestructTimer {
+    u16 timer : 10;
+    u16 unk : 6;
+} DestructTimer;
+extern DestructTimer *D_800FEB58;
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800541B0);
 

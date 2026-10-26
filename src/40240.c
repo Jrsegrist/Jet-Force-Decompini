@@ -6,9 +6,13 @@ extern MtxF gViewMatrixF;
 extern f32 gCurCamFOV;
 extern s32 gActiveCameraID;
 extern Mtx gPerspectiveMatrix[];
-/* Size: 0x4C bytes (layout not worked out yet) */
+/* Size: 0x4C bytes (mostly not worked out yet) */
 typedef struct Camera {
-    u8 pad0[0x4C];
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ f32 shakeX;
+    /* 0x34 */ f32 shakeY;
+    /* 0x38 */ f32 shakeZ;
+    /* 0x3C */ u8 pad3C[0x10];
 } Camera;
 extern Camera gCameras[];
 extern s32 D_800FA634;
@@ -308,6 +312,13 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_800420F0);
 INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800421F0);
+
+typedef struct CameraShake {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+} CameraShake;
+extern CameraShake D_800FA600[3];
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800422C4);
 

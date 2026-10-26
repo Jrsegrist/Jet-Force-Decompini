@@ -23,7 +23,17 @@ void func_800239D0(void) {
     D_800A110C = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/245D0", func_80023A00);
+void func_80023CB4(CamLight *light);
+
+/* JFG: delete the 50 camera lights. */
+void func_80023A00(void) {
+    CamLight *light = D_800F5B60;
+    s32 i = 50;
+    while (i--) {
+        func_80023CB4(light);
+        light++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80023A48);
 

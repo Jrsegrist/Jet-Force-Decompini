@@ -13,8 +13,12 @@ typedef struct ObjectLight {
     /* 0x40 */ u8 colourR;
     /* 0x41 */ u8 colourG;
     /* 0x42 */ u8 colourB;
-    /* 0x43 */ u8 pad43[0x54 - 0x43];
+    /* 0x43 */ u8 intensity;
+    /* 0x44 */ f32 intensityF;
+    /* 0x48 */ u8 pad48[0x54 - 0x48];
     /* 0x54 */ s32 unk54;
+    /* 0x58 */ u8 pad58[0x6C - 0x58];
+    /* 0x6C */ s32 unk6C;
 } ObjectLight;
 
 typedef struct ObjectHeader {

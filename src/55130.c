@@ -81,6 +81,10 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_8005483C);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054B44);
 
+extern s32 D_800FECA0;
+extern s32 D_800A390C;
+extern s32 D_800FECBC;
+
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054C4C);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054CA4);
@@ -237,7 +241,15 @@ void tex_free(TextureHeader *tex) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055AB8);
+s32 func_80055AB8(s32 texture) {
+    s32 i;
+    for (i = 0; i < gNumberOfLoadedTextures; i++) {
+        if (texture == gTextureCache[ASSETCACHE_PTR(i)]) {
+            return gTextureCache[ASSETCACHE_ID(i)];
+        }
+    }
+    return -1;
+}
 
 extern s32 D_800A4E7C;
 TextureHeader *load_texture(s32 assetIndex);
@@ -302,7 +314,23 @@ void func_80056000(s32 arg0) {
     D_800A4E64 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_8005600C);
+extern u8 D_800FED48;
+extern u8 D_800FED49;
+extern u8 D_800FED4A;
+extern u8 D_800FED4B;
+extern u8 D_800FED4C;
+extern u8 D_800FED4D;
+extern s32 D_800A4E74;
+
+void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f) {
+    D_800FED48 = a;
+    D_800FED49 = b;
+    D_800FED4A = c;
+    D_800FED4B = d;
+    D_800FED4C = e;
+    D_800FED4D = f;
+    D_800A4E74 = 1;
+}
 
 extern s32 D_800A4E74;
 

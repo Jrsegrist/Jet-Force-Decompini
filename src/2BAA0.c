@@ -94,7 +94,15 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033D74);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033ED4);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033F4C);
+s32 func_80033F4C(s32 weapon) {
+    if (weapon == 8 || weapon == 10 || weapon == 11 || weapon == 12 || weapon == 13 || weapon == 14) {
+        return 1;
+    }
+    if (weapon == 9) {
+        return 2;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033FA4);
 
@@ -250,7 +258,17 @@ void func_8003B620(s16 a, s16 b, s16 c, s16 d) {
     D_800A2EB0 = 1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B660);
+s32 func_8003B660(s16 *a, s16 *b, s16 *c, s16 *d) {
+    if (D_800A2EB0 != 0) {
+        *a = D_800F6DEC;
+        *b = D_800F6DEE;
+        *c = D_800F6DF0;
+        *d = D_800F6DF2;
+        D_800A2EB0 = 0;
+        return 1;
+    }
+    return 0;
+}
 
 extern u8 D_800A2EB0;
 

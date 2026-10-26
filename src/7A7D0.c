@@ -1,10 +1,30 @@
 #include "common.h"
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079BD0);
+extern void *D_801047E4;
+extern void *D_801047E8;
+extern void *D_801047EC;
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+
+void func_80079BD0(void) {
+    D_801047E4 = mempool_alloc_safe(0x140, 0xFFFF);
+    D_801047E8 = mempool_alloc_safe(0x400, 0xFFFF);
+    D_801047EC = mempool_alloc_safe(0x400, 0xFFFF);
+}
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079C20);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079CC4);
+extern void *D_801047F4;
+extern void *D_801047F8;
+extern void *D_801047FC;
+extern void *D_80104800;
+void mempool_free(void *data);
+
+void func_80079CC4(void) {
+    mempool_free(D_80104800);
+    mempool_free(D_801047F4);
+    mempool_free(D_801047F8);
+    mempool_free(D_801047FC);
+}
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079D1C);
 

@@ -44,13 +44,19 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80059A04);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
 
+void func_80059D2C(s16 item);
+
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059CCC);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059D2C);
 
+void func_80059E7C(s16 item);
+
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059E1C);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059E7C);
+
+void func_8005A048(s16 item);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059FE8);
 
@@ -130,7 +136,20 @@ u8 func_8005A98C(void) {
     return D_800FF38C;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A99C);
+extern u8 D_800A5938[4];
+extern u8 D_800FF38C;
+void func_8008B2A0(u8 type, s32 mode);
+
+void func_8005A99C(s32 mode) {
+    if (mode < 0) {
+        mode = 0;
+    }
+    if (mode >= 4) {
+        mode = 3;
+    }
+    D_800FF38C = mode;
+    func_8008B2A0(D_800A5938[mode], mode);
+}
 
 extern u16 D_800FF388;
 

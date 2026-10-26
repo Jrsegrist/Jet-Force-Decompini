@@ -10,7 +10,17 @@ typedef struct LevelHeader {
     /* 0x6C */ u8 race_type;
     /* 0x6D */ u8 pad6D[0xE3 - 0x6D];
     /* 0xE3 */ u8 unkE3;
+    /* 0xE4 */ u8 padE4[0x102 - 0xE4];
+    /* 0x102 */ u8 unk102;
+    /* 0x103 */ u8 region;
 } LevelHeader;
+
+/* JFG: per-region object flags (17 bytes each) */
+typedef struct ObjectFlags {
+    u8 unk0;
+    u8 bits[16];
+} ObjectFlags;
+extern ObjectFlags *D_800A31C4;
 
 extern LevelHeader *gCurrentLevelHeader;
 extern s32 D_800FB114;
@@ -23,7 +33,9 @@ typedef struct LevelListEntry {
     /* 0x00 */ u8 type;
     /* 0x01 */ s8 world;
     /* 0x02 */ u8 region;
-    /* 0x03 */ u8 unk3;
+    /* 0x03 */ u8 unk3 : 3;
+    /* 0x03 */ u8 blur : 2;
+    /* 0x03 */ u8 screenMode : 3;
     /* 0x04 */ u8 tune;
 } LevelListEntry;
 extern s32 D_800FB124;
@@ -57,9 +69,19 @@ s32 func_80043C38(s32 level) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043C78);
+s32 func_80043C78(s32 level) {
+    if (level >= 0 && level < D_800FB124) {
+        return D_800FB12C[level].screenMode;
+    }
+    return 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043CC0);
+s32 func_80043CC0(s32 level) {
+    if (level >= 0 && level < D_800FB124) {
+        return D_800FB12C[level].blur;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043D08);
 
@@ -115,15 +137,19 @@ INCLUDE_ASM("asm/nonmatchings/44350", func_80044928);
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_800449C8);
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80044A1C);
+extern ObjectFlags D_800FB1E0[32];
+
+void func_80044A1C(void) {
+    u8 region = gCurrentLevelHeader->region;
+    if (region >= 32) {
+        D_800A31C4 = NULL;
+        return;
+    }
+    D_800A31C4 = &D_800FB1E0[region];
+    D_800A31C4->unk0 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80044A6C);
-
-typedef struct ObjectFlags {
-    u8 unk0;
-    u8 bits[1]; // variable length
-} ObjectFlags;
-extern ObjectFlags *D_800A31C4;
 
 /* JFG: set bit `flag` of the level's object flags. */
 void func_80044AB4(s32 flag) {
@@ -132,4 +158,10 @@ void func_80044AB4(s32 flag) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80044AE8);
+s32 func_80044AE8(s32 flag) {
+    u8 mode = gCurrentLevelHeader->unk102;
+    if (mode == 0 || mode == 0xFF || D_800A31C4 == NULL) {
+        return 0;
+    }
+    return (D_800A31C4->bits[flag >> 3] & (1 << (flag & 7))) != 0;
+}

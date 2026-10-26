@@ -14,7 +14,12 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80076044);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800760C0);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80076154);
+void func_80076154(void) {
+    if (D_801047D0 != 0x80) {
+        D_801047CC++;
+    }
+    *D_801047C8 = D_801047CC;
+}
 
 extern s32 D_800A74C8;
 extern s32 D_800A74CC;
@@ -35,6 +40,9 @@ s8 func_800761C8(u16 *arg0) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800761E8);
+
+extern s32 *D_800A74BC;
+s32 func_800761E8(s32 *arg0);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800762A0);
 
@@ -80,9 +88,32 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80076D6C);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076EA0);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80077004);
+extern s32 D_801045C8[16];
+void func_80001228(s32 soundHandle);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80077060);
+void func_80077004(void) {
+    s32 i;
+    for (i = 0; i < 16; i++) {
+        if (D_801045C8[i] != 0) {
+            func_80001228(D_801045C8[i]);
+            D_801045C8[i] = 0;
+        }
+    }
+}
+
+extern void *D_800A74B0;
+extern s32 D_800A74B8;
+void mempool_free(void *data);
+void func_80077158(void);
+
+void func_80077060(void) {
+    if (D_800A74B0 != NULL) {
+        mempool_free(D_800A74B0);
+        D_800A74B0 = NULL;
+        D_800A74B8 = -1;
+        func_80077158();
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800770A4);
 

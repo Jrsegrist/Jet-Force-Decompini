@@ -10,7 +10,21 @@ extern s16 gSubtitleTimer;
 
 INCLUDE_ASM("asm/nonmatchings/74270", func_80073670);
 
-INCLUDE_ASM("asm/nonmatchings/74270", func_80073758);
+extern s8 D_800A6FB0;
+extern void *D_80104588;
+void mempool_free(void *data);
+void dialogue_close(s32 dialogueBoxID);
+void dialogue_clear(s32 dialogueBoxID);
+
+void func_80073758(void) {
+    if (D_800A6FB0) {
+        mempool_free(D_80104588);
+        dialogue_close(6);
+        dialogue_clear(6);
+        D_800A6FB0 = 0;
+        gShowSubtitles = 0;
+    }
+}
 
 extern s32 D_800A6FB8;
 

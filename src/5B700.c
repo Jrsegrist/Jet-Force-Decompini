@@ -259,7 +259,21 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C9B8);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CAD0);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CBBC);
+extern s32 D_801008B8;
+extern s32 D_801008BC;
+extern s32 D_801008C0;
+extern s32 D_801008C4;
+extern TextureHeader *D_800A59D0;
+extern s32 *D_800A5A0C;
+TextureHeader *load_texture(s32 assetIndex);
+
+void func_8005CBBC(void) {
+    D_801008B8 = 0;
+    D_801008BC = 0;
+    D_801008C0 = 0;
+    D_801008C4 = 0;
+    D_800A59D0 = load_texture(*D_800A5A0C);
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CC0C);
 
@@ -307,7 +321,18 @@ void emitter_init(ParticleEmitter *emitter, s32 behaviourID, s32 particleID) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005ED54);
+typedef struct ParticleEmitterUnk23 {
+    u8 pad0[0x23];
+    u8 unk23;
+} ParticleEmitterUnk23;
+
+/* JFG: emitter_init without the behaviour's position, plus a trigger byte. */
+void func_8005ED54(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s32 trigger) {
+    if (behaviourID < gParticleBehavioursAssetTableCount) {
+        emitter_init_with_pos(emitter, behaviourID, particleID, 0, 0, 0);
+        ((ParticleEmitterUnk23 *) emitter)->unk23 = trigger;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005EDA4);
 

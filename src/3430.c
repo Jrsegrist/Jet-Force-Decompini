@@ -12,6 +12,8 @@ typedef struct AudioPoint {
     /* 0x0D */ u8 unkD;
     /* 0x0E */ u8 volume;
     /* 0x0F */ u8 pitch;
+    /* 0x10 */ u8 pad10[0x1C - 0x10];
+    /* 0x1C */ s32 unk1C;
 } AudioPoint;
 
 extern AudioPoint **gAudioPoints;
@@ -120,5 +122,7 @@ void func_8000474C(void **node) {
     *node = D_800F2B10;
     D_800F2B10 = node;
 }
+
+extern f32 D_800AA1C8; // a constant in .rodata (not split out yet)
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80004768);
