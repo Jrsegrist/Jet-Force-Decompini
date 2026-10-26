@@ -3,9 +3,10 @@
  *
  * From the Diddy Kong Racing decompilation (CC0 1.0), src/printf.c, plus
  * memset from its src/unused_string.c. This file owns its .data, .rodata
- * and .bss (jfg.us.yaml). vsprintf, diPrintfInit, diPrintfAll and the
- * character renderer differ in JFG and are still assembly; their rodata comes
- * in through INCLUDE_ASM/INCLUDE_RODATA in source order.
+ * and .bss (jfg.us.yaml). The character renderer is JFG's own version, on
+ * the older GBI. vsprintf, diPrintfInit and diPrintfAll differ in JFG and are
+ * still assembly; their rodata comes in through INCLUDE_ASM/INCLUDE_RODATA in
+ * source order.
  */
 #include "printf.h"
 

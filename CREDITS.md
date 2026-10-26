@@ -13,10 +13,16 @@ CC0 places no conditions on reuse; the credit is given because it is due.
 | `src/gzip.c`, `src/gzip.h` | `src/gzip.c`, `src/gzip.h` | whole file |
 | `src/asset_loading.c`, `src/asset_loading.h` | `src/asset_loading.c`, `.h` | 4 of 7 functions |
 | `src/set_rsp_segment.c` | `src/set_rsp_segment.c` | whole file |
-| `src/joypad.c`, `src/joypad.h` | `src/joypad.c`, `.h` | 10 functions, constants changed for JFG |
-| `src/printf.c`, `src/printf.h` | `src/printf.c`, `.h`, `src/unused_string.c` (memset) | 11 functions |
+| `src/joypad.c`, `src/joypad.h` | `src/joypad.c`, `.h` | 11 functions, constants changed for JFG |
+| `src/printf.c`, `src/printf.h` | `src/printf.c`, `.h`, `src/unused_string.c` (memset) | 10 functions, plus the JFG character renderer |
 | `src/memory.c`, `src/memory.h` | `src/memory.c`, `.h` | 7 functions, the pool structures |
-| `src/audio.c`, `src/audio.h` | `src/audio.c`, `.h`, `src/audiosfx.h` | 18 functions |
+| `src/audio.c`, `src/audio.h` | `src/audio.c`, `.h`, `src/audiosfx.h` | 23 functions |
+| `src/4BC70.c` | `src/save_data.c`, `.h` | 12 controller pak functions, constants changed for JFG |
+| `src/53C0.c` | `src/objects.c` | 8 functions |
+| `src/12D50.c` | `src/tracks.c` | 7 functions |
+| `src/69050.c` | `src/fade_transition.c`, `.h` | 5 functions |
+| `src/5B700.c` | `src/weather.c`, `src/particles.c` | 4 functions |
+| `src/217C0.c` | `src/lights.c` | 1 function |
 | `src/boot.c` | `src/main.c` | boot and the idle thread |
 | `src/40240.c` | `src/camera.c`, `.h` | 10 camera/viewport functions |
 | `src/55130.c` | `src/textures_sprites.c`, `include/structs.h` | 5 functions |
