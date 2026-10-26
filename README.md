@@ -1,4 +1,4 @@
-# Jet Force Gemini Decomped
+# Jet Force Decompini
 
 A matching decompilation of Jet Force Gemini (Nintendo 64, Rare, 1999): C
 source that compiles back to a byte-identical ROM. The later goal is a native

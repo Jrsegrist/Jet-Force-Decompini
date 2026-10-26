@@ -1,4 +1,4 @@
-# Jet Force Gemini Decomped: matching decompilation build
+# Jet Force Decompini: matching decompilation build
 #
 #   make setup     Python venv (splat), IDO 5.3 recomp, m2c, submodules (once)
 #   make extract   check the ROM, recover runlink symbols, split with splat
