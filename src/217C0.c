@@ -27,10 +27,37 @@ typedef struct Object {
 void light_update(ObjectLight *light, s32 updateRate);
 ObjectLight *light_add_from_object_header(Object *obj, struct ObjectHeaderLight *lightHeader);
 
-extern ObjectLight **gActiveLights;
-extern s32 gNumActiveLights;
+void mempool_free(void *data);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80020BC0);
+extern s32 gMaxLights;
+extern s32 gNumActiveLights;
+extern ObjectLight **gActiveLights;
+extern void *gActiveLightAttrs;
+extern void *D_800A1010;
+extern void *D_800F5B20;
+
+/**
+ * Free all lights from RAM.
+ * JFG: two more buffers of their own.
+ * Official Name: freeLights
+ */
+void lights_free(void) {
+    if (gActiveLights != NULL) {
+        mempool_free(gActiveLights);
+        gActiveLights = NULL;
+        gActiveLightAttrs = NULL;
+    }
+    if (D_800F5B20 != NULL) {
+        mempool_free(D_800F5B20);
+        D_800F5B20 = NULL;
+    }
+    if (D_800A1010 != NULL) {
+        mempool_free(D_800A1010);
+        D_800A1010 = NULL;
+    }
+    gNumActiveLights = 0;
+    gMaxLights = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80020C50);
 

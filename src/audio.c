@@ -12,6 +12,8 @@
 extern ALCSPlayer *gMusicPlayer;  // Official Name: tuneSeqPlayer
 extern ALCSPlayer *gJinglePlayer; // Official Name: ambientSeqPlayer
 extern u8 gMusicBaseVolume;
+extern u8 gCanPlayMusic;
+extern s32 audioPrevCount;
 extern u8 sfxRelativeVolume;
 extern u8 gCanPlayJingle;
 extern s32 gBlockMusicChange;
@@ -31,6 +33,10 @@ extern u32 gSoundTableSize;    // Official Name: sfxIndexSize
 extern s16 sMusicTempo;
 extern u8 gJinglePlaying;
 extern u32 gDynamicMusicChannelMask;
+extern s32 gMusicTempo;
+extern u32 *gSequenceLengths; // JFG: byte length of each sequence
+
+s32 n_alCSPGetTempo(ALCSPlayer *seqp);
 
 /******************************/
 
@@ -39,7 +45,23 @@ INCLUDE_RODATA("asm/nonmatchings/audio", D_800A9FB0);
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000450);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000510);
+/**
+ * Queue a new music sequence to play if not blocked.
+ * Stops any playing existing music beforehand.
+ * JFG: checks the sequence's length instead of the music volume slider.
+ * Official Name: amTunePlay
+ */
+void music_play(u8 seqID) {
+    if (gBlockMusicChange == FALSE && gSequenceLengths[seqID] <= 0x8000) {
+        if (gCanPlayMusic) {
+            music_stop();
+            music_sequence_start(seqID, gMusicPlayer);
+        }
+        gMusicTempo = n_alCSPGetTempo(gMusicPlayer);
+        audioPrevCount = osGetCount();
+        gDynamicMusicChannelMask = MUSIC_CHAN_MASK_NONE;
+    }
+}
 
 /**
  * Update the background music voice limit if not prevented from doing so.
@@ -248,7 +270,17 @@ void music_jingle_pan_set(ALPan pan) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001170);
+/**
+ * Plays a sequence just once, allowing it to coexist with the music if necessary.
+ * JFG: only sequences up to 0x1000 bytes long.
+ * Official Name: amDittyPlay
+ */
+void music_jingle_play(u8 seqID) {
+    if (gSequenceLengths[seqID] <= 0x1000) {
+        gCanPlayJingle = TRUE;
+        music_sequence_start(gCurrentJingleID = seqID, gJinglePlayer);
+    }
+}
 
 /**
  * Returns the jingle that is playing, or SEQUENCE_NONE.

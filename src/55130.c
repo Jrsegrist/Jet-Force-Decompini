@@ -34,6 +34,14 @@ extern s32 gNumberOfLoadedTextures;
 extern s32 *gSpriteCache;
 extern s32 gSpriteCacheCount;
 
+#define RENDER_NONE 0
+extern s32 D_800FED30;
+extern s32 D_800FED34;
+extern s32 D_800FED38;
+extern s32 D_800FED3C;
+extern s32 D_800FED40;
+extern s32 D_800FED44;
+
 /* video.c (DKR); JFG's video mode table */
 #define LOGIC_30FPS 2
 
@@ -203,7 +211,25 @@ TextureHeader *set_animated_texture_header(TextureHeader *texHead, s32 offset) {
     return frame;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055B80);
+/**
+ * Resets all render settings to the default state.
+ * The next draw call will be forced to apply all settings instead of skipping unecessary steps.
+ * JFG: only touches the display list when given one, and turns fog on.
+ * Official Name: texDPInit
+ */
+void rendermode_reset(Gfx **dList) {
+    gBlockedRenderFlags = RENDER_NONE;
+    D_800FED34 = 0;
+    D_800FED38 = 0;
+    D_800FED30 = 0;
+    D_800FED3C = 0;
+    D_800FED40 = TRUE;
+    D_800FED44 = TRUE;
+    if (dList != NULL) {
+        gDPPipeSync((*dList)++);
+        gSPSetGeometryMode((*dList)++, G_SHADING_SMOOTH | G_SHADE | G_ZBUFFER | G_FOG);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055C00);
 

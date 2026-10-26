@@ -10,6 +10,10 @@ typedef struct AudioPoint {
     } pos;
 } AudioPoint;
 
+extern AudioPoint **gAudioPoints;
+extern u16 gNumAudioPoints;
+void audspat_point_stop_by_index(s32 index);
+
 INCLUDE_ASM("asm/nonmatchings/3430", func_80002830);
 
 /**
@@ -57,7 +61,22 @@ void audspat_point_set_position(AudioPoint *audioPoint, f32 x, f32 y, f32 z) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003614);
+/**
+ * Official Name: amSndStopXYZ
+ * Stops the sound associated with the audio point.
+ * JFG: ignores a NULL point; the point list has a count.
+ */
+void audspat_point_stop(AudioPoint *point) {
+    s32 i;
+    if (point != NULL) {
+        for (i = 0; i < gNumAudioPoints; i++) {
+            if (point == gAudioPoints[i]) {
+                audspat_point_stop_by_index(i);
+                return;
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003680);
 

@@ -2,7 +2,7 @@
  * Asset table access and ROM DMA.
  *
  * From the Diddy Kong Racing decompilation (CC0 1.0), src/asset_loading.c.
- * piRomLoad and romCopy differ in Jet Force Gemini and are still
+ * romCopy differs in Jet Force Gemini and is still
  * assembly.
  */
 #include "asset_loading.h"
@@ -40,7 +40,36 @@ void pi_init(void) {
     dmacopy((u32) __ASSETS_LUT_START, (u32) gAssetsLookupTable, (s32) assetTableSize);
 }
 
-INCLUDE_ASM("asm/nonmatchings/asset_loading", func_8004D37C);
+/**
+ * Returns the memory address containing an asset section loaded from ROM.
+ * JFG: no DMA mutex, and an empty section returns NULL.
+ * Official Name: piRomLoad
+ */
+u32 *asset_table_load(u32 assetIndex) {
+    u32 *index;
+    u32 *out;
+    s32 size;
+    u32 start;
+
+    if (gAssetsLookupTable[0] < assetIndex) {
+        return NULL;
+    }
+    assetIndex++;
+    index = assetIndex + gAssetsLookupTable;
+    start = *index;
+    size = *(index + 1) - start;
+    if (size == 0) {
+        return NULL;
+    }
+    out = (u32 *) mempool_alloc_safe(size, COLOUR_TAG_GREY);
+    if (out == 0) {
+        return NULL;
+    }
+
+    dmacopy((u32) (start + __ASSETS_LUT_END), (u32) out, size);
+
+    return out;
+}
 
 /**
  * Loads a gzip compressed asset from the ROM file.
