@@ -4,13 +4,13 @@
 A function counts as decompiled when it is compiled from C: a function in
 src/ that is not pulled in with INCLUDE_ASM, or an ultralib object. Everything
 assembled from asm/ (or INCLUDE_ASM'd) counts as not decompiled, including
-hand-written assembly. Reads build/jfg.us.elf and build/jfg.us.map.
+hand-written assembly. Reads build/jfg.us.elf and build/jfg.us.map, and for
+the runlink modules build/runlink/modules.map (see module_progress).
 
-Usage: tools/progress.py [--version us] [--files]
+Usage: tools/progress.py [--version us] [--files] [--modules]
 """
 import argparse
 import collections
-import glob
 import os
 import re
 import subprocess
@@ -58,10 +58,50 @@ def include_asm_addrs(src):
     return {int(a, 16) for a in re.findall(r'^\s*INCLUDE_ASM\(\s*"[^"]*"\s*,\s*func_([0-9A-Fa-f]{8})\s*\)', t, re.M)}
 
 
+MODULE_MAP = "build/runlink/modules.map"
+
+
+def module_progress(mapfile):
+    """[(module, functions, bytes, functions in C, bytes in C, source)] from
+    the module map that tools/runlink_build.py writes. A module function is
+    decompiled when its module is built from src/modules/mNNN.c and the
+    function is not pulled in with INCLUDE_ASM."""
+    if not os.path.exists(mapfile):
+        return []
+    mods = []
+    cur = None
+    for line in open(mapfile):
+        if line.startswith("#") or not line.strip():
+            continue
+        if not line.startswith(" "):
+            name, _, _, _, _, obj = line.split()
+            src = None
+            if obj.startswith("build/src/modules/"):
+                src = obj[len("build/"):-2] + ".c"
+            asm = set()
+            if src and os.path.exists(src):
+                t = open(src).read()
+                t = re.sub(r"/\*.*?\*/", "", t, flags=re.S)
+                t = re.sub(r"//[^\n]*", "", t)
+                asm = set(re.findall(r'^\s*INCLUDE_ASM\(\s*"[^"]*"\s*,\s*(\w+)\s*\)', t, re.M))
+            cur = [name, 0, 0, 0, 0, "C" if src else "asm", src, asm]
+            mods.append(cur)
+            continue
+        fname, off, size = line.split()
+        size = int(size, 16)
+        cur[1] += 1
+        cur[2] += size
+        if cur[6] and fname not in cur[7]:
+            cur[3] += 1
+            cur[4] += size
+    return [tuple(m[:6]) for m in mods]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--version", default="us")
     ap.add_argument("--files", action="store_true", help="also list each file")
+    ap.add_argument("--modules", action="store_true", help="also list each runlink module")
     args = ap.parse_args()
     elf = "build/jfg.%s.elf" % args.version
     mapfile = "build/jfg.%s.map" % args.version
@@ -111,17 +151,22 @@ def main():
         all_ = [a + b for a, b in zip(all_, (n, sz, nc, szc))]
     n, sz, nc, szc = all_
     print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%" % ("main: total", nc, n, pct(nc, n), szc, sz, pct(szc, sz)))
-    # runlink modules: all assembly so far; count functions by their returns
-    mods = sorted(glob.glob("asm/modules/m*.s"))
+    mods = module_progress(MODULE_MAP)
     if mods:
-        nret = tbytes = 0
-        for p in mods:
-            t = open(p).read()
-            text = t.split(".section .data")[0]
-            nret += len(re.findall(r"\bjr\s+\$ra\b", text))
-            tbytes += 4 * len(re.findall(r"^\s+/\* [0-9A-F]{5} [0-9A-F]{8} \*/", text, re.M))
-        print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%   (%d modules; functions counted by jr $ra)" % (
-            "runlink modules", 0, nret, 0.0, 0, tbytes, 0.0, len(mods)))
+        n, sz, nc, szc = [sum(m[k] for m in mods) for k in range(1, 5)]
+        full = sum(1 for m in mods if m[1] and m[3] == m[1])
+        part = sum(1 for m in mods if 0 < m[3] < m[1])
+        print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%   (%d of %d modules all C, %d partly)" % (
+            "runlink modules", nc, n, pct(nc, n), szc, sz, pct(szc, sz), full, len(mods), part))
+        n2, sz2, nc2, szc2 = [a + b for a, b in zip(all_, (n, sz, nc, szc))]
+        print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%" % ("total", nc2, n2, pct(nc2, n2), szc2, sz2,
+                                                          pct(szc2, sz2)))
+        if args.modules:
+            print()
+            print("%-6s %-6s %12s %16s" % ("module", "source", "functions", "bytes"))
+            for name, n, sz, nc, szc, src in mods:
+                print("%-6s %-6s %5d/%-5d %7d/%-7d%s" % (name, src, nc, n, szc, sz,
+                                                         "  all C" if n and nc == n else ""))
     if args.files:
         print()
         for obj, (n, sz, nc, szc) in sorted(per_file.items(), key=lambda kv: kv[0] or ""):
