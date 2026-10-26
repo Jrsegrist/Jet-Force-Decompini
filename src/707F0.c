@@ -6,6 +6,8 @@
 
 /* DKR src/font.h (JFG layout) */
 #define DIALOGUE_NUM_NULL 0xFF
+#define DIALOGUEBOXBACKGROUND_COUNT 8
+#define DIALOGUE_BOX_CLOSED 0x7FFF
 
 typedef struct DialogueBox {
     /* 0x00 */ u8 unk00;
@@ -74,7 +76,33 @@ INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FD98);
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_800706D4);
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8007078C);
+/**
+ * Sets the position and size of the current dialogue box.
+ * Official Name: fontWindowSize
+ */
+void set_current_dialogue_box_coords(s32 dialogueBoxID, s32 x1, s32 y1, s32 x2, s32 y2) {
+    if (dialogueBoxID > 0 && dialogueBoxID < DIALOGUEBOXBACKGROUND_COUNT) {
+        DialogueBoxBackground *temp = &gDialogueBoxBackground[dialogueBoxID];
+        temp->xpos = 0;
+        temp->ypos = 0;
+        if (x1 < x2) {
+            temp->x1 = (s16) x1;
+            temp->x2 = (s16) x2;
+        } else {
+            temp->x2 = (s16) x1;
+            temp->x1 = (s16) x2;
+        }
+        if (y1 < y2) {
+            temp->y1 = (s16) y1;
+            temp->y2 = (s16) y2;
+        } else {
+            temp->y2 = (s16) y1;
+            temp->y1 = (s16) y2;
+        }
+        temp->width = (temp->x2 - temp->x1) + 1;
+        temp->height = (temp->y2 - temp->y1) + 1;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_8007082C);
 
@@ -108,7 +136,13 @@ void dialogue_clear(s32 dialogueBoxID) {
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80070C4C);
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_80070C78);
+/**
+ * Mark the selected dialogue box as closed
+ * Official Name: fontWindowDisable
+ */
+void dialogue_close(s32 dialogueBoxID) {
+    gDialogueBoxBackground[dialogueBoxID].flags &= DIALOGUE_BOX_CLOSED;
+}
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80070CA4);
 

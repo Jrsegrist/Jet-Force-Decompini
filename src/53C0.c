@@ -4,11 +4,37 @@
  */
 #include "common.h"
 
-typedef struct Object Object;
+#define BHV_RACER 1
 
 typedef struct Vec3s {
     s16 x, y, z;
 } Vec3s;
+
+/* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
+typedef struct Object_Racer {
+    /* 0x000 */ u8 pad0[0x140];
+    /* 0x140 */ s16 y_rotation_offset;
+    /* 0x142 */ s16 z_rotation_offset;
+    /* 0x144 */ s16 x_rotation_offset;
+} Object_Racer;
+
+typedef struct ObjectTransform {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ s16 z_rotation;
+    /* 0x06 */ u8 pad6[0x10 - 0x06];
+    /* 0x10 */ f32 y_position;
+} ObjectTransform;
+
+typedef struct Object {
+    /* 0x00 */ ObjectTransform trans;
+    /* 0x14 */ u8 pad14[0x48 - 0x14];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x68 */ Object_Racer *racer;
+} Object;
+
+extern f32 gObjectOffsetY;
 
 extern Object **gObjPtrList;
 extern Object *(*gRacers)[10]; // Official Name: playerlist
@@ -167,7 +193,18 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DB94);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DC28);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DD14);
+/**
+ * Official Name: objUndoPlayerTumble
+ */
+void object_undo_player_tumble(Object *obj) {
+    if (obj->behaviorId == BHV_RACER) {
+        Object_Racer *racer = obj->racer;
+        obj->trans.y_rotation -= racer->y_rotation_offset;
+        obj->trans.x_rotation -= racer->x_rotation_offset;
+        obj->trans.z_rotation -= racer->z_rotation_offset;
+        obj->trans.y_position -= gObjectOffsetY;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DD78);
 

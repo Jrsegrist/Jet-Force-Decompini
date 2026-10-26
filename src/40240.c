@@ -5,6 +5,8 @@ extern MtxF gInverseViewMatrixF;
 extern MtxF gViewMatrixF;
 extern f32 gCurCamFOV;
 extern s32 gActiveCameraID;
+extern Mtx gPerspectiveMatrix[];
+extern u8 D_800A316C;
 
 /* DKR src/camera.h */
 enum ViewportFlags {
@@ -197,7 +199,14 @@ MtxF *get_projection_matrix_f32(void) {
     return &gInverseViewMatrixF;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E24);
+/**
+ * Return the current fixed point projection matrix.
+ * JFG: one per D_800A316C (DKR has a single matrix).
+ * Official name: camGetProjOrgMtx
+ */
+Mtx *get_projection_matrix_s16(void) {
+    return &gPerspectiveMatrix[D_800A316C];
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041E40);
 

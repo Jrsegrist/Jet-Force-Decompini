@@ -184,6 +184,8 @@ func_8004025C = copy_viewport_frame_size_to_coords;
 func_80040D58 = set_ortho_matrix_height;
 func_80041E18 = get_projection_matrix_f32;
 func_80041E4C = get_camera_matrix;
+func_80041E24 = get_projection_matrix_s16;
+gPerspectiveMatrix = 0x800FAB38;
 gActiveCameraID = 0x800FA630;
 gCurCamFOV = 0x800FB078;
 gInverseViewMatrixF = 0x800FAFB8;
@@ -271,6 +273,8 @@ func_8000E464 = get_racer_objects;
 func_8000E4D0 = get_racer_object_by_port;
 func_8000E520 = update_envmap_position;
 func_8000E624 = get_misc_asset;
+func_8000DD14 = object_undo_player_tumble;
+gObjectOffsetY = 0x800F2F60;
 gAssetsMiscSection = 0x800F2C7C;
 gAssetsMiscTable = 0x800F2C80;
 gAssetsMiscTableLength = 0x800F2C84;
@@ -363,6 +367,11 @@ rain_set = 0x8005BDB8;
 
 /* ---- 217C0.c ---- */
 func_800213A8 = light_update_all;
+func_800212D0 = light_disable;
+func_800212E4 = light_enable;
+func_800218A8 = lightGetLights;
+func_80022624 = light_setup_light_sources;
+light_add_from_object_header = 0x800210A4;
 gActiveLights = 0x800A1008;
 gNumActiveLights = 0x800A1004;
 light_update = 0x80021434;
@@ -392,9 +401,16 @@ func_800446CC = level_type;
 func_8004470C = level_header;
 gCurrentLevelHeader = 0x800FB118;
 
+/* ---- 25A70.c ---- */
+func_80026D88 = obj_loop_rangetrigger;
+obj_dist_racer = 0x8007E150;
+obj_spawn_particle = 0x8005F5AC;
+
 /* ---- 707F0.c ---- */
 func_8006FC54 = set_text_font;
 func_80070BF8 = dialogue_clear;
+func_8007078C = set_current_dialogue_box_coords;
+func_80070C78 = dialogue_close;
 gDialogueBoxBackground = 0x80103FA8;
 
 /* ---- not decompiled yet ---- */
