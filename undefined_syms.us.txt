@@ -252,6 +252,28 @@ gSubtitleProperties = 0x80104580;
 gSubtitleTimer = 0x8010456A;
 normalise_time = 0x80005064;
 
+/* ---- 53C0.c ---- */
+func_80005064 = normalise_time;
+func_80005E58 = get_object;
+func_80005E98 = objGetObjList;
+func_800099F4 = ignore_bounds_check;
+func_8000E464 = get_racer_objects;
+func_8000E4D0 = get_racer_object_by_port;
+func_8000E520 = update_envmap_position;
+func_8000E624 = get_misc_asset;
+gAssetsMiscSection = 0x800F2C7C;
+gAssetsMiscTable = 0x800F2C80;
+gAssetsMiscTableLength = 0x800F2C84;
+gEnvmapPos = 0x800F2D48;
+gNoBoundsCheck = 0x800A0980;
+gNumRacers = 0x800F2D10;
+gObjPtrList = 0x800F2CA4;
+gObjectCount = 0x800F2CA8;
+gObjectListStart = 0x800F2CAC;
+gRacers = 0x800F2D0C;
+gRacersByPort = 0x800F2D0C;
+osTvType = 0x80000300;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;
