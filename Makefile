@@ -169,6 +169,8 @@ $(BUILD_DIR)/assets/runlink_modtab.o: $(RL_DIR)/modtab.bin
 	@mkdir -p $(dir $@)
 	$(LD) -r -b binary -o $@ $<
 
+include modules.mk
+
 -include $(shell find $(BUILD_DIR)/src -name '*.d' 2>/dev/null)
 
 clean:

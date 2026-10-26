@@ -7,19 +7,27 @@ symbolically so that the assembler emits ordinary ELF relocations. The
 module's runlink relocation tables are not copied: tools/runlink_build.py
 recreates them from the assembled objects. See docs/runlink.md.
 
-Symbol references in the generated assembly:
-  name            a global symbol from the ROM's runlink symbol table
-                  (external, or exported by this module)
-  rl_mNNN_XXXX    this module's own data or code at module offset XXXX
-                  (runlink "kind 1": the loader adds the module base)
-  __rlk2_<index>  marker for a "kind 2" jump: the instruction already holds
-                  the module-relative target; the entry also records a
-                  symbol index that the loader does not use
+For work in C, every module is also split per function into
+asm/nonmatchings/modules/mNNN/func_mNNN_XXXXX.s (for INCLUDE_ASM), with
+asm/nonmatchings/modules/mNNN/data.s (the module's .data, .rodata and .bss)
+and functions.txt (the function list).
+
+Symbol references in the generated assembly are by address, so that C written
+from it never contains a name from the ROM's name table:
+  func_XXXXXXXX / D_XXXXXXXX   a main-segment symbol (text / data or bss)
+  func_mNNN_XXXXX / D_mNNN_XXXXX
+                  a symbol exported by module NNN at offset XXXXX
+  rl_mNNN_XXXXX   module NNN's own code or data at offset XXXXX that is
+                  not referred to through the global symbol table (runlink
+                  "kind 1"; or the target of a "kind 2" jump)
+The runlink names themselves only appear in comments. When two runlink
+symbols share an address and a reference uses the second one, the runlink
+name is used instead (tools/runlink_build.py accepts both).
 
 The relocation entry order of the original tables is written to
-build/runlink/order/mNNN.txt (an IDO-compiled module would reproduce it
-from its own object; the assembler sorts relocations differently).
-Everything written here is derived from the ROM and is not committed.
+build/runlink/order/mNNN.txt (an IDO-compiled module reproduces it from its
+own object; the assembler sorts relocations differently). Everything
+written here is derived from the ROM and is not committed.
 
 Usage: runlink_split.py ROM [--version us]
 """
@@ -31,8 +39,10 @@ import rabbitizer
 
 LAYOUT = {
     "us": dict(symtab=0x1ED0270, modtab=0x1ED2780, modules=0x1ED3B20,
-               nameoffs=0x1FEB040, names=0x1FED550),
+               nameoffs=0x1FEB040, names=0x1FED550,
+               text=0x80000450, data=0x800A0660, bss=0x800B0B50),
 }
+SEC_RODATA, SEC_DATA, SEC_BSS = 4093, 4094, 4095
 R_MIPS_32, R_MIPS_26, R_MIPS_HI16, R_MIPS_LO16 = 2, 4, 5, 6
 
 
@@ -61,9 +71,78 @@ def read_symbols(rom, L):
     return syms
 
 
-def split_module(rom, L, syms, m, asm_dir, build_dir):
+def read_modtab(rom, L):
+    nmods = (L["modules"] - L["modtab"]) // 32
+    return [struct.unpack_from(">IIIIIHHii", rom, L["modtab"] + 32 * m) for m in range(nmods)]
+
+
+def address_name(L, mods, mod, off):
+    """The address-based name of runlink symbol (mod, off)."""
+    if mod == 0:
+        addr = L["text"] + off
+        return ("func_%08X" if addr < L["data"] else "D_%08X") % addr
+    if mod in (SEC_RODATA, SEC_DATA):
+        return "D_%08X" % (L["data"] + off)
+    if mod == SEC_BSS:
+        return "D_%08X" % (L["bss"] + off)
+    tsize = mods[mod - 1][2]
+    return ("func_m%03d_%05X" if off < tsize else "D_m%03d_%05X") % (mod, off)
+
+
+def symbol_names(L, mods, syms):
+    """Name to use for each symbol index: by address, unless an earlier
+    symbol has the same address (then the runlink name)."""
+    first = {}
+    out = []
+    for i, (mod, off, name) in enumerate(syms):
+        key = (mod if mod not in (SEC_RODATA, SEC_DATA) else SEC_DATA, off)
+        if not (mod <= len(mods) or mod in (SEC_RODATA, SEC_DATA, SEC_BSS)):
+            print("symbol %d (%s): unknown module %d" % (i, name, mod))
+            out.append(name)
+        elif key in first:
+            out.append(name)
+        else:
+            first[key] = i
+            out.append(address_name(L, mods, mod, off))
+    return out
+
+
+def find_functions(image, tsize, starts):
+    """Function start offsets: the known entry points plus every place
+    after a `jr $ra` (and its delay slot) where no earlier branch of the
+    current function reaches past it. Returns (sorted starts, end of code)."""
+    words = [u32(image, o) for o in range(0, tsize, 4)]
+    end = tsize
+    while end > 0 and words[end // 4 - 1] == 0:
+        end -= 4
+    if 0 < end < tsize:
+        last = rabbitizer.Instruction(words[end // 4 - 1], end - 4)
+        if last.isValid() and (last.isBranch() or last.isJump()):
+            end += 4  # its delay slot is a nop
+    found = set(s for s in starts if s < end)
+    found.add(0)
+    reach = 0  # furthest branch target of the current function
+    o = 0
+    while o < end:
+        if o in found:
+            reach = o
+        w = words[o // 4]
+        ins = rabbitizer.Instruction(w, o)
+        if ins.isValid() and ins.isBranch():
+            reach = max(reach, o + 4 + (sx16(w & 0xFFFF) << 2))
+        if w == 0x03E00008 and reach <= o + 4:
+            n = o + 8
+            while n < end and words[n // 4] == 0:
+                n += 4
+            if n < end:
+                found.add(n)
+        o += 4
+    return sorted(found), end
+
+
+def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     me = m + 1
-    w0, off, tsize, dsize, bsize, r1, r2, init, fini = struct.unpack_from(">IIIIIHHii", rom, L["modtab"] + 32 * m)
+    w0, off, tsize, dsize, bsize, r1, r2, init, fini = mods[m]
     base = L["modules"] + off
     image = rom[base:base + tsize + dsize]
     end = tsize + dsize + bsize
@@ -71,14 +150,19 @@ def split_module(rom, L, syms, m, asm_dir, build_dir):
     for tstart, tlen in ((tsize + dsize, r1), (tsize + dsize + r1, r2)):
         tabs.append([struct.unpack_from(">II", rom, base + tstart + 8 * i) for i in range(tlen // 8)])
 
-    labels = {}  # module offset -> [names]
-    for mod, soff, name in syms:
+    labels = {}  # module offset -> [(name, is_global, comment)]
+    exported = {}  # module offset -> [runlink names]
+    for i, (mod, soff, name) in enumerate(syms):
         if mod == me:
-            labels.setdefault(soff, []).append(name)
+            exported.setdefault(soff, []).append(name)
+            nm = names[i]
+            lst = labels.setdefault(soff, [])
+            if nm not in lst:
+                lst.append(nm)
     prefix = "rl_m%03d_" % me
 
     def local(o):
-        nm = prefix + "%X" % o
+        nm = prefix + "%05X" % o
         lst = labels.setdefault(o, [])
         if nm not in lst:
             lst.append(nm)
@@ -86,24 +170,34 @@ def split_module(rom, L, syms, m, asm_dir, build_dir):
 
     sub = {}
     order = []
+    secbases = set()
+    jal_targets = set()
     for ti, entries in enumerate(tabs):
         last_hi = {}
         for word, x in entries:
             o, typ, kind = x >> 8, (x >> 4) & 0xF, x & 0xF
             order.append("%d 0x%X %d" % (ti + 1, o, typ))
             if kind == 0:
-                sym = syms[word][2]
+                sym = names[word]
             elif kind == 1:
                 sym = local(word)
+                secbases.add(word)
             elif kind == 2:
-                sym = "__rlk2_%d" % word
+                sym = None
             else:
                 raise SystemExit("m%03d: unknown relocation kind %d" % (me, kind))
             ins = u32(image, o)
             if typ == R_MIPS_26:
-                sub[o] = (typ, expr(sym, (ins & 0x3FFFFFF) << 2))
+                tgt = (ins & 0x3FFFFFF) << 2
                 if kind == 2:
-                    local((ins & 0x3FFFFFF) << 2)
+                    # the loader ignores the entry's word; runlink_build.py
+                    # recomputes it
+                    sub[o] = (typ, local(tgt))
+                    jal_targets.add(tgt)
+                else:
+                    sub[o] = (typ, expr(sym, tgt))
+                    if syms[word][0] == me:
+                        jal_targets.add(syms[word][1] + tgt)
             elif typ == R_MIPS_HI16:
                 last_hi[(word, kind)] = o
                 sub[o] = (typ, None, sym)
@@ -136,9 +230,24 @@ def split_module(rom, L, syms, m, asm_dir, build_dir):
             branch[o] = o + 4 + (sx16(w & 0xFFFF) << 2)
     btargets = set(branch.values())
 
-    def emit_labels(o, functype):
+    starts = set(k for k in exported if k < tsize) | jal_targets
+    for v in (init, fini):
+        if v >= 0:
+            starts.add(v)
+    funcs, code_end = find_functions(image, tsize, starts)
+    if code_end == 0:
+        funcs = []
+    fnames = {}
+    for f in funcs:
+        fnames[f] = "func_m%03d_%05X" % (me, f)
+
+    def emit_labels(o, functype, glabel=True):
         out = []
+        if o in exported:
+            out.append("/* %s */" % ", ".join(exported[o]))
         for nm in labels.get(o, []):
+            if o in fnames and nm == fnames[o]:
+                continue
             out.append(".global %s" % nm)
             if functype:
                 out.append(".type %s, @function" % nm)
@@ -147,22 +256,7 @@ def split_module(rom, L, syms, m, asm_dir, build_dir):
             out.append(".L%05X:" % o)
         return out
 
-    lines = [
-        "/* Runlink module %d, generated by tools/runlink_split.py from the ROM. */" % me,
-        ".set noat",
-        ".set noreorder",
-        ".set gp=64",
-        "",
-    ]
-    for nm, v in (("__rl_init", init), ("__rl_fini", fini)):
-        if v >= 0:
-            tgt = labels.get(v) or [local(v)]
-            lines.append(".global %s" % nm)
-            lines.append(".set %s, %s" % (nm, tgt[0]))
-
-    lines.append("\n.section .text")
-    for o in range(0, tsize, 4):
-        lines += emit_labels(o, True)
+    def text_line(o):
         w = u32(image, o)
         ins = rabbitizer.Instruction(w, o)
         if o in sub:
@@ -174,36 +268,114 @@ def split_module(rom, L, syms, m, asm_dir, build_dir):
             s = ins.disassemble()
         else:
             s = ".word 0x%08X" % w
-        lines.append("    /* %05X %08X */ %s" % (o, w, s))
+        return "    /* %05X %08X */ %s" % (o, w, s)
 
+    # .data / .rodata split: kind-1 references point at section starts
+    # (IDO refers to static data through section symbols), so a referenced
+    # offset in the data block other than its start is where .rodata begins.
+    ro = sorted(k for k in secbases if tsize < k < tsize + dsize)
+    rodata_start = ro[0] if ro else None
+
+    def data_lines(lo, hi):
+        out = []
+        o = lo
+        while o < hi:
+            inner = [k for k in (o + 1, o + 2, o + 3) if k in labels]
+            if inner and o not in sub:
+                for k in range(o, o + 4):
+                    out.extend(emit_labels(k, False))
+                    out.append("    .byte 0x%02X" % image[k])
+            else:
+                out.extend(emit_labels(o, False))
+                e = sub[o][1] if o in sub else "0x%08X" % u32(image, o)
+                out.append("    /* %05X */ .word %s" % (o, e))
+            o += 4
+        return out
+
+    def bss_lines():
+        out = []
+        pos = tsize + dsize
+        for k in sorted(k for k in labels if tsize + dsize <= k <= end):
+            if k > pos:
+                out.append("    .space 0x%X" % (k - pos))
+                pos = k
+            out.extend(emit_labels(k, False))
+        if end > pos:
+            out.append("    .space 0x%X" % (end - pos))
+        bad = [k for k in labels if k > end]
+        if bad:
+            raise SystemExit("m%03d: labels past the end: %s" % (me, bad))
+        return out
+
+    head = [
+        "/* Runlink module %d, generated by tools/runlink_split.py from the ROM. */" % me,
+        ".set noat",
+        ".set noreorder",
+        ".set gp=64",
+        "",
+    ]
+    lines = list(head)
+    for nm, v in (("__rl_init", init), ("__rl_fini", fini)):
+        if v >= 0:
+            lines.append(".global %s" % nm)
+            lines.append(".set %s, %s" % (nm, fnames.get(v) or local(v)))
+
+    lines.append("\n.section .text")
+    for o in range(0, tsize, 4):
+        if o in fnames:
+            lines.append(".global %s" % fnames[o])
+            lines.append(".type %s, @function" % fnames[o])
+            lines.append("%s:" % fnames[o])
+        lines += emit_labels(o, True)
+        lines.append(text_line(o))
     lines.append("\n.section .data")
-    o = tsize
-    while o < tsize + dsize:
-        inner = [k for k in (o + 1, o + 2, o + 3) if k in labels]
-        if inner and o not in sub:
-            for k in range(o, o + 4):
-                lines += emit_labels(k, False)
-                lines.append("    .byte 0x%02X" % image[k])
-        else:
-            lines += emit_labels(o, False)
-            e = sub[o][1] if o in sub else "0x%08X" % u32(image, o)
-            lines.append("    /* %05X */ .word %s" % (o, e))
-        o += 4
-
+    lines += data_lines(tsize, tsize + dsize)
     lines.append("\n.section .bss")
-    pos = tsize + dsize
-    for k in sorted(k for k in labels if tsize + dsize <= k <= end):
-        if k > pos:
-            lines.append("    .space 0x%X" % (k - pos))
-            pos = k
-        lines += emit_labels(k, False)
-    if end > pos:
-        lines.append("    .space 0x%X" % (end - pos))
-    bad = [k for k in labels if k > end]
-    if bad:
-        raise SystemExit("m%03d: labels past the end: %s" % (me, bad))
+    lines += bss_lines()
     with open("%s/m%03d.s" % (asm_dir, me), "w") as f:
         f.write("\n".join(lines) + "\n")
+
+    # per-function files for INCLUDE_ASM, and the module's data
+    nm_dir = "%s/m%03d" % (nm_root, me)
+    os.makedirs(nm_dir, exist_ok=True)
+    for old in os.listdir(nm_dir):
+        os.remove(os.path.join(nm_dir, old))
+    bounds = funcs + [code_end]
+    flist = []
+    for a, b in zip(bounds, bounds[1:]):
+        out = ["glabel %s" % fnames[a]]
+        for o in range(a, b, 4):
+            out += emit_labels(o, True)
+            out.append(text_line(o))
+        if b == code_end and code_end < tsize:
+            out.append("    /* padding to 16 bytes follows (IDO adds it) */")
+        out.append("endlabel %s" % fnames[a])
+        with open("%s/%s.s" % (nm_dir, fnames[a]), "w") as f:
+            f.write("\n".join(out) + "\n")
+        flist.append("%s 0x%X 0x%X" % (fnames[a], a, b - a))
+    if dsize or bsize:
+        out = []
+        if dsize:
+            dend = rodata_start if rodata_start is not None else tsize + dsize
+            if dend > tsize:
+                out.append(".section .data")
+                out += data_lines(tsize, dend)
+            if dend < tsize + dsize:
+                out.append(".section .rodata")
+                out += data_lines(dend, tsize + dsize)
+        if bsize:
+            out.append(".section .bss")
+            out += bss_lines()
+        with open("%s/data.s" % nm_dir, "w") as f:
+            f.write("\n".join(out) + "\n")
+    with open("%s/functions.txt" % nm_dir, "w") as f:
+        f.write("# name offset size (module %d: text 0x%X, data 0x%X, bss 0x%X%s)\n" % (
+            me, tsize, dsize, bsize,
+            ", .rodata from 0x%X" % rodata_start if rodata_start is not None else ""))
+        f.write("\n".join(flist) + ("\n" if flist else ""))
+    if len(ro) > 1:
+        print("m%03d: more than one section start in the data block: %s" % (me, [hex(k) for k in ro]))
+    return len(funcs)
 
 
 def main():
@@ -211,6 +383,7 @@ def main():
     ap.add_argument("rom")
     ap.add_argument("--version", default="us")
     ap.add_argument("--asm-dir", default="asm/modules")
+    ap.add_argument("--nonmatchings-dir", default="asm/nonmatchings/modules")
     ap.add_argument("--build-dir", default="build/runlink")
     args = ap.parse_args()
     L = LAYOUT[args.version]
@@ -220,15 +393,18 @@ def main():
     rabbitizer.config.regNames_userFpcCsr = False  # $31, not $FpcCsr, for gas
 
     syms = read_symbols(rom, L)
+    mods = read_modtab(rom, L)
+    names = symbol_names(L, mods, syms)
     os.makedirs(args.asm_dir, exist_ok=True)
     os.makedirs(args.build_dir + "/order", exist_ok=True)
     with open(args.build_dir + "/symbols.txt", "w") as f:
         for i, (mod, off, name) in enumerate(syms):
             f.write("%d %d 0x%X %s\n" % (i, mod, off, name))
-    nmods = (L["modules"] - L["modtab"]) // 32
-    for m in range(nmods):
-        split_module(rom, L, syms, m, args.asm_dir, args.build_dir)
-    print("runlink_split: %d modules" % nmods)
+    nfuncs = 0
+    for m in range(len(mods)):
+        nfuncs += split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
+                               args.build_dir)
+    print("runlink_split: %d modules, %d functions" % (len(mods), nfuncs))
 
 
 if __name__ == "__main__":
