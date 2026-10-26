@@ -112,7 +112,7 @@ extract: .baserom.$(VERSION).ok
 	$(PYTHON) -m splat split $(YAML)
 	@# spimdisasm runs some jump tables on into the zero padding after them
 	@# and emits those words as a label at address 0; keep them as data.
-	sed -i 's/\.word \.L0$$/.word 0x00000000/' asm/data/*.rodata.s
+	sed -i 's/\.word \.L0$$/.word 0x00000000/' asm/data/*.s
 	$(PYTHON) tools/runlink_split.py $(BASEROM) --version $(VERSION)
 	@# INCLUDE_ASM'd objects must be rebuilt from the fresh asm
 	rm -rf $(BUILD_DIR)/src
