@@ -76,8 +76,10 @@ def main():
             if start <= addr < end:
                 if obj.startswith("build/src/"):
                     src = obj[len("build/"):-2] + ".c"
+                    if not os.path.exists(src):
+                        return obj, False
                     if src not in asm_cache:
-                        asm_cache[src] = include_asm_addrs(src) if os.path.exists(src) else set()
+                        asm_cache[src] = include_asm_addrs(src)
                     return obj, addr not in asm_cache[src]
                 return obj, False
         return None, False

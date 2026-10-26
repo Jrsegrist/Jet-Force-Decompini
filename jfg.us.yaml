@@ -62,7 +62,7 @@ segments:
     bss_size: 0x54E50
     subsegments:
       - [0x1000, asm, entry]
-      - [0x1050, c]
+      - [0x1050, c, audio]
       - [0x2610, c]
       - [0x3430, c]
       - [0x53C0, c]
