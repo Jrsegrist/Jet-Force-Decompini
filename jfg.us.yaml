@@ -199,7 +199,7 @@ segments:
       - [0x99AA0, asm]
       - [0x99E00, c, ultra/io/sptaskyielded]
       - [0x99E80, c, ultra/io/vigetcurrframebuf]
-      - [0x99EC0, asm]
+      - [0x99EC0, c, ultra/io/vigetnextframebuf]
       - [0x99F00, c, ultra/io/dpsetnextbuf]
       - [0x99FB0, c, ultra/io/sptaskyield]
       - [0x99FD0, c, ultra/io/visetspecial]
