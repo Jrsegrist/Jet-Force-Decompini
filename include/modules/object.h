@@ -72,6 +72,11 @@ typedef struct ObjectHeader {
     /* 0x50 */ ObjectHeaderUnk50 *unk50;
 } ObjectHeader;
 
+/* What object->shading points at (DKR's ShadeProperties starts the same way) */
+typedef struct ObjectShading {
+    /* 0x00 */ f32 unk0;
+} ObjectShading;
+
 /* What object->unk5C points at */
 typedef struct ObjectUnk5C {
     /* 0x000 */ u8 pad0[0x130];
@@ -83,7 +88,8 @@ typedef struct Object {
     /* 0x18 */ s16 animFrame;                    /* (DKR) */
     /* 0x1A */ s16 unk1A;
     /* 0x1C */ Vec3f velocity;                   /* (DKR: x/y/z_velocity) */
-    /* 0x28 */ u8 pad28[0x39 - 0x28];
+    /* 0x28 */ f32 unk28;                        /* (DKR) */
+    /* 0x2C */ u8 pad2C[0x39 - 0x2C];
     /* 0x39 */ u8 opacity;                       /* (DKR) */
     /* 0x3A */ s8 modelIndex;                    /* (DKR) */
     /* 0x3B */ s8 animationID;                   /* (DKR) */
@@ -94,7 +100,8 @@ typedef struct Object {
     /* 0x4A */ s16 objectID;                     /* (DKR) */
     /* 0x4C */ ObjectInteraction *interactObj;   /* (DKR) */
     /* 0x50 */ f32 *shadow;                      /* (DKR: ShadowData, whose first field is its scale) */
-    /* 0x54 */ u8 pad54[0x5C - 0x54];
+    /* 0x54 */ ObjectShading *shading;           /* (DKR) */
+    /* 0x58 */ u8 pad58[0x5C - 0x58];
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ void *unk68;                      /* behaviour data, for behaviours that allocate it */
