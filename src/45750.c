@@ -1,4 +1,11 @@
 #include "common.h"
+#include "joypad.h"
+
+/* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
+extern OSMesgQueue gNMIMesgQueue;
+extern s32 gGameMode;
+extern s32 gNMIMesgBuf;          // Official Name: resetPressed;
+extern s32 sControllerStatus;
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80044B50);
 
@@ -54,7 +61,13 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_800468EC);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047570);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047580);
+/**
+ *  Sets the current game mode.
+ *  Official Name: mainSetMode?
+ */
+void set_game_mode(s32 changeTo) {
+    gGameMode = changeTo;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004758C);
 
@@ -108,7 +121,16 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_800482F8);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048308);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048364);
+/**
+ * Sets and returns (nonzero) the message set when pressing the reset button.
+ * Official name: mainResetPressed
+ */
+s32 is_reset_pressed(void) {
+    if (gNMIMesgBuf == 0) {
+        gNMIMesgBuf = (s32) ((osRecvMesg(&gNMIMesgQueue, NULL, OS_MESG_NOBLOCK) + 1) != 0);
+    }
+    return gNMIMesgBuf;
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800483B8);
 
@@ -134,7 +156,17 @@ INCLUDE_ASM("asm/nonmatchings/45750", func_800484FC);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048518);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048524);
+/**
+ * Returns TRUE if the game doesn't detect any controllers.
+ * Official name: mainDemoOnly
+ */
+s32 is_controller_missing(void) {
+    if (sControllerStatus == CONTROLLER_MISSING) {
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048548);
 

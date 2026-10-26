@@ -1,10 +1,27 @@
 #include "common.h"
 
+/* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
+extern u8 gJinglesOff;
+
 INCLUDE_ASM("asm/nonmatchings/3430", func_80002830);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80002910);
+/**
+ * Stop any playing jingles, then block audio lines from playing anymore.
+ * Does not stop audio lines that are playing sounds of type AUDIO_LINE_TYPE_SOUND.
+ * Official Name: amAmbientPause
+ */
+void audspat_jingle_off(void) {
+    music_jingle_stop();
+    gJinglesOff = TRUE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80002938);
+/**
+ * Allow audio lines to play jingles.
+ * Official Name: amAmbientRestart
+ */
+void audspat_jingle_on(void) {
+    gJinglesOff = FALSE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80002944);
 

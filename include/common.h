@@ -17,6 +17,8 @@
 
 #define UNUSED
 
+typedef float MtxF[4][4];
+
 /* Debug prints compiled out of the retail build (as in the DKR decompilation). */
 #ifdef __GNUC__
 #define stubbed_printf(...)

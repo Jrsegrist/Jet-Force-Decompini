@@ -75,6 +75,7 @@ segments:
       - [0x291B0, c]
       - [0x2BAA0, c]
       - [0x3C470, c]
+      - [0x40100, c, boot]
       - [0x40240, c]
       - [0x432D0, c]
       - [0x43BE0, c, joypad]

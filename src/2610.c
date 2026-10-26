@@ -1,12 +1,26 @@
 #include "common.h"
 
+/* The audio manager thread (part of DKR's AMAudioMgr __am). */
+extern OSThread sAudioMgrThread;
+
 INCLUDE_ASM("asm/nonmatchings/2610", func_80001A10);
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_80001D7C);
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_80001EA0);
+/**
+ * From the Diddy Kong Racing decompilation (CC0 1.0), src/audiomgr.c.
+ * Official Name: amGo
+ */
+void audioStartThread(void) {
+    osStartThread(&sAudioMgrThread);
+}
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_80001EC4);
+/**
+ * From the Diddy Kong Racing decompilation (CC0 1.0), src/audiomgr.c.
+ */
+void audioStopThread(void) {
+    osStopThread(&sAudioMgrThread);
+}
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_80001EE8);
 

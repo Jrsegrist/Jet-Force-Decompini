@@ -1,10 +1,25 @@
 #include "common.h"
 
+/* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
+extern s32 sLockupDelay;
+extern s32 sLockupPage;
+
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066B80);
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066BD4);
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80066CBC);
+/**
+ * Stop all threads except for the main thread 1
+ */
+void stop_all_threads_except_main(void) {
+    OSThread *node = __osGetActiveQueue();
+    while (node->priority != -1) {
+        if (node->priority > OS_PRIORITY_IDLE && node->priority <= OS_PRIORITY_APPMAX) {
+            osStopThread((OSThread *) &node->next);
+        }
+        node = node->tlnext;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066D28);
 
@@ -22,7 +37,17 @@ INCLUDE_ASM("asm/nonmatchings/67780", func_800678C4);
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80067950);
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80067958);
+/**
+ * Counts up. Automatically switches page every second.
+ * Official name: diCpuTraceTick
+ */
+void mode_lockup(s32 updateRate) {
+    sLockupDelay += updateRate;
+    if (sLockupDelay > 60) {
+        sLockupDelay = 0;
+        sLockupPage++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80067994);
 
