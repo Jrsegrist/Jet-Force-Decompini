@@ -113,6 +113,7 @@ extract: .baserom.$(VERSION).ok
 	@# spimdisasm runs some jump tables on into the zero padding after them
 	@# and emits those words as a label at address 0; keep them as data.
 	sed -i 's/\.word \.L0$$/.word 0x00000000/' asm/data/main.rodata.s
+	$(PYTHON) tools/runlink_split.py $(BASEROM) --version $(VERSION)
 	@# INCLUDE_ASM'd objects must be rebuilt from the fresh asm
 	rm -rf $(BUILD_DIR)/src
 
@@ -143,6 +144,28 @@ $(BUILD_DIR)/src/%.o: src/%.c
 	    -c $(CFLAGS) $(OPT_FLAGS) $(MIPSISET) -o $@ $<
 
 $(BUILD_DIR)/assets/%.o: assets/%.bin
+	@mkdir -p $(dir $@)
+	$(LD) -r -b binary -o $@ $<
+
+# ---- runlink modules -------------------------------------------------------
+# asm/modules/mNNN.s (tools/runlink_split.py) are assembled like any other
+# asm; tools/runlink_build.py turns the objects back into the module images
+# and the module table, which replace the extracted blobs in the ROM.
+RL_DIR   := $(BUILD_DIR)/runlink
+MOD_S    := $(sort $(wildcard asm/modules/m*.s))
+MOD_O    := $(MOD_S:%.s=$(BUILD_DIR)/%.o)
+
+$(RL_DIR)/modules.bin: $(MOD_O) tools/runlink_build.py
+	$(PYTHON) tools/runlink_build.py --symbols $(RL_DIR)/symbols.txt --order $(RL_DIR)/order \
+	    --out-modules $(RL_DIR)/modules.bin --out-table $(RL_DIR)/modtab.bin $(MOD_O)
+
+$(RL_DIR)/modtab.bin: $(RL_DIR)/modules.bin
+
+$(BUILD_DIR)/assets/runlink_modules.o: $(RL_DIR)/modules.bin
+	@mkdir -p $(dir $@)
+	$(LD) -r -b binary -o $@ $<
+
+$(BUILD_DIR)/assets/runlink_modtab.o: $(RL_DIR)/modtab.bin
 	@mkdir -p $(dir $@)
 	$(LD) -r -b binary -o $@ $<
 

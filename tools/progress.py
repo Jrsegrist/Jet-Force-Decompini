@@ -10,6 +10,7 @@ Usage: tools/progress.py [--version us] [--files]
 """
 import argparse
 import collections
+import glob
 import os
 import re
 import subprocess
@@ -110,9 +111,17 @@ def main():
         all_ = [a + b for a, b in zip(all_, (n, sz, nc, szc))]
     n, sz, nc, szc = all_
     print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%" % ("main: total", nc, n, pct(nc, n), szc, sz, pct(szc, sz)))
-    mods = "build/modules.%s.progress" % args.version
-    if os.path.exists(mods):
-        print(open(mods).read().rstrip())
+    # runlink modules: all assembly so far; count functions by their returns
+    mods = sorted(glob.glob("asm/modules/m*.s"))
+    if mods:
+        nret = tbytes = 0
+        for p in mods:
+            t = open(p).read()
+            text = t.split(".section .data")[0]
+            nret += len(re.findall(r"\bjr\s+\$ra\b", text))
+            tbytes += 4 * len(re.findall(r"^\s+/\* [0-9A-F]{5} [0-9A-F]{8} \*/", text, re.M))
+        print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%   (%d modules; functions counted by jr $ra)" % (
+            "runlink modules", 0, nret, 0.0, 0, tbytes, 0.0, len(mods)))
     if args.files:
         print()
         for obj, (n, sz, nc, szc) in sorted(per_file.items(), key=lambda kv: kv[0] or ""):
