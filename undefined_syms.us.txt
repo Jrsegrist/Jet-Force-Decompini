@@ -288,6 +288,36 @@ gSceneActiveCamera = 0x800F2F80;
 gSceneRenderSkyDome = 0x800F2F98;
 gSceneStartSegment = 0x800F2F90;
 
+/* ---- 69050.c ---- */
+func_8006BE9C = transition_fullscreen_start;
+func_8006BF50 = transition_update_fullscreen;
+func_8006C77C = transition_update_shape;
+func_8006CD18 = transition_init_blank;
+func_8006CE78 = transition_update_blank;
+gCurFadeAlpha = 0x80102D88;
+gCurFadeBlue = 0x80102D70;
+gCurFadeGreen = 0x80102D58;
+gCurFadeRed = 0x80102D50;
+gLastFadeBlue = 0x80102D94;
+gLastFadeBlueStep = 0x80102DA4;
+gLastFadeGreen = 0x80102D90;
+gLastFadeGreenStep = 0x80102DA0;
+gLastFadeRed = 0x80102D8C;
+gLastFadeRedStep = 0x80102D98;
+gTransitionEndTimer = 0x800A6798;
+gTransitionInvert = 0x800A678C;
+gTransitionNextVtx = 0x80102DB0;
+gTransitionOpacityVel = 0x80102DAC;
+gTransitionVertexCount = 0x80102DBC;
+gTransitionVertexTarget = 0x80102DB8;
+gTransitionVtxStep = 0x80102DB4;
+sTransitionFadeDuration = 0x800A679C;
+sTransitionFadeTimer = 0x800A6794;
+sTransitionOpacity = 0x80102DA8;
+sTransitionStatus = 0x800A6790;
+sTransitionTaskNum = 0x800A67B4;
+sTransitionVtx = 0x800A67A4;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;
