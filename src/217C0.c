@@ -1,4 +1,15 @@
+/*
+ * Lights. Functions in C here are from the Diddy Kong Racing decompilation
+ * (CC0 1.0), src/lights.c; see CREDITS.md.
+ */
 #include "common.h"
+
+typedef struct ObjectLight ObjectLight;
+
+void light_update(ObjectLight *light, s32 updateRate);
+
+extern ObjectLight **gActiveLights;
+extern s32 gNumActiveLights;
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80020BC0);
 
@@ -22,7 +33,16 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_80021338);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021358);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800213A8);
+/**
+ * Loops through all active lights and updates their properties.
+ * Official Name: lightUpdateLights
+ */
+void light_update_all(s32 updateRate) {
+    s32 i;
+    for (i = 0; i < gNumActiveLights; i++) {
+        light_update(gActiveLights[i], updateRate);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021434);
 

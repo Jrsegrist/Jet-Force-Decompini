@@ -318,6 +318,28 @@ sTransitionStatus = 0x800A6790;
 sTransitionTaskNum = 0x800A67B4;
 sTransitionVtx = 0x800A67A4;
 
+/* ---- 5B700.c ---- */
+func_8005AC04 = weather_clip_planes;
+func_8005B1C0 = weather_set;
+func_8005CE60 = reset_particles;
+func_8005EC98 = emitter_init;
+emitter_init_with_pos = 0x8005EDA4;
+free_particle_buffers = 0x8005CFD0;
+free_particle_vertices_triangles = 0x8005D19C;
+gParticleBehavioursAssetTable = 0x800A5DA8;
+gParticleBehavioursAssetTableCount = 0x800A5DA0;
+gSnowPlane = 0x80100888;
+gWeather = 0x80100848;
+gWeatherType = 0x800A5D18;
+particle_free_dummy = 0x8005CE90;
+rain_set = 0x8005BDB8;
+
+/* ---- 217C0.c ---- */
+func_800213A8 = light_update_all;
+gActiveLights = 0x800A1008;
+gNumActiveLights = 0x800A1004;
+light_update = 0x80021434;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 mempool_free = 0x8004AA80;
