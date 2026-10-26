@@ -107,10 +107,59 @@ def symbol_names(L, mods, syms):
     return out
 
 
-def find_functions(image, tsize, starts):
+def find_jump_tables(image, tsize, dsize, lo_info, rel32):
+    """IDO switch jump tables: a `jr $reg` (not $ra) whose register was
+    loaded by a `lw` through a %lo into the module's data block. The table
+    is the run of R_MIPS_32 words there that point into .text, as long as
+    the `sltiu` bound before the jump says (or until the next table).
+    Returns ({table offset: [case offsets]}, {jr offset: [case offsets]},
+    {%lo offset: table offset})."""
+    words = [u32(image, o) for o in range(0, tsize, 4)]
+    found = []  # (jr offset, lw offset, table offset, bound or None)
+    for o in range(0, tsize, 4):
+        w = words[o // 4]
+        rs = (w >> 21) & 31
+        if (w & 0xFC1FFFFF) != 0x00000008 or rs == 31:
+            continue
+        lw = bound = None
+        for p in range(o - 4, max(-4, o - 0x60), -4):
+            pw = words[p // 4]
+            if pw == 0x03E00008:
+                break
+            if lw is None and p in lo_info and pw >> 26 == 0x23 and (pw >> 16) & 31 == rs:
+                lw = p
+            elif lw is not None and pw >> 26 == 0x0B and bound is None:  # sltiu
+                bound = pw & 0xFFFF
+                break
+        if lw is None:
+            continue
+        t = lo_info[lw][1]
+        if tsize <= t < tsize + dsize:
+            found.append((o, lw, t, bound))
+    starts = set(t for _, _, t, _ in found)
+    tables, jumps, los = {}, {}, {}
+    for o, lw, t, bound in found:
+        if t not in tables:
+            cases = []
+            k = t
+            while k in rel32 and rel32[k] < tsize and (k == t or k not in starts):
+                if bound is not None and len(cases) == bound:
+                    break
+                cases.append(rel32[k])
+                k += 4
+            tables[t] = cases
+        if tables[t]:
+            jumps[o] = tables[t]
+            los[lw] = t
+    return {t: c for t, c in tables.items() if c}, jumps, los
+
+
+def find_functions(image, tsize, starts, jumps=None):
     """Function start offsets: the known entry points plus every place
-    after a `jr $ra` (and its delay slot) where no earlier branch of the
-    current function reaches past it. Returns (sorted starts, end of code)."""
+    after a `jr $ra` (and its delay slot) where no earlier branch or jump
+    table of the current function reaches past it. Returns (sorted starts,
+    end of code)."""
+    jumps = jumps or {}
     words = [u32(image, o) for o in range(0, tsize, 4)]
     end = tsize
     while end > 0 and words[end // 4 - 1] == 0:
@@ -130,6 +179,8 @@ def find_functions(image, tsize, starts):
         ins = rabbitizer.Instruction(w, o)
         if ins.isValid() and ins.isBranch():
             reach = max(reach, o + 4 + (sx16(w & 0xFFFF) << 2))
+        if o in jumps:
+            reach = max([reach] + jumps[o])
         if w == 0x03E00008 and reach <= o + 4:
             n = o + 8
             while n < end and words[n // 4] == 0:
@@ -172,6 +223,8 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     order = []
     secbases = set()
     jal_targets = set()
+    lo_info = {}  # %lo offset -> (its %hi's offset or None, target module offset)
+    rel32 = {}  # R_MIPS_32 offset -> target module offset (kind 1 only)
     for ti, entries in enumerate(tabs):
         last_hi = {}
         for word, x in entries:
@@ -208,9 +261,13 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
                 sub[o] = (typ, "%%lo(%s)" % expr(sym, a))
                 if ho is not None and sub[ho][1] is None:
                     sub[ho] = (R_MIPS_HI16, "%%hi(%s)" % expr(sym, a))
+                if kind == 1:
+                    lo_info[o] = (ho, word + a)
             elif typ == R_MIPS_32:
                 a = ins - 0x100000000 if ins & 0x80000000 else ins
                 sub[o] = (typ, expr(sym, a))
+                if kind == 1:
+                    rel32[o] = word + a
             else:
                 raise SystemExit("m%03d: unknown relocation type %d" % (me, typ))
     for o, v in list(sub.items()):
@@ -229,12 +286,14 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
         if ins.isValid() and ins.isBranch():
             branch[o] = o + 4 + (sx16(w & 0xFFFF) << 2)
     btargets = set(branch.values())
+    jtbls, jtbl_jumps, jtbl_los = find_jump_tables(image, tsize, dsize, lo_info, rel32)
+    jtargets = set(t for ts in jtbls.values() for t in ts)
 
     starts = set(k for k in exported if k < tsize) | jal_targets
     for v in (init, fini):
         if v >= 0:
             starts.add(v)
-    funcs, code_end = find_functions(image, tsize, starts)
+    funcs, code_end = find_functions(image, tsize, starts, jtbl_jumps)
     if code_end == 0:
         funcs = []
     fnames = {}
@@ -257,14 +316,34 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
             if functype:
                 out.append(".type %s, @function" % nm)
             out.append("%s:" % nm)
-        if o in btargets:
+        if o in btargets or o in jtargets:
             out.append(".L%05X:" % o)
         return out
 
-    def text_line(o):
+    # In the per-function files, a jump table is read through its own local
+    # label jtbl_mNNN_XXXXX (defined in rodata.s), and its entries are the
+    # .L labels of the cases, as m2c expects. gas turns both into
+    # section-relative relocations, which give the same runlink entries as
+    # the rl_ section-start names used in asm/modules/mNNN.s.
+    jname = {t: "jtbl_m%03d_%05X" % (me, t) for t in jtbls}
+    nm_sub = {}
+    for lo, t in jtbl_los.items():
+        old = sub[lo][1]
+        nm_sub[lo] = "%%lo(%s)" % jname[t]
+        ho = lo_info[lo][0]
+        if ho is not None and sub[ho][1] == "%hi" + old[3:]:
+            nm_sub[ho] = "%%hi(%s)" % jname[t]
+    jentry = {}
+    for t, cases in jtbls.items():
+        for i, c in enumerate(cases):
+            jentry[t + 4 * i] = ".L%05X" % c
+
+    def text_line(o, macros=False):
         w = u32(image, o)
         ins = rabbitizer.Instruction(w, o)
-        if o in sub:
+        if macros and o in nm_sub:
+            s = ins.disassemble(immOverride=nm_sub[o])
+        elif o in sub:
             typ, e = sub[o][0], sub[o][1]
             s = ".word %s" % e if typ == R_MIPS_32 else ins.disassemble(immOverride=e)
         elif o in branch:
@@ -292,7 +371,13 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
                     out.append("    .byte 0x%02X" % image[k])
             else:
                 out.extend(emit_labels(o, False, macros))
+                if macros and o in jname:
+                    out.append("dlabel %s, local" % jname[o])
+                elif macros and o - 4 in jentry and o not in jentry and o not in labels:
+                    out.append(".LD%05X:  /* end of the jump table */" % o)
                 e = sub[o][1] if o in sub else "0x%08X" % u32(image, o)
+                if macros and o in jentry:
+                    e = jentry[o]
                 out.append("    /* %05X */ .word %s" % (o, e))
             o += 4
         return out
@@ -351,7 +436,7 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
         out = ["glabel %s" % fnames[a]]
         for o in range(a, b, 4):
             out += emit_labels(o, True, True)
-            out.append(text_line(o))
+            out.append(text_line(o, True))
         if b == code_end and code_end < tsize:
             out.append("    /* padding to 16 bytes follows (IDO adds it) */")
         out.append("endlabel %s" % fnames[a])
@@ -373,7 +458,7 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
         f.write("\n".join(flist) + ("\n" if flist else ""))
     if len(ro) > 1:
         print("m%03d: more than one section start in the data block: %s" % (me, [hex(k) for k in ro]))
-    return len(funcs)
+    return len(funcs), len(jtbls)
 
 
 def main():
@@ -398,11 +483,13 @@ def main():
     with open(args.build_dir + "/symbols.txt", "w") as f:
         for i, (mod, off, name) in enumerate(syms):
             f.write("%d %d 0x%X %s\n" % (i, mod, off, name))
-    nfuncs = 0
+    nfuncs = njtbls = 0
     for m in range(len(mods)):
-        nfuncs += split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
-                               args.build_dir)
-    print("runlink_split: %d modules, %d functions" % (len(mods), nfuncs))
+        nf, nj = split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
+                              args.build_dir)
+        nfuncs += nf
+        njtbls += nj
+    print("runlink_split: %d modules, %d functions, %d jump tables" % (len(mods), nfuncs, njtbls))
 
 
 if __name__ == "__main__":

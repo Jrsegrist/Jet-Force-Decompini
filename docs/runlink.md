@@ -136,9 +136,21 @@ It also splits each module for work in C, into
 INCLUDE_ASM), `data.s`, `rodata.s` and `bss.s` for the module's sections,
 and `functions.txt` listing the functions. Function starts are the module's
 exported symbols, jump targets, init and fini, and every point after a
-`jr $ra` that no earlier branch of the function reaches past (1275
-functions). The .data/.rodata boundary is the one kind-1 word inside the
-data block that is not its start.
+`jr $ra` that no earlier branch or jump-table case of the function reaches
+past (1275 functions). The .data/.rodata boundary is the one kind-1 word
+inside the data block that is not its start.
+
+Switch jump tables (85 in 41 modules) are found from their `jr $reg`: the
+register comes from a `lw` through a `%lo` into the data block, and the table
+is the run of words there that point into .text, as long as the `sltiu`
+bound before it. In the per-function files the table is read as
+`%hi`/`%lo(jtbl_mNNN_XXXXX)`, a local label in `rodata.s` (or `data.s` in a
+module without .data), whose entries are the `.LXXXXX` labels of the cases,
+as m2c expects (pass `rodata.s` to m2c with the function). gas turns these
+references into section-relative relocations, which give the same runlink
+entries as the section-start `rl_` names of `asm/modules/mNNN.s`. A jump
+table can only point into assembly through its labels, so a function with
+one in C needs the module's .rodata in C too (and vice versa).
 
 `tools/runlink_build.py` then plays the original linker. For each module it
 takes one ELF object, either assembled from `asm/modules/mNNN.s` or compiled
