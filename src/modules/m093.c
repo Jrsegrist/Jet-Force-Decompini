@@ -13,7 +13,6 @@ typedef struct M093Target {
     /* 0x0 */ s32 flag;
 } M093Target;
 
-#ifdef NON_MATCHING
 /* the message shown for each flag, or -1 */
 static s16 D_m093_002B0[96] = {
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
@@ -23,9 +22,6 @@ static s16 D_m093_002B0[96] = {
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
 };
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m093", data);
-#endif
 
 void func_m093_00000(Object *obj, M093Setup *setup) {
     M093Target *t = OBJ_STATE(obj, M093Target);
@@ -41,8 +37,6 @@ void func_m093_00000(Object *obj, M093Setup *setup) {
     func_80079D1C(obj, setup->unkB << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
-#ifdef NON_MATCHING
-/* Equivalent; the original loads the two 1s into separate registers (frame layout matches) */
 void func_m093_000BC(Object *obj, s32 updateRate) {
     ObjectInteraction *hit;
     SparkParams spark;
@@ -84,8 +78,3 @@ void func_m093_000BC(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m093", func_m093_000BC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m093", rodata);
-#endif

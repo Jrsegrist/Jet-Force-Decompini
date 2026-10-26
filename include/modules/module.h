@@ -66,7 +66,7 @@ typedef struct SparkParams {
     /* 0x1C */ s32 unk1C; /* colours? */
     /* 0x20 */ s32 unk20;
 } SparkParams;
-extern void func_m010_0000C(SparkParams *spark);
+extern void *func_m010_0000C(SparkParams *spark); /* returns the spark (callers ignore it) */
 
 /*
  * Animation sequences that triggers and switches start and stop. Some
@@ -85,6 +85,6 @@ extern void func_8004944C(Vec3s *rotation, Vec3f *vec); /* DKR vec3f_rotate_py *
 extern s32 func_80048E2C(s32 min, s32 max); /* DKR get_random_number */
 
 /* Sound (DKR audio_spatial.c) */
-extern void func_80003410(s32 soundId, f32 x, f32 y, f32 z, s32 arg4, s32 *soundMask); /* DKR play_sound_at_position */
+extern void func_80003410(u16 soundId, f32 x, f32 y, f32 z, s32 arg4, s32 *soundMask); /* DKR play_sound_at_position */
 
 #endif

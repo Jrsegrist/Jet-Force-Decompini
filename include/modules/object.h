@@ -102,7 +102,7 @@ typedef struct Object {
     /* 0x70 */ u8 pad70[0x7C - 0x70];
     /* 0x7C */ u8 *unk7C;
     /* 0x80 */ u8 pad80[0x84 - 0x80];
-    /* 0x84 */ s32 particleEmittersEnabled;      /* bit mask for obj_spawn_particle (DKR's use) */
+    /* 0x84 */ u32 particleEmittersEnabled;      /* bit mask for obj_spawn_particle (DKR's use) */
     /* 0x88 */ u8 state[0x8];                    /* behaviour state kept in the object (OBJ_STATE) */
 } Object;
 
