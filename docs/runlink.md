@@ -221,17 +221,74 @@ Working on a module:
 
 Examples: `src/modules/m078.c`, `m045.c` and `m020.c` (whole modules;
 m045's relocation table is one of the 72 out-of-order ones), `m119.c` (an
-exported variable), `m108.c` (a call into another module), and
-`src/modules/m001.c` (C data and five C functions, among them a static one
-and the fini, next to three INCLUDE_ASM functions and the INCLUDE_ASM
-.rodata).
+exported variable), `m108.c` (a call into another module), `m094.c` (a jump
+table in C), `m038.c` (a display list with C data), `m060.c` (C function,
+assembly data), `m118.c` (C next to INCLUDE_ASM functions, the rest under
+NON_MATCHING), and `src/modules/m001.c` (C data and five C functions, among
+them a static one and the fini, next to three INCLUDE_ASM functions and the
+INCLUDE_ASM .rodata).
+
+Equivalent C that does not match yet is kept under `#ifdef NON_MATCHING`
+with the INCLUDE_ASM lines in the `#else` branch (m093, m100, m118).
+
+Shared headers (`-I include/modules`): `module.h` (the module ABI and the
+main-segment functions modules share, including module 6's message queue
+and module 10's spark), `object.h` (the game object as behaviours see it:
+DKR's transform and the fields JFG keeps at DKR's offsets, the level entry
+start, `OBJ_STATE(obj, T)` for the state a behaviour keeps at 0x88) and
+`gfx.h` (the game's vertex and triangle formats and their commands). Older
+module files declare their own types; new ones include `module.h`.
 
 Things that came up while matching module code (the main game's IDO -O2
-lessons apply too): unused parameters of non-leaf functions are still
-stored to their home slots; unexplained `& 0xFF` on byte fields, odd
-temporaries and unused stack slots (m020, m108) are part of the original
-source; a module's .data can be several small static variables rather
-than one struct (m001).
+lessons apply too):
+
+- Unused parameters of non-leaf functions are still stored to their home
+  slots; unexplained `& 0xFF` on byte fields, odd temporaries and unused
+  stack slots (m020, m108) are part of the original source; a module's .data
+  can be several small static variables rather than one struct (m001).
+- IDO gives every named local a stack slot, in reverse declaration order
+  (the first declared gets the highest address), even one that lives in a
+  register or is never used. The frame size and where spilled values and
+  arrays sit therefore tell how many locals the original declared and in
+  which order: m157's array offset, m088's two unused locals, m118's frames.
+- A call that passes fewer arguments than other calls to the same function
+  means no prototype was in scope; the registers it does not set keep
+  whatever they held (m074, m094: the animation calls pass only the
+  sequence). Those functions are declared `()` in `module.h`.
+- A constant that IDO keeps in one register through the whole function is a
+  local variable (m074's `one`); an address that each case of a switch
+  recomputes and spills is a local pointer (m148's `turn`).
+- `switch` bodies are laid out in source order; a `default:` written first
+  comes right after the compare chain (m123).
+- A static function that only assembly calls is dropped by IDO; keep it as
+  INCLUDE_ASM until its callers are C (m118). Likewise a module's .rodata
+  comes from all C or all INCLUDE_ASM, so the functions that use it (jump
+  tables, float constants) go to C together.
+- Module data can stay assembly while its functions are C: C refers to it as
+  `extern` `D_mNNN_XXXXX` (the builder resolves the module's own offset), as
+  m060 does for its object table.
+
+## Module families
+
+Most modules fall into a few kinds with the same shape, and modules of one
+kind share calls into main and module 3. A matched member is the template
+for its siblings. (Kinds are named here from what the code does.)
+
+| kind | modules | shape |
+| --- | --- | --- |
+| object behaviours | 63, e.g. 20, 74, 78, 84, 88, 92, 93, 100, 103, 108, 123, 128, 134 | an init `(Object *, level entry)` and a control `(Object *, s32 updateRate)` per behaviour, often several pairs per module; state in the object at 0x88 or in `obj->unk68`; most call `func_80079D1C` (hit box) from init |
+| switches and targets | 93, 94, 118 | a behaviour pair whose control runs one of six actions on a game flag or a hit (the same six-way jump table: `func_80079BB8`, `func_80079BA8`, `func_800767EC`, `func_8007688C`, `func_80076928`, `func_800772C4`) |
+| pickups | 43, 72, 104, 118, 132 | a behaviour pair that checks the player's distance and gives an item, a flag and a message |
+| enemy behaviours | 3, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148) |
+| bosses | 50, 51, 52 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions |
+| weapons | 15, 16, 17 | a large control function, a firing check and twenty-odd helpers of matching sizes |
+| front end | 6, 9, 12, 13, 18, 37, 40, 42, 57-59, 61-63 | screens with init / per-frame / cleanup functions, and the HUD (6, 13, 14) |
+| effect libraries | 1, 2, 8, 10 | a pool of particles with add / update / draw / free functions that other modules call (module 10's spark is in `module.h`) |
+| fog and lighting | 23, 39 | init / update / fog / fade getters |
+| copy-protection checks | 45, 71, 98, 111, 133, 144, 156 | tiny 6105 CIC checks (all C); 71/98 and 111/133 are pairs that differ only in constants |
+
+Identical pairs found by comparing the code: 50/52, 71/98, 111/133 (and 74/103
+have the same function sizes but different code).
 
 ## Not covered yet
 

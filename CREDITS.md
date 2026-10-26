@@ -37,6 +37,8 @@ CC0 places no conditions on reuse; the credit is given because it is due.
 | `src/3430.c` | `src/audio_spatial.c` | 4 functions (audspat_point_set_position, audspat_point_stop added) |
 | `src/74270.c` | `src/game_text.c` | 1 function |
 | `include/common.h` | `include/types.h` | `MtxF`, `stubbed_printf` |
+| `include/modules/object.h` | `include/structs.h` | `ObjectTransform`, `Vec3f`/`Vec3s`, and the `Object` fields JFG keeps at DKR's offsets (with their names) |
+| `include/modules/gfx.h` | `include/structs.h`, `include/f3ddkr.h` | `Vertex`, `Triangle` (without DKR's unions), `gSPPolygon`, `G_TRIN` |
 
 Function and variable names in these files are DKR's, including the
 "official names" DKR records in its comments. Many of these functions differ
