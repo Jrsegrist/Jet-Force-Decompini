@@ -178,7 +178,7 @@ segments:
       - [0x97F10, c, ultra/libc/llcvt]
       - [0x98120, asm]
       - [0x98400, c, ultra/os/setthreadpri]
-      - [0x984E0, asm]
+      - [0x984E0, c, ultra/os/seteventmesg]
       - [0x98550, asm]
       - [0x98910, asm]
       - [0x98B70, c, ultra/os/settime]
@@ -213,12 +213,14 @@ segments:
       - [0x9A940, asm]
       - [0x9A980, c, ultra/io/pirawdma]
       - [0x9AA50, asm]
+      - [0x9B040, c, ultra/os/thread]
+      - [0x9B080, asm]
       - [0x9B180, asm]
       - [0x9B1D0, asm]
       - [0x9B220, asm]
       - [0x9B270, asm]
       - [0x9B310, asm]
-      - [0x9B370, asm]
+      - [0x9B370, c, ultra/io/siacs]
       - [0x9B430, c, ultra/io/sirawdma]
       - [0x9B4E0, c, ultra/io/crc]
       - [0x9B660, asm]
@@ -235,7 +237,8 @@ segments:
       - [0x9BC60, asm]
       - [0x9BCC0, asm]
       - [0x9BCD0, c, ultra/os/settimer]
-      - [0x9BDB0, asm]
+      - [0x9BDB0, c, ultra/os/timerintr]
+      - [0x9C1B0, c, ultra/io/vigetcurrcontext]
       - [0x9C1C0, c, ultra/io/viswapcontext]
       - [0x9C520, c, ultra/io/spsetpc]
       - [0x9C560, c, ultra/io/sprawdma]
@@ -261,6 +264,11 @@ segments:
       # Labelled .data so that it stays ahead of the libultra .data at 0xAAB80:
       # splat groups pieces by section, and this region holds both.
       - [0xA8080, data, data_A8080]
+      - [0xAAA80, .data, ultra/os/thread]
+      - [0xAAAA0, .data, ultra/io/siacs]
+      - [0xAAAB0, data]
+      - [0xAAB20, .data, ultra/os/timerintr]
+      - [0xAAB30, data]
       - [0xAAB80, .data, ultra/libc/xlitob]
       - [0xAABB0, rodata]
       - [0xAE450, .rodata, printf]
@@ -275,6 +283,10 @@ segments:
       - { start: 0xB1750, type: bss, vram: 0x800FB110, name: bss_800FB110 }
       - { start: 0xB1750, type: .bss, vram: 0x80100960, name: printf }
       - { start: 0xB1750, type: bss, vram: 0x801012A0, name: bss_801012A0 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105280, name: ultra/os/seteventmesg }
+      - { start: 0xB1750, type: bss, vram: 0x80105300, name: bss_80105300 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105940, name: ultra/io/siacs }
+      - { start: 0xB1750, type: .bss, vram: 0x80105960, name: ultra/os/timerintr }
 
   # DKR-style asset table: u32 count, then count+1 offsets relative to 0xB1880.
   - name: asset_lut

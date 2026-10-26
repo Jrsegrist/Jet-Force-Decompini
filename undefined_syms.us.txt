@@ -257,14 +257,18 @@ mempool_free = 0x8004AA80;
 /* ---- libultra globals still defined in asm (used by src/ultra) ---- */
 __OSGlobalIntMask = 0x800A9A6C;
 __libm_qnan_f = 0x800AFAA0;
-__osBaseCounter = 0x80105988;
-__osCurrentTime = 0x80105980;
 __osPiDevMgr = 0x800A6F70;
-__osRunQueue = 0x800A9E88;
-__osRunningThread = 0x800A9E90;
-__osThreadTail = 0x800A9E80;
-__osTimerList = 0x800A9F20;
 __osViCurr = 0x800A9F10;
 __osViNext = 0x800A9F14;
 osRomBase = 0x80000308;
 osViClock = 0x800A9F18;
+
+/* ---- asm references into data that C/ultralib objects now define ---- */
+D_800A9E88 = 0x800A9E88;
+D_800A9E8C = 0x800A9E8C;
+D_800A9E90 = 0x800A9E90;
+D_800A9E94 = 0x800A9E94;
+D_80105280 = 0x80105280;
+D_80105980 = 0x80105980;
+D_80105988 = 0x80105988;
+D_8010598C = 0x8010598C;
