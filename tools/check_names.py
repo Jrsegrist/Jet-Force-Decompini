@@ -12,7 +12,8 @@ after `make extract`:
     tools/check_names.py --dkr PATH_TO_DKR_CLONE [--since REV] [--allow NAME ...]
 
 It reads every word of
-  - every tracked file (the work tree),
+  - every tracked file (the work tree) and every untracked file that git
+    does not ignore (new work, before `git add`),
   - every commit message and every added line of every commit (all of
     `git log`, or only REV..HEAD with --since), since pushed history is
     public too,
@@ -85,7 +86,9 @@ def main():
     allowed = ref_words([args.dkr, "lib/ultralib"]) | set(args.allow)
 
     found = {}
-    for f in git("ls-files", "-z").split("\0"):
+    # tracked files, plus new files not yet added (and not ignored), so that
+    # work can be checked before it is committed
+    for f in git("ls-files", "-z", "--cached", "--others", "--exclude-standard").split("\0"):
         if f and os.path.isfile(f) and os.path.getsize(f) < 4_000_000:
             with open(f, errors="ignore") as fh:
                 for w in set(WORD.findall(fh.read())) & names:
