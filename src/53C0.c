@@ -47,14 +47,17 @@ typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
     /* 0x18 */ u8 pad18[0x2E - 0x18];
     /* 0x2E */ s16 segmentID;
-    /* 0x30 */ u8 pad30[0x48 - 0x30];
+    /* 0x30 */ u8 pad30[0x40 - 0x30];
+    /* 0x40 */ struct ObjectHeader *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
     /* 0x48 */ s16 behaviorId;
     /* 0x4A */ s16 unk4A;
     /* 0x4C */ u8 pad4C[0x5C - 0x4C];
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ Object_Racer *racer;
-    /* 0x6C */ u8 pad6C[0x7C - 0x6C];
+    /* 0x6C */ struct ObjectAttachment **attachments; // JFG
+    /* 0x70 */ u8 pad70[0x7C - 0x70];
     /* 0x7C */ u8 *unk7C;
     /* 0x80 */ u8 pad80[0xA0 - 0x80];
     /* 0xA0 */ u8 freed; // JFG: already on the free list
@@ -170,7 +173,27 @@ Object **objGetObjList(s32 *arg0, s32 *cnt) {
     return gObjPtrList;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80005EC0);
+/* JFG: the object header asset (only its size and one field are known) */
+typedef struct ObjectHeaderAsset {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ u8 pad1E[0xC0 - 0x1E];
+} ObjectHeaderAsset;
+
+extern s16 *D_800F2CF8; // JFG: object type -> header index
+extern s32 *D_800F2C74; // JFG: header offsets
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+
+/* JFG: load an object type's header and return one of its fields. */
+s16 func_80005EC0(s32 type) {
+    UNUSED s32 pad;
+    s32 offset;
+    ObjectHeaderAsset header;
+
+    offset = D_800F2C74[D_800F2CF8[type]];
+    asset_load(0x2F, (u32) &header, offset, sizeof(ObjectHeaderAsset));
+    return header.unk1C;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005F14);
 
@@ -258,6 +281,19 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FF0);
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800095A4);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80009734);
+
+/* JFG: the object header, reduced */
+typedef struct ObjectHeader {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ s8 unk1E;
+    /* 0x1F */ s8 numAttachments;
+} ObjectHeader;
+
+/* JFG: what an object's attachment list points at, reduced */
+typedef struct ObjectAttachment {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s8 unkA;
+} ObjectAttachment;
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80009928);
 
@@ -721,8 +757,26 @@ f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
     return dx * dx + dy * dy + dz * dz;
 }
 
+extern s32 D_800F2D20[];
+void func_80054530(); // a module function (patched in by the runtime linker)
+
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011D1C);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011DEC);
+/* JFG: remove an entry from the D_800F2D20 list (the later ones move down). */
+void func_80011DEC(s32 entry) {
+    s32 i;
+
+    for (i = 0; i < D_800F2D40; i++) {
+        if (entry == D_800F2D20[i]) {
+            break;
+        }
+    }
+    if (i < D_800F2D40) {
+        for (; i < D_800F2D40 - 1; i++) {
+            D_800F2D20[i] = D_800F2D20[i + 1];
+        }
+        D_800F2D40--;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011E74);

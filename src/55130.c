@@ -234,10 +234,14 @@ void fb_size(s32 *width, s32 *height) {
     *height = D_800A392C[D_800FECA8].height;
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80054EF0);
-
 extern f32 D_800A391C;
 extern f32 D_800A3920;
+
+/* JFG: scale a position by the screen's scale factors. */
+void func_80054EF0(s32 *x, s32 *y) {
+    *x = *x * D_800A391C;
+    *y = *y * D_800A3920;
+}
 
 void func_80054F74(f32 *x, f32 *y) {
     *x = D_800A391C;
@@ -363,6 +367,8 @@ s32 func_80055234(void) {
     }
     return 0;
 }
+
+extern u8 D_800A32A0;
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055260);
 
@@ -846,7 +852,18 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_8005719C);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800577A8);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80057A10);
+s32 func_800577A8(SpriteAsset *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+
+/* JFG: func_800577A8 for a single texture (as a sprite of its frames). */
+s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4) {
+    SpriteAsset sprite;
+    TextureHeader *textures[1];
+
+    textures[0] = tex;
+    sprite.textures = textures;
+    sprite.numberOfFrames = tex->numOfTextures >> 8;
+    return func_800577A8(&sprite, flags, updateRate, frame, arg4);
+}
 
 /* JFG's texture animation flag bits (DKR: bits 23, 25 and 26) */
 #define RENDER_ANIM_PINGPONG_ONCE 0x20000

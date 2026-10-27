@@ -1,9 +1,44 @@
 #include "common.h"
 
-extern void *D_801047E4;
+typedef struct Vec3f {
+    f32 x, y, z;
+} Vec3f;
+
+typedef struct Obj7EHeader {
+    /* 0x00 */ u8 pad0[0x71];
+    /* 0x71 */ s8 unk71;
+} Obj7EHeader;
+
+typedef struct Obj7EData {
+    /* 0x000 */ u8 pad0[0x12A];
+    /* 0x12A */ u8 unk12A;
+    /* 0x12B */ u8 pad12B;
+    /* 0x12C */ s16 unk12C;
+    /* 0x12E */ s16 unk12E;
+    /* 0x130 */ s16 unk130;
+    /* 0x132 */ u8 unk132;
+    /* 0x133 */ s8 unk133;
+} Obj7EData;
+
+typedef struct Obj7E {
+    /* 0x00 */ u8 pad0[0x3A];
+    /* 0x3A */ s8 unk3A;
+    /* 0x3B */ u8 pad3B[0x40 - 0x3B];
+    /* 0x40 */ Obj7EHeader *header;
+    /* 0x44 */ u8 pad44[0x5C - 0x44];
+    /* 0x5C */ Obj7EData *data;
+} Obj7E;
+
+extern s32 D_801047E0;
+extern Obj7E **D_801047E4;
 extern void *D_801047E8;
 extern void *D_801047EC;
+extern void *D_801047F4;
+extern void *D_801047F8;
+extern void *D_801047FC;
+extern void *D_80104800;
 void *mempool_alloc_safe(s32 size, u32 colourTag);
+void mempool_free(void *data);
 
 void func_80079BD0(void) {
     D_801047E4 = mempool_alloc_safe(0x140, 0xFFFF);
@@ -11,13 +46,24 @@ void func_80079BD0(void) {
     D_801047EC = mempool_alloc_safe(0x400, 0xFFFF);
 }
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079C20);
+/* DKR include/level.h LevelHeader, reduced (JFG offsets) */
+typedef struct LevelHeader {
+    /* 0x00 */ u8 pad0[0xEE];
+    /* 0xEE */ s16 unkEE;
+    /* 0xF0 */ s16 unkF0;
+} LevelHeader;
+LevelHeader *level_header(void);
 
-extern void *D_801047F4;
-extern void *D_801047F8;
-extern void *D_801047FC;
-extern void *D_80104800;
-void mempool_free(void *data);
+void func_80079C20(void) {
+    LevelHeader *header;
+
+    D_801047E0 = 0;
+    header = level_header();
+    D_80104800 = mempool_alloc_safe(header->unkF0 * 0x30, 0xFFFF);
+    D_801047F4 = mempool_alloc_safe(header->unkEE * 4, 0xFFFF);
+    D_801047F8 = mempool_alloc_safe(header->unkEE * 2, 0xFFFF);
+    D_801047FC = mempool_alloc_safe(header->unkEE * 2, 0xFFFF);
+}
 
 void func_80079CC4(void) {
     mempool_free(D_80104800);
@@ -46,6 +92,22 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007CCF0);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007CF28);
 
+/* Size: 0x34 bytes */
+typedef struct CollisionSphere {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0x34 - 0x28];
+} CollisionSphere;
+
+typedef struct SphereSet {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ s16 count;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ CollisionSphere *spheres;
+} SphereSet;
+
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D0B4);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
@@ -56,17 +118,53 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E150);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E328);
 
-extern s32 D_801047E0;
-extern void *D_801047E4;
-
-void *func_8007E484(s32 *count) {
+Obj7E **func_8007E484(s32 *count) {
     *count = D_801047E0;
     return D_801047E4;
 }
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E4A0);
+void func_8007E5EC(Obj7E *obj, s32 arg1);
+void func_8007E794(Obj7E *obj);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E504);
+void func_8007E4A0(Obj7E *obj) {
+    Obj7EData *data = obj->data;
+    s8 value = obj->header->unk71;
+
+    if (value >= 0) {
+        data->unk133 = value;
+    } else {
+        data->unk133 = obj->unk3A;
+    }
+    func_8007E5EC(obj, 1);
+    func_8007E5EC(obj, 1);
+    func_8007E794(obj);
+}
+
+void func_8007E504(void) {
+    s32 i;
+    Obj7E *obj;
+    Obj7EData *data;
+    s8 value;
+
+    for (i = 0; i < D_801047E0; i++) {
+        obj = D_801047E4[i];
+        data = obj->data;
+        value = obj->header->unk71;
+        if (value >= 0) {
+            data->unk133 = value;
+        } else {
+            data->unk133 = obj->unk3A;
+        }
+        func_8007E5EC(obj, 0);
+        if (data->unk12C != 0) {
+            func_8007E794(obj);
+        }
+        data->unk12E = 0;
+        data->unk132 = 0;
+        data->unk130 = 0;
+        data->unk12A = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E5EC);
 

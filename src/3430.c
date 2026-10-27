@@ -235,23 +235,50 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_8000380C);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003994);
 
+/* JFG: a point's entry in its group (unk23 is the group, from 1) */
+typedef struct AudioGroupEntry {
+    /* 0x00 */ AudioPoint *point;
+    /* 0x04 */ u8 pad4[0xC];
+} AudioGroupEntry;
+
+extern s32 D_800A0800[];               // JFG: the number of entries of each group
+extern AudioGroupEntry D_800F2A48[][3]; // JFG: the groups' entries
+
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003B14);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003B74);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003CA4);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003DB0);
+/* JFG: a node of the D_800F2B10 free list */
+typedef struct FreeNode {
+    /* 0x00 */ struct FreeNode *next;
+    /* 0x04 */ u8 pad4[0x10];
+} FreeNode;
+
+extern FreeNode *D_800F2B10;
+extern FreeNode D_800F2B18[16];
+
+/* JFG: link all the nodes into the free list. */
+void func_80003DB0(void) {
+    s32 i;
+    FreeNode *node;
+
+    D_800F2B10 = node = D_800F2B18;
+    for (i = 1; i < 16; i++) {
+        node->next = &D_800F2B18[i];
+        node = node->next;
+    }
+    node->next = NULL;
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003E40);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80004164);
 
-extern void *D_800F2B10;
-
 /* JFG: push a node onto a free list. */
-void func_8000474C(void **node) {
-    *node = D_800F2B10;
+void func_8000474C(FreeNode *node) {
+    node->next = D_800F2B10;
     D_800F2B10 = node;
 }
 

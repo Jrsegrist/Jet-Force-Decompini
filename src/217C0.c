@@ -65,15 +65,23 @@ typedef struct ObjectHeaderLight {
 typedef struct ObjectHeader {
     /* 0x00 */ u8 pad0[0x25];
     /* 0x25 */ s8 numLightSources;
-    /* 0x26 */ u8 pad26[0x48 - 0x26];
+    /* 0x26 */ u8 numCamLights; // JFG
+    /* 0x27 */ u8 pad27[0x48 - 0x27];
     /* 0x48 */ struct ObjectHeaderLight *lights;
+    /* 0x4C */ struct ObjectHeaderCamLight *camLights; // JFG
 } ObjectHeader;
+
+/* JFG: Size: 0x20 bytes */
+typedef struct ObjectHeaderCamLight {
+    /* 0x00 */ u8 pad0[0x20];
+} ObjectHeaderCamLight;
 
 typedef struct Object {
     /* 0x00 */ u8 pad0[0x40];
     /* 0x40 */ ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x74 - 0x44];
     /* 0x74 */ ObjectLight **lightData;
+    /* 0x78 */ void **camLightData; // JFG
 } Object;
 
 void light_update(ObjectLight *light, s32 updateRate);
@@ -341,7 +349,15 @@ void light_setup_light_sources(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800226B8);
+void *func_80023A48(Object *obj, ObjectHeaderCamLight *header);
+
+/* JFG: light_setup_light_sources for the header's camera lights. */
+void func_800226B8(Object *obj) {
+    s32 i;
+    for (i = 0; i < obj->header->numCamLights; i++) {
+        obj->camLightData[i] = func_80023A48(obj, &obj->header->camLights[i]);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80022744);
 

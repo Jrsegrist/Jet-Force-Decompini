@@ -86,7 +86,13 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_800129AC);
 
 /* DKR include/structs.h Object, reduced (JFG offsets) */
 typedef struct Object_Racer {
-    /* 0x00 */ s8 playerIndex;
+    /* 0x000 */ s8 playerIndex;
+    /* 0x001 */ u8 pad1[0x19C - 1];
+    /* 0x19C */ s8 unk19C;
+    /* 0x19D */ u8 pad19D[0x568 - 0x19D];
+    /* 0x568 */ u8 unk568;
+    /* 0x569 */ u8 pad569[0x5C0 - 0x569];
+    /* 0x5C0 */ s32 unk5C0;
 } Object_Racer;
 
 typedef struct Object {
@@ -178,7 +184,39 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80013970);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013B74);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013D3C);
+/* JFG: an entry per segment of D_800A0D80 */
+typedef struct SegmentAlloc {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ void *data;
+} SegmentAlloc;
+
+extern SegmentAlloc *D_800A0D80;
+extern void *D_800A0D78;
+extern s32 D_800A0D74;
+extern s32 D_800A0D70;
+void mempool_free(void *data);
+
+/* JFG: free the per-segment buffers and the track lights. */
+void func_80013D3C(void) {
+    s32 i;
+
+    if (D_800A0D80 != NULL) {
+        i = gCurrentLevelModel->numberOfSegments;
+        while (i--) {
+            if (D_800A0D80[i].data != NULL) {
+                mempool_free(D_800A0D80[i].data);
+            }
+        }
+        mempool_free(D_800A0D80);
+        D_800A0D80 = NULL;
+    }
+    if (D_800A0D78 != NULL) {
+        mempool_free(D_800A0D78);
+        D_800A0D78 = NULL;
+    }
+    D_800A0D74 = 0;
+    D_800A0D70 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
 
@@ -194,7 +232,34 @@ void func_80013F08(f32 *light) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013F48);
+/* JFG: fill a track light's ramp of 32 colours (from 0x20) up to the colour, scaled by brightness. */
+void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness) {
+    s32 i;
+    u8 *ramp;
+    s32 stepRed, stepGreen, stepBlue;
+
+    if (light != NULL) {
+        if (brightness < 255) {
+            red = (red * brightness) >> 8;
+            green = (green * brightness) >> 8;
+            blue = (blue * brightness) >> 8;
+        }
+        ramp = light + 0x20;
+        stepRed = red;
+        stepGreen = green;
+        stepBlue = blue;
+        i = 31;
+        do {
+            ramp[0] = red >> 5;
+            ramp[1] = green >> 5;
+            ramp[2] = blue >> 5;
+            red += stepRed;
+            green += stepGreen;
+            blue += stepBlue;
+            ramp += 3;
+        } while (i--);
+    }
+}
 
 void func_80013FE0(f32 *light, f32 x, f32 y, f32 z) {
     if (light != NULL) {
@@ -376,7 +441,31 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_800158BC);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015B3C);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80015E3C);
+extern u8 D_800A4FC4;
+s32 func_8003FC1C(); // the current camera (called with two arguments it ignores)
+
+/* JFG: the opacity to draw a racer with (255 = opaque). */
+s32 func_80015E3C(Object *obj) {
+    s32 alpha;
+    Object_Racer *racer;
+
+    racer = obj->racer;
+    alpha = 255;
+    if (racer->unk5C0 == 0) {
+        if (racer->unk568 == 10) {
+            alpha = 255 - racer->unk19C * 2;
+        } else if (func_8003FC1C(obj, racer) == racer->playerIndex) {
+            alpha = 255 - racer->unk19C * 4;
+            if (D_800A4FC4) {
+                alpha -= racer->unk19C;
+            }
+            if (alpha < 0) {
+                alpha = 0;
+            }
+        }
+    }
+    return alpha;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015ED8);
 
@@ -398,7 +487,31 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80018808);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800191D8);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80019518);
+/* JFG: clip a line's parameter range [*tEnter, *tLeave] against one plane; FALSE if nothing is left. */
+s32 func_80019518(f32 denom, f32 num, f32 *tEnter, f32 *tLeave) {
+    f32 t;
+
+    if (denom > 0.0f) {
+        t = num / denom;
+        if (t > *tLeave) {
+            return FALSE;
+        }
+        if (t > *tEnter) {
+            *tEnter = t;
+        }
+    } else if (denom < 0.0f) {
+        t = num / denom;
+        if (t < *tEnter) {
+            return FALSE;
+        }
+        if (t < *tLeave) {
+            *tLeave = t;
+        }
+    } else if (num > 0.0f) {
+        return FALSE;
+    }
+    return TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800195E8);
 

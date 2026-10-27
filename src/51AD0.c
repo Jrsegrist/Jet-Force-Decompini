@@ -2,10 +2,24 @@
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050ED0);
 
-extern s32 D_800FE9F0;
-extern void *D_800A38E4;
+typedef struct SquadState {
+    /* 0x00 */ u8 pad0[0x64];
+    /* 0x64 */ u8 unk64;
+} SquadState;
 
-void *func_80050F44(s32 *count) {
+typedef struct SquadObject {
+    /* 0x00 */ u8 pad0[0x11];
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 pad12[0x68 - 0x12];
+    /* 0x68 */ SquadState *state;
+    /* 0x6C */ u8 pad6C[0xA0 - 0x6C];
+    /* 0xA0 */ u8 unkA0;
+} SquadObject;
+
+extern s32 D_800FE9F0;
+extern SquadObject **D_800A38E4;
+
+SquadObject **func_80050F44(s32 *count) {
     *count = D_800FE9F0;
     return D_800A38E4;
 }
@@ -22,17 +36,37 @@ void func_8005131C(s32 arg0) {
     D_800FE9A0++;
 }
 
-extern s32 *D_800FE9A4;
+extern SquadObject **D_800FE9A4;
 extern s32 D_800FE9A8;
 
-void func_80051350(s32 arg0) {
-    D_800FE9A4[D_800FE9A8] = arg0;
+void func_80051350(SquadObject *obj) {
+    D_800FE9A4[D_800FE9A8] = obj;
     if (++D_800FE9A8 >= D_800FE9A0) {
         D_800FE9A8 = 0;
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_800513A0);
+/* JFG: take the object with byte 0x11 == id out of the ring list. */
+SquadObject *func_800513A0(s32 id) {
+    s32 count = D_800FE9A0;
+    SquadObject **list = D_800FE9A4;
+    SquadObject *obj;
+
+    if (count > 0x100) {
+        return NULL;
+    }
+    if (D_800FE9A4 != NULL) {
+        while (count--) {
+            obj = *list;
+            if (obj != NULL && id == obj->unk11) {
+                *list = NULL;
+                return obj;
+            }
+            list++;
+        }
+    }
+    return NULL;
+}
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 rand_range(s32 min, s32 max);
@@ -49,7 +83,19 @@ void func_80051420(void) {
     D_800FE9F4 = rand_range(0xF0, 0x168);
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051484);
+/* JFG: the last active object whose state byte 0x64 is id. */
+SquadObject *func_80051484(s16 id) {
+    s32 i = D_800FE9F0;
+    SquadObject *obj;
+
+    while (i--) {
+        obj = D_800A38E4[i];
+        if (obj->unkA0 == 0 && id == obj->state->unk64) {
+            return obj;
+        }
+    }
+    return NULL;
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051508);
 
@@ -103,6 +149,10 @@ void func_80052798(u8 *a, u8 *b) {
     }
 }
 
+void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes);
+extern u8 D_1FEB040[]; // ROM: a table of offsets into D_1FED550
+extern u8 D_1FED550[];
+
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800527F0);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052874);
@@ -139,6 +189,13 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_800539E0);
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053C44);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053D2C);
+
+typedef struct ModuleSlot {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 module;
+} ModuleSlot;
+extern ModuleSlot D_800FEAD8[16];
+void func_80053D2C(s32 module);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005414C);
 

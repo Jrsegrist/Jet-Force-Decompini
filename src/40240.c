@@ -57,7 +57,7 @@ extern MtxF gOrthoMatrixF;
 #define CAMERA_DEFAULT_FOV 60.0f
 #define CAMERA_ASPECT 1.3333334f
 #define CAMERA_NEAR 10.0f
-#define CAMERA_SCALE 1.0f
+#define CAMERA_SCALE 1.0 /* a double: IDO does not share it with the 1.0f in cam_set_fov */
 
 extern u8 D_800FA650;
 extern s32 D_800A2ED0;
@@ -142,11 +142,7 @@ s32 func_8005AA7C(void); // the two-player screen is split vertically
  * JFG: per-camera FoV and zoom; the matrix is stretched for some video modes and
  * split screens, and is one of 16 kept in turn.
  * Official Name: camSetFOV
- * NON_MATCHING: one instruction off: IDO keeps the zoom's 1.0f in $f2 for the
- * guPerspectiveF scale argument (and materialises it on the other path), where
- * the target loads 1.0f again just before the call.
  */
-#ifdef NON_MATCHING
 void cam_set_fov(f32 camFieldOfView, s32 force) {
     s32 mode;
     s32 type;
@@ -183,9 +179,6 @@ void cam_set_fov(f32 camFieldOfView, s32 force) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7F4);
-#endif
 
 f32 sqrtf(f32 x);
 
@@ -553,11 +546,21 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_800419AC);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041A90);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041BE0);
-
 extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
 extern MtxF D_800FB038; // DKR: gCurrentMVPMatrixF
 extern Mtx *D_800FAB30;
+void func_80049874(f32 x, f32 y, f32 z, MtxF *out); // a scale matrix
+
+/* JFG: upload a scale matrix (unless the scale is 1) as the MVP matrix. */
+void func_80041BE0(Gfx **dList, Mtx **mtx, f32 scale) {
+    if (scale != 1.0f) {
+        func_80049874(scale, scale, scale, &D_800FAAB0);
+        func_80048C7C(&D_800FAAB0, &D_800FAAF0, &D_800FB038);
+        func_80048D84(&D_800FB038, *mtx);
+        D_800FAB30 = *mtx;
+        gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
+    }
+}
 void func_80049DC0(void *trans, MtxF *out);
 void func_80048F4C(MtxF *mtx, f32 offsetY);
 void func_80048F20(MtxF *mtx, f32 scaleY);
@@ -645,18 +648,38 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041E58);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041FE0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800420F0);
+/* JFG: the view-space depth of a point (the third column of the view matrix). */
+f32 func_800420F0(f32 x, f32 y, f32 z) {
+    f32 result;
+
+    result = (x * gViewMatrixF[0][2]) + (y * gViewMatrixF[1][2]) + (z * gViewMatrixF[2][2]) + gViewMatrixF[3][2];
+    return result;
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800421F0);
-
 typedef struct CameraShake {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ s32 unk4;
+    /* 0x00 */ s16 unk0; // JFG: the end of each phase, in frames
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6; // JFG: the frame count
     /* 0x08 */ s32 unk8;
 } CameraShake;
 extern CameraShake D_800FA600[4];
+
+/* JFG: start a camera shake with three phases (lengths in seconds). */
+void func_800421F0(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 arg4) {
+    CameraShake *shake;
+
+    if (index >= 0 && index < 4) {
+        shake = &D_800FA600[index];
+        shake->unk0 = phase1 * 60.0f;
+        shake->unk2 = shake->unk0 + (s32) (phase2 * 60.0f);
+        shake->unk4 = shake->unk2 + (s32) (phase3 * 60.0f);
+        shake->unk6 = 0;
+        shake->unk8 = arg4;
+    }
+}
 
 /* JFG: stop the shakes of the four cameras. */
 void func_800422C4(void) {
