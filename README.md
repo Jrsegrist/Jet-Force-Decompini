@@ -1,5 +1,7 @@
 # Jet Force Decompini
 
+[![CI](https://github.com/Jrsegrist/Jet-Force-Decompini/actions/workflows/ci.yml/badge.svg)](https://github.com/Jrsegrist/Jet-Force-Decompini/actions/workflows/ci.yml)
+
 A matching decompilation of Jet Force Gemini (Nintendo 64, Rare, 1999): C
 source that compiles back to a byte-identical ROM. The later goal is a native
 Windows port built from that source.
@@ -90,6 +92,34 @@ void func_80012345(void) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80012345);
 #endif
 ```
+
+## Checks
+
+CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push
+and pull request to `main`. GitHub has no ROM, so it runs what can be checked
+without one (`tools/ci_norom.sh`; run it yourself in a clean checkout after
+`make setup`):
+
+- no tracked file is ROM data or extracted from it: no ROM, binaries,
+  assembly, disassembly or long number tables (`tools/ci_rom_free.py`);
+- the Python tools compile and pass pyflakes, and their self-tests pass
+  (`tools/ci_test_tools.py`: made-up runlink modules are built, split and
+  rebuilt byte for byte; `runlink_syms.py`, `runlink_diff.py` and
+  `progress.py` on synthetic files);
+- every C file in `src/` compiles with IDO 5.3 at the project's flags, with
+  placeholder assembly in place of each `INCLUDE_ASM`
+  (`tools/ci_stub_asm.py`), and so do the `NON_MATCHING` bodies.
+
+Two checks need the ROM and are yours to run before you push:
+
+```sh
+make check                                   # byte-identical ROM
+tools/check_names.py --dkr ~/path/to/dkr     # no ROM-only names, in files or history
+```
+
+`check_names.py` compares every tracked file, commit message and added line
+with the names `make extract` read from your ROM, and fails on any that the
+DKR decompilation (a clone of it, `--dkr`) and ultralib do not have too.
 
 ## Compiler
 
