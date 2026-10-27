@@ -1,7 +1,7 @@
 /*
- * Runlink module 90: a firework. After a delay it rises (with a sound),
+ * Runlink module 90: a firework. After a delay it rises (with a dim light),
  * slowing under gravity; at the top of its climb it bursts into coloured
- * sparks (module 10) over two frames, then fades its sound out and either
+ * sparks (module 10) over two frames, then fades its light out and either
  * goes away or relaunches from where it started after its interval.
  */
 #include "module.h"
@@ -45,12 +45,12 @@ typedef struct M090State {
 
 /* The object's level segment, at 0x2E (DKR's Object.segmentID) */
 #define OBJ_SEGMENT(obj) (*(s16 *) &(obj)->pad2C[0x2E - 0x2C])
-/* What the object has at 0x74: its sound (a pointer to a sound handle) */
-#define OBJ_SOUND(obj) (((s32 **) (obj)->pad70)[(0x74 - 0x70) / 4])
+/* What the object has at 0x74: its light (a pointer to the object light) */
+#define OBJ_LIGHT(obj) (((s32 **) (obj)->pad70)[(0x74 - 0x70) / 4])
 
 extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
-extern void func_8002130C(s32 sound, u8 r, u8 g, u8 b);
-extern void func_80021358(s32 sound, u8 volume);
+extern void func_8002130C(s32 light, u8 r, u8 g, u8 b); /* sets a light's colour */
+extern void func_80021358(s32 light, u8 intensity);    /* sets a light's intensity */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_m010_00000(f32 arg0);
 
@@ -98,8 +98,8 @@ void func_m090_000A0(Object *obj, M090Setup *setup) {
     fw->z = obj->trans.z_position;
     fw->speed = setup->speed;
     fw->interval = setup->interval * 60 / 100;
-    if (OBJ_SOUND(obj) != NULL && *OBJ_SOUND(obj) != 0) {
-        func_8002130C(*OBJ_SOUND(obj), fw->r, fw->g, fw->b);
+    if (OBJ_LIGHT(obj) != NULL && *OBJ_LIGHT(obj) != 0) {
+        func_8002130C(*OBJ_LIGHT(obj), fw->r, fw->g, fw->b);
     }
     OBJ_STATE(obj, M090State)->delay = setup->delay * 60 / 100;
     OBJ_STATE(obj, M090State)->timer = fw->interval;
@@ -109,15 +109,15 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
     s32 pad;
     SparkParams spark;
     f32 fade;
-    s32 sound;
+    s32 light;
     M090Firework *fw;
     s32 i;
 
     fw = obj->unk68;
-    if (OBJ_SOUND(obj) != NULL) {
-        sound = *OBJ_SOUND(obj);
+    if (OBJ_LIGHT(obj) != NULL) {
+        light = *OBJ_LIGHT(obj);
     } else {
-        sound = 0;
+        light = 0;
     }
     obj->trans.scale = obj->header->scale;
     obj->particleEmittersEnabled = 0;
@@ -143,8 +143,8 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
         if (obj->velocity.y < 0.0f) {
             fw->phase = 1;
         }
-        if (sound != 0) {
-            func_80021358(sound, 0x40);
+        if (light != 0) {
+            func_80021358(light, 0x40);
         }
         obj->particleEmittersEnabled = 1;
     } else if (fw->phase < 3) {
@@ -167,8 +167,8 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
             func_m010_0000C(&spark);
         }
         fw->phase++;
-        if (sound != 0) {
-            func_80021358(sound, 0xFF);
+        if (light != 0) {
+            func_80021358(light, 0xFF);
         }
     } else {
         obj->trans.flags |= 0x400;
@@ -179,9 +179,9 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
                 return;
             }
             relaunch(obj, fw);
-        } else if (sound != 0) {
+        } else if (light != 0) {
             fade = 1.0f - (fw->phase - 2) / 120.0f;
-            func_80021358(sound, (s32) (255.0f * fade));
+            func_80021358(light, (s32) (255.0f * fade));
         }
     }
     func_8005F5AC(obj, updateRate);
