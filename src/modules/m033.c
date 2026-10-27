@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Runlink module 33: loads the explosion definitions (asset 0x40, indexed by
  * the offset table in asset 0x3F), turns their offsets into pointers and
  * sets their headers, then builds the triangles of the explosion's ring

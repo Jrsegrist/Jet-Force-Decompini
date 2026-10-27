@@ -90,9 +90,6 @@ extern f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 extern void func_80003410(u16 soundId, f32 x, f32 y, f32 z, s32 arg4, s32 *soundMask); /* DKR play_sound_at_position */
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
-/* Memory (DKR memory.c) */
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-
 /*
  * Called first thing by most control functions with the module's own number
  * (the s32 at the start of its .data) and (2, 2).

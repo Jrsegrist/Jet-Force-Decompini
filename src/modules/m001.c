@@ -139,12 +139,6 @@ M001Particle *func_m001_00188(f32 scale, f32 x, f32 y, f32 z, f32 floorY, f32 vx
     return p;
 }
 
-/*
- * func_m001_002A0 and func_m001_00678 match in C, but stay assembly: they
- * use the module's .rodata (0.3f, 0.6f), which can only come from all C or
- * all assembly, and func_m001_00978 (their sort) does not match yet.
- */
-#ifdef NON_MATCHING
 void func_m001_002A0(M001Particle *p, s32 updateRate) {
     f32 size;
     s16 y;
@@ -198,10 +192,6 @@ void func_m001_002A0(M001Particle *p, s32 updateRate) {
     }
 }
 
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m001", func_m001_002A0);
-#endif
-
 void func_m001_00600(s32 updateRate) {
     M001Particle *p;
     s32 i;
@@ -216,8 +206,7 @@ void func_m001_00600(s32 updateRate) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Draws one particle (this matches; it stays assembly with its only caller below) */
+/* Draws one particle */
 static void func_m001_00678(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
     f32 scale;
     M001Env *env;
@@ -251,14 +240,11 @@ static void func_m001_00678(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
     }
 }
 
-/*
- * Draws the particles in use, nearest to the camera first. Equivalent; only
- * the FP registers of the sort's swap differ (f0/f2 exchanged).
- */
+/* Draws the particles in use, nearest to the camera first */
 void func_m001_00978(Gfx **dl, s32 arg1, s32 arg2) {
     s32 i;
     s32 sorted;
-    f32 tf;
+    f32 unused; /* keeps the frame layout */
     s32 count;
     s32 order[32];
     s32 ti;
@@ -286,9 +272,9 @@ void func_m001_00978(Gfx **dl, s32 arg1, s32 arg2) {
                 sorted = 1;
                 for (i = 0; i < count - 1; i++) {
                     if (dist[i + 1] < dist[i]) {
-                        tf = dist[i];
+                        dx = dist[i];
                         dist[i] = dist[i + 1];
-                        dist[i + 1] = tf;
+                        dist[i + 1] = dx;
                         ti = order[i];
                         order[i] = order[i + 1];
                         order[i + 1] = ti;
@@ -302,19 +288,10 @@ void func_m001_00978(Gfx **dl, s32 arg1, s32 arg2) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m001", func_m001_00678);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m001", func_m001_00978);
-#endif
 
 /* The module's shutdown function (runlink fini) */
 void func_m001_00C0C(void) {
     func_m001_00120();
 }
 #pragma weak __rl_fini = func_m001_00C0C
-
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m001", rodata);
-#endif
 
