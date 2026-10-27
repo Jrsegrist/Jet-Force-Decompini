@@ -29,7 +29,7 @@ def functions(elf):
                          text=True, check=True).stdout
     funcs = {}
     for m in re.finditer(r"^([0-9a-f]{8}) (.{7}) (\S+)\s+([0-9a-f]{8}) (\S+)$", out, re.M):
-        addr, flags, sect, size, name = int(m.group(1), 16), m.group(2), m.group(3), int(m.group(4), 16), m.group(5)
+        addr, flags, size, name = int(m.group(1), 16), m.group(2), int(m.group(4), 16), m.group(5)
         if "F" not in flags or name.startswith(".") or name.endswith(".NON_MATCHING"):
             continue
         if size == 0:
