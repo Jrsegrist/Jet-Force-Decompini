@@ -74,7 +74,7 @@ def runlink_addrs():
 
 def symbol_addrs():
     """Every name the probe can place: runlink names, undefined_syms.us.txt
-    (NAME = 0x...; and func_XXXXXXXX = cname;)."""
+    (NAME = 0x...; and func_XXXXXXXX = cname;) and names.txt."""
     addr = runlink_addrs()
     for line in open(path("undefined_syms.%s.txt" % VERSION)):
         m = re.match(r"\s*(\w+)\s*=\s*0x([0-9A-Fa-f]+);", line)
@@ -83,6 +83,13 @@ def symbol_addrs():
         m = re.match(r"\s*func_([0-9A-Fa-f]{8})\s*=\s*(\w+);", line)
         if m:
             addr[m.group(2)] = int(m.group(1), 16)
+    # names.txt: `func_XXXXXXXX = name` / `D_XXXXXXXX = name` (tools/rename.py)
+    p = path("names.txt")
+    if os.path.exists(p):
+        for line in open(p):
+            m = re.match(r"\s*(?:func|D)_([0-9A-F]{8})\s*=\s*(\w+)\s*(?:#.*)?$", line)
+            if m:
+                addr[m.group(2)] = int(m.group(1), 16)
     return addr
 
 

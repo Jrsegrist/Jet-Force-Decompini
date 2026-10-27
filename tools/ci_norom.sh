@@ -33,6 +33,9 @@ for t in tools/match/*.py; do
     $PY "$t" --help >/dev/null
 done
 
+echo "== names.txt applied everywhere (no old name left)"
+$PY tools/rename.py --check
+
 echo "== tool self-tests (synthetic inputs)"
 $PY tools/ci_test_tools.py
 

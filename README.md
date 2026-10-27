@@ -23,7 +23,8 @@ prints how much of it is built from C:
   `INCLUDE_ASM` per function that is not decompiled yet. Code shared with
   Diddy Kong Racing comes from the DKR decompilation (see
   [CREDITS.md](CREDITS.md)); the rest is written from the assembly and named
-  by address.
+  by address or, where the code shows what it does, by a name of our own
+  ([Naming](#naming)).
 - 57 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
   (`src/ultra/`); the rest of the library region is still assembly
   (hand-written `.s` routines, n_audio, and objects from SDK revisions
@@ -65,9 +66,73 @@ The ROM carries the names of about 2,400 global symbols for its run-time
 module linker. `make extract` reads them from your ROM (`tools/runlink_syms.py`)
 into `build/syms/` so that the disassembly is readable, but none of them are
 committed. Committed C refers to functions and data by address
-(`func_80012345`, `D_80012345`) or by the names the DKR decompilation uses;
-`undefined_syms.us.txt` ties those to addresses, and an alias file generated at
-extract time lets them meet the ROM names in the assembly.
+(`func_80012345`, `D_80012345`), by the names the DKR decompilation uses, or by
+names of our own (see [Naming](#naming)); `undefined_syms.us.txt` and
+`names.txt` tie those to addresses, and alias files generated at build time
+let them meet the ROM names in the assembly.
+
+## Naming
+
+Functions and data start with splat's address names, `func_XXXXXXXX` and
+`D_XXXXXXXX` (`func_mNNN_XXXXX` / `D_mNNN_XXXXX` in runlink module NNN), and
+keep them until there is evidence for a real name. A name may come only from:
+
+1. **The DKR decompilation** (its `src/` and `include/`, CC0): the same
+   function, variable, struct or field in DKR, matched by code (same
+   structure, constants, callees and data), not by guess. DKR's spelling is
+   kept, including the "official names" DKR records. Credited in
+   [CREDITS.md](CREDITS.md).
+2. **libultra / the SDK's public API**, for library code.
+3. **What the code itself shows**: its behaviour, its callers and callees,
+   the strings it uses, the data it touches.
+
+A name never comes from the ROM's runlink name table (which `make extract`,
+splat's assembly and m2c's output show): not the name, and not a word or a
+close paraphrase of it. If the only reason to pick a word is that the ROM's
+name for that function uses it, pick another word, or keep the address name.
+A guess is not a name: when unsure, keep the address name and add a one-line
+comment saying what is known. `tools/check_names.py` (see [Checks](#checks))
+catches ROM names; the rest is up to the reviewer.
+
+| what | style | examples |
+| --- | --- | --- |
+| DKR's functions, variables, types and fields | exactly DKR's spelling (DKR mixes snake_case and camelCase; a DKR name is never re-cased) | `mempool_alloc`, `lightGetLights`, `thread0_Main`, `gCameras` |
+| libultra and SDK code | the SDK's names | `osFlashInit`, `__osPiDevMgr` |
+| other functions | lower snake_case, `subsystem_verb_object` or `subsystem_object_verb`, using the prefix of the DKR-named code they belong with (`cam_`, `viewport_`, `mempool_`, `music_`, `sound_`, `audspat_`, `tex_`, `light_`, `weather_`, `rain_`, `transition_`, `dialogue_`, `input_`, `obj_` …) | `rain_density_get` |
+| global variables | `g` + CamelCase; a file-scope `static` defined in C `s` + CamelCase (as DKR) | `gWeatherType`, `sPlayerID` |
+| types | CamelCase | `AudioPoint`, `DialogueBox` |
+| struct fields | lowerCamelCase; unidentified ones stay `unkXX` / `padXX` (XX = the offset) | `segmentID`, `unk4C` |
+| constants and macros | UPPER_SNAKE_CASE | `WEATHER_RAIN` |
+| runlink module code | exported symbols keep `func_mNNN_XXXXX` / `D_mNNN_XXXXX` (the runlink build places them by that name); `static` functions and data follow the rules above; module-local types are prefixed with the module (`M001Particle`) | |
+
+When a DKR name and one of our own describe related code in one file, both
+stay as they are: DKR's names are never changed to fit the table, and our own
+names never imitate a DKR name's casing.
+
+Each named function gets a one-line comment on what it does, ending with its
+address, e.g. `/* Returns the rain density, 0.0 to 1.0 (0x8005BFC4). */`.
+
+**The rename map.** [`names.txt`](names.txt) holds every rename as
+`old = new` (fields as `field Type.old = new`, renamed by hand: the compiler
+reports a use that was missed). A name replaced later is edited on its address
+line and keeps a `renamed previous = new` line. `tools/rename.py` applies the
+map to the whole tree (C, headers, `undefined_syms`, docs) and is safe to
+re-run; INCLUDE_ASM lines, `symbol_addrs.us.txt` and the yaml keep the address
+names, because splat names the generated assembly by address.
+
+```sh
+tools/rename.py                    # apply names.txt (e.g. on another branch, before a merge)
+tools/rename.py --check            # no old name left, fields renamed (also run by the CI)
+tools/rename.py --which func_80012345   # old <-> new, for notes and old reports
+```
+
+The assembly keeps the old names. At build time `tools/rename.py --aliases`
+writes `build/syms/names_aliases.us.txt` from names.txt and the C objects
+(`old = new;` where C defines the symbol, `PROVIDE(new = old);` where the
+assembly does); the linker and the runlink build read it, and the matching
+tools read names.txt, so a rename changes nothing they do. Names never change
+code: after a rename the ROM, the `NON_MATCHING` objects and every check come
+out the same.
 
 ### Working on a function
 
@@ -108,8 +173,10 @@ without one (`tools/ci_norom.sh`; run it yourself in a clean checkout after
   assembly, disassembly or long number tables (`tools/ci_rom_free.py`);
 - the Python tools compile and pass pyflakes, and their self-tests pass
   (`tools/ci_test_tools.py`: made-up runlink modules are built, split and
-  rebuilt byte for byte; `runlink_syms.py`, `runlink_diff.py` and
-  `progress.py` on synthetic files);
+  rebuilt byte for byte; `runlink_syms.py`, `runlink_diff.py`,
+  `progress.py` and `rename.py` on synthetic files);
+- `names.txt` is applied everywhere: no old name is left
+  (`tools/rename.py --check`);
 - every C file in `src/` compiles with IDO 5.3 at the project's flags, with
   placeholder assembly in place of each `INCLUDE_ASM`
   (`tools/ci_stub_asm.py`), and so do the `NON_MATCHING` bodies.

@@ -1,0 +1,10 @@
+# The rename map: every address name that C now calls by a real name.
+#
+#   func_XXXXXXXX = name          a main-segment function or global (D_XXXXXXXX)
+#   func_mNNN_XXXXX = name        a module's static function or data (D_mNNN_XXXXX)
+#   field Type.unkXX = name       a struct field (renamed by hand, checked)
+#   renamed previous = name       a name that was replaced later
+#
+# tools/rename.py applies it to the tree and checks it (--check); --which NAME
+# turns an old name into the new one and back. Where names may come from, and
+# their style, is in the README ("Naming"). Grouped by source file.
