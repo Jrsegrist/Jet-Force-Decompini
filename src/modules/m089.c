@@ -83,8 +83,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m089", data);
 #ifdef NON_MATCHING
 /*
  * The world position of vertex `index` of obj's model; 0 if it has none.
- * Equivalent; IDO here turns the triangle loop's `<` into `!=` and orders
- * a few loads differently.
+ * Equivalent; only the evaluation order of the transform call's arguments
+ * and the operand order of the index compare differ.
  */
 s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
     M089Instance *inst = ((M089Instance **) obj->unk6C)[obj->modelIndex];
@@ -108,13 +108,11 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
     }
     while (n--) {
         if (!(batch->flags & 0x400)) {
-            count = batch[1].firstTriangle - batch->firstTriangle;
             tri = &model->triangles[batch->firstTriangle];
-            for (i = 0; i < count; i++, tri++) {
+            for (i = 0; i < batch[1].firstTriangle - batch->firstTriangle; i++, tri++) {
                 for (k = 0; k < 3; k++) {
-                    raw = tri->vi[k];
-                    vi = batch->firstVertex + raw;
-                    if (vi == index) {
+                    if ((raw = tri->vi[k]) + batch->firstVertex == index) {
+                        vi = raw + batch->firstVertex;
                         v = &inst->vertices[vi];
                         if (raw < batch->limits[0]) {
                             bone = batch->bones[0];
@@ -131,7 +129,7 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
         }
         batch++;
     }
-    stubbed_printf("GVP:%x, %s, %d\n", obj, "", index); /* only its format string is in the ROM */
+    stubbed_printf("GVP:%x, %s, %d\n", obj, NULL, index); /* only its format string is in the ROM */
     return 0;
 }
 #else
