@@ -635,6 +635,24 @@ D_800A6E98 = 0x800A6E98;
 dDialogueBoxBegin = 0x800A6E30;
 sDialogueBoxDimensions = 0x800A6EE0;
 
+/* ---- 846F0.c (libultra flash) ---- */
+func_80083AF0 = osFlashReInit;
+func_80083B40 = osFlashInit;
+func_80083C30 = osFlashReadStatus;
+func_80083CC0 = osFlashReadId;
+func_80083D94 = osFlashClearStatus;
+func_80083DE0 = osFlashAllErase;
+func_80083EB0 = osFlashSectorErase;
+func_80083F88 = osFlashWriteBuffer;
+func_8008400C = osFlashWriteArray;
+func_800840E0 = osFlashReadArray;
+__osFlashID = 0x80104EA0;
+__osFlashMsg = 0x80104EB0;
+__osFlashMessageQ = 0x80104EC8;
+__osFlashHandler = 0x80104EE0;
+__osFlashMsgBuf = 0x80104F54;
+D_80104F58 = 0x80104F58;
+
 /* ---- not decompiled yet ---- */
 mempool_alloc_safe = 0x8004A57C;
 

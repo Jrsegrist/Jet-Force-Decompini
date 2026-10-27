@@ -50,7 +50,7 @@ assembly and owe nothing to DKR beyond the structure names they use.
 
 | What | Licence | How it is used |
 | --- | --- | --- |
-| [decompals/ultralib](https://github.com/decompals/ultralib) (libultra) | no licence file | git submodule `lib/ultralib`; `src/ultra/*` only `#include` its sources, nothing is copied |
+| [decompals/ultralib](https://github.com/decompals/ultralib) (libultra) | no licence file | git submodule `lib/ultralib`; `src/ultra/*` and the flash library in `src/846F0.c` (five functions) only `#include` its sources, nothing is copied; the other flash functions there, an earlier form, are written from the assembly |
 | [decompals/ido-static-recomp](https://github.com/decompals/ido-static-recomp) (IDO 5.3) | no licence file | release binaries fetched by `make setup` into `tools/ido5.3/` (git-ignored) |
 | [asm-processor](https://github.com/simonlindholm/asm-processor) | Unlicense | git submodule `tools/asm-processor`; `include/prelude.inc` is based on its prelude |
 | [asm-differ](https://github.com/simonlindholm/asm-differ) | Unlicense | git submodule `tools/asm-differ` |
