@@ -1004,25 +1004,25 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80063358);
 extern WeatherParticleList *D_801008E0[5];
 extern s32 D_800A5DD8;
 void func_8003FC2C(s32 arg0);
-void func_8004046C(Gfx **dList, Mtx **mtx);
+void func_8004046C(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
 void func_80062A90(Gfx **dList, Vertex **vtx);
-void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list);
-void func_8005D660(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list);
+void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
+void func_8005D660(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 
 /* JFG: render all the particles into the current vertex buffer, then flip buffers. */
-void func_80063730(Gfx **dList, Mtx **mtx) {
+void func_80063730(Gfx **dList, Mtx **matrix) {
     Vertex *vtx = D_800A5D8C[D_800A5DD8];
 
     gDPPipeSync((*dList)++);
     func_8003FC2C(0);
-    func_8004046C(dList, mtx);
+    func_8004046C(dList, matrix);
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);
     func_80062A90(dList, &vtx);
     func_80062A00(dList, &vtx);
-    func_8005D2E8(dList, mtx, &vtx, D_801008E0[2]);
-    func_8005D660(dList, mtx, &vtx, D_801008E0[3]);
+    func_8005D2E8(dList, matrix, &vtx, D_801008E0[2]);
+    func_8005D660(dList, matrix, &vtx, D_801008E0[3]);
     D_800A5DD8 ^= 1;
 }
 

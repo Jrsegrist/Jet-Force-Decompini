@@ -2,7 +2,6 @@
 #include "stdarg.h"
 
 int vsprintf(char *s, const char *fmt, va_list args);
-s32 func_80054530();
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
 extern s32 sLockupDelay;
@@ -82,7 +81,34 @@ extern char D_800AE858[];
 s32 write_controller_pak_file(s32 controllerIndex, s32 fileNumber, char *fileName, char *fileExt, u8 *dataToWrite,
                               s32 fileSize);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: one register: the 0x80700000 argument is built in t4 (target t6) */
+/* JFG: save the log, the faulted thread and its stack (at 0x80700000) to the controller pak. */
+void func_80066D28(OSThread *thread) {
+    u8 *dst;
+    void *stack;
+    s32 size;
+
+    *(s32 *) 0x80705014 = D_800A64D8;
+    *(s32 *) 0x80705018 = D_800A64D0;
+    *(s32 *) 0x8070501C = D_800A64D4;
+    dst = (u8 *) 0x80705094;
+    bcopy(thread, dst, 0x230);
+    dst += 0x200;
+    stack = *(void **) ((u8 *) thread + 0xF4); // JFG: the thread's sp
+    bcopy(stack, dst, 0x200);
+    D_80102554 = stack;
+    bcopy(stack, D_80102558, 0x200);
+    dst += 0x200;
+    size = dst - (u8 *) 0x80700000;
+    if (size & 0x1F) {
+        size = (size & ~0x1F) + 0x20;
+    }
+    write_controller_pak_file(0, -1, D_800AE850, D_800AE858, (u8 *) 0x80700000, size);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066D28);
+#endif
 
 void func_80066D28(OSThread *thread);
 void func_80066EB0(OSThread *thread);
@@ -163,18 +189,32 @@ void func_800676B4(const char *format, ...) {
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80067790);
 
-/* JFG: a fault thread record, as big as the one __rmonSendFault sends. */
+#ifdef NON_MATCHING
+/* JFG: a fault thread record (0x230 bytes, the size bcopied in func_80066D28). */
 typedef struct FaultThread {
     OSThread thread;
     u8 pad1B0[0x80];
 } FaultThread;
 void func_80067994(FaultThread *fault);
-#define S_P fault.thread.context.pc = pc;
-#define S_A fault.thread.context.a0 = a0;
-#define S_B fault.thread.context.a1 = a1;
-#define S_C fault.thread.context.cause = -1;
 
+/* NON_MATCHING: same stores, but the loads/temp registers are scheduled differently (24 store orders tried) */
+/* JFG: show the crash screen for a fake thread (pc, a0, a1) and hang. */
+void func_800678C4(u32 pc, s32 a0, u32 a1) {
+    FaultThread fault;
+
+    bzero(&fault, sizeof(fault));
+    fault.thread.context.pc = pc;
+    fault.thread.context.a0 = a0;
+    fault.thread.context.cause = -1;
+    fault.thread.context.a1 = a1;
+    func_80067994(&fault);
+    osWritebackDCacheAll();
+    while (1) {
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/67780", func_800678C4);
+#endif
 
 s32 func_80067950(void) {
     return 0;

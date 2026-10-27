@@ -73,12 +73,53 @@ MemoryPoolSlot *mempool_new_sub(s32 poolDataSize, s32 numSlots) {
     return newPool;
 }
 
+/**
+ * Create and initialise a memory pool in RAM that will act as the place where arbitrary allocations can go.
+ * Will return the location of the first free slot in that pool.
+ * JFG: also records the pool's free size (and the main pool's in D_800FDD90).
+ */
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 words: the two moves before the loop (firstSlot = slots, i = 0) are swapped */
+MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots) {
+    MemoryPoolSlot *firstSlot;
+    s32 poolCount;
+    s32 i;
+    s32 firstSlotSize;
+
+    poolCount = ++gNumberOfMemoryPools;
+    gMemoryPools[poolCount].maxNumSlots = numSlots;
+    gMemoryPools[poolCount].curNumSlots = 0;
+    gMemoryPools[poolCount].slots = slots;
+    gMemoryPools[poolCount].size = poolSize;
+    for (i = 0, firstSlot = slots; i < gMemoryPools[poolCount].maxNumSlots; i++, firstSlot++) {
+        firstSlot->index = i;
+    }
+    firstSlot = &gMemoryPools[poolCount].slots[0];
+    slots += numSlots;
+    if ((s32) slots & 0xF) {
+        firstSlot->data = (u8 *) (((s32) slots & ~0xF) + 0x10);
+    } else {
+        firstSlot->data = (u8 *) slots;
+    }
+    firstSlotSize = poolSize - (numSlots * sizeof(MemoryPoolSlot));
+    firstSlot->size = firstSlotSize;
+    firstSlot->flags = SLOT_FREE;
+    firstSlot->prevIndex = MEMSLOT_NONE;
+    firstSlot->nextIndex = MEMSLOT_NONE;
+    gMemoryPools[poolCount].curNumSlots++;
+    if (poolCount == POOL_MAIN) {
+        D_800FDD90 = firstSlotSize;
+    }
+    D_800FDD98[poolCount] = firstSlotSize;
+    return gMemoryPools[poolCount].slots;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004A4A4);
+#endif
 
 /**
  * Reserves and returns memory from the main memory pool.
  * JFG: no assert checks; the colour tag is replaced by a debug tag (see mempool_alloc_fixed).
- * Official Name: mmAlloc
  */
 void *mempool_alloc_safe(s32 size, u32 colourTag) {
     MemoryPoolSlot *addr;
@@ -357,7 +398,65 @@ s32 mempool_get_pool(u8 *address) {
     return i;
 }
 
+/**
+ * Clears the current slot of all information, effectively freeing the allocated memory.
+ * Unused slots before and after will be merged with this slot
+ * JFG: also adds the slot's size back to the free counters.
+ */
+#ifdef NON_MATCHING
+/* NON_MATCHING: the slot->flags store and the free-counter updates are scheduled differently (15 words) */
+void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
+    s32 nextIndex;
+    s32 prevIndex;
+    s32 tempNextIndex;
+    MemoryPool *pool;
+    MemoryPoolSlot *slots;
+    MemoryPoolSlot *slot;
+    MemoryPoolSlot *nextSlot;
+    MemoryPoolSlot *prevSlot;
+
+    pool = &gMemoryPools[poolIndex];
+    slots = pool->slots;
+    pool = pool; // Fakematch
+    slot = &slots[slotIndex];
+    nextIndex = slot->nextIndex;
+    prevIndex = slot->prevIndex;
+    slot = slot; // Fakematch
+    nextSlot = &slots[nextIndex];
+    prevSlot = &slots[prevIndex];
+    if (poolIndex == POOL_MAIN) {
+        D_800FDD90 += slot->size;
+    }
+    D_800FDD98[poolIndex] += slot->size;
+    slot->flags = SLOT_FREE;
+    if (nextIndex != MEMSLOT_NONE) {
+        if (nextSlot->flags == SLOT_FREE) {
+            slot->size += nextSlot->size;
+            tempNextIndex = nextSlot->nextIndex;
+            slot->nextIndex = tempNextIndex;
+            if (tempNextIndex != MEMSLOT_NONE) {
+                slots[tempNextIndex].prevIndex = slotIndex;
+            }
+            pool->curNumSlots--;
+            slots[pool->curNumSlots].index = nextIndex;
+        }
+    }
+    if (prevIndex != MEMSLOT_NONE) {
+        if (prevSlot->flags == SLOT_FREE) {
+            prevSlot->size += slot->size;
+            tempNextIndex = slot->nextIndex;
+            prevSlot->nextIndex = tempNextIndex;
+            if (tempNextIndex != MEMSLOT_NONE) {
+                slots[tempNextIndex].prevIndex = prevIndex;
+            }
+            pool->curNumSlots--;
+            slots[pool->curNumSlots].index = slotIndex;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/memory", func_8004AD2C);
+#endif
 
 /**
  * Return the address of the first slot of a given memory pool.
@@ -378,7 +477,6 @@ s32 func_8004AEAC(void) {
  * Updates the linked list with any entries before and after then returns the new slot index.
  * If the region cannot fit, return the old slot instead.
  * JFG: a taken slot's size is taken off the free counters.
- * Official Name: mmSetSlot
  */
 s32 mempool_slot_assign(MemoryPools poolIndex, s32 slotIndex, s32 size, s32 slotIsTaken, s32 newSlotIsTaken,
                         u32 colourTag) {

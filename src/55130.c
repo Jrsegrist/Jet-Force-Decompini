@@ -370,7 +370,33 @@ s32 func_80055234(void) {
 
 extern u8 D_800A32A0;
 
+#ifdef NON_MATCHING
+/**
+ * JFG: fill a buffer with zeros, or with -1 when D_800A32A0 is clear, and write the cache back.
+ * NON_MATCHING: register numbering only (target keeps the pointer in a2, the counter in v1).
+ */
+void func_80055260(void *buffer, s32 size) {
+    s32 *ptr = buffer;
+    s32 count;
+
+    if (D_800A32A0) {
+        count = size >> 2;
+        while (count--) {
+            *ptr = 0;
+            ptr++;
+        }
+    } else {
+        count = size >> 2;
+        while (count--) {
+            *ptr = -1;
+            ptr++;
+        }
+    }
+    osWritebackDCacheAll();
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055260);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800552DC);
 

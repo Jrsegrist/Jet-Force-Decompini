@@ -115,28 +115,41 @@ s8 func_800761C8(u16 *arg0) {
     return D_800A74F0[(u8) (arg0[1] >> 8)];
 }
 
-#define BODY_761E8 \
-    if (cmd != NULL) { \
-        do { \
-            if ((u8) (cmd[1] >> 8) == 0x7F) { \
-                done = TRUE; \
-            } \
-            len = func_800761C8(cmd); \
-            total += len; \
-            if (len != 0) { \
-                count++; \
-                cmd += len >> 1; \
-                if (count > 0x2000) { \
-                    done = TRUE; \
-                } \
-            } else { \
-                total = 0; \
-                done = TRUE; \
-            } \
-        } while (!done); \
-    } \
+#ifdef NON_MATCHING
+/* NON_MATCHING: count and total swapped between s2 and s3 (16 declaration orders tried) */
+/* JFG: the length of the command list at D_800A74C8 (0 if it is broken). */
+s32 func_800761E8() { // JFG: no parameters (the caller passes &D_800A74C8)
+    u16 *cmd = (u16 *) D_800A74C8;
+    s32 len;
+    s32 total = 0;
+    s32 done = FALSE;
+    s32 count = 0;
+
+    if (cmd != NULL) {
+        do {
+            if ((u8) (cmd[1] >> 8) == 0x7F) {
+                done = TRUE;
+            }
+            len = func_800761C8(cmd);
+            total += len;
+            if (len != 0) {
+                count++;
+                cmd += len >> 1;
+                if (count > 0x2000) {
+                    done = TRUE;
+                }
+            } else {
+                total = 0;
+                done = TRUE;
+            }
+        } while (!done);
+    }
     return total;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800761E8);
+s32 func_800761E8(s32 *arg0);
+#endif
 
 extern s32 *D_800A74BC;
 
@@ -244,7 +257,24 @@ void func_80076A5C(u8 index, u16 soundId) {
     }
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: the audio point is loaded into a0 (target: v0, moved to a0 in the jal delay slot) */
+void func_80076ADC(u8 index) {
+    AnimPath *path = D_801045B0[index];
+    AnimObject *obj;
+
+    if (path != NULL) {
+        obj = path->obj;
+        if (obj != NULL) {
+            if (obj->audioPoint != NULL) {
+                audspat_point_stop(obj->audioPoint);
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076ADC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076B44);
 
@@ -278,11 +308,6 @@ void func_80077060(void) {
         func_80077158();
     }
 }
-
-extern s32 D_800A74B4;
-extern s32 *D_801045B4;
-void *mempool_alloc_safe(s32 size, u32 colourTag);
-s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800770A4);
 

@@ -108,7 +108,60 @@ void func_80023FA4(f32 *pos, CamLight *light) {
 
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80024044);
 
+#ifdef NON_MATCHING
+/**
+ * JFG: of count RGBA colours, each channel of the one brightest in it (times alpha), and the top alpha.
+ * NON_MATCHING: 22 of 64 words: the loop is one instruction short (the target copies the count in
+ * the loop) and its registers differ.
+ */
+void func_80024330(s32 count, u8 *colours, u8 *outRed, u8 *outGreen, u8 *outBlue, u8 *outAlpha) {
+    s32 blue, green, red;
+    s32 maxBlue, maxGreen, maxRed;
+    s32 maxAlpha;
+    s32 value;
+    s32 alpha;
+    s32 product;
+
+    blue = 0;
+    green = 0;
+    red = 0;
+    maxBlue = 0;
+    maxGreen = 0;
+    maxRed = 0;
+    maxAlpha = 0;
+    while (count--) {
+        value = colours[0];
+        alpha = colours[3];
+        product = value * alpha;
+        if (maxRed < product) {
+            maxRed = product;
+            red = value;
+        }
+        value = colours[1];
+        product = value * alpha;
+        if (maxGreen < product) {
+            maxGreen = product;
+            green = value;
+        }
+        value = colours[2];
+        colours += 4;
+        product = value * alpha;
+        if (maxBlue < product) {
+            maxBlue = product;
+            blue = value;
+        }
+        if (maxAlpha < alpha) {
+            maxAlpha = alpha;
+        }
+    }
+    *outRed = red;
+    *outGreen = green;
+    *outBlue = blue;
+    *outAlpha = maxAlpha;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80024330);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80024430);
 

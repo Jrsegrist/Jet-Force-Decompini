@@ -122,7 +122,38 @@ s32 func_80043D08(s32 level) {
     return count;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: one word, the inner compare is bne region,regions[j] (target: regions[j],region) */
+/* JFG: list the different regions of a world's levels; returns how many. */
+s32 func_80043D70(s32 world, u8 *regions) {
+    s32 count = 0;
+    s32 i;
+    s32 j;
+    s32 found;
+    u8 region;
+
+    for (i = 0; i < D_800FB124; i++) {
+        if (world == D_800FB12C[i].world) {
+            region = D_800FB12C[i].region;
+            if (region != 0 && region != 0xFF) {
+                found = FALSE;
+                for (j = 0; j < count; j++) {
+                    if (region == regions[j]) {
+                        found = TRUE;
+                        j = count;
+                    }
+                }
+                if (!found) {
+                    regions[count++] = region;
+                }
+            }
+        }
+    }
+    return count;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043D70);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043E3C);
 

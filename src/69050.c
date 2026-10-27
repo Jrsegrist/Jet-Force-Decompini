@@ -339,7 +339,7 @@ void fb_size(u32 *width, u32 *height);
  * Draws a simple fillrect covering the whole screen that fades in or out.
  * DKR: transition_render_fullscreen.
  */
-void func_8006C124(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+void func_8006C124(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     u32 width;
     u32 height;
 
@@ -396,7 +396,7 @@ void transition_update_shape(s32 updateRate) {
  * Renders a transition effect on screen that will close in from both sides horizonally.
  * DKR: transition_render_barndoor_hor (JFG: 13 vertices).
  */
-void func_8006CA30(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+void func_8006CA30(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     rendermode_reset(dList);
     gSPDisplayList((*dList)++, D_800A6928);
     gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 13, 0);
@@ -408,7 +408,7 @@ void func_8006CA30(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
  * Renders a transition effect on screen that will close in from both sides vertically.
  * DKR: transition_render_barndoor_vert (JFG: 13 vertices).
  */
-void func_8006CB28(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+void func_8006CB28(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     rendermode_reset(dList);
     gSPDisplayList((*dList)++, D_800A6928);
     gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 13, 0);
@@ -420,7 +420,7 @@ void func_8006CB28(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
  * Renders a transition effect closing in from the corners.
  * DKR: transition_render_barndoor_diag (JFG: 11 vertices).
  */
-void func_8006CC20(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+void func_8006CC20(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     rendermode_reset(dList);
     gSPDisplayList((*dList)++, D_800A6928);
     gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 11, 0);
@@ -479,7 +479,7 @@ void transition_update_blank(s32 updateRate) {
  * Fill the whole screen with a solid colour.
  * DKR: transition_render_blank.
  */
-void func_8006CFC0(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+void func_8006CFC0(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     u32 width;
     u32 height;
 

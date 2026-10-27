@@ -52,10 +52,10 @@ typedef struct ObjProperties_Timer {
     /* 0x06 */ s16 unk6;
 } ObjProperties_Timer;
 
-typedef struct ObjProperties_SkyControl {
+typedef struct ObjProperties_SkyTrigger {
     /* 0x00 */ s32 setting;
     /* 0x04 */ s32 radius;
-} ObjProperties_SkyControl;
+} ObjProperties_SkyTrigger;
 
 typedef struct ObjProperties_Common {
     /* 0x00 */ s32 unk0;
@@ -65,7 +65,7 @@ typedef struct ObjProperties_Common {
 typedef union ObjectProperties {
     ObjProperties_Common common;
     ObjProperties_Timer timer;
-    ObjProperties_SkyControl skyControl;
+    ObjProperties_SkyTrigger skyTrigger;
 } ObjectProperties;
 
 typedef struct ObjectHeader {
@@ -140,7 +140,22 @@ void func_80024F40(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
 
 void free_object(Object *object);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: frame 0x30 vs 0x38 (flags at 0x34, prevFrame at 0x2C in the target) and the load order */
+/* JFG: animate the sprite (mode 9); free the object when its animation wrapped. */
+void func_80024F94(u8 *obj, s32 updateRate) {
+    s32 flags = 9;
+    f32 prevFrame;
+
+    prevFrame = *(f32 *) (obj + 0x28);
+    func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+    if (*(f32 *) (obj + 0x28) < prevFrame) {
+        free_object((Object *) obj);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F94);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_8002500C);
 
@@ -195,13 +210,11 @@ void set_skydome_visbility(s32 renderSky);
 void func_80026CAC(Object *obj, UNUSED s32 updateRate) {
     Object *objs[8];
 
-    if (obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, obj->properties.skyControl.radius, 0,
+    if (obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, obj->properties.skyTrigger.radius, 0,
                        objs)) {
-        set_skydome_visbility(obj->properties.skyControl.setting);
+        set_skydome_visbility(obj->properties.skyTrigger.setting);
     }
 }
-
-void func_80013924(s32 arg0, s32 arg1, s32 arg2); // JFG: queue a texture scroll
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026D14);
 
@@ -401,19 +414,6 @@ void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80028034);
-
-typedef struct SprayState {
-    /* 0x00 */ f32 scale;
-    /* 0x04 */ f32 unk4;
-    /* 0x08 */ f32 unk8;
-    /* 0x0C */ f32 unkC;
-} SprayState;
-
-f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
-f32 func_80049C34(s32 angle); // sine of a 16-bit angle
-s32 rand_range(s32 min, s32 max);
-extern f32 D_800ABB0C;
-extern f32 D_800ABB10;
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
 

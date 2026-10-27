@@ -234,7 +234,42 @@ void func_80013D3C(void) {
 extern f32 D_800AB648; // a .rodata constant, not split out yet
 void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
+#ifdef NON_MATCHING
+/**
+ * JFG: add a track light in the first free slot.
+ * NON_MATCHING: 11 words: the stores in the found-slot block are scheduled differently and the
+ * light's spill slot is off by one word.
+ */
+TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue) {
+    s32 i;
+    TrackLight *light;
+
+    if (outerRadius <= 0.0f) {
+        return NULL;
+    }
+    light = D_800A0D78;
+    i = D_800A0D70;
+    while (i--) {
+        if (light->outerRadius == 0.0f) {
+            light->x = x;
+            light->y = y;
+            light->outerRadius = outerRadius;
+            light->outerRadiusSquare = outerRadius * outerRadius;
+            light->innerRadius = innerRadius;
+            light->innerRadiusSquare = innerRadius * innerRadius;
+            light->z = z;
+            light->falloff = D_800AB648 / (outerRadius - innerRadius);
+            func_80013F48((u8 *) light, red, green, blue, 255);
+            D_800A0D74++;
+            return light;
+        }
+        light++;
+    }
+    return NULL;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
+#endif
 
 extern s32 D_800A0D74;
 
@@ -515,7 +550,39 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80018024);
 
 f32 sqrtf(f32 x);
 
+#ifdef NON_MATCHING
+/**
+ * JFG: where a ray (origin, unit direction) meets a sphere; FALSE if it misses.
+ * NON_MATCHING: frame 0x38 (target 0x48, so more locals), and b / b*b swap FP registers.
+ */
+s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar) {
+    f32 dx, dy, dz;
+    f32 b;
+    f32 b2;
+    f32 c;
+    f32 d;
+    s32 hit;
+
+    dx = origin[0] - centre[0];
+    dy = origin[1] - centre[1];
+    dz = origin[2] - centre[2];
+    hit = FALSE;
+    b = dx * dir[0] + dy * dir[1] + dz * dir[2];
+    b2 = b * b;
+    c = (dx * dx + dy * dy + dz * dz) - radius * radius;
+    if (c <= b2) {
+        hit = TRUE;
+    }
+    if (hit) {
+        d = sqrtf(b2 - c);
+        *tNear = -b - d;
+        *tFar = -b + d;
+    }
+    return hit;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800183D4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800184B4);
 

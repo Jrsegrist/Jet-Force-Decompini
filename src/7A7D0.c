@@ -108,7 +108,34 @@ typedef struct SphereSet {
     /* 0x40 */ CollisionSphere *spheres;
 } SphereSet;
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: float register allocation (r/dx/dy/dz in f16-f22 rotated against the target) */
+/* JFG: TRUE if the sphere overlaps any sphere of the set. */
+s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
+    s32 i = set->count;
+    CollisionSphere *other = set->spheres;
+    f32 x = sphere->pos.x;
+    f32 y = sphere->pos.y;
+    f32 z = sphere->pos.z;
+    f32 radius = sphere->radius;
+    f32 dx, dy, dz, r;
+
+    while (i--) {
+        r = other->radius + radius;
+        r *= r;
+        dx = other->pos.x - x;
+        dy = other->pos.y - y;
+        dz = other->pos.z - z;
+        other++;
+        if (dx * dx + dy * dy + dz * dz < r) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D0B4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
 

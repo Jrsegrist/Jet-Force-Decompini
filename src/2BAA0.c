@@ -61,7 +61,23 @@ f32 sqrtf(f32 x);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
 void func_80052734(u8 *arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 8 words: register allocation / scheduling around the sound-table index and the rand_range call */
+/* JFG: play a random sound of set `index` (per character) at obj if it is moving fast enough. */
+void func_8002B064(u8 *obj, u8 index) {
+    u8 *racer = *(u8 **) (obj + 0x68);
+    SoundSet *set = &D_800A26C4[index];
+    s16 *sounds = set->sounds + set->count * (racer[1] & 3);
+    s16 sound = sounds[rand_range(0, set->count - 1)];
+
+    if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C) + *(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24))) {
+        audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4, NULL);
+        func_80052734(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B064);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B1D4);
 
@@ -403,9 +419,6 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800339D8);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033BB8);
 
-extern s16 D_800A2DB0;
-u8 func_8005AAB8(s32 index);
-
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033D74);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033ED4);
@@ -477,7 +490,34 @@ typedef struct PoseTarget {
     /* 0x0C */ u8 padC[8];
 } PoseTarget;
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 words: the target schedules the lb of 0x530 before the sw to 0x360 */
+/* JFG: start moving towards the points of a new pose: per-step deltas (0x424) from the current points (0x364). */
+void func_80035514(UNUSED s32 arg0, u8 *racer, PoseTarget *poses, u8 index) {
+    PoseTarget *pose = &poses[index];
+    f32 *from = (f32 *) (racer + 0x364);
+    f32 *step;
+    s32 i;
+    f32 steps;
+
+    if (pose != *(PoseTarget **) (racer + 0x360)) {
+        racer[0x531] = pose->unk4;
+        *(PoseTarget **) (racer + 0x360) = pose;
+        racer[0x535] = pose->steps;
+        step = (f32 *) (racer + 0x424);
+        steps = (s8) racer[0x535];
+        for (i = 0; i < (s8) racer[0x530]; i++) {
+            step[0] = ((*(PoseTarget **) (racer + 0x360))->points[i][0] - from[0]) / steps;
+            step[1] = ((*(PoseTarget **) (racer + 0x360))->points[i][1] - from[1]) / steps;
+            step[2] = ((*(PoseTarget **) (racer + 0x360))->points[i][2] - from[2]) / steps;
+            from += 3;
+            step += 3;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035514);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 
@@ -507,7 +547,30 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80036DBC);
 extern f32 D_800ABF74;
 extern f32 D_800ABF78;
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 words: operand order of the two `cur + ...` add.s instructions */
+/* JFG: ease the value at 0x48 towards the target at 0x4C; on arrival the target becomes 1.0. */
+void func_800370D0(u8 *obj, f32 rate) {
+    f32 cur = *(f32 *) (obj + 0x48);
+    f32 target = *(f32 *) (obj + 0x4C);
+
+    if (cur < target) {
+        *(f32 *) (obj + 0x48) = cur + ((target - cur) * 0.125f + D_800ABF74) * rate;
+        if (target <= *(f32 *) (obj + 0x48)) {
+            *(f32 *) (obj + 0x48) = target;
+            *(f32 *) (obj + 0x4C) = 1.0f;
+        }
+    } else {
+        *(f32 *) (obj + 0x48) = cur + ((target - cur) * 0.125f - D_800ABF78) * rate;
+        if (*(f32 *) (obj + 0x48) <= target) {
+            *(f32 *) (obj + 0x48) = target;
+            *(f32 *) (obj + 0x4C) = 1.0f;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800370D0);
+#endif
 
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
 s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
@@ -579,7 +642,28 @@ extern u8 D_800A2DE8[8];
 extern s32 D_800A2DF0[8];
 void func_8004B3D8(s32 arg0, u8 arg1, s32 arg2);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: the unused third parameter gets a home store (sw a2) the target lacks; rest identical */
+void func_8003733C(s32 arg0, s32 flags, UNUSED s32 arg2, s32 index, s32 level) {
+    if (index >= 0 && index < 8) {
+        flags |= D_800A2DD8[index];
+    }
+    if (level >= 0x20) {
+        if (level >= 0x80) {
+            flags |= 4;
+        } else if (level >= 0x40) {
+            flags |= 2;
+        } else {
+            flags |= 1;
+        }
+    }
+    if (flags != 0) {
+        func_8004B3D8(arg0, D_800A2DE8[flags & 7], D_800A2DF0[flags & 7]);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003733C);
+#endif
 
 s32 func_800373E4(u8 *chr, s32 weapon) {
     switch (weapon) {
@@ -653,7 +737,46 @@ s32 func_800374C8(u8 *racer, u8 *chr) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037550);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 6 words: register allocation of the loop constants (15 / owned mask) */
+/* JFG: switch to the next owned weapon (slots 0..15, wrapping). */
+void func_80038324(u8 *obj, Racer *racer) {
+    s32 weapon;
+    s32 cur;
+    u8 *chr;
+    u16 bit;
+    u16 owned;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    cur = chr[0x70];
+    bit = 1 << cur;
+    owned = *(u16 *) (chr + 0xA);
+    weapon = cur;
+    do {
+        if (weapon == 15) {
+            weapon = 0;
+            bit = 1;
+        } else {
+            weapon++;
+            bit <<= 1;
+        }
+    } while (!(owned & bit));
+    if (weapon != cur) {
+        if (cur == 2 && racer->sound != 0) {
+            func_80001228(racer->sound);
+            racer->soundId = 0;
+        }
+        chr[0x70] = weapon;
+        racer->flags.unk7 = 0;
+        racer->flags.weaponDir |= 2;
+        racer->flags.unk30 = 0;
+        func_8003B820(obj);
+        func_80031F44(racer);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80038324);
+#endif
 
 /* JFG: switch to `weapon` if owned and not already selected; returns 1 if switched. */
 s32 func_80038430(u8 *obj, Racer *racer, s32 weapon) {
@@ -786,21 +909,6 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039308);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039544);
 
-typedef struct SpawnB6 {
-    /* 0x00 */ s16 objectID;
-    /* 0x02 */ u8 size;
-    /* 0x04 */ s16 x, y, z;
-    /* 0x0A */ u8 padA[6];
-    /* 0x10 */ s32 owner;
-    /* 0x14 */ s16 unk14[3][3];
-    /* 0x26 */ s16 unk26;
-    /* 0x28 */ u8 unk28;
-    /* 0x29 */ u8 unk29;
-    /* 0x2A */ u8 unk2A;
-} SpawnB6;
-
-extern u8 D_800A1553;
-
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800396CC);
 
 typedef struct SpawnF0 {
@@ -893,7 +1001,34 @@ typedef struct Spawn39 {
 f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 15 words: temp registers in the float-to-s16 conversions are one off (target skips t8) */
+/* JFG: spawn object 0x39 at (x, y, z), moving at `speed` along (yaw, pitch). */
+void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed) {
+    Spawn39 setup;
+    u8 *obj;
+
+    setup.objectID = 0x39;
+    setup.size = 0xA;
+    setup.unk3 = 0;
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.owner = owner;
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(f32 *) (obj + 0x1C) = -func_80049C34(yaw) * func_80049C30(pitch) * speed;
+        *(f32 *) (obj + 0x20) = func_80049C34(pitch) * speed;
+        *(f32 *) (obj + 0x24) = -func_80049C30(yaw) * func_80049C30(pitch) * speed;
+        sound_play(0x2F, NULL);
+        func_8002AEA0(owner, 2);
+        *(s32 *) (obj + 0x3C) = 0;
+        func_800478A4(9);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039A38);
+#endif
 
 typedef struct SpawnGrenade {
     /* 0x00 */ s16 objectID;

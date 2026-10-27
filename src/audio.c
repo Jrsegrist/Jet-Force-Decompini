@@ -135,7 +135,18 @@ void func_800005F8(f32 time, u8 volume) {
     }
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 words: the product lands in $v1 in the target ($a1 here) */
+/* JFG: fade the music to volume, scaled by the current sequence's volume. */
+void func_80000724(f32 time, u8 volume) {
+    if (volume >= 0x80) {
+        volume = 0x7F;
+    }
+    func_800005F8(time, (D_800E950C[gCurrentSequenceID].volume * volume) / 127);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000724);
+#endif
 
 void func_80000798(void) {
     D_800A0680 = 0;

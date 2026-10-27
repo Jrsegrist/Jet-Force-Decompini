@@ -168,9 +168,53 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BC10);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BCB4);
+/* JFG: erase a save slot's flash sector (fill its pages with 0xFF). */
+void func_8004BCB4(s32 slot, UNUSED s32 arg1) {
+    s32 page = D_800A3474[slot];
+    u8 *buf = mempool_alloc_safe(0x80, -1);
+    s32 i;
+    s32 j;
 
+    i = 0;
+    while (i < 0x80) {
+        buf[i++] = 0xFF;
+    }
+    if (is_reset_pressed() == 0) {
+        func_80083EB0(page);
+        for (j = 0; j < 0x80; j++) {
+            func_8004BF98(page++, buf);
+        }
+    }
+    mempool_free(buf);
+}
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: buf and i swap saved registers (target buf s3, i s4) and 0xFF goes to a0 */
+/* JFG: erase the first 8 flash sectors. */
+void func_8004BD78(void) {
+    s32 i;
+    u8 *buf = mempool_alloc_safe(0x80, -1);
+    u8 *p = buf;
+    s32 j;
+    s32 page;
+
+    for (i = 0; i < 0x80; i++) {
+        *p++ = 0xFF;
+    }
+    if (is_reset_pressed() == 0) {
+        page = 0;
+        for (i = 0; i < 8; i++) {
+            func_80083EB0(page);
+            for (j = 0; j < 0x80; j++) {
+                func_8004BF98(page++, buf);
+            }
+        }
+    }
+    mempool_free(buf);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BD78);
+#endif
 
 s32 func_8004BE44(u8 *data) {
     s32 sum = 5;

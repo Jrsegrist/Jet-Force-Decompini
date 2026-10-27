@@ -204,8 +204,6 @@ f32 func_8003FA6C(f32 x, f32 y, f32 z) {
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
-extern u8 D_800A3170[4]; // JFG: a per-camera byte
-
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FAEC);
 
 /**
@@ -719,7 +717,27 @@ f32 func_800420F0(f32 x, f32 y, f32 z) {
     return result;
 }
 
+#ifdef NON_MATCHING
+/**
+ * Copy the ortho matrix.
+ * JFG: (from DKR's mtx_ortho) its last element is half the framebuffer width.
+ * NON_MATCHING: one extra lui: the target shares %hi of gOrthoMatrixF across its first loads,
+ * which needs the matrix defined in this file (an extern gets a new lui per offset).
+ */
+void func_80042134(MtxF *out) {
+    UNUSED s32 pad;
+    u32 width, height;
+    s32 i;
+
+    fb_size(&width, &height);
+    for (i = 0; i < 15; i++) {
+        ((f32 *) out)[i] = ((f32 *) gOrthoMatrixF)[i];
+    }
+    (*out)[3][3] = width >> 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
+#endif
 
 typedef struct CameraShake {
     /* 0x00 */ s16 unk0; // JFG: the end of each phase, in frames

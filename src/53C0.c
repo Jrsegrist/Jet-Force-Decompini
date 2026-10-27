@@ -160,7 +160,40 @@ extern s32 D_800F2CD8[]; // JFG: two lists of level object entries
 extern s32 D_800F2CE0[]; // JFG: their sizes in bytes
 void func_80005CB0(LevelObjectEntry53 *entry);
 
+#ifdef NON_MATCHING
+/**
+ * JFG: take every entry of the object and kind out of both lists (the second first).
+ * NON_MATCHING: 4 words: the two list pointers are set up, and *size / *list reloaded, in the other order.
+ */
+void func_80005BD0(s32 objectID, s32 kind) {
+    s32 *list;
+    s32 *size;
+    s32 i;
+    u8 *entry;
+    u8 *end;
+
+    list = &D_800F2CD8[1];
+    size = &D_800F2CE0[1];
+    i = 2;
+    while (i--) {
+        entry = (u8 *) *list;
+        end = *size + entry;
+        while (entry < end) {
+            if (objectID == ((LevelObjectEntry53 *) entry)->objectID &&
+                kind == ((LevelObjectEntry53 *) entry)->unk11) {
+                func_80005CB0((LevelObjectEntry53 *) entry);
+                end = *size + (u8 *) *list;
+            } else {
+                entry += ((LevelObjectEntry53 *) entry)->size;
+            }
+        }
+        list--;
+        size--;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005BD0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005CB0);
 
@@ -307,7 +340,32 @@ typedef struct ObjectAttachment {
     /* 0x0A */ s8 unkA;
 } ObjectAttachment;
 
+#ifdef NON_MATCHING
+/**
+ * JFG: set a byte of every attachment of the objects whose header has unk1E clear.
+ * NON_MATCHING: 2 words: gObjectCount is loaded before gObjectListStart (target: the other order).
+ */
+void func_80009928(s32 value) {
+    s32 i;
+    s32 j;
+    Object *obj;
+    ObjectAttachment *attachment;
+
+    for (i = gObjectListStart; i < gObjectCount; i++) {
+        obj = gObjPtrList[i];
+        if (obj->header->unk1E == 0) {
+            for (j = 0; j < obj->header->numAttachments; j++) {
+                attachment = obj->attachments[j];
+                if (attachment != NULL) {
+                    attachment->unkA = value;
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80009928);
+#endif
 
 /**
  * Make the next call of move_object never mark the object as out of bounds.
@@ -772,7 +830,28 @@ f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
 extern s32 D_800F2D20[];
 void func_80054530(); // a module function (patched in by the runtime linker)
 
+#ifdef NON_MATCHING
+/**
+ * JFG: add an entry to the D_800F2D20 list; when full, the oldest goes (to a module function first).
+ * NON_MATCHING: one extra lui: the target shares %hi of D_800F2D20 between two stores of the
+ * unrolled shift (likely needs the list defined in this file).
+ */
+void func_80011D1C(s32 entry) {
+    s32 i;
+
+    if (D_800F2D40 >= 8) {
+        func_80054530(D_800F2D20[0]);
+        for (i = 0; i < 7; i++) {
+            D_800F2D20[i] = D_800F2D20[i + 1];
+        }
+        D_800F2D40 = 7;
+    }
+    D_800F2D20[D_800F2D40] = entry;
+    D_800F2D40++;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011D1C);
+#endif
 
 /* JFG: remove an entry from the D_800F2D20 list (the later ones move down). */
 void func_80011DEC(s32 entry) {

@@ -113,19 +113,6 @@ void func_80044F24(s32 step) {
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80044FAC);
 
-/* JFG: a screen rectangle (8 per frame) */
-typedef struct ScreenRect {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ u8 pad4;
-    /* 0x05 */ u8 width;
-    /* 0x06 */ u8 height;
-    /* 0x07 */ u8 unk7;
-} ScreenRect;
-extern ScreenRect D_800FD750[8];
-extern s32 D_800A3378;
-void fb_size(s32 *width, s32 *height);
-
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004581C);
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045914);
@@ -206,7 +193,33 @@ u16 func_8005AA30(void);
 void func_8005AA40(s32 volume);
 void func_80047608(s32 arg0, s32 level, s32 arg2);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: in the START loop the target puts the andi before i++ and ORs as (start, held) */
+/* JFG: the boot screen; START on any controller sets D_800A4FB0, after 10 frames the settings are applied. */
+void func_80045E04(UNUSED s32 updateRate) {
+    s32 i;
+    s32 start;
+
+    for (i = 0, start = 0; i < 4; i++) {
+        start = start | (input_held(i) & START_BUTTON);
+    }
+    if (start) {
+        D_800A4FB0 = 1;
+    }
+    if (++sBootDelayTimer >= 10) {
+        func_8005A7E0(get_language());
+        func_8005A834(func_8005A804());
+        func_8005A960(func_8005A950());
+        func_8005A99C(func_8005A98C());
+        func_8005A9F4(func_8005A9E4());
+        func_8005AA40(func_8005AA30());
+        func_8005A8C4();
+        func_80047608(2, 0, 0);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045E04);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045F00);
 
@@ -455,7 +468,38 @@ void func_8004797C(void) {
     D_800FEFCA = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047A20);
+void func_80047A20(void) {
+    s32 i;
+    s32 j;
+    s32 n;
+    u8 *src;
+    u8 *dst;
+    MultiPlayer *mp;
+    CharacterData *chr;
+    u8 *id;
+
+    for (i = 0; i < 4; i++) {
+        mp = &D_800FED50[i];
+        chr = &D_800FEFD8[i];
+        id = &D_800FEFD0[i];
+        for (j = 0; j < 4; j++) {
+            D_800FED50[i].unk0[j] = 0;
+            D_800FED50[i].unk8[j] = 0;
+        }
+        mp->unk10 = 0;
+        mp->unk13 = D_800A4FE0;
+        mp->unk8C = i;
+        mp->unk90 = 0;
+        mp->unk15 = 0;
+        mp->unk12 = *id;
+        src = (u8 *) chr;
+        dst = (u8 *) &mp->chr;
+        n = sizeof(CharacterData);
+        while (n--) {
+            *dst++ = *src++;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047AE0);
 
@@ -463,7 +507,22 @@ GameStats *func_80047C0C(void) {
     return D_800FD7D4;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target schedules `character & 3` into the first delay slot (mine: the lui of D_800FD7D4) */
+u8 *func_80047C1C(s32 player, s32 character) {
+    if (D_800A4FC4 != 0 && D_800A4FD0 >= 2) {
+        if (player < 0 || player >= D_800A4FD0) {
+            player = 0;
+        }
+        return (u8 *) &D_800FED50[player].chr;
+    }
+    return (u8 *) &D_800FD7D4->chars[character & 3];
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047C1C);
+#endif
+
+u8 *func_80047C1C(s32 player, s32 character);
 extern s32 D_800A32C8; // JFG: characters whose items changed (one bit each)
 
 /* JFG: give a player's character an item. */
@@ -729,10 +788,6 @@ s32 func_800485C8(s32 player) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80048630);
-
-extern s32 D_800A3398;
-extern s32 D_800A339C[];
-extern s32 D_800A32D0;
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_800487B8);
 
