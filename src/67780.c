@@ -72,6 +72,16 @@ void stop_all_threads_except_main(void) {
     }
 }
 
+extern s32 D_800A64D0;
+extern s32 D_800A64D4;
+extern s32 D_800A64D8;
+extern void *D_80102554;
+extern u8 D_80102558[0x200];
+extern char D_800AE850[];
+extern char D_800AE858[];
+s32 write_controller_pak_file(s32 controllerIndex, s32 fileNumber, char *fileName, char *fileExt, u8 *dataToWrite,
+                              s32 fileSize);
+
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066D28);
 
 void func_80066D28(OSThread *thread);

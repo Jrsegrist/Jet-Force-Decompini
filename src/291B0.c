@@ -68,7 +68,64 @@ INCLUDE_ASM("asm/nonmatchings/291B0", func_800291BC);
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029688);
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002993C);
+typedef struct BlastSprite {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ u8 padA[6];
+    /* 0x10 */ u8 colourCycle1[0x10];
+    /* 0x20 */ u8 colourCycle2[0x10];
+    /* 0x30 */ void *entry;
+} BlastSprite;
+typedef struct BlastSpriteObject {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ u8 padC[0x30];
+    /* 0x3C */ s32 unk3C;
+    /* 0x40 */ u8 pad40[0x28];
+    /* 0x68 */ BlastSprite *data;
+    /* 0x6C */ void **sprite;
+} BlastSpriteObject;
+typedef struct BlastSpriteEntry {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[4];
+    /* 0x0E */ s16 spriteID;
+    /* 0x10 */ u8 pad10[2];
+    /* 0x12 */ u16 scale;
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 colourCycle1;
+    /* 0x18 */ u8 colourCycle2;
+} BlastSpriteEntry;
+void sprite_free(void *sprite);
+void *tex_load_sprite(s32 spriteID, s32 arg1);
+void func_80057CEC(void *cycle, s32 assetID);
+extern f32 D_800ABB4C;
+
+/* JFG: (re)set a sprite object from its entry. */
+void func_8002993C(BlastSpriteObject *obj, BlastSpriteEntry *entry) {
+    BlastSprite *data = obj->data;
+
+    sprite_free(*obj->sprite);
+    *obj->sprite = tex_load_sprite(entry->spriteID, 0);
+    obj->scale = entry->scale * D_800ABB4C;
+    data->x = entry->x;
+    data->y = entry->y;
+    data->z = entry->z;
+    data->unk8 = 0;
+    data->unk6 = 0;
+    data->unk9 = entry->unk16;
+    data->entry = entry;
+    obj->unk3C = 0;
+    func_80057CEC(data->colourCycle1, entry->colourCycle1);
+    func_80057CEC(data->colourCycle2, entry->colourCycle2);
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029A20);
 

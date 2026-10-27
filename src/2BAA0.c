@@ -41,12 +41,25 @@ typedef struct Racer {
 s32 func_8003B51C(s32 value, s32 delta);
 void func_8002AEA0(s32 arg0, s32 arg1);
 u8 *func_80047C1C(s32 player, s32 character);
+void func_8003B820(u8 *obj);
 void *spawn_object(void *entry, s32 arg1);
 void func_800478A4(s32 weapon);
 void func_80001228(s32 soundHandle);
 void sound_play(u16 soundID, s32 *handlePtr);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002AEA0);
+
+typedef struct SoundSet {
+    /* 0x00 */ u8 count;
+    /* 0x04 */ s16 *sounds;
+} SoundSet;
+
+extern SoundSet D_800A26C4[];
+extern f32 D_800ABDA8;
+s32 rand_range(s32 min, s32 max);
+f32 sqrtf(f32 x);
+void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
+void func_80052734(u8 *arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B064);
 
@@ -210,7 +223,38 @@ void func_8002F50C(UNUSED s32 arg0, u8 *arg1, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F5F0);
+typedef struct Flags94 {
+    u8 unk7 : 1;
+    u8 unk0 : 7;
+} Flags94;
+
+extern u8 D_800A4FC8;
+void func_80031D00(u8 *obj, f32 *x, f32 *y, f32 *z, s32 arg4);
+void ignore_bounds_check(void);
+s32 move_object(u8 *obj, f32 xPos, f32 yPos, f32 zPos);
+void func_80079D1C(u8 *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
+                   f32 arg9, f32 argA, s32 argB);
+
+void func_8002F5F0(u8 *obj, u8 *arg1) {
+    f32 *state = *(f32 **) (obj + 0x68);
+
+    *(s32 *) (state + 9) = *(s32 *) (arg1 + 0xC);
+    D_800A2D40 = 1.0f;
+    func_80031D00(obj, &state[0], &state[1], &state[2], 0);
+    ignore_bounds_check();
+    move_object(obj, state[0] - *(f32 *) (obj + 0xC), state[1] - *(f32 *) (obj + 0x10),
+                state[2] - *(f32 *) (obj + 0x14));
+    *(s16 *) (state + 6) = 0;
+    *(s16 *) ((u8 *) state + 0x1A) = 0;
+    func_80079D1C(obj, -1, 1, 2, 0, 0, 0, 125.0f, 125.0f, 1.0f, 1.0f, 0x11);
+    state[3] = *(f32 *) (obj + 0xC);
+    state[4] = *(f32 *) (obj + 0x10);
+    state[5] = *(f32 *) (obj + 0x14);
+    state[0x48 / 4] = 0.0f;
+    state[0x4C / 4] = 0.0f;
+    ((Flags94 *) (state + 0x94 / 4))->unk7 = D_800A4FC8;
+    *(s32 *) (obj + 0x88) = 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F728);
 
@@ -275,7 +319,55 @@ void func_80031F9C(u8 *start, u8 *end) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031FE8);
+typedef struct RespawnInfo {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ s8 player;
+    /* 0x11 */ s8 character;
+    /* 0x12 */ u8 pad12[2];
+} RespawnInfo;
+
+s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
+void free_object(void *object);
+void func_80032130(u8 *obj, RespawnInfo *info);
+
+/* JFG: put a player back at (x, y, z) and reset its state block. */
+void func_80031FE8(u8 *obj, f32 x, f32 y, f32 z, s16 arg4, s16 arg5, s16 arg6) {
+    RespawnInfo info;
+    u8 *racer = *(u8 **) (obj + 0x68);
+
+    info.player = ((Racer *) racer)->player;
+    info.character = ((Racer *) racer)->character;
+    info.unkE = arg4;
+    info.unkC = arg5;
+    info.unkA = arg6;
+    *(s16 *) (obj + 6) &= ~0x400;
+    *(f32 *) (obj + 0xC) = x;
+    *(f32 *) (obj + 0x10) = y;
+    *(f32 *) (obj + 0x14) = z;
+    *(s16 *) (obj + 0x2E) = get_level_segment_index_from_position(x, y, z);
+    obj[0x39] = 0xFF;
+    if (*(u8 **) (racer + 0x1A0) != NULL) {
+        *(s32 *) (*(u8 **) (*(u8 **) (racer + 0x1A0) + 0x68) + 0xA0) = 0;
+    }
+    if (*(void **) (racer + 0x5BC) != NULL) {
+        free_object(*(void **) (racer + 0x5BC));
+        *(void **) (racer + 0x5BC) = NULL;
+    }
+    func_80031F9C(racer, racer + 0xBC);
+    func_80031F9C(racer + 0xF4, racer + 0x100);
+    func_80031F9C(racer + 0x104, racer + 0x23C);
+    func_80031F9C(racer + 0x340, racer + 0x364);
+    func_80031F9C(racer + 0x510, racer + 0x550);
+    func_80031F9C(racer + 0x568, racer + 0x598);
+    func_80031F9C(racer + 0x5BC, racer + 0x5CA);
+    *(s16 *) (racer + 0x5CA) = 0;
+    func_8003B820(obj);
+    func_80031F44((Racer *) racer);
+    func_80032130(obj, &info);
+}
 
 void func_80032128(s32 arg0) {
 }
@@ -310,6 +402,9 @@ void func_80033920(s32 arg0, s8 *player) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800339D8);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033BB8);
+
+extern s16 D_800A2DB0;
+u8 func_8005AAB8(s32 index);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033D74);
 
@@ -558,8 +653,6 @@ s32 func_800374C8(u8 *racer, u8 *chr) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037550);
 
-void func_8003B820(u8 *obj);
-
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80038324);
 
 /* JFG: switch to `weapon` if owned and not already selected; returns 1 if switched. */
@@ -710,13 +803,153 @@ extern u8 D_800A1553;
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800396CC);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800397E0);
+typedef struct SpawnF0 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 unk10;
+} SpawnF0;
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039918);
+s32 rand_range(s32 min, s32 max);
+
+/* JFG: spawn two objects 0xF0 at (x, y, z) with randomised angles. */
+void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7) {
+    s32 i;
+    u8 *obj;
+    SpawnF0 setup;
+
+    setup.objectID = 0xF0;
+    setup.size = 0x14;
+    setup.unk3 = 0;
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.unk10 = arg7;
+    for (i = 0; i != 2;) {
+        setup.unkA = rand_range(-0x800, 0x800) + arg5;
+        setup.unkC = rand_range(-0x800, 0x800) + arg6;
+        setup.unkE = rand_range(2, 4);
+        obj = spawn_object(&setup, 1);
+        i++;
+        if (obj != NULL) {
+            *(s32 *) (obj + 0x3C) = 0;
+        }
+    }
+}
+
+typedef struct Spawn72 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 unkB;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ s32 owner;
+    /* 0x18 */ u8 unk18;
+} Spawn72;
+
+void func_80039918(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9) {
+    u8 *obj;
+    Spawn72 setup;
+
+    func_800478A4(8);
+    setup.objectID = 0x72;
+    setup.size = 0x1C;
+    setup.unk3 = 0;
+    setup.unk18 = 0;
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.unkC = arg5;
+    setup.unkE = arg6;
+    setup.unk10 = arg7;
+    setup.unkA = arg8;
+    setup.unkB = arg9;
+    setup.owner = owner;
+    obj = spawn_object(&setup, 1);
+    sound_play(0x2F, NULL);
+    func_8002AEA0(owner, 2);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+    }
+}
+
+typedef struct Spawn39 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ s16 padA;
+    /* 0x0C */ s32 owner;
+} Spawn39;
+
+f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
+f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039A38);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039B98);
+typedef struct SpawnGrenade {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ u8 type;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ s32 owner;
+    /* 0x18 */ s8 unk18;
+    /* 0x19 */ s8 unk19;
+} SpawnGrenade;
+
+void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+                   u8 type, u8 argB) {
+    SpawnGrenade setup;
+    u8 *obj;
+    s32 weapon;
+
+    if (type == 0) {
+        setup.objectID = 0x127;
+        weapon = 11;
+    } else if (type == 1) {
+        setup.objectID = 0x147;
+        weapon = 11;
+    } else {
+        setup.objectID = 0x148;
+        weapon = 12;
+    }
+    setup.size = 0x1C;
+    setup.unk3 = 1;
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.type = type;
+    setup.unkB = argB;
+    setup.unkC = arg5;
+    setup.unkE = arg6;
+    setup.unk10 = arg7;
+    setup.owner = owner;
+    setup.unk18 = arg8;
+    setup.unk19 = arg9;
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+        if (type == 2) {
+            *(u8 **) ((u8 *) racer + 0x1A0) = obj;
+        }
+        func_800478A4(weapon);
+    }
+    sound_play(0x2F, NULL);
+    func_8002AEA0(owner, 2);
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039D08);
 
@@ -764,7 +997,21 @@ s32 func_8003B114(s8 *ids) {
     return (D_800A1490[chr[0x70]][0] >> ids[1]) & 1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B16C);
+/* JFG: clear every player's link at 0x1A4 that points to obj. */
+void func_8003B16C(s32 obj) {
+    u8 **racers;
+    s32 numRacers;
+    s32 i;
+    u8 *racer;
+
+    racers = get_racer_objects(&numRacers);
+    for (i = 0; i < numRacers; i++, racers++) {
+        racer = *(u8 **) (*racers + 0x68);
+        if (obj == *(s32 *) (racer + 0x1A4)) {
+            *(s32 *) (racer + 0x1A4) = 0;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B290);
 

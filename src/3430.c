@@ -15,7 +15,7 @@ typedef struct AudioPoint {
     /* 0x11 */ u8 flags;
     /* 0x12 */ u8 pad12[2];
     /* 0x14 */ s32 range;
-    /* 0x18 */ u8 pad18[4];
+    /* 0x18 */ void *soundHandle;
     /* 0x1C */ struct AudioPoint **userHandlePtr;
     /* 0x20 */ u8 fastFalloff;
     /* 0x21 */ u8 priority;
@@ -27,7 +27,35 @@ extern AudioPoint **gAudioPoints;
 extern u16 gNumAudioPoints;
 void audspat_point_stop_by_index(s32 index);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80002830);
+#define MAX_AUDIO_POINTS 40
+#define COLOUR_TAG_CYAN 0x00FFFFFF
+
+struct SoundData;
+extern struct SoundData *gSpatialSoundTable;
+extern AudioPoint *gAudioPointsPool;
+extern AudioPoint **gFreeAudioPoints;
+void sound_table_properties(struct SoundData **table, s32 *size, s32 *count);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void func_80002944(void);
+
+/**
+ * Initializes the audio spatial system.
+ * JFG: no audio lines.
+ * DKR: audspat_init
+ */
+void func_80002830(void) {
+    s32 i;
+
+    sound_table_properties(&gSpatialSoundTable, NULL, NULL);
+    gAudioPointsPool = mempool_alloc_safe(sizeof(AudioPoint) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
+    gFreeAudioPoints = mempool_alloc_safe(sizeof(AudioPoint *) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
+    gAudioPoints = mempool_alloc_safe(sizeof(AudioPoint *) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
+    gNumAudioPoints = 0;
+    for (i = 0; i < MAX_AUDIO_POINTS; i++) {
+        gAudioPointsPool[i].soundHandle = NULL;
+    }
+    func_80002944();
+}
 
 /**
  * Stop any playing jingles, then block audio lines from playing anymore.

@@ -56,7 +56,11 @@ typedef struct LevelEffect {
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ u8 type;
     /* 0x07 */ u8 loaded;
-    /* 0x08 */ u8 pad8[0x24 - 8];
+    /* 0x08 */ u8 pad8[0x18 - 8];
+    /* 0x18 */ s16 timer;
+    /* 0x1A */ s16 age;
+    /* 0x1C */ s16 id;
+    /* 0x1E */ u8 pad1E[0x24 - 0x1E];
     /* 0x24 */ void *sprite;
     /* 0x28 */ s32 unk28;
 } LevelEffect;
@@ -145,7 +149,33 @@ void func_80068A14(LevelEffect *effect) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068A64);
+s32 func_800577A8(void *sprite, s32 *arg1, s32 arg2, s32 *frame, s32 updateRate);
+
+/* JFG: count down the level effects, releasing the expired ones and animating the sprites. */
+void func_80068A64(s32 updateRate) {
+    s32 i;
+    s32 arg;
+    LevelEffect *effect;
+
+    for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
+        if (effect->type) {
+            effect->timer -= updateRate;
+            effect->age += updateRate;
+            if (effect->timer <= 0) {
+                effect->timer = 0;
+                if (effect->loaded) {
+                    func_80068A14(effect);
+                }
+                effect->type = 0;
+            } else if (effect->type == 4) {
+                arg = 1;
+                if (func_800577A8(effect->sprite, &arg, 0xF, &effect->unk28, updateRate)) {
+                    effect->timer = 0;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068B54);
 
@@ -302,7 +332,24 @@ void transition_update_fullscreen(s32 updateRate) {
     } while (var_v0 == FALSE && updateRate > 0);
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006C124);
+extern Gfx D_800A67B8[]; // DKR: dTransitionFadeSettings
+void fb_size(u32 *width, u32 *height);
+
+/**
+ * Draws a simple fillrect covering the whole screen that fades in or out.
+ * DKR: transition_render_fullscreen.
+ */
+void func_8006C124(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+    u32 width;
+    u32 height;
+
+    fb_size(&width, &height);
+    gSPDisplayList((*dList)++, D_800A67B8);
+    gDPSetPrimColor((*dList)++, 0, 0, gCurFadeRed, gCurFadeGreen, gCurFadeBlue, gCurFadeAlpha);
+    gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPFillRectangle((*dList)++, 0, 0, width, height);
+    rendermode_reset(dList);
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006C230);
 
@@ -428,7 +475,21 @@ void transition_update_blank(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006CFC0);
+/**
+ * Fill the whole screen with a solid colour.
+ * DKR: transition_render_blank.
+ */
+void func_8006CFC0(Gfx **dList, UNUSED Mtx **mtx, UNUSED Vertex **vtx) {
+    u32 width;
+    u32 height;
+
+    fb_size(&width, &height);
+    gSPDisplayList((*dList)++, D_800A67B8);
+    gDPSetPrimColor((*dList)++, 0, 0, (gLastFadeRed >> 16), (gLastFadeGreen >> 16), (gLastFadeBlue >> 16), 255);
+    gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPFillRectangle((*dList)++, 0, 0, width, height);
+    rendermode_reset(dList);
+}
 
 extern s32 D_80103B80[2];
 extern s32 D_80103B88[2];
@@ -465,7 +526,38 @@ void func_8006D600(s32 arg0) {
     D_80103B94 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D60C);
+typedef struct DebugText {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ char text[32];
+} DebugText;
+extern DebugText D_80103700[2][16];
+extern u8 D_800A4FC4;
+
+/* JFG: queue a 32-character text line at (x, y) if it is on screen (up to 16 per frame). */
+void func_8006D60C(s16 x, s16 y, char *text) {
+    DebugText *entry;
+    char *dst;
+    s32 i;
+    u32 width;
+    u32 height;
+
+    if (!D_800A4FC4) {
+        fb_size(&width, &height);
+        if (x > 0 && x <= (s32) (width - 6) && y > 0 && y <= (s32) (height - 6)) {
+            if (D_80103B88[D_80103B90] < 16) {
+                entry = &D_80103700[D_80103B90][D_80103B88[D_80103B90]++];
+                entry->x = x;
+                entry->y = y;
+                dst = entry->text;
+                i = 32;
+                while (i--) {
+                    *dst++ = *text++;
+                }
+            }
+        }
+    }
+}
 
 /* JFG: write a number as decimal text; with `decimal` set, the last digit goes after a '.'. */
 void func_8006D70C(char *buf, s32 value, s32 decimal) {
@@ -555,7 +647,22 @@ typedef struct ScreenLine {
 } ScreenLine;
 extern ScreenLine D_80102DC0[2][0x94];
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006E0C4);
+/* JFG: queue an entry in the current buffer (up to 0x94). */
+void func_8006E0C4(s32 x, s32 u, s32 y, s32 v, s32 flag) {
+    ScreenLine *entry;
+
+    if (D_80103B80[D_80103B90] < 0x94) {
+        entry = &D_80102DC0[D_80103B90][D_80103B80[D_80103B90]++];
+        entry->x = x;
+        entry->y = y;
+        entry->u = u;
+        entry->v = v;
+        entry->flags = 0xE;
+        if (flag) {
+            entry->flags |= 0x10;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006E188);
 

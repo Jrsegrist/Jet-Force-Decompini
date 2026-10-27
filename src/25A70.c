@@ -128,7 +128,17 @@ void func_80024EF4(u8 *obj, s32 updateRate) {
     func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F40);
+/* JFG: init: scale from byte 0xB (DKR's radius scaling, see obj_init_torch_mist). */
+void func_80024F40(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
+    f32 radius = entry->radius & 0xFF;
+    if (radius < 10.0f) {
+        radius = 10.0f;
+    }
+    radius /= 64;
+    obj->scale = obj->header->scale * radius;
+}
+
+void free_object(Object *object);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F94);
 
@@ -190,6 +200,8 @@ void func_80026CAC(Object *obj, UNUSED s32 updateRate) {
         set_skydome_visbility(obj->properties.skyControl.setting);
     }
 }
+
+void func_80013924(s32 arg0, s32 arg1, s32 arg2); // JFG: queue a texture scroll
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026D14);
 
@@ -269,7 +281,19 @@ void func_800271A0(f32 *obj, s32 event) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027220);
+/* JFG: the same handler with events 3 and 4 as well. */
+void func_80027220(f32 *obj, s32 event) {
+    switch (event) {
+        case 1:
+        case 3:
+            audspat_play_sound_at_position(0xDD, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+        case 2:
+        case 4:
+            audspat_play_sound_at_position(0xDE, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800272B4);
 
@@ -294,7 +318,30 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_800275E8);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027844);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027D08);
+typedef struct BufferState {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ void *buffers[4];
+} BufferState;
+
+void mempool_free(void *data);
+
+/* JFG: free the four buffers of the object's state. */
+void func_80027D08(Object *obj) {
+    BufferState *state = (BufferState *) obj->animator;
+
+    if (state->buffers[0] != NULL) {
+        mempool_free(state->buffers[0]);
+    }
+    if (state->buffers[1] != NULL) {
+        mempool_free(state->buffers[1]);
+    }
+    if (state->buffers[2] != NULL) {
+        mempool_free(state->buffers[2]);
+    }
+    if (state->buffers[3] != NULL) {
+        mempool_free(state->buffers[3]);
+    }
+}
 
 typedef struct LevelObjectEntry_Mover {
     /* 0x00 */ u8 pad0[0xA];
@@ -329,9 +376,44 @@ void func_80027DA0(Object *obj, LevelObjectEntry_Mover *entry) {
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027E1C);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027F90);
+typedef struct LevelObjectEntry_Spray {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s16 angle;
+    /* 0x0C */ f32 size;
+    /* 0x10 */ f32 unk10;
+} LevelObjectEntry_Spray;
+
+extern f32 D_800ABAFC;
+extern f32 D_800ABB00;
+
+/* JFG: init: emitter settings from the entry's (absolute) size. */
+void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
+    f32 size = entry->size;
+
+    if (size < 0.0f) {
+        size = -size;
+    }
+    obj->properties.common.unk0 = (s32) (size * D_800ABAFC) + 2;
+    obj->properties.common.unk4 = 0x23;
+    obj->scale *= (15.0f + size) * D_800ABB00;
+    obj->particleEmittersEnabled = 1;
+    obj->y_velocity = size * 0.25f + 2.5f;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80028034);
+
+typedef struct SprayState {
+    /* 0x00 */ f32 scale;
+    /* 0x04 */ f32 unk4;
+    /* 0x08 */ f32 unk8;
+    /* 0x0C */ f32 unkC;
+} SprayState;
+
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+s32 rand_range(s32 min, s32 max);
+extern f32 D_800ABB0C;
+extern f32 D_800ABB10;
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
 

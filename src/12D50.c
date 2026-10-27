@@ -190,8 +190,21 @@ typedef struct SegmentAlloc {
     /* 0x04 */ void *data;
 } SegmentAlloc;
 
+/* JFG: a track light (Size: 0x80 bytes) */
+typedef struct TrackLight {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ f32 outerRadius; // 0 when the slot is free
+    /* 0x10 */ f32 innerRadius;
+    /* 0x14 */ f32 outerRadiusSquare;
+    /* 0x18 */ f32 innerRadiusSquare;
+    /* 0x1C */ f32 falloff;
+    /* 0x20 */ u8 ramp[0x60]; // filled by func_80013F48
+} TrackLight;
+
 extern SegmentAlloc *D_800A0D80;
-extern void *D_800A0D78;
+extern TrackLight *D_800A0D78; // JFG: D_800A0D70 track lights
 extern s32 D_800A0D74;
 extern s32 D_800A0D70;
 void mempool_free(void *data);
@@ -217,6 +230,9 @@ void func_80013D3C(void) {
     D_800A0D74 = 0;
     D_800A0D70 = 0;
 }
+
+extern f32 D_800AB648; // a .rodata constant, not split out yet
+void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
 
@@ -392,7 +408,25 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015510);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001563C);
+/**
+ * Write the segments whose bounding box (grown by 4) holds the point on the XZ plane.
+ * JFG: the list is of shorts.
+ * DKR: get_inside_segment_count_xz
+ */
+s32 func_8001563C(s32 x, s32 z, s16 *arg2) {
+    s32 i;
+    s32 cnt = 0;
+    LevelModelSegmentBoundingBox *bb;
+    for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
+        bb = gCurrentLevelModel->segmentsBoundingBoxes + i;
+        if (x < bb->x2 + 4 && bb->x1 - 4 < x && z < bb->z2 + 4 && bb->z1 - 4 < z) {
+            *arg2 = i;
+            cnt++;
+            arg2++;
+        }
+    }
+    return cnt;
+}
 
 /**
  * Carbon copy of the above function, but takes into account the Y axis, too.
@@ -478,6 +512,8 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80017094);
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80017794);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80018024);
+
+f32 sqrtf(f32 x);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800183D4);
 

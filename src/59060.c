@@ -149,9 +149,19 @@ void func_80059A04(void) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
 
-void func_80059D2C(s16 item);
+void func_80059D2C(s32 item);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059CCC);
+
+extern u8 D_800FF6C8[];
+extern void *D_800FF3F8[];
+extern s16 *D_800A51D0;
+extern s16 D_800A51D8;
+void tex_free(void *tex);
+void sprite_free(void *sprite);
+void free_object(void *object);
+void func_8003C7C4(void *model);
+void func_80007A54(void);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059D2C);
 

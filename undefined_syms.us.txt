@@ -526,7 +526,6 @@ gSnowParticleCount = 0x80100844;
 gSnowVerts = 0x800A59F4;
 gSnowVertexData = 0x800A5A04;
 gSnowVertexFlip = 0x80100898;
-emitter_init_with_pos = 0x8005EDA4;
 free_particle_buffers = 0x8005CFD0;
 free_particle_vertices_triangles = 0x8005D19C;
 gParticleBehavioursAssetTable = 0x800A5DA8;
@@ -641,11 +640,15 @@ func_800639DC = sprintfSetSpacingCodes;
 func_800639E8 = sprintf;
 func_8003F7F4 = cam_set_fov;
 
+/* ---- round 4 functions in C ---- */
+func_8005EDA4 = emitter_init_with_pos;
+
 /* ---- round 4 data used by new C ---- */
 gWeatherSoundMask = 0x800A5D50;
 gParticleUpdateRate = 0x80100900;
 sTransitionTris = 0x800A67AC;
 D_80102D9C = 0x80102D9C;
+gAudioPointsPool = 0x800F29F8;
 
 /* ---- 846F0.c (libultra flash) ---- */
 func_80083AF0 = osFlashReInit;

@@ -8,16 +8,28 @@ extern s32 gActiveCameraID;
 extern Mtx gPerspectiveMatrix[];
 /* Size: 0x4C bytes (mostly not worked out yet) */
 typedef struct Camera {
-    /* 0x00 */ u8 pad0[0xC];
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ s16 z_rotation;
+    /* 0x06 */ u8 pad6[6];
     /* 0x0C */ f32 x_position;
     /* 0x10 */ f32 y_position;
     /* 0x14 */ f32 z_position;
-    /* 0x18 */ u8 pad18[0x2C - 0x18];
+    /* 0x18 */ f32 unk18; // JFG: the position again
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
     /* 0x2C */ f32 fov; // JFG
     /* 0x30 */ f32 shakeX;
     /* 0x34 */ f32 shakeY;
     /* 0x38 */ f32 shakeZ;
-    /* 0x3C */ u8 pad3C[0x10];
+    /* 0x3C */ s8 unk3C;
+    /* 0x3D */ u8 unk3D;
+    /* 0x3E */ s16 unk3E;
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ u8 pad44[6];
+    /* 0x4A */ s16 unk4A;
 } Camera;
 extern Camera gCameras[];
 extern s32 D_800FA634;
@@ -192,6 +204,8 @@ f32 func_8003FA6C(f32 x, f32 y, f32 z) {
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
+extern u8 D_800A3170[4]; // JFG: a per-camera byte
+
 INCLUDE_ASM("asm/nonmatchings/40240", func_8003FAEC);
 
 /**
@@ -323,7 +337,39 @@ void viewport_menu_set(s32 viewPortIndex, s32 x1, s32 y1, s32 x2, s32 y2) {
     gScreenViewports[viewPortIndex].y2 = y2;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800400D8);
+#define VIEWPORT_AUTO 0x8000
+
+/**
+ * Set the selected viewport's coordinate offsets and view size.
+ * JFG: the Y offset goes to posY (DKR writes posX).
+ * DKR: set_viewport_properties
+ */
+void func_800400D8(s32 viewPortIndex, s32 posX, s32 posY, s32 width, s32 height) {
+    if (posX != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].posX = posX;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_X_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_X_CUSTOM;
+    }
+    if (posY != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].posY = posY;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_Y_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_Y_CUSTOM;
+    }
+    if (width != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].width = width;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_WIDTH_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_WIDTH_CUSTOM;
+    }
+    if (height != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].height = height;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_HEIGHT_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_HEIGHT_CUSTOM;
+    }
+}
 
 /**
  * Sets the passed values to be equal to the selected viewports scissor size, before drawing the background elements.
@@ -542,7 +588,24 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041450);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800416CC);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800419AC);
+extern MtxF D_800FAAB0;
+extern Mtx *D_800FAB30;
+extern MtxF D_800FB038;
+
+/* JFG: keep a model matrix and upload it times the view-projection as the MVP matrix. */
+void func_800419AC(Gfx **dList, Mtx **mtx, MtxF *in) {
+    s32 i, j;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            D_800FAAB0[i][j] = (*in)[i][j];
+        }
+    }
+    func_80048C7C(in, &D_800FAAF0, &D_800FB038);
+    func_80048D84(&D_800FB038, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041A90);
 

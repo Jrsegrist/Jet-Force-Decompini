@@ -141,7 +141,7 @@ void func_80000798(void) {
     D_800A0680 = 0;
 }
 
-/* JFG: fade the jingle volume to volume over time seconds. */
+/* JFG: the second fade (D_800A0684, the jingle fade in sound_update_queue); sets the music volume when instant. */
 void func_800007A4(f32 time, u8 volume) {
     if (volume >= 0x80) {
         volume = 0x7F;
@@ -155,7 +155,7 @@ void func_800007A4(f32 time, u8 volume) {
     if (D_800A0684 > 0) {
         D_800E9530 = ((gMusicBaseVolume - volume) << 16) / D_800A0684;
     } else {
-        music_volume_set(volume); /* JFG: the music volume, as in func_800005F8 */
+        music_volume_set(volume);
     }
 }
 

@@ -372,7 +372,17 @@ CamPoint *func_80079890(s32 index, CamTarget *cam) {
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80079930);
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80079AA4);
+/* JFG: the path of an object (NULL if none). */
+AnimPath *func_80079AA4(AnimObject *obj) {
+    s32 i;
+
+    for (i = 0; i < 256; i++) {
+        if (D_801045B0[i] != NULL && D_801045B0[i]->obj == obj) {
+            return D_801045B0[i];
+        }
+    }
+    return NULL;
+}
 
 s32 func_80079B6C(void) {
     s32 i = 256;

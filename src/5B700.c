@@ -467,7 +467,42 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C040);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C9B8);
+extern u8 D_800A5D54[]; // DKR: gThunderTransition
+extern s32 D_800A6784;
+s32 func_8006B978(void);            // DKR: check_fadeout_transition
+void func_8006B9CC(void *transition); // DKR: transition_begin
+void sound_play(u16 soundID, s32 *handlePtr);
+s32 rand_range(s32 min, s32 max);
+
+/**
+ * On a randomly set timer, based on the weather intensity, count down and make the sound of thunder.
+ * Set a second timer, that then counts down to zero and creates a flash of lightning.
+ * DKR: rain_lightning.
+ */
+void func_8005C9B8(s32 updateRate) {
+    s32 delay;
+
+    if (D_800A5D3C > 0) {
+        D_800A5D3C -= updateRate;
+        if (D_800A5D3C <= 0) {
+            if (D_800A5D28 > 0x8000 && func_8006B978() == 0) {
+                func_8006B9CC(D_800A5D54);
+                D_800A6784 = 0;
+            }
+            sound_play(6, NULL);
+            D_800A5D3C = 0;
+        }
+    } else if (gLightningFrequency > 0xC000) {
+        if (D_800A5D38 > 0) {
+            D_800A5D38 -= updateRate;
+        } else {
+            delay = (gLightningFrequency * 600 - 0x1C20000) >> 14;
+            sound_play(7, NULL);
+            D_800A5D3C = delay + 60;
+            D_800A5D38 = rand_range(1200, 1500) - delay;
+        }
+    }
+}
 
 struct ObjectSegment {
     /* 0x00 */ s16 y_rotation;
@@ -536,7 +571,7 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CE90);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CFD0);
 
-extern void *D_800A5D8C[2];
+extern Vertex *D_800A5D8C[2];
 
 void func_8005D19C(void) {
     if (D_800A5D8C[0] != NULL) {
@@ -546,7 +581,53 @@ void func_8005D19C(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D1DC);
+/* Size: 0x78 bytes */
+typedef struct WeatherParticle {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ s16 kind; // 0/1 texture, 2 sprite, 3 model
+    /* 0x2E */ u8 unk2E;
+    /* 0x2F */ u8 pad2F;
+    /* 0x30 */ Vec3f pos;
+    /* 0x3C */ u8 pad3C[0x48 - 0x3C];
+    /* 0x48 */ s32 unk48;
+    /* 0x4C */ void *asset;
+    /* 0x50 */ u8 pad50[0x78 - 0x50];
+} WeatherParticle;
+
+typedef struct WeatherParticleList {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ WeatherParticle *particles;
+    /* 0x18 */ s32 count;
+} WeatherParticleList;
+
+void func_8003C7C4(void *model);
+
+/* JFG: free a particle list and the assets of its particles. */
+void func_8005D1DC(WeatherParticleList **listPtr) {
+    WeatherParticleList *list = *listPtr;
+    WeatherParticle *p;
+    s32 i;
+
+    if (list != NULL) {
+        p = list->particles;
+        for (i = 0; i < list->count; i++, p++) {
+            switch (p->kind) {
+                case 2:
+                    sprite_free(p->asset);
+                    break;
+                case 0:
+                case 1:
+                    tex_free(p->asset);
+                    break;
+                case 3:
+                    func_8003C7C4(p->asset);
+                    break;
+            }
+        }
+        mempool_free(list);
+        *listPtr = NULL;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D2E8);
 
@@ -575,7 +656,39 @@ void func_8005ED54(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s3
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005EDA4);
+/**
+ * Initializes the emitter with the specified particle type, behaviour and position.
+ * JFG: line and point emitters only get their flags; no buffers are allocated here.
+ */
+void emitter_init_with_pos(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s16 posX, s16 posY, s16 posZ) {
+    ParticleBehaviour *behaviour;
+
+    behaviour = gParticleBehavioursAssetTable[behaviourID];
+    emitter->descriptorID = particleID;
+    emitter->colourIndex = 0;
+    emitter->posX = posX;
+    emitter->behaviour = behaviour;
+    emitter->posY = posY;
+    emitter->posZ = posZ;
+    emitter->unk20 = 0;
+    emitter->unk23 = -1;
+    if (behaviour->flags & PARTICLE_LINE) {
+        emitter->flags = PARTICLE_LINE;
+        emitter->index = 0xFF;
+    } else if (behaviour->flags & PARTICLE_POINT) {
+        emitter->flags = PARTICLE_POINT;
+        emitter->index = 0xFF;
+    } else {
+        emitter->flags = 0;
+        emitter->sourceRotation.y_rotation = behaviour->sourceRotation.y_rotation;
+        emitter->sourceRotation.x_rotation = behaviour->sourceRotation.x_rotation;
+        emitter->sourceRotation.z_rotation = behaviour->sourceRotation.z_rotation;
+        emitter->emissionDirection.y_rotation = behaviour->emissionDirection.y_rotation;
+        emitter->emissionDirection.x_rotation = behaviour->emissionDirection.x_rotation;
+        emitter->emissionDirection.z_rotation = behaviour->emissionDirection.z_rotation;
+        emitter->index = 0;
+    }
+}
 
 extern PoolEmitter *D_800A5DAC;
 extern s32 D_800A5DB0;
@@ -676,10 +789,10 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80061FC8);
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80062178);
 
 extern s32 D_800A5D80;
-void func_80062178(Gfx **dList, Mtx **mtx, PointParticleSet *set);
+void func_80062178(Gfx **dList, Vertex **vtx, PointParticleSet *set);
 
 /* JFG: render the flagged point particle sets. */
-void func_80062A00(Gfx **dList, Mtx **mtx) {
+void func_80062A00(Gfx **dList, Vertex **vtx) {
     s32 i;
     PointParticleSet *item;
 
@@ -687,7 +800,7 @@ void func_80062A00(Gfx **dList, Mtx **mtx) {
         item = D_800A5D88;
         for (i = 0; i < D_800A5D80; i++, item++) {
             if (item->unkA4) {
-                func_80062178(dList, mtx, item);
+                func_80062178(dList, vtx, item);
             }
         }
     }
@@ -722,31 +835,125 @@ void func_80062D5C(void *arg0, ParticleEmitter *emitter) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80062E0C);
-
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80062F0C);
-
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80063030);
+typedef struct ObjPos {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+} ObjPos;
 
 /* DKR include/structs.h Particle, reduced (JFG offsets) */
 typedef struct Particle {
-    /* 0x00 */ s16 y_rotation;
-    /* 0x02 */ s16 x_rotation;
-    /* 0x04 */ s16 z_rotation;
+    /* 0x00 */ Vec3s rotation;
     /* 0x06 */ u8 pad6[2];
     /* 0x08 */ f32 scale;
     /* 0x0C */ Vec3f position;
     /* 0x18 */ f32 scaleVelocity;
     /* 0x1C */ Vec3f velocity;
-    /* 0x28 */ u8 pad28[0x40 - 0x28];
+    /* 0x28 */ u8 pad28[0x30 - 0x28];
+    /* 0x30 */ Vec3f localPos;
+    /* 0x3C */ f32 forwardVel; // also downOffset / downAcceleration in DKR
     /* 0x40 */ f32 gravity;
-    /* 0x44 */ u8 pad44[0x5E - 0x44];
-    /* 0x5E */ s16 angVelY;
-    /* 0x60 */ s16 angVelX;
-    /* 0x62 */ s16 angVelZ;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ ObjPos *parentObj;
+    /* 0x4C */ u8 pad4C[0x5E - 0x4C];
+    /* 0x5E */ Vec3s angularVelocity;
 } Particle;
 
 extern s32 gParticleUpdateRate;
+void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
+void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec3f_rotate_py
+
+/**
+ * Apply translation, rotation and scale based off the velocities of the particle.
+ * Applies further translation based on the position of the parent.
+ * DKR: move_particle_basic_parent.
+ */
+void func_80062E0C(Particle *particle) {
+    s32 i;
+    ObjPos *parent;
+
+    i = gParticleUpdateRate;
+    while (i-- > 0) {
+        particle->localPos.x += particle->velocity.x;
+        particle->localPos.y += particle->velocity.y;
+        particle->velocity.y -= particle->gravity;
+        particle->localPos.z += particle->velocity.z;
+        particle->rotation.y_rotation += particle->angularVelocity.y_rotation;
+        particle->rotation.x_rotation += particle->angularVelocity.x_rotation;
+        particle->rotation.z_rotation += particle->angularVelocity.z_rotation;
+        particle->scale += particle->scaleVelocity;
+    }
+    particle->position.x = particle->localPos.x;
+    particle->position.y = particle->localPos.y;
+    particle->position.z = particle->localPos.z;
+    parent = particle->parentObj;
+    if (parent) {
+        particle->position.x += parent->pos.x;
+        particle->position.y += parent->pos.y;
+        particle->position.z += parent->pos.z;
+    }
+}
+
+/**
+ * Applies rotation and scale based on the particle's velocities.
+ * Translates the particle downward in the object's local coordinate system by downOffset.
+ * Applies additional translation based on the parent's position.
+ * DKR: move_particle_attached_to_parent.
+ */
+void func_80062F0C(Particle *particle) {
+    s32 i = gParticleUpdateRate;
+    ObjPos *parent;
+
+    while (i-- > 0) {
+        particle->rotation.y_rotation += particle->angularVelocity.y_rotation;
+        particle->rotation.x_rotation += particle->angularVelocity.x_rotation;
+        particle->rotation.z_rotation += particle->angularVelocity.z_rotation;
+        particle->scale += particle->scaleVelocity;
+    }
+
+    particle->position.x = 0.0f;
+    particle->position.y = -particle->forwardVel;
+    particle->position.z = 0.0f;
+    func_800496B0(1, &particle->rotation, &particle->position, &particle->position);
+    particle->position.x += particle->localPos.x;
+    particle->position.y += particle->localPos.y;
+    particle->position.z += particle->localPos.z;
+
+    parent = particle->parentObj;
+    if (parent != NULL) {
+        particle->position.x += parent->pos.x;
+        particle->position.y += parent->pos.y;
+        particle->position.z += parent->pos.z;
+    }
+}
+
+/**
+ * Apply translation, rotation and scale based off the velocities of the particle.
+ * Apply additional acceleration always directed downward in the local coordinate system
+ * DKR: move_particle_with_acceleration.
+ */
+void func_80063030(Particle *particle) {
+    s32 i = 0;
+    Vec3f acceleration;
+
+    while (i++ < gParticleUpdateRate) {
+        particle->position.x += particle->velocity.x;
+        particle->position.y += particle->velocity.y;
+        particle->position.z += particle->velocity.z;
+        particle->scale += particle->scaleVelocity;
+        particle->rotation.y_rotation += particle->angularVelocity.y_rotation;
+        particle->rotation.x_rotation += particle->angularVelocity.x_rotation;
+        particle->rotation.z_rotation += particle->angularVelocity.z_rotation;
+
+        acceleration.x = 0.0f;
+        acceleration.y = -particle->forwardVel;
+        acceleration.z = 0.0f;
+        func_800496B0(1, &particle->rotation, &acceleration, &acceleration);
+        particle->velocity.x += acceleration.x;
+        particle->velocity.y += acceleration.y;
+        particle->velocity.y -= particle->gravity;
+        particle->velocity.z += acceleration.z;
+    }
+}
 
 /**
  * Apply translation, rotation and scale based off the velocities of the particle.
@@ -761,42 +968,63 @@ void func_80063190(Particle *particle) {
         particle->velocity.y -= particle->gravity;
         particle->position.z += particle->velocity.z;
         particle->scale += particle->scaleVelocity;
-        particle->y_rotation += particle->angVelY;
-        particle->x_rotation += particle->angVelX;
-        particle->z_rotation += particle->angVelZ;
+        particle->rotation.y_rotation += particle->angularVelocity.y_rotation;
+        particle->rotation.x_rotation += particle->angularVelocity.x_rotation;
+        particle->rotation.z_rotation += particle->angularVelocity.z_rotation;
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80063244);
+/**
+ * Apply translation, rotation and scale based off the velocities of the particle.
+ * Velocity is set from forward velocity.
+ * The particle always moves forward in the local coordinate system
+ * DKR: move_particle_forward.
+ */
+void func_80063244(Particle *particle) {
+    s32 i = 0;
+
+    while (i++ < gParticleUpdateRate) {
+        particle->velocity.x = 0.0f;
+        particle->velocity.y = 0.0f;
+        particle->velocity.z = -particle->forwardVel;
+        func_8004944C(&particle->rotation, &particle->velocity);
+        particle->position.x += particle->velocity.x;
+        particle->position.y += particle->velocity.y - particle->gravity;
+        particle->position.z += particle->velocity.z;
+        particle->scale += particle->scaleVelocity;
+        particle->rotation.y_rotation += particle->angularVelocity.y_rotation;
+        particle->rotation.x_rotation += particle->angularVelocity.x_rotation;
+        particle->rotation.z_rotation += particle->angularVelocity.z_rotation;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80063358);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80063730);
-
-/* Size: 0x78 bytes */
-typedef struct WeatherParticle {
-    /* 0x00 */ u8 pad0[0x2C];
-    /* 0x2C */ s16 unk2C;
-    /* 0x2E */ u8 unk2E;
-    /* 0x2F */ u8 pad2F;
-    /* 0x30 */ Vec3f pos;
-    /* 0x3C */ u8 pad3C[0x48 - 0x3C];
-    /* 0x48 */ s32 unk48;
-    /* 0x4C */ u8 pad4C[0x78 - 0x4C];
-} WeatherParticle;
-
-typedef struct WeatherParticleList {
-    /* 0x00 */ u8 pad0[0x14];
-    /* 0x14 */ WeatherParticle *particles;
-    /* 0x18 */ s32 count;
-} WeatherParticleList;
-
-typedef struct ObjPos {
-    /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ Vec3f pos;
-} ObjPos;
 
 extern WeatherParticleList *D_801008E0[5];
+extern s32 D_800A5DD8;
+void func_8003FC2C(s32 arg0);
+void func_8004046C(Gfx **dList, Mtx **mtx);
+void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
+void func_80062A90(Gfx **dList, Vertex **vtx);
+void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list);
+void func_8005D660(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list);
+
+/* JFG: render all the particles into the current vertex buffer, then flip buffers. */
+void func_80063730(Gfx **dList, Mtx **mtx) {
+    Vertex *vtx = D_800A5D8C[D_800A5DD8];
+
+    gDPPipeSync((*dList)++);
+    func_8003FC2C(0);
+    func_8004046C(dList, mtx);
+    func_8005D93C(dList, &vtx, D_801008E0[0]);
+    func_8005D93C(dList, &vtx, D_801008E0[1]);
+    func_80062A90(dList, &vtx);
+    func_80062A00(dList, &vtx);
+    func_8005D2E8(dList, mtx, &vtx, D_801008E0[2]);
+    func_8005D660(dList, mtx, &vtx, D_801008E0[3]);
+    D_800A5DD8 ^= 1;
+}
 
 /* JFG: move the particles of all five lists by the object's position. */
 void func_8006382C(ObjPos *obj) {
@@ -809,7 +1037,7 @@ void func_8006382C(ObjPos *obj) {
         list = D_801008E0[i];
         p = list->particles;
         for (j = 0; j < list->count; j++, p++) {
-            if (p->unk2C != 0x80 && p->unk2E == 3) {
+            if (p->kind != 0x80 && p->unk2E == 3) {
                 p->pos.x += obj->pos.x;
                 p->pos.y += obj->pos.y;
                 p->pos.z += obj->pos.z;

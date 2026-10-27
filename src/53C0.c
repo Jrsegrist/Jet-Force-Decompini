@@ -148,6 +148,18 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800053F8);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000561C);
 
+/* JFG: a level object entry, reduced */
+typedef struct LevelObjectEntry53 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3[0x11 - 3];
+    /* 0x11 */ u8 unk11;
+} LevelObjectEntry53;
+
+extern s32 D_800F2CD8[]; // JFG: two lists of level object entries
+extern s32 D_800F2CE0[]; // JFG: their sizes in bytes
+void func_80005CB0(LevelObjectEntry53 *entry);
+
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005BD0);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005CB0);

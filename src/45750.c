@@ -537,9 +537,37 @@ typedef struct LevelHeader {
 } LevelHeader;
 LevelHeader *level_header(void);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048130);
+void func_80048130(s32 bit, s32 mode) {
+    LevelHeader *header = level_header();
+    s32 mask = 1 << (bit & 0xF);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_8004822C);
+    if (!(D_800FD7D4->unk5C[header->region] & mask) && !(D_800FD7D4->unkDC[header->region] & mask)) {
+        switch (mode) {
+            case 1:
+                D_800FD7D4->unk5C[header->region] |= mask;
+                D_800FD7D4->unk4++;
+                D_800FD7D4->unk6--;
+                break;
+            case 2:
+                D_800FD7D4->unkDC[header->region] |= mask;
+                D_800FD7D4->unk5++;
+                D_800FD7D4->unk6--;
+                break;
+        }
+    }
+}
+
+s32 func_8004822C(s32 bit) {
+    LevelHeader *header = level_header();
+    s32 mask = 1 << (bit & 0xF);
+    if (D_800FD7D4->unk5C[header->region] & mask) {
+        return 1;
+    }
+    if (D_800FD7D4->unkDC[header->region] & mask) {
+        return 2;
+    }
+    return 0;
+}
 
 void func_800482A0(s32 player, s32 arg1, s32 arg2) {
     if (arg1 >= 0) {
