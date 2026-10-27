@@ -12,8 +12,8 @@
 /jfg.*.ld
 /.baserom.*.ok
 # fetched by `make setup` (not redistributed here)
-/tools/ido5.3/
-/tools/m2c/
+/tools/ido5.3
+/tools/m2c
 # m2c/asm-differ scratch output
 /ctx.c
 __pycache__/
