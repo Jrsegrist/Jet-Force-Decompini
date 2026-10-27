@@ -194,7 +194,9 @@ class RunlinkRoundTrip(unittest.TestCase):
             return base[s["shndx"]] + s["value"]
 
         # index, module, offset, name (invented names, none from any game)
+        # (index 0 is unused: a word 0 would hide a wrong kind-2 word)
         cls.syms = [
+            (0, 0x200, "TestMainOther"),
             (0, 0x100, "TestMainFunc"),
             (1, offset(o1, "ModOneEntry"), "ModOneEntry"),
             (1, offset(o1, "ModOneVar"), "ModOneVar"),
@@ -266,19 +268,53 @@ class RunlinkRoundTrip(unittest.TestCase):
         self.assertEqual((tab[0][7], tab[0][8]), (-1, -1))
         # module 2: bss rounded to 16, init at ModTwoEntry
         self.assertEqual(tab[1][4], 0x20)
-        self.assertEqual(tab[1][7], self.syms[4][1])
+        self.assertEqual(tab[1][7], self.syms[5][1])
         # the images are back to back: text, data block, the two tables
         self.assertEqual(tab[1][1], tab[0][2] + tab[0][3] + tab[0][5] + tab[0][6])
 
+    def entries(self, m):
+        """[(table, module offset, type, kind, word)] of module m (1-based)."""
+        _, off, t, d, b, r1, r2, _, _ = struct.unpack_from(">IIIIIHHii", self.ref_tab, 32 * (m - 1))
+        out = []
+        base = off + t + d
+        for tn, (start, n) in enumerate(((base, r1), (base + r1, r2))):
+            for i in range(n // 8):
+                word, x = struct.unpack_from(">II", self.ref_mods, start + 8 * i)
+                out.append((tn + 1, x >> 8, (x >> 4) & 0xF, x & 0xF, word))
+        return out
+
+    def test_relocation_values(self):
+        e1 = self.entries(1)
+        img = self.ref_mods
+        tsize = struct.unpack_from(">I", self.ref_tab, 8)[0]
+        # a kind-2 entry repeats the word of the kind-0 entry before it
+        last = None
+        for tn, o, typ, kind, word in e1:
+            if kind == 0:
+                last = word
+            elif kind == 2:
+                self.assertEqual(word, last)
+        # jal helper: the jump field holds helper's module offset
+        jal = [o for tn, o, typ, kind, w in e1 if kind == 2]
+        self.assertEqual(len(jal), 1)
+        self.assertEqual((struct.unpack_from(">I", img, jal[0])[0] & 0x3FFFFFF) << 2, 0x34)
+        # jal TestMainFunc: kind 0, symbol index 1, in table 1
+        self.assertIn((1, 0x10, 4, 0, 1), e1)
+        # lui/lw mydata: kind 1, word = the start of .data (the end of .text)
+        self.assertIn((2, 0x18, 5, 1, tsize), e1)
+        self.assertIn((2, 0x1C, 6, 1, tsize), e1)
+        # ModOneVar: kind 0 with its own symbol index (3), in table 2
+        self.assertIn((2, 0x20, 5, 0, 3), e1)
+        # the jump table's three words point at .text (kind 1, word 0)
+        self.assertEqual(sum(1 for tn, o, typ, k, w in e1 if typ == 2 and k == 1 and w == 0), 4)
+        # module 2 calls module 1's export by index (2), from table 1
+        self.assertIn((1, 0x8, 4, 0, 2), self.entries(2))
+
     def test_relocation_kinds(self):
-        tab = [struct.unpack_from(">IIIIIHHii", self.ref_tab, 32 * m) for m in range(2)]
         seen = set()
-        for m, (_, off, t, d, b, r1, r2, _, _) in enumerate(tab):
-            base = off + t + d
-            for tn, (start, n) in enumerate(((base, r1), (base + r1, r2))):
-                for i in range(n // 8):
-                    word, x = struct.unpack_from(">II", self.ref_mods, start + 8 * i)
-                    seen.add((m + 1, tn + 1, (x >> 4) & 0xF, x & 0xF))
+        for m in (1, 2):
+            for tn, o, typ, kind, word in self.entries(m):
+                seen.add((m, tn, typ, kind))
         R26, HI, LO, W32 = 4, 5, 6, 2
         for want in [(1, 1, R26, 0),  # jal TestMainFunc
                      (1, 2, R26, 2),  # jal helper (inside the module)
@@ -292,7 +328,11 @@ class RunlinkRoundTrip(unittest.TestCase):
     def test_split_finds_functions_and_jump_table(self):
         self.assertIn("2 modules, 4 functions, 1 jump tables", self.split_out)
         fl = open(os.path.join(self.tmp, "asm/nonmatchings/modules/m001/functions.txt")).read()
-        self.assertEqual(len(re.findall(r"^func_m001_", fl, re.M)), 3)
+        self.assertEqual(re.findall(r"^func_m001_(\w+)", fl, re.M), ["00000", "00034", "0003C"])
+        # the jump table, with its three cases as labels
+        ro = open(os.path.join(self.tmp, "asm/nonmatchings/modules/m001/rodata.s")).read()
+        self.assertIn("dlabel jtbl_m001_", ro)
+        self.assertEqual(len(re.findall(r"\.word \.L[0-9A-F]{5}$", ro, re.M)), 3)
 
     def test_split_uses_no_names(self):
         """The generated assembly names symbols by address; runlink names
@@ -358,11 +398,11 @@ class RunlinkRoundTrip(unittest.TestCase):
     def test_runlink_diff_find(self):
         mapfile = os.path.join(self.tmp, "modules.map")
         # (the last build's map: the object from the split assembly)
-        name = "func_m001_%05X" % self.syms[3][1]
+        name = "func_m001_%05X" % self.syms[4][1]
         hit = runlink_diff.find(name, mapfile)
         self.assertIsNotNone(hit)
         self.assertEqual(hit[0], 1)
-        self.assertEqual(hit[3], self.syms[3][1])
+        self.assertEqual(hit[3], self.syms[4][1])
         self.assertIsNone(runlink_diff.find("nothing", mapfile))
 
 
