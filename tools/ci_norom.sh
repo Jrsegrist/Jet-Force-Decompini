@@ -20,12 +20,18 @@ echo "== no ROM data in tracked files"
 $PY tools/ci_rom_free.py
 
 echo "== Python tools: syntax and pyflakes"
-$PY -m compileall -q tools/*.py diff_settings.py
+$PY -m compileall -q tools/*.py tools/match/*.py diff_settings.py
 if $PY -m pyflakes --version >/dev/null 2>&1; then
-    $PY -m pyflakes tools/*.py diff_settings.py
+    $PY -m pyflakes tools/*.py tools/match/*.py diff_settings.py
 else
     echo "(pyflakes not installed, skipped)"
 fi
+
+echo "== matching tools load (--help; they need the ROM to do anything)"
+for t in tools/match/*.py; do
+    [ "$(basename "$t")" = common.py ] && continue
+    $PY "$t" --help >/dev/null
+done
 
 echo "== tool self-tests (synthetic inputs)"
 $PY tools/ci_test_tools.py

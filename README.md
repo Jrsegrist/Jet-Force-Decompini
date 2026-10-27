@@ -76,6 +76,10 @@ extract time lets them meet the ROM names in the assembly.
 - Replace the `INCLUDE_ASM` line with C, build, and compare with
   `.venv/bin/python3 tools/asm-differ/diff.py -mw <function>` (it uses the
   map file) or just `make check`.
+- `tools/match/` has faster helpers: a probe that compares a whole C file
+  with the ROM without linking (main segment and modules), variant runners,
+  and scans for ultralib and DKR code; see
+  [tools/match/README.md](tools/match/README.md).
 - A function whose C is right but does not match yet keeps that C behind
   `#ifdef NON_MATCHING`, with its `INCLUDE_ASM` in the `#else` branch and a
   `NON_MATCHING:` comment saying what still differs. The normal build uses the
