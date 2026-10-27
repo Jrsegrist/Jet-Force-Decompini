@@ -24,30 +24,9 @@ typedef struct M039Key {
     /* 0x30 */ f32 duration; /* seconds; 0 ends the list */
 } M039Key;
 
-/* the description of a light (as module 123's) */
-typedef struct M039LightParams {
-    /* 0x00 */ u8 type;
-    /* 0x01 */ u8 unk1;
-    /* 0x02 */ u8 unk2;
-    /* 0x03 */ s8 unk3;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ s16 unkA;
-    /* 0x0C */ u16 radius;
-    /* 0x0E */ s16 radius2;
-    /* 0x10 */ u8 r;
-    /* 0x11 */ u8 g;
-    /* 0x12 */ u8 b;
-    /* 0x13 */ u8 a;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ u8 unk16;
-    /* 0x17 */ u8 unk17;
-} M039LightParams;
-
 typedef struct M039Light M039Light;
 
-extern M039Light *func_800210A4(Object *obj, M039LightParams *params); /* DKR add_object_light */
+extern M039Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void func_8002179C(M039Light *light);                            /* DKR light_remove */
 extern void func_8002130C(M039Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
 extern void func_80021358(M039Light *light, u8 intensity);             /* sets a light's intensity */
@@ -84,11 +63,11 @@ static s32 sFogNear;
 static s32 sFogFar;
 
 void func_m039_00000(void) {
-    M039LightParams lp;
+    LightParams lp;
 
     lp.type = 0;
     lp.unk1 = 3;
-    lp.unk2 = 0x41;
+    lp.flags = 0x41;
     lp.unk4 = 0;
     lp.unk3 = -1;
     lp.unk6 = 0;

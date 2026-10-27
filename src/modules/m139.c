@@ -26,7 +26,6 @@ typedef struct M139Kind40 {
 extern s32 D_800FE9B0;
 
 extern void func_800541B0(s32, s32, s32);
-extern Object **func_80005E98(s32 *start, s32 *end);
 extern f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2);
 extern s32 func_m003_17910(f32 x, f32 z, s32 zone);
 

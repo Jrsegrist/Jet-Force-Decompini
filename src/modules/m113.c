@@ -65,14 +65,6 @@ typedef struct M113Interaction {
     /* 0x40 */ M113Part *parts;
 } M113Interaction;
 
-typedef struct M113Hit {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ Vec3f pos;
-    /* 0x10 */ Vec3f normal;
-    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
-    /* 0x24 */ s32 flags;
-} M113Hit;
-
 /* The level entry of the scorch mark it can leave */
 typedef struct M113Spawn {
     /* 0x00 */ s16 objectID;
@@ -117,7 +109,6 @@ extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32
 extern void func_80013F08(f32 *light);
 extern void func_80013FE0(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern s32 func_80018808(Object *obj, Vec3f *from, Vec3f *to, M113Hit *hit, s32, s32);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern M113Level *func_8004470C();                   /* DKR levelGetLevel */
 extern void func_80029BA4(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
@@ -196,7 +187,7 @@ void func_m113_00000(Object *obj, M113Setup *setup) {
    (ROM keeps it in a caller-saved register spilled to dz's slot) and the register of the light pointer. */
 void func_m113_002C8(Object *obj, s32 updateRate) {
     M113Rocket *m;
-    M113Hit hit;
+    HitResult hit;
     Object *spawned;
     Vec3f offset;
     Object *owner;
@@ -310,7 +301,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
             m->hit = func_80018808(obj, &((M113Interaction *) obj->interactObj)->pos,
                                    (Vec3f *) &obj->trans.x_position, &hit, 0, 0);
             if (m->hit != 0) {
-                if (hit.unk0 == 0) {
+                if (hit.obj == NULL) {
                     m->hit |= 2;
                 }
                 m->hitPos.x = hit.pos.x;

@@ -61,7 +61,7 @@ typedef struct SparkParams {
     /* 0x10 */ f32 z_position;
     /* 0x14 */ f32 unk14;
     /* 0x18 */ s16 unk18;
-    /* 0x1A */ s8 unk1A;
+    /* 0x1A */ u8 unk1A;
     /* 0x1B */ u8 unk1B;
     /* 0x1C */ s32 unk1C; /* colours? */
     /* 0x20 */ s32 unk20;
@@ -79,6 +79,45 @@ extern void func_80076928();
 extern void func_800772C4();
 extern void func_80079BA8();
 extern void func_80079BB8();
+
+/*
+ * The description of an object light, for func_800210A4 (which adds one to
+ * the object, like DKR's light_add_from_object_header; its return value is
+ * the light handle that func_8002130C/func_80021358 take). Size 0x18.
+ */
+typedef struct LightParams {
+    /* 0x00 */ u8 type;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 flags;
+    /* 0x03 */ s8 unk3;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ u16 radius;
+    /* 0x0E */ s16 radius2;
+    /* 0x10 */ u8 r;
+    /* 0x11 */ u8 g;
+    /* 0x12 */ u8 b;
+    /* 0x13 */ u8 a;
+    /* 0x14 */ s16 unk14;
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 unk17;
+} LightParams;
+
+/* What func_80018808 fills in */
+typedef struct HitResult {
+    /* 0x00 */ Object *obj; /* the object hit, or NULL for the level */
+    /* 0x04 */ Vec3f pos;
+    /* 0x10 */ Vec3f normal;
+    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
+    /* 0x24 */ s32 flags;
+} HitResult;
+/* Sweeps the object from `from` to `to` against objects and the level */
+extern s32 func_80018808(Object *obj, Vec3f *from, Vec3f *to, HitResult *hit, s32 arg4, s32 arg5);
+
+/* The object list: returns it, with the range of slots in use (DKR objGetObjList) */
+extern Object **func_80005E98(s32 *first, s32 *count);
 
 /* Maths (DKR math_util) */
 extern void func_8004944C(Vec3s *rotation, Vec3f *vec); /* DKR vec3f_rotate_py */

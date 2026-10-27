@@ -104,7 +104,6 @@ typedef struct M117Header {
     /* 0xAC */ s32 *texture;
 } M117Header;
 
-#define OBJ_LIGHT(obj) (((s32 **) (obj)->pad70)[(0x74 - 0x70) / 4])
 
 extern Object *func_80005F14(M117LightEntry *entry, s32 count);
 extern void func_8002130C(s32 light, u8 red, u8 green, u8 blue); /* sets a light's colour */
@@ -207,8 +206,8 @@ void func_m117_00154(Object *obj, M117Setup *setup) {
         mote->rollSpeed = func_80048E2C(1, 8);
         mote++;
     }
-    if (OBJ_LIGHT(obj) != NULL && *OBJ_LIGHT(obj) != 0) {
-        func_8002130C(*OBJ_LIGHT(obj), cloud->red, cloud->green, cloud->blue);
+    if (obj->light != NULL && *obj->light != 0) {
+        func_8002130C(*obj->light, cloud->red, cloud->green, cloud->blue);
     }
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 96.0f, obj->trans.scale * 96.0f, -1.0f, 1.0f, 1);
 }
@@ -279,8 +278,8 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
         data->unkB8 = brightness / 255.0f;
         data->unkBC = brightness / 255.0f;
     }
-    if (old != brightness && OBJ_LIGHT(obj) != NULL && *OBJ_LIGHT(obj) != 0) {
-        func_80021358(*OBJ_LIGHT(obj), brightness);
+    if (old != brightness && obj->light != NULL && *obj->light != 0) {
+        func_80021358(*obj->light, brightness);
     }
 }
 

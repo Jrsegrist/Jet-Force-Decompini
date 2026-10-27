@@ -29,16 +29,6 @@ typedef struct M096Flare {
     /* 0x1E */ s16 timer;
 } M096Flare;
 
-/* What func_80018808 fills in */
-typedef struct M096Hit {
-    /* 0x00 */ Object *obj;
-    /* 0x04 */ Vec3f pos;
-    /* 0x10 */ Vec3f normal;
-    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
-    /* 0x24 */ s32 flags;
-    /* 0x28 */ s32 surface;
-} M096Hit;
-
 /* What a hit object's unk5C points at (the parts the flare uses) */
 typedef struct M096Model {
     /* 0x000 */ f32 mtx[2][4][4];
@@ -52,10 +42,15 @@ typedef struct M096Model {
     /* 0x12C */ s16 unk12C;
 } M096Model;
 
+/* func_80018808's result and the surface word after it */
+typedef struct M096Hit {
+    /* 0x00 */ HitResult h;
+    /* 0x28 */ s32 surface;
+} M096Hit;
+
 extern void func_800541B0(s32, s32, s32);
 extern void func_8003B820(s32);
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
-extern s32 func_80018808(Object *obj, Vec3f *from, Vec3f *to, M096Hit *hit, s32 arg4, s32 arg5);
 extern f32 func_80097140(f32); /* square root */
 extern void func_80048B60(f32 *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 extern void func_80013FE0(s32 light, f32 x, f32 y, f32 z);
@@ -125,17 +120,17 @@ void func_m096_00088(Object *obj, s32 updateRate) {
         dz = obj->velocity.z * dt;
         func_80009A04(obj, dx, dy, dz);
         obj->velocity.y += -0.1f * dt;
-        if ((f->hit = func_80018808(obj, &from, (Vec3f *) &obj->trans.x_position, &hit, 0, 0)) != 0) {
+        if ((f->hit = func_80018808(obj, &from, (Vec3f *) &obj->trans.x_position, &hit.h, 0, 0)) != 0) {
             len = obj->velocity.x * obj->velocity.x + obj->velocity.y * obj->velocity.y +
                   obj->velocity.z * obj->velocity.z;
             if (len > 0.0f) {
                 len = 1.0f / func_80097140(len);
             }
-            dx = hit.pos.x - obj->velocity.x * len - obj->trans.x_position;
-            dy = hit.pos.y - obj->velocity.y * len - obj->trans.y_position;
-            dz = hit.pos.z - obj->velocity.z * len - obj->trans.z_position;
+            dx = hit.h.pos.x - obj->velocity.x * len - obj->trans.x_position;
+            dy = hit.h.pos.y - obj->velocity.y * len - obj->trans.y_position;
+            dz = hit.h.pos.z - obj->velocity.z * len - obj->trans.z_position;
             func_80009A04(obj, dx, dy, dz);
-            o = hit.obj;
+            o = hit.h.obj;
             f->stuck = o;
             if (o != NULL) {
                 if (o->behaviorId == 7) {
@@ -146,7 +141,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
                     func_80048B60(m->mtx[m->mtxIndex][0], obj->trans.x_position, obj->trans.y_position,
                                   obj->trans.z_position, &f->localX, &f->localY, &f->localZ);
                 }
-            } else if (hit.flags & 0x2000) {
+            } else if (hit.h.flags & 0x2000) {
                 obj->trans.rotation.x_rotation = 0;
                 obj->trans.rotation.z_rotation = 0;
                 obj->particleEmittersEnabled = 6;
@@ -155,9 +150,9 @@ void func_m096_00088(Object *obj, s32 updateRate) {
                 func_80003410(0x214, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
                 return;
             } else if (hit.surface == 3) {
-                obj->velocity.x = hit.normal.x * 8.0f;
-                obj->velocity.y = hit.normal.y;
-                obj->velocity.z = hit.normal.z * 8.0f;
+                obj->velocity.x = hit.h.normal.x * 8.0f;
+                obj->velocity.y = hit.h.normal.y;
+                obj->velocity.z = hit.h.normal.z * 8.0f;
                 f->hit = 0;
             }
         }

@@ -19,7 +19,6 @@ typedef struct M002Linked {
     /* 0x2C */ u16 kind;
 } M002Linked;
 
-extern Object **func_80005E98(s32 *first, s32 *count); /* DKR objGetObjList */
 extern void func_80054EA0(u32 *width, u32 *height);    /* the frame buffer size */
 extern void *func_8004A57C(s32 size, s32 colour);      /* allocates */
 extern void func_8004AA80(void *data);                 /* frees */

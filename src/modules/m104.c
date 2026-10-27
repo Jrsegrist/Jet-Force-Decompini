@@ -59,7 +59,6 @@ typedef struct M104PlayerStats {
 #define ST(obj) OBJ_STATE(obj, M104State)
 
 /* The object's s16 at 0x2E */
-#define OBJ_UNK2E(obj) (((s16 *) (obj)->pad2C)[1])
 
 extern void func_800541B0(s32, s32, s32);
 extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
@@ -97,7 +96,7 @@ void func_m104_00000(Object *obj, M104Setup *setup, s32 arg2) {
     p->x = obj->trans.x_position;
     p->y = obj->trans.y_position;
     p->z = obj->trans.z_position;
-    p->unkC = OBJ_UNK2E(obj);
+    p->unkC = obj->segmentID;
     p->respawn = setup->respawn;
     p->timer = 0;
     p->lifetime = 0;
@@ -146,7 +145,7 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
         obj->trans.x_position = p->x;
         obj->trans.y_position = p->y;
         obj->trans.z_position = p->z;
-        OBJ_UNK2E(obj) = p->unkC;
+        obj->segmentID = p->unkC;
         if (obj->unk7C != NULL) {
             *obj->unk7C |= 2;
         }

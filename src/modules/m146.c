@@ -58,7 +58,6 @@ extern f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2);
 extern s32 func_m003_17910(f32 x, f32 z, s32 zone);
 extern s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 zone, s32, s32, s32);
 extern Object *func_m139_00184(s16 x, s16 z, s32 radius, s32 zone);
-extern Object **func_80005E98(s32 *start, s32 *end);
 extern void func_8001191C(Object *obj, Object *target);
 extern void func_80011974(Object *obj);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */

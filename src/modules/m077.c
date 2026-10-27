@@ -58,7 +58,6 @@ typedef struct M077Part {
     /* 0x4 */ u32 matrices;
 } M077Part;
 
-extern Object **func_80005E98(s32 *first, s32 *count); /* DKR objGetObjList */
 extern M077Env *func_8004470C(void);
 extern s32 func_800468CC(void);
 extern M077Stats *func_80047C1C(s32 player, s32 arg1);

@@ -39,15 +39,6 @@ typedef struct M131Interaction {
     /* 0x0C */ Vec3f oldPos;
 } M131Interaction;
 
-typedef struct M131Hit {
-    /* 0x00 */ u8 pad0[0x4];
-    /* 0x04 */ Vec3f pos;
-    /* 0x10 */ Vec3f normal;
-    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
-    /* 0x24 */ s32 flags;
-    /* 0x28 */ s32 unk28;
-} M131Hit;
-
 /* What object->0x70 points at */
 typedef struct M131Joints {
     /* 0x00 */ u8 pad0[0x1A];
@@ -55,7 +46,7 @@ typedef struct M131Joints {
     /* 0x1C */ u8 pad1C[0x3E - 0x1C];
     /* 0x3E */ s16 counterTilt;
 } M131Joints;
-#define OBJ_JOINTS(obj) (*(M131Joints **) (obj)->pad70)
+#define OBJ_JOINTS(obj) ((M131Joints *) (obj)->unk70)
 
 /* What the sprite draw takes: a transform and more */
 typedef struct M131Sprite {
@@ -68,13 +59,18 @@ typedef struct M131Colours {
     u8 r, g, b, r2, g2, b2;
 } M131Colours;
 
+/* func_80018808's result and one more word (keeps the frame) */
+typedef struct M131Hit {
+    /* 0x00 */ HitResult h;
+    /* 0x28 */ s32 unk28;
+} M131Hit;
+
 extern void func_800541B0(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
 extern void func_80013F08(f32 *light);
 extern void func_80013FE0(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern s32 func_80018808(Object *obj, Vec3f *from, Vec3f *to, M131Hit *hit, s32, s32);
 extern void func_80052734(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_800496B0(s32 arg0, Object *obj, f32 *in, f32 *out);
@@ -157,11 +153,11 @@ void func_m131_001A4(Object *obj, s32 updateRate) {
                 func_80052734(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, 1, 0);
             }
             if (s->hit = func_80018808(obj, &((M131Interaction *) obj->interactObj)->oldPos,
-                                       (Vec3f *) &obj->trans.x_position, &hit, 0, 0)) {
-                s->x = hit.pos.x;
-                s->y = hit.pos.y;
-                s->z = hit.pos.z;
-                s->hitFlags = hit.flags;
+                                       (Vec3f *) &obj->trans.x_position, &hit.h, 0, 0)) {
+                s->x = hit.h.pos.x;
+                s->y = hit.h.pos.y;
+                s->z = hit.h.pos.z;
+                s->hitFlags = hit.h.flags;
                 func_80009A04(obj, s->x - obj->trans.x_position, s->y - obj->trans.y_position,
                               s->z - obj->trans.z_position);
                 if (!(s->hitFlags & 0x2000) || (s->hitFlags & 0x8000)) {

@@ -95,28 +95,7 @@ typedef struct M120Puff {
     /* 0x10 */ f32 scale;
 } M120Puff;
 
-/* The parameters of an object light (like m124's) */
-typedef struct M120LightParams {
-    /* 0x00 */ u8 type;
-    /* 0x01 */ u8 unk1;
-    /* 0x02 */ u8 flags;
-    /* 0x03 */ s8 unk3;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ s16 unkA;
-    /* 0x0C */ s16 radius;
-    /* 0x0E */ s16 radius2;
-    /* 0x10 */ u8 r;
-    /* 0x11 */ u8 g;
-    /* 0x12 */ u8 b;
-    /* 0x13 */ u8 a;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ u8 unk16;
-    /* 0x17 */ u8 unk17;
-} M120LightParams;
-
-extern s32 func_800210A4(Object *obj, M120LightParams *params); /* DKR add_object_light */
+extern s32 func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void func_80021358(s32 light, u8 intensity);              /* sets a light's intensity */
 extern void func_8002179C(s32 light);                            /* DKR light_remove */
 
@@ -349,7 +328,7 @@ void func_m120_00060(Object *obj, s32 updateRate) {
 }
 
 void func_m120_0080C(Object *obj, M120LingerSetup *setup) {
-    M120LightParams lp;
+    LightParams lp;
     s32 unusedA;
     s32 unusedB;
 

@@ -43,10 +43,6 @@ typedef struct M090State {
     /* 0x4 */ s32 timer;
 } M090State;
 
-/* The object's level segment, at 0x2E (DKR's Object.segmentID) */
-#define OBJ_SEGMENT(obj) (*(s16 *) &(obj)->pad2C[0x2E - 0x2C])
-/* What the object has at 0x74: its light (a pointer to the object light) */
-#define OBJ_LIGHT(obj) (((s32 **) (obj)->pad70)[(0x74 - 0x70) / 4])
 
 extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
 extern void func_8002130C(s32 light, u8 r, u8 g, u8 b); /* sets a light's colour */
@@ -69,7 +65,7 @@ static void relaunch(Object *obj, M090Firework *fw) {
     obj->trans.x_position = fw->x;
     obj->trans.y_position = fw->y;
     obj->trans.z_position = fw->z;
-    OBJ_SEGMENT(obj) = func_80015510(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+    obj->segmentID = func_80015510(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
     fw->phase = 0;
     OBJ_STATE(obj, M090State)->delay = OBJ_STATE(obj, M090State)->timer;
 }
@@ -98,8 +94,8 @@ void func_m090_000A0(Object *obj, M090Setup *setup) {
     fw->z = obj->trans.z_position;
     fw->speed = setup->speed;
     fw->interval = setup->interval * 60 / 100;
-    if (OBJ_LIGHT(obj) != NULL && *OBJ_LIGHT(obj) != 0) {
-        func_8002130C(*OBJ_LIGHT(obj), fw->r, fw->g, fw->b);
+    if (obj->light != NULL && *obj->light != 0) {
+        func_8002130C(*obj->light, fw->r, fw->g, fw->b);
     }
     OBJ_STATE(obj, M090State)->delay = setup->delay * 60 / 100;
     OBJ_STATE(obj, M090State)->timer = fw->interval;
@@ -114,8 +110,8 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
     s32 i;
 
     fw = obj->unk68;
-    if (OBJ_LIGHT(obj) != NULL) {
-        light = *OBJ_LIGHT(obj);
+    if (obj->light != NULL) {
+        light = *obj->light;
     } else {
         light = 0;
     }
@@ -139,7 +135,7 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
             obj->velocity.y -= 0.2f;
             obj->velocity.z *= 0.99f;
         }
-        OBJ_SEGMENT(obj) = func_80015510(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+        obj->segmentID = func_80015510(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
         if (obj->velocity.y < 0.0f) {
             fw->phase = 1;
         }

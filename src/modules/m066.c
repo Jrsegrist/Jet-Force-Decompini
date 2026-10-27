@@ -8,7 +8,6 @@
 #include "gfx.h"
 
 /* An object field that object.h does not name yet */
-#define OBJ_FIELD(obj, type, offset) (*(type *) ((u8 *) (obj) + (offset)))
 
 /* A model's triangle batch (like DKR's TriangleBatchInfo, structs.h, but 0x10 bytes) */
 typedef struct M066Batch {
@@ -149,7 +148,7 @@ void func_m066_00120(Object *obj, s32 updateRate) {
                 obj->trans.x_position = target->trans.x_position;
                 obj->trans.y_position = target->trans.y_position;
                 obj->trans.z_position = target->trans.z_position;
-                OBJ_FIELD(obj, s16, 0x2E) = OBJ_FIELD(target, s16, 0x2E);
+                obj->segmentID = target->segmentID;
                 obj->trans.flags &= ~0x400;
             }
         }
@@ -242,7 +241,7 @@ void func_m066_002AC(Object *obj, f32 x, f32 y, f32 z, f32 outer, f32 inner, f32
             n = model->numVertices;
             src = model->vertices;
             inst->vertices = dst;
-            OBJ_FIELD(obj, Vertex *, 0x44) = dst;
+            obj->curVertData = dst;
             while (n--) {
                 dz = 0.0f - z;
                 dx = src->x * scale - x;

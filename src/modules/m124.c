@@ -66,27 +66,6 @@ typedef struct M124Light {
     /* 0x2C */ s32 beamLight; /* the light where the beam ends */
 } M124Light;
 
-/* The description of an object light (as in module 123) */
-typedef struct M124LightParams {
-    /* 0x00 */ u8 type;
-    /* 0x01 */ u8 unk1;
-    /* 0x02 */ u8 flags;
-    /* 0x03 */ s8 unk3;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ s16 unkA;
-    /* 0x0C */ s16 radius;
-    /* 0x0E */ s16 radius2;
-    /* 0x10 */ u8 r;
-    /* 0x11 */ u8 g;
-    /* 0x12 */ u8 b;
-    /* 0x13 */ u8 a;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ u8 unk16;
-    /* 0x17 */ u8 unk17;
-} M124LightParams;
-
 /* An instance of the object's model */
 typedef struct M124ModelHeader {
     /* 0x00 */ u8 pad0[0x12];
@@ -100,7 +79,7 @@ typedef struct M124Model {
     /* 0x4 */ Vertex *vertices;
 } M124Model;
 
-extern s32 func_800210A4(Object *obj, M124LightParams *params); /* DKR add_object_light */
+extern s32 func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void func_80021358(s32 light, u8 intensity);
 extern s32 func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
 extern void func_80013FE0(s32 light, f32 x, f32 y, f32 z);
@@ -182,7 +161,7 @@ static void swing_light(Object *obj, M124Light *l, s32 updateRate) {
 
 void func_m124_002B0(Object *obj, M124Setup *setup) {
     M124Light *l = obj->unk68;
-    M124LightParams lp;
+    LightParams lp;
     M124Model *model;
     Vertex *src;
     Vertex *dst;
