@@ -26,7 +26,7 @@ func_800212F8 = light_toggle
 func_8002130C = light_colour_set
 func_80021338 = light_colour_cycle_set
 func_80021358 = light_intensity_set
-func_800226B8 = light_setup_cam_lights
+func_800226B8 = light_setup_coronas
 
 # src/25A70.c
 func_80024E70 = obj_init_torch_mist
@@ -437,8 +437,8 @@ D_80104572 = gDialogueYPos2
 D_80104588 = gCurrentMessageText
 field CameraShake.unk6 = frame
 field ObjectLight.unk6C = trackLight
-field CamLight.unk6 = active
-field CamLight.unk7 = visibility
+field Corona.unk6 = active
+field Corona.unk7 = opacity
 field Object.unk1A = numActiveEmitters
 field Object.unk6C = modelInstances
 field Object.unkA0 = freed

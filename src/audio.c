@@ -1,5 +1,5 @@
 /*
- * Music and sound effect control (the "am" audio manager front end).
+ * Music and sound effect control: the game-side calls into the "am" audio manager.
  *
  * Mostly from the Diddy Kong Racing decompilation (CC0 1.0), src/audio.c,
  * which compiles to the same code here. Functions marked "JFG" are not in

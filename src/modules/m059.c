@@ -1,5 +1,5 @@
 /*
- * Runlink module 59: the credits on the front end. Up to five lines of text
+ * Runlink module 59: the credits screen reached from the menus. Up to five lines of text
  * slide in from alternate sides, stay for a while (or until the script lets
  * them go) and slide out again; a small script of commands decides which
  * texts come next.

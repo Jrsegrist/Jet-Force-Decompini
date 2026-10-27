@@ -451,17 +451,17 @@ void rain_fog(void) {
 
 extern u32 D_800A5D1C;
 
-/* JFG: the rain density, 0.0 to 1.0. */
+/* JFG: gRainOpacity scaled by D_800A5D1C, as a fraction clamped to 0.0..1.0. */
 f32 func_8005BFC4(void) {
-    f32 density = (f32) ((s32) ((gRainOpacity >> 2) * D_800A5D1C) >> 14) / 65536.0f;
+    f32 amount = (f32) ((s32) ((gRainOpacity >> 2) * D_800A5D1C) >> 14) / 65536.0f;
 
-    if (density < 0.0f) {
-        density = 0.0f;
+    if (amount < 0.0f) {
+        amount = 0.0f;
     }
-    if (density > 1.0f) {
-        density = 1.0f;
+    if (amount > 1.0f) {
+        amount = 1.0f;
     }
-    return density;
+    return amount;
 }
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C040);

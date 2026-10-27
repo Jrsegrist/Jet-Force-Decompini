@@ -1,9 +1,9 @@
 /*
- * Runlink module 57: a front-end screen of company logos and credits. It fades
- * in a full-screen image (with a sound and music cue), the text "presented
- * in", two textured logos one after the other, a second full-screen image,
- * then plays module 55's animated logo with the copyright line, and returns
- * to the front end.
+ * Runlink module 57: the start-up run of company logos and credits, shown
+ * before the menus. It fades in a full-screen image (with a sound
+ * and music cue), the text "presented in", two textured logos one after the
+ * other, a second full-screen image, then plays module 55's animated logo
+ * with the copyright line, and goes back to the menus.
  */
 #include "module.h"
 

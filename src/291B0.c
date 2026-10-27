@@ -68,7 +68,8 @@ INCLUDE_ASM("asm/nonmatchings/291B0", func_800291BC);
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029688);
 
-typedef struct BlastSprite {
+/* A sprite object with two colour cycles, set up from its level entry */
+typedef struct ChromaSpriteState {
     /* 0x00 */ s16 x;
     /* 0x02 */ s16 y;
     /* 0x04 */ s16 z;
@@ -79,17 +80,17 @@ typedef struct BlastSprite {
     /* 0x10 */ u8 colourCycle1[0x10];
     /* 0x20 */ u8 colourCycle2[0x10];
     /* 0x30 */ void *entry;
-} BlastSprite;
-typedef struct BlastSpriteObject {
+} ChromaSpriteState;
+typedef struct ChromaSpriteObject {
     /* 0x00 */ u8 pad0[8];
     /* 0x08 */ f32 scale;
     /* 0x0C */ u8 padC[0x30];
     /* 0x3C */ s32 unk3C;
     /* 0x40 */ u8 pad40[0x28];
-    /* 0x68 */ BlastSprite *data;
+    /* 0x68 */ ChromaSpriteState *data;
     /* 0x6C */ void **sprite;
-} BlastSpriteObject;
-typedef struct BlastSpriteEntry {
+} ChromaSpriteObject;
+typedef struct ChromaSpriteEntry {
     /* 0x00 */ u8 pad0[4];
     /* 0x04 */ s16 x;
     /* 0x06 */ s16 y;
@@ -102,15 +103,15 @@ typedef struct BlastSpriteEntry {
     /* 0x16 */ u8 unk16;
     /* 0x17 */ u8 colourCycle1;
     /* 0x18 */ u8 colourCycle2;
-} BlastSpriteEntry;
+} ChromaSpriteEntry;
 void sprite_free(void *sprite);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
 void colour_cycle_init(void *cycle, s32 assetID);
 extern f32 D_800ABB4C;
 
 /* JFG: (re)set a sprite object from its entry. */
-void func_8002993C(BlastSpriteObject *obj, BlastSpriteEntry *entry) {
-    BlastSprite *data = obj->data;
+void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
+    ChromaSpriteState *data = obj->data;
 
     sprite_free(*obj->sprite);
     *obj->sprite = tex_load_sprite(entry->spriteID, 0);
@@ -129,8 +130,8 @@ void func_8002993C(BlastSpriteObject *obj, BlastSpriteEntry *entry) {
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029A20);
 
-/* Size: 0x24 bytes */
-typedef struct Blast {
+/* A sphere (centre and radius) in a fixed table of 16. Size: 0x24 bytes */
+typedef struct Zone {
     /* 0x00 */ f32 x;
     /* 0x04 */ f32 y;
     /* 0x08 */ f32 z;
@@ -138,17 +139,17 @@ typedef struct Blast {
     /* 0x10 */ u8 pad10[0xC];
     /* 0x1C */ s16 unk1C;
     /* 0x1E */ u8 pad1E[6];
-} Blast;
-extern Blast D_800F6B60[16];
+} Zone;
+extern Zone D_800F6B60[16];
 extern s32 D_800A11B4;
 
-/* JFG: clear the 16 blast slots. */
+/* JFG: mark all 16 zones unused and zero D_800A11B4 (the zone test is skipped while it is zero). */
 void func_80029B78(void) {
-    Blast *blast = D_800F6B60;
+    Zone *zone = D_800F6B60;
     s32 i = 16;
     while (i--) {
-        blast->unk1C = 0;
-        blast++;
+        zone->unk1C = 0;
+        zone++;
     }
     D_800A11B4 = 0;
 }
@@ -157,25 +158,25 @@ INCLUDE_ASM("asm/nonmatchings/291B0", func_80029BA4);
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029CFC);
 
-/* JFG: TRUE if the point is inside an active blast (radius plus the blast's size unless ignoreSize). */
+/* JFG: TRUE if a sphere of the given radius at the point touches a zone in use (the zone's own size is left out with ignoreSize). */
 s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
-    Blast *blast;
+    Zone *zone;
     s32 i;
     s32 hit = FALSE;
     f32 dx, dy, dz;
     f32 r;
 
     if (D_800A11B4 != 0) {
-        blast = D_800F6B60;
+        zone = D_800F6B60;
         i = 16;
         while (i--) {
-            if (blast->unk1C != 0) {
-                dx = blast->x - x;
-                dy = blast->y - y;
-                dz = blast->z - z;
+            if (zone->unk1C != 0) {
+                dx = zone->x - x;
+                dy = zone->y - y;
+                dz = zone->z - z;
                 r = radius;
                 if (!ignoreSize) {
-                    r += blast->size;
+                    r += zone->size;
                 }
                 r *= r;
                 if (dx * dx + dy * dy + dz * dz < r) {
@@ -183,7 +184,7 @@ s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
                     hit = TRUE;
                 }
             }
-            blast++;
+            zone++;
         }
     }
     return hit;
