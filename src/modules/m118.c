@@ -76,28 +76,18 @@ typedef struct M118Check {
 extern u8 D_800A3208;
 
 extern Object **func_80005E98(s32 *first, s32 *count); /* DKR objGetObjList */
-extern f32 func_80049C34(s32 angle);                  /* sine of a 16-bit angle */
-extern f32 func_80049C30(s32 angle);                  /* cosine */
-extern void func_80001248(s32 sound, s32 arg1);       /* DKR amSndPlay */
 extern s32 func_8006B978(void);
 extern void func_8006B9CC(void *);
 extern void func_m022_02430(s32 message, s32 arg1);
 extern void func_m022_023FC(M118PlayerData *player);
 
-#ifdef NON_MATCHING
 static s32 D_m118_00900[4] = { 0x40FFFFFF, 0x00060000, 0, 0 };
-#endif
 
-#ifdef NON_MATCHING
-/*
- * Finds the robot (the object with behaviour 2). This matches, but only the
- * functions below that are still assembly call it, and IDO drops a static
- * function that no C calls.
- */
+/* Finds the robot (the object with behaviour 2). */
 static Object *func_m118_00000(void) {
-    Object *robot = NULL;
     s32 i;
     s32 count;
+    Object *robot = NULL;
     Object **list;
 
     list = func_80005E98(&i, &count);
@@ -108,9 +98,6 @@ static Object *func_m118_00000(void) {
     }
     return robot;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m118", func_m118_00000);
-#endif
 
 void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     M118Target *t = OBJ_STATE(obj, M118Target);
@@ -128,13 +115,6 @@ void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     func_80079D1C(obj, t->hitbox << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
-#ifdef NON_MATCHING
-/*
- * Equivalent, and func_m118_0063C matches; the others differ in register
- * choice (00140: one register; 00414 and 00794: frame and scheduling). They
- * stay assembly together, since the module's .rodata (the jump table) can
- * only come from all C or all assembly.
- */
 void func_m118_00140(Object *obj, s32 updateRate) {
     s32 n;
     SparkParams spark;
@@ -201,9 +181,6 @@ void func_m118_00140(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m118", func_m118_00140);
-#endif
 
 void func_m118_003DC(Object *obj, M118CollectableSetup *setup) {
     M118Collectable *c = OBJ_STATE(obj, M118Collectable);
@@ -213,18 +190,20 @@ void func_m118_003DC(Object *obj, M118CollectableSetup *setup) {
     c->fade = 0xFF;
 }
 
-#ifdef NON_MATCHING
 void func_m118_00414(Object *obj, s32 updateRate) {
     M118Collectable *c;
-    Object *player;
-    Object *robot;
-    M118PlayerData *pd;
-    M118Robot *rd;
     f32 dx;
     f32 dy;
     f32 dz;
+    f32 radiusSq;
+    Object *robot;
+    Object *player;
+    M118PlayerData *pd;
+    M118Robot *rd;
+    f32 distSq;
 
-    if (OBJ_STATE(obj, M118Collectable)->fade == 0xFF) {
+    c = OBJ_STATE(obj, M118Collectable);
+    if (c->fade == 0xFF) {
         if (obj->objectID == 0x2C5) {
             func_8001138C(obj, 0.01f, updateRate);
         } else {
@@ -238,13 +217,14 @@ void func_m118_00414(Object *obj, s32 updateRate) {
                 robot = func_m118_00000();
             }
         }
-        c = OBJ_STATE(obj, M118Collectable);
         if (robot != NULL) {
             rd = robot->unk68;
+            radiusSq = c->radius;
+            radiusSq *= radiusSq;
             dx = obj->trans.x_position - rd->x;
             dy = obj->trans.y_position - rd->y;
             dz = obj->trans.z_position - rd->z;
-            if (c->radius * c->radius > dx * dx + dy * dy + dz * dz) {
+            if (dx * dx + dy * dy + dz * dz < radiusSq) {
                 if (func_8006B978() == 0) {
                     func_8006B9CC(D_m118_00900);
                 }
@@ -254,7 +234,6 @@ void func_m118_00414(Object *obj, s32 updateRate) {
             }
         }
     } else {
-        c = OBJ_STATE(obj, M118Collectable);
         if (c->fade > 0) {
             if (obj->objectID == 0x2C5) {
                 func_8001138C(obj, 0.01f, updateRate);
@@ -289,17 +268,21 @@ void func_m118_0063C(Object *obj, M118CheckSetup *setup) {
 }
 
 void func_m118_00794(Object *obj, s32 updateRate) {
-    M118Check *c = obj->unk68;
     Object *player;
-    M118PlayerData *pd;
     Object *robot;
-    f32 x;
-    f32 y;
-    f32 z;
     f32 dx;
     f32 dy;
     f32 dz;
+    f32 distSq;
+    f32 radiusSq;
+    f32 side;
+    M118PlayerData *pd;
+    M118Check *c;
+    f32 x;
+    f32 y;
+    f32 z;
 
+    c = obj->unk68;
     if (D_800A3208 != 0 && c->last != 0) {
         player = func_8000E4D0(0);
         if (player != NULL) {
@@ -307,13 +290,14 @@ void func_m118_00794(Object *obj, s32 updateRate) {
             robot = pd->robot;
             if (robot != NULL) {
                 x = robot->trans.x_position;
-                y = robot->trans.y_position;
-                z = robot->trans.z_position;
                 dx = x - obj->trans.x_position;
+                y = robot->trans.y_position;
                 dy = y - obj->trans.y_position;
+                z = robot->trans.z_position;
                 dz = z - obj->trans.z_position;
-                if (dx * dx + dy * dy + dz * dz < c->radius * c->radius &&
-                    c->nx * x + c->ny * y + c->nz * z + c->d < 0.0f) {
+                radiusSq = c->radius * c->radius;
+                if (dx * dx + dy * dy + dz * dz < radiusSq &&
+                    (side = c->nx * x + c->ny * y + c->nz * z + c->d) < 0.0f) {
                     func_m022_02430(c->message, 2);
                     if (c->last == 0xFF && pd->inRobot == 1) {
                         func_m022_023FC(pd);
@@ -323,14 +307,3 @@ void func_m118_00794(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m118", func_m118_00414);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m118", func_m118_0063C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m118", func_m118_00794);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m118", data);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m118", rodata);
-#endif
