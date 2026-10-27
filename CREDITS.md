@@ -40,6 +40,9 @@ CC0 places no conditions on reuse; the credit is given because it is due.
 | `src/modules/m034.c` | `src/objects.c` | allocate_object_pools, decrypt_magic_codes in JFG's form |
 | `src/modules/m035.c` | `src/font.h`, `src/font.c` | DialogueBoxBackground, DialogueTextElement; the window set-up of load_fonts |
 | `src/modules/m036.c` | `src/thread3_main.c` | alloc_displaylist_heap, default_alloc_displaylist_heap and their size tables in JFG's form |
+| `src/modules/m044.c` | `src/audio_spatial.c`, `.h` | the audio line code (AudioLine in JFG's order, audspat_reset and audspat_update_all's audio line parts, audspat_line_add_vertex, audspat_distance_to_segment, audspat_line_validate) |
+| `src/modules/m057.c` | `include/f3ddkr.h`, `include/structs.h` | gDkrDmaDisplayList; the TextureHeader fields it uses |
+| `src/modules/m049.c` | `include/structs.h` | the TextureHeader fields it uses |
 | `include/common.h` | `include/types.h` | `MtxF`, `stubbed_printf` |
 | `include/modules/object.h` | `include/structs.h` | `ObjectTransform`, `Vec3f`/`Vec3s`, and the `Object` fields JFG keeps at DKR's offsets (with their names) |
 | `include/modules/gfx.h` | `include/structs.h`, `include/f3ddkr.h` | `Vertex`, `Triangle` (without DKR's unions), `gSPPolygon`, `G_TRIN` |

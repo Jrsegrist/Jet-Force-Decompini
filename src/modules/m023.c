@@ -27,27 +27,6 @@ typedef struct M023Step {
     /* 0x13 */ u8 levelUnkDE;
 } M023Step;
 
-/* the description of a light (as module 123's) */
-typedef struct M023LightParams {
-    /* 0x00 */ u8 type;
-    /* 0x01 */ u8 unk1;
-    /* 0x02 */ u8 unk2;
-    /* 0x03 */ s8 unk3;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ s16 unkA;
-    /* 0x0C */ u16 radius;
-    /* 0x0E */ s16 radius2;
-    /* 0x10 */ u8 r;
-    /* 0x11 */ u8 g;
-    /* 0x12 */ u8 b;
-    /* 0x13 */ u8 a;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ u8 unk16;
-    /* 0x17 */ u8 unk17;
-} M023LightParams;
-
 /* DKR's ObjectLight (src/217C0.c), the fields used here */
 typedef struct M023Light {
     /* 0x00 */ u8 pad0[2];
@@ -85,13 +64,12 @@ typedef struct M023Object {
     /* 0xA1 */ u8 unkA1;
 } M023Object;
 
-extern M023Light *func_800210A4(Object *obj, M023LightParams *params); /* DKR add_object_light */
+extern M023Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void func_8002179C(M023Light *light);                            /* DKR light_remove */
 extern void func_8002130C(M023Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
 extern void func_80021358(M023Light *light, u8 intensity);             /* sets a light's intensity */
 extern void func_80022520(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
 extern M023Level *func_8004470C(void);                                   /* DKR levelGetLevel */
-extern M023Object **func_80005E98(s32 *first, s32 *count);               /* DKR objGetObjList */
 
 void func_m023_0015C(s32 updateRate);
 
@@ -129,7 +107,7 @@ static s32 sLevelUnkDE;
 #define BLEND(field) (cur->field + (((next->field - cur->field) * frac) >> 14))
 
 void func_m023_00000(f32 start, s32 stepLength) {
-    M023LightParams lp;
+    LightParams lp;
     M023Level *level;
 
     sStepLength = stepLength * 2;
@@ -137,7 +115,7 @@ void func_m023_00000(f32 start, s32 stepLength) {
     sTime = (start - (sStep * 2)) * stepLength;
     lp.type = 0;
     lp.unk1 = 3;
-    lp.unk2 = 0x41;
+    lp.flags = 0x41;
     lp.unk4 = 0;
     lp.unk3 = -1;
     lp.unk6 = 0;
@@ -226,7 +204,7 @@ void func_m023_0015C(s32 updateRate) {
         sAmbient = ambient;
         level->unkDC = ambient;
         level->unkDB = ambient + 1;
-        objs = func_80005E98(&i, &count);
+        objs = (M023Object **) func_80005E98(&i, &count);
         while (i < count) {
             obj = objs[i++];
             if (obj->unk54 != NULL && obj->unk40->unk1E == 0 && obj->unkA1 == 0) {

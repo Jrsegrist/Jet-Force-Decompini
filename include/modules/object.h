@@ -89,13 +89,15 @@ typedef struct Object {
     /* 0x1A */ s16 unk1A;
     /* 0x1C */ Vec3f velocity;                   /* (DKR: x/y/z_velocity) */
     /* 0x28 */ f32 unk28;                        /* (DKR) */
-    /* 0x2C */ u8 pad2C[0x39 - 0x2C];
+    /* 0x2C */ u8 pad2C[0x2E - 0x2C];
+    /* 0x2E */ s16 segmentID;                    /* (DKR) the level segment the object is in */
+    /* 0x30 */ u8 pad30[0x39 - 0x30];
     /* 0x39 */ u8 opacity;                       /* (DKR) */
     /* 0x3A */ s8 modelIndex;                    /* (DKR) */
     /* 0x3B */ s8 animationID;                   /* (DKR) */
     /* 0x3C */ LevelObjectEntryCommon *level_entry; /* (DKR) */
     /* 0x40 */ ObjectHeader *header;             /* (DKR) */
-    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x44 */ struct Vertex *curVertData;       /* (DKR) the vertices being drawn (m066 double-buffers them) */
     /* 0x48 */ s16 behaviorId;                   /* (DKR) */
     /* 0x4A */ s16 objectID;                     /* (DKR) */
     /* 0x4C */ ObjectInteraction *interactObj;   /* (DKR) */
@@ -106,7 +108,9 @@ typedef struct Object {
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ void *unk68;                      /* behaviour data, for behaviours that allocate it */
     /* 0x6C */ void **unk6C;                     /* model instances? */
-    /* 0x70 */ u8 pad70[0x7C - 0x70];
+    /* 0x70 */ void *unk70;                      /* m131: its joint angles */
+    /* 0x74 */ s32 *light;                       /* points at the handle of the object's light (or 0) */
+    /* 0x78 */ u8 pad78[0x7C - 0x78];
     /* 0x7C */ u8 *unk7C;
     /* 0x80 */ u8 pad80[0x84 - 0x80];
     /* 0x84 */ u32 particleEmittersEnabled;      /* bit mask for obj_spawn_particle (DKR's use) */

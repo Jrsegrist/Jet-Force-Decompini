@@ -36,14 +36,6 @@ typedef struct M130Interaction {
     /* 0x18 */ Vec3f oldPos;
 } M130Interaction;
 
-typedef struct M130Hit {
-    /* 0x00 */ u8 pad0[0x4];
-    /* 0x04 */ Vec3f pos;
-    /* 0x10 */ Vec3f normal;
-    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
-    /* 0x24 */ s32 flags;
-} M130Hit;
-
 /* The level entry of the object it leaves behind */
 typedef struct M130Spawn {
     /* 0x00 */ s16 objectID;
@@ -64,7 +56,6 @@ extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32
 extern void func_80013F08(f32 *light);
 extern void func_80013FE0(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern s32 func_80018808(Object *obj, Vec3f *from, Vec3f *to, M130Hit *hit, s32, s32);
 extern Object *spawn_object(M130Spawn *entry, s32 arg1); /* DKR */
 extern void func_800285B0(s32, s16, s16, s16, s32, s32);
 extern void func_80052734(s32, s16, s16, s16, u8, u8, u8);
@@ -98,7 +89,7 @@ void func_m130_00000(Object *obj, M130Setup *setup) {
 void func_m130_001AC(Object *obj, s32 updateRate) {
     M130Shot *s;
     s32 pad1;
-    M130Hit hit;
+    HitResult hit;
     Object *spawned;
     s32 pad2;
     M130Spawn entry;

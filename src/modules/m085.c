@@ -36,7 +36,6 @@ typedef struct M085View {
 } M085View;
 
 extern s32 func_80005064(s32);
-extern Object **func_80005E98(s32 *first, s32 *count); /* DKR objGetObjList */
 extern void func_80043404(s32);
 extern void func_80043418(s32);
 extern void func_80048518(s32);

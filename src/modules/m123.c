@@ -33,27 +33,6 @@ typedef struct M123Light {
     /* 0xE */ s16 period;
 } M123Light;
 
-/* the description of an object light (DKR's add_object_light takes one too) */
-typedef struct M123LightParams {
-    /* 0x00 */ u8 type;
-    /* 0x01 */ u8 unk1;
-    /* 0x02 */ u8 unk2;
-    /* 0x03 */ s8 unk3;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ s16 unkA;
-    /* 0x0C */ u16 radius;
-    /* 0x0E */ s16 radius2;
-    /* 0x10 */ u8 r;
-    /* 0x11 */ u8 g;
-    /* 0x12 */ u8 b;
-    /* 0x13 */ u8 a;
-    /* 0x14 */ s16 unk14;
-    /* 0x16 */ u8 unk16;
-    /* 0x17 */ u8 unk17;
-} M123LightParams;
-
 typedef struct M123BeamParams {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 unk1;
@@ -73,12 +52,12 @@ typedef struct M123BeamParams {
     /* 0x1E */ s8 unk1E;
 } M123BeamParams;
 
-extern void *func_800210A4(Object *obj, M123LightParams *params); /* DKR add_object_light */
+extern void *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void *func_80023A48(Object *obj, M123BeamParams *params);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
 void func_m123_00000(Object *obj, M123Setup *setup) {
-    M123LightParams lp;
+    LightParams lp;
     M123BeamParams bp;
     M123Light *l = obj->unk68;
 
@@ -97,7 +76,7 @@ void func_m123_00000(Object *obj, M123Setup *setup) {
     if (setup->lightRadius != 0) {
         lp.type = 3;
         lp.unk1 = setup->lightUnk1;
-        lp.unk2 = 0x61;
+        lp.flags = 0x61;
         lp.unk3 = -1;
         lp.unk4 = 0;
         lp.unk6 = 0;

@@ -75,7 +75,6 @@ typedef struct M118Check {
 
 extern u8 D_800A3208;
 
-extern Object **func_80005E98(s32 *first, s32 *count); /* DKR objGetObjList */
 extern s32 func_8006B978(void);
 extern void func_8006B9CC(void *);
 extern void func_m022_02430(s32 message, s32 arg1);

@@ -22,13 +22,6 @@ typedef struct M097Fragment {
     /* 0xC */ s32 unkC;
 } M097Fragment;
 
-typedef struct M097Hit {
-    /* 0x00 */ u8 pad0[0x4];
-    /* 0x04 */ Vec3f pos;
-    /* 0x10 */ u8 pad10[0x24 - 0x10];
-    /* 0x24 */ s32 flags;
-} M097Hit;
-
 typedef struct M097Level {
     /* 0x00 */ u8 pad0[0xE2];
     /* 0xE2 */ u8 unkE2;
@@ -36,7 +29,6 @@ typedef struct M097Level {
 
 extern void func_800541B0(s32, s32, s32);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern s32 func_80018808(Object *obj, Vec3f *from, Vec3f *to, M097Hit *hit, s32, s32);
 extern M097Level *func_8004470C(void); /* DKR levelGetLevel */
 
 s32 D_m097_003C0 = 97; /* the module's number */
@@ -60,7 +52,7 @@ void func_m097_00000(Object *obj, M097Setup *setup) {
 
 void func_m097_00100(Object *obj, s32 updateRate) {
     s32 spin;
-    M097Hit hit;
+    HitResult hit;
     M097Fragment *f;
     Vec3f oldPos;
     f32 rate;
