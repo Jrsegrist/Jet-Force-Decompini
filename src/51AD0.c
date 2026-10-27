@@ -258,7 +258,42 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_800527F0);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052874);
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052A00);
+typedef union PatchWord {
+    u32 word;
+    struct {
+        u32 op : 6;
+        u32 target : 26;
+    } j;
+    struct {
+        u16 hi;
+        u16 lo;
+    } half;
+} PatchWord;
+
+void func_80052A00(PatchWord *insn, u32 value, u8 type) {
+    u32 hi;
+
+    switch (type) {
+        case 2:
+            insn->word = value;
+            break;
+        case 4:
+            insn->j.target = value >> 2;
+            break;
+        case 5:
+            hi = value >> 16;
+            if (value & 0x8000) {
+                hi++;
+            }
+            insn->half.lo = hi;
+            break;
+        case 6:
+            insn->half.lo = value;
+            break;
+    }
+    osWritebackDCache(insn, 4);
+    osInvalICache(insn, 4);
+}
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
 

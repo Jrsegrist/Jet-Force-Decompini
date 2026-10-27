@@ -320,7 +320,16 @@ void drm_disable_input(void) {
     gButtonMask = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/joypad", func_800436C0);
+void func_80054530();
+void func_800436C0(s32 arg0, s32 arg1) {
+    osRecvMesg(&sSIMesgQueue, NULL, OS_MESG_BLOCK);
+    func_80054530(arg0, &sSIMesgQueue);
+    osRecvMesg(&sSIMesgQueue, NULL, OS_MESG_BLOCK);
+    func_80054530(&sSIMesgQueue);
+    osRecvMesg(&sSIMesgQueue, NULL, OS_MESG_BLOCK);
+    osContStartReadData(&sSIMesgQueue);
+    func_80054530(arg1);
+}
 
 /* JFG */
 s32 func_80043744(void) {

@@ -147,7 +147,17 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
     func_80023170(0xFF, 0xFF, 0xFF, D_800F5B20);
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80020D84);
+extern f32 D_800ABA90;
+s32 func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
+void func_80020D84(ObjectLight *light) {
+    if (!(light->enabled & 0x40)) {
+        light->unk6C = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
+                                     light->radius * D_800ABA90, (light->colourR * light->intensity) >> 8,
+                                     (light->colourG * light->intensity) >> 8, (light->colourB * light->intensity) >> 8);
+    } else {
+        light->unk6C = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80020E3C);
 

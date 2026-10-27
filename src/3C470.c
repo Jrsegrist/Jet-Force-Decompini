@@ -206,7 +206,32 @@ s32 func_8003F1B0(s32 *size) {
     return D_800F6F58;
 }
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003F1C8);
+typedef struct Weight3C { s16 value; s16 value2; s32 id; } Weight3C;
+typedef struct Bone3C { u8 pad0[0x16]; s16 scale; } Bone3C;
+typedef struct BoneRef3C { Bone3C *bone; s32 pad4; } BoneRef3C;
+typedef struct Model3C { u8 pad0[0x18]; BoneRef3C *bones; u8 pad1C[0x2C - 0x1C]; u8 count; } Model3C;
+typedef struct Obj3C { Model3C *model; u8 pad4[0xB - 4]; s8 index; u8 padC[0x74 - 0xC]; Weight3C *weights; s16 *out[1]; } Obj3C;
+
+void func_8003F1C8(Obj3C *obj, s32 id, s32 value) {
+    Model3C *model = obj->model;
+    Weight3C *w = obj->weights;
+    s16 *out = obj->out[obj->index];
+    s32 i;
+    s32 k;
+    Bone3C *bone;
+
+    for (i = 0; i < model->count; i++, w++) {
+        k = w->id & 0xFF;
+        bone = model->bones[k].bone;
+        if (k == id) {
+            w->value = value;
+        }
+        *out++ = (w->value >> 8) * bone->scale;
+        if (w->value2 >= 0) {
+            *out++ = (w->value2 >> 8) * bone->scale;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003F284);
 
