@@ -222,7 +222,7 @@ void set_current_dialogue_box_coords(s32 dialogueBoxID, s32 x1, s32 y1, s32 x2, 
 }
 
 /**
- * Sets the active front of the current dialogue box (as DKR's Japanese version).
+ * Sets the active font of the current dialogue box (as DKR's Japanese version).
  * Official Name: fontWindowUseFont
  */
 void set_dialogue_font(s32 dialogueBoxID, s32 font) {

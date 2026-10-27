@@ -223,7 +223,7 @@ DKR decompilation (a clone of it, `--dkr`) and ultralib do not have too.
 
 The main segment holds the engine (audio, memory, tracks and levels, lights,
 camera, the object core, fonts, particles, rzip, the runlink loader at about
-0x80052800) and the libraries. Game objects, enemies, menus and the front end
+0x80052800) and the libraries. Game objects, enemies, the menus and the HUD
 live in the runlink modules.
 
 ## Credits

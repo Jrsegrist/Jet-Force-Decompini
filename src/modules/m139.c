@@ -1,6 +1,6 @@
 /*
- * Runlink module 139: a list of up to 32 objects that enemy squads go
- * after (dead or flagged objects of kind 0x18, objects of kind 0x40 in
+ * Runlink module 139: a list of up to 32 objects that enemies may pick as
+ * targets (dead or flagged objects of kind 0x18, objects of kind 0x40 in
  * state 0 or 2, and every object of kind 0x4D), rebuilt from the active
  * objects, with queries for the nearest one, whether one is in a zone and
  * whether an object is on the list.

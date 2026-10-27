@@ -65,23 +65,23 @@ typedef struct ObjectHeaderLight {
 typedef struct ObjectHeader {
     /* 0x00 */ u8 pad0[0x25];
     /* 0x25 */ s8 numLightSources;
-    /* 0x26 */ u8 numCamLights; // JFG
+    /* 0x26 */ u8 numCoronas; // JFG
     /* 0x27 */ u8 pad27[0x48 - 0x27];
     /* 0x48 */ struct ObjectHeaderLight *lights;
-    /* 0x4C */ struct ObjectHeaderCamLight *camLights; // JFG
+    /* 0x4C */ struct ObjectHeaderCorona *coronas; // JFG
 } ObjectHeader;
 
-/* JFG: Size: 0x20 bytes */
-typedef struct ObjectHeaderCamLight {
+/* JFG: the description of one of an object's coronas (245D0.c). Size: 0x20 bytes */
+typedef struct ObjectHeaderCorona {
     /* 0x00 */ u8 pad0[0x20];
-} ObjectHeaderCamLight;
+} ObjectHeaderCorona;
 
 typedef struct Object {
     /* 0x00 */ u8 pad0[0x40];
     /* 0x40 */ ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x74 - 0x44];
     /* 0x74 */ ObjectLight **lightData;
-    /* 0x78 */ void **camLightData; // JFG
+    /* 0x78 */ void **coronaData; // JFG
 } Object;
 
 void light_update(ObjectLight *light, s32 updateRate);
@@ -360,13 +360,13 @@ void light_setup_light_sources(Object *obj) {
     }
 }
 
-void *func_80023A48(Object *obj, ObjectHeaderCamLight *header);
+void *func_80023A48(Object *obj, ObjectHeaderCorona *header);
 
-/* JFG: light_setup_light_sources for the header's camera lights (0x800226B8). */
-void light_setup_cam_lights(Object *obj) {
+/* JFG: the same loop as light_setup_light_sources, over the header's corona descriptions (0x800226B8). */
+void light_setup_coronas(Object *obj) {
     s32 i;
-    for (i = 0; i < obj->header->numCamLights; i++) {
-        obj->camLightData[i] = func_80023A48(obj, &obj->header->camLights[i]);
+    for (i = 0; i < obj->header->numCoronas; i++) {
+        obj->coronaData[i] = func_80023A48(obj, &obj->header->coronas[i]);
     }
 }
 

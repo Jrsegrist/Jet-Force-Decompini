@@ -2,7 +2,8 @@
  * Runlink module 102: a thrown bomb. It is either held at a point of its
  * thrower's model until thrown, or launched along its set-up direction from a
  * spot checked against the scenery. It spins and tumbles as it rolls, and
- * bursts (with a sound and a blast) when its time runs out.
+ * goes off when its time runs out: it spawns an object from the level's list
+ * where it lies and plays a sound.
  */
 #include "module.h"
 

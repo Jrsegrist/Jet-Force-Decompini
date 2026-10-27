@@ -77,8 +77,8 @@ typedef struct M113Spawn {
     /* 0x0C */ f32 unkC;
 } M113Spawn;
 
-/* The level entry of the blast a homing rocket leaves */
-typedef struct M113Blast {
+/* The level entry a kind 1 rocket spawns (object 0x13C) where it ends */
+typedef struct M113Burst {
     /* 0x00 */ s16 objectID;
     /* 0x02 */ u8 pad2[2];
     /* 0x04 */ s16 x;
@@ -92,7 +92,7 @@ typedef struct M113Blast {
     /* 0x12 */ u8 unk12;
     /* 0x13 */ u8 hitFloor;
     /* 0x14 */ Object *owner;
-} M113Blast;
+} M113Burst;
 
 typedef struct M113Level {
     /* 0x00 */ u8 pad0[0xE2];
@@ -118,7 +118,7 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 #ifdef NON_MATCHING
 s32 D_m113_00CC0 = 113; /* the module's number */
-static u8 sBlastKinds[2] = { 5, 1 };
+static u8 sBurstKinds[2] = { 5, 1 };
 #else
 /* func_m113_002C8 is still asm and refers to the data (and its .rodata) by its own labels */
 INCLUDE_ASM("asm/nonmatchings/modules/m113", data);
@@ -202,7 +202,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
     f32 dy;
     M113Spawn entry;
     f32 dist;
-    M113Blast blast;
+    M113Burst burst;
     s32 i;
     f32 rate;
 
@@ -342,26 +342,26 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 owner = NULL;
             }
             if (m->kind == 1) {
-                blast.objectID = 0x13C;
-                blast.x = obj->trans.x_position;
-                blast.y = obj->trans.y_position;
-                blast.z = obj->trans.z_position;
-                blast.yaw = m->hitYaw;
-                blast.pitch = m->hitPitch;
-                blast.hitSomething = m->hit & 1;
-                blast.unk12 = func_8004470C()->unkE2;
-                blast.unk11 = 1;
-                blast.hitFloor = m->hit & 2;
-                blast.owner = owner;
-                spawned = func_80005F14(&blast, 1);
+                burst.objectID = 0x13C;
+                burst.x = obj->trans.x_position;
+                burst.y = obj->trans.y_position;
+                burst.z = obj->trans.z_position;
+                burst.yaw = m->hitYaw;
+                burst.pitch = m->hitPitch;
+                burst.hitSomething = m->hit & 1;
+                burst.unk12 = func_8004470C()->unkE2;
+                burst.unk11 = 1;
+                burst.hitFloor = m->hit & 2;
+                burst.owner = owner;
+                spawned = func_80005F14(&burst, 1);
                 if (spawned != NULL) {
                     spawned->level_entry = NULL;
                 }
                 func_80029BA4(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 120.0f, 120.0f,
-                              0.34f, sBlastKinds[m->kind], owner);
+                              0.34f, sBurstKinds[m->kind], owner);
             } else {
                 spawn_object_from_list(2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
-                              sBlastKinds[m->kind], owner);
+                              sBurstKinds[m->kind], owner);
             }
             func_80052734(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
         }

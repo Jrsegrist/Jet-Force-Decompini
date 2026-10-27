@@ -17,14 +17,14 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005886C);
 void func_800586E0(void);
 void func_8005886C(void);
 void func_80059A04(void);
-extern u8 gMenuMode; // JFG: the front end mode
+extern u8 gMenuMode; // JFG: which menu set is running
 extern u8 D_800A5058;
 extern u8 D_800A505C;
 extern u8 D_800A4FC4; // JFG: a multiplayer game
 extern u8 D_800A4FD0; // JFG: the number of players
 extern u8 D_800A4FCC; // JFG: the number of cameras
 
-/* JFG: change the front end mode; mode 0 goes back to one player (0x800589F0). */
+/* JFG: store a new gMenuMode between calls to three menu functions; mode 0 also resets to a single player and camera (0x800589F0). */
 void menu_mode_set(s32 mode) {
     func_800586E0();
     gMenuMode = mode;
@@ -39,7 +39,7 @@ void menu_mode_set(s32 mode) {
     }
 }
 
-/* Returns the front end mode (0x80058A5C). */
+/* Returns gMenuMode (0x80058A5C). */
 u8 menu_mode_get(void) {
     return gMenuMode;
 }
@@ -51,9 +51,9 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80058C54);
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058D5C);
 
 s8 is_game_paused(void); // JFG: the pause mode
-extern s32 gMenuTimer;  // JFG: the front end timer
+extern s32 gMenuTimer;  // JFG: a frame counter for the menus
 
-/* JFG: advance the front end timer (unless paused) up to limit; TRUE once it got there (0x80058E78). */
+/* JFG: add delta to gMenuTimer when the game is not paused, stopping at limit; TRUE when limit is reached (0x80058E78). */
 s32 menu_timer_advance(UNUSED s32 arg0, s32 limit, s32 delta) {
     s32 done = FALSE;
 
@@ -71,15 +71,15 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80058EF0);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_800595F4);
 
-typedef struct FrontRect {
+typedef struct MenuRect {
     s16 x1, y1, x2, y2;
     s32 colour;
-} FrontRect;
-void func_800595F4(s32 arg0, s32 count, FrontRect *rects, s32 arg3);
+} MenuRect;
+void func_800595F4(s32 arg0, s32 count, MenuRect *rects, s32 arg3);
 
 /* JFG: draw one rectangle through the list function (0x80059814). */
 void menu_draw_rect(s32 arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
-    FrontRect rect;
+    MenuRect rect;
 
     rect.x1 = x1;
     rect.y1 = y1;

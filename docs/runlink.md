@@ -1,6 +1,6 @@
 # Runlink: Jet Force Gemini's run-time linked modules
 
-Most of Jet Force Gemini's game code (objects, enemies, menus, the front end)
+Most of Jet Force Gemini's game code (objects, enemies, menus and the HUD)
 is not in the main code segment. It lives in 157 relocatable modules that the
 game loads from ROM when it needs them and links in place, patching each
 relocated instruction or pointer against the global symbol table. This page
@@ -321,7 +321,7 @@ for its siblings. (Kinds are named here from what the code does.)
 | enemy behaviours | 3, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148, m150); their attack decisions share one shape (`func_m003_0CAA4` then `func_m003_04260`: m141, m145, m148), and m141 and m145 share their up-and-down movement code |
 | bosses | 50, 51, 52 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions |
 | weapons | 15, 16, 17 | a large control function, a firing check and twenty-odd helpers of matching sizes |
-| front end | 6, 9, 12, 13, 18, 37, 40, 42, 57-59, 61-63 | screens with init / per-frame / cleanup functions, and the HUD (6, 13, 14) |
+| menus and screens | 6, 9, 12, 13, 18, 37, 40, 42, 57-59, 61-63 | screens with init / per-frame / cleanup functions, and the HUD (6, 13, 14) |
 | effect libraries | 1, 2, 8, 10 | a pool of particles with add / update / draw / free functions that other modules call (module 10's spark is in `module.h`) |
 | fog and lighting | 23, 39 | init / update / fog / fade getters |
 | copy-protection checks | 45, 71, 98, 111, 133, 144, 156 | tiny 6105 CIC checks (all C); 71/98 and 111/133 are pairs that differ only in constants |

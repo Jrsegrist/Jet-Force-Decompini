@@ -11,40 +11,41 @@ s32 func_80050ED0(s32 id) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050ED0);
 #endif
 
-typedef struct SquadObject SquadObject;
+typedef struct TroopObject TroopObject;
 
-typedef struct SquadState {
+/* The state of an object that heads a linked list of followers */
+typedef struct LeaderState {
     /* 0x00 */ u8 pad0[0x58];
-    /* 0x58 */ SquadObject *firstMember;
+    /* 0x58 */ TroopObject *firstMember;
     /* 0x5C */ u8 pad5C[0x64 - 0x5C];
     /* 0x64 */ u8 unk64;
-} SquadState;
+} LeaderState;
 
-/* The state of a squad member (in its leader's list) */
+/* The state of a follower, linked into its leader's list */
 typedef struct MemberState {
     /* 0x00 */ u8 pad0[0x15];
     /* 0x15 */ u8 unk15;
     /* 0x16 */ u8 pad16[0x28 - 0x16];
-    /* 0x28 */ SquadObject *next;
+    /* 0x28 */ TroopObject *next;
     /* 0x2C */ u8 pad2C[0x64 - 0x2C];
     /* 0x64 */ s32 unk64;
     /* 0x68 */ u8 pad68[0xA8 - 0x68];
     /* 0xA8 */ s32 unkA8;
 } MemberState;
 
-struct SquadObject {
+struct TroopObject {
     /* 0x00 */ u8 pad0[0x11];
     /* 0x11 */ u8 unk11;
     /* 0x12 */ u8 pad12[0x68 - 0x12];
-    /* 0x68 */ SquadState *state;
+    /* 0x68 */ LeaderState *state;
     /* 0x6C */ u8 pad6C[0xA0 - 0x6C];
     /* 0xA0 */ u8 unkA0;
 };
 
 extern s32 D_800FE9F0;
-extern SquadObject **D_800A38E4;
+extern TroopObject **D_800A38E4;
 
-SquadObject **func_80050F44(s32 *count) {
+TroopObject **func_80050F44(s32 *count) {
     *count = D_800FE9F0;
     return D_800A38E4;
 }
@@ -61,10 +62,10 @@ void func_8005131C(s32 arg0) {
     D_800FE9A0++;
 }
 
-extern SquadObject **D_800FE9A4;
+extern TroopObject **D_800FE9A4;
 extern s32 D_800FE9A8;
 
-void func_80051350(SquadObject *obj) {
+void func_80051350(TroopObject *obj) {
     D_800FE9A4[D_800FE9A8] = obj;
     if (++D_800FE9A8 >= D_800FE9A0) {
         D_800FE9A8 = 0;
@@ -72,10 +73,10 @@ void func_80051350(SquadObject *obj) {
 }
 
 /* JFG: take the object with byte 0x11 == id out of the ring list. */
-SquadObject *func_800513A0(s32 id) {
+TroopObject *func_800513A0(s32 id) {
     s32 count = D_800FE9A0;
-    SquadObject **list = D_800FE9A4;
-    SquadObject *obj;
+    TroopObject **list = D_800FE9A4;
+    TroopObject *obj;
 
     if (count > 0x100) {
         return NULL;
@@ -95,10 +96,10 @@ SquadObject *func_800513A0(s32 id) {
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 rand_range(s32 min, s32 max);
-extern s32 D_800FE9B0; // JFG: squad module flags
-extern s32 D_800FE9F4; // JFG: a squad timer (240 to 360 frames)
+extern s32 D_800FE9B0; // JFG: set to 1 by func_80051420
+extern s32 D_800FE9F4; // JFG: a random frame count, 240 to 360
 
-/* JFG: set up the squad lists before the objects are loaded. */
+/* JFG: allocate the 0x400-byte buffer func_8005131C fills (D_800FE9AC) and empty the leader and ring lists. */
 void func_80051420(void) {
     D_800FE9AC = (s32 *) mempool_alloc_safe(0x400, 0xFFFF00FF);
     D_800FE9B0 = 1;
@@ -109,9 +110,9 @@ void func_80051420(void) {
 }
 
 /* JFG: the last active object whose state byte 0x64 is id. */
-SquadObject *func_80051484(s16 id) {
+TroopObject *func_80051484(s16 id) {
     s32 i = D_800FE9F0;
-    SquadObject *obj;
+    TroopObject *obj;
 
     while (i--) {
         obj = D_800A38E4[i];
@@ -123,19 +124,19 @@ SquadObject *func_80051484(s16 id) {
 }
 
 
-/* JFG: find squad squadId's active member memberId. */
-SquadObject *func_80051508(s16 squadId, s16 memberId) {
+/* JFG: the leader with id troopId, then the active follower on its list whose byte 0x15 is memberId. */
+TroopObject *func_80051508(s16 troopId, s16 memberId) {
     s32 i = D_800FE9F0;
-    SquadObject *obj;
-    SquadState *squad;
-    SquadObject *member;
+    TroopObject *obj;
+    LeaderState *leader;
+    TroopObject *member;
     MemberState *state;
 
     while (i--) {
         obj = D_800A38E4[i];
-        squad = obj->state;
-        if (squadId == squad->unk64) {
-            for (member = squad->firstMember; member != NULL; member = state->next) {
+        leader = obj->state;
+        if (troopId == leader->unk64) {
+            for (member = leader->firstMember; member != NULL; member = state->next) {
                 state = (MemberState *) member->state;
                 if (member->unkA0 == 0 && memberId == state->unk15) {
                     return member;
@@ -147,18 +148,18 @@ SquadObject *func_80051508(s16 squadId, s16 memberId) {
     return NULL;
 }
 
-/* JFG: clear word 0x64 == id in every squad member's state. */
+/* JFG: in every leader's followers, zero state word 0x64 where it equals id. */
 void func_800515D0(s32 id) {
     s32 i = D_800FE9F0;
-    SquadObject *obj;
-    SquadState *squad;
-    SquadObject *member;
+    TroopObject *obj;
+    LeaderState *leader;
+    TroopObject *member;
     MemberState *state;
 
     while (i--) {
         obj = D_800A38E4[i];
-        squad = obj->state;
-        for (member = squad->firstMember; member != NULL; member = state->next) {
+        leader = obj->state;
+        for (member = leader->firstMember; member != NULL; member = state->next) {
             state = (MemberState *) member->state;
             if (id == state->unk64) {
                 state->unk64 = 0;
@@ -167,18 +168,18 @@ void func_800515D0(s32 id) {
     }
 }
 
-/* JFG: clear the first squad member's word 0xA8 that is id. */
+/* JFG: zero state word 0xA8 of the first follower (of any leader) where it equals id. */
 void func_80051660(s32 id) {
     s32 i = D_800FE9F0;
-    SquadObject *obj;
-    SquadState *squad;
-    SquadObject *member;
+    TroopObject *obj;
+    LeaderState *leader;
+    TroopObject *member;
     MemberState *state;
 
     while (i--) {
         obj = D_800A38E4[i];
-        squad = obj->state;
-        for (member = squad->firstMember; member != NULL; member = state->next) {
+        leader = obj->state;
+        for (member = leader->firstMember; member != NULL; member = state->next) {
             state = (MemberState *) member->state;
             if (id == state->unkA8) {
                 state->unkA8 = 0;
@@ -228,7 +229,7 @@ void func_8005269C(u8 *data, s32 size) {
 s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loaded
 void func_80054530();          // a module function (patched in by the runtime linker)
 
-/* JFG: pass an event to the squad module (3) when it is loaded. */
+/* JFG: forward a position and three bytes to module 3 (the enemy code), if it is loaded. */
 void func_80052734(s32 a0, s16 a1, s16 a2, s16 a3, u8 a4, u8 a5, u8 a6) {
     if (runlink_module_loaded(3)) {
         func_80054530(a0, a1, a2, a3, a4, a5, a6);
@@ -402,25 +403,25 @@ void func_8005414C(void) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005414C);
 #endif
 
-typedef struct DestructTimer {
+typedef struct UnloadTimer {
     u16 timer : 10;
     u16 unk : 6;
-} DestructTimer;
-extern DestructTimer *D_800FEB58;
+} UnloadTimer;
+extern UnloadTimer *D_800FEB58;
 
-/* JFG: set a module's destruct timer (10 bits) and its other 6 bits (0x800541B0). */
+/* JFG: set the frames before a module is unloaded (10 bits) and its other 6-bit count (0x800541B0). */
 void runlink_unload_timer_set(s32 index, u16 timer, u8 value) {
     D_800FEB58[index].timer = timer;
     D_800FEB58[index].unk = value;
 }
 
-extern s32 D_800A38FC; // JFG: module destruct timers enabled
+extern s32 D_800A38FC; // JFG: nonzero while the unload timers run
 void func_8005342C(s32 module);
 
-/* JFG: tick the modules' destruct timers; unload a module when its timer runs out (0x80054204). */
+/* JFG: decrement every module's unload timer and unload the module when it reaches zero (0x80054204). */
 void runlink_unload_timers_update(void) {
     s32 i = gNumRunlinkModules;
-    DestructTimer *t;
+    UnloadTimer *t;
 
     if (D_800A38FC != 0) {
         while (i--) {
@@ -440,7 +441,7 @@ void runlink_unload_timers_update(void) {
 /* JFG: unload the modules with a running timer and no other count right now. */
 void func_800542C4(void) {
     s32 i = gNumRunlinkModules;
-    DestructTimer *t;
+    UnloadTimer *t;
 
     while (i--) {
         t = &D_800FEB58[i];

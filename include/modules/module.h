@@ -69,9 +69,9 @@ typedef struct SparkParams {
 extern void *func_m010_0000C(SparkParams *spark); /* returns the spark (callers ignore it) */
 
 /*
- * Animation sequences that triggers and switches start and stop. Some
- * callers pass (anim, updateRate, obj, 1), others only the sequence, so the
- * original had no prototype in scope for them.
+ * Main-segment calls that triggers and switches use to start and stop
+ * scripted animations. Some callers pass (anim, updateRate, obj, 1), others
+ * only the first argument, so the original had no prototype in scope for them.
  */
 extern void func_800767EC();
 extern void func_8007688C();
