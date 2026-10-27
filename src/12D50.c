@@ -86,7 +86,13 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_800129AC);
 
 /* DKR include/structs.h Object, reduced (JFG offsets) */
 typedef struct Object_Racer {
-    /* 0x00 */ s8 playerIndex;
+    /* 0x000 */ s8 playerIndex;
+    /* 0x001 */ u8 pad1[0x19C - 1];
+    /* 0x19C */ s8 unk19C;
+    /* 0x19D */ u8 pad19D[0x568 - 0x19D];
+    /* 0x568 */ u8 unk568;
+    /* 0x569 */ u8 pad569[0x5C0 - 0x569];
+    /* 0x5C0 */ s32 unk5C0;
 } Object_Racer;
 
 typedef struct Object {
@@ -178,9 +184,92 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80013970);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013B74);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013D3C);
+/* JFG: an entry per segment of D_800A0D80 */
+typedef struct SegmentAlloc {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ void *data;
+} SegmentAlloc;
 
+/* JFG: a track light (Size: 0x80 bytes) */
+typedef struct TrackLight {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ f32 outerRadius; // 0 when the slot is free
+    /* 0x10 */ f32 innerRadius;
+    /* 0x14 */ f32 outerRadiusSquare;
+    /* 0x18 */ f32 innerRadiusSquare;
+    /* 0x1C */ f32 falloff;
+    /* 0x20 */ u8 ramp[0x60]; // filled by func_80013F48
+} TrackLight;
+
+extern SegmentAlloc *D_800A0D80;
+extern TrackLight *D_800A0D78; // JFG: D_800A0D70 track lights
+extern s32 D_800A0D74;
+extern s32 D_800A0D70;
+void mempool_free(void *data);
+
+/* JFG: free the per-segment buffers and the track lights. */
+void func_80013D3C(void) {
+    s32 i;
+
+    if (D_800A0D80 != NULL) {
+        i = gCurrentLevelModel->numberOfSegments;
+        while (i--) {
+            if (D_800A0D80[i].data != NULL) {
+                mempool_free(D_800A0D80[i].data);
+            }
+        }
+        mempool_free(D_800A0D80);
+        D_800A0D80 = NULL;
+    }
+    if (D_800A0D78 != NULL) {
+        mempool_free(D_800A0D78);
+        D_800A0D78 = NULL;
+    }
+    D_800A0D74 = 0;
+    D_800A0D70 = 0;
+}
+
+extern f32 D_800AB648; // a .rodata constant, not split out yet
+void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: add a track light in the first free slot.
+ * NON_MATCHING: 11 words: the stores in the found-slot block are scheduled differently and the
+ * light's spill slot is off by one word.
+ */
+TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue) {
+    s32 i;
+    TrackLight *light;
+
+    if (outerRadius <= 0.0f) {
+        return NULL;
+    }
+    light = D_800A0D78;
+    i = D_800A0D70;
+    while (i--) {
+        if (light->outerRadius == 0.0f) {
+            light->x = x;
+            light->y = y;
+            light->outerRadius = outerRadius;
+            light->outerRadiusSquare = outerRadius * outerRadius;
+            light->innerRadius = innerRadius;
+            light->innerRadiusSquare = innerRadius * innerRadius;
+            light->z = z;
+            light->falloff = D_800AB648 / (outerRadius - innerRadius);
+            func_80013F48((u8 *) light, red, green, blue, 255);
+            D_800A0D74++;
+            return light;
+        }
+        light++;
+    }
+    return NULL;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
+#endif
 
 extern s32 D_800A0D74;
 
@@ -194,7 +283,34 @@ void func_80013F08(f32 *light) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013F48);
+/* JFG: fill a track light's ramp of 32 colours (from 0x20) up to the colour, scaled by brightness. */
+void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness) {
+    s32 i;
+    u8 *ramp;
+    s32 stepRed, stepGreen, stepBlue;
+
+    if (light != NULL) {
+        if (brightness < 255) {
+            red = (red * brightness) >> 8;
+            green = (green * brightness) >> 8;
+            blue = (blue * brightness) >> 8;
+        }
+        ramp = light + 0x20;
+        stepRed = red;
+        stepGreen = green;
+        stepBlue = blue;
+        i = 31;
+        do {
+            ramp[0] = red >> 5;
+            ramp[1] = green >> 5;
+            ramp[2] = blue >> 5;
+            red += stepRed;
+            green += stepGreen;
+            blue += stepBlue;
+            ramp += 3;
+        } while (i--);
+    }
+}
 
 void func_80013FE0(f32 *light, f32 x, f32 y, f32 z) {
     if (light != NULL) {
@@ -327,7 +443,25 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015510);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001563C);
+/**
+ * Write the segments whose bounding box (grown by 4) holds the point on the XZ plane.
+ * JFG: the list is of shorts.
+ * DKR: get_inside_segment_count_xz
+ */
+s32 func_8001563C(s32 x, s32 z, s16 *arg2) {
+    s32 i;
+    s32 cnt = 0;
+    LevelModelSegmentBoundingBox *bb;
+    for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
+        bb = gCurrentLevelModel->segmentsBoundingBoxes + i;
+        if (x < bb->x2 + 4 && bb->x1 - 4 < x && z < bb->z2 + 4 && bb->z1 - 4 < z) {
+            *arg2 = i;
+            cnt++;
+            arg2++;
+        }
+    }
+    return cnt;
+}
 
 /**
  * Carbon copy of the above function, but takes into account the Y axis, too.
@@ -376,7 +510,31 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_800158BC);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015B3C);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80015E3C);
+extern u8 D_800A4FC4;
+s32 func_8003FC1C(); // the current camera (called with two arguments it ignores)
+
+/* JFG: the opacity to draw a racer with (255 = opaque). */
+s32 func_80015E3C(Object *obj) {
+    s32 alpha;
+    Object_Racer *racer;
+
+    racer = obj->racer;
+    alpha = 255;
+    if (racer->unk5C0 == 0) {
+        if (racer->unk568 == 10) {
+            alpha = 255 - racer->unk19C * 2;
+        } else if (func_8003FC1C(obj, racer) == racer->playerIndex) {
+            alpha = 255 - racer->unk19C * 4;
+            if (D_800A4FC4) {
+                alpha -= racer->unk19C;
+            }
+            if (alpha < 0) {
+                alpha = 0;
+            }
+        }
+    }
+    return alpha;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015ED8);
 
@@ -390,7 +548,41 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80017794);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80018024);
 
+f32 sqrtf(f32 x);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: where a ray (origin, unit direction) meets a sphere; FALSE if it misses.
+ * NON_MATCHING: frame 0x38 (target 0x48, so more locals), and b / b*b swap FP registers.
+ */
+s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar) {
+    f32 dx, dy, dz;
+    f32 b;
+    f32 b2;
+    f32 c;
+    f32 d;
+    s32 hit;
+
+    dx = origin[0] - centre[0];
+    dy = origin[1] - centre[1];
+    dz = origin[2] - centre[2];
+    hit = FALSE;
+    b = dx * dir[0] + dy * dir[1] + dz * dir[2];
+    b2 = b * b;
+    c = (dx * dx + dy * dy + dz * dz) - radius * radius;
+    if (c <= b2) {
+        hit = TRUE;
+    }
+    if (hit) {
+        d = sqrtf(b2 - c);
+        *tNear = -b - d;
+        *tFar = -b + d;
+    }
+    return hit;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800183D4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800184B4);
 
@@ -398,7 +590,31 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80018808);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800191D8);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80019518);
+/* JFG: clip a line's parameter range [*tEnter, *tLeave] against one plane; FALSE if nothing is left. */
+s32 func_80019518(f32 denom, f32 num, f32 *tEnter, f32 *tLeave) {
+    f32 t;
+
+    if (denom > 0.0f) {
+        t = num / denom;
+        if (t > *tLeave) {
+            return FALSE;
+        }
+        if (t > *tEnter) {
+            *tEnter = t;
+        }
+    } else if (denom < 0.0f) {
+        t = num / denom;
+        if (t < *tEnter) {
+            return FALSE;
+        }
+        if (t < *tLeave) {
+            *tLeave = t;
+        }
+    } else if (num > 0.0f) {
+        return FALSE;
+    }
+    return TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800195E8);
 

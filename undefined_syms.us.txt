@@ -129,7 +129,6 @@ func_8004AFFC = mempool_print_slots;
 func_8004AA08 = mempool_free_timer;
 func_8004A3D0 = mempool_init_main;
 func_8004A458 = mempool_new_sub;
-mempool_init = 0x8004A4A4;
 gFreeQueueCount = 0x800FDD88;
 gExpansionPak = 0x800A33F0;
 gRamEnd = 0x800FDDA8;
@@ -137,14 +136,12 @@ gMainMemoryPool = 0x801059A0;
 func_8004AA80 = mempool_free;
 func_8004AAC4 = mempool_free_queue_clear;
 func_8004A828 = mempool_alloc_fixed;
-mempool_slot_assign = 0x8004AEBC;
 gFreeQueueTimer = 0x800FDD8C;
 func_8004AC90 = mempool_free_queue;
 gFreeQueueAddress = 0x800FD888;
 gFreeQueueTimers = 0x800FDC88;
 gMemoryPools = 0x800FD840;
 gNumberOfMemoryPools = 0x800FD880;
-mempool_slot_find = 0x8004A69C;
 mempool_slot_clear = 0x8004AD2C;
 
 /* ---- audio.c ---- */
@@ -198,7 +195,6 @@ gSoundBank = 0x800E9504;
 gSoundCount = 0x800E9510;
 gSoundTable = 0x800E9508;
 gSoundTableSize = 0x800E9518;
-music_sequence_stop = 0x80001900;
 func_80000DD8 = music_tempo_set;
 func_80000EBC = sound_jingle_tempo_set;
 alCSPSetTempo = 0x800898D0;
@@ -262,7 +258,6 @@ gViewMatrixF = 0x800FAF78;
 /* ---- 55130.c ---- */
 func_80056798 = tex_load_sprite;
 sprite_init_frame = 0x80056D24;
-mempool_alloc = 0x8004A60C;
 gSpriteTableSize = 0x800FED14;
 gSpriteOffsetTable = 0x800FED08;
 gCurrentSpriteAsset = 0x800FED10;
@@ -379,7 +374,6 @@ audspat_point_stop_by_index = 0x80003B74;
 gAudioPoints = 0x800F29F4;
 gNumAudioPoints = 0x800A0800;
 gJinglesOff = 0x800F2A04;
-music_jingle_stop = 0x80000F60;
 func_800034F4 = audspat_play_sound_direct;
 func_800036C8 = audspat_point_create;
 func_800032B4 = audspat_calculate_spatial_pan;
@@ -406,7 +400,6 @@ func_8003F5F0 = thread3_verify_stack;
 func_80066CBC = stop_all_threads_except_main;
 func_80067958 = mode_lockup;
 func_80066B80 = thread0_create;
-thread0_Main = 0x80066BD4;
 gEPCThread = 0x801022B0;
 gEPCStack = 0x801012B0; /* STACK_EPC bytes below gEPCThread, as in DKR */
 sLockupDelay = 0x800A64CC;
@@ -420,7 +413,6 @@ gShowSubtitles = 0x80104574;
 gSubtitleLineCount = 0x80104576;
 gSubtitleProperties = 0x80104580;
 gSubtitleTimer = 0x8010456A;
-normalise_time = 0x80005064;
 
 /* ---- 53C0.c ---- */
 func_80005064 = normalise_time;
@@ -514,7 +506,6 @@ func_8005CE60 = reset_particles;
 func_8005EC98 = emitter_init;
 func_8005B3CC = weather_update;
 func_8005AC58 = weather_free;
-free_rain_memory = 0x8005BD30;
 gSnowTriangles = 0x800A59FC;
 gSnowPhysics = 0x800A59C4;
 gSnowGfx = 0x800A59C8;
@@ -534,7 +525,6 @@ gSnowParticleCount = 0x80100844;
 gSnowVerts = 0x800A59F4;
 gSnowVertexData = 0x800A5A04;
 gSnowVertexFlip = 0x80100898;
-emitter_init_with_pos = 0x8005EDA4;
 free_particle_buffers = 0x8005CFD0;
 free_particle_vertices_triangles = 0x8005D19C;
 gParticleBehavioursAssetTable = 0x800A5DA8;
@@ -635,8 +625,52 @@ D_800A6E98 = 0x800A6E98;
 dDialogueBoxBegin = 0x800A6E30;
 sDialogueBoxDimensions = 0x800A6EE0;
 
+/* ---- round 4 functions in C ---- */
+func_8005BD30 = free_rain_memory;
+func_80066BD4 = thread0_Main;
+func_80001900 = music_sequence_stop;
+func_8004A57C = mempool_alloc_safe;
+func_8004A60C = mempool_alloc;
+func_8004A69C = mempool_slot_find;
+func_8004AEBC = mempool_slot_assign;
+func_800638E0 = memset;
+func_80063914 = _itoa;
+func_800639DC = sprintfSetSpacingCodes;
+func_800639E8 = sprintf;
+func_8003F7F4 = cam_set_fov;
+
+/* ---- round 4 functions in C ---- */
+func_8005EDA4 = emitter_init_with_pos;
+
+/* ---- round 4 functions in C ---- */
+func_8004A4A4 = mempool_init;
+
+/* ---- round 4 data used by new C ---- */
+gWeatherSoundMask = 0x800A5D50;
+gParticleUpdateRate = 0x80100900;
+sTransitionTris = 0x800A67AC;
+D_80102D9C = 0x80102D9C;
+gAudioPointsPool = 0x800F29F8;
+
+/* ---- 846F0.c (libultra flash) ---- */
+func_80083AF0 = osFlashReInit;
+func_80083B40 = osFlashInit;
+func_80083C30 = osFlashReadStatus;
+func_80083CC0 = osFlashReadId;
+func_80083D94 = osFlashClearStatus;
+func_80083DE0 = osFlashAllErase;
+func_80083EB0 = osFlashSectorErase;
+func_80083F88 = osFlashWriteBuffer;
+func_8008400C = osFlashWriteArray;
+func_800840E0 = osFlashReadArray;
+__osFlashID = 0x80104EA0;
+__osFlashMsg = 0x80104EB0;
+__osFlashMessageQ = 0x80104EC8;
+__osFlashHandler = 0x80104EE0;
+__osFlashMsgBuf = 0x80104F54;
+D_80104F58 = 0x80104F58;
+
 /* ---- not decompiled yet ---- */
-mempool_alloc_safe = 0x8004A57C;
 
 /* ---- libultra globals still defined in asm (used by src/ultra) ---- */
 CartRomHandle = 0x80104110;

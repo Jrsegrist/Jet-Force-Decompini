@@ -45,21 +45,52 @@ typedef struct LevelModel {
     /* 0x04 */ LevelModelSegment *segments;
 } LevelModel;
 
+typedef struct ObjProperties_Timer {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+} ObjProperties_Timer;
+
+typedef struct ObjProperties_SkyTrigger {
+    /* 0x00 */ s32 setting;
+    /* 0x04 */ s32 radius;
+} ObjProperties_SkyTrigger;
+
+typedef struct ObjProperties_Common {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+} ObjProperties_Common;
+
+typedef union ObjectProperties {
+    ObjProperties_Common common;
+    ObjProperties_Timer timer;
+    ObjProperties_SkyTrigger skyTrigger;
+} ObjectProperties;
+
+typedef struct ObjectHeader {
+    /* 0x00 */ f32 scale;
+} ObjectHeader;
+
 typedef struct Object {
-    /* 0x00 */ u8 pad0[0xC];
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ f32 scale;
     /* 0x0C */ f32 x_position;
     /* 0x10 */ f32 y_position;
     /* 0x14 */ f32 z_position;
-    /* 0x18 */ u8 pad18[0x3C - 0x18];
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ f32 x_velocity;
+    /* 0x20 */ f32 y_velocity;
+    /* 0x24 */ f32 z_velocity;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ u8 pad2C[0x3C - 0x2C];
     /* 0x3C */ LevelObjectEntry *level_entry;
-    /* 0x40 */ u8 pad40[0x68 - 0x40];
+    /* 0x40 */ ObjectHeader *header;
+    /* 0x44 */ u8 pad44[0x68 - 0x44];
     /* 0x68 */ Object_Animator *animator;
     /* 0x6C */ u8 pad6C[0x84 - 0x6C];
     /* 0x84 */ s32 particleEmittersEnabled;
-    /* 0x88 */ s16 unk88;
-    /* 0x8A */ s16 unk8A;
-    /* 0x8C */ s16 unk8C;
-    /* 0x8E */ s16 unk8E;
+    /* 0x88 */ ObjectProperties properties;
 } Object;
 
 LevelModel *get_current_level_model(void);
@@ -69,7 +100,24 @@ void obj_loop_animator(Object *obj, s32 updateRate);
 s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 is2dCheck, Object **sortObj);
 void obj_spawn_particle(Object *obj, s32 updateRate);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80024E70);
+typedef struct LevelObjectEntry_Torch_Mist {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u8 animSpeed;
+    /* 0x0B */ u8 radius;
+    /* 0x0C */ u8 unkC;
+} LevelObjectEntry_Torch_Mist;
+
+/* DKR obj_init_torch_mist (object_functions.c), plus JFG's float at 0x28 from byte 0xC. */
+void func_80024E70(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
+    f32 radius = entry->radius & 0xFF;
+    if (radius < 10.0f) {
+        radius = 10.0f;
+    }
+    radius /= 64;
+    obj->scale = obj->header->scale * radius;
+    obj->properties.common.unk0 = entry->animSpeed;
+    obj->unk28 = entry->unkC;
+}
 
 void func_800577A8(void *sprite, s32 *arg1, void *arg2, void *arg3, s32 arg4); // JFG: animate a sprite
 
@@ -80,9 +128,34 @@ void func_80024EF4(u8 *obj, s32 updateRate) {
     func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F40);
+/* JFG: init: scale from byte 0xB (DKR's radius scaling, see obj_init_torch_mist). */
+void func_80024F40(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
+    f32 radius = entry->radius & 0xFF;
+    if (radius < 10.0f) {
+        radius = 10.0f;
+    }
+    radius /= 64;
+    obj->scale = obj->header->scale * radius;
+}
 
+void free_object(Object *object);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: frame 0x30 vs 0x38 (flags at 0x34, prevFrame at 0x2C in the target) and the load order */
+/* JFG: animate the sprite (mode 9); free the object when its animation wrapped. */
+void func_80024F94(u8 *obj, s32 updateRate) {
+    s32 flags = 9;
+    f32 prevFrame;
+
+    prevFrame = *(f32 *) (obj + 0x28);
+    func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+    if (*(f32 *) (obj + 0x28) < prevFrame) {
+        free_object((Object *) obj);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F94);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_8002500C);
 
@@ -131,7 +204,17 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_80026824);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026A50);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80026CAC);
+void set_skydome_visbility(s32 renderSky);
+
+/* JFG: sky control: when a player is within the radius, set the skydome visibility. */
+void func_80026CAC(Object *obj, UNUSED s32 updateRate) {
+    Object *objs[8];
+
+    if (obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, obj->properties.skyTrigger.radius, 0,
+                       objs)) {
+        set_skydome_visbility(obj->properties.skyTrigger.setting);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026D14);
 
@@ -211,13 +294,32 @@ void func_800271A0(f32 *obj, s32 event) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027220);
+/* JFG: the same handler with events 3 and 4 as well. */
+void func_80027220(f32 *obj, s32 event) {
+    switch (event) {
+        case 1:
+        case 3:
+            audspat_play_sound_at_position(0xDD, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+        case 2:
+        case 4:
+            audspat_play_sound_at_position(0xDE, obj[3], obj[4], obj[5], 4, NULL);
+            return;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800272B4);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800274FC);
+void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
+                   f32 arg9, f32 argA, s32 argB);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027564);
+void func_800274FC(Object *obj, UNUSED s32 arg1) {
+    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+}
+
+void func_80027564(Object *obj, UNUSED s32 arg1) {
+    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+}
 
 void func_800275CC(Object *obj, u8 *entry) {
     u8 *state = (u8 *) obj->animator;
@@ -229,13 +331,87 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_800275E8);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027844);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027D08);
+typedef struct BufferState {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ void *buffers[4];
+} BufferState;
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027DA0);
+void mempool_free(void *data);
+
+/* JFG: free the four buffers of the object's state. */
+void func_80027D08(Object *obj) {
+    BufferState *state = (BufferState *) obj->animator;
+
+    if (state->buffers[0] != NULL) {
+        mempool_free(state->buffers[0]);
+    }
+    if (state->buffers[1] != NULL) {
+        mempool_free(state->buffers[1]);
+    }
+    if (state->buffers[2] != NULL) {
+        mempool_free(state->buffers[2]);
+    }
+    if (state->buffers[3] != NULL) {
+        mempool_free(state->buffers[3]);
+    }
+}
+
+typedef struct LevelObjectEntry_Mover {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s16 rotation[2];
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 padF;
+    /* 0x10 */ f32 speed;
+} LevelObjectEntry_Mover;
+
+typedef struct MoverState {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+} MoverState;
+
+void func_8004944C(s16 *rotation, f32 *vec); // DKR: vec3f_rotate_py
+
+/* JFG: init: remember the start position, then move along the entry's rotation. */
+void func_80027DA0(Object *obj, LevelObjectEntry_Mover *entry) {
+    MoverState *state = (MoverState *) obj->animator;
+
+    state->x = obj->x_position;
+    state->y = obj->y_position;
+    state->z = obj->z_position;
+    obj->z_velocity = -entry->speed;
+    func_8004944C(entry->rotation, &obj->x_velocity);
+    state->unkC = 0;
+    state->unkE = entry->unkE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027E1C);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027F90);
+typedef struct LevelObjectEntry_Spray {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s16 angle;
+    /* 0x0C */ f32 size;
+    /* 0x10 */ f32 unk10;
+} LevelObjectEntry_Spray;
+
+extern f32 D_800ABAFC;
+extern f32 D_800ABB00;
+
+/* JFG: init: emitter settings from the entry's (absolute) size. */
+void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
+    f32 size = entry->size;
+
+    if (size < 0.0f) {
+        size = -size;
+    }
+    obj->properties.common.unk0 = (s32) (size * D_800ABAFC) + 2;
+    obj->properties.common.unk4 = 0x23;
+    obj->scale *= (15.0f + size) * D_800ABB00;
+    obj->particleEmittersEnabled = 1;
+    obj->y_velocity = size * 0.25f + 2.5f;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80028034);
 
@@ -244,10 +420,10 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80028274);
 
 void func_80028414(Object *obj, s8 *entry) {
-    obj->unk88 = entry[0xA] * 60;
-    obj->unk8A = entry[0xB] * 60;
-    obj->unk8C = 0;
-    obj->unk8E = 0xFF;
+    obj->properties.timer.unk0 = entry[0xA] * 60;
+    obj->properties.timer.unk2 = entry[0xB] * 60;
+    obj->properties.timer.unk4 = 0;
+    obj->properties.timer.unk6 = 0xFF;
 }
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_8002844C);

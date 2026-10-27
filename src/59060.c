@@ -88,11 +88,64 @@ void func_80059814(s32 arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
     func_800595F4(arg0, 1, &rect, 1);
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059864);
+void func_80059938(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
+void fb_size(s32 *width, s32 *height);
+extern s32 D_800FECB8; // JFG: the framebuffer to show next
+void func_8006F424(s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
+void func_8006F550(s32 arg0, s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059938);
+/* JFG: draw box index of the current screen layout into the framebuffer. */
+void func_80059864(s32 arg0, s32 index, s32 colour) {
+    s32 x1, y1, x2, y2;
+    s32 width, height;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059A04);
+    func_80059938(index, &x1, &y1, &x2, &y2);
+    fb_size(&width, &height);
+    if (arg0 != 0) {
+        func_8006F550(arg0, D_800FECB8, width, height, x1, y1, x2, y2, colour);
+    } else {
+        func_8006F424(D_800FECB8, width, height, x1, y1, x2, y2, colour);
+    }
+}
+
+s32 func_80055180(void); // JFG: the video mode
+s32 func_8005AA7C(void);
+void func_80054EF0(s32 *x, s32 *y);
+extern s16 D_800A508C[];
+
+/* JFG: the corners of box index for the current number of cameras (scaled to the screen). */
+void func_80059938(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
+    s32 mode = func_80055180();
+    s32 offset = (((D_800A4FCC - 1) << 2) + index) << 2;
+    s16 *box;
+
+    if ((mode & 1) || (D_800A4FCC == 2 && func_8005AA7C())) {
+        offset += 0x40;
+    }
+    box = &D_800A508C[offset];
+    *x1 = box[0];
+    *y1 = box[1];
+    func_80054EF0(x1, y1);
+    *x2 = box[2];
+    *y2 = box[3];
+    func_80054EF0(x2, y2);
+}
+
+extern u8 D_800FF3E0[4];
+extern u8 D_800FF3E4[4];
+extern s32 D_800FF3E8[4];
+
+/* JFG: reset the four players' entries. */
+void func_80059A04(void) {
+    s32 i = 0;
+
+    while (i < 4) {
+        D_800FF3E8[i] = -1;
+        D_800FF3E0[i] = 20;
+        D_800FF3E4[i] = 15;
+        i++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
 
@@ -108,11 +161,48 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80059E1C);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059E7C);
 
-void func_8005A048(s16 item);
+void func_8005A048(s32 item);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059FE8);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A048);
+/* Size: 0x20 bytes */
+typedef struct MenuItem {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ f32 unk8;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ s8 unk1C;
+    /* 0x1D */ s8 unk1D;
+    /* 0x1E */ s8 unk1E;
+    /* 0x1F */ s8 unk1F;
+} MenuItem;
+extern MenuItem D_800A51DC[];
+extern MenuItem D_800FF780[];
+
+/* JFG: reset an item to its default. */
+void func_8005A048(s32 item) {
+    MenuItem *dst = &D_800FF780[item];
+    MenuItem *src = &D_800A51DC[item];
+
+    dst->unk0 = src->unk0;
+    dst->unk2 = src->unk2;
+    dst->unk4 = src->unk4;
+    dst->unk6 = src->unk6;
+    dst->unkC = src->unkC;
+    dst->unk10 = src->unk10;
+    dst->unk14 = src->unk14;
+    dst->unk8 = src->unk8;
+    dst->unk18 = src->unk18;
+    dst->unk1C = src->unk1C;
+    dst->unk1D = src->unk1D;
+    dst->unk1E = src->unk1E;
+    dst->unk1F = src->unk1F;
+}
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A0D0);
 
@@ -173,10 +263,10 @@ s32 func_8005A804(void) {
     return mode;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A834);
-
 extern u8 D_800A51A4;
 extern u8 D_800A51A8;
+
+INCLUDE_ASM("asm/nonmatchings/59060", func_8005A834);
 
 /* JFG: remember the current screen mode byte (func_8005A8D8 returns it). */
 void func_8005A8C4(void) {
@@ -187,7 +277,21 @@ u8 func_8005A8D8(void) {
     return D_800A51A4;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A8E8);
+s32 func_80043C78();
+
+/* JFG: the screen mode for the current mode byte. */
+s32 func_8005A8E8(void) {
+    switch (D_800A51A8) {
+        case 3:
+            return 3;
+        case 2:
+            return func_80043C78() | 2;
+        case 1:
+            return 1;
+        default:
+            return func_80043C78();
+    }
+}
 
 extern s8 D_800FF387;
 

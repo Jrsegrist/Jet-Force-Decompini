@@ -3,6 +3,7 @@
  * Diddy Kong Racing decompilation (CC0 1.0), src/save_data.c; see CREDITS.md.
  */
 #include "common.h"
+#include "PR/os_flash.h"
 
 /* DKR src/save_data.h, with Jet Force Gemini's values */
 typedef enum SIDeviceStatus {
@@ -28,6 +29,7 @@ typedef enum SIDeviceStatus {
 #define REGION 1
 
 s32 get_language(void);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
 char *string_to_font_codes(char *inString, char *outString, s32 stringLength);
 
 extern OSMesgQueue *sControllerMesgQueue;
@@ -61,9 +63,48 @@ void func_8004B0B8(s32 on) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B0F4);
+/* JFG: a rumble pak's state (10 bytes per player) */
+typedef struct RumbleData {
+    /* 0x00 */ u16 state : 4;
+    /* 0x00 */ u16 unk0 : 4;
+    /* 0x01 */ u16 unk1 : 8;
+    /* 0x02 */ s16 strength;
+    /* 0x04 */ s16 strength2;
+    /* 0x06 */ s16 time;
+    /* 0x08 */ u8 pad8[2];
+} RumbleData;
+extern RumbleData D_800FDF58[];
+u8 input_player_id(s32 player);
+extern f32 D_800AC940;
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B204);
+/* JFG: start a rumble on a controller (strength squared, time in seconds). */
+void func_8004B0F4(s32 pad, s32 strength, f32 time) {
+    RumbleData *rumble;
+
+    if (func_8004B070() != 0) {
+        if (pad >= 0 && pad < 4) {
+            rumble = &D_800FDF58[input_player_id(pad)];
+            if (rumble->state != 2) {
+                rumble->state = 1;
+                rumble->strength = strength * strength * D_800AC940;
+                rumble->strength2 = rumble->strength;
+                rumble->time = time * 60.0f;
+            }
+        }
+    }
+}
+
+void func_8004B204(s32 pad, s32 force) {
+    s32 id;
+
+    if (pad >= 0 && pad < 4) {
+        id = input_player_id(pad);
+        if (force != 0 || (D_800FDF58[id].state != 0 && D_800FDF58[id].state != 3)) {
+            D_800FDF58[id].state = 3;
+            D_800FDF58[id].unk1 = 1;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B29C);
 
@@ -117,13 +158,63 @@ s32 func_8004BAE0(s32 arg0, s32 arg1, s32 arg2) {
     return 0x1;
 }
 
+s32 is_reset_pressed(void);
+void func_80083EB0(s32 sector);
+void func_8004BF98(u32 page, u8 *data);
+void func_8004C008(u32 page, u8 *data);
+extern s32 D_800A3474[]; // JFG: the first flash page of each save slot
+
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BC10);
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BCB4);
+/* JFG: erase a save slot's flash sector (fill its pages with 0xFF). */
+void func_8004BCB4(s32 slot, UNUSED s32 arg1) {
+    s32 page = D_800A3474[slot];
+    u8 *buf = mempool_alloc_safe(0x80, -1);
+    s32 i;
+    s32 j;
 
+    i = 0;
+    while (i < 0x80) {
+        buf[i++] = 0xFF;
+    }
+    if (is_reset_pressed() == 0) {
+        func_80083EB0(page);
+        for (j = 0; j < 0x80; j++) {
+            func_8004BF98(page++, buf);
+        }
+    }
+    mempool_free(buf);
+}
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: buf and i swap saved registers (target buf s3, i s4) and 0xFF goes to a0 */
+/* JFG: erase the first 8 flash sectors. */
+void func_8004BD78(void) {
+    s32 i;
+    u8 *buf = mempool_alloc_safe(0x80, -1);
+    u8 *p = buf;
+    s32 j;
+    s32 page;
+
+    for (i = 0; i < 0x80; i++) {
+        *p++ = 0xFF;
+    }
+    if (is_reset_pressed() == 0) {
+        page = 0;
+        for (i = 0; i < 8; i++) {
+            func_80083EB0(page);
+            for (j = 0; j < 0x80; j++) {
+                func_8004BF98(page++, buf);
+            }
+        }
+    }
+    mempool_free(buf);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BD78);
+#endif
 
 s32 func_8004BE44(u8 *data) {
     s32 sum = 5;
@@ -134,12 +225,26 @@ s32 func_8004BE44(u8 *data) {
     return sum;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BE6C);
-
-s32 is_reset_pressed(void);
 s32 func_8004BE44(u8 *data);
-void func_80083EB0(s32 sector);
-void func_8004BF98(s32 sector, u8 *data);
+extern u8 D_800A34AC[0x7E];
+
+s32 func_8004BE6C(u8 *data) {
+    u8 *src;
+    u8 *dst;
+    s32 i;
+
+    func_8004C008(0x380, data);
+    if (func_8004BE44(data) != *(u16 *) (data + 0x7E)) {
+        src = D_800A34AC;
+        dst = data;
+        i = 126;
+        while (i--) {
+            *dst++ = *src++;
+        }
+        *(u16 *) (data + 0x7E) = func_8004BE44(data);
+    }
+    return 1;
+}
 
 s32 func_8004BEE4(u8 *data) {
     *(s16 *) (data + 0x7E) = func_8004BE44(data);
@@ -150,11 +255,36 @@ s32 func_8004BEE4(u8 *data) {
     return 1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BF2C);
+extern OSMesgQueue D_800FDF80;
+extern OSMesg D_800FDF98[2];
+extern OSIoMesg D_800FDFA0;
+extern OSMesg D_800FDFB8[2];
+extern OSMesgQueue D_800FDFC0;
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BF98);
+void func_8004BF2C(void) {
+    osCreateMesgQueue(&D_800FDFC0, D_800FDFB8, 1);
+    osSetEventMesg(OS_EVENT_CART, &D_800FDFC0, (OSMesg) 1);
+    osCreateMesgQueue(&D_800FDF80, D_800FDF98, 1);
+    osCartRomInit();
+    osFlashInit();
+}
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004C008);
+void func_8004BF98(u32 page, u8 *data) {
+    if (page < 0x3FE) {
+        osWritebackDCache(data, 0x80);
+        osFlashWriteBuffer(&D_800FDFA0, OS_MESG_PRI_NORMAL, data, &D_800FDF80);
+        osRecvMesg(&D_800FDF80, NULL, OS_MESG_BLOCK);
+        osFlashWriteArray(page);
+    }
+}
+
+void func_8004C008(u32 page, u8 *data) {
+    if (page < 0x3FE) {
+        osInvalDCache(data, 0x80);
+        osFlashReadArray(&D_800FDFA0, OS_MESG_PRI_NORMAL, page, data, 1, &D_800FDF80);
+        osRecvMesg(&D_800FDF80, NULL, OS_MESG_BLOCK);
+    }
+}
 
 SIDeviceStatus get_si_device_status(s32 controllerIndex) {
     OSMesg unusedMsg;
@@ -276,9 +406,8 @@ SIDeviceStatus reformat_controller_pak(s32 controllerIndex) {
 #define SAVE_FILE_TYPE_CPAK_OTHER 1
 #define COLOUR_TAG_BLACK 0xFF
 
-void *mempool_alloc_safe(s32 size, u32 colourTag);
 char *font_codes_to_string(char *inString, char *outString, s32 stringLength);
-u8 func_8004D250(s32 controllerIndex, s32 fileNum); // DKR: get_file_type
+s32 func_8004D250(s32 controllerIndex, s32 fileNum); // DKR: get_file_type
 
 /**
  * Lists the files on the controller pak.
@@ -456,7 +585,6 @@ SIDeviceStatus read_data_from_controller_pak(s32 controllerIndex, s32 fileNum, u
 SIDeviceStatus write_controller_pak_file(s32 controllerIndex, s32 fileNumber, char *fileName, char *fileExt,
                                          u8 *dataToWrite, s32 fileSize);
 char *font_codes_to_string(char *inString, char *outString, s32 stringLength);
-void *mempool_alloc_safe(s32 size, u32 colourTag);
 
 /**
  * Copies a file from one controller pak to another.
@@ -736,4 +864,30 @@ char *string_to_font_codes(char *inString, char *outString, s32 stringLength) {
     return ret;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004D250);
+#define CHAR 0x43484152 // "CHAR"
+
+/**
+ * Returns the type of a game file on the controller pak.
+ * DKR: get_file_type. JFG: only one type ("CHAR" files are 0, everything else 1).
+ */
+s32 func_8004D250(s32 controllerIndex, s32 fileNum) {
+    s32 *data;
+    UNUSED s32 pad;
+    s32 ret;
+
+    data = mempool_alloc_safe(0x100, COLOUR_TAG_BLACK);
+    if (read_data_from_controller_pak(controllerIndex, fileNum, (u8 *) data, 0x100) == CONTROLLER_PAK_GOOD) {
+        switch (*data) {
+            case CHAR:
+                ret = 0;
+                break;
+            default:
+                ret = SAVE_FILE_TYPE_CPAK_OTHER;
+                break;
+        }
+    } else {
+        ret = SAVE_FILE_TYPE_CPAK_OTHER;
+    }
+    mempool_free(data);
+    return ret;
+}

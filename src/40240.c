@@ -8,16 +8,28 @@ extern s32 gActiveCameraID;
 extern Mtx gPerspectiveMatrix[];
 /* Size: 0x4C bytes (mostly not worked out yet) */
 typedef struct Camera {
-    /* 0x00 */ u8 pad0[0xC];
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ s16 z_rotation;
+    /* 0x06 */ u8 pad6[6];
     /* 0x0C */ f32 x_position;
     /* 0x10 */ f32 y_position;
     /* 0x14 */ f32 z_position;
-    /* 0x18 */ u8 pad18[0x2C - 0x18];
+    /* 0x18 */ f32 unk18; // JFG: the position again
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
     /* 0x2C */ f32 fov; // JFG
     /* 0x30 */ f32 shakeX;
     /* 0x34 */ f32 shakeY;
     /* 0x38 */ f32 shakeZ;
-    /* 0x3C */ u8 pad3C[0x10];
+    /* 0x3C */ s8 unk3C;
+    /* 0x3D */ u8 unk3D;
+    /* 0x3E */ s16 unk3E;
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ u8 pad44[6];
+    /* 0x4A */ s16 unk4A;
 } Camera;
 extern Camera gCameras[];
 extern s32 D_800FA634;
@@ -57,7 +69,7 @@ extern MtxF gOrthoMatrixF;
 #define CAMERA_DEFAULT_FOV 60.0f
 #define CAMERA_ASPECT 1.3333334f
 #define CAMERA_NEAR 10.0f
-#define CAMERA_SCALE 1.0f
+#define CAMERA_SCALE 1.0 /* a double: IDO does not share it with the 1.0f in cam_set_fov */
 
 extern u8 D_800FA650;
 extern s32 D_800A2ED0;
@@ -142,11 +154,7 @@ s32 func_8005AA7C(void); // the two-player screen is split vertically
  * JFG: per-camera FoV and zoom; the matrix is stretched for some video modes and
  * split screens, and is one of 16 kept in turn.
  * Official Name: camSetFOV
- * NON_MATCHING: one instruction off: IDO keeps the zoom's 1.0f in $f2 for the
- * guPerspectiveF scale argument (and materialises it on the other path), where
- * the target loads 1.0f again just before the call.
  */
-#ifdef NON_MATCHING
 void cam_set_fov(f32 camFieldOfView, s32 force) {
     s32 mode;
     s32 type;
@@ -183,9 +191,6 @@ void cam_set_fov(f32 camFieldOfView, s32 force) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003F7F4);
-#endif
 
 f32 sqrtf(f32 x);
 
@@ -330,7 +335,39 @@ void viewport_menu_set(s32 viewPortIndex, s32 x1, s32 y1, s32 x2, s32 y2) {
     gScreenViewports[viewPortIndex].y2 = y2;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800400D8);
+#define VIEWPORT_AUTO 0x8000
+
+/**
+ * Set the selected viewport's coordinate offsets and view size.
+ * JFG: the Y offset goes to posY (DKR writes posX).
+ * DKR: set_viewport_properties
+ */
+void func_800400D8(s32 viewPortIndex, s32 posX, s32 posY, s32 width, s32 height) {
+    if (posX != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].posX = posX;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_X_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_X_CUSTOM;
+    }
+    if (posY != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].posY = posY;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_Y_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_Y_CUSTOM;
+    }
+    if (width != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].width = width;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_WIDTH_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_WIDTH_CUSTOM;
+    }
+    if (height != VIEWPORT_AUTO) {
+        gScreenViewports[viewPortIndex].height = height;
+        gScreenViewports[viewPortIndex].flags |= VIEWPORT_HEIGHT_CUSTOM;
+    } else {
+        gScreenViewports[viewPortIndex].flags &= ~VIEWPORT_HEIGHT_CUSTOM;
+    }
+}
 
 /**
  * Sets the passed values to be equal to the selected viewports scissor size, before drawing the background elements.
@@ -549,15 +586,42 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041450);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_800416CC);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800419AC);
+extern MtxF D_800FAAB0;
+extern Mtx *D_800FAB30;
+extern MtxF D_800FB038;
+
+/* JFG: keep a model matrix and upload it times the view-projection as the MVP matrix. */
+void func_800419AC(Gfx **dList, Mtx **mtx, MtxF *in) {
+    s32 i, j;
+
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            D_800FAAB0[i][j] = (*in)[i][j];
+        }
+    }
+    func_80048C7C(in, &D_800FAAF0, &D_800FB038);
+    func_80048D84(&D_800FB038, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
+}
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041A90);
-
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041BE0);
 
 extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
 extern MtxF D_800FB038; // DKR: gCurrentMVPMatrixF
 extern Mtx *D_800FAB30;
+void func_80049874(f32 x, f32 y, f32 z, MtxF *out); // a scale matrix
+
+/* JFG: upload a scale matrix (unless the scale is 1) as the MVP matrix. */
+void func_80041BE0(Gfx **dList, Mtx **mtx, f32 scale) {
+    if (scale != 1.0f) {
+        func_80049874(scale, scale, scale, &D_800FAAB0);
+        func_80048C7C(&D_800FAAB0, &D_800FAAF0, &D_800FB038);
+        func_80048D84(&D_800FB038, *mtx);
+        D_800FAB30 = *mtx;
+        gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
+    }
+}
 void func_80049DC0(void *trans, MtxF *out);
 void func_80048F4C(MtxF *mtx, f32 offsetY);
 void func_80048F20(MtxF *mtx, f32 scaleY);
@@ -645,18 +709,58 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80041E58);
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041FE0);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800420F0);
+/* JFG: the view-space depth of a point (the third column of the view matrix). */
+f32 func_800420F0(f32 x, f32 y, f32 z) {
+    f32 result;
 
+    result = (x * gViewMatrixF[0][2]) + (y * gViewMatrixF[1][2]) + (z * gViewMatrixF[2][2]) + gViewMatrixF[3][2];
+    return result;
+}
+
+#ifdef NON_MATCHING
+/**
+ * Copy the ortho matrix.
+ * JFG: (from DKR's mtx_ortho) its last element is half the framebuffer width.
+ * NON_MATCHING: one extra lui: the target shares %hi of gOrthoMatrixF across its first loads,
+ * which needs the matrix defined in this file (an extern gets a new lui per offset).
+ */
+void func_80042134(MtxF *out) {
+    UNUSED s32 pad;
+    u32 width, height;
+    s32 i;
+
+    fb_size(&width, &height);
+    for (i = 0; i < 15; i++) {
+        ((f32 *) out)[i] = ((f32 *) gOrthoMatrixF)[i];
+    }
+    (*out)[3][3] = width >> 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
-
-INCLUDE_ASM("asm/nonmatchings/40240", func_800421F0);
+#endif
 
 typedef struct CameraShake {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ s32 unk4;
+    /* 0x00 */ s16 unk0; // JFG: the end of each phase, in frames
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6; // JFG: the frame count
     /* 0x08 */ s32 unk8;
 } CameraShake;
 extern CameraShake D_800FA600[4];
+
+/* JFG: start a camera shake with three phases (lengths in seconds). */
+void func_800421F0(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 arg4) {
+    CameraShake *shake;
+
+    if (index >= 0 && index < 4) {
+        shake = &D_800FA600[index];
+        shake->unk0 = phase1 * 60.0f;
+        shake->unk2 = shake->unk0 + (s32) (phase2 * 60.0f);
+        shake->unk4 = shake->unk2 + (s32) (phase3 * 60.0f);
+        shake->unk6 = 0;
+        shake->unk8 = arg4;
+    }
+}
 
 /* JFG: stop the shakes of the four cameras. */
 void func_800422C4(void) {

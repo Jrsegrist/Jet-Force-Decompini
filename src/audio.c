@@ -100,19 +100,75 @@ void music_voicelimit_set(u8 voiceLimit) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800005F8);
+/* DKR src/audio.h */
+typedef struct MusicData {
+    u8 volume;
+    u8 tempo;
+    u8 reverb;
+} MusicData;
 
+extern MusicData *D_800E950C; // DKR: gSeqSoundTable
+extern s32 D_800A0680;        // JFG: music fade: ticks left
+extern s32 D_800A0684;        // JFG: jingle fade: ticks left
+extern s32 D_800E9524;        // JFG: music fade: base volume
+extern s32 D_800E9528;        // JFG: music fade: volume per tick (16.16)
+extern s32 D_800E952C;        // JFG: jingle fade: base volume
+extern s32 D_800E9530;        // JFG: jingle fade: volume per tick (16.16)
+void music_volume_set(u8 volume);
+void music_jingle_volume_set(u8 volume);
+
+/* JFG: fade the music volume to volume over time seconds (50 or 60 ticks a second). */
+void func_800005F8(f32 time, u8 volume) {
+    if (volume >= 0x80) {
+        volume = 0x7F;
+    }
+    D_800E9524 = volume;
+    if (osTvType == OS_TV_PAL) {
+        D_800A0680 = time * 50.0f;
+    } else {
+        D_800A0680 = time * 60.0f;
+    }
+    if (D_800A0680 > 0) {
+        D_800E9528 = ((gMusicBaseVolume - volume) << 16) / D_800A0680;
+    } else {
+        music_volume_set(volume);
+    }
+}
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 words: the product lands in $v1 in the target ($a1 here) */
+/* JFG: fade the music to volume, scaled by the current sequence's volume. */
+void func_80000724(f32 time, u8 volume) {
+    if (volume >= 0x80) {
+        volume = 0x7F;
+    }
+    func_800005F8(time, (D_800E950C[gCurrentSequenceID].volume * volume) / 127);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000724);
-
-extern s32 D_800A0680;
+#endif
 
 void func_80000798(void) {
     D_800A0680 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_800007A4);
-
-extern s32 D_800A0684;
+/* JFG: the second fade (D_800A0684, the jingle fade in sound_update_queue); sets the music volume when instant. */
+void func_800007A4(f32 time, u8 volume) {
+    if (volume >= 0x80) {
+        volume = 0x7F;
+    }
+    D_800E952C = volume;
+    if (osTvType == OS_TV_PAL) {
+        D_800A0684 = time * 50.0f;
+    } else {
+        D_800A0684 = time * 60.0f;
+    }
+    if (D_800A0684 > 0) {
+        D_800E9530 = ((gMusicBaseVolume - volume) << 16) / D_800A0684;
+    } else {
+        music_volume_set(volume);
+    }
+}
 
 void func_800008D0(void) {
     D_800A0684 = 0;
@@ -134,10 +190,6 @@ typedef struct DelayedSound {
 extern OSMesgQueue D_800E9780; // JFG: a queue polled each tick
 extern s32 D_800E9774;
 extern s32 D_800A06A8;
-extern s32 D_800E9524; // JFG: music fade: base volume
-extern s32 D_800E9528; // JFG: music fade: volume per tick (16.16)
-extern s32 D_800E952C; // JFG: jingle fade: base volume
-extern s32 D_800E9530; // JFG: jingle fade: volume per tick (16.16)
 extern s32 gDelayedSoundsCount;
 extern DelayedSound gDelayedSounds[8];
 extern u8 gMusicSequenceData[];
@@ -146,8 +198,6 @@ extern ALCSeq *D_800E9670; // JFG: the music sequence
 extern ALCSeq gJingleSequence;
 extern u8 D_800A06B0;
 extern u8 D_800A06B4;
-void music_volume_set(u8 volume);
-void music_jingle_volume_set(u8 volume);
 void sound_play(u16 soundID, SoundHandle *handlePtr);
 void music_sequence_init(ALCSPlayer *seqPlayer, void *sequence, u8 *nextSeqID, ALCSeq *seq);
 
@@ -605,7 +655,24 @@ void music_sequence_start(u8 seqID, ALCSPlayer *seqPlayer) {
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_8000167C);
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_80001900);
+extern u8 D_800A0688; // DKR: gMusicPlaying
+void func_8008A450(ALCSPlayer *seqp); // stops a sequence player (DKR: alCSPStop)
+
+/**
+ * Stops the current playing sequence for the given sequence player.
+ * JFG: the next sequence IDs are reset to 0.
+ */
+void music_sequence_stop(ALCSPlayer *seqPlayer) {
+    if (gMusicPlayer == seqPlayer && D_800A0688) {
+        func_8008A450(seqPlayer);
+        D_800A0688 = FALSE;
+        gMusicNextSeqID = 0;
+    } else if (gJinglePlayer == seqPlayer && gJinglePlaying) {
+        func_8008A450(seqPlayer);
+        gJinglePlaying = FALSE;
+        gJingleNextSeqID = 0;
+    }
+}
 
 /**
  * Enable or disable special audio effects. JFG: does nothing (DKR calls alFxReverbSet).

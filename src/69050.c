@@ -4,9 +4,11 @@
  * see CREDITS.md.
  */
 #include "common.h"
+#include "modules/gfx.h"
 
 /* DKR src/fade_transition.h and include/structs.h */
 #define FADE_FLAG_OUT (1 << 7) // Transition fading out
+#define TRIN_DISABLE_TEXTURE 0
 
 enum TransitionStatus {
     TRANSITION_NONE,
@@ -22,17 +24,10 @@ typedef struct FadeTransition {
     /* 0x06 */ u16 endTimer;
 } FadeTransition;
 
-typedef struct Vertex {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s16 z;
-    /* 0x06 */ u8 r;
-    /* 0x07 */ u8 g;
-    /* 0x08 */ u8 b;
-    /* 0x09 */ u8 a;
-} Vertex;
-
 extern Vertex *sTransitionVtx[2];
+extern Triangle *sTransitionTris[2];
+extern Gfx D_800A6928[]; // DKR: dTransitionShapeSettings
+void rendermode_reset(Gfx **dList);
 extern f32 *gTransitionNextVtx;
 extern f32 *gTransitionVertexTarget;
 extern f32 *gTransitionVtxStep;
@@ -61,7 +56,11 @@ typedef struct LevelEffect {
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ u8 type;
     /* 0x07 */ u8 loaded;
-    /* 0x08 */ u8 pad8[0x24 - 8];
+    /* 0x08 */ u8 pad8[0x18 - 8];
+    /* 0x18 */ s16 timer;
+    /* 0x1A */ s16 age;
+    /* 0x1C */ s16 id;
+    /* 0x1E */ u8 pad1E[0x24 - 0x1E];
     /* 0x24 */ void *sprite;
     /* 0x28 */ s32 unk28;
 } LevelEffect;
@@ -150,7 +149,33 @@ void func_80068A14(LevelEffect *effect) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068A64);
+s32 func_800577A8(void *sprite, s32 *arg1, s32 arg2, s32 *frame, s32 updateRate);
+
+/* JFG: count down the level effects, releasing the expired ones and animating the sprites. */
+void func_80068A64(s32 updateRate) {
+    s32 i;
+    s32 arg;
+    LevelEffect *effect;
+
+    for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
+        if (effect->type) {
+            effect->timer -= updateRate;
+            effect->age += updateRate;
+            if (effect->timer <= 0) {
+                effect->timer = 0;
+                if (effect->loaded) {
+                    func_80068A14(effect);
+                }
+                effect->type = 0;
+            } else if (effect->type == 4) {
+                arg = 1;
+                if (func_800577A8(effect->sprite, &arg, 0xF, &effect->unk28, updateRate)) {
+                    effect->timer = 0;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068B54);
 
@@ -209,6 +234,9 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006B090);
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B69C);
+
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void func_8006F874(void);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
 
@@ -304,7 +332,24 @@ void transition_update_fullscreen(s32 updateRate) {
     } while (var_v0 == FALSE && updateRate > 0);
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006C124);
+extern Gfx D_800A67B8[]; // DKR: dTransitionFadeSettings
+void fb_size(u32 *width, u32 *height);
+
+/**
+ * Draws a simple fillrect covering the whole screen that fades in or out.
+ * DKR: transition_render_fullscreen.
+ */
+void func_8006C124(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+    u32 width;
+    u32 height;
+
+    fb_size(&width, &height);
+    gSPDisplayList((*dList)++, D_800A67B8);
+    gDPSetPrimColor((*dList)++, 0, 0, gCurFadeRed, gCurFadeGreen, gCurFadeBlue, gCurFadeAlpha);
+    gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPFillRectangle((*dList)++, 0, 0, width, height);
+    rendermode_reset(dList);
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006C230);
 
@@ -347,11 +392,41 @@ void transition_update_shape(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006CA30);
+/**
+ * Renders a transition effect on screen that will close in from both sides horizonally.
+ * DKR: transition_render_barndoor_hor (JFG: 13 vertices).
+ */
+void func_8006CA30(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+    rendermode_reset(dList);
+    gSPDisplayList((*dList)++, D_800A6928);
+    gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 13, 0);
+    gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(sTransitionTris[sTransitionTaskNum]), 8, TRIN_DISABLE_TEXTURE);
+    rendermode_reset(dList);
+}
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006CB28);
+/**
+ * Renders a transition effect on screen that will close in from both sides vertically.
+ * DKR: transition_render_barndoor_vert (JFG: 13 vertices).
+ */
+void func_8006CB28(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+    rendermode_reset(dList);
+    gSPDisplayList((*dList)++, D_800A6928);
+    gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 13, 0);
+    gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(sTransitionTris[sTransitionTaskNum]), 8, TRIN_DISABLE_TEXTURE);
+    rendermode_reset(dList);
+}
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006CC20);
+/**
+ * Renders a transition effect closing in from the corners.
+ * DKR: transition_render_barndoor_diag (JFG: 11 vertices).
+ */
+void func_8006CC20(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+    rendermode_reset(dList);
+    gSPDisplayList((*dList)++, D_800A6928);
+    gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 11, 0);
+    gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(sTransitionTris[sTransitionTaskNum]), 6, TRIN_DISABLE_TEXTURE);
+    rendermode_reset(dList);
+}
 
 /**
  * Set the transition colour target, then set the velocity for the colour to fade to.
@@ -400,7 +475,21 @@ void transition_update_blank(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006CFC0);
+/**
+ * Fill the whole screen with a solid colour.
+ * DKR: transition_render_blank.
+ */
+void func_8006CFC0(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+    u32 width;
+    u32 height;
+
+    fb_size(&width, &height);
+    gSPDisplayList((*dList)++, D_800A67B8);
+    gDPSetPrimColor((*dList)++, 0, 0, (gLastFadeRed >> 16), (gLastFadeGreen >> 16), (gLastFadeBlue >> 16), 255);
+    gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPFillRectangle((*dList)++, 0, 0, width, height);
+    rendermode_reset(dList);
+}
 
 extern s32 D_80103B80[2];
 extern s32 D_80103B88[2];
@@ -437,15 +526,111 @@ void func_8006D600(s32 arg0) {
     D_80103B94 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D60C);
+typedef struct DebugText {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ char text[32];
+} DebugText;
+extern DebugText D_80103700[2][16];
+extern u8 D_800A4FC4;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D70C);
+/* JFG: queue a 32-character text line at (x, y) if it is on screen (up to 16 per frame). */
+void func_8006D60C(s16 x, s16 y, char *text) {
+    DebugText *entry;
+    char *dst;
+    s32 i;
+    u32 width;
+    u32 height;
+
+    if (!D_800A4FC4) {
+        fb_size(&width, &height);
+        if (x > 0 && x <= (s32) (width - 6) && y > 0 && y <= (s32) (height - 6)) {
+            if (D_80103B88[D_80103B90] < 16) {
+                entry = &D_80103700[D_80103B90][D_80103B88[D_80103B90]++];
+                entry->x = x;
+                entry->y = y;
+                dst = entry->text;
+                i = 32;
+                while (i--) {
+                    *dst++ = *text++;
+                }
+            }
+        }
+    }
+}
+
+/* JFG: write a number as decimal text; with `decimal` set, the last digit goes after a '.'. */
+void func_8006D70C(char *buf, s32 value, s32 decimal) {
+    s32 divisor = 1000000;
+    s32 started = FALSE;
+    s32 digit;
+
+    if (value < 0) {
+        value = -value;
+        *buf++ = '-';
+    }
+    do {
+        digit = value / divisor;
+        value %= divisor;
+        if (digit != 0 || started || divisor == 100) {
+            *buf++ = digit + '0';
+            started = TRUE;
+        }
+        divisor /= 10;
+        if (divisor == 10) {
+            if (decimal) {
+                *buf++ = '.';
+            } else {
+                divisor = 0;
+            }
+        }
+    } while (divisor != 0);
+    *buf = '\0';
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D7F0);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006DA1C);
+/* JFG: add (signed) amounts to the channels of an RGBA5551 colour, clamped to 0..31. */
+void func_8006DA1C(u16 *colour, s8 addRed, s8 addGreen, s8 addBlue) {
+    s16 red = ((*colour >> 11) & 0x1F) + addRed;
+    s16 green = ((*colour >> 6) & 0x1F) + addGreen;
+    s16 blue = ((*colour >> 1) & 0x1F) + addBlue;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006DAE8);
+    if (red >= 32) {
+        red = 31;
+    }
+    if (green >= 32) {
+        green = 31;
+    }
+    if (blue >= 32) {
+        blue = 31;
+    }
+    if (red < 0) {
+        red = 0;
+    }
+    if (green < 0) {
+        green = 0;
+    }
+    if (blue < 0) {
+        blue = 0;
+    }
+    *colour = (red << 11) | (green << 6) | (blue << 1) | 1;
+}
+
+/* JFG: brighten the red and green channels of an RGBA5551 colour (saturating). */
+void func_8006DAE8(u16 *colour, u8 addRed, u8 addGreen) {
+    s16 red = ((*colour >> 11) & 0x1F) + addRed;
+    s16 green = ((*colour >> 6) & 0x1F) + addGreen;
+    s16 blue = (*colour >> 1) & 0x1F;
+
+    if (red >= 32) {
+        red = 31;
+    }
+    if (green >= 32) {
+        green = 31;
+    }
+    *colour = (red << 11) | (green << 6) | (blue << 1) | 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DB6C);
 
@@ -453,7 +638,31 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006DD20);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006E0C4);
+typedef struct ScreenLine {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s32 u : 12;
+    /* 0x04 */ s32 v : 12;
+    /* 0x07 */ s32 flags : 8;
+} ScreenLine;
+extern ScreenLine D_80102DC0[2][0x94];
+
+/* JFG: queue an entry in the current buffer (up to 0x94). */
+void func_8006E0C4(s32 x, s32 u, s32 y, s32 v, s32 flag) {
+    ScreenLine *entry;
+
+    if (D_80103B80[D_80103B90] < 0x94) {
+        entry = &D_80102DC0[D_80103B90][D_80103B80[D_80103B90]++];
+        entry->x = x;
+        entry->y = y;
+        entry->u = u;
+        entry->v = v;
+        entry->flags = 0xE;
+        if (flag) {
+            entry->flags |= 0x10;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006E188);
 
@@ -526,14 +735,78 @@ void func_8006F424(s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F4A0);
+void func_8006F550(Gfx **dList, s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g);
+
+/* JFG: draw the queued screen effects and empty the queue. */
+void func_8006F4A0(Gfx **dList) {
+    s32 i;
+    ScreenEffect *fx = D_80102CE8;
+
+    for (i = 0; i < D_800A6E18; i++, fx++) {
+        func_8006F550(dList, fx->type, fx->unk4, fx->unk6, fx->unk8, fx->unkA, fx->unkC, fx->unkE, fx->unk10);
+    }
+    D_800A6E18 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F550);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F874);
+typedef void (*ScreenEffectFunc)(s32 slot, s32 arg, s32 arg2);
+extern s32 D_80102D40[4];
+extern s32 D_80102D54;
+extern void *D_80102D60[4];
+extern void *D_80102D78[4];
+extern u8 D_80102D9C[4];
+extern ScreenEffectFunc D_800A6E1C[4];
+void func_80054530();
+void func_800531C8(void *addr);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F8E4);
+/* JFG: clear the four effect slots; a slot is flagged when its handler is the unloaded-module trap. */
+void func_8006F874(void) {
+    s32 i;
+
+    D_80102D54 = 0;
+    i = 4;
+    while (i--) {
+        D_80102D60[i] = NULL;
+        D_80102D78[i] = NULL;
+        D_80102D9C[i] = (D_800A6E1C[i] == (ScreenEffectFunc) func_80054530);
+    }
+}
+
+/* JFG: call the handlers of the effect slots flagged in D_80102D54, then clear the flags. */
+void func_8006F8E4(void) {
+    s32 i = 4;
+
+    while (i--) {
+        if ((1 << i) & D_80102D54) {
+            func_800531C8(D_800A6E1C + i);
+            if (D_800A6E1C[i] != NULL) {
+                D_800A6E1C[i](i, D_80102D40[i], 0);
+            }
+        }
+    }
+    D_80102D54 = 0;
+}
+
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F998);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006FB18);
+void mempool_free(void *data);
+
+/* JFG: free the four effect slots' buffers; flagged slots get the unloaded-module trap back. */
+void func_8006FB18(void) {
+    s32 i = 4;
+
+    while (i--) {
+        if (D_80102D60[i] != NULL) {
+            mempool_free(D_80102D60[i]);
+            mempool_free(D_80102D78[i]);
+            D_80102D60[i] = NULL;
+            D_80102D78[i] = NULL;
+        }
+        if (D_80102D9C[i]) {
+            D_800A6E1C[i] = (ScreenEffectFunc) func_80054530;
+        }
+    }
+    D_80102D54 = 0;
+}

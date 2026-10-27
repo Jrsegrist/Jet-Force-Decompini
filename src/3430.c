@@ -15,7 +15,7 @@ typedef struct AudioPoint {
     /* 0x11 */ u8 flags;
     /* 0x12 */ u8 pad12[2];
     /* 0x14 */ s32 range;
-    /* 0x18 */ u8 pad18[4];
+    /* 0x18 */ void *soundHandle;
     /* 0x1C */ struct AudioPoint **userHandlePtr;
     /* 0x20 */ u8 fastFalloff;
     /* 0x21 */ u8 priority;
@@ -27,7 +27,35 @@ extern AudioPoint **gAudioPoints;
 extern u16 gNumAudioPoints;
 void audspat_point_stop_by_index(s32 index);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80002830);
+#define MAX_AUDIO_POINTS 40
+#define COLOUR_TAG_CYAN 0x00FFFFFF
+
+struct SoundData;
+extern struct SoundData *gSpatialSoundTable;
+extern AudioPoint *gAudioPointsPool;
+extern AudioPoint **gFreeAudioPoints;
+void sound_table_properties(struct SoundData **table, s32 *size, s32 *count);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void func_80002944(void);
+
+/**
+ * Initializes the audio spatial system.
+ * JFG: no audio lines.
+ * DKR: audspat_init
+ */
+void func_80002830(void) {
+    s32 i;
+
+    sound_table_properties(&gSpatialSoundTable, NULL, NULL);
+    gAudioPointsPool = mempool_alloc_safe(sizeof(AudioPoint) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
+    gFreeAudioPoints = mempool_alloc_safe(sizeof(AudioPoint *) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
+    gAudioPoints = mempool_alloc_safe(sizeof(AudioPoint *) * MAX_AUDIO_POINTS, COLOUR_TAG_CYAN);
+    gNumAudioPoints = 0;
+    for (i = 0; i < MAX_AUDIO_POINTS; i++) {
+        gAudioPointsPool[i].soundHandle = NULL;
+    }
+    func_80002944();
+}
 
 /**
  * Stop any playing jingles, then block audio lines from playing anymore.
@@ -235,23 +263,69 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_8000380C);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003994);
 
+/* JFG: a point's entry in its group (unk23 is the group, from 1) */
+typedef struct AudioGroupEntry {
+    /* 0x00 */ AudioPoint *point;
+    /* 0x04 */ u8 pad4[0xC];
+} AudioGroupEntry;
+
+extern s32 D_800A0800[];               // JFG: the number of entries of each group
+extern AudioGroupEntry D_800F2A48[][3]; // JFG: the groups' entries
+
+#ifdef NON_MATCHING
+/**
+ * JFG: take a point out of its group.
+ * NON_MATCHING: same length; registers differ and IDO tests i != count (target: slt).
+ */
+void func_80003B14(AudioPoint *point) {
+    s32 i;
+    s32 count = D_800A0800[point->unk23];
+    AudioGroupEntry *entry = D_800F2A48[point->unk23 - 1];
+
+    for (i = 0; i < count; i++, entry++) {
+        if (point == entry->point) {
+            entry->point = NULL;
+            break;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003B14);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003B74);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003CA4);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003DB0);
+/* JFG: a node of the D_800F2B10 free list */
+typedef struct FreeNode {
+    /* 0x00 */ struct FreeNode *next;
+    /* 0x04 */ u8 pad4[0x10];
+} FreeNode;
+
+extern FreeNode *D_800F2B10;
+extern FreeNode D_800F2B18[16];
+
+/* JFG: link all the nodes into the free list. */
+void func_80003DB0(void) {
+    s32 i;
+    FreeNode *node;
+
+    D_800F2B10 = node = D_800F2B18;
+    for (i = 1; i < 16; i++) {
+        node->next = &D_800F2B18[i];
+        node = node->next;
+    }
+    node->next = NULL;
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003E40);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80004164);
 
-extern void *D_800F2B10;
-
 /* JFG: push a node onto a free list. */
-void func_8000474C(void **node) {
-    *node = D_800F2B10;
+void func_8000474C(FreeNode *node) {
+    node->next = D_800F2B10;
     D_800F2B10 = node;
 }
 

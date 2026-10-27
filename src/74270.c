@@ -8,17 +8,53 @@ extern s16 gShowSubtitles;
 extern s16 gSubtitleLineCount;
 extern s16 gSubtitleTimer;
 
-INCLUDE_ASM("asm/nonmatchings/74270", func_80073670);
-
 extern s8 D_800A6FB0;
-extern void *D_80104588;
+extern char *D_80104588[2]; // DKR: gCurrentMessageText
 void mempool_free(void *data);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+s32 asset_table_size(u32 assetIndex);
+extern char *D_80104560;
+extern s16 D_80104564; // DKR: gTextTableEntries
+extern s16 D_80104566;
+extern s16 D_80104568;
+extern s16 D_8010456C;
+extern s16 D_8010456E;
+extern s16 D_80104570;
+extern s16 D_80104572;
+extern s32 D_80104594;
+
+/**
+ * Set the default values of dialogue and allocate memory for the active text entry.
+ * JFG: also counts the text table entries and sets up a third buffer.
+ * DKR: init_dialogue_text
+ */
+void func_80073670(void) {
+    D_80104564 = (asset_table_size(5) >> 2) - 2;
+    D_80104588[0] = (char *) mempool_alloc_safe(0x790, 0xFF00FF);
+    D_80104588[1] = D_80104588[0] + 0x3C0;
+    D_80104560 = D_80104588[1] + 0x3C0;
+    D_80104594 = 0;
+    gShowSubtitles = FALSE;
+    D_80104566 = 0;
+    D_80104568 = 32;
+    gCurrentTextID = 0;
+    D_8010456C = 32;
+    D_80104570 = 288;
+    if (osTvType == OS_TV_PAL) {
+        D_8010456E = 224;
+        D_80104572 = 248;
+    } else {
+        D_8010456E = 202;
+        D_80104572 = 222;
+    }
+    D_800A6FB0 = TRUE;
+}
 void dialogue_close(s32 dialogueBoxID);
 void dialogue_clear(s32 dialogueBoxID);
 
 void func_80073758(void) {
     if (D_800A6FB0) {
-        mempool_free(D_80104588);
+        mempool_free(D_80104588[0]);
         dialogue_close(6);
         dialogue_clear(6);
         D_800A6FB0 = 0;

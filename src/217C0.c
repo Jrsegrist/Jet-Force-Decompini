@@ -65,15 +65,23 @@ typedef struct ObjectHeaderLight {
 typedef struct ObjectHeader {
     /* 0x00 */ u8 pad0[0x25];
     /* 0x25 */ s8 numLightSources;
-    /* 0x26 */ u8 pad26[0x48 - 0x26];
+    /* 0x26 */ u8 numCamLights; // JFG
+    /* 0x27 */ u8 pad27[0x48 - 0x27];
     /* 0x48 */ struct ObjectHeaderLight *lights;
+    /* 0x4C */ struct ObjectHeaderCamLight *camLights; // JFG
 } ObjectHeader;
+
+/* JFG: Size: 0x20 bytes */
+typedef struct ObjectHeaderCamLight {
+    /* 0x00 */ u8 pad0[0x20];
+} ObjectHeaderCamLight;
 
 typedef struct Object {
     /* 0x00 */ u8 pad0[0x40];
     /* 0x40 */ ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x74 - 0x44];
     /* 0x74 */ ObjectLight **lightData;
+    /* 0x78 */ void **camLightData; // JFG
 } Object;
 
 void light_update(ObjectLight *light, s32 updateRate);
@@ -139,7 +147,17 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
     func_80023170(0xFF, 0xFF, 0xFF, D_800F5B20);
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80020D84);
+extern f32 D_800ABA90;
+s32 func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
+void func_80020D84(ObjectLight *light) {
+    if (!(light->enabled & 0x40)) {
+        light->unk6C = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
+                                     light->radius * D_800ABA90, (light->colourR * light->intensity) >> 8,
+                                     (light->colourG * light->intensity) >> 8, (light->colourB * light->intensity) >> 8);
+    } else {
+        light->unk6C = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80020E3C);
 
@@ -341,7 +359,15 @@ void light_setup_light_sources(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800226B8);
+void *func_80023A48(Object *obj, ObjectHeaderCamLight *header);
+
+/* JFG: light_setup_light_sources for the header's camera lights. */
+void func_800226B8(Object *obj) {
+    s32 i;
+    for (i = 0; i < obj->header->numCamLights; i++) {
+        obj->camLightData[i] = func_80023A48(obj, &obj->header->camLights[i]);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80022744);
 
