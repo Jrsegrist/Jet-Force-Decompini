@@ -44,11 +44,11 @@ extern void func_80055B80(Gfx **gfx); /* resets the render settings */
 
 void func_m055_0022C(M055Player *player);
 
-static u32 D_m055_00B80[10] = {
+static u32 sDrawModeFull[10] = {
     0xE7000000, 0x00000000, 0xB6000000, 0x00010001, 0xFC22AA03,
     0x1F0C93FF, 0xEF100C0F, 0x03024000, 0xB8000000, 0x00000000,
 };
-static u32 D_m055_00BA8[10] = {
+static u32 sDrawModeScaled[10] = {
     0xE7000000, 0x00000000, 0xB6000000, 0x00010001, 0xFC22AA03,
     0x1F0C93FF, 0xEF102C0F, 0x00112048, 0xB8000000, 0x00000000,
 };
@@ -270,9 +270,9 @@ void func_m055_005B4(M055Player *player, Gfx **dl, f32 scale) {
         texB = player->buffers[player->nextBuffer];
         blend = player->time & 0xFF;
         if (scale == 1.0f) {
-            gSPDisplayList((*dl)++, D_m055_00B80);
+            gSPDisplayList((*dl)++, sDrawModeFull);
         } else {
-            gSPDisplayList((*dl)++, D_m055_00BA8);
+            gSPDisplayList((*dl)++, sDrawModeScaled);
         }
         gDPSetPrimColor((*dl)++, 0, 0, player->brightness, player->brightness, player->brightness, 255);
         gDPSetEnvColor((*dl)++, blend, blend, blend, blend);

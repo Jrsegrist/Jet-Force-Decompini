@@ -80,10 +80,10 @@ typedef struct M124Model {
 } M124Model;
 
 extern s32 func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
-extern void func_80021358(s32 light, u8 intensity);
+extern void light_intensity_set(s32 light, u8 intensity);
 extern s32 func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
-extern void func_80013FE0(s32 light, f32 x, f32 y, f32 z);
-extern void func_80013F48(s32 light, u8 r, u8 g, u8 b, s32 a);
+extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
+extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
 
 /*
  * All functions but update_beam_light match. That one differs in register
@@ -118,7 +118,7 @@ static void update_beam_light(Object *obj, M124Light *l) {
         y = obj->trans.y_position + len * sinX;
         z = obj->trans.z_position - h * cosY;
         if (l->beamLight != 0) {
-            func_80013FE0(l->beamLight, x, y, z);
+            track_light_set_position(l->beamLight, x, y, z);
         } else {
             l->beamLight = func_80013E0C(x, y, z, radius, radius * 0.4f, (l->r * l->intensity) >> 8,
                                          (l->g * l->intensity) >> 8, (l->b * l->intensity) >> 8);
@@ -131,9 +131,9 @@ static s32 is_switched_on(M124Light *l) {
         case M124_ALWAYS:
             return l->on;
         case M124_FLAG_ON:
-            return func_80047ED0(l->flag);
+            return game_flag_get(l->flag);
         case M124_FLAG_OFF:
-            return !func_80047ED0(l->flag);
+            return !game_flag_get(l->flag);
     }
     return TRUE;
 }
@@ -259,10 +259,10 @@ void func_m124_00678(Object *obj, s32 updateRate) {
             obj->modelIndex = 1;
             l->on = FALSE;
             if (objectLight != 0) {
-                func_80021358(objectLight, 0);
+                light_intensity_set(objectLight, 0);
             }
             if (beamLight != 0) {
-                func_80013F48(beamLight, l->r, l->g, l->b, 0);
+                track_light_set_colour(beamLight, l->r, l->g, l->b, 0);
             }
             if (l->kind == M124_FLAG_OFF) {
                 func_80047EFC(l->flag, 1);
@@ -277,10 +277,10 @@ void func_m124_00678(Object *obj, s32 updateRate) {
                 l->timer = 0;
                 obj->modelIndex = 0;
                 if (objectLight != 0) {
-                    func_80021358(objectLight, l->intensity);
+                    light_intensity_set(objectLight, l->intensity);
                 }
                 if (beamLight != 0) {
-                    func_80013F48(beamLight, l->r, l->g, l->b, l->intensity);
+                    track_light_set_colour(beamLight, l->r, l->g, l->b, l->intensity);
                 }
                 func_80003410(0xD2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
                 if (l->sparks != 0) {
@@ -306,10 +306,10 @@ void func_m124_00678(Object *obj, s32 updateRate) {
             obj->modelIndex = 1;
             l->timer = func_80048E2C(30, 480);
             if (objectLight != 0) {
-                func_80021358(objectLight, 0);
+                light_intensity_set(objectLight, 0);
             }
             if (beamLight != 0) {
-                func_80013F48(beamLight, l->r, l->g, l->b, 0);
+                track_light_set_colour(beamLight, l->r, l->g, l->b, 0);
             }
         }
     }

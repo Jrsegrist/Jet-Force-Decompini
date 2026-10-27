@@ -45,8 +45,8 @@ typedef struct M090State {
 
 
 extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
-extern void func_8002130C(s32 light, u8 r, u8 g, u8 b); /* sets a light's colour */
-extern void func_80021358(s32 light, u8 intensity);    /* sets a light's intensity */
+extern void light_colour_set(s32 light, u8 r, u8 g, u8 b); /* sets a light's colour */
+extern void light_intensity_set(s32 light, u8 intensity);    /* sets a light's intensity */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_m010_00000(f32 arg0);
 
@@ -95,7 +95,7 @@ void func_m090_000A0(Object *obj, M090Setup *setup) {
     fw->speed = setup->speed;
     fw->interval = setup->interval * 60 / 100;
     if (obj->light != NULL && *obj->light != 0) {
-        func_8002130C(*obj->light, fw->r, fw->g, fw->b);
+        light_colour_set(*obj->light, fw->r, fw->g, fw->b);
     }
     OBJ_STATE(obj, M090State)->delay = setup->delay * 60 / 100;
     OBJ_STATE(obj, M090State)->timer = fw->interval;
@@ -140,7 +140,7 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
             fw->phase = 1;
         }
         if (light != 0) {
-            func_80021358(light, 0x40);
+            light_intensity_set(light, 0x40);
         }
         obj->particleEmittersEnabled = 1;
     } else if (fw->phase < 3) {
@@ -164,7 +164,7 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
         }
         fw->phase++;
         if (light != 0) {
-            func_80021358(light, 0xFF);
+            light_intensity_set(light, 0xFF);
         }
     } else {
         obj->trans.flags |= 0x400;
@@ -177,7 +177,7 @@ void func_m090_002B4(Object *obj, s32 updateRate) {
             relaunch(obj, fw);
         } else if (light != 0) {
             fade = 1.0f - (fw->phase - 2) / 120.0f;
-            func_80021358(light, (s32) (255.0f * fade));
+            light_intensity_set(light, (s32) (255.0f * fade));
         }
     }
     func_8005F5AC(obj, updateRate);

@@ -3,8 +3,8 @@
 /* Size: 0x50 bytes */
 typedef struct CamLight {
     /* 0x00 */ u8 pad0[6];
-    /* 0x06 */ u8 unk6;
-    /* 0x07 */ s8 unk7;
+    /* 0x06 */ u8 active;
+    /* 0x07 */ s8 visibility;
     /* 0x08 */ u8 pad8[4];
     /* 0x0C */ f32 pos[3];
     /* 0x18 */ u8 pad18[0x3C - 0x18];
@@ -19,7 +19,7 @@ void func_800239D0(void) {
     CamLight *light = D_800F5B60;
     s32 i = 50;
     while (i--) {
-        light->unk6 = 0;
+        light->active = 0;
         light->unk3C = 0;
         light++;
     }
@@ -46,8 +46,8 @@ void sprite_free(void *sprite);
 
 /* JFG: delete a camera light (the shared sprite goes with the last one). */
 void func_80023CB4(CamLight *light) {
-    if (light != NULL && light->unk6) {
-        light->unk6 = 0;
+    if (light != NULL && light->active) {
+        light->active = 0;
         if (light->unk3C != NULL) {
             sprite_free(light->unk3C);
             light->unk3C = NULL;
@@ -72,7 +72,7 @@ void func_80023D48(void) {
         light = D_800F5B60;
         i = 49;
         do {
-            if (light->unk6) {
+            if (light->active) {
                 func_80023DAC(light);
             }
             light++;
@@ -94,14 +94,14 @@ void func_80023FA4(f32 *pos, CamLight *light) {
     HitResult result;
 
     if (func_80018808(0, pos + 3, light->pos, &result, 0x2404, 0) == 0) {
-        light->unk7 += 5;
-        if (light->unk7 > 16) {
-            light->unk7 = 16;
+        light->visibility += 5;
+        if (light->visibility > 16) {
+            light->visibility = 16;
         }
     } else {
-        light->unk7 -= 5;
-        if (light->unk7 < 0) {
-            light->unk7 = 0;
+        light->visibility -= 5;
+        if (light->visibility < 0) {
+            light->visibility = 0;
         }
     }
 }

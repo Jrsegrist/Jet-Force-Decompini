@@ -28,8 +28,8 @@ typedef struct M039Light M039Light;
 
 extern M039Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void func_8002179C(M039Light *light);                            /* DKR light_remove */
-extern void func_8002130C(M039Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
-extern void func_80021358(M039Light *light, u8 intensity);             /* sets a light's intensity */
+extern void light_colour_set(M039Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
+extern void light_intensity_set(M039Light *light, u8 intensity);             /* sets a light's intensity */
 
 void func_m039_000D0(s32 updateRate);
 
@@ -134,8 +134,8 @@ void func_m039_000D0(s32 updateRate) {
         g = BLEND(lightG);
         b = BLEND(lightB);
         i = BLEND(lightIntensity);
-        func_8002130C(sLight, r, g, b);
-        func_80021358(sLight, i);
+        light_colour_set(sLight, r, g, b);
+        light_intensity_set(sLight, i);
     }
 }
 #else

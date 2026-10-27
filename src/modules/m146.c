@@ -58,8 +58,8 @@ extern f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2);
 extern s32 func_m003_17910(f32 x, f32 z, s32 zone);
 extern s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 zone, s32, s32, s32);
 extern Object *func_m139_00184(s16 x, s16 z, s32 radius, s32 zone);
-extern void func_8001191C(Object *obj, Object *target);
-extern void func_80011974(Object *obj);
+extern void obj_list_insert_after(Object *obj, Object *target);
+extern void obj_list_unlink(Object *obj);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 extern s32 func_80049C84(f32 dx, f32 dz); /* angle of a vector */
@@ -255,7 +255,7 @@ void func_m146_00350(Object *obj) {
             o = func_m139_00184(obj->trans.x_position, obj->trans.z_position, 2000, home->zone);
             if (o != NULL && func_m146_00000(obj, 7) != 0) {
                 e->target = o;
-                func_8001191C(obj, o);
+                obj_list_insert_after(obj, o);
             } else if (nearest < 5000.0f && func_m146_00000(obj, 9) != 0) {
             } else {
             }
@@ -414,7 +414,7 @@ void func_m146_00C68(Object *obj) {
 
     func_m003_05450(obj);
     if (sState == 7 || sState == 8) {
-        func_80011974(obj);
+        obj_list_unlink(obj);
         e->target = func_m003_053C4();
         func_m146_00000(obj, 1);
     }

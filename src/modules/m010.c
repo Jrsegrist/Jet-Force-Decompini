@@ -39,7 +39,7 @@ extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
 extern u8 *func_80055694(s32 id);                 /* DKR load_texture */
 extern void func_80055A00(void *tex);             /* DKR tex_free */
-extern f32 func_800420F0(f32 x, f32 y, f32 z);    /* the point's depth from the camera */
+extern f32 get_distance_to_camera(f32 x, f32 y, f32 z);    /* the point's depth from the camera */
 extern void func_8000A300(void *arg0, void *arg1, u8 *texture, void *tris, Vec3f *pos, Vec3f *prevPos, f32 size,
                           s32 colour1, s32 colour2, s32 flags);
 
@@ -196,7 +196,7 @@ void func_m010_00460(void *arg0, void *arg1) {
     i = 0;
     while (i < sCount) {
         spark = sSparks[i];
-        depth[i] = func_800420F0(spark->pos.x, spark->pos.y, spark->pos.z);
+        depth[i] = get_distance_to_camera(spark->pos.x, spark->pos.y, spark->pos.z);
         i++;
     }
     j = sCount;

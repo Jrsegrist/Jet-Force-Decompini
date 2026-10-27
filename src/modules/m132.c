@@ -36,7 +36,7 @@ typedef struct M132Weapons {
     /* 0x6F */ u8 count;
 } M132Weapons;
 
-/* What func_8003B500 returns: a weapon's properties */
+/* What weapon_info_get returns: a weapon's properties */
 typedef struct M132WeaponInfo {
     /* 0x00 */ u8 pad0[3];
     /* 0x03 */ u8 unk3;
@@ -49,10 +49,10 @@ typedef struct M132WeaponInfo {
 
 extern s16 D_800A0CB0[15]; /* the weapon pickups' object IDs */
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
 extern M132Weapons *func_80047C1C(s32, s32);
-extern M132WeaponInfo *func_8003B500(s32 weapon);
+extern M132WeaponInfo *weapon_info_get(s32 weapon);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 s32 D_m132_00310 = 132; /* the module's number */
@@ -95,7 +95,7 @@ void func_m132_000E4(Object *obj, s32 updateRate) {
     M132WeaponInfo *info;
     s32 n;
 
-    func_800541B0(D_m132_00310, 2, 2);
+    runlink_unload_timer_set(D_m132_00310, 2, 2);
     obj->trans.rotation.y_rotation += updateRate << 7;
     n = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list);
     if (p->fade == 0) {
@@ -114,7 +114,7 @@ void func_m132_000E4(Object *obj, s32 updateRate) {
         if (n != 0) {
             pd = list[0]->unk68;
             w = func_80047C1C(pd->unk0, pd->unk1);
-            info = func_8003B500(p->weapon);
+            info = weapon_info_get(p->weapon);
             if (!(w->owned & (1 << p->weapon))) {
                 w->owned |= 1 << p->weapon;
                 w->count++;

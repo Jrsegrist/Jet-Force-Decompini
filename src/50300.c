@@ -6,13 +6,13 @@ INCLUDE_ASM("asm/nonmatchings/50300", func_8004F85C);
 
 INCLUDE_ASM("asm/nonmatchings/50300", func_8004F8C0);
 
-/* The scheduler's command queue (at 0x78 in its state). */
-void *func_8004F950(u8 *sc) {
+/* The scheduler's command queue (at 0x78 in its state) (0x8004F950). */
+void *osScGetCmdQ(u8 *sc) {
     return sc + 0x78;
 }
 
-/* The scheduler's interrupt queue (at 0x40 in its state). */
-void *func_8004F958(u8 *sc) {
+/* The scheduler's interrupt queue (at 0x40 in its state) (0x8004F958). */
+void *osScGetInterruptQ(u8 *sc) {
     return sc + 0x40;
 }
 

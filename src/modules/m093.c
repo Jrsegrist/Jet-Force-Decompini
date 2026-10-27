@@ -14,7 +14,7 @@ typedef struct M093Target {
 } M093Target;
 
 /* the message shown for each flag, or -1 */
-static s16 D_m093_002B0[96] = {
+static s16 sFlagMessages[96] = {
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    0x131, 0x131, 0x131, 0x131, 0x131, 0x131, 0x131, 0x131,
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
@@ -29,7 +29,7 @@ void func_m093_00000(Object *obj, M093Setup *setup) {
     obj->trans.rotation.y_rotation = setup->y_rotation;
     obj->trans.rotation.x_rotation = setup->x_rotation;
     t->flag = setup->flag;
-    if (func_80047ED0(t->flag) != 0) {
+    if (game_flag_get(t->flag) != 0) {
         obj->modelIndex = 1;
     } else {
         obj->modelIndex = 0;
@@ -45,8 +45,8 @@ void func_m093_000BC(Object *obj, s32 updateRate) {
     s32 i;
 
     if (obj->modelIndex == 0 && (hit = obj->interactObj) != NULL && (coll = obj->unk5C) != NULL) {
-        hit->unk6 -= coll->damage;
-        if (hit->unk6 <= 0) {
+        hit->hitPoints -= coll->damage;
+        if (hit->hitPoints <= 0) {
             obj->modelIndex = 1;
             obj->particleEmittersEnabled = 1;
             obj_spawn_particle(obj, 2);
@@ -66,13 +66,13 @@ void func_m093_000BC(Object *obj, s32 updateRate) {
                 spark.unk14 = func_80048E2C(25, 50) * 0.1f;
                 func_m010_0000C(&spark);
             }
-            hit->unk6 = 0;
+            hit->hitPoints = 0;
             func_80003410(0x1F0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
             func_80047EFC(OBJ_STATE(obj, M093Target)->flag, 1);
-            if (D_m093_002B0[OBJ_STATE(obj, M093Target)->flag] != -1) {
+            if (sFlagMessages[OBJ_STATE(obj, M093Target)->flag] != -1) {
                 player = func_8000E4D0(0);
                 if (player != NULL) {
-                    func_m006_011E0(player->unk68, D_m093_002B0[OBJ_STATE(obj, M093Target)->flag]);
+                    func_m006_011E0(player->unk68, sFlagMessages[OBJ_STATE(obj, M093Target)->flag]);
                 }
             }
         }

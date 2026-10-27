@@ -34,15 +34,15 @@ typedef struct ObjectFlags {
     u8 unk0;
     u8 bits[16];
 } ObjectFlags;
-extern ObjectFlags *D_800A31C4;
+extern ObjectFlags *gCurrentObjectFlags;
 
 extern LevelHeader *gCurrentLevelHeader;
-extern s32 D_800FB114;
+extern s32 gMapId;
 
 typedef struct ColourCycle {
     u8 pad0[0x10];
 } ColourCycle;
-extern ColourCycle D_800FB170[7];
+extern ColourCycle gLevelColourCycles[7];
 void update_colour_cycle(ColourCycle *cycle, s32 updateRate);
 
 void music_dynamic_set(u16 channelMask);
@@ -51,7 +51,7 @@ void music_tempo_set_relative(f32 tempo);
 void music_stop(void);
 u8 music_current_sequence(void);
 void music_play(u8 seqID);
-void func_80000798(void);
+void music_volume_fade_stop(void);
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043750);
 
@@ -65,47 +65,53 @@ typedef struct LevelListEntry {
     /* 0x03 */ u8 screenMode : 3;
     /* 0x04 */ u8 tune;
 } LevelListEntry;
-extern s32 D_800FB124;
-extern LevelListEntry *D_800FB12C;
+extern s32 gNumberOfLevelHeaders;
+extern LevelListEntry *gGlobalLevelTable;
 
-s32 func_80043B78(s32 level) {
-    if (level >= 0 && level < D_800FB124) {
-        return D_800FB12C[level].type;
+/* Returns a level's type, or -1 (0x80043B78). */
+s32 leveltable_type(s32 level) {
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        return gGlobalLevelTable[level].type;
     }
     return -1;
 }
 
-s32 func_80043BB8(s32 level) {
-    if (level >= 0 && level < D_800FB124) {
-        return D_800FB12C[level].tune;
+/* Returns a level's tune, or -1 (0x80043BB8). */
+s32 leveltable_tune(s32 level) {
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        return gGlobalLevelTable[level].tune;
     }
     return -1;
 }
 
-s32 func_80043BF8(s32 level) {
-    if (level >= 0 && level < D_800FB124) {
-        return D_800FB12C[level].world;
+/* Returns a level's world, or 0 (0x80043BF8). */
+s32 leveltable_world(s32 level) {
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        return gGlobalLevelTable[level].world;
     }
     return 0;
 }
 
-s32 func_80043C38(s32 level) {
-    if (level >= 0 && level < D_800FB124) {
-        return D_800FB12C[level].region;
+/* Returns a level's region, or 0 (0x80043C38). */
+s32 leveltable_region(s32 level) {
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        return gGlobalLevelTable[level].region;
     }
     return 0;
 }
 
-s32 func_80043C78(s32 level) {
-    if (level >= 0 && level < D_800FB124) {
-        return D_800FB12C[level].screenMode;
+/* Returns a level's screen mode, or 0 (0x80043C78). */
+s32 leveltable_screen_mode(s32 level) {
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        return gGlobalLevelTable[level].screenMode;
     }
     return 0;
 }
 
-s32 func_80043CC0(s32 level) {
-    if (level >= 0 && level < D_800FB124) {
-        return D_800FB12C[level].blur;
+/* Returns a level's blur setting, or 0 (0x80043CC0). */
+s32 leveltable_blur(s32 level) {
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        return gGlobalLevelTable[level].blur;
     }
     return 0;
 }
@@ -114,34 +120,34 @@ u8 func_80048548(void);
 
 s32 func_80043D08(s32 level) {
     s32 count = func_80048548() - 1;
-    if (level >= 0 && level < D_800FB124) {
-        if (D_800FB12C[level].unk3 != 0) {
-            count = D_800FB12C[level].unk3;
+    if (level >= 0 && level < gNumberOfLevelHeaders) {
+        if (gGlobalLevelTable[level].unk3 != 0) {
+            count = gGlobalLevelTable[level].unk3;
         }
     }
     return count;
 }
 
-/* JFG: list the different regions of a world's levels; returns how many. */
-s32 func_80043D70(s32 world, u8 *regions) {
+/* JFG: list the different regions of a world's levels; returns how many (0x80043D70). */
+s32 leveltable_world_regions(s32 world, u8 *regions) {
     s32 count = 0;
     s32 i;
     s32 j;
     s32 found;
     u8 region;
 
-    for (i = 0; i < D_800FB124; i++) {
-        if (world == D_800FB12C[i].world) {
-            if (D_800FB12C[i].region != 0 && D_800FB12C[i].region != 0xFF) {
+    for (i = 0; i < gNumberOfLevelHeaders; i++) {
+        if (world == gGlobalLevelTable[i].world) {
+            if (gGlobalLevelTable[i].region != 0 && gGlobalLevelTable[i].region != 0xFF) {
                 found = FALSE;
                 for (j = 0; j < count; j++) {
-                    if (regions[j] == D_800FB12C[i].region) {
+                    if (regions[j] == gGlobalLevelTable[i].region) {
                         found = TRUE;
                         j = count;
                     }
                 }
                 if (!found) {
-                    regions[count++] = D_800FB12C[i].region;
+                    regions[count++] = gGlobalLevelTable[i].region;
                 }
             }
         }
@@ -151,13 +157,13 @@ s32 func_80043D70(s32 world, u8 *regions) {
 
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043E3C);
 
-/* JFG: start the current level's music (if it isn't already playing). */
-void func_8004455C(f32 tempo) {
+/* JFG: start the current level's music (if it isn't already playing) (0x8004455C). */
+void level_music_start(f32 tempo) {
     if (gCurrentLevelHeader->music != 0) {
         if (gCurrentLevelHeader->music != music_current_sequence()) {
             music_channel_reset_all();
             music_play(gCurrentLevelHeader->music);
-            func_80000798();
+            music_volume_fade_stop();
             music_tempo_set_relative(tempo);
             music_dynamic_set(gCurrentLevelHeader->instruments);
         }
@@ -166,24 +172,24 @@ void func_8004455C(f32 tempo) {
     }
 }
 
-/* JFG: update the current level's colour cycles. */
-void func_80044610(s32 updateRate) {
+/* JFG: update the current level's colour cycles (0x80044610). */
+void level_colour_cycles_update(s32 updateRate) {
     s32 i;
     for (i = 0; i < 7; i++) {
         if (gCurrentLevelHeader->colourCycles[i] != -1) {
-            update_colour_cycle(&D_800FB170[i], updateRate);
+            update_colour_cycle(&gLevelColourCycles[i], updateRate);
         }
     }
 }
 
-/* JFG: the address of the current level's colour cycle data. */
-void *func_800446B0(void) {
-    return D_800FB170;
+/* JFG: the address of the current level's colour cycle data (0x800446B0). */
+void *level_colour_cycles_get(void) {
+    return gLevelColourCycles;
 }
 
-/* JFG: the current level number. */
-s32 func_800446BC(void) {
-    return D_800FB114;
+/* JFG: the current level number (0x800446BC). */
+s32 level_id(void) {
+    return gMapId;
 }
 
 /**
@@ -210,19 +216,19 @@ LevelHeader *level_header(void) {
     return gCurrentLevelHeader;
 }
 
-extern char *D_800A31A0;
+extern char *gLevelName;
 extern u32 *D_800FB110;
 
-/* JFG: load a level's name into D_800A31A0 */
-char *func_8004471C(s32 level) {
-    *D_800A31A0 = 0;
-    if (level < D_800FB124) {
+/* JFG: load a level's name into gLevelName (0x8004471C). */
+char *level_name(s32 level) {
+    *gLevelName = 0;
+    if (level < gNumberOfLevelHeaders) {
         if ((D_800FB110 = asset_table_load(0x1E)) != NULL) {
-            asset_load(0x1F, (u32) D_800A31A0, D_800FB110[level], 0x20);
+            asset_load(0x1F, (u32) gLevelName, D_800FB110[level], 0x20);
             mempool_free(D_800FB110);
         }
     }
-    return D_800A31A0;
+    return gLevelName;
 }
 
 void func_8006EE28(s32 arg0);
@@ -241,8 +247,8 @@ void func_80053934(void);
 void func_8006FB18(void);
 extern s32 D_800A089C;
 
-/* JFG: free the current level. */
-void func_800447B4(void) {
+/* JFG: free the current level (0x800447B4). */
+void level_free(void) {
     func_8006EE28(1);
     func_80068874();
     bgdraw_primcolour(0, 0, 0);
@@ -265,87 +271,90 @@ void func_800447B4(void) {
     func_8006FB18();
 }
 
-/* JFG: the next level (wrapping around) in the given world. */
-s32 func_80044898(s32 level, s8 world) {
+/* JFG: the next level (wrapping around) in the given world (0x80044898). */
+s32 leveltable_world_next(s32 level, s8 world) {
     s32 next = level + 1;
-    if (next >= D_800FB124) {
+    if (next >= gNumberOfLevelHeaders) {
         next = 0;
     }
-    while (next != level && world != D_800FB12C[next].world) {
+    while (next != level && world != gGlobalLevelTable[next].world) {
         next++;
-        if (next >= D_800FB124) {
+        if (next >= gNumberOfLevelHeaders) {
             next = 0;
         }
     }
     return next;
 }
 
-/* JFG: the previous level (wrapping around) in the given world. */
-s32 func_80044928(s32 level, s8 world) {
+/* JFG: the previous level (wrapping around) in the given world (0x80044928). */
+s32 leveltable_world_prev(s32 level, s8 world) {
     s32 prev = level - 1;
     if (prev < 0) {
-        prev = D_800FB124 - 1;
+        prev = gNumberOfLevelHeaders - 1;
     }
-    while (prev != level && world != D_800FB12C[prev].world) {
+    while (prev != level && world != gGlobalLevelTable[prev].world) {
         prev--;
         if (prev < 0) {
-            prev = D_800FB124 - 1;
+            prev = gNumberOfLevelHeaders - 1;
         }
     }
     return prev;
 }
 
-extern ObjectFlags D_800FB1E0[32];
+extern ObjectFlags gObjectFlags[32];
 
-void func_800449C8(void) {
+/* Clears the object flags of all 32 regions (0x800449C8). */
+void objflags_clear_all(void) {
     s32 i;
     s32 j;
     for (i = 0; i < 32; i++) {
         for (j = 0; j < 16; j++) {
-            D_800FB1E0[i].bits[j] = 0;
+            gObjectFlags[i].bits[j] = 0;
         }
-        D_800FB1E0[i].unk0 = 0;
+        gObjectFlags[i].unk0 = 0;
     }
 }
 
-void func_80044A1C(void) {
+/* Selects the current level region's object flags (0x80044A1C). */
+void objflags_select_region(void) {
     u8 region = gCurrentLevelHeader->region;
     if (region >= 32) {
-        D_800A31C4 = NULL;
+        gCurrentObjectFlags = NULL;
         return;
     }
-    D_800A31C4 = &D_800FB1E0[region];
-    D_800A31C4->unk0 = 0;
+    gCurrentObjectFlags = &gObjectFlags[region];
+    gCurrentObjectFlags->unk0 = 0;
 }
 
-/* JFG: reserve count object IDs in the current region; returns the first, or -1 if they don't fit in 128. */
-s32 func_80044A6C(s32 count) {
+/* JFG: reserve count object IDs in the current region; returns the first, or -1 if they don't fit in 128 (0x80044A6C). */
+s32 objflags_reserve_ids(s32 count) {
     u8 id;
     s32 next;
 
-    if (D_800A31C4 == NULL) {
+    if (gCurrentObjectFlags == NULL) {
         return -1;
     }
-    id = D_800A31C4->unk0;
+    id = gCurrentObjectFlags->unk0;
     next = id + count;
     if (next > 0x80) {
         return -1;
     }
-    D_800A31C4->unk0 = next;
+    gCurrentObjectFlags->unk0 = next;
     return id;
 }
 
-/* JFG: set bit `flag` of the level's object flags. */
-void func_80044AB4(s32 flag) {
-    if (D_800A31C4 != NULL) {
-        D_800A31C4->bits[flag >> 3] |= (1 << (flag & 7));
+/* JFG: set bit `flag` of the level's object flags (0x80044AB4). */
+void objflag_set(s32 flag) {
+    if (gCurrentObjectFlags != NULL) {
+        gCurrentObjectFlags->bits[flag >> 3] |= (1 << (flag & 7));
     }
 }
 
-s32 func_80044AE8(s32 flag) {
+/* Returns an object flag of the current region (0x80044AE8). */
+s32 objflag_get(s32 flag) {
     u8 mode = gCurrentLevelHeader->unk102;
-    if (mode == 0 || mode == 0xFF || D_800A31C4 == NULL) {
+    if (mode == 0 || mode == 0xFF || gCurrentObjectFlags == NULL) {
         return 0;
     }
-    return (D_800A31C4->bits[flag >> 3] & (1 << (flag & 7))) != 0;
+    return (gCurrentObjectFlags->bits[flag >> 3] & (1 << (flag & 7))) != 0;
 }

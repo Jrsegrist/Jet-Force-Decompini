@@ -241,8 +241,10 @@ def struct_body(text, typ):
 def check_fields(fields, files, root):
     problems = []
     texts = {}
+    # (a file may define its own view of a struct with fewer fields: each
+    # definition must have lost the old member, and one must have the new)
     for typ, old, new, n in fields:
-        found = False
+        found = has_new = False
         for rel in files:
             if not rel.endswith((".c", ".h")):
                 continue
@@ -255,10 +257,12 @@ def check_fields(fields, files, root):
             body = re.sub(r"/\*.*?\*/|//[^\n]*", "", body, flags=re.S)
             if re.search(r"\b%s\b" % re.escape(old), body):
                 problems.append("%s: struct %s still has %s (now %s)" % (rel, typ, old, new))
-            elif not re.search(r"\b%s\b" % re.escape(new), body):
-                problems.append("%s: struct %s has no field %s" % (rel, typ, new))
+            if re.search(r"\b%s\b" % re.escape(new), body):
+                has_new = True
         if not found:
             problems.append("%s:%d: struct %s not found" % (NAMES, n, typ))
+        elif not has_new:
+            problems.append("%s:%d: no struct %s has a field %s" % (NAMES, n, typ, new))
     return problems
 
 

@@ -36,12 +36,12 @@ typedef struct M085View {
 } M085View;
 
 extern s32 func_80005064(s32);
-extern void func_80043404(s32);
-extern void func_80043418(s32);
+extern void input_player_disable(s32);
+extern void input_player_enable(s32);
 extern void func_80048518(s32);
 extern void func_80000450(s32);
 extern M085View *func_80041E0C(void);
-extern s32 func_80053370(s32);
+extern s32 runlink_module_loaded(s32);
 extern void func_m006_015E0(s32);
 extern void func_m005_00C04(void);
 
@@ -75,7 +75,7 @@ void func_m085_00074(s32 id) {
                 player = func_8000E4D0(0);
                 pd = player->unk68;
                 pd->cutCamera = o;
-                func_80043404(0);
+                input_player_disable(0);
                 func_80048518(10);
                 c->saved = 0;
                 c->timer = c->duration;
@@ -110,8 +110,8 @@ void func_m085_00150(Object *obj, s32 updateRate) {
             view->trans.rotation.z_rotation = c->z_rotation;
             func_80000450(0);
             func_m006_015E0(0);
-            func_80043418(pd->cameraIndex);
-            if (func_80053370(5) != 0) {
+            input_player_enable(pd->cameraIndex);
+            if (runlink_module_loaded(5) != 0) {
                 func_m005_00C04();
             }
         }
@@ -137,7 +137,7 @@ void func_m085_00250(M085View *view, Object *obj, s32 updateRate) {
     view->trans.rotation.y_rotation = 0x8000 - obj->trans.rotation.y_rotation;
     view->trans.rotation.x_rotation = -obj->trans.rotation.x_rotation;
     view->trans.rotation.z_rotation = obj->trans.rotation.z_rotation;
-    if (func_80053370(5) != 0) {
+    if (runlink_module_loaded(5) != 0) {
         func_m005_00C04();
     }
 }

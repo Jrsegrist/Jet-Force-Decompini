@@ -52,7 +52,7 @@ extern void func_8004AA80(s32 data);               /* frees */
 extern void func_80055B80(Gfx **dl);
 extern void func_80000510();
 extern void func_80000FE4(s32 arg0);
-extern void func_8004758C();
+extern void load_first_unlocked_level();
 extern void func_8006FC54(s32 font);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
@@ -194,7 +194,7 @@ void func_m057_000C0(s32 updateRate) {
             sTimer -= updateRate;
             if (sTimer <= 0) {
                 sStage = 0;
-                func_8004758C();
+                load_first_unlocked_level();
             }
             break;
     }

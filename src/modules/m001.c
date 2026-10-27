@@ -35,7 +35,7 @@ extern void *func_80056798(s32, s32);
 extern void func_80056C14(void *);
 extern u8 *func_80055694(s32);
 extern void func_80055A00(void *);
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern M001Env *func_8004470C(void);
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
@@ -45,18 +45,19 @@ extern void func_80055C00(Gfx **gfx, void *tex, s32 flags, s32 offset); /* sets 
 
 void func_m001_002A0(M001Particle *p, s32 updateRate);
 
-static Triangle D_m001_00C30[2] = {
+static Triangle sSplashTris[2] = {
     { 0x40, 0, 1, 3, { { 0, 0 }, { 0, 0 }, { 0, 0 } } },
     { 0x40, 0, 3, 2, { { 0, 0 }, { 0, 0 }, { 0, 0 } } },
 };
 static void *D_m001_00C50 = NULL; /* loaded with func_80056798 */
 static void *D_m001_00C54 = NULL; /* loaded with func_80056798 */
-static u8 *D_m001_00C58 = NULL;   /* texture, loaded with func_80055694 */
-static s32 D_m001_00C5C = 0;      /* particles in use */
-static M001Particle D_m001_00C70[32];
-static s32 D_m001_01C70; /* set once the resources are loaded */
+static u8 *sSplashTexture = NULL;   /* texture, loaded with func_80055694 */
+static s32 sDropsInUse = 0;      /* particles in use */
+static M001Particle sDropPool[32];
+static s32 sDropsLoaded; /* Loads the drop resources and clears the pool of 32 drops (module m001, 0x00000). */
+/* set once the resources are loaded */
 
-static void func_m001_00000(void) {
+static void drop_pool_init(void) {
     s32 i;
     s32 j;
     s32 k;
@@ -66,8 +67,8 @@ static void func_m001_00000(void) {
 
     D_m001_00C50 = func_80056798(0x48, 0);
     D_m001_00C54 = func_80056798(0x45, 0);
-    D_m001_00C58 = func_80055694(0x1AC);
-    for (i = 0, p = D_m001_00C70; i < 32; i++, p++) {
+    sSplashTexture = func_80055694(0x1AC);
+    for (i = 0, p = sDropPool; i < 32; i++, p++) {
         p->state = 0;
         for (j = 0; j < 2; j++) {
             for (k = 0; k < 4; k++) {
@@ -78,18 +79,18 @@ static void func_m001_00000(void) {
             }
         }
     }
-    D_m001_00C5C = 0;
-    if (D_m001_00C58 != NULL) {
-        w = (D_m001_00C58[0] - 1) << 5;
-        h = (D_m001_00C58[1] - 1) << 5;
-        D_m001_00C30[0].uv[1][0] = w;
-        D_m001_00C30[0].uv[2][0] = w;
-        D_m001_00C30[0].uv[2][1] = h;
-        D_m001_00C30[1].uv[1][0] = w;
-        D_m001_00C30[1].uv[1][1] = h;
-        D_m001_00C30[1].uv[2][1] = h;
+    sDropsInUse = 0;
+    if (sSplashTexture != NULL) {
+        w = (sSplashTexture[0] - 1) << 5;
+        h = (sSplashTexture[1] - 1) << 5;
+        sSplashTris[0].uv[1][0] = w;
+        sSplashTris[0].uv[2][0] = w;
+        sSplashTris[0].uv[2][1] = h;
+        sSplashTris[1].uv[1][0] = w;
+        sSplashTris[1].uv[1][1] = h;
+        sSplashTris[1].uv[2][1] = h;
     }
-    D_m001_01C70 = 1;
+    sDropsLoaded = 1;
 }
 
 void func_m001_00120(void) {
@@ -99,23 +100,23 @@ void func_m001_00120(void) {
     if (D_m001_00C54 != NULL) {
         func_80056C14(D_m001_00C54);
     }
-    if (D_m001_00C58 != NULL) {
-        func_80055A00(D_m001_00C58);
+    if (sSplashTexture != NULL) {
+        func_80055A00(sSplashTexture);
     }
-    D_m001_01C70 = 0;
+    sDropsLoaded = 0;
 }
 
 M001Particle *func_m001_00188(f32 scale, f32 x, f32 y, f32 z, f32 floorY, f32 vx, f32 vy, f32 vz) {
     M001Particle *p;
     s32 i;
 
-    if (!D_m001_01C70) {
-        func_m001_00000();
+    if (!sDropsLoaded) {
+        drop_pool_init();
     }
-    if (D_m001_00C5C >= 32) {
+    if (sDropsInUse >= 32) {
         return NULL;
     }
-    for (i = 0, p = D_m001_00C70; i < 32; i++, p++) {
+    for (i = 0, p = sDropPool; i < 32; i++, p++) {
         if (p->state == 0) {
             break;
         }
@@ -134,7 +135,7 @@ M001Particle *func_m001_00188(f32 scale, f32 x, f32 y, f32 z, f32 floorY, f32 vx
         p->vz = vz;
         p->buffer = 1;
         p->unk28 = 0.0f;
-        D_m001_00C5C++;
+        sDropsInUse++;
     }
     return p;
 }
@@ -144,7 +145,7 @@ void func_m001_002A0(M001Particle *p, s32 updateRate) {
     s16 y;
     Vertex *v;
 
-    func_800541B0(1, 50, 10);
+    runlink_unload_timer_set(1, 50, 10);
     if (p->state == 1) {
         while (updateRate--) {
             p->x += p->vx;
@@ -164,7 +165,7 @@ void func_m001_002A0(M001Particle *p, s32 updateRate) {
             p->alpha -= 2;
             if (p->alpha == 0) {
                 p->state = 0;
-                D_m001_00C5C--;
+                sDropsInUse--;
                 break;
             }
         }
@@ -196,8 +197,8 @@ void func_m001_00600(s32 updateRate) {
     M001Particle *p;
     s32 i;
 
-    if (D_m001_00C5C != 0) {
-        p = D_m001_00C70;
+    if (sDropsInUse != 0) {
+        p = sDropPool;
         for (i = 0; i < 32; i++, p++) {
             if (p->state != 0) {
                 func_m001_002A0(p, updateRate);
@@ -206,8 +207,8 @@ void func_m001_00600(s32 updateRate) {
     }
 }
 
-/* Draws one particle */
-static void func_m001_00678(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
+/* Draws one particle (module m001, 0x00678). */
+static void drop_render(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
     f32 scale;
     M001Env *env;
 
@@ -220,12 +221,12 @@ static void func_m001_00678(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
             func_80041174(dl, arg2, arg3, p, D_m001_00C50, 6, 255);
             func_80056064();
         } else {
-            func_80055C00(dl, D_m001_00C58, 14, 0);
+            func_80055C00(dl, sSplashTexture, 14, 0);
             if (p->alpha < 32) {
                 gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, p->alpha * 8);
             }
             gSPVertexJFG((*dl)++, OS_K0_TO_PHYSICAL(p->verts[p->buffer]), 5, 0);
-            gSPPolygon((*dl)++, OS_K0_TO_PHYSICAL(D_m001_00C30), 2, 1);
+            gSPPolygon((*dl)++, OS_K0_TO_PHYSICAL(sSplashTris), 2, 1);
             if (D_m001_00C54 != NULL && p->unk28 < *(u8 *) D_m001_00C54) {
                 p->scale = scale * 0.6f;
                 gDPSetPrimColor((*dl)++, 0, 0, env->r, env->g, env->b, 160);
@@ -255,9 +256,9 @@ void func_m001_00978(Gfx **dl, s32 arg1, s32 arg2) {
     f32 dy;
     f32 dz;
 
-    if (D_m001_01C70 != 0 && D_m001_00C5C != 0) {
+    if (sDropsLoaded != 0 && sDropsInUse != 0) {
         cam = func_80041DE0();
-        for (i = 0, count = 0, p = D_m001_00C70; i < 32; i++, p++) {
+        for (i = 0, count = 0, p = sDropPool; i < 32; i++, p++) {
             if (p->state != 0) {
                 dx = p->x - cam->x_position;
                 dy = p->y - cam->y_position;
@@ -284,7 +285,7 @@ void func_m001_00978(Gfx **dl, s32 arg1, s32 arg2) {
             } while (!sorted);
         }
         for (i = 0; i < count; i++) {
-            func_m001_00678(&D_m001_00C70[order[i]], dl, arg1, arg2);
+            drop_render(&sDropPool[order[i]], dl, arg1, arg2);
         }
     }
 }

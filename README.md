@@ -17,7 +17,11 @@ prints how much of it is built from C:
 | --- | --- | --- |
 | main segment, game code | 750 / 1,320 | 98,088 / 539,928 |
 | main segment, libraries (libultra, n_audio, libc) | 81 / 341 | 12,428 / 102,408 |
-| runlink modules (157) | 0 / 1,385 (counted by returns) | 0 / 851,744 |
+| runlink modules (157) | 226 / 1,275 (67 modules all C, 15 partly) | 81,140 / 850,816 |
+
+Of the game code's 750 C functions, 481 have a real name (DKR's, the SDK's
+or one of our own, see [Naming](#naming)); the other 269 keep their address
+names until the code shows what they do (`make progress`, the `names` line).
 
 - The game code in the main segment is split into C files (`src/`), one
   `INCLUDE_ASM` per function that is not decompiled yet. Code shared with
@@ -98,7 +102,7 @@ catches ROM names; the rest is up to the reviewer.
 | --- | --- | --- |
 | DKR's functions, variables, types and fields | exactly DKR's spelling (DKR mixes snake_case and camelCase; a DKR name is never re-cased) | `mempool_alloc`, `lightGetLights`, `thread0_Main`, `gCameras` |
 | libultra and SDK code | the SDK's names | `osFlashInit`, `__osPiDevMgr` |
-| other functions | lower snake_case, `subsystem_verb_object` or `subsystem_object_verb`, using the prefix of the DKR-named code they belong with (`cam_`, `viewport_`, `mempool_`, `music_`, `sound_`, `audspat_`, `tex_`, `light_`, `weather_`, `rain_`, `transition_`, `dialogue_`, `input_`, `obj_` …) | `rain_density_get` |
+| other functions | lower snake_case, `subsystem_verb_object` or `subsystem_object_verb`, using the prefix of the DKR-named code they belong with (`cam_`, `viewport_`, `mempool_`, `music_`, `sound_`, `audspat_`, `tex_`, `light_`, `weather_`, `rain_`, `transition_`, `dialogue_`, `input_`, `obj_` …) | `cam_shake_start`, `music_volume_fade` |
 | global variables | `g` + CamelCase; a file-scope `static` defined in C `s` + CamelCase (as DKR) | `gWeatherType`, `sPlayerID` |
 | types | CamelCase | `AudioPoint`, `DialogueBox` |
 | struct fields | lowerCamelCase; unidentified ones stay `unkXX` / `padXX` (XX = the offset) | `segmentID`, `unk4C` |
@@ -110,7 +114,7 @@ stay as they are: DKR's names are never changed to fit the table, and our own
 names never imitate a DKR name's casing.
 
 Each named function gets a one-line comment on what it does, ending with its
-address, e.g. `/* Returns the rain density, 0.0 to 1.0 (0x8005BFC4). */`.
+address, e.g. `/* Stops the shakes of the four cameras (0x800422C4). */`.
 
 **The rename map.** [`names.txt`](names.txt) holds every rename as
 `old = new` (fields as `field Type.old = new`, renamed by hand: the compiler

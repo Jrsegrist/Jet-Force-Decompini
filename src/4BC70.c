@@ -38,18 +38,20 @@ extern s8 *gPakFileList;
 extern u8 gN64FontCodes[];
 extern u8 gRumblePresent; // Bits 0, 1, 2, and 3 of the bit pattern correspond to Controllers 1, 2, 3, and 4.
 
-extern u8 D_800A3470;
+extern u8 gRumbleAllowed;
 extern u8 D_800A3464;
-s8 func_800482F8(void);
+s8 is_game_paused(void);
 
-int func_8004B070(void) {
-    return D_800A3470 != 0 && func_800482F8() == 0;
+/* Returns whether rumble may run (enabled and not paused) (0x8004B070). */
+int rumble_is_allowed(void) {
+    return gRumbleAllowed != 0 && is_game_paused() == 0;
 }
 
-extern u8 D_800A3470;
+extern u8 gRumbleAllowed;
 
-void func_8004B0AC(s32 arg0) {
-    D_800A3470 = arg0;
+/* Enables or disables rumble (0x8004B0AC). */
+void rumble_allow_set(s32 arg0) {
+    gRumbleAllowed = arg0;
 }
 
 extern u8 D_800A346C;
@@ -73,17 +75,17 @@ typedef struct RumbleData {
     /* 0x06 */ s16 time;
     /* 0x08 */ u8 pad8[2];
 } RumbleData;
-extern RumbleData D_800FDF58[];
+extern RumbleData gRumble[];
 u8 input_player_id(s32 player);
 extern f32 D_800AC940;
 
-/* JFG: start a rumble on a controller (strength squared, time in seconds). */
-void func_8004B0F4(s32 pad, s32 strength, f32 time) {
+/* JFG: start a rumble on a controller (strength squared, time in seconds) (0x8004B0F4). */
+void rumble_start(s32 pad, s32 strength, f32 time) {
     RumbleData *rumble;
 
-    if (func_8004B070() != 0) {
+    if (rumble_is_allowed() != 0) {
         if (pad >= 0 && pad < 4) {
-            rumble = &D_800FDF58[input_player_id(pad)];
+            rumble = &gRumble[input_player_id(pad)];
             if (rumble->state != 2) {
                 rumble->state = 1;
                 rumble->strength = strength * strength * D_800AC940;
@@ -94,14 +96,15 @@ void func_8004B0F4(s32 pad, s32 strength, f32 time) {
     }
 }
 
-void func_8004B204(s32 pad, s32 force) {
+/* Stops a controller's rumble (force: even when idle) (0x8004B204). */
+void rumble_stop(s32 pad, s32 force) {
     s32 id;
 
     if (pad >= 0 && pad < 4) {
         id = input_player_id(pad);
-        if (force != 0 || (D_800FDF58[id].state != 0 && D_800FDF58[id].state != 3)) {
-            D_800FDF58[id].state = 3;
-            D_800FDF58[id].unk1 = 1;
+        if (force != 0 || (gRumble[id].state != 0 && gRumble[id].state != 3)) {
+            gRumble[id].state = 3;
+            gRumble[id].unk1 = 1;
         }
     }
 }
@@ -110,12 +113,13 @@ INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B29C);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B3D8);
 
-void func_8004B204(s32 pad, s32 arg1);
+void rumble_stop(s32 pad, s32 arg1);
 
-void func_8004B518(s32 arg0) {
+/* Stops the rumble of all four controllers (0x8004B518). */
+void rumble_stop_all(s32 arg0) {
     s32 i = 4;
     while (i--) {
-        func_8004B204(i, arg0);
+        rumble_stop(i, arg0);
     }
 }
 
@@ -142,7 +146,8 @@ void func_8004BA50(s32 pad, s32 *a, f32 *b) {
     }
 }
 
-s32 func_8004BA98(u8 *data, s32 size) {
+/* Returns the checksum of a save file's bytes (0x8004BA98). */
+s32 calculate_save_file_checksum(u8 *data, s32 size) {
     s32 sum = 7;
     while (size--) {
         sum += *data++;
@@ -160,17 +165,17 @@ s32 func_8004BAE0(s32 arg0, s32 arg1, s32 arg2) {
 
 s32 is_reset_pressed(void);
 void func_80083EB0(s32 sector);
-void func_8004BF98(u32 page, u8 *data);
-void func_8004C008(u32 page, u8 *data);
-extern s32 D_800A3474[]; // JFG: the first flash page of each save slot
+void flash_write_page(u32 page, u8 *data);
+void flash_read_page(u32 page, u8 *data);
+extern s32 gSaveFilePages[]; // JFG: the first flash page of each save slot
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
 
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BC10);
 
-/* JFG: erase a save slot's flash sector (fill its pages with 0xFF). */
-void func_8004BCB4(s32 slot, UNUSED s32 arg1) {
-    s32 page = D_800A3474[slot];
+/* JFG: erase a save slot's flash sector (fill its pages with 0xFF) (0x8004BCB4). */
+void erase_save_file(s32 slot, UNUSED s32 arg1) {
+    s32 page = gSaveFilePages[slot];
     u8 *buf = mempool_alloc_safe(0x80, -1);
     s32 i;
     s32 j;
@@ -182,7 +187,7 @@ void func_8004BCB4(s32 slot, UNUSED s32 arg1) {
     if (is_reset_pressed() == 0) {
         func_80083EB0(page);
         for (j = 0; j < 0x80; j++) {
-            func_8004BF98(page++, buf);
+            flash_write_page(page++, buf);
         }
     }
     mempool_free(buf);
@@ -206,7 +211,7 @@ void func_8004BD78(void) {
         for (i = 0; i < 8; i++) {
             func_80083EB0(page);
             for (j = 0; j < 0x80; j++) {
-                func_8004BF98(page++, buf);
+                flash_write_page(page++, buf);
             }
         }
     }
@@ -216,7 +221,8 @@ void func_8004BD78(void) {
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BD78);
 #endif
 
-s32 func_8004BE44(u8 *data) {
+/* Returns the checksum of the settings block (0x8004BE44). */
+s32 calculate_eeprom_settings_checksum(u8 *data) {
     s32 sum = 5;
     s32 i = 126;
     while (i--) {
@@ -225,32 +231,34 @@ s32 func_8004BE44(u8 *data) {
     return sum;
 }
 
-s32 func_8004BE44(u8 *data);
+s32 calculate_eeprom_settings_checksum(u8 *data);
 extern u8 D_800A34AC[0x7E];
 
-s32 func_8004BE6C(u8 *data) {
+/* Reads the settings from flash, using the defaults if the checksum is bad (0x8004BE6C). */
+s32 read_eeprom_settings(u8 *data) {
     u8 *src;
     u8 *dst;
     s32 i;
 
-    func_8004C008(0x380, data);
-    if (func_8004BE44(data) != *(u16 *) (data + 0x7E)) {
+    flash_read_page(0x380, data);
+    if (calculate_eeprom_settings_checksum(data) != *(u16 *) (data + 0x7E)) {
         src = D_800A34AC;
         dst = data;
         i = 126;
         while (i--) {
             *dst++ = *src++;
         }
-        *(u16 *) (data + 0x7E) = func_8004BE44(data);
+        *(u16 *) (data + 0x7E) = calculate_eeprom_settings_checksum(data);
     }
     return 1;
 }
 
-s32 func_8004BEE4(u8 *data) {
-    *(s16 *) (data + 0x7E) = func_8004BE44(data);
+/* Writes the settings to flash with a new checksum (0x8004BEE4). */
+s32 write_eeprom_settings(u8 *data) {
+    *(s16 *) (data + 0x7E) = calculate_eeprom_settings_checksum(data);
     if (is_reset_pressed() == 0) {
         func_80083EB0(0x380);
-        func_8004BF98(0x380, data);
+        flash_write_page(0x380, data);
     }
     return 1;
 }
@@ -261,7 +269,8 @@ extern OSIoMesg D_800FDFA0;
 extern OSMesg D_800FDFB8[2];
 extern OSMesgQueue D_800FDFC0;
 
-void func_8004BF2C(void) {
+/* Sets up the flash message queues and the flash library (0x8004BF2C). */
+void save_flash_init(void) {
     osCreateMesgQueue(&D_800FDFC0, D_800FDFB8, 1);
     osSetEventMesg(OS_EVENT_CART, &D_800FDFC0, (OSMesg) 1);
     osCreateMesgQueue(&D_800FDF80, D_800FDF98, 1);
@@ -269,7 +278,8 @@ void func_8004BF2C(void) {
     osFlashInit();
 }
 
-void func_8004BF98(u32 page, u8 *data) {
+/* Writes one 128-byte flash page (0x8004BF98). */
+void flash_write_page(u32 page, u8 *data) {
     if (page < 0x3FE) {
         osWritebackDCache(data, 0x80);
         osFlashWriteBuffer(&D_800FDFA0, OS_MESG_PRI_NORMAL, data, &D_800FDF80);
@@ -278,7 +288,8 @@ void func_8004BF98(u32 page, u8 *data) {
     }
 }
 
-void func_8004C008(u32 page, u8 *data) {
+/* Reads one 128-byte flash page (0x8004C008). */
+void flash_read_page(u32 page, u8 *data) {
     if (page < 0x3FE) {
         osInvalDCache(data, 0x80);
         osFlashReadArray(&D_800FDFA0, OS_MESG_PRI_NORMAL, page, data, 1, &D_800FDF80);
@@ -407,7 +418,7 @@ SIDeviceStatus reformat_controller_pak(s32 controllerIndex) {
 #define COLOUR_TAG_BLACK 0xFF
 
 char *font_codes_to_string(char *inString, char *outString, s32 stringLength);
-s32 func_8004D250(s32 controllerIndex, s32 fileNum); // DKR: get_file_type
+s32 get_file_type(s32 controllerIndex, s32 fileNum);
 
 /**
  * Lists the files on the controller pak.
@@ -492,7 +503,7 @@ s32 get_controller_pak_file_list(s32 controllerIndex, s32 maxNumOfFilesToGet, ch
         fileTypes[i] = SAVE_FILE_TYPE_CPAK_OTHER;
 
         if ((state.game_code == gameCode) && (state.company_code == COMPANY_CODE)) {
-            fileTypes[i] = func_8004D250(controllerIndex, i);
+            fileTypes[i] = get_file_type(controllerIndex, i);
         }
     }
 
@@ -866,11 +877,12 @@ char *string_to_font_codes(char *inString, char *outString, s32 stringLength) {
 
 #define CHAR 0x43484152 // "CHAR"
 
+/* Returns the type of a game file on the controller pak (0x8004D250). */
 /**
  * Returns the type of a game file on the controller pak.
  * DKR: get_file_type. JFG: only one type ("CHAR" files are 0, everything else 1).
  */
-s32 func_8004D250(s32 controllerIndex, s32 fileNum) {
+s32 get_file_type(s32 controllerIndex, s32 fileNum) {
     s32 *data;
     UNUSED s32 pad;
     s32 ret;

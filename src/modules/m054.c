@@ -95,28 +95,28 @@ typedef struct M054Level {
     /* 0x28 */ f32 unk28;
 } M054Level;
 
-extern s32 D_800F6DA0; /* buttons held */
-extern s32 D_800F6DA4; /* buttons pressed */
-extern s32 D_800F6DAC; /* stick x */
-extern s32 D_800F6DB0; /* stick y */
+extern s32 gPlayerButtonsHeld; /* buttons held */
+extern s32 gPlayerButtonsPressed; /* buttons pressed */
+extern s32 gPlayerStickX; /* stick x */
+extern s32 gPlayerStickY; /* stick y */
 
 extern s32 func_8004966C(s16 angle);
 extern void func_800694CC(M054Model *model, s16 angle);
 extern void func_8006999C(M054Model *model, s16 size, u8 scale);
 extern void func_80005F14(M054Shot *shot, s32 count);
-extern void func_80037250(s32 player);
-extern void func_8003FC2C(s32 player);
+extern void player_input_latch(s32 player);
+extern void set_active_camera(s32 player);
 extern M054Level *func_8004470C(void); /* DKR levelGetLevel */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern f32 func_80049BEC(f32 base, s32 exponent);
-extern s16 func_80033FA4(s16 from, s16 to, f32 rate);
+extern s16 angle_lerp(s16 from, s16 to, f32 rate);
 extern void func_8002EB6C(Object *obj, M054Craft *craft, f32 rate);
 
-static M054Weapon D_m054_007A0[1] = {
+static M054Weapon sCraftWeapons[1] = {
     { 10, 3, 1, 0, 10, 0x50, 12.0f },
 };
 
-static M054Event D_m054_007AC[13] = {
+static M054Event sScoreEvents[13] = {
     { 500, -250, 0xFF06, "Player hit (soft)" },
     { 1000, -500, 0xFE0C, "Player hit (normal)" },
     { 2000, -1000, 0xFC18, "Player hit (hard)" },
@@ -139,8 +139,8 @@ static M054Rates D_m054_0094C[19] = {
     { 0.004f, 0.8f }, { 0.004f, 0.8f },  { 0.004f, 0.8f }, { 0.004f, 0.8f },
 };
 
-/* Pulses the two attached models: brighter while banking, dimmer when level */
-static void func_m054_00000(M054Craft *craft, s32 updateRate) {
+/* Pulses the two attached models: brighter while banking, dimmer when level (module m054, 0x00000). */
+static void craft_models_pulse(M054Craft *craft, s32 updateRate) {
     s32 i;
     M054Model *model;
     s32 scale;
@@ -172,16 +172,16 @@ static void func_m054_00000(M054Craft *craft, s32 updateRate) {
     }
 }
 
-/* Fires the craft's weapon when the fire button is pressed (or held, for automatic ones) */
-static void func_m054_00140(Object *obj, M054Craft *craft, s32 updateRate) {
+/* Fires the craft's weapon when the fire button is pressed (or held, for automatic ones) (module m054, 0x00140). */
+static void craft_weapon_fire(Object *obj, M054Craft *craft, s32 updateRate) {
     M054Shot shot;
     M054Weapon *weapon;
 
-    weapon = &D_m054_007A0[craft->weapon];
+    weapon = &sCraftWeapons[craft->weapon];
     if (craft->fireTimer > 0) {
         craft->fireTimer -= updateRate;
     }
-    if ((D_800F6DA4 & 0x2000) || ((D_800F6DA0 & 0x2000) && craft->fireTimer <= 0 && weapon->autoFire != 0)) {
+    if ((gPlayerButtonsPressed & 0x2000) || ((gPlayerButtonsHeld & 0x2000) && craft->fireTimer <= 0 && weapon->autoFire != 0)) {
         shot.unk0 = weapon->unk6;
         shot.unk2 = 0x24;
         shot.unk3 = 0;
@@ -217,8 +217,8 @@ void func_m054_0033C(Object *obj, s32 updateRate) {
 
     craft = obj->unk68;
     rate2 = rate = updateRate;
-    func_80037250(craft->unk0);
-    if (D_800F6DA0 & 0x10) {
+    player_input_latch(craft->unk0);
+    if (gPlayerButtonsHeld & 0x10) {
         boost = 1.5f;
     } else {
         boost = 1.0f;
@@ -226,7 +226,7 @@ void func_m054_0033C(Object *obj, s32 updateRate) {
     for (i = updateRate; i > 0; i--) {
         craft->boost += (boost - craft->boost) * 0.1f;
     }
-    target = (-D_800F6DAC << 16) / 6300;
+    target = (-gPlayerStickX << 16) / 6300;
     i = updateRate;
     if (i > 0) {
         do {
@@ -237,7 +237,7 @@ void func_m054_0033C(Object *obj, s32 updateRate) {
         craft->turn = target;
     }
     obj->trans.rotation.y_rotation += (s32) (craft->turn * rate * craft->boost);
-    target = (-D_800F6DAC * 0x1400) / 70;
+    target = (-gPlayerStickX * 0x1400) / 70;
     i = updateRate;
     if (i > 0) {
         do {
@@ -249,17 +249,17 @@ void func_m054_0033C(Object *obj, s32 updateRate) {
     }
     obj->trans.rotation.z_rotation = craft->tilt * craft->boost;
     speed = 14.0f;
-    if (D_800F6DB0 < -63) {
+    if (gPlayerStickY < -63) {
         craft->bank = -127;
-    } else if (D_800F6DB0 >= 64) {
+    } else if (gPlayerStickY >= 64) {
         craft->bank = 127;
     } else {
-        craft->bank = D_800F6DB0 * 2;
+        craft->bank = gPlayerStickY * 2;
     }
-    if (D_800F6DB0 > 0) {
-        speed += D_800F6DB0 * 7.0f / 70.0f;
-    } else if (D_800F6DB0 < 0) {
-        speed += D_800F6DB0 * 7.0f / 70.0f;
+    if (gPlayerStickY > 0) {
+        speed += gPlayerStickY * 7.0f / 70.0f;
+    } else if (gPlayerStickY < 0) {
+        speed += gPlayerStickY * 7.0f / 70.0f;
     }
     for (i = updateRate; i > 0; i--) {
         craft->speed += (speed - craft->speed) * 0.1f;
@@ -269,14 +269,14 @@ void func_m054_0033C(Object *obj, s32 updateRate) {
     obj->velocity.z = func_80049C30(obj->trans.rotation.y_rotation + 0x8000) * -craft->speed;
     obj->trans.y_position = 0.0f;
     func_80009A04(obj, obj->velocity.x * rate, obj->velocity.y * rate, obj->velocity.z * rate);
-    func_m054_00140(obj, craft, updateRate);
-    craft->roll = func_80033FA4(craft->roll, (craft->bank << 7) - 0x4000, 1.0f - func_80049BEC(0.9f, updateRate));
+    craft_weapon_fire(obj, craft, updateRate);
+    craft->roll = angle_lerp(craft->roll, (craft->bank << 7) - 0x4000, 1.0f - func_80049BEC(0.9f, updateRate));
     craft->unk240 = 6;
     craft->unk244 = 12;
     craft->unk248 = 0x1000;
     craft->unk242 = craft->roll;
     craft->unk246 = craft->roll;
-    func_m054_00000(craft, updateRate);
-    func_8003FC2C(craft->unk0);
+    craft_models_pulse(craft, updateRate);
+    set_active_camera(craft->unk0);
     func_8002EB6C(obj, craft, rate2);
 }

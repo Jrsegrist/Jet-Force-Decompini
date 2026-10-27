@@ -27,10 +27,10 @@ typedef struct M108Object {
 } M108Object;
 
 extern void func_80079D1C(M108Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern M108Object *func_8000E4D0(s32);
-extern s32 func_80047D80(s32, s32, s32);
-extern void func_80047C9C(s32, s32, s32);
+extern s32 character_has_item(s32, s32, s32);
+extern void character_item_give(s32, s32, s32);
 extern void func_80001248(s32, s32);
 extern void func_800079B8(M108Object *);
 extern void func_m006_011E0(M108PlayerData *, s32);
@@ -60,20 +60,20 @@ void func_m108_000CC(M108Object *obj, s32 updateRate) {
     f32 dx;
     f32 dz;
 
-    func_800541B0(D_m108_00220, 2, 2);
+    runlink_unload_timer_set(D_m108_00220, 2, 2);
     key = obj->unk68;
     obj->unk0 += updateRate << 7;
     player = func_8000E4D0(0);
     if (player != NULL) {
         data = player->unk68;
-        if (func_80047D80(data->unk0, data->unk1, *key) != 0) {
+        if (character_has_item(data->unk0, data->unk1, *key) != 0) {
             func_800079B8(obj);
         } else {
             dx = player->unkC - obj->unkC;
             dz = player->unk14 - obj->unk14;
             if (dx * dx + dz * dz < 1024.0f) {
                 if (obj->unk10 + -45.0f < player->unk10 && player->unk10 < obj->unk10 + 45.0f) {
-                    func_80047C9C(data->unk0, data->unk1, *key);
+                    character_item_give(data->unk0, data->unk1, *key);
                     func_80001248(0x1F4, 0);
                     func_m006_011E0(data, *key + 0x170);
                 }

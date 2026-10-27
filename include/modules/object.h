@@ -49,7 +49,7 @@ typedef struct LevelObjectEntryCommon {
 /* What object->interactObj points at (JFG's own layout) */
 typedef struct ObjectInteraction {
     /* 0x00 */ u8 pad0[0x6];
-    /* 0x06 */ s16 unk6; /* hit points; 0x100 = not hit (switches, triggers) */
+    /* 0x06 */ s16 hitPoints; /* hit points; 0x100 = not hit (switches, triggers) */
     /* 0x08 */ u8 pad8[0x2];
     /* 0x0A */ u16 flags;
 } ObjectInteraction;
@@ -86,7 +86,7 @@ typedef struct ObjectUnk5C {
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;            /* (DKR) */
     /* 0x18 */ s16 animFrame;                    /* (DKR) */
-    /* 0x1A */ s16 unk1A;
+    /* 0x1A */ s16 numActiveEmitters;
     /* 0x1C */ Vec3f velocity;                   /* (DKR: x/y/z_velocity) */
     /* 0x28 */ f32 unk28;                        /* (DKR) */
     /* 0x2C */ u8 pad2C[0x2E - 0x2C];
@@ -107,7 +107,7 @@ typedef struct Object {
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ void *unk68;                      /* behaviour data, for behaviours that allocate it */
-    /* 0x6C */ void **unk6C;                     /* model instances? */
+    /* 0x6C */ void **modelInstances;                     /* model instances? */
     /* 0x70 */ void *unk70;                      /* m131: its joint angles */
     /* 0x74 */ s32 *light;                       /* points at the handle of the object's light (or 0) */
     /* 0x78 */ u8 pad78[0x7C - 0x78];
@@ -115,7 +115,7 @@ typedef struct Object {
     /* 0x80 */ u8 pad80[0x84 - 0x80];
     /* 0x84 */ u32 particleEmittersEnabled;      /* bit mask for obj_spawn_particle (DKR's use) */
     /* 0x88 */ u8 state[0xA0 - 0x88];            /* behaviour state kept in the object (OBJ_STATE) */
-    /* 0xA0 */ u8 unkA0;
+    /* 0xA0 */ u8 freed;
 } Object;
 
 /* A behaviour's own state, kept in the object at 0x88 */

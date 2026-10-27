@@ -37,7 +37,7 @@ extern s32 func_8006EE50(void); /* night vision on */
 extern void func_8006EDF0(s32);
 extern void func_8006EE28(s32);
 extern u16 func_80043510(s32 player); /* buttons pressed */
-extern s32 func_80047D80(s32, s32, s32);
+extern s32 character_has_item(s32, s32, s32);
 extern void *func_80041E0C(void);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 extern void func_m085_00074(s32 camera);
@@ -82,7 +82,7 @@ void func_m115_000E4(Object *obj, s32 updateRate) {
     switch (p->state) {
         case 0:
             if (func_80043510(0) & 0x8000) {
-                if (func_80047D80(pd->unk0, pd->unk1, 0x16) != 0) {
+                if (character_has_item(pd->unk0, pd->unk1, 0x16) != 0) {
                     dx = player->trans.x_position - obj->trans.x_position;
                     dz = player->trans.z_position - obj->trans.z_position;
                     y = player->trans.y_position;

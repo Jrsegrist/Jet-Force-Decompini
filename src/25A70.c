@@ -107,8 +107,8 @@ typedef struct LevelObjectEntry_Torch_Mist {
     /* 0x0C */ u8 unkC;
 } LevelObjectEntry_Torch_Mist;
 
-/* DKR obj_init_torch_mist (object_functions.c), plus JFG's float at 0x28 from byte 0xC. */
-void func_80024E70(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
+/* DKR obj_init_torch_mist (object_functions.c), plus JFG's float at 0x28 from byte 0xC (0x80024E70). */
+void obj_init_torch_mist(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
     f32 radius = entry->radius & 0xFF;
     if (radius < 10.0f) {
         radius = 10.0f;
@@ -206,8 +206,8 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_80026A50);
 
 void set_skydome_visbility(s32 renderSky);
 
-/* JFG: sky control: when a player is within the radius, set the skydome visibility. */
-void func_80026CAC(Object *obj, UNUSED s32 updateRate) {
+/* JFG: sky control: when a player is within the radius, set the skydome visibility (0x80026CAC). */
+void obj_loop_skycontrol(Object *obj, UNUSED s32 updateRate) {
     Object *objs[8];
 
     if (obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, obj->properties.skyTrigger.radius, 0,

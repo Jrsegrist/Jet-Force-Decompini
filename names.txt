@@ -8,3 +8,438 @@
 # tools/rename.py applies it to the tree and checks it (--check); --which NAME
 # turns an old name into the new one and back. Where names may come from, and
 # their style, is in the README ("Naming"). Grouped by source file.
+
+# src/12D50.c
+func_80013810 = get_skydome_object
+func_80013D3C = track_segment_data_free
+func_80013F08 = track_light_off
+func_80013F48 = track_light_set_colour
+func_80013FE0 = track_light_set_position
+func_8001563C = get_inside_segment_count_xz
+func_80015E3C = player_get_draw_alpha
+func_80019518 = line_clip_plane
+func_8001C758 = highest_set_bit
+
+# src/217C0.c
+func_80020D84 = light_track_light_add
+func_800212F8 = light_toggle
+func_8002130C = light_colour_set
+func_80021338 = light_colour_cycle_set
+func_80021358 = light_intensity_set
+func_800226B8 = light_setup_cam_lights
+
+# src/25A70.c
+func_80024E70 = obj_init_torch_mist
+func_80026CAC = obj_loop_skycontrol
+
+# src/2610.c
+func_80001D7C = __amMain
+func_800024C4 = __amDMA
+func_80002694 = __amDmaNew
+func_800026CC = __clearAudioDMA
+
+# src/291B0.c
+func_800285B0 = spawn_object_from_list
+func_8002863C = obj_init_emitter
+
+# src/2BAA0.c
+func_80031F44 = player_items_unlink
+func_80031F9C = mem_zero_range
+func_80031FE8 = player_respawn_at
+func_80033FA4 = angle_lerp
+func_80037194 = collision_is_clear_above
+func_80037244 = player_input_lock_set
+func_80037250 = player_input_latch
+func_80037420 = weapon_switch_direction
+func_800374C8 = weapon_has_ammo
+func_80038430 = weapon_select
+func_80038528 = weapon_select_prev
+func_8003B114 = weapon_usable_by_character
+func_8003B500 = weapon_info_get
+func_8003B820 = player_drop_held_object
+
+# src/3430.c
+func_80002830 = audspat_init
+func_800034C4 = audspat_point_set_volume
+func_800034DC = audspat_point_set_pitch
+func_80003680 = audspat_point_handle_clear
+
+# src/3C470.c
+func_8003B870 = mem_copy_u16
+func_8003C0C4 = mtxf_set_identity_array
+
+# src/40240.c
+func_8003F7A8 = cam_shake_off
+func_8003F7B8 = cam_shake_on
+func_8003F7D4 = cam_fov_scale_set
+func_8003FA6C = get_distance_to_active_camera
+func_8003FBDC = cam_set_layout
+func_8003FC1C = cam_get_active_camera_id
+func_8003FC2C = set_active_camera
+func_800400D8 = set_viewport_properties
+func_80040A70 = mtx_view_persp_get
+func_800419AC = mtx_model_push
+func_80041BE0 = mtx_scale_push
+func_80041DA0 = mtx_pop
+func_80041E40 = get_view_proj_matrix_f32
+func_800420F0 = get_distance_to_camera
+func_800421F0 = cam_shake_start
+func_800422C4 = cam_shake_stop_all
+func_80042438 = cam_fov_zoom_set
+
+# src/432D0.c
+func_8004272C = transform_offset_world_pos
+
+# src/44350.c
+func_80043B78 = leveltable_type
+func_80043BB8 = leveltable_tune
+func_80043BF8 = leveltable_world
+func_80043C38 = leveltable_region
+func_80043C78 = leveltable_screen_mode
+func_80043CC0 = leveltable_blur
+func_80043D70 = leveltable_world_regions
+func_8004455C = level_music_start
+func_80044610 = level_colour_cycles_update
+func_800446B0 = level_colour_cycles_get
+func_800446BC = level_id
+func_8004471C = level_name
+func_800447B4 = level_free
+func_80044898 = leveltable_world_next
+func_80044928 = leveltable_world_prev
+func_800449C8 = objflags_clear_all
+func_80044A1C = objflags_select_region
+func_80044A6C = objflags_reserve_ids
+func_80044AB4 = objflag_set
+func_80044AE8 = objflag_get
+
+# src/45750.c
+func_80044C20 = check_reset_and_halt
+func_8004758C = load_first_unlocked_level
+func_80047868 = stats_kill_add
+func_800478A4 = stats_shot_add
+func_800478E0 = stats_hit_add
+func_80047C0C = get_settings
+func_80047C9C = character_item_give
+func_80047D0C = character_item_take
+func_80047D80 = character_has_item
+func_80047E44 = character_has_weapon
+func_80047E8C = settings_flag_get
+func_80047ED0 = game_flag_get
+func_800482F8 = is_game_paused
+func_80048308 = set_game_paused
+func_800483B8 = get_ingame_map_id
+func_800483C8 = mark_read_save_file
+func_800483F8 = mark_read_all_save_files
+func_8004841C = get_all_save_files_ptr
+func_800484A4 = mark_save_file_to_erase
+func_800484C0 = mark_all_save_files_to_erase
+func_800484D0 = mark_erase_all_save_data
+func_800484E0 = mark_read_eeprom_settings
+func_800484FC = mark_write_eeprom_settings
+
+# src/4BC70.c
+func_8004B070 = rumble_is_allowed
+func_8004B0AC = rumble_allow_set
+func_8004B0F4 = rumble_start
+func_8004B204 = rumble_stop
+func_8004B518 = rumble_stop_all
+func_8004BA98 = calculate_save_file_checksum
+func_8004BCB4 = erase_save_file
+func_8004BE44 = calculate_eeprom_settings_checksum
+func_8004BE6C = read_eeprom_settings
+func_8004BEE4 = write_eeprom_settings
+func_8004BF2C = save_flash_init
+func_8004BF98 = flash_write_page
+func_8004C008 = flash_read_page
+func_8004D250 = get_file_type
+
+# src/4E610.c
+func_8004E3E8 = rdp_set_default_modes
+
+# src/50300.c
+func_8004F950 = osScGetCmdQ
+func_8004F958 = osScGetInterruptQ
+
+# src/51AD0.c
+func_80052A00 = runlink_reloc_apply
+func_80053370 = runlink_module_loaded
+func_800541B0 = runlink_unload_timer_set
+func_80054204 = runlink_unload_timers_update
+
+# src/53C0.c
+func_800047C0 = clear_object_pointers
+func_8001191C = obj_list_insert_after
+func_80011974 = obj_list_unlink
+func_80011C84 = point_distance
+func_80011CE0 = point_distance_squared
+
+# src/55130.c
+func_80054C4C = zbuffer_alloc
+func_80054CA4 = zbuffer_free
+func_80054EF0 = fb_scale_coords
+func_80054F74 = fb_get_scale
+func_80055180 = fb_mode
+func_80055198 = fb_vertical_adjust_get
+func_800551A8 = fb_vertical_adjust_set
+func_80055480 = fb_memcpy
+func_80055AB8 = tex_find_id
+func_80055B0C = load_texture_at
+func_80057CEC = colour_cycle_init
+func_80057D1C = colour_cycle_reset
+
+# src/59060.c
+func_800589F0 = menu_mode_set
+func_80058A5C = menu_mode_get
+func_80058E78 = menu_timer_advance
+func_80059814 = menu_draw_rect
+func_80059864 = menu_draw_layout_box
+func_80059938 = menu_layout_box_get
+func_8005A048 = menu_item_reset
+func_8005A7A4 = get_world_name
+func_8005A7E0 = set_language
+func_8005A804 = options_screen_mode_get
+func_8005A950 = options_screen_offset_get
+func_8005A960 = options_screen_offset_set
+func_8005AA30 = options_music_volume_get
+func_8005AA40 = options_music_volume_set
+
+# src/5B700.c
+func_8005BC44 = rain_init
+func_8005C9B8 = rain_lightning
+func_8005CAD0 = rain_sound
+func_8005D19C = free_particle_vertex_buffers
+func_8005D1DC = free_particle_list
+func_8005ED54 = emitter_init_at_origin
+func_8005EE78 = emitter_alloc_from_pool
+func_8005F438 = obj_disable_emitter
+func_8005F4F4 = obj_disable_all_emitters
+func_80062E0C = move_particle_basic_parent
+func_80062F0C = move_particle_attached_to_parent
+func_80063030 = move_particle_with_acceleration
+func_80063190 = move_particle_basic
+func_80063244 = move_particle_forward
+func_80063730 = render_all_particles
+
+# src/67780.c
+func_80067610 = lockup_show_address
+func_800676B4 = log_printf
+func_80067950 = get_lockup_status
+func_800682F0 = epc_printf
+func_8006837C = epc_clear_framebuffer
+
+# src/69050.c
+func_8006B95C = enable_new_screen_transitions
+func_8006B96C = disable_new_screen_transitions
+func_8006B978 = check_fadeout_transition
+func_8006BE88 = transition_end
+func_8006C124 = transition_render_fullscreen
+func_8006CA30 = transition_render_barndoor_hor
+func_8006CB28 = transition_render_barndoor_vert
+func_8006CC20 = transition_render_barndoor_diag
+func_8006CFC0 = transition_render_blank
+func_8006D70C = s32_to_decimal_string
+func_8006DA1C = rgba5551_add_clamped
+func_8006DAE8 = rgba5551_brighten_rg
+
+# src/707F0.c
+func_8006FBF0 = set_screen_dialogue_box_size
+func_800720FC = fontConvertString
+
+# src/74270.c
+func_80073670 = init_dialogue_text
+func_80073758 = free_message_box
+func_800737AC = set_subtitles
+
+# src/76C20.c
+func_80076020 = bitstream_init
+func_80076044 = bitstream_read_bits
+func_800760C0 = bitstream_read_signed_bits
+func_80076154 = bitstream_end
+
+# src/audio.c
+func_800005F8 = music_volume_fade
+func_80000798 = music_volume_fade_stop
+func_800007A4 = music_jingle_volume_fade
+func_800008D0 = music_jingle_volume_fade_stop
+func_80001228 = sound_stop
+func_800014D8 = sound_pan_set
+func_800019C8 = sound_volume_half
+
+# src/joypad.c
+func_80043404 = input_player_disable
+func_80043418 = input_player_enable
+func_8004359C = input_stick_x_raw
+func_8004360C = input_stick_y_raw
+
+# src/memory.c
+func_8004A448 = mempool_expansion_pak_get
+func_8004AA14 = mempool_free_queue_flush
+func_8004AEAC = mempool_free_timer_get
+
+# src/modules/m001.c
+D_m001_00C30 = sSplashTris
+D_m001_00C58 = sSplashTexture
+D_m001_00C5C = sDropsInUse
+D_m001_00C70 = sDropPool
+D_m001_01C70 = sDropsLoaded
+func_m001_00000 = drop_pool_init
+func_m001_00678 = drop_render
+
+# src/modules/m036.c
+func_m036_00564 = default_alloc_displaylist_heap
+
+# src/modules/m038.c
+D_m038_000F0 = sScreenQuadVerts
+D_m038_00118 = sScreenQuadTris
+
+# src/modules/m054.c
+D_m054_007A0 = sCraftWeapons
+D_m054_007AC = sScoreEvents
+func_m054_00000 = craft_models_pulse
+func_m054_00140 = craft_weapon_fire
+
+# src/modules/m055.c
+D_m055_00B80 = sDrawModeFull
+D_m055_00BA8 = sDrawModeScaled
+
+# src/modules/m093.c
+D_m093_002B0 = sFlagMessages
+
+# src/modules/m117.c
+D_m117_00B80 = sCloudColours
+
+# src/modules/m118.c
+func_m118_00000 = robot_find
+
+# src/modules/m157.c
+D_m157_00180 = sWindowPieces
+D_m157_00224 = sWindowShapes
+
+# globals
+D_800A0680 = gMusicFadeTimer
+D_800A0684 = gJingleFadeTimer
+D_800A0688 = gMusicPlaying
+D_800A0690 = gMusicSliderVolume
+D_800A06D0 = audFrameCt
+D_800A06D4 = nextDMA
+D_800A0814 = gMaxAudioPointsUsed
+D_800A097C = gFreedObjectIdIndex
+D_800A0D70 = gMaxTrackLights
+D_800A0D74 = gNumTrackLights
+D_800A0D78 = gTrackLights
+D_800A1490 = gWeaponInfo
+D_800A3174 = gCamZoomSet
+D_800A317C = gCamZoom
+D_800A31A0 = gLevelName
+D_800A31C4 = gCurrentObjectFlags
+D_800A323C = gPlayableMapId
+D_800A32C8 = gCharItemsChanged
+D_800A33F4 = gForcedColourTag
+D_800A33F8 = gForcedColourTag2
+D_800A3470 = gRumbleAllowed
+D_800A3474 = gSaveFilePages
+D_800A3698 = dRdpInit
+D_800A5054 = gMenuTimer
+D_800A51B0 = gMenuMode
+D_800A51C8 = gMenuText
+D_800A5A0C = gWeatherAssetTable
+D_800A5D20 = gLightningFrequencyStep
+D_800A5D24 = gLightningFrequencyTarget
+D_800A5D28 = gRainOpacity
+D_800A5D2C = gRainOpacityStep
+D_800A5D30 = gRainOpacityTarget
+D_800A5D34 = gRainHiddenTimer
+D_800A5D38 = gLightningTimer
+D_800A5D3C = gThunderTimer
+D_800A5D40 = gRainSplashDelay
+D_800A5D44 = gRainSplashGfx
+D_800A5D4C = gRainVertexFlip
+D_800A5D54 = gThunderTransition
+D_800A64D0 = gLogStart
+D_800A64D4 = gLogLine
+D_800A64D8 = gLogWrapped
+D_800A6780 = gTransitionsDisabled
+D_800A67A0 = gTransitionFadeIn
+D_800A67B8 = dTransitionFadeSettings
+D_800A6928 = dTransitionShapeSettings
+D_800A6F04 = gFontConversionTable
+D_800A6FB0 = gMessageTextAllocated
+D_800A6FB8 = gSubtitleSetting
+D_800E950C = gSeqSoundTable
+D_800E9524 = gMusicFadeTarget
+D_800E9528 = gMusicFadeStep
+D_800E952C = gJingleFadeTarget
+D_800E9530 = gJingleFadeStep
+D_800E97A0 = gAudioSched
+D_800E97A8 = audioStack
+D_800F1B68 = dmaState
+D_800F1B78 = dmaBuffs
+D_800F2178 = audDMAIOMesgBuf
+D_800F2898 = audDMAMessageQ
+D_800F2A08 = gAudioListenerMtx
+D_800F2F20 = gFreedObjectIds
+D_800F6DA0 = gPlayerButtonsHeld
+D_800F6DA4 = gPlayerButtonsPressed
+D_800F6DA8 = gPlayerButtonsReleased
+D_800F6DAC = gPlayerStickX
+D_800F6DB0 = gPlayerStickY
+D_800F6DBC = gPlayerInputLocked
+D_800FA600 = gCameraShakes
+D_800FAA58 = gNoCamShake
+D_800FAA68 = perspNorm
+D_800FAA70 = gPerspectiveMatrixF
+D_800FAAF0 = gViewProjMatrixF
+D_800FB038 = gCurrentMVPMatrixF
+D_800FB114 = gMapId
+D_800FB124 = gNumberOfLevelHeaders
+D_800FB12C = gGlobalLevelTable
+D_800FB170 = gLevelColourCycles
+D_800FB1E0 = gObjectFlags
+D_800FB400 = gDisplayLists
+D_800FB408 = gCurrDisplayList
+D_800FB410 = gMatrixHeap
+D_800FB418 = gGameCurrMatrix
+D_800FB420 = gVertexHeap
+D_800FB428 = gGameCurrVertexList
+D_800FB430 = gTriangleHeap
+D_800FB438 = gGameCurrTriList
+D_800FD7BD = gIsPaused
+D_800FD7C0 = gSPTaskNum
+D_800FD7CC = gPrevPlayerCount
+D_800FD7D4 = gSettingsPtr
+D_800FD7D8 = gSavefileData
+D_800FD7DC = gCurrNumF3dCmdsPerPlayer
+D_800FD7E0 = gCurrNumHudMatPerPlayer
+D_800FD7E4 = gCurrNumHudTrisPerPlayer
+D_800FD7E8 = gCurrNumHudVertsPerPlayer
+D_800FDD90 = gMainPoolFreeBytes
+D_800FDD98 = gPoolFreeBytes
+D_800FDF58 = gRumble
+D_800FEAA0 = gRunlinkModules
+D_800FEAAC = gNumRunlinkModules
+D_800FECA8 = gVideoModeIndex
+D_800FECAA = gVideoVerticalAdjust
+D_800FECB8 = gVideoLastFramebuffer
+D_800FECBC = gVideoDepthBuffer
+D_800FF387 = gOptionScreenOffset
+D_800FF38A = gOptionMusicVolume
+D_801024E0 = gEPCMesgQueue
+D_801024F8 = gEPCMesgBuf
+D_80102518 = gEPCPIBuf
+D_80102538 = gEPCPIQueue
+D_80104564 = gTextTableEntries
+D_80104566 = gDialogueAlpha
+D_80104568 = gTextAlphaVelocity
+D_8010456C = gDialogueXPos1
+D_8010456E = gDialogueYPos1
+D_80104570 = gDialogueXPos2
+D_80104572 = gDialogueYPos2
+D_80104588 = gCurrentMessageText
+field CameraShake.unk6 = frame
+field ObjectLight.unk6C = trackLight
+field CamLight.unk6 = active
+field CamLight.unk7 = visibility
+field Object.unk1A = numActiveEmitters
+field Object.unk6C = modelInstances
+field Object.unkA0 = freed
+field ObjectInteraction.unk6 = hitPoints

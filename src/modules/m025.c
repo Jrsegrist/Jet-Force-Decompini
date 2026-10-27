@@ -140,7 +140,7 @@ extern u32 *D_800E94FC;          /* DKR gSeqLengthTable */
 extern M025BankFile *D_800E9500; /* DKR gSequenceBank */
 extern M025BankFile *D_800E9504; /* DKR gSoundBank */
 extern void *D_800E9508;         /* DKR gSoundTable */
-extern void *D_800E950C;         /* DKR gSeqSoundTable */
+extern void *gSeqSoundTable;
 extern u32 D_800E9510;           /* DKR gSoundCount */
 extern u32 D_800E9514;           /* DKR gSeqSoundCount */
 extern u32 D_800E9518;           /* DKR gSoundTableSize */
@@ -275,8 +275,8 @@ void func_m025_00308(void *sched) {
     D_800E9510 = D_800E9518 / 10;
 
     D_800E951C = addrPtr[5] - addrPtr[4];
-    D_800E950C = func_8004A57C(D_800E951C, 0x00FFFFFF);
-    func_8004D530(0x34, D_800E950C, addrPtr[4], D_800E951C);
+    gSeqSoundTable = func_8004A57C(D_800E951C, 0x00FFFFFF);
+    func_8004D530(0x34, gSeqSoundTable, addrPtr[4], D_800E951C);
     D_800E9514 = D_800E951C / 3;
 
     D_800E9500 = func_8004A57C(addrPtr[0], 0x00FFFFFF);

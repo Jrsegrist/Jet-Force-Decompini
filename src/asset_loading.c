@@ -170,7 +170,7 @@ s32 asset_table_size(u32 assetIndex) {
 
 extern OSIoMesg gAssetsDmaIoMesg;
 extern s32 D_800A3530; // JFG: set when the reset button has been pressed
-void func_80044C20(void);
+void check_reset_and_halt(void);
 
 /**
  * Copies data from the game cartridge to a ram address.
@@ -191,7 +191,7 @@ void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes) {
                      &gDmaMesgQueue);
         osRecvMesg(&gDmaMesgQueue, &dmaMesg, OS_MESG_BLOCK);
         if (D_800A3530) {
-            func_80044C20();
+            check_reset_and_halt();
         }
         numBytes -= numBytesToDMA;
         romOffset += numBytesToDMA;

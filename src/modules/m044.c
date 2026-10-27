@@ -43,9 +43,9 @@ typedef struct M044Camera {
 } M044Camera;
 
 extern void func_80000F60();                                                   /* stops the jingle */
-extern void func_80001228(s32 soundHandle);                                    /* DKR sndp_stop */
+extern void sound_stop(s32 soundHandle);                                    /* DKR sndp_stop */
 extern void func_8000134C(u16 soundBite, u8 volume, u8 pan, f32 pitch, s32 flags, s32 *handlePtr);
-extern s32 func_800019C8();                                                    /* the volume parameter of a volume */
+extern s32 sound_volume_half();                                                    /* the volume parameter of a volume */
 extern void func_80086388(s32 soundHandle, s32 event, s32 value);             /* DKR sndp_set_param */
 extern void func_80085E94(s32 soundHandle, u8 priority);                       /* DKR sndp_set_priority */
 extern f32 func_80097140(f32 x);                                               /* sqrtf */
@@ -74,7 +74,7 @@ void func_m044_0003C(void) {
         gAudioLines[i].soundBite = 0;
         if (gAudioLines[i].soundHandle != 0) {
             if (gAudioLines[i].type == AUDIO_LINE_TYPE_SOUND) {
-                func_80001228(gAudioLines[i].soundHandle);
+                sound_stop(gAudioLines[i].soundHandle);
             } else if (gAudioLines[i].type == AUDIO_LINE_TYPE_JINGLE) {
                 func_80000F60();
             }
@@ -185,7 +185,7 @@ void func_m044_00170(M044Camera *cameras, s32 numCameras) {
                     if (line->soundHandle == 0) {
                         func_8000134C(line->soundBite, volume, pan, pitch, flags, &line->soundHandle);
                     } else if (line->soundHandle != 0) {
-                        func_80086388(line->soundHandle, 8, func_800019C8(volume * 256));
+                        func_80086388(line->soundHandle, 8, sound_volume_half(volume * 256));
                         func_80086388(line->soundHandle, 16, *(s32 *) &pitch);
                         if (numCameras != 1) {
                             pan = 64;
@@ -195,7 +195,7 @@ void func_m044_00170(M044Camera *cameras, s32 numCameras) {
                     }
                 } else {
                     if (line->soundHandle != 0) {
-                        func_80001228(line->soundHandle);
+                        sound_stop(line->soundHandle);
                     }
                 }
             } else if (line->type == AUDIO_LINE_TYPE_JINGLE && jingleVolume < volume) {

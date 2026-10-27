@@ -29,7 +29,7 @@ void func_m128_00000(Object *obj, M128Setup *setup) {
     obj->trans.scale = obj->header->scale * (setup->scale * 0.05f);
     obj->trans.rotation.y_rotation = setup->angle << 8;
     pole->flag = setup->flag;
-    if (func_80047ED0(setup->flag) != 0) {
+    if (game_flag_get(setup->flag) != 0) {
         func_8001149C(obj, 0, 1.0f);
         pole->state = 1;
     } else {
@@ -65,7 +65,7 @@ void func_m128_00188(Object *obj, s32 updateRate) {
             }
             break;
         case 1:
-            func_8003F1C8(*obj->unk6C, 0, 0x100, obj);
+            func_8003F1C8(*obj->modelInstances, 0, 0x100, obj);
             func_8001138C(obj, 0.017f, updateRate);
             break;
     }

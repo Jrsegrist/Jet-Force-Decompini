@@ -49,16 +49,16 @@ typedef struct M086Spawn {
     /* 0x0C */ f32 unkC;
 } M086Spawn;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern s32 func_80049C84(f32, f32); /* the angle of a vector */
 extern f32 sqrtf(f32);
 extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
-extern void func_80013F08(f32 *light);
-extern void func_80013FE0(f32 *light, f32 x, f32 y, f32 z);
+extern void track_light_off(f32 *light);
+extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern Object *spawn_object(M086Spawn *entry, s32 arg1); /* DKR */
-extern void func_800285B0(s32, s16, s16, s16, s32, s32);
+extern void spawn_object_from_list(s32, s16, s16, s16, s32, s32);
 extern void func_80052734(s32, s16, s16, s16, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
@@ -81,7 +81,7 @@ void func_m086_00000(Object *obj, M086Setup *setup) {
     s->timer = func_80005064(setup->lifetime * 6);
     s->unk10 = setup->unk14;
     func_80079D1C(obj, (setup->strength + 1) << 8, 1, 4, 0, 0, 0, 2.0f, 2.0f, -1.0f, 1.0f, 0x11);
-    OBJ_STATE(obj, M086State)->health = obj->interactObj->unk6;
+    OBJ_STATE(obj, M086State)->health = obj->interactObj->hitPoints;
     OBJ_STATE(obj, M086State)->light = (s32) func_80013E0C(obj->trans.x_position, obj->trans.y_position,
                                                            obj->trans.z_position, 500.0f, 300.0f, 0xFF, 0xE0, 0);
 }
@@ -95,10 +95,10 @@ void func_m086_00188(Object *obj, s32 updateRate) {
     M086Spawn entry;
 
     s = obj->unk68;
-    func_800541B0(D_m086_005C0, 2, 2);
+    runlink_unload_timer_set(D_m086_005C0, 2, 2);
     s->timer -= updateRate;
-    if (s->timer > 0 && obj->interactObj->unk6 > 0 && s->hit == 0 &&
-        obj->interactObj->unk6 == OBJ_STATE(obj, M086State)->health) {
+    if (s->timer > 0 && obj->interactObj->hitPoints > 0 && s->hit == 0 &&
+        obj->interactObj->hitPoints == OBJ_STATE(obj, M086State)->health) {
         if (s->hit == 0) {
             func_80009A04(obj, obj->velocity.x, obj->velocity.y, obj->velocity.z);
             if ((s->hit = func_80018808(obj, &((M086Interaction *) obj->interactObj)->oldPos,
@@ -116,7 +116,7 @@ void func_m086_00188(Object *obj, s32 updateRate) {
                 }
             }
             if (OBJ_STATE(obj, M086State)->light != 0) {
-                func_80013FE0((f32 *) OBJ_STATE(obj, M086State)->light, obj->trans.x_position,
+                track_light_set_position((f32 *) OBJ_STATE(obj, M086State)->light, obj->trans.x_position,
                               obj->trans.y_position, obj->trans.z_position);
             }
         }
@@ -136,11 +136,11 @@ void func_m086_00188(Object *obj, s32 updateRate) {
             }
         } else {
             func_80003410(0x96, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
-            func_800285B0(2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 100, 0);
+            spawn_object_from_list(2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 100, 0);
             func_80052734(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
         }
         if (OBJ_STATE(obj, M086State)->light != 0) {
-            func_80013F08((f32 *) OBJ_STATE(obj, M086State)->light);
+            track_light_off((f32 *) OBJ_STATE(obj, M086State)->light);
         }
         func_800079B8(obj);
         s = NULL;

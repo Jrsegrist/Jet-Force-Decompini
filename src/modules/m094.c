@@ -35,7 +35,7 @@ void func_m094_00030(Object *obj, s32 updateRate) {
 
     if (OBJ_STATE(obj, M094Trigger)->flag >= 0) {
         t = OBJ_STATE(obj, M094Trigger);
-        if (func_800468B0() == t->level && func_80047ED0(t->flag) != 0) {
+        if (func_800468B0() == t->level && game_flag_get(t->flag) != 0) {
             switch (t->action) {
                 case 0:
                     func_80079BB8();

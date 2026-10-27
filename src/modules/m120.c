@@ -96,7 +96,7 @@ typedef struct M120Puff {
 } M120Puff;
 
 extern s32 func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
-extern void func_80021358(s32 light, u8 intensity);              /* sets a light's intensity */
+extern void light_intensity_set(s32 light, u8 intensity);              /* sets a light's intensity */
 extern void func_8002179C(s32 light);                            /* DKR light_remove */
 
 typedef struct M120LingerSetup {
@@ -164,10 +164,10 @@ void func_m120_00060(Object *obj, s32 updateRate) {
     M120Puff puff;
     s32 unused3;
 
-    func_800541B0(D_m120_00AD0, 2, 2);
+    runlink_unload_timer_set(D_m120_00AD0, 2, 2);
     b = obj->unk68;
     anim = 1;
-    if (func_800577A8(obj->unk6C[0], &anim, 15, &obj->unk28, updateRate) != 0) {
+    if (func_800577A8(obj->modelInstances[0], &anim, 15, &obj->unk28, updateRate) != 0) {
         func_800079B8(obj);
         return;
     }
@@ -356,19 +356,19 @@ void func_m120_008CC(Object *obj, s32 updateRate) {
     s32 anim;
     M120Linger *st;
 
-    func_800541B0(D_m120_00AD0, 2, 2);
+    runlink_unload_timer_set(D_m120_00AD0, 2, 2);
     st = OBJ_STATE(obj, M120Linger);
     st->timer -= updateRate;
     if (st->timer > 0) {
         obj->particleEmittersEnabled = 1;
         func_8005F5AC(obj, updateRate);
         anim = 9;
-        func_800577A8(obj->unk6C[0], &anim, 10, &obj->unk28, updateRate);
+        func_800577A8(obj->modelInstances[0], &anim, 10, &obj->unk28, updateRate);
         if (st->timer < 0x40) {
             obj->trans.scale *= func_80049BEC(0.99f, updateRate);
             st->alpha = st->timer * 4;
             if (st->light != 0) {
-                func_80021358(st->light, st->timer * 4);
+                light_intensity_set(st->light, st->timer * 4);
             }
         }
     } else {
@@ -391,7 +391,7 @@ void func_m120_009D0(Object *obj, M120HaloSetup *setup) {
 void func_m120_00A24(Object *obj, s32 updateRate) {
     M120Halo *st;
 
-    func_800541B0(D_m120_00AD0, 2, 2);
+    runlink_unload_timer_set(D_m120_00AD0, 2, 2);
     st = OBJ_STATE(obj, M120Halo);
     st->timer -= updateRate;
     if (st->timer > 0) {

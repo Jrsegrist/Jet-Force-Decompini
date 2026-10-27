@@ -178,7 +178,7 @@ extern void *gSnowTriIndices;
 
 extern s32 gSnowVertOffset;
 extern s32 gSnowTriCount;
-extern s32 *D_800A5A0C; // DKR: gWeatherAssetTable
+extern s32 *gWeatherAssetTable;
 extern s8 gWeatherAssetTableLength;
 s32 *asset_table_load(u32 assetIndex);
 
@@ -201,10 +201,10 @@ void weather_init(void) {
     gSnowTriangles = 0;
     gSnowPlane.near = -1;
     gSnowPlane.far = -512;
-    if (D_800A5A0C == NULL) {
-        D_800A5A0C = asset_table_load(0x1B);
+    if (gWeatherAssetTable == NULL) {
+        gWeatherAssetTable = asset_table_load(0x1B);
         gWeatherAssetTableLength = 0;
-        while (D_800A5A0C[gWeatherAssetTableLength] != -1) {
+        while (gWeatherAssetTable[gWeatherAssetTableLength] != -1) {
             gWeatherAssetTableLength++;
         }
     }
@@ -356,18 +356,18 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B928);
 typedef struct AudioPoint AudioPoint;
 typedef struct SpriteAsset SpriteAsset;
 extern s32 gLightningFrequency;
-extern s32 D_800A5D20;
-extern s32 D_800A5D24;
-extern s32 D_800A5D28;
-extern s32 D_800A5D2C;
-extern s32 D_800A5D30;
-extern s32 D_800A5D34;
-extern s32 D_800A5D38;
-extern s32 D_800A5D3C;
-extern s32 D_800A5D40;
-extern SpriteAsset *D_800A5D44;
+extern s32 gLightningFrequencyStep;
+extern s32 gLightningFrequencyTarget;
+extern s32 gRainOpacity;
+extern s32 gRainOpacityStep;
+extern s32 gRainOpacityTarget;
+extern s32 gRainHiddenTimer;
+extern s32 gLightningTimer;
+extern s32 gThunderTimer;
+extern s32 gRainSplashDelay;
+extern SpriteAsset *gRainSplashGfx;
 extern TextureHeader *D_800A5D48;
-extern s32 D_800A5D4C;
+extern s32 gRainVertexFlip;
 extern AudioPoint *gWeatherSoundMask;
 extern s32 D_801008B4;
 void func_80054530();
@@ -376,25 +376,26 @@ TextureHeader *load_texture(s32 assetIndex);
 void sprite_free(SpriteAsset *sprite);
 void audspat_point_stop(AudioPoint *point);
 
+/* Sets up rain: lightning/opacity values, timers, the splash sprite and texture (0x8005BC44). */
 /**
  * Set all rain related values to the default.
  * JFG: a module call sets up the rain effect; the textures are fixed asset numbers.
  * DKR: rain_init.
  */
-void func_8005BC44(s32 arg0, s32 intensity, s32 opacity) {
+void rain_init(s32 arg0, s32 intensity, s32 opacity) {
     gLightningFrequency = intensity;
-    D_800A5D20 = 0;
-    D_800A5D24 = gLightningFrequency;
-    D_800A5D28 = opacity;
-    D_800A5D2C = 0;
-    D_800A5D30 = D_800A5D28;
-    D_800A5D34 = 0;
-    D_800A5D38 = 0;
-    D_800A5D3C = 0;
-    D_800A5D40 = 0;
-    D_800A5D4C = 0;
+    gLightningFrequencyStep = 0;
+    gLightningFrequencyTarget = gLightningFrequency;
+    gRainOpacity = opacity;
+    gRainOpacityStep = 0;
+    gRainOpacityTarget = gRainOpacity;
+    gRainHiddenTimer = 0;
+    gLightningTimer = 0;
+    gThunderTimer = 0;
+    gRainSplashDelay = 0;
+    gRainVertexFlip = 0;
     func_80054530(arg0, 700, 700, 700, 0x2080E002, 0xA0E0FF04, 550);
-    D_800A5D44 = tex_load_sprite(0x4A, 0);
+    gRainSplashGfx = tex_load_sprite(0x4A, 0);
     D_800A5D48 = load_texture(0x1AC);
     gWeatherType = WEATHER_RAIN;
     D_801008B4 = 0;
@@ -406,9 +407,9 @@ void func_8005BC44(s32 arg0, s32 intensity, s32 opacity) {
  * JFG: also tells the rain module.
  */
 void free_rain_memory(void) {
-    if (D_800A5D44 != NULL) {
-        sprite_free(D_800A5D44);
-        D_800A5D44 = NULL;
+    if (gRainSplashGfx != NULL) {
+        sprite_free(gRainSplashGfx);
+        gRainSplashGfx = NULL;
     }
     if (D_800A5D48 != NULL) {
         tex_free(D_800A5D48);
@@ -452,7 +453,7 @@ extern u32 D_800A5D1C;
 
 /* JFG: the rain density, 0.0 to 1.0. */
 f32 func_8005BFC4(void) {
-    f32 density = (f32) ((s32) ((D_800A5D28 >> 2) * D_800A5D1C) >> 14) / 65536.0f;
+    f32 density = (f32) ((s32) ((gRainOpacity >> 2) * D_800A5D1C) >> 14) / 65536.0f;
 
     if (density < 0.0f) {
         density = 0.0f;
@@ -467,39 +468,40 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C040);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
 
-extern u8 D_800A5D54[]; // DKR: gThunderTransition
+extern u8 gThunderTransition[];
 extern s32 D_800A6784;
-s32 func_8006B978(void);            // DKR: check_fadeout_transition
+s32 check_fadeout_transition(void);
 void func_8006B9CC(void *transition); // DKR: transition_begin
 void sound_play(u16 soundID, s32 *handlePtr);
 s32 rand_range(s32 min, s32 max);
 
+/* Counts down to thunder and lightning flashes (0x8005C9B8). */
 /**
  * On a randomly set timer, based on the weather intensity, count down and make the sound of thunder.
  * Set a second timer, that then counts down to zero and creates a flash of lightning.
  * DKR: rain_lightning.
  */
-void func_8005C9B8(s32 updateRate) {
+void rain_lightning(s32 updateRate) {
     s32 delay;
 
-    if (D_800A5D3C > 0) {
-        D_800A5D3C -= updateRate;
-        if (D_800A5D3C <= 0) {
-            if (D_800A5D28 > 0x8000 && func_8006B978() == 0) {
-                func_8006B9CC(D_800A5D54);
+    if (gThunderTimer > 0) {
+        gThunderTimer -= updateRate;
+        if (gThunderTimer <= 0) {
+            if (gRainOpacity > 0x8000 && check_fadeout_transition() == 0) {
+                func_8006B9CC(gThunderTransition);
                 D_800A6784 = 0;
             }
             sound_play(6, NULL);
-            D_800A5D3C = 0;
+            gThunderTimer = 0;
         }
     } else if (gLightningFrequency > 0xC000) {
-        if (D_800A5D38 > 0) {
-            D_800A5D38 -= updateRate;
+        if (gLightningTimer > 0) {
+            gLightningTimer -= updateRate;
         } else {
             delay = (gLightningFrequency * 600 - 0x1C20000) >> 14;
             sound_play(7, NULL);
-            D_800A5D3C = delay + 60;
-            D_800A5D38 = rand_range(1200, 1500) - delay;
+            gThunderTimer = delay + 60;
+            gLightningTimer = rand_range(1200, 1500) - delay;
         }
     }
 }
@@ -515,11 +517,12 @@ f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 void audspat_point_set_position(AudioPoint *audioPoint, f32 x, f32 y, f32 z);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, AudioPoint **handlePtr);
 
+/* Keeps the looping rain sound in front of the camera (0x8005CAD0). */
 /**
  * Emit looping rain sound, using the camera position and direction as reference.
  * DKR: rain_sound.
  */
-void func_8005CAD0(UNUSED s32 updateRate) {
+void rain_sound(UNUSED s32 updateRate) {
     f32 xPos;
     f32 yPos;
     f32 zPos;
@@ -545,7 +548,7 @@ extern s32 D_801008BC;
 extern s32 D_801008C0;
 extern s32 D_801008C4;
 extern TextureHeader *D_800A59D0;
-extern s32 *D_800A5A0C;
+extern s32 *gWeatherAssetTable;
 TextureHeader *load_texture(s32 assetIndex);
 
 void func_8005CBBC(void) {
@@ -553,7 +556,7 @@ void func_8005CBBC(void) {
     D_801008BC = 0;
     D_801008C0 = 0;
     D_801008C4 = 0;
-    D_800A59D0 = load_texture(*D_800A5A0C);
+    D_800A59D0 = load_texture(*gWeatherAssetTable);
 }
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CC0C);
@@ -573,7 +576,8 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CFD0);
 
 extern Vertex *D_800A5D8C[2];
 
-void func_8005D19C(void) {
+/* Frees the particle vertex buffers (0x8005D19C). */
+void free_particle_vertex_buffers(void) {
     if (D_800A5D8C[0] != NULL) {
         mempool_free(D_800A5D8C[0]);
         D_800A5D8C[0] = NULL;
@@ -602,8 +606,8 @@ typedef struct WeatherParticleList {
 
 void func_8003C7C4(void *model);
 
-/* JFG: free a particle list and the assets of its particles. */
-void func_8005D1DC(WeatherParticleList **listPtr) {
+/* JFG: free a particle list and the assets of its particles (0x8005D1DC). */
+void free_particle_list(WeatherParticleList **listPtr) {
     WeatherParticleList *list = *listPtr;
     WeatherParticle *p;
     s32 i;
@@ -648,8 +652,8 @@ void emitter_init(ParticleEmitter *emitter, s32 behaviourID, s32 particleID) {
     }
 }
 
-/* JFG: emitter_init without the behaviour's position, plus a trigger byte. */
-void func_8005ED54(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s32 trigger) {
+/* JFG: emitter_init without the behaviour's position, plus a trigger byte (0x8005ED54). */
+void emitter_init_at_origin(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s32 trigger) {
     if (behaviourID < gParticleBehavioursAssetTableCount) {
         emitter_init_with_pos(emitter, behaviourID, particleID, 0, 0, 0);
         emitter->unk23 = trigger;
@@ -693,8 +697,8 @@ void emitter_init_with_pos(ParticleEmitter *emitter, s32 behaviourID, s32 partic
 extern PoolEmitter *D_800A5DAC;
 extern s32 D_800A5DB0;
 
-/* JFG: take a free emitter from the pool and initialise it; NULL if none is free. */
-ParticleEmitter *func_8005EE78(s32 behaviourID, s32 particleID) {
+/* JFG: take a free emitter from the pool and initialise it; NULL if none is free (0x8005EE78). */
+ParticleEmitter *emitter_alloc_from_pool(s32 behaviourID, s32 particleID) {
     s32 i;
     PoolEmitter *entry = D_800A5DAC;
 
@@ -715,8 +719,8 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F048);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F294);
 
-/* JFG: switch off an object's emitter and release its line/point buffer. */
-void func_8005F438(ParticleObj *obj, s32 emitterIndex) {
+/* JFG: switch off an object's emitter and release its line/point buffer (0x8005F438). */
+void obj_disable_emitter(ParticleObj *obj, s32 emitterIndex) {
     ParticleEmitter *emitter = &obj->emitters[emitterIndex];
     s32 flags;
     LineParticleSet *line;
@@ -736,8 +740,8 @@ void func_8005F438(ParticleObj *obj, s32 emitterIndex) {
     }
 }
 
-/* JFG: switch off every active emitter of an object. */
-void func_8005F4F4(ParticleObj *obj) {
+/* JFG: switch off every active emitter of an object (0x8005F4F4). */
+void obj_disable_all_emitters(ParticleObj *obj) {
     s32 i;
     s32 count;
     ParticleObjHeader *header = obj->header;
@@ -751,7 +755,7 @@ void func_8005F4F4(ParticleObj *obj) {
     }
     for (i = 0; i < count; i++) {
         if (obj->emitters[i].flags & PARTICLE_ACTIVE) {
-            func_8005F438(obj, i);
+            obj_disable_emitter(obj, i);
         }
     }
 }
@@ -862,12 +866,13 @@ extern s32 gParticleUpdateRate;
 void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
 void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec3f_rotate_py
 
+/* Moves a particle by its velocities, offset by its parent's position (0x80062E0C). */
 /**
  * Apply translation, rotation and scale based off the velocities of the particle.
  * Applies further translation based on the position of the parent.
  * DKR: move_particle_basic_parent.
  */
-void func_80062E0C(Particle *particle) {
+void move_particle_basic_parent(Particle *particle) {
     s32 i;
     ObjPos *parent;
 
@@ -893,13 +898,14 @@ void func_80062E0C(Particle *particle) {
     }
 }
 
+/* Rotates and scales a particle, placing it below its local position relative to the parent (0x80062F0C). */
 /**
  * Applies rotation and scale based on the particle's velocities.
  * Translates the particle downward in the object's local coordinate system by downOffset.
  * Applies additional translation based on the parent's position.
  * DKR: move_particle_attached_to_parent.
  */
-void func_80062F0C(Particle *particle) {
+void move_particle_attached_to_parent(Particle *particle) {
     s32 i = gParticleUpdateRate;
     ObjPos *parent;
 
@@ -926,12 +932,13 @@ void func_80062F0C(Particle *particle) {
     }
 }
 
+/* Moves a particle with a downward local acceleration (0x80063030). */
 /**
  * Apply translation, rotation and scale based off the velocities of the particle.
  * Apply additional acceleration always directed downward in the local coordinate system
  * DKR: move_particle_with_acceleration.
  */
-void func_80063030(Particle *particle) {
+void move_particle_with_acceleration(Particle *particle) {
     s32 i = 0;
     Vec3f acceleration;
 
@@ -955,11 +962,12 @@ void func_80063030(Particle *particle) {
     }
 }
 
+/* Moves a particle by its velocities and gravity (0x80063190). */
 /**
  * Apply translation, rotation and scale based off the velocities of the particle.
  * DKR: move_particle_basic.
  */
-void func_80063190(Particle *particle) {
+void move_particle_basic(Particle *particle) {
     s32 i = 0;
 
     while (i++ < gParticleUpdateRate) {
@@ -974,13 +982,14 @@ void func_80063190(Particle *particle) {
     }
 }
 
+/* Moves a particle forward along its rotation (0x80063244). */
 /**
  * Apply translation, rotation and scale based off the velocities of the particle.
  * Velocity is set from forward velocity.
  * The particle always moves forward in the local coordinate system
  * DKR: move_particle_forward.
  */
-void func_80063244(Particle *particle) {
+void move_particle_forward(Particle *particle) {
     s32 i = 0;
 
     while (i++ < gParticleUpdateRate) {
@@ -1003,19 +1012,19 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80063358);
 
 extern WeatherParticleList *D_801008E0[5];
 extern s32 D_800A5DD8;
-void func_8003FC2C(s32 arg0);
+void set_active_camera(s32 arg0);
 void func_8004046C(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
 void func_80062A90(Gfx **dList, Vertex **vtx);
 void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 void func_8005D660(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 
-/* JFG: render all the particles into the current vertex buffer, then flip buffers. */
-void func_80063730(Gfx **dList, Mtx **matrix) {
+/* JFG: render all the particles into the current vertex buffer, then flip buffers (0x80063730). */
+void render_all_particles(Gfx **dList, Mtx **matrix) {
     Vertex *vtx = D_800A5D8C[D_800A5DD8];
 
     gDPPipeSync((*dList)++);
-    func_8003FC2C(0);
+    set_active_camera(0);
     func_8004046C(dList, matrix);
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);

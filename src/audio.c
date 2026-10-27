@@ -107,29 +107,29 @@ typedef struct MusicData {
     u8 reverb;
 } MusicData;
 
-extern MusicData *D_800E950C; // DKR: gSeqSoundTable
-extern s32 D_800A0680;        // JFG: music fade: ticks left
-extern s32 D_800A0684;        // JFG: jingle fade: ticks left
-extern s32 D_800E9524;        // JFG: music fade: base volume
-extern s32 D_800E9528;        // JFG: music fade: volume per tick (16.16)
-extern s32 D_800E952C;        // JFG: jingle fade: base volume
-extern s32 D_800E9530;        // JFG: jingle fade: volume per tick (16.16)
+extern MusicData *gSeqSoundTable;
+extern s32 gMusicFadeTimer;        // JFG: music fade: ticks left
+extern s32 gJingleFadeTimer;        // JFG: jingle fade: ticks left
+extern s32 gMusicFadeTarget;        // JFG: music fade: base volume
+extern s32 gMusicFadeStep;        // JFG: music fade: volume per tick (16.16)
+extern s32 gJingleFadeTarget;        // JFG: jingle fade: base volume
+extern s32 gJingleFadeStep;        // JFG: jingle fade: volume per tick (16.16)
 void music_volume_set(u8 volume);
 void music_jingle_volume_set(u8 volume);
 
-/* JFG: fade the music volume to volume over time seconds (50 or 60 ticks a second). */
-void func_800005F8(f32 time, u8 volume) {
+/* JFG: fade the music volume to volume over time seconds (50 or 60 ticks a second) (0x800005F8). */
+void music_volume_fade(f32 time, u8 volume) {
     if (volume >= 0x80) {
         volume = 0x7F;
     }
-    D_800E9524 = volume;
+    gMusicFadeTarget = volume;
     if (osTvType == OS_TV_PAL) {
-        D_800A0680 = time * 50.0f;
+        gMusicFadeTimer = time * 50.0f;
     } else {
-        D_800A0680 = time * 60.0f;
+        gMusicFadeTimer = time * 60.0f;
     }
-    if (D_800A0680 > 0) {
-        D_800E9528 = ((gMusicBaseVolume - volume) << 16) / D_800A0680;
+    if (gMusicFadeTimer > 0) {
+        gMusicFadeStep = ((gMusicBaseVolume - volume) << 16) / gMusicFadeTimer;
     } else {
         music_volume_set(volume);
     }
@@ -142,36 +142,38 @@ void func_80000724(f32 time, u8 volume) {
     if (volume >= 0x80) {
         volume = 0x7F;
     }
-    func_800005F8(time, (D_800E950C[gCurrentSequenceID].volume * volume) / 127);
+    music_volume_fade(time, (gSeqSoundTable[gCurrentSequenceID].volume * volume) / 127);
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/audio", func_80000724);
 #endif
 
-void func_80000798(void) {
-    D_800A0680 = 0;
+/* Stops the music volume fade (0x80000798). */
+void music_volume_fade_stop(void) {
+    gMusicFadeTimer = 0;
 }
 
-/* JFG: the second fade (D_800A0684, the jingle fade in sound_update_queue); sets the music volume when instant. */
-void func_800007A4(f32 time, u8 volume) {
+/* JFG: the second fade (gJingleFadeTimer, the jingle fade in sound_update_queue); sets the music volume when instant (0x800007A4). */
+void music_jingle_volume_fade(f32 time, u8 volume) {
     if (volume >= 0x80) {
         volume = 0x7F;
     }
-    D_800E952C = volume;
+    gJingleFadeTarget = volume;
     if (osTvType == OS_TV_PAL) {
-        D_800A0684 = time * 50.0f;
+        gJingleFadeTimer = time * 50.0f;
     } else {
-        D_800A0684 = time * 60.0f;
+        gJingleFadeTimer = time * 60.0f;
     }
-    if (D_800A0684 > 0) {
-        D_800E9530 = ((gMusicBaseVolume - volume) << 16) / D_800A0684;
+    if (gJingleFadeTimer > 0) {
+        gJingleFadeStep = ((gMusicBaseVolume - volume) << 16) / gJingleFadeTimer;
     } else {
         music_volume_set(volume);
     }
 }
 
-void func_800008D0(void) {
-    D_800A0684 = 0;
+/* Stops the jingle volume fade (0x800008D0). */
+void music_jingle_volume_fade_stop(void) {
+    gJingleFadeTimer = 0;
 }
 
 /* JFG's sequence player (n_audio) has its target sequence at 0x18 */
@@ -217,20 +219,20 @@ void sound_update_queue(u8 updateRate) {
     if (osRecvMesg(&D_800E9780, &mesg, OS_MESG_NOBLOCK) == 0) {
         D_800E9774 = 1;
     }
-    if (D_800A0680 > 0 || D_800A06A8 != -1) {
-        D_800A0680 -= updateRate;
-        if (D_800A0680 < 0) {
-            D_800A0680 = 0;
+    if (gMusicFadeTimer > 0 || D_800A06A8 != -1) {
+        gMusicFadeTimer -= updateRate;
+        if (gMusicFadeTimer < 0) {
+            gMusicFadeTimer = 0;
         }
-        volume = ((D_800E9528 * D_800A0680) >> 16) + D_800E9524;
+        volume = ((gMusicFadeStep * gMusicFadeTimer) >> 16) + gMusicFadeTarget;
         music_volume_set(volume);
     }
-    if (D_800A0684 > 0) {
-        D_800A0684 -= updateRate;
-        if (D_800A0684 < 0) {
-            D_800A0684 = 0;
+    if (gJingleFadeTimer > 0) {
+        gJingleFadeTimer -= updateRate;
+        if (gJingleFadeTimer < 0) {
+            gJingleFadeTimer = 0;
         }
-        volume = ((D_800E9530 * D_800A0684) >> 16) + D_800E952C;
+        volume = ((gJingleFadeStep * gJingleFadeTimer) >> 16) + gJingleFadeTarget;
         music_jingle_volume_set(volume);
     }
 
@@ -264,9 +266,9 @@ void sound_update_queue(u8 updateRate) {
     D_800A06B4 = 0;
 }
 
-void func_80044C20(void);
+void check_reset_and_halt(void);
 
-/* JFG: skip one poll if flagged, otherwise call func_80044C20 until a message arrives. */
+/* JFG: skip one poll if flagged, otherwise call check_reset_and_halt until a message arrives. */
 void func_80000B80(void) {
     OSMesg msg;
 
@@ -274,7 +276,7 @@ void func_80000B80(void) {
         D_800E9774 = 0;
     } else {
         while (osRecvMesg(&D_800E9780, &msg, OS_MESG_NOBLOCK) != 0) {
-            func_80044C20();
+            check_reset_and_halt();
         }
     }
 }
@@ -433,7 +435,7 @@ u8 music_jingle_current(void) {
     return gCurrentJingleID;
 }
 
-extern u32 D_800A0690; // JFG: the user's music volume setting (0 to 256)
+extern u32 gMusicSliderVolume; // JFG: the user's music volume setting (0 to 256)
 extern u8 D_800A06B0;
 
 /**
@@ -448,7 +450,7 @@ void music_volume_set(u8 volume) {
         volume = 127;
     }
     gMusicBaseVolume = volume;
-    newVolume = gMusicBaseVolume * D_800A0690;
+    newVolume = gMusicBaseVolume * gMusicSliderVolume;
     alCSPSetVol(gMusicPlayer, (s16) newVolume);
     D_800A06B0 = TRUE;
 }
@@ -461,8 +463,8 @@ void music_volume_set(u8 volume) {
 void music_volume_config_set(u32 slider_val) {
     u32 volume;
     slider_val = (slider_val <= 256) ? slider_val : 256;
-    D_800A0690 = slider_val;
-    volume = gMusicBaseVolume * D_800A0690;
+    gMusicSliderVolume = slider_val;
+    volume = gMusicBaseVolume * gMusicSliderVolume;
     alCSPSetVol(gMusicPlayer, (s16) volume);
 }
 
@@ -521,11 +523,12 @@ u32 music_jingle_playing(void) {
 
 void func_800861D4(SoundHandle soundHandle);
 
-void func_80001228(SoundHandle soundHandle) {
+/* Stops a playing sound (0x80001228). */
+void sound_stop(SoundHandle soundHandle) {
     func_800861D4(soundHandle);
 }
 
-s32 func_800019C8(s32 volume);
+s32 sound_volume_half(s32 volume);
 void sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
 
 /**
@@ -552,11 +555,11 @@ void sound_play(u16 soundID, SoundHandle *handlePtr) {
         return;
     }
     pitch = (u32) gSoundTable[soundID].pitch / 100.0f;
-    sndp_play(gSoundBank->bankArray[0], (s16) soundBite, func_800019C8(gSoundTable[soundID].volume << 8), 0x40, pitch,
+    sndp_play(gSoundBank->bankArray[0], (s16) soundBite, sound_volume_half(gSoundTable[soundID].volume << 8), 0x40, pitch,
               0, handlePtr);
 }
 
-s32 func_800019C8(s32 volume);
+s32 sound_volume_half(s32 volume);
 void sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
 
 /**
@@ -570,22 +573,23 @@ void sound_play_direct(u16 soundID, u8 volume, u8 pan, f32 pitch, u8 fxMix, Soun
         }
         return;
     }
-    sndp_play(gSoundBank->bankArray[0], (s16) soundID, func_800019C8(volume << 8), pan, pitch, fxMix, handlePtr);
+    sndp_play(gSoundBank->bankArray[0], (s16) soundID, sound_volume_half(volume << 8), pan, pitch, fxMix, handlePtr);
 }
 
 /**
  * Set the volume of the sound relative to the baseline volume of the sound ID.
- * JFG: the volume goes through func_800019C8 (halved).
+ * JFG: the volume goes through sound_volume_half (halved).
  * Official Name: amSndSetVol
  */
 void sound_volume_set_relative(u16 soundID, SoundHandle soundHandle, u8 volume) {
     s32 newVolume = (s32) ((u32) gSoundTable[soundID].volume * ((u32) volume / 127.0f)) << 8;
     if (soundHandle) {
-        sndp_set_param(soundHandle, AL_SNDP_VOL_EVT, func_800019C8(newVolume));
+        sndp_set_param(soundHandle, AL_SNDP_VOL_EVT, sound_volume_half(newVolume));
     }
 }
 
-void func_800014D8(SoundHandle soundHandle, u32 pan) {
+/* Sets the pan of a playing sound (0x800014D8). */
+void sound_pan_set(SoundHandle soundHandle, u32 pan) {
     if (soundHandle != NULL) {
         sndp_set_param(soundHandle, AL_SNDP_PAN_EVT, pan);
     }
@@ -655,7 +659,7 @@ void music_sequence_start(u8 seqID, ALCSPlayer *seqPlayer) {
 
 INCLUDE_ASM("asm/nonmatchings/audio", func_8000167C);
 
-extern u8 D_800A0688; // DKR: gMusicPlaying
+extern u8 gMusicPlaying;
 void func_8008A450(ALCSPlayer *seqp); // stops a sequence player (DKR: alCSPStop)
 
 /**
@@ -663,9 +667,9 @@ void func_8008A450(ALCSPlayer *seqp); // stops a sequence player (DKR: alCSPStop
  * JFG: the next sequence IDs are reset to 0.
  */
 void music_sequence_stop(ALCSPlayer *seqPlayer) {
-    if (gMusicPlayer == seqPlayer && D_800A0688) {
+    if (gMusicPlayer == seqPlayer && gMusicPlaying) {
         func_8008A450(seqPlayer);
-        D_800A0688 = FALSE;
+        gMusicPlaying = FALSE;
         gMusicNextSeqID = 0;
     } else if (gJinglePlayer == seqPlayer && gJinglePlaying) {
         func_8008A450(seqPlayer);
@@ -690,7 +694,7 @@ void func_80001998(void) {
     func_8008A490(NULL, NULL);
 }
 
-/* JFG: halves a volume. */
-s32 func_800019C8(s32 volume) {
+/* JFG: halves a volume (0x800019C8). */
+s32 sound_volume_half(s32 volume) {
     return volume * 0.5f;
 }

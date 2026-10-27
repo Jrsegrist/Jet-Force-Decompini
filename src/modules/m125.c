@@ -121,7 +121,7 @@ void func_m125_00120(Object *obj, s32 updateRate) {
     if (t->unkC == 0) {
         t->unkC = func_80026824(t->unk8, 0x40);
     }
-    if (t->done == 0 && t->flag != 0 && func_80047ED0(t->flag)) {
+    if (t->done == 0 && t->flag != 0 && game_flag_get(t->flag)) {
         obj->unk28 = 1.0f;
         obj->interactObj->unk6 = 0;
         t->level = 4;

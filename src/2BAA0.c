@@ -9,7 +9,7 @@ extern s32 D_800F6DF8[24];
 typedef struct RacerFlags {
     u32 unk31 : 1;
     u32 unk30 : 1;
-    u32 weaponDir : 2; /* 1: last weapon change went backwards, 2: forwards (see func_80037420) */
+    u32 weaponDir : 2; /* 1: last weapon change went backwards, 2: forwards (see weapon_switch_direction) */
     u32 unk27 : 1;
     u32 useOverride : 1; /* use overridePos as the position (func_8003B418) */
     u32 unk25 : 1;
@@ -41,10 +41,10 @@ typedef struct Racer {
 s32 func_8003B51C(s32 value, s32 delta);
 void func_8002AEA0(s32 arg0, s32 arg1);
 u8 *func_80047C1C(s32 player, s32 character);
-void func_8003B820(u8 *obj);
+void player_drop_held_object(u8 *obj);
 void *spawn_object(void *entry, s32 arg1);
-void func_800478A4(s32 weapon);
-void func_80001228(s32 soundHandle);
+void stats_shot_add(s32 weapon);
+void sound_stop(s32 soundHandle);
 void sound_play(u16 soundID, s32 *handlePtr);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002AEA0);
@@ -105,7 +105,7 @@ typedef struct Transform2BAA0 {
     /* 0x0C */ f32 position[3];
 } Transform2BAA0;
 
-s32 func_8003FC1C(void);
+s32 cam_get_active_camera_id(void);
 void func_8003FC60(s32 index, s32 value);
 
 void func_8002C070(UNUSED s32 arg0, u8 *racer, UNUSED s32 arg2) {
@@ -120,7 +120,7 @@ void func_8002C070(UNUSED s32 arg0, u8 *racer, UNUSED s32 arg2) {
         ((Transform2BAA0 *) D_800F6DC0)->rotation[2] = *(s16 *) (state + 0x64);
         ((Transform2BAA0 *) D_800F6DC0)->rotation[1] = *(s16 *) (state + 0x62);
         ((Transform2BAA0 *) D_800F6DC0)->rotation[0] = -*(s16 *) (state + 0x60);
-        func_8003FC60(func_8003FC1C(), 0);
+        func_8003FC60(cam_get_active_camera_id(), 0);
     }
 }
 
@@ -311,8 +311,8 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031A80);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031D00);
 
-/* JFG: clear the six item links of a player (each item's flag for this player at 0x93). */
-void func_80031F44(Racer *racer) {
+/* JFG: clear the six item links of a player (each item's flag for this player at 0x93) (0x80031F44). */
+void player_items_unlink(Racer *racer) {
     s32 i = 6;
     u8 *item;
 
@@ -327,8 +327,8 @@ void func_80031F44(Racer *racer) {
     }
 }
 
-/* JFG: zero the bytes from start up to end. */
-void func_80031F9C(u8 *start, u8 *end) {
+/* JFG: zero the bytes from start up to end (0x80031F9C). */
+void mem_zero_range(u8 *start, u8 *end) {
     u8 *p = start;
     while (p < end) {
         *p++ = 0;
@@ -349,8 +349,8 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
 void free_object(void *object);
 void func_80032130(u8 *obj, RespawnInfo *info);
 
-/* JFG: put a player back at (x, y, z) and reset its state block. */
-void func_80031FE8(u8 *obj, f32 x, f32 y, f32 z, s16 arg4, s16 arg5, s16 arg6) {
+/* JFG: put a player back at (x, y, z) and reset its state block (0x80031FE8). */
+void player_respawn_at(u8 *obj, f32 x, f32 y, f32 z, s16 arg4, s16 arg5, s16 arg6) {
     RespawnInfo info;
     u8 *racer = *(u8 **) (obj + 0x68);
 
@@ -372,16 +372,16 @@ void func_80031FE8(u8 *obj, f32 x, f32 y, f32 z, s16 arg4, s16 arg5, s16 arg6) {
         free_object(*(void **) (racer + 0x5BC));
         *(void **) (racer + 0x5BC) = NULL;
     }
-    func_80031F9C(racer, racer + 0xBC);
-    func_80031F9C(racer + 0xF4, racer + 0x100);
-    func_80031F9C(racer + 0x104, racer + 0x23C);
-    func_80031F9C(racer + 0x340, racer + 0x364);
-    func_80031F9C(racer + 0x510, racer + 0x550);
-    func_80031F9C(racer + 0x568, racer + 0x598);
-    func_80031F9C(racer + 0x5BC, racer + 0x5CA);
+    mem_zero_range(racer, racer + 0xBC);
+    mem_zero_range(racer + 0xF4, racer + 0x100);
+    mem_zero_range(racer + 0x104, racer + 0x23C);
+    mem_zero_range(racer + 0x340, racer + 0x364);
+    mem_zero_range(racer + 0x510, racer + 0x550);
+    mem_zero_range(racer + 0x568, racer + 0x598);
+    mem_zero_range(racer + 0x5BC, racer + 0x5CA);
     *(s16 *) (racer + 0x5CA) = 0;
-    func_8003B820(obj);
-    func_80031F44((Racer *) racer);
+    player_drop_held_object(obj);
+    player_items_unlink((Racer *) racer);
     func_80032130(obj, &info);
 }
 
@@ -433,8 +433,8 @@ s32 func_80033F4C(s32 weapon) {
     return 0;
 }
 
-/* JFG: step an angle from `from` towards `to` by the fraction t, the short way round. */
-s16 func_80033FA4(s16 from, s16 to, f32 t) {
+/* JFG: step an angle from `from` towards `to` by the fraction t, the short way round (0x80033FA4). */
+s16 angle_lerp(s16 from, s16 to, f32 t) {
     s32 diff = (to - from) & 0xFFFF;
     s32 back = (from - to) & 0xFFFF;
 
@@ -575,8 +575,8 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800370D0);
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
 s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
 
-/* JFG: 1 unless a collision test from (x, y, z) up by `height` hits a surface with flags 0x48. */
-s32 func_80037194(f32 x, f32 y, f32 z, f32 height, f32 radius) {
+/* JFG: 1 unless a collision test from (x, y, z) up by `height` hits a surface with flags 0x48 (0x80037194). */
+s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 height, f32 radius) {
     u8 hit[0x28];
     f32 from[3];
     f32 to[3];
@@ -596,44 +596,45 @@ s32 func_80037194(f32 x, f32 y, f32 z, f32 height, f32 radius) {
     return clear;
 }
 
-extern s32 D_800F6DBC;
+extern s32 gPlayerInputLocked;
 
-void func_80037244(s32 arg0) {
-    D_800F6DBC = arg0;
+/* Locks (non-zero) or unlocks a player's latched input (0x80037244). */
+void player_input_lock_set(s32 arg0) {
+    gPlayerInputLocked = arg0;
 }
 
-extern s32 D_800F6DA0;
-extern s32 D_800F6DA4;
-extern s32 D_800F6DA8;
-extern s32 D_800F6DAC;
-extern s32 D_800F6DB0;
+extern s32 gPlayerButtonsHeld;
+extern s32 gPlayerButtonsPressed;
+extern s32 gPlayerButtonsReleased;
+extern s32 gPlayerStickX;
+extern s32 gPlayerStickY;
 extern s32 D_800F6DB4;
 extern s32 D_800F6DB8;
 u16 input_held(s32 player);
 u16 input_released(s32 player);
 s32 input_clamp_stick_x(s32 player);
 s32 input_clamp_stick_y(s32 player);
-s8 func_8004359C(s32 player);
-s8 func_8004360C(s32 player);
+s8 input_stick_x_raw(s32 player);
+s8 input_stick_y_raw(s32 player);
 
-/* JFG: latch a player's input for this frame (all zero when input is off, see func_80037244). */
-void func_80037250(s32 player) {
-    if (player >= 0 && player < 4 && D_800F6DBC == 0) {
-        D_800F6DAC = input_clamp_stick_x(player);
-        D_800F6DB4 = func_8004359C(player);
-        D_800F6DB0 = input_clamp_stick_y(player);
-        D_800F6DB8 = func_8004360C(player);
-        D_800F6DA0 = input_held(player);
-        D_800F6DA4 = input_pressed(player);
-        D_800F6DA8 = input_released(player);
+/* JFG: latch a player's input for this frame (all zero when input is off, see player_input_lock_set) (0x80037250). */
+void player_input_latch(s32 player) {
+    if (player >= 0 && player < 4 && gPlayerInputLocked == 0) {
+        gPlayerStickX = input_clamp_stick_x(player);
+        D_800F6DB4 = input_stick_x_raw(player);
+        gPlayerStickY = input_clamp_stick_y(player);
+        D_800F6DB8 = input_stick_y_raw(player);
+        gPlayerButtonsHeld = input_held(player);
+        gPlayerButtonsPressed = input_pressed(player);
+        gPlayerButtonsReleased = input_released(player);
     } else {
-        D_800F6DAC = 0;
+        gPlayerStickX = 0;
         D_800F6DB4 = 0;
-        D_800F6DB0 = 0;
+        gPlayerStickY = 0;
         D_800F6DB8 = 0;
-        D_800F6DA0 = 0;
-        D_800F6DA4 = 0;
-        D_800F6DA8 = 0;
+        gPlayerButtonsHeld = 0;
+        gPlayerButtonsPressed = 0;
+        gPlayerButtonsReleased = 0;
     }
 }
 
@@ -675,9 +676,10 @@ s32 func_800373E4(u8 *chr, s32 weapon) {
     return (chr + weapon)[0x54] * 32;
 }
 
+/* Returns which way round the weapon slots is shorter to a weapon (1 forwards, 2 backwards) (0x80037420). */
 /* JFG: which way round the 16 weapon slots (owned bits at 0xA) is shorter from the current weapon to `weapon`:
    1 = forwards, 2 = backwards. */
-s32 func_80037420(u8 *chr, s32 weapon) {
+s32 weapon_switch_direction(u8 *chr, s32 weapon) {
     s32 start;
     s32 bit;
     s32 forwards;
@@ -715,7 +717,8 @@ s32 func_80037420(u8 *chr, s32 weapon) {
 
 extern u8 D_800A5074;
 
-s32 func_800374C8(u8 *racer, u8 *chr) {
+/* Returns whether the current weapon can fire (has ammo) (0x800374C8). */
+s32 weapon_has_ammo(u8 *racer, u8 *chr) {
     u8 weapon;
     u8 *held;
 
@@ -763,44 +766,44 @@ void func_80038324(u8 *obj, Racer *racer) {
     } while (!(owned & bit));
     if (weapon != cur) {
         if (cur == 2 && racer->sound != 0) {
-            func_80001228(racer->sound);
+            sound_stop(racer->sound);
             racer->soundId = 0;
         }
         chr[0x70] = weapon;
         racer->flags.unk7 = 0;
         racer->flags.weaponDir |= 2;
         racer->flags.unk30 = 0;
-        func_8003B820(obj);
-        func_80031F44(racer);
+        player_drop_held_object(obj);
+        player_items_unlink(racer);
     }
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80038324);
 #endif
 
-/* JFG: switch to `weapon` if owned and not already selected; returns 1 if switched. */
-s32 func_80038430(u8 *obj, Racer *racer, s32 weapon) {
+/* JFG: switch to `weapon` if owned and not already selected; returns 1 if switched (0x80038430). */
+s32 weapon_select(u8 *obj, Racer *racer, s32 weapon) {
     u8 *chr = func_80047C1C(racer->player, racer->character);
     u8 cur = chr[0x70];
 
     if (weapon != cur && (*(u16 *) (chr + 0xA) & (1 << weapon))) {
         if (cur == 2 && racer->sound != 0) {
-            func_80001228(racer->sound);
+            sound_stop(racer->sound);
             racer->soundId = 0;
         }
-        racer->flags.weaponDir = func_80037420(chr, weapon);
+        racer->flags.weaponDir = weapon_switch_direction(chr, weapon);
         racer->flags.unk30 = 0;
         racer->flags.unk7 = 0;
         chr[0x70] = weapon;
-        func_8003B820(obj);
-        func_80031F44(racer);
+        player_drop_held_object(obj);
+        player_items_unlink(racer);
         return 1;
     }
     return 0;
 }
 
-/* JFG: switch to the previous owned weapon (slots 15..0, wrapping). */
-void func_80038528(u8 *obj, Racer *racer) {
+/* JFG: switch to the previous owned weapon (slots 15..0, wrapping) (0x80038528). */
+void weapon_select_prev(u8 *obj, Racer *racer) {
     s32 weapon;
     s32 cur;
     u8 *chr;
@@ -821,27 +824,27 @@ void func_80038528(u8 *obj, Racer *racer) {
     } while (!(*(u16 *) (chr + 0xA) & bit));
     if (weapon != cur) {
         if (cur == 2 && racer->sound != 0) {
-            func_80001228(racer->sound);
+            sound_stop(racer->sound);
             racer->soundId = 0;
         }
         chr[0x70] = weapon;
         racer->flags.unk7 = 0;
         racer->flags.weaponDir |= 1;
         racer->flags.unk30 = 0;
-        func_8003B820(obj);
-        func_80031F44(racer);
+        player_drop_held_object(obj);
+        player_items_unlink(racer);
     }
 }
 
 extern u8 D_800A2E10[3];
-void func_8002130C(void *light, u8 red, u8 green, u8 blue);
+void light_colour_set(void *light, u8 red, u8 green, u8 blue);
 
 void func_80038630(UNUSED s32 arg0, Racer *racer) {
     if (racer->light != NULL) {
-        func_8002130C(racer->light, D_800A2E10[0], D_800A2E10[1], D_800A2E10[2]);
+        light_colour_set(racer->light, D_800A2E10[0], D_800A2E10[1], D_800A2E10[2]);
     }
     if (racer->sound != 0) {
-        func_80001228(racer->sound);
+        sound_stop(racer->sound);
     }
     sound_play(3, &racer->sound);
     racer->soundId = 3;
@@ -895,9 +898,9 @@ void func_80038F7C(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 a
     if (obj != NULL) {
         *(s32 *) (obj + 0x3C) = 0;
     }
-    func_800478A4(3);
+    stats_shot_add(3);
     if (racer->sound != 0) {
-        func_80001228(racer->sound);
+        sound_stop(racer->sound);
     }
     sound_play(0xE1, &racer->sound);
     racer->soundId = 0xE1;
@@ -967,7 +970,7 @@ void func_80039918(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
     u8 *obj;
     Spawn72 setup;
 
-    func_800478A4(8);
+    stats_shot_add(8);
     setup.objectID = 0x72;
     setup.size = 0x1C;
     setup.unk3 = 0;
@@ -1023,7 +1026,7 @@ void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16
         sound_play(0x2F, NULL);
         func_8002AEA0(owner, 2);
         *(s32 *) (obj + 0x3C) = 0;
-        func_800478A4(9);
+        stats_shot_add(9);
     }
 }
 #else
@@ -1080,7 +1083,7 @@ void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 a
         if (type == 2) {
             *(u8 **) ((u8 *) racer + 0x1A0) = obj;
         }
-        func_800478A4(weapon);
+        stats_shot_add(weapon);
     }
     sound_play(0x2F, NULL);
     func_8002AEA0(owner, 2);
@@ -1117,7 +1120,7 @@ void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
         sound_play(0x2F, NULL);
         func_8002AEA0(owner, 2);
         *(s32 *) (obj + 0x3C) = 0;
-        func_800478A4(14);
+        stats_shot_add(14);
     }
 }
 
@@ -1125,11 +1128,12 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039FCC);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003AABC);
 
-extern u8 D_800A1490[][0x30];
+extern u8 gWeaponInfo[][0x30];
 
-s32 func_8003B114(s8 *ids) {
+/* Returns whether the character can use its current weapon (0x8003B114). */
+s32 weapon_usable_by_character(s8 *ids) {
     u8 *chr = func_80047C1C(ids[0], ids[1]);
-    return (D_800A1490[chr[0x70]][0] >> ids[1]) & 1;
+    return (gWeaponInfo[chr[0x70]][0] >> ids[1]) & 1;
 }
 
 /* JFG: clear every player's link at 0x1A4 that points to obj. */
@@ -1186,9 +1190,9 @@ f32 func_8003B4F0(void) {
     return D_800F6DC4;
 }
 
-/* JFG: an entry of a table of 0x30-byte records. */
-u8 *func_8003B500(s32 index) {
-    return D_800A1490[index];
+/* JFG: an entry of a table of 0x30-byte records (0x8003B500). */
+u8 *weapon_info_get(s32 index) {
+    return gWeaponInfo[index];
 }
 
 s32 func_8003B51C(s32 value, s32 delta) {
@@ -1272,8 +1276,8 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B6C8);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B740);
 
-/* JFG: empty a player's hand (the held object at 0x5CC); a held object 0x59 is also stopped and reset. */
-void func_8003B820(u8 *obj) {
+/* JFG: empty a player's hand (the held object at 0x5CC); a held object 0x59 is also stopped and reset (0x8003B820). */
+void player_drop_held_object(u8 *obj) {
     u8 *racer = *(u8 **) (obj + 0x68);
     u8 *held = *(u8 **) (racer + 0x5CC);
 

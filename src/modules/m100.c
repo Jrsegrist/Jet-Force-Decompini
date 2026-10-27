@@ -31,7 +31,7 @@ typedef struct M100Player {
     /* 0x592 */ s16 fuelTimer;
 } M100Player;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
 
@@ -67,7 +67,7 @@ void func_m100_00110(Object *obj, s32 updateRate) {
     M100Player *player;
 
     pad = obj->unk68;
-    func_800541B0(D_m100_002F0, 2, 2);
+    runlink_unload_timer_set(D_m100_002F0, 2, 2);
     last = pad->last;
     pad->last = NULL;
     add = func_80005064(updateRate * 6);

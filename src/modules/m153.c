@@ -43,7 +43,7 @@ typedef struct M153Model {
     /* 0x68 */ Vec3f *points;
 } M153Model;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern s32 func_80049C84(f32, f32); /* the angle of a vector */
 extern f32 sqrtf(f32);
@@ -77,7 +77,7 @@ void func_m153_0012C(Object *obj, s32 updateRate) {
     M153Collision *c = (M153Collision *) obj->unk7C;
     M153Model *model;
 
-    func_800541B0(D_m153_00450, 2, 2);
+    runlink_unload_timer_set(D_m153_00450, 2, 2);
     if (b->timer > 0 && !(c->flags & 2)) {
         b->timer -= updateRate;
     } else {
@@ -93,7 +93,7 @@ void func_m153_0012C(Object *obj, s32 updateRate) {
         func_80049C84(obj->velocity.y, sqrtf(obj->velocity.x * obj->velocity.x + obj->velocity.z * obj->velocity.z));
     obj->trans.rotation.z_rotation += b->spin * 14;
     if (b->held) {
-        model = ((M153Model **) b->thrower->unk6C)[b->thrower->modelIndex];
+        model = ((M153Model **) b->thrower->modelInstances)[b->thrower->modelIndex];
         obj->particleEmittersEnabled = 0;
         if (model == NULL) {
             return;

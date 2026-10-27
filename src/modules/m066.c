@@ -83,7 +83,7 @@ extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M066Light *func_800218C4(f32 x, f32 y, f32 z);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern void func_80041CA0(Gfx **dList, Mtx **mtx, Object *obj, f32 scaleY, f32 offsetY); /* DKR camera_push_model_mtx */
-extern void func_80041DA0(Gfx **dList);
+extern void mtx_pop(Gfx **dList);
 extern void func_80055C00(Gfx **dList, void *texture, s32 flags, s32 texOffset); /* DKR load_and_set_texture */
 
 void func_m066_002AC(Object *obj, f32 x, f32 y, f32 z, f32 outer, f32 inner, f32 level);
@@ -101,7 +101,7 @@ void func_m066_00000(Object *obj, M066Setup *setup, s32 arg2) {
     obj->trans.rotation.x_rotation = setup->x_rotation;
     obj->trans.rotation.z_rotation = setup->z_rotation;
     if (arg2 == 0) {
-        inst = obj->unk6C[obj->modelIndex];
+        inst = obj->modelInstances[obj->modelIndex];
         if (inst != NULL) {
             size = inst->model->numVertices * sizeof(Vertex);
             i = 2;
@@ -301,7 +301,7 @@ void func_m066_007B0(Gfx **dl, Mtx **mtx, Object *obj) {
     s32 vOffset;
     s32 fOffset;
 
-    inst = obj->unk6C[obj->modelIndex];
+    inst = obj->modelInstances[obj->modelIndex];
     model = inst->model;
     func_80041CA0(dl, mtx, obj, 1.0f, 0.0f);
     gDPNoParam((*dl)++, 0xBF);
@@ -335,6 +335,6 @@ void func_m066_007B0(Gfx **dl, Mtx **mtx, Object *obj) {
         }
         batch++;
     }
-    func_80041DA0(dl);
+    mtx_pop(dl);
     gDPPipeSync((*dl)++);
 }

@@ -37,16 +37,16 @@ void func_m114_00000(Object *obj, M114Setup *setup) {
     t->raise = 0;
     t->health = setup->health << 8;
     OBJ_STATE(obj, s32)[0] = setup->points * 10;
-    obj->interactObj->unk6 = t->health;
+    obj->interactObj->hitPoints = t->health;
 }
 
 void func_m114_000E4(Object *obj, s32 updateRate) {
     M114Target *t = obj->unk68;
 
     if (t->delay != 0) {
-        obj->interactObj->unk6 = t->health;
+        obj->interactObj->hitPoints = t->health;
     }
-    if (obj->interactObj->unk6 <= 0) {
+    if (obj->interactObj->hitPoints <= 0) {
         obj->trans.flags |= 0x400;
         return;
     }
@@ -89,14 +89,14 @@ void func_m114_00370(Object *obj, s32 updateRate) {
     M114Target *t = obj->unk68;
 
     if (t->delay != 0) {
-        obj->interactObj->unk6 = t->health;
-    } else if (obj->interactObj->unk6 > 0) {
-        obj->interactObj->unk6 -= obj->unk5C->damage;
-        if (obj->interactObj->unk6 <= 0) {
+        obj->interactObj->hitPoints = t->health;
+    } else if (obj->interactObj->hitPoints > 0) {
+        obj->interactObj->hitPoints -= obj->unk5C->damage;
+        if (obj->interactObj->hitPoints <= 0) {
             func_80001248(0x13, 0);
         }
     }
-    if (obj->interactObj->unk6 <= 0) {
+    if (obj->interactObj->hitPoints <= 0) {
         if (t->raise > 0) {
             t->raise -= updateRate << 5;
             if (t->raise < 0) {

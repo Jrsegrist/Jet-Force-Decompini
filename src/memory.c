@@ -21,10 +21,10 @@ extern u8 gMainMemoryPool[]; // the end of the game's .bss
 #define EXPANSION_RAM_END 0x80600000
 #define MAIN_POOL_SLOT_COUNT 1600
 
-extern s32 D_800FDD90;                // JFG: free RAM in the main pool (bytes)
-extern s32 D_800FDD98[POOL_COUNT];    // JFG: free bytes per pool
-extern s32 D_800A33F4;                // JFG: a forced colour tag (or -1)
-extern s32 D_800A33F8;                // JFG: a second forced colour tag (or -1)
+extern s32 gMainPoolFreeBytes;                // JFG: free RAM in the main pool (bytes)
+extern s32 gPoolFreeBytes[POOL_COUNT];    // JFG: free bytes per pool
+extern s32 gForcedColourTag;                // JFG: a forced colour tag (or -1)
+extern s32 gForcedColourTag2;                // JFG: a second forced colour tag (or -1)
 void func_80054368(s32 address, s32 *module, s32 *offset, s32 arg3);
 
 void mempool_free_queue(void *dataAddress);
@@ -52,7 +52,8 @@ void mempool_init_main(void) {
 
 extern u8 gExpansionPak;
 
-u8 func_8004A448(void) {
+/* Returns whether the Expansion Pak is present (0x8004A448). */
+u8 mempool_expansion_pak_get(void) {
     return gExpansionPak;
 }
 
@@ -76,7 +77,7 @@ MemoryPoolSlot *mempool_new_sub(s32 poolDataSize, s32 numSlots) {
 /**
  * Create and initialise a memory pool in RAM that will act as the place where arbitrary allocations can go.
  * Will return the location of the first free slot in that pool.
- * JFG: also records the pool's free size (and the main pool's in D_800FDD90).
+ * JFG: also records the pool's free size (and the main pool's in gMainPoolFreeBytes).
  */
 MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots) {
     MemoryPoolSlot *firstSlot;
@@ -108,9 +109,9 @@ firstSlot->size = firstSlotSize;
     firstSlot->nextIndex = MEMSLOT_NONE;
     gMemoryPools[poolCount].curNumSlots++;
     if (poolCount == POOL_MAIN) {
-        D_800FDD90 = firstSlotSize;
+        gMainPoolFreeBytes = firstSlotSize;
     }
-    D_800FDD98[poolCount] = firstSlotSize;
+    gPoolFreeBytes[poolCount] = firstSlotSize;
     return gMemoryPools[poolCount].slots;
 }
 
@@ -126,10 +127,10 @@ void *mempool_alloc_safe(s32 size, u32 colourTag) {
     volatile s32 ra;
 
     ra = 0x666; // the return address in debug builds
-    if (D_800A33F4 != -1) {
-        colourTag = D_800A33F4 | 0xFF000000;
-    } else if (D_800A33F8 != -1) {
-        colourTag = D_800A33F8 | 0xFE000000;
+    if (gForcedColourTag != -1) {
+        colourTag = gForcedColourTag | 0xFF000000;
+    } else if (gForcedColourTag2 != -1) {
+        colourTag = gForcedColourTag2 | 0xFE000000;
     } else {
         func_80054368(ra - 8, &module, &offset, 0);
         colourTag = (module << 24) | offset;
@@ -149,10 +150,10 @@ MemoryPoolSlot *mempool_alloc(s32 size, u32 colourTag) {
     volatile s32 ra;
 
     ra = 0x666; // the return address in debug builds
-    if (D_800A33F4 != -1) {
-        colourTag = D_800A33F4 | 0xFF000000;
-    } else if (D_800A33F8 != -1) {
-        colourTag = D_800A33F8 | 0xFE000000;
+    if (gForcedColourTag != -1) {
+        colourTag = gForcedColourTag | 0xFF000000;
+    } else if (gForcedColourTag2 != -1) {
+        colourTag = gForcedColourTag2 | 0xFE000000;
     } else {
         func_80054368(ra - 8, &module, &offset, 0);
         colourTag = (module << 24) | offset;
@@ -234,10 +235,10 @@ void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag) {
     volatile s32 ra;
 
     ra = 0x666; // the return address in debug builds
-    if (D_800A33F4 != -1) {
-        colourTag = D_800A33F4 | 0xFF000000;
-    } else if (D_800A33F8 != -1) {
-        colourTag = D_800A33F8 | 0xFE000000;
+    if (gForcedColourTag != -1) {
+        colourTag = gForcedColourTag | 0xFF000000;
+    } else if (gForcedColourTag2 != -1) {
+        colourTag = gForcedColourTag2 | 0xFE000000;
     } else {
         func_80054368(ra - 8, &module, &offset, 0);
         colourTag = (module << 24) | offset;
@@ -279,8 +280,8 @@ void mempool_free_timer(s32 state) {
 
 extern void *gFreeQueueAddress[256];
 
-/* DKR: the flush loop of mempool_free_timer - frees everything in the free queue now. */
-void func_8004AA14(void) {
+/* DKR: the flush loop of mempool_free_timer - frees everything in the free queue now (0x8004AA14). */
+void mempool_free_queue_flush(void) {
     while (gFreeQueueCount > 0) {
         mempool_free_addr(gFreeQueueAddress[--gFreeQueueCount]);
     }
@@ -304,7 +305,7 @@ void mempool_free(void *data) {
 extern void *gFreeQueueAddress[256];
 extern u8 gFreeQueueTimers[256];
 void func_800542C4(void);
-s32 func_80053370(s32 module);
+s32 runlink_module_loaded(s32 module);
 void func_80054530(void); // a module function (patched in by the runtime linker)
 
 /**
@@ -315,10 +316,10 @@ void func_80054530(void); // a module function (patched in by the runtime linker
 void mempool_free_queue_clear(void) {
     s32 i;
 
-    if (D_800FDD90 < 0x14000) {
+    if (gMainPoolFreeBytes < 0x14000) {
         func_800542C4();
-        if (D_800FDD90 < 0xC000) {
-            if (func_80053370(3)) {
+        if (gMainPoolFreeBytes < 0xC000) {
+            if (runlink_module_loaded(3)) {
                 func_80054530();
             }
         }
@@ -422,9 +423,9 @@ void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
     nextSlot = &slots[nextIndex];
     prevSlot = &slots[prevIndex];
     if (poolIndex == POOL_MAIN) {
-        D_800FDD90 += slot->size;
+        gMainPoolFreeBytes += slot->size;
     }
-    D_800FDD98[poolIndex] += slot->size;
+    gPoolFreeBytes[poolIndex] += slot->size;
     slot->flags = SLOT_FREE;
     if (nextIndex != MEMSLOT_NONE) {
         if (nextSlot->flags == SLOT_FREE) {
@@ -465,7 +466,8 @@ MemoryPoolSlot *get_memory_pool_address(MemoryPools poolIndex) {
 
 extern s32 gFreeQueueTimer;
 
-s32 func_8004AEAC(void) {
+/* Returns the free queue's tick timer (0x8004AEAC). */
+s32 mempool_free_timer_get(void) {
     return gFreeQueueTimer;
 }
 
@@ -485,9 +487,9 @@ s32 mempool_slot_assign(MemoryPools poolIndex, s32 slotIndex, s32 size, s32 slot
 
     if (slotIsTaken == 1) {
         if (poolIndex == POOL_MAIN) {
-            D_800FDD90 -= size;
+            gMainPoolFreeBytes -= size;
         }
-        D_800FDD98[poolIndex] -= size;
+        gPoolFreeBytes[poolIndex] -= size;
     }
     pool = &gMemoryPools[poolIndex];
     poolSlots = pool->slots;

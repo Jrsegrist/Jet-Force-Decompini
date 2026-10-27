@@ -25,10 +25,10 @@ extern void func_8004AA80(void *data);                 /* frees */
 extern s32 func_80096910(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 extern void func_80050E90(Gfx **dl, s32 segment, s32 base);
 extern void func_8004E40C(Gfx **dl);
-extern void func_8004E3E8(Gfx **dl);
+extern void rdp_set_default_modes(Gfx **dl);
 extern void func_80055B80(Gfx **dl);
 extern void func_80056000();
-extern void func_8003FC2C(s32 arg0);
+extern void set_active_camera(s32 arg0);
 extern void func_8004046C(Gfx **dl, Mtx **mtx);
 extern void func_8001BC2C(s32 player, s16 *near, s16 *far, s16 *arg3, u8 *r, u8 *g, u8 *b, u8 *arg7);
 extern void func_8000DB94(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj); /* DKR render_object */
@@ -41,7 +41,7 @@ extern u16 *D_800FD820[2]; /* the two buffers */
 extern u16 *D_800FD828;    /* the current buffer */
 extern s32 D_800FD82C;
 extern s32 D_800FD830; /* which buffer is drawn to */
-extern s32 D_800FECBC;
+extern s32 gVideoDepthBuffer;
 extern OSMesgQueue D_800FE8E0;
 
 static s32 sBufferBlock; /* the allocation holding both buffers */
@@ -127,9 +127,9 @@ void func_m002_0019C(void) {
     verts = sVertices[D_800FD830];
     func_80050E90(&dl, 0, 0);
     func_80050E90(&dl, 1, (s32) D_800FD820[D_800FD830]);
-    func_80050E90(&dl, 2, D_800FECBC);
+    func_80050E90(&dl, 2, gVideoDepthBuffer);
     func_8004E40C(&dl);
-    func_8004E3E8(&dl);
+    rdp_set_default_modes(&dl);
     gSPClearGeometryMode(dl++, G_ZBUFFER);
     gDPSetColorImage(dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, width, (u32) D_800FD820[D_800FD830] + 0x80000000);
     gDPSetScissor(dl++, G_SC_NON_INTERLACE, 0, 0, width, height);
@@ -145,7 +145,7 @@ void func_m002_0019C(void) {
     gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor(dl++, 255, 255, 255, 0);
     gDPPipeSync(dl++);
-    func_8003FC2C(0);
+    set_active_camera(0);
     func_8004046C(&dl, &mtx);
     gDPPipeSync(dl++);
     func_8001BC2C(0, &fogNear, &fogFar, &fogUnk, &r, &g, &b, &fogUnk2);

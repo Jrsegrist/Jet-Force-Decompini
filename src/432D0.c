@@ -48,8 +48,8 @@ typedef struct Attachment {
 void func_80049394(Attachment *obj, f32 *vec);
 void func_800492DC(Attachment *obj, f32 *vec);
 
-/* JFG: the world position of an attachment (its offset rotated, plus its position). */
-void func_8004272C(Attachment *obj, f32 *x, f32 *y, f32 *z) {
+/* JFG: the world position of an attachment (its offset rotated, plus its position) (0x8004272C). */
+void transform_offset_world_pos(Attachment *obj, f32 *x, f32 *y, f32 *z) {
     f32 vec[3];
 
     vec[0] = obj->offset[0];

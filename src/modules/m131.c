@@ -65,11 +65,11 @@ typedef struct M131Hit {
     /* 0x28 */ s32 unk28;
 } M131Hit;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
-extern void func_80013F08(f32 *light);
-extern void func_80013FE0(f32 *light, f32 x, f32 y, f32 z);
+extern void track_light_off(f32 *light);
+extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern void func_80052734(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
@@ -125,10 +125,10 @@ void func_m131_001A4(Object *obj, s32 updateRate) {
     f32 step;
     M131Shot *s;
 
-    func_800541B0(D_m131_007C0, 2, 2);
+    runlink_unload_timer_set(D_m131_007C0, 2, 2);
     s = obj->unk68;
     done = 0;
-    if (s->timer > 0 && obj->interactObj->unk6 > 0) {
+    if (s->timer > 0 && obj->interactObj->hitPoints > 0) {
         obj->particleEmittersEnabled = 0;
         if (s->glow < 0xFF) {
             obj->particleEmittersEnabled |= 4;
@@ -142,7 +142,7 @@ void func_m131_001A4(Object *obj, s32 updateRate) {
         if (s->hit == 0) {
             func_80009A04(obj, obj->velocity.x * step, obj->velocity.y * step, obj->velocity.z * step);
             if (OBJ_STATE(obj, M131State)->light != 0) {
-                func_80013FE0((f32 *) OBJ_STATE(obj, M131State)->light, obj->trans.x_position,
+                track_light_set_position((f32 *) OBJ_STATE(obj, M131State)->light, obj->trans.x_position,
                               obj->trans.y_position, obj->trans.z_position);
             }
             OBJ_STATE(obj, M131State)->swingAngle += updateRate << 11;
@@ -187,7 +187,7 @@ void func_m131_001A4(Object *obj, s32 updateRate) {
     func_8005F5AC(obj, 2);
     if (done) {
         if (OBJ_STATE(obj, M131State)->light != 0) {
-            func_80013F08((f32 *) OBJ_STATE(obj, M131State)->light);
+            track_light_off((f32 *) OBJ_STATE(obj, M131State)->light);
         }
         func_800079B8(obj);
     }
@@ -200,7 +200,7 @@ void func_m131_005BC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M131Colours *colour;
     void *model;
 
-    func_800541B0(D_m131_007C0, 2, 2);
+    runlink_unload_timer_set(D_m131_007C0, 2, 2);
     s = obj->unk68;
     sprite.trans.rotation.y_rotation = 0;
     sprite.trans.rotation.x_rotation = 0;
@@ -208,7 +208,7 @@ void func_m131_005BC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     sprite.trans.scale = s->swingRadius * 0.1f;
     sprite.unk28 = 0.0f;
     colour = sSpriteColours;
-    model = obj->unk6C[0];
+    model = obj->modelInstances[0];
     for (i = 0; i < 2; i++, colour++) {
         sprite.trans.x_position = func_80049C34(OBJ_STATE(obj, M131State)->swingAngle) * s->swingRadius;
         if (i == 0) {

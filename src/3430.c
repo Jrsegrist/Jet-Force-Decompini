@@ -38,12 +38,13 @@ void sound_table_properties(struct SoundData **table, s32 *size, s32 *count);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void func_80002944(void);
 
+/* Sets up the audio point pools, then resets the spatial audio (0x80002830). */
 /**
  * Initializes the audio spatial system.
  * JFG: no audio lines.
  * DKR: audspat_init
  */
-void func_80002830(void) {
+void audspat_init(void) {
     s32 i;
 
     sound_table_properties(&gSpatialSoundTable, NULL, NULL);
@@ -79,7 +80,7 @@ INCLUDE_ASM("asm/nonmatchings/3430", func_80002944);
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80002AB8);
 
-extern MtxF D_800F2A08; // JFG: the listener's matrix
+extern MtxF gAudioListenerMtx; // JFG: the listener's matrix
 s32 func_80048548(void); // the number of cameras
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 s32 func_80049C84(f32 x, f32 z); // arctangent as a 16-bit angle
@@ -98,7 +99,7 @@ s32 audspat_calculate_spatial_pan(f32 x, f32 y, f32 z) {
     if (func_80048548() >= 2) {
         return 64;
     }
-    func_80048B60(&D_800F2A08, x, y, z, &ox, &oy, &oz);
+    func_80048B60(&gAudioListenerMtx, x, y, z, &ox, &oy, &oz);
     angle = func_80049C84(ox, oz);
     if (angle >= -0x2000 && angle <= 0x2000) {
         pan = (angle * 63) / 8192 + 64;
@@ -144,13 +145,15 @@ void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, 
     }
 }
 
-void func_800034C4(AudioPoint *point, u8 volume) {
+/* Sets the volume of an audio point (0x800034C4). */
+void audspat_point_set_volume(AudioPoint *point, u8 volume) {
     if (point != NULL) {
         point->volume = volume;
     }
 }
 
-void func_800034DC(AudioPoint *point, u8 pitch) {
+/* Sets the pitch of an audio point (0x800034DC). */
+void audspat_point_set_pitch(AudioPoint *point, u8 pitch) {
     if (point != NULL) {
         point->pitch = pitch;
     }
@@ -197,8 +200,8 @@ void audspat_point_stop(AudioPoint *point) {
     }
 }
 
-/* JFG: forget the user's handle of an audio point (the point keeps playing). */
-void func_80003680(AudioPoint *point) {
+/* JFG: forget the user's handle of an audio point (the point keeps playing) (0x80003680). */
+void audspat_point_handle_clear(AudioPoint *point) {
     s32 i;
 
     if (point != NULL) {
@@ -215,7 +218,7 @@ void func_80003680(AudioPoint *point) {
 
 extern AudioPoint **gFreeAudioPoints;
 extern u8 gLastFreePointIndex;
-extern s32 D_800A0814; // JFG: the most audio points in use at once
+extern s32 gMaxAudioPointsUsed; // JFG: the most audio points in use at once
 
 /**
  * Creates a point sound source and sets its parameters
@@ -226,8 +229,8 @@ void audspat_point_create(u16 soundBite, f32 x, f32 y, f32 z, u8 flags, u8 minVo
                           u8 fastFalloff, u8 pitch, u8 priority, s32 unk, AudioPoint **handlePtr) {
     AudioPoint *audioPoint;
 
-    if (D_800A0814 < gNumAudioPoints) {
-        D_800A0814 = gNumAudioPoints;
+    if (gMaxAudioPointsUsed < gNumAudioPoints) {
+        gMaxAudioPointsUsed = gNumAudioPoints;
     }
     if (gNumAudioPoints == MAX_AUDIO_POINTS) {
         if (handlePtr != NULL) {

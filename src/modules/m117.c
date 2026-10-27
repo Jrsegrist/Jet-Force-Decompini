@@ -106,17 +106,17 @@ typedef struct M117Header {
 
 
 extern Object *func_80005F14(M117LightEntry *entry, s32 count);
-extern void func_8002130C(s32 light, u8 red, u8 green, u8 blue); /* sets a light's colour */
-extern void func_80021358(s32 light, u8 intensity);             /* sets a light's intensity */
+extern void light_colour_set(s32 light, u8 red, u8 green, u8 blue); /* sets a light's colour */
+extern void light_intensity_set(s32 light, u8 intensity);             /* sets a light's intensity */
 extern s32 func_8007E150(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list);
 extern void func_80049DC0(void *trans, MtxF *out);
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
-extern f32 func_800420F0(f32 x, f32 y, f32 z); /* depth of a point from the camera */
+extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
 extern void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
 extern void func_80056064(void);
 extern void func_80041174(s32 arg0, s32 arg1, s32 arg2, M117Billboard *board, s32 texture, s32 arg5, s32 alpha);
 
-static u8 D_m117_00B80[4][4] = {
+static u8 sCloudColours[4][4] = {
     { 0x08, 0xFF, 0x20, 0x00 },
     { 0xFF, 0x20, 0x08, 0x00 },
     { 0x20, 0x08, 0xFF, 0x00 },
@@ -187,9 +187,9 @@ void func_m117_00154(Object *obj, M117Setup *setup) {
     cloud->unk6 = setup->unk10 << 5;
     cloud->unk8 = setup->unk11 << 5;
     cloud->radius = setup->radius * 16;
-    cloud->red = D_m117_00B80[setup->colour & 3][0];
-    cloud->green = D_m117_00B80[setup->colour & 3][1];
-    cloud->blue = D_m117_00B80[setup->colour & 3][2];
+    cloud->red = sCloudColours[setup->colour & 3][0];
+    cloud->green = sCloudColours[setup->colour & 3][1];
+    cloud->blue = sCloudColours[setup->colour & 3][2];
     cloud->brightness = 0;
     moteRadius = setup->moteRadius;
     mote = cloud->motes;
@@ -207,7 +207,7 @@ void func_m117_00154(Object *obj, M117Setup *setup) {
         mote++;
     }
     if (obj->light != NULL && *obj->light != 0) {
-        func_8002130C(*obj->light, cloud->red, cloud->green, cloud->blue);
+        light_colour_set(*obj->light, cloud->red, cloud->green, cloud->blue);
     }
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 96.0f, obj->trans.scale * 96.0f, -1.0f, 1.0f, 1);
 }
@@ -279,7 +279,7 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
         data->unkBC = brightness / 255.0f;
     }
     if (old != brightness && obj->light != NULL && *obj->light != 0) {
-        func_80021358(*obj->light, brightness);
+        light_intensity_set(*obj->light, brightness);
     }
 }
 
@@ -335,7 +335,7 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
             x = func_80049C34(mote->angle) * r * fade;
             func_80048B60(&mtx, x, (height * swell + 0.0f) * fade, func_80049C30(mote->angle) * r * fade, &pos->x,
                           &pos->y, &pos->z);
-            *dep = func_800420F0(pos->x, pos->y, pos->z);
+            *dep = get_distance_to_camera(pos->x, pos->y, pos->z);
             *ord = i;
             dep++;
             ord++;

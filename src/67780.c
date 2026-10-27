@@ -25,10 +25,10 @@ void thread0_create(void) {
     osStartThread(&gEPCThread);
 }
 
-extern OSMesgQueue D_801024E0; // DKR: gEPCMesgQueue
-extern OSMesg D_801024F8[8];   // DKR: gEPCMesgBuf
-extern OSMesgQueue D_80102538; // DKR: gEPCPIQueue
-extern OSMesg D_80102518[8];   // DKR: gEPCPIBuf
+extern OSMesgQueue gEPCMesgQueue;
+extern OSMesg gEPCMesgBuf[8];
+extern OSMesgQueue gEPCPIQueue;
+extern OSMesg gEPCPIBuf[8];
 void stop_all_threads_except_main(void);
 void func_80066E14(void);
 
@@ -41,13 +41,13 @@ void thread0_Main(UNUSED void *unused) {
     s32 mesg;
     s32 s0 = 0;
 
-    osCreateMesgQueue(&D_801024E0, D_801024F8, ARRAY_COUNT(D_801024F8));
-    osSetEventMesg(OS_EVENT_FAULT, &D_801024E0, (OSMesg) 8);     // RMON_MESG_FAULT
-    osSetEventMesg(OS_EVENT_CPU_BREAK, &D_801024E0, (OSMesg) 2); // RMON_MESG_CPU_BREAK
-    osCreatePiManager(150, &D_80102538, D_80102518, ARRAY_COUNT(D_80102518));
+    osCreateMesgQueue(&gEPCMesgQueue, gEPCMesgBuf, ARRAY_COUNT(gEPCMesgBuf));
+    osSetEventMesg(OS_EVENT_FAULT, &gEPCMesgQueue, (OSMesg) 8);     // RMON_MESG_FAULT
+    osSetEventMesg(OS_EVENT_CPU_BREAK, &gEPCMesgQueue, (OSMesg) 2); // RMON_MESG_CPU_BREAK
+    osCreatePiManager(150, &gEPCPIQueue, gEPCPIBuf, ARRAY_COUNT(gEPCPIBuf));
 
     while (1) {
-        osRecvMesg(&D_801024E0, (OSMesg *) &mesg, OS_MESG_BLOCK);
+        osRecvMesg(&gEPCMesgQueue, (OSMesg *) &mesg, OS_MESG_BLOCK);
         s0 |= mesg;
         if (!(s0 & 8) && !(s0 & 2)) {
             continue;
@@ -71,9 +71,9 @@ void stop_all_threads_except_main(void) {
     }
 }
 
-extern s32 D_800A64D0;
-extern s32 D_800A64D4;
-extern s32 D_800A64D8;
+extern s32 gLogStart;
+extern s32 gLogLine;
+extern s32 gLogWrapped;
 extern void *D_80102554;
 extern u8 D_80102558[0x200];
 extern char D_800AE850[];
@@ -89,9 +89,9 @@ void func_80066D28(OSThread *thread) {
     void *stack;
     s32 size;
 
-    *(s32 *) 0x80705014 = D_800A64D8;
-    *(s32 *) 0x80705018 = D_800A64D0;
-    *(s32 *) 0x8070501C = D_800A64D4;
+    *(s32 *) 0x80705014 = gLogWrapped;
+    *(s32 *) 0x80705018 = gLogStart;
+    *(s32 *) 0x8070501C = gLogLine;
     dst = (u8 *) 0x80705094;
     bcopy(thread, dst, 0x230);
     dst += 0x200;
@@ -132,35 +132,35 @@ void func_80066E14(void) {
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066EB0);
 
-void func_8006837C(void);
-void func_800682F0(s32 arg0, s32 x, const char *format, ...);
+void epc_clear_framebuffer(void);
+void epc_printf(s32 arg0, s32 x, const char *format, ...);
 s32 func_80054368(s32 address, s32 *module, s32 *offset, s32 arg3);
 extern char D_800AE8FC[];
 extern char D_800AE918[];
 
-/* JFG: clear the screen and print the address (and its module and offset), then hang. */
-void func_80067610(s32 address) {
+/* JFG: clear the screen and print the address (and its module and offset), then hang (0x80067610). */
+void lockup_show_address(s32 address) {
     s32 offset;
     s32 module;
     s32 i;
 
     for (i = 0; i < 100; i++) {
-        func_8006837C();
+        epc_clear_framebuffer();
     }
-    func_800682F0(30, 80, D_800AE8FC, address);
+    epc_printf(30, 80, D_800AE8FC, address);
     if (func_80054368(address, &module, &offset, 0)) {
-        func_800682F0(30, 100, D_800AE918, module, offset);
+        epc_printf(30, 100, D_800AE918, module, offset);
     }
     while (1) {
     }
 }
 
-extern s32 D_800A64D0;
-extern s32 D_800A64D4;
-extern s32 D_800A64D8;
+extern s32 gLogStart;
+extern s32 gLogLine;
+extern s32 gLogWrapped;
 
-/* JFG: log a line (up to 40 characters) into the 500-line ring at 0x80700000. */
-void func_800676B4(const char *format, ...) {
+/* JFG: log a line (up to 40 characters) into the 500-line ring at 0x80700000 (0x800676B4). */
+void log_printf(const char *format, ...) {
     va_list args;
     char *dst;
     char *src;
@@ -169,7 +169,7 @@ void func_800676B4(const char *format, ...) {
 
     va_start(args, format);
     vsprintf(buffer, format, args);
-    dst = (char *) 0x80700000 + D_800A64D4 * 41;
+    dst = (char *) 0x80700000 + gLogLine * 41;
     src = buffer;
     i = 0;
     while (*src != '\0' && i < 40) {
@@ -177,13 +177,13 @@ void func_800676B4(const char *format, ...) {
         i++;
     }
     *dst = '\0';
-    D_800A64D4++;
-    if (D_800A64D4 >= 500) {
-        D_800A64D8 = 1;
-        D_800A64D4 = 0;
+    gLogLine++;
+    if (gLogLine >= 500) {
+        gLogWrapped = 1;
+        gLogLine = 0;
     }
-    if (D_800A64D8) {
-        D_800A64D0 = D_800A64D4;
+    if (gLogWrapped) {
+        gLogStart = gLogLine;
     }
 }
 
@@ -216,7 +216,8 @@ void func_800678C4(u32 pc, s32 a0, u32 a1) {
 INCLUDE_ASM("asm/nonmatchings/67780", func_800678C4);
 #endif
 
-s32 func_80067950(void) {
+/* Returns whether a crash record is waiting (always FALSE in JFG) (0x80067950). */
+s32 get_lockup_status(void) {
     return 0;
 }
 
@@ -241,8 +242,8 @@ INCLUDE_ASM("asm/nonmatchings/67780", func_800681D0);
 void func_800681D0(s32 arg0, s32 x, char *text);
 extern s32 D_800A651C;
 
-/* JFG: format a line and print it at x (shifted for the screen mode). */
-void func_800682F0(s32 arg0, s32 x, const char *format, ...) {
+/* JFG: format a line and print it at x (shifted for the screen mode) (0x800682F0). */
+void epc_printf(s32 arg0, s32 x, const char *format, ...) {
     va_list args;
     char buffer[0x100];
 
@@ -263,17 +264,17 @@ void func_800682F0(s32 arg0, s32 x, const char *format, ...) {
 }
 
 void fb_size(s32 *width, s32 *height);
-extern u16 *D_800FECB8;
+extern u16 *gVideoLastFramebuffer;
 
-/* JFG: clear the framebuffer to show next. */
-void func_8006837C(void) {
+/* JFG: clear the framebuffer to show next (0x8006837C). */
+void epc_clear_framebuffer(void) {
     u16 *pixel;
     s32 width, height;
     s32 count;
 
     fb_size(&width, &height);
     count = width * height;
-    pixel = D_800FECB8;
+    pixel = gVideoLastFramebuffer;
     while (count--) {
         *pixel++ = 0;
     }
