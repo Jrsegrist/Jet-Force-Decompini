@@ -40,6 +40,29 @@ CC0 places no conditions on reuse; the credit is given because it is due.
 | `include/modules/object.h` | `include/structs.h` | `ObjectTransform`, `Vec3f`/`Vec3s`, and the `Object` fields JFG keeps at DKR's offsets (with their names) |
 | `include/modules/gfx.h` | `include/structs.h`, `include/f3ddkr.h` | `Vertex`, `Triangle` (without DKR's unions), `gSPPolygon`, `G_TRIN` |
 
+Added in round 4 (JFG variants of DKR's code, DKR's `src/` and `include/` only):
+
+| File here | From DKR | What |
+| --- | --- | --- |
+| `src/5B700.c` | `src/weather.c`, `src/particles.c`, `include/structs.h` | rain_init, free_rain_memory, rain_sound, rain_lightning, emitter_init_with_pos, move_particle_basic, move_particle_basic_parent, move_particle_attached_to_parent, move_particle_with_acceleration, move_particle_forward (most kept by address), the Particle/ParticleEmitter/ParticleBehaviour layouts |
+| `src/69050.c` | `src/fade_transition.c` | transition_render_fullscreen, transition_render_barndoor_hor/vert/diag, transition_render_blank (kept by address) |
+| `src/4BC70.c` | `src/save_data.c` | get_file_type (func_8004D250) |
+| `src/432D0.c` | `include/structs.h` | ObjectTransform |
+| `src/memory.c` | `src/memory.c` | mempool_init, mempool_alloc_safe, mempool_alloc, mempool_slot_find, mempool_slot_assign; mempool_slot_clear as NON_MATCHING C |
+| `src/audio.c` | `src/audio.c`, `.h` | music_sequence_stop, MusicData |
+| `src/2610.c` | `src/audiomgr.c` | __amMain, __amDMA, __clearAudioDMA (kept by address), AMDMABuffer and the DMA state |
+| `src/25A70.c` | `src/object_functions.c` | obj_init_torch_mist (the radius scaling of func_80024E70/func_80024F40) |
+| `src/3430.c` | `src/audio_spatial.c` | audspat_init (func_80002830) |
+| `src/12D50.c` | `src/tracks.c` | get_inside_segment_count_xz (func_8001563C) |
+| `src/40240.c` | `src/camera.c` | cam_set_fov now matching, set_viewport_properties (func_800400D8), mtx_ortho's copy loop (func_80042134, NON_MATCHING) |
+| `src/3C470.c` | `src/textures_sprites.c` | the ASSETCACHE_ID/PTR cache layout |
+| `src/67780.c` | `src/thread0_epc.c` | thread0_Main, the thread search of write_epc_data_to_cpak |
+| `src/74270.c` | `src/game_text.c` | init_dialogue_text (func_80073670) |
+
+Only DKR's `src/` and `include/` are used. DKR's `libultra/` directory holds
+SGI's proprietary SDK source, not DKR's CC0 work, and nothing here comes
+from it.
+
 Function and variable names in these files are DKR's, including the
 "official names" DKR records in its comments. Many of these functions differ
 in JFG (dropped checks, other struct offsets, extra arguments); the comments

@@ -15,7 +15,7 @@ prints how much of it is built from C:
 
 | Part | Functions in C | Bytes in C |
 | --- | --- | --- |
-| main segment, game code | 552 / 1,319 | 62,080 / 539,960 |
+| main segment, game code | 750 / 1,320 | 98,088 / 539,928 |
 | main segment, libraries (libultra, n_audio, libc) | 81 / 341 | 12,428 / 102,408 |
 | runlink modules (157) | 0 / 1,385 (counted by returns) | 0 / 851,744 |
 
