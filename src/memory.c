@@ -78,21 +78,22 @@ MemoryPoolSlot *mempool_new_sub(s32 poolDataSize, s32 numSlots) {
  * Will return the location of the first free slot in that pool.
  * JFG: also records the pool's free size (and the main pool's in D_800FDD90).
  */
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the two moves before the loop (firstSlot = slots, i = 0) are swapped */
 MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots) {
     MemoryPoolSlot *firstSlot;
     s32 poolCount;
     s32 i;
     s32 firstSlotSize;
 
-    poolCount = ++gNumberOfMemoryPools;
+poolCount = ++gNumberOfMemoryPools;
+    firstSlotSize = poolSize - (numSlots * sizeof(MemoryPoolSlot));
     gMemoryPools[poolCount].maxNumSlots = numSlots;
     gMemoryPools[poolCount].curNumSlots = 0;
     gMemoryPools[poolCount].slots = slots;
     gMemoryPools[poolCount].size = poolSize;
-    for (i = 0, firstSlot = slots; i < gMemoryPools[poolCount].maxNumSlots; i++, firstSlot++) {
+    firstSlot = slots;
+    for (i = 0; i < gMemoryPools[poolCount].maxNumSlots; i++) {
         firstSlot->index = i;
+        firstSlot++;
     }
     firstSlot = &gMemoryPools[poolCount].slots[0];
     slots += numSlots;
@@ -101,8 +102,7 @@ MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots) 
     } else {
         firstSlot->data = (u8 *) slots;
     }
-    firstSlotSize = poolSize - (numSlots * sizeof(MemoryPoolSlot));
-    firstSlot->size = firstSlotSize;
+firstSlot->size = firstSlotSize;
     firstSlot->flags = SLOT_FREE;
     firstSlot->prevIndex = MEMSLOT_NONE;
     firstSlot->nextIndex = MEMSLOT_NONE;
@@ -113,9 +113,6 @@ MemoryPoolSlot *mempool_init(MemoryPoolSlot *slots, s32 poolSize, s32 numSlots) 
     D_800FDD98[poolCount] = firstSlotSize;
     return gMemoryPools[poolCount].slots;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004A4A4);
-#endif
 
 /**
  * Reserves and returns memory from the main memory pool.

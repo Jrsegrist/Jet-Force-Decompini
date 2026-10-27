@@ -129,7 +129,6 @@ func_8004AFFC = mempool_print_slots;
 func_8004AA08 = mempool_free_timer;
 func_8004A3D0 = mempool_init_main;
 func_8004A458 = mempool_new_sub;
-mempool_init = 0x8004A4A4;
 gFreeQueueCount = 0x800FDD88;
 gExpansionPak = 0x800A33F0;
 gRamEnd = 0x800FDDA8;
@@ -642,6 +641,9 @@ func_8003F7F4 = cam_set_fov;
 
 /* ---- round 4 functions in C ---- */
 func_8005EDA4 = emitter_init_with_pos;
+
+/* ---- round 4 functions in C ---- */
+func_8004A4A4 = mempool_init;
 
 /* ---- round 4 data used by new C ---- */
 gWeatherSoundMask = 0x800A5D50;
