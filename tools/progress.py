@@ -86,15 +86,31 @@ def module_progress(mapfile):
                 asm = set(re.findall(r'^\s*INCLUDE_ASM\(\s*"[^"]*"\s*,\s*(\w+)\s*\)', t, re.M))
             cur = [name, 0, 0, 0, 0, "C" if src else "asm", src, asm]
             mods.append(cur)
+            # The function list comes from the splitter's functions.txt when
+            # it exists: IDO writes no symbols for static functions, so the
+            # map of a C module does not list them.
+            flist = "asm/nonmatchings/modules/%s/functions.txt" % name
+            cur.append(os.path.exists(flist))
+            if cur[8]:
+                for fl in open(flist):
+                    if fl.startswith("#") or not fl.strip():
+                        continue
+                    fname, off, size = fl.split()
+                    count(cur, fname, int(size, 16))
+            continue
+        if cur[8]:
             continue
         fname, off, size = line.split()
-        size = int(size, 16)
-        cur[1] += 1
-        cur[2] += size
-        if cur[6] and fname not in cur[7]:
-            cur[3] += 1
-            cur[4] += size
+        count(cur, fname, int(size, 16))
     return [tuple(m[:6]) for m in mods]
+
+
+def count(cur, fname, size):
+    cur[1] += 1
+    cur[2] += size
+    if cur[6] and fname not in cur[7]:
+        cur[3] += 1
+        cur[4] += size
 
 
 def main():
