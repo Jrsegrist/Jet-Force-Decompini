@@ -36,6 +36,10 @@ CC0 places no conditions on reuse; the credit is given because it is due.
 | `src/2610.c` | `src/audiomgr.c` | 2 functions |
 | `src/3430.c` | `src/audio_spatial.c` | 8 functions (audspat_point_set_position, audspat_point_stop, audspat_play_sound_direct, audspat_play_sound_at_position, audspat_point_create, audspat_calculate_spatial_pan added), AudioPoint |
 | `src/74270.c` | `src/game_text.c` | 1 function |
+| `src/modules/m025.c` | `src/audio.c` | the audio set-up (audio_init, sound_seqplayer_init) in JFG's form, ALSeqpConfig |
+| `src/modules/m034.c` | `src/objects.c` | allocate_object_pools, decrypt_magic_codes in JFG's form |
+| `src/modules/m035.c` | `src/font.h`, `src/font.c` | DialogueBoxBackground, DialogueTextElement; the window set-up of load_fonts |
+| `src/modules/m036.c` | `src/thread3_main.c` | alloc_displaylist_heap, default_alloc_displaylist_heap and their size tables in JFG's form |
 | `include/common.h` | `include/types.h` | `MtxF`, `stubbed_printf` |
 | `include/modules/object.h` | `include/structs.h` | `ObjectTransform`, `Vec3f`/`Vec3s`, and the `Object` fields JFG keeps at DKR's offsets (with their names) |
 | `include/modules/gfx.h` | `include/structs.h`, `include/f3ddkr.h` | `Vertex`, `Triangle` (without DKR's unions), `gSPPolygon`, `G_TRIN` |

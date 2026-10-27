@@ -1,50 +1,51 @@
-/* Runlink module 1: a pool of 32 small particles, each drawn as two textured quads. */
-#include "common.h"
-
-/* The game's 10-byte vertex and 16-byte textured triangle */
-typedef struct M001Vertex {
-    s16 x;
-    s16 y;
-    s16 z;
-    u8 r;
-    u8 g;
-    u8 b;
-    u8 a;
-} M001Vertex;
-
-typedef struct M001Triangle {
-    u8 flags;
-    u8 vi0;
-    u8 vi1;
-    u8 vi2;
-    s16 uv[3][2];
-} M001Triangle;
+/*
+ * Runlink module 1: a pool of 32 small particles (drops) that fall, land and
+ * spread out as a fading splash, each drawn as two textured quads.
+ */
+#include "module.h"
+#include "gfx.h"
 
 typedef struct M001Particle {
-    u8 pad0[4];
-    s16 unk4;
-    u8 unk6; /* 0: free */
-    u8 unk7;
-    f32 unk8;
-    f32 unkC;
-    f32 unk10;
-    f32 unk14;
-    f32 unk18;
-    f32 unk1C;
-    f32 unk20;
-    f32 unk24;
-    f32 unk28;
-    s32 unk2C;
-    M001Vertex verts[2][4];
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u8 state; /* 0: free, 1: falling, 2: splashing */
+    /* 0x07 */ u8 alpha;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ f32 floorY;
+    /* 0x1C */ f32 vx;
+    /* 0x20 */ f32 vy;
+    /* 0x24 */ f32 vz;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ s32 buffer; /* which of the two vertex sets is current */
+    /* 0x30 */ Vertex verts[2][4];
 } M001Particle;
+
+/* What func_8004470C returns */
+typedef struct M001Env {
+    /* 0x00 */ u8 pad0[0xF3];
+    /* 0xF3 */ u8 r;
+    /* 0xF4 */ u8 g;
+    /* 0xF5 */ u8 b;
+} M001Env;
 
 extern void *func_80056798(s32, s32);
 extern void func_80056C14(void *);
 extern u8 *func_80055694(s32);
 extern void func_80055A00(void *);
-void func_m001_002A0(M001Particle *, s32);
+extern void func_800541B0(s32, s32, s32);
+extern M001Env *func_8004470C(void);
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void func_80056064(void);
+extern void func_80041174(Gfx **dl, s32 arg1, s32 arg2, M001Particle *p, void *model, s32 arg5, s32 arg6);
+extern void func_80055C00(Gfx **gfx, void *tex, s32 flags, s32 offset); /* sets a texture */
 
-static M001Triangle D_m001_00C30[2] = {
+void func_m001_002A0(M001Particle *p, s32 updateRate);
+
+static Triangle D_m001_00C30[2] = {
     { 0x40, 0, 1, 3, { { 0, 0 }, { 0, 0 }, { 0, 0 } } },
     { 0x40, 0, 3, 2, { { 0, 0 }, { 0, 0 }, { 0, 0 } } },
 };
@@ -52,7 +53,6 @@ static void *D_m001_00C50 = NULL; /* loaded with func_80056798 */
 static void *D_m001_00C54 = NULL; /* loaded with func_80056798 */
 static u8 *D_m001_00C58 = NULL;   /* texture, loaded with func_80055694 */
 static s32 D_m001_00C5C = 0;      /* particles in use */
-
 static M001Particle D_m001_00C70[32];
 static s32 D_m001_01C70; /* set once the resources are loaded */
 
@@ -68,7 +68,7 @@ static void func_m001_00000(void) {
     D_m001_00C54 = func_80056798(0x45, 0);
     D_m001_00C58 = func_80055694(0x1AC);
     for (i = 0, p = D_m001_00C70; i < 32; i++, p++) {
-        p->unk6 = 0;
+        p->state = 0;
         for (j = 0; j < 2; j++) {
             for (k = 0; k < 4; k++) {
                 p->verts[j][k].r = 0xFF;
@@ -105,7 +105,7 @@ void func_m001_00120(void) {
     D_m001_01C70 = 0;
 }
 
-M001Particle *func_m001_00188(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, f32 unk20, f32 unk24) {
+M001Particle *func_m001_00188(f32 scale, f32 x, f32 y, f32 z, f32 floorY, f32 vx, f32 vy, f32 vz) {
     M001Particle *p;
     s32 i;
 
@@ -116,30 +116,81 @@ M001Particle *func_m001_00188(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, f32 u
         return NULL;
     }
     for (i = 0, p = D_m001_00C70; i < 32; i++, p++) {
-        if (p->unk6 == 0) {
+        if (p->state == 0) {
             break;
         }
     }
     if (i < 32) {
         p->unk4 = 0;
-        p->unk6 = 1;
-        p->unk7 = 0x80;
-        p->unk8 = x;
-        p->unkC = y;
-        p->unk10 = z;
-        p->unk14 = vx;
-        p->unk18 = vy;
-        p->unk1C = vz;
-        p->unk20 = unk20;
-        p->unk24 = unk24;
-        p->unk2C = 1;
+        p->state = 1;
+        p->alpha = 0x80;
+        p->scale = scale;
+        p->x = x;
+        p->y = y;
+        p->z = z;
+        p->floorY = floorY;
+        p->vx = vx;
+        p->vy = vy;
+        p->vz = vz;
+        p->buffer = 1;
         p->unk28 = 0.0f;
         D_m001_00C5C++;
     }
     return p;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m001", func_m001_002A0);
+void func_m001_002A0(M001Particle *p, s32 updateRate) {
+    f32 size;
+    s16 y;
+    Vertex *v;
+
+    func_800541B0(1, 50, 10);
+    if (p->state == 1) {
+        while (updateRate--) {
+            p->x += p->vx;
+            p->y += p->vy;
+            p->z += p->vz;
+            p->vy -= 0.3f;
+            if (p->y < p->floorY) {
+                p->y = p->floorY;
+                p->state = 2;
+                break;
+            }
+        }
+    }
+    if (p->state == 2) {
+        while (updateRate--) {
+            p->unk28 += 0.5f;
+            p->alpha -= 2;
+            if (p->alpha == 0) {
+                p->state = 0;
+                D_m001_00C5C--;
+                break;
+            }
+        }
+        if (p->state != 0) {
+            p->buffer = 1 - p->buffer;
+            v = p->verts[p->buffer];
+            size = p->scale * (24.0f - 0.1875f * p->alpha);
+            y = p->floorY;
+            v->x = p->x - size;
+            v->y = y;
+            v->z = p->z + size;
+            v++;
+            v->x = p->x + size;
+            v->y = y;
+            v->z = p->z + size;
+            v++;
+            v->x = p->x - size;
+            v->y = y;
+            v->z = p->z - size;
+            v++;
+            v->x = p->x + size;
+            v->y = y;
+            v->z = p->z - size;
+        }
+    }
+}
 
 void func_m001_00600(s32 updateRate) {
     M001Particle *p;
@@ -148,16 +199,95 @@ void func_m001_00600(s32 updateRate) {
     if (D_m001_00C5C != 0) {
         p = D_m001_00C70;
         for (i = 0; i < 32; i++, p++) {
-            if (p->unk6 != 0) {
+            if (p->state != 0) {
                 func_m001_002A0(p, updateRate);
             }
         }
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m001", func_m001_00678);
+/* Draws one particle */
+static void func_m001_00678(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
+    f32 scale;
+    M001Env *env;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m001", func_m001_00978);
+    if ((p->state == 1 && D_m001_00C50 != NULL) || p->state == 2) {
+        env = func_8004470C();
+        scale = p->scale;
+        if (p->state != 2) {
+            func_8005600C(255, 255, 255, env->r, env->g, env->b);
+            p->scale = scale;
+            func_80041174(dl, arg2, arg3, p, D_m001_00C50, 6, 255);
+            func_80056064();
+        } else {
+            func_80055C00(dl, D_m001_00C58, 14, 0);
+            if (p->alpha < 32) {
+                gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, p->alpha * 8);
+            }
+            gSPVertexJFG((*dl)++, OS_K0_TO_PHYSICAL(p->verts[p->buffer]), 5, 0);
+            gSPPolygon((*dl)++, OS_K0_TO_PHYSICAL(D_m001_00C30), 2, 1);
+            if (D_m001_00C54 != NULL && p->unk28 < *(u8 *) D_m001_00C54) {
+                p->scale = scale * 0.6f;
+                gDPSetPrimColor((*dl)++, 0, 0, env->r, env->g, env->b, 160);
+                gDPSetEnvColor((*dl)++, 255, 255, 255, 0);
+                func_80041174(dl, arg2, arg3, p, D_m001_00C54, 14, 0);
+            }
+        }
+        p->scale = scale;
+        gDPPipeSync((*dl)++);
+        gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    }
+}
+
+/* Draws the particles in use, nearest to the camera first */
+void func_m001_00978(Gfx **dl, s32 arg1, s32 arg2) {
+    s32 i;
+    s32 sorted;
+    f32 unused; /* keeps the frame layout */
+    s32 count;
+    s32 order[32];
+    s32 ti;
+    ObjectTransform *cam;
+    M001Particle *p;
+    f32 dist[32];
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    if (D_m001_01C70 != 0 && D_m001_00C5C != 0) {
+        cam = func_80041DE0();
+        for (i = 0, count = 0, p = D_m001_00C70; i < 32; i++, p++) {
+            if (p->state != 0) {
+                dx = p->x - cam->x_position;
+                dy = p->y - cam->y_position;
+                dz = p->z - cam->z_position;
+                order[count] = i;
+                dist[count] = dx * dx + dy * dy + dz * dz;
+                count++;
+            }
+        }
+        if (count >= 2) {
+            do {
+                sorted = 1;
+                for (i = 0; i < count - 1; i++) {
+                    if (dist[i + 1] < dist[i]) {
+                        dx = dist[i];
+                        dist[i] = dist[i + 1];
+                        dist[i + 1] = dx;
+                        ti = order[i];
+                        order[i] = order[i + 1];
+                        order[i + 1] = ti;
+                        sorted = 0;
+                    }
+                }
+            } while (!sorted);
+        }
+        for (i = 0; i < count; i++) {
+            func_m001_00678(&D_m001_00C70[order[i]], dl, arg1, arg2);
+        }
+    }
+}
 
 /* The module's shutdown function (runlink fini) */
 void func_m001_00C0C(void) {
@@ -165,4 +295,3 @@ void func_m001_00C0C(void) {
 }
 #pragma weak __rl_fini = func_m001_00C0C
 
-INCLUDE_ASM("asm/nonmatchings/modules/m001", rodata);

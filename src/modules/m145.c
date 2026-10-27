@@ -59,18 +59,15 @@ void func_m145_00000(Object *obj) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Equivalent; only the stack slot of `flags` differs (0x28 here, 0x2C in the original) */
 void func_m145_000D0(Object *obj) {
     M145Enemy *e;
     Object *homeObj;
     M145Home *home;
-    f32 unused; /* keeps the frame layout */
+    s16 *flags;
     f32 top;
     f32 bottom;
     s16 angle;
     f32 dist;
-    s16 *flags;
 
     e = obj->unk68;
     homeObj = e->home;
@@ -110,6 +107,3 @@ void func_m145_000D0(Object *obj) {
     }
     func_m003_04F88(0, 1.0f);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m145", func_m145_000D0);
-#endif

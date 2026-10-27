@@ -56,25 +56,17 @@ void func_m100_00000(Object *obj, M100Setup *setup) {
     *(s32 *) obj->state = 0;
 }
 
-#ifdef NON_MATCHING
-/*
- * Equivalent. The original's frame has room for only seven named locals
- * (IDO gives every named local a slot), yet it keeps y in a register from
- * the first test on; no arrangement tried gives both.
- */
 void func_m100_00110(Object *obj, s32 updateRate) {
-    M100Pad *pad = obj->unk68;
-    Object *last;
-    s32 add;
-    s32 n;
     s32 i;
-    Object *list[12];
-    Object *o;
-    M100Player *player;
-    f32 dx;
-    f32 dz;
+    s32 n;
+    s32 add;
     f32 y;
+    Object *list[12];
+    Object *last;
+    M100Pad *pad;
+    M100Player *player;
 
+    pad = obj->unk68;
     func_800541B0(D_m100_002F0, 2, 2);
     last = pad->last;
     pad->last = NULL;
@@ -84,12 +76,14 @@ void func_m100_00110(Object *obj, s32 updateRate) {
         if (n != 0) {
             for (i = 0; i < n; i++) {
                 if (pad->uses < 0 || last != list[i]) {
-                    o = list[i];
-                    dx = o->trans.x_position - obj->trans.x_position;
-                    dz = o->trans.z_position - obj->trans.z_position;
-                    y = o->trans.y_position;
-                    if (dx * dx + dz * dz < pad->radius * pad->radius && y < pad->maxY && pad->minY < y) {
-                        player = o->unk68;
+                    y = list[i]->trans.y_position;
+                    if ((list[i]->trans.z_position - obj->trans.z_position) *
+                                (list[i]->trans.z_position - obj->trans.z_position) +
+                                (list[i]->trans.x_position - obj->trans.x_position) *
+                                    (list[i]->trans.x_position - obj->trans.x_position) <
+                            pad->radius * pad->radius &&
+                        y < pad->maxY && pad->minY < y) {
+                        player = list[i]->unk68;
                         if (player->fuel < pad->amount && (player->flags & 4)) {
                             player->fuel += add;
                             player->fuelTimer = 360;
@@ -107,6 +101,3 @@ void func_m100_00110(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m100", func_m100_00110);
-#endif

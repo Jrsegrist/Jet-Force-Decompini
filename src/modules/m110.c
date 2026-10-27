@@ -60,8 +60,14 @@ void func_m110_00000(Object *obj, M110Setup *setup, s32 arg2) {
 }
 
 #ifdef NON_MATCHING
-/* Equivalent; the original keeps the parameters in saved registers and orders the bounds differently */
+/*
+ * Equivalent. The original's frame is 8 bytes bigger (one more spill slot
+ * below the named locals) and it numbers a few temporaries differently.
+ */
 static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ) {
+    s32 n;
+    M110Model *model;
+    s32 i;
     s32 segments[0x20];
     s32 minX;
     s32 minY;
@@ -69,17 +75,14 @@ static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ
     s32 maxX;
     s32 maxY;
     s32 maxZ;
-    s32 n;
-    M110Model *model;
-    s32 *p;
     M110Vertex *v;
     s32 k;
 
     minX = x - sizeX;
-    maxX = x + sizeX;
     minY = y - sizeY;
-    maxY = y + sizeY;
     minZ = z - sizeZ;
+    maxX = x + sizeX;
+    maxY = y + sizeY;
     maxZ = z + sizeZ;
     n = func_80015714(segments, minX, minY, minZ, maxX, maxY, maxZ);
     if (n == 0) {
@@ -96,11 +99,14 @@ static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ
     if (model == NULL) {
         return;
     }
-    for (p = segments; p < segments + n && D_800A0D84 < 0x80; p++) {
-        k = model->segments[*p].numVertices;
-        v = model->segments[*p].vertices;
+    for (i = 0; i < n && D_800A0D84 < 0x80; i++) {
+        k = model->segments[segments[i]].numVertices;
+        v = model->segments[segments[i]].vertices;
         while (k--) {
-            if (v->x >= minX && v->x <= maxX && v->y >= minY && v->y <= maxY && v->z >= minZ && v->z <= maxZ) {
+            x = v->x;
+            y = v->y;
+            z = v->z;
+            if (x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ) {
                 D_800A0D88[D_800A0D84].colour = v->colour;
                 D_800A0D88[D_800A0D84].saved[0] = v->colour[0];
                 D_800A0D88[D_800A0D84].saved[1] = v->colour[1];
@@ -112,6 +118,7 @@ static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ
         }
     }
 }
+
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m110", func_m110_00054);
 #endif

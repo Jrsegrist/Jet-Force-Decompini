@@ -37,26 +37,17 @@ extern f32 func_80049C30(s32 angle); /* cosine */
 
 s32 D_m138_002F0 = 138; /* the module's number */
 
-#ifdef NON_MATCHING
-/*
- * Equivalent. The original converts the distance before the call to
- * func_800541B0 and keeps it on the stack (the ship pointer gets s0); IDO
- * here sinks the computation past the call or keeps it in s0.
- */
 void func_m138_00000(Object *obj) {
     M138Enemy *e = obj->unk68;
     Object *player;
     M138Ship *s;
-    f32 dx;
-    f32 dz;
     u32 dist;
 
-    player = func_m003_053C4();
-    dx = obj->trans.x_position - player->trans.x_position;
-    dz = obj->trans.z_position - player->trans.z_position;
-    dist = dx * dx + dz * dz;
-    func_800541B0(D_m138_002F0, 2, 2);
     s = &e->ship;
+    player = func_m003_053C4();
+    dist = (obj->trans.x_position - player->trans.x_position) * (obj->trans.x_position - player->trans.x_position) +
+           (obj->trans.z_position - player->trans.z_position) * (obj->trans.z_position - player->trans.z_position);
+    func_800541B0(D_m138_002F0, 2, 2);
     if (s->attacking != 0) {
         e->x = player->trans.x_position;
         e->y = player->trans.y_position + 400.0f;
@@ -95,6 +86,3 @@ move:
     e->z = func_80049C30(obj->trans.rotation.y_rotation + s->angle) * 1000.0f + obj->trans.z_position;
     obj->trans.rotation.x_rotation = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m138", func_m138_00000);
-#endif
