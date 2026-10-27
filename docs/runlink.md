@@ -223,14 +223,19 @@ Examples: `src/modules/m078.c`, `m045.c` and `m020.c` (whole modules;
 m045's relocation table is one of the 72 out-of-order ones), `m119.c` (an
 exported variable), `m108.c` (a call into another module), `m094.c` (a jump
 table in C), `m038.c` (a display list with C data), `m060.c` (C function,
-assembly data), `m118.c` (C next to INCLUDE_ASM functions, the rest under
-NON_MATCHING), and `src/modules/m001.c` (C data and five C functions, among
-them a static one and the fini, next to three INCLUDE_ASM functions and the
-INCLUDE_ASM .rodata).
+assembly data), `m001.c` (a particle library: C data, .rodata and .bss,
+static functions and the fini), `m118.c` (three behaviours sharing one jump
+table), `m025.c` and `m036.c` (DKR set-up code in JFG's form), and `m110.c`
+(a C function calling a static one that is still INCLUDE_ASM).
 
 Equivalent C that does not match yet is kept under `#ifdef NON_MATCHING`
-with the INCLUDE_ASM lines in the `#else` branch (m089, m100, m110, m118,
-m138, m145).
+with the INCLUDE_ASM lines in the `#else` branch (m089, m110).
+
+The probe-style check of one function (compile, compare with the ROM module
+with relocated fields masked) does not see static functions on their own:
+IDO writes no symbol for them, so a module map or a symbol-based diff lists
+their bytes under the function before. `tools/progress.py` therefore counts
+module functions from the splitter's `functions.txt`.
 
 Shared headers (`-I include/modules`): `module.h` (the module ABI and the
 main-segment functions modules share, including module 6's message queue
@@ -247,7 +252,7 @@ lessons apply too):
   slots; unexplained `& 0xFF` on byte fields, odd temporaries and unused
   stack slots (m020, m108) are part of the original source; a module's .data
   can be several small static variables rather than one struct (m001).
-- IDO gives every named local a stack slot, in reverse declaration order
+- IDO gives most named locals a stack slot, in reverse declaration order
   (the first declared gets the highest address), even one that lives in a
   register or is never used. The frame size and where spilled values and
   arrays sit therefore tell how many locals the original declared and in
@@ -285,7 +290,22 @@ lessons apply too):
   strings in the module's data (m089's "GVP:" string).
 - Module data can stay assembly while its functions are C: C refers to it as
   `extern` `D_mNNN_XXXXX` (the builder resolves the module's own offset), as
-  m060 does for its object table.
+  m060 does for its object table. A float constant cannot: an `extern` or
+  `static const` float is loaded differently from a literal, so functions
+  with float literals wait for the whole .rodata (m001).
+- Not every local gets a slot after all: locals that never live across a
+  call can stay in registers. A frame that is too big usually means the
+  original wrote some values inline instead of in named locals (m100,
+  m138's distance; IDO CSEs a repeated subexpression within a statement),
+  and one that is too small an unused local (m001's sort).
+- A value the original keeps in a saved register is often a variable reused
+  for something else: parameters reused for the vertex coordinates (m110), a
+  loop counter reused as an accumulator (m035), the distance's dx reused as
+  the sort's swap temporary (m001). A pointer taken before the first call
+  gets the saved register before values computed later (m138).
+- `p->x = ...; v++;` sequences give IDO's "pointer advanced once, negative
+  offsets" pattern (m001); a bound written in the loop condition
+  (`i < a - b`) keeps `slt` where a count variable becomes `!=` (m089).
 
 ## Module families
 
