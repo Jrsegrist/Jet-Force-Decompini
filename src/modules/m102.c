@@ -45,9 +45,9 @@ typedef struct M102Model {
     /* 0x68 */ Vec3f *points;
 } M102Model;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
-extern void func_800285B0(s16 kind, s16 x, s16 y, s16 z, s32 arg4, Object *thrower);
+extern void spawn_object_from_list(s16 kind, s16 x, s16 y, s16 z, s32 arg4, Object *thrower);
 extern void func_80052734(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void func_800577A8(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
@@ -77,7 +77,7 @@ void func_m102_00000(Object *obj, M102Setup *setup) {
         obj->trans.rotation.y_rotation = setup->yRotation;
         obj->trans.rotation.x_rotation = setup->xRotation;
         obj->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF);
-        obj->unk28 = func_80048E2C(0, *(u8 *) obj->unk6C[0] - 1);
+        obj->unk28 = func_80048E2C(0, *(u8 *) obj->modelInstances[0] - 1);
         func_8004944C(&obj->trans.rotation, &obj->velocity);
         radius = 32.0f;
         from.x = obj->trans.x_position - obj->velocity.x * radius;
@@ -119,7 +119,7 @@ void func_m102_002B4(Object *obj) {
     if (thrower != NULL && thrower->behaviorId != 1) {
         thrower = NULL;
     }
-    func_800285B0(kind, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 8, thrower);
+    spawn_object_from_list(kind, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 8, thrower);
     func_80003410(0x22, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
     func_80052734(NULL, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x22);
     func_800079B8(obj);
@@ -132,14 +132,14 @@ void func_m102_00490(Object *obj, s32 updateRate) {
     M102Model *model;
     f32 scale;
 
-    func_800541B0(D_m102_00830, 2, 2);
+    runlink_unload_timer_set(D_m102_00830, 2, 2);
     b->timer -= updateRate;
     if (b->timer <= 0) {
         func_m102_002B4(obj);
         return;
     }
     if (b->held) {
-        model = ((M102Model **) b->thrower->unk6C)[b->thrower->modelIndex];
+        model = ((M102Model **) b->thrower->modelInstances)[b->thrower->modelIndex];
         obj->particleEmittersEnabled = 0;
         if (model == NULL) {
             return;
@@ -160,7 +160,7 @@ void func_m102_00490(Object *obj, s32 updateRate) {
             scale = 1.0f;
         }
         b->spin += 256.0f * scale * updateRate;
-        func_800577A8(obj->unk6C[0], &b->anim, 10.0f * scale, &obj->unk28, updateRate);
+        func_800577A8(obj->modelInstances[0], &b->anim, 10.0f * scale, &obj->unk28, updateRate);
     }
     obj->trans.rotation.z_rotation = b->spin;
     if (b->anim & 2) {

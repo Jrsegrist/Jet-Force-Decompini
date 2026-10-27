@@ -30,10 +30,10 @@ typedef struct M043PlayerData {
     /* 0x1 */ s8 unk1;
 } M043PlayerData;
 
-extern s32 func_80047D80(s32 player, s32 arg1, s32 id);
-extern s32 func_80047E44(s32 player, s32 arg1, s32 id);
+extern s32 character_has_item(s32 player, s32 arg1, s32 id);
+extern s32 character_has_weapon(s32 player, s32 arg1, s32 id);
 extern s32 func_80047DD8(s32 id);
-extern void func_80047C9C(s32 player, s32 arg1, s32 id);
+extern void character_item_give(s32 player, s32 arg1, s32 id);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80001170(u8 sound);
 
@@ -105,13 +105,13 @@ void func_m043_00014(Object *obj, s32 updateRate) {
         while (i--) {
             switch (e->kind[i]) {
                 case 0:
-                    got[i] = func_80047ED0(e->id[i]);
+                    got[i] = game_flag_get(e->id[i]);
                     break;
                 case 1:
-                    got[i] = func_80047D80(pd->player, pd->unk1, e->id[i]);
+                    got[i] = character_has_item(pd->player, pd->unk1, e->id[i]);
                     break;
                 case 2:
-                    got[i] = func_80047E44(pd->player, pd->unk1, e->id[i]);
+                    got[i] = character_has_weapon(pd->player, pd->unk1, e->id[i]);
                     break;
                 case 3:
                     got[i] = func_80047DD8(e->id[i]);
@@ -149,7 +149,7 @@ void func_m043_00014(Object *obj, s32 updateRate) {
                 break;
             case 1:
             case 3:
-                func_80047C9C(pd->player, pd->unk1, e->id[0]);
+                character_item_give(pd->player, pd->unk1, e->id[0]);
                 break;
         }
         if (e->message != -1) {
@@ -163,9 +163,9 @@ void func_m043_00014(Object *obj, s32 updateRate) {
                 func_80001170(sound);
             }
         } else if (e->objectID >= 0x265 && e->objectID < 0x268) {
-            a = func_80047ED0(0x2D);
-            b = func_80047ED0(0x2C);
-            func_80001170(func_80047ED0(0x2E) + b + a + 0x46);
+            a = game_flag_get(0x2D);
+            b = game_flag_get(0x2C);
+            func_80001170(game_flag_get(0x2E) + b + a + 0x46);
         }
         if (e->keep) {
             obj->modelIndex = 1;

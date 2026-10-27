@@ -4,7 +4,8 @@ asm-processor, as the Makefile does) and compare each C function word by word
 with the ROM at the function's address, relocated fields masked.
 
 A function is placed by its func_XXXXXXXX name, by `func_XXXXXXXX = cname;` in
-undefined_syms.us.txt, or by a runlink name (read from your ROM). Functions
+undefined_syms.us.txt or `func_XXXXXXXX = cname` in names.txt, or by a runlink
+name (read from your ROM). Functions
 whose address has an INCLUDE_ASM line in the file are skipped. Afterwards it
 lists the address the ROM gives every symbol the object references
 (SYMBOL MISMATCH = wrong extern) and warns when the object has its own

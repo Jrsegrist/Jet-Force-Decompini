@@ -60,7 +60,7 @@ typedef struct M104PlayerStats {
 
 /* The object's s16 at 0x2E */
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
 extern M104PlayerStats *func_80047C1C(s32 player, s32 arg1);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
@@ -130,7 +130,7 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
     ObjectInteraction *hit;
     s32 n;
 
-    func_800541B0(D_m104_006A0, 2, 2);
+    runlink_unload_timer_set(D_m104_006A0, 2, 2);
     if (p->lifetime != 0) {
         p->lifetime -= updateRate;
         if (p->lifetime <= 0) {
@@ -151,14 +151,14 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
         }
     }
     if (p->objectID == 0xE9) {
-        if (func_80047ED0(p->flag + 0x2F)) {
+        if (game_flag_get(p->flag + 0x2F)) {
             func_800079B8(obj);
             return;
         }
         func_8001138C(obj, 0.01f, updateRate);
     } else {
         anim = 9;
-        func_800577A8(obj->unk6C[obj->modelIndex], &anim, 12, &obj->unk28, updateRate);
+        func_800577A8(obj->modelInstances[obj->modelIndex], &anim, 12, &obj->unk28, updateRate);
     }
     n = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 250.0f, 0, list);
     near = 0;
@@ -193,12 +193,12 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
             if (near) {
                 hit = list[0]->interactObj;
                 pd = list[0]->unk68;
-                if (hit->unk6 >= 0x100) {
+                if (hit->hitPoints >= 0x100) {
                     stats = func_80047C1C(pd->player, pd->unk1);
                     if (p->objectID == 0xE9) {
                         if (stats->healthUpgrades < 12) {
                             stats->healthUpgrades++;
-                            hit->unk6 = (stats->healthUpgrades * 5 + 4) << 8;
+                            hit->hitPoints = (stats->healthUpgrades * 5 + 4) << 8;
                             func_m006_011E0(pd, 0x87);
                             func_80001248(0x1E7, 0);
                             max = stats->healthUpgrades * 5 + 4;
@@ -211,22 +211,22 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
                         max = stats->healthUpgrades * 5 + 4;
                         switch (ST(obj)->size) {
                             case 1:
-                                hit->unk6 += 0x500;
+                                hit->hitPoints += 0x500;
                                 func_80001248(0x229, 0);
                                 break;
                             case 2:
-                                hit->unk6 = max << 8;
+                                hit->hitPoints = max << 8;
                                 func_80001248(0x22A, 0);
                                 break;
                             default:
-                                hit->unk6 += 0x100;
+                                hit->hitPoints += 0x100;
                                 func_80001248(0x228, 0);
                                 break;
                         }
                         func_m006_011E0(pd, ST(obj)->size + 0x84);
                     }
-                    if (max << 8 < hit->unk6) {
-                        hit->unk6 = max << 8;
+                    if (max << 8 < hit->hitPoints) {
+                        hit->hitPoints = max << 8;
                     }
                     if (p->respawn != 0) {
                         p->timer = p->respawn * 60;

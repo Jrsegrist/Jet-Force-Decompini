@@ -79,7 +79,7 @@ extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 ar
 extern void func_800595F4(Gfx **dl, s32 count, M046Rect *rects, s32 arg3);         /* fills rectangles */
 extern void func_80054EA0(s32 *width, s32 *height, Gfx **dl);
 extern void func_80055B80(Gfx **dl);
-extern s32 func_80053370(s32 module);
+extern s32 runlink_module_loaded(s32 module);
 extern void func_m039_00540(s32 *r, s32 *g, s32 *b);
 extern void func_m023_006B0(s32 *r, s32 *g, s32 *b);
 extern void func_m029_00E98(s32 *r, s32 *g, s32 *b);
@@ -344,15 +344,15 @@ void func_m046_006EC(u8 *enabled, M046Model *model, s32 updateRate) {
         }
         D_80104704 = r;
     }
-    if (func_80053370(39)) {
+    if (runlink_module_loaded(39)) {
         func_m039_00540(&r, &g, &b);
-    } else if (func_80053370(23)) {
+    } else if (runlink_module_loaded(23)) {
         func_m023_006B0(&r, &g, &b);
     } else {
         g = r;
         b = r;
     }
-    if (func_80053370(29)) {
+    if (runlink_module_loaded(29)) {
         func_m029_00E98(&r, &g, &b);
     }
     i = model->numBatches;

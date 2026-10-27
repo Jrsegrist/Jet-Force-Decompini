@@ -48,12 +48,12 @@ typedef struct M096Hit {
     /* 0x28 */ s32 surface;
 } M096Hit;
 
-extern void func_800541B0(s32, s32, s32);
-extern void func_8003B820(s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
+extern void player_drop_held_object(s32);
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 extern f32 func_80097140(f32); /* square root */
 extern void func_80048B60(f32 *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
-extern void func_80013FE0(s32 light, f32 x, f32 y, f32 z);
+extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_m105_01474(Object *obj, f32 *x, f32 *y, f32 *z, f32 *ox, f32 *oy, f32 *oz);
 
@@ -91,10 +91,10 @@ void func_m096_00088(Object *obj, s32 updateRate) {
     Object *o;
     M096Model *m;
 
-    func_800541B0(D_m096_00620, 2, 2);
+    runlink_unload_timer_set(D_m096_00620, 2, 2);
     if (f->timer == 0) {
         if (f->unk0 != 0) {
-            func_8003B820(f->unk0);
+            player_drop_held_object(f->unk0);
         }
         func_800079B8(obj);
         return;
@@ -157,7 +157,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
             }
         }
         if (f->light != 0) {
-            func_80013FE0(f->light, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+            track_light_set_position(f->light, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
         }
         obj->particleEmittersEnabled = 1;
         func_8005F5AC(obj, updateRate);
@@ -185,7 +185,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
                               dz - obj->trans.z_position);
             }
             if (f->light != 0) {
-                func_80013FE0(f->light, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+                track_light_set_position(f->light, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
             }
         }
     }

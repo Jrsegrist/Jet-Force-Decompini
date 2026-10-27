@@ -62,18 +62,18 @@ extern LevelModel *gCurrentLevelModel;
 extern s32 gSceneRenderSkyDome;
 extern s32 gSceneStartSegment;
 
-s32 func_80053370(s32 module); // JFG: whether a runlink module is loaded
+s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loaded
 void func_80054530();          // a module function (patched in by the runtime linker)
 
 /* JFG: run the track effects of the modules 1, 8 and 10 that are loaded. */
 void func_80012150(s32 arg0) {
-    if (func_80053370(1)) {
+    if (runlink_module_loaded(1)) {
         func_80054530(arg0);
     }
-    if (func_80053370(8)) {
+    if (runlink_module_loaded(8)) {
         func_80054530(arg0);
     }
-    if (func_80053370(0xA)) {
+    if (runlink_module_loaded(0xA)) {
         func_80054530(arg0);
     }
 }
@@ -163,7 +163,8 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800136B8);
 
-Object *func_80013810(void) {
+/* Returns the skydome object (0x80013810). */
+Object *get_skydome_object(void) {
     return gSkydomeSegment;
 }
 
@@ -200,17 +201,17 @@ typedef struct TrackLight {
     /* 0x14 */ f32 outerRadiusSquare;
     /* 0x18 */ f32 innerRadiusSquare;
     /* 0x1C */ f32 falloff;
-    /* 0x20 */ u8 ramp[0x60]; // filled by func_80013F48
+    /* 0x20 */ u8 ramp[0x60]; // filled by track_light_set_colour
 } TrackLight;
 
 extern SegmentAlloc *D_800A0D80;
-extern TrackLight *D_800A0D78; // JFG: D_800A0D70 track lights
-extern s32 D_800A0D74;
-extern s32 D_800A0D70;
+extern TrackLight *gTrackLights; // JFG: gMaxTrackLights track lights
+extern s32 gNumTrackLights;
+extern s32 gMaxTrackLights;
 void mempool_free(void *data);
 
-/* JFG: free the per-segment buffers and the track lights. */
-void func_80013D3C(void) {
+/* JFG: free the per-segment buffers and the track lights (0x80013D3C). */
+void track_segment_data_free(void) {
     s32 i;
 
     if (D_800A0D80 != NULL) {
@@ -223,16 +224,16 @@ void func_80013D3C(void) {
         mempool_free(D_800A0D80);
         D_800A0D80 = NULL;
     }
-    if (D_800A0D78 != NULL) {
-        mempool_free(D_800A0D78);
-        D_800A0D78 = NULL;
+    if (gTrackLights != NULL) {
+        mempool_free(gTrackLights);
+        gTrackLights = NULL;
     }
-    D_800A0D74 = 0;
-    D_800A0D70 = 0;
+    gNumTrackLights = 0;
+    gMaxTrackLights = 0;
 }
 
 extern f32 D_800AB648; // a .rodata constant, not split out yet
-void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
+void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
 #ifdef NON_MATCHING
 /**
@@ -247,8 +248,8 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
     if (outerRadius <= 0.0f) {
         return NULL;
     }
-    light = D_800A0D78;
-    i = D_800A0D70;
+    light = gTrackLights;
+    i = gMaxTrackLights;
     while (i--) {
         if (light->outerRadius == 0.0f) {
             light->x = x;
@@ -259,8 +260,8 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
             light->innerRadiusSquare = innerRadius * innerRadius;
             light->z = z;
             light->falloff = D_800AB648 / (outerRadius - innerRadius);
-            func_80013F48((u8 *) light, red, green, blue, 255);
-            D_800A0D74++;
+            track_light_set_colour((u8 *) light, red, green, blue, 255);
+            gNumTrackLights++;
             return light;
         }
         light++;
@@ -271,20 +272,20 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
 #endif
 
-extern s32 D_800A0D74;
+extern s32 gNumTrackLights;
 
-/* JFG: switch a track light off (its intensity at 0xC), keeping a count of lit ones. */
-void func_80013F08(f32 *light) {
+/* JFG: switch a track light off (its intensity at 0xC), keeping a count of lit ones (0x80013F08). */
+void track_light_off(f32 *light) {
     if (light != NULL) {
         if (light[3] != 0.0f) {
             light[3] = 0.0f;
-            D_800A0D74--;
+            gNumTrackLights--;
         }
     }
 }
 
-/* JFG: fill a track light's ramp of 32 colours (from 0x20) up to the colour, scaled by brightness. */
-void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness) {
+/* JFG: fill a track light's ramp of 32 colours (from 0x20) up to the colour, scaled by brightness (0x80013F48). */
+void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness) {
     s32 i;
     u8 *ramp;
     s32 stepRed, stepGreen, stepBlue;
@@ -312,7 +313,8 @@ void func_80013F48(u8 *light, s32 red, s32 green, s32 blue, s32 brightness) {
     }
 }
 
-void func_80013FE0(f32 *light, f32 x, f32 y, f32 z) {
+/* Moves a track light (0x80013FE0). */
+void track_light_set_position(f32 *light, f32 x, f32 y, f32 z) {
     if (light != NULL) {
         light[0] = x;
         light[1] = y;
@@ -443,12 +445,13 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015510);
 #endif
 
+/* Writes the segments whose bounding box holds the point on the XZ plane; returns the count (0x8001563C). */
 /**
  * Write the segments whose bounding box (grown by 4) holds the point on the XZ plane.
  * JFG: the list is of shorts.
  * DKR: get_inside_segment_count_xz
  */
-s32 func_8001563C(s32 x, s32 z, s16 *arg2) {
+s32 get_inside_segment_count_xz(s32 x, s32 z, s16 *arg2) {
     s32 i;
     s32 cnt = 0;
     LevelModelSegmentBoundingBox *bb;
@@ -511,10 +514,10 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_800158BC);
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015B3C);
 
 extern u8 D_800A4FC4;
-s32 func_8003FC1C(); // the current camera (called with two arguments it ignores)
+s32 cam_get_active_camera_id(); // the current camera (called with two arguments it ignores)
 
-/* JFG: the opacity to draw a racer with (255 = opaque). */
-s32 func_80015E3C(Object *obj) {
+/* JFG: the opacity to draw a racer with (255 = opaque) (0x80015E3C). */
+s32 player_get_draw_alpha(Object *obj) {
     s32 alpha;
     Object_Racer *racer;
 
@@ -523,7 +526,7 @@ s32 func_80015E3C(Object *obj) {
     if (racer->unk5C0 == 0) {
         if (racer->unk568 == 10) {
             alpha = 255 - racer->unk19C * 2;
-        } else if (func_8003FC1C(obj, racer) == racer->playerIndex) {
+        } else if (cam_get_active_camera_id(obj, racer) == racer->playerIndex) {
             alpha = 255 - racer->unk19C * 4;
             if (D_800A4FC4) {
                 alpha -= racer->unk19C;
@@ -590,8 +593,8 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80018808);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800191D8);
 
-/* JFG: clip a line's parameter range [*tEnter, *tLeave] against one plane; FALSE if nothing is left. */
-s32 func_80019518(f32 denom, f32 num, f32 *tEnter, f32 *tLeave) {
+/* JFG: clip a line's parameter range [*tEnter, *tLeave] against one plane; FALSE if nothing is left (0x80019518). */
+s32 line_clip_plane(f32 denom, f32 num, f32 *tEnter, f32 *tLeave) {
     f32 t;
 
     if (denom > 0.0f) {
@@ -729,7 +732,7 @@ void set_fog(s32 fogIdx, s16 near, s16 far, s16 unk, u8 red, u8 green, u8 blue, 
     fogData->fogChanger = NULL;
 }
 
-s32 func_80053370(s32 module);
+s32 runlink_module_loaded(s32 module);
 /* Calls into runtime-linked modules: the jal goes to the dangling-jump trap until
    the module is loaded and the linker patches it. Different modules' functions,
    so no prototype. */
@@ -743,11 +746,11 @@ void func_80054530();
  * Official Name: trackGetFog
  */
 void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g, u8 *b, u8 *unk2) {
-    if (func_80053370(0x27)) {
+    if (runlink_module_loaded(0x27)) {
         func_80054530(near, far, r, g, b);
         *unk = 0;
         *unk2 = 0;
-    } else if (func_80053370(0x17)) {
+    } else if (runlink_module_loaded(0x17)) {
         func_80054530(near, far, r, g, b);
         *unk = 0;
         *unk2 = 0;
@@ -760,7 +763,7 @@ void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g,
         *b = gFogData[playerID].fog.b >> 16;
         *unk2 = gFogData[playerID].intendedFog.unk3 & 0x7F;
     }
-    if (func_80053370(0x1D)) {
+    if (runlink_module_loaded(0x1D)) {
         func_80054530(r, g, b, near, far, unk2);
     }
 }
@@ -951,8 +954,8 @@ void slowly_change_fog(s32 fogIdx, s32 red, s32 green, s32 blue, s32 near, s32 f
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C650);
 
-/* JFG: the index of the highest set bit (-1 for zero). */
-s32 func_8001C758(u32 value) {
+/* JFG: the index of the highest set bit (-1 for zero) (0x8001C758). */
+s32 highest_set_bit(u32 value) {
     s32 bit = -1;
     while (value != 0) {
         bit++;

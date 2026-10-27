@@ -63,7 +63,7 @@ extern s32 func_800468CC(void);
 extern M077Stats *func_80047C1C(s32 player, s32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 arg3, f32 arg4);
-extern void func_80041DA0(Gfx **dl);
+extern void mtx_pop(Gfx **dl);
 extern void func_80055B80(Gfx **dl);
 
 /* Loads a model's matrices (the game's own command 0xBF) */
@@ -211,7 +211,7 @@ void func_m077_00548(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     gDPSetPrimColor((*dl)++, 0, 0, d->brightness, d->brightness, d->brightness, obj->opacity);
     obj->trans.x_position = x - dx;
     obj->trans.z_position = z + dz;
-    part = ((M077Part **) obj->unk6C)[1];
+    part = ((M077Part **) obj->modelInstances)[1];
     gSPPartMatrices((*dl)++, part->matrices + 0x80000000);
     func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
     if (obj->opacity == 0xFF) {
@@ -221,7 +221,7 @@ void func_m077_00548(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     }
     obj->trans.x_position = x + dx;
     obj->trans.z_position = z - dz;
-    part = ((M077Part **) obj->unk6C)[2];
+    part = ((M077Part **) obj->modelInstances)[2];
     gSPPartMatrices((*dl)++, part->matrices + 0x80000000);
     func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
     if (obj->opacity == 0xFF) {
@@ -230,7 +230,7 @@ void func_m077_00548(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         gSPDisplayList((*dl)++, part->model->translucentList + 0x80000000);
     }
     gSPPartMatrices((*dl)++, 0);
-    func_80041DA0(dl);
+    mtx_pop(dl);
     gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
     func_80055B80(dl);
     obj->trans.x_position = x;

@@ -13,8 +13,8 @@ extern SpawnEntry **D_800F6B04;
 extern s32 D_800F6B08;
 void *spawn_object(SpawnEntry *entry, s32 arg1);
 
-/* JFG: spawn entry index at (x, y, z). */
-void func_800285B0(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5) {
+/* JFG: spawn entry index at (x, y, z) (0x800285B0). */
+void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5) {
     SpawnEntry *entry;
 
     if (index >= D_800F6B08) {
@@ -45,8 +45,8 @@ typedef struct EmitterHeader {
 } EmitterHeader;
 void emitter_init(Emitter *emitter, s32 behaviourID, s32 particleID);
 
-/* JFG: set up the object's emitters (in the given buffer); returns the bytes used. */
-s32 func_8002863C(EmitterObject *obj, Emitter *emitters, EmitterHeader *header) {
+/* JFG: set up the object's emitters (in the given buffer); returns the bytes used (0x8002863C). */
+s32 obj_init_emitter(EmitterObject *obj, Emitter *emitters, EmitterHeader *header) {
     s32 i;
 
     obj->emitters = emitters;
@@ -105,7 +105,7 @@ typedef struct BlastSpriteEntry {
 } BlastSpriteEntry;
 void sprite_free(void *sprite);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
-void func_80057CEC(void *cycle, s32 assetID);
+void colour_cycle_init(void *cycle, s32 assetID);
 extern f32 D_800ABB4C;
 
 /* JFG: (re)set a sprite object from its entry. */
@@ -123,8 +123,8 @@ void func_8002993C(BlastSpriteObject *obj, BlastSpriteEntry *entry) {
     data->unk9 = entry->unk16;
     data->entry = entry;
     obj->unk3C = 0;
-    func_80057CEC(data->colourCycle1, entry->colourCycle1);
-    func_80057CEC(data->colourCycle2, entry->colourCycle2);
+    colour_cycle_init(data->colourCycle1, entry->colourCycle1);
+    colour_cycle_init(data->colourCycle2, entry->colourCycle2);
 }
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029A20);

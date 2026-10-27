@@ -27,8 +27,8 @@ extern s32 func_800551F8(void);
 extern void func_80054EA0(u32 *width, u32 *height);
 extern void func_80050E90(Gfx **dl, s32 segment, s32 address);
 extern void func_8004E40C(Gfx **dl);
-extern void func_8004E3E8(Gfx **dl);
-extern void func_8003FC2C(s32 arg0);
+extern void rdp_set_default_modes(Gfx **dl);
+extern void set_active_camera(s32 arg0);
 extern void func_8004046C(Gfx **dl, s32 arg1);
 extern void func_8004DA10(Gfx *start, Gfx *end, s32 arg2, s32 arg3);
 
@@ -36,7 +36,7 @@ extern s32 D_800A3338;
 extern s32 D_800A3630;
 extern u8 *D_800FECB0; /* the previous frame's image */
 extern s32 D_800FECB4; /* the frame buffer */
-extern s32 D_800FECBC;
+extern s32 gVideoDepthBuffer;
 
 static Gfx *sDisplayLists[2] = { NULL, NULL };
 static s32 sCurrentList = 0;
@@ -93,9 +93,9 @@ void func_m048_000F4(s32 arg0) {
         sFrameBuffer = D_800FECB4;
         func_80050E90(&dl, 0, 0);
         func_80050E90(&dl, 1, D_800FECB4);
-        func_80050E90(&dl, 2, D_800FECBC);
+        func_80050E90(&dl, 2, gVideoDepthBuffer);
         func_8004E40C(&dl);
-        func_8004E3E8(&dl);
+        rdp_set_default_modes(&dl);
         gSPClearGeometryMode(dl++, G_ZBUFFER | G_FOG);
         gDPSetColorImage(dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, width, D_800FECB4 + 0x80000000);
         gDPSetScissor(dl++, G_SC_NON_INTERLACE, 0, 0, width, height);
@@ -105,7 +105,7 @@ void func_m048_000F4(s32 arg0) {
         gDPSetBlendColor(dl++, 0, 0, 0, 100);
         gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor(dl++, 255, 255, 255, sEnvAlpha);
-        func_8003FC2C(0);
+        set_active_camera(0);
         func_8004046C(&dl, 0);
         gDPPipeSync(dl++);
         gSPClearGeometryMode(dl++, G_ZBUFFER | G_FOG);

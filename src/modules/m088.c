@@ -16,7 +16,7 @@ typedef struct M088Sound {
 extern Object *func_80041DE0(void); /* the camera */
 extern f32 sqrtf(f32);
 extern void func_80003614(s32 handle);              /* stops a positioned sound */
-extern void func_800034DC(s32 handle, u8 volume);
+extern void audspat_point_set_pitch(s32 handle, u8 volume);
 extern f32 func_8008B200(s32);
 
 void func_m088_00000(Object *obj, M088Setup *setup) {
@@ -68,6 +68,6 @@ void func_m088_00024(Object *obj, s32 updateRate) {
         }
         s->lastDist = dist;
         vol = (s->pitch + 1.0f) * 100.0f;
-        func_800034DC(s->handle, vol);
+        audspat_point_set_pitch(s->handle, vol);
     }
 }

@@ -55,10 +55,10 @@ typedef struct M140Point {
     /* 0x14 */ f32 z;
 } M140Point;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern Object **func_80050F44(s32 *count);
 extern s32 func_80050ED0(s32 id);
-extern f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* squared distance? */
+extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* squared distance? */
 extern s32 func_80049C84(f32 dx, f32 dz);
 extern s32 func_8007B99C(Object *obj, Object *other, f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern Object *func_m003_053C4(void);
@@ -94,14 +94,14 @@ void func_m140_00000(Object *obj) {
     target = NULL;
     playerDist = -1.0f;
     player = func_m003_053C4();
-    func_800541B0(D_m140_003B0, 10, 5);
+    runlink_unload_timer_set(D_m140_003B0, 10, 5);
     while (count--) {
         o = list[count];
         if (func_80050ED0(((M140Group *) o->unk68)->id) != 0) {
             for (o = ((M140Group *) o->unk68)->first; o != NULL; o = c->next) {
                 c = o->unk68;
-                if (o->unkA0 == 0 && c->health > 0) {
-                    dist = func_80011CE0(o->trans.x_position, o->trans.y_position, o->trans.z_position, x, y, z);
+                if (o->freed == 0 && c->health > 0) {
+                    dist = point_distance_squared(o->trans.x_position, o->trans.y_position, o->trans.z_position, x, y, z);
                     if (dist < best && (home->kind != 0x11 || func_m003_17910(o->trans.x_position, o->trans.z_position, home->zone) != 0)) {
                         best = dist;
                         target = o;
@@ -115,7 +115,7 @@ void func_m140_00000(Object *obj) {
         if (angle < 0) {
             angle = -angle;
         }
-        playerDist = func_80011CE0(x, y, z, player->trans.x_position, player->trans.y_position, player->trans.z_position);
+        playerDist = point_distance_squared(x, y, z, player->trans.x_position, player->trans.y_position, player->trans.z_position);
         if (playerDist < (f32) ((home->viewRange << 12) * home->viewRange) && angle < home->viewAngle * 91) {
             if (func_8007B99C(obj, player, x, y, z, ((M140Point *) player->interactObj)->x,
                               ((M140Point *) player->interactObj)->y, ((M140Point *) player->interactObj)->z) == 0) {
@@ -125,7 +125,7 @@ void func_m140_00000(Object *obj) {
     }
     if (e->seen) {
         if (playerDist == -1.0f) {
-            playerDist = func_80011CE0(x, y, z, player->trans.x_position, player->trans.y_position, player->trans.z_position);
+            playerDist = point_distance_squared(x, y, z, player->trans.x_position, player->trans.y_position, player->trans.z_position);
         }
         if (playerDist + playerDist < best) {
             target = player;

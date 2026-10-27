@@ -22,7 +22,7 @@ typedef struct M059Line {
 
 extern Gfx *D_800FF398; /* the display list being built */
 extern void func_80001248(s32 sound, s32 arg1);
-extern void func_8004758C();
+extern void load_first_unlocked_level();
 extern void set_text_font(s32 font);                                              /* DKR */
 extern void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity); /* DKR */
 extern void draw_text(Gfx **dList, s32 x, s32 y, char *text, s32 alignment);     /* DKR */
@@ -263,7 +263,7 @@ void func_m059_00140(s32 updateRate) {
                     break;
                 case M059_END:
                     sFinished = TRUE;
-                    func_8004758C();
+                    load_first_unlocked_level();
                     break;
             }
         }

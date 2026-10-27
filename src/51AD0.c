@@ -225,12 +225,12 @@ void func_8005269C(u8 *data, s32 size) {
     }
 }
 
-s32 func_80053370(s32 module); // JFG: whether a runlink module is loaded
+s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loaded
 void func_80054530();          // a module function (patched in by the runtime linker)
 
 /* JFG: pass an event to the squad module (3) when it is loaded. */
 void func_80052734(s32 a0, s16 a1, s16 a2, s16 a3, u8 a4, u8 a5, u8 a6) {
-    if (func_80053370(3)) {
+    if (runlink_module_loaded(3)) {
         func_80054530(a0, a1, a2, a3, a4, a5, a6);
     }
 }
@@ -270,7 +270,8 @@ typedef union PatchWord {
     } half;
 } PatchWord;
 
-void func_80052A00(PatchWord *insn, u32 value, u8 type) {
+/* Applies one relocation to an instruction or word and flushes the caches (0x80052A00). */
+void runlink_reloc_apply(PatchWord *insn, u32 value, u8 type) {
     u32 hi;
 
     switch (type) {
@@ -309,25 +310,26 @@ typedef struct ModuleEntry {
     /* 0x0C */ u8 padC[0x1C - 0xC];
     /* 0x1C */ s32 unk1C; // an entry point offset (-1 for none)
 } ModuleEntry;
-extern ModuleEntry *D_800FEAA0;
+extern ModuleEntry *gRunlinkModules;
 
 typedef struct ModuleSlot {
     /* 0x00 */ s32 unk0;
     /* 0x04 */ s32 module;
 } ModuleSlot;
 extern ModuleSlot D_800FEAD8[16];
-extern s32 D_800FEAAC; // JFG: the number of modules
+extern s32 gNumRunlinkModules; // JFG: the number of modules
 void func_80053D2C(s32 module);
 void func_8005372C(s32 module);
 void mempool_free(void *data);
 
-s32 func_80053370(s32 index) {
-    return D_800FEAA0[index].unk0;
+/* Returns a module's load address (0 when not loaded) (0x80053370). */
+s32 runlink_module_loaded(s32 index) {
+    return gRunlinkModules[index].unk0;
 }
 
 /* JFG: run a module's entry point, first loading it if it is in a slot. */
 void func_8005338C(s32 module) {
-    ModuleEntry *entry = &D_800FEAA0[module];
+    ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
     s32 i;
 
@@ -354,19 +356,19 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005372C);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the target sets up &D_800FEAA0 (s3) before i = 15 */
+/* NON_MATCHING: 2 words: the target sets up &gRunlinkModules (s3) before i = 15 */
 /* JFG: unload every module (but 0), then free every used slot's buffer. */
 void func_80053934(void) {
     s32 i;
     ModuleSlot *slot = D_800FEAD8;
 
-    for (i = D_800FEAAC - 1; i > 0; i--) {
+    for (i = gNumRunlinkModules - 1; i > 0; i--) {
         func_8005372C(i);
     }
     i = 15;
     do {
         if (slot->module != 0xFFB) {
-            mempool_free((void *) (D_800FEAA0[slot->module].unk8 + slot->unk0));
+            mempool_free((void *) (gRunlinkModules[slot->module].unk8 + slot->unk0));
             slot->module = 0xFFB;
         }
         slot++;
@@ -406,8 +408,8 @@ typedef struct DestructTimer {
 } DestructTimer;
 extern DestructTimer *D_800FEB58;
 
-/* JFG: set a module's destruct timer (10 bits) and its other 6 bits. */
-void func_800541B0(s32 index, u16 timer, u8 value) {
+/* JFG: set a module's destruct timer (10 bits) and its other 6 bits (0x800541B0). */
+void runlink_unload_timer_set(s32 index, u16 timer, u8 value) {
     D_800FEB58[index].timer = timer;
     D_800FEB58[index].unk = value;
 }
@@ -415,9 +417,9 @@ void func_800541B0(s32 index, u16 timer, u8 value) {
 extern s32 D_800A38FC; // JFG: module destruct timers enabled
 void func_8005342C(s32 module);
 
-/* JFG: tick the modules' destruct timers; unload a module when its timer runs out. */
-void func_80054204(void) {
-    s32 i = D_800FEAAC;
+/* JFG: tick the modules' destruct timers; unload a module when its timer runs out (0x80054204). */
+void runlink_unload_timers_update(void) {
+    s32 i = gNumRunlinkModules;
     DestructTimer *t;
 
     if (D_800A38FC != 0) {
@@ -437,7 +439,7 @@ void func_80054204(void) {
 
 /* JFG: unload the modules with a running timer and no other count right now. */
 void func_800542C4(void) {
-    s32 i = D_800FEAAC;
+    s32 i = gNumRunlinkModules;
     DestructTimer *t;
 
     while (i--) {

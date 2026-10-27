@@ -75,15 +75,15 @@ typedef struct M118Check {
 
 extern u8 D_800A3208;
 
-extern s32 func_8006B978(void);
+extern s32 check_fadeout_transition(void);
 extern void func_8006B9CC(void *);
 extern void func_m022_02430(s32 message, s32 arg1);
 extern void func_m022_023FC(M118PlayerData *player);
 
 static s32 D_m118_00900[4] = { 0x40FFFFFF, 0x00060000, 0, 0 };
 
-/* Finds the robot (the object with behaviour 2). */
-static Object *func_m118_00000(void) {
+/* Finds the robot (the object with behaviour 2) (module m118, 0x00000). */
+static Object *robot_find(void) {
     s32 i;
     s32 count;
     Object *robot = NULL;
@@ -123,16 +123,16 @@ void func_m118_00140(Object *obj, s32 updateRate) {
     M118Target *t;
 
     hit = obj->interactObj;
-    if (hit != NULL && obj->unk5C != NULL && hit->unk6 > 0) {
+    if (hit != NULL && obj->unk5C != NULL && hit->hitPoints > 0) {
         player = func_8000E4D0(0);
         t = OBJ_STATE(obj, M118Target);
         if (player != NULL) {
             pd = player->unk68;
             if (pd != NULL && pd->inRobot == 1) {
-                hit->unk6 -= obj->unk5C->damage;
+                hit->hitPoints -= obj->unk5C->damage;
             }
         }
-        if (hit->unk6 <= 0) {
+        if (hit->hitPoints <= 0) {
             if (t->swapModel) {
                 obj->modelIndex = 1;
             }
@@ -174,7 +174,7 @@ void func_m118_00140(Object *obj, s32 updateRate) {
                     func_800772C4(t->arg);
                     break;
             }
-            hit->unk6 = 0;
+            hit->hitPoints = 0;
             func_80001248(0x22, 0);
             func_m022_02430(t->message, 1);
         }
@@ -213,7 +213,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
         if (player != NULL) {
             pd = player->unk68;
             if (pd != NULL && pd->inRobot == 1) {
-                robot = func_m118_00000();
+                robot = robot_find();
             }
         }
         if (robot != NULL) {
@@ -224,7 +224,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
             dy = obj->trans.y_position - rd->y;
             dz = obj->trans.z_position - rd->z;
             if (dx * dx + dy * dy + dz * dz < radiusSq) {
-                if (func_8006B978() == 0) {
+                if (check_fadeout_transition() == 0) {
                     func_8006B9CC(D_m118_00900);
                 }
                 func_80001248(0x8A, 0);

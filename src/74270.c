@@ -8,64 +8,67 @@ extern s16 gShowSubtitles;
 extern s16 gSubtitleLineCount;
 extern s16 gSubtitleTimer;
 
-extern s8 D_800A6FB0;
-extern char *D_80104588[2]; // DKR: gCurrentMessageText
+extern s8 gMessageTextAllocated;
+extern char *gCurrentMessageText[2];
 void mempool_free(void *data);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 asset_table_size(u32 assetIndex);
 extern char *D_80104560;
-extern s16 D_80104564; // DKR: gTextTableEntries
-extern s16 D_80104566;
-extern s16 D_80104568;
-extern s16 D_8010456C;
-extern s16 D_8010456E;
-extern s16 D_80104570;
-extern s16 D_80104572;
+extern s16 gTextTableEntries;
+extern s16 gDialogueAlpha;
+extern s16 gTextAlphaVelocity;
+extern s16 gDialogueXPos1;
+extern s16 gDialogueYPos1;
+extern s16 gDialogueXPos2;
+extern s16 gDialogueYPos2;
 extern s32 D_80104594;
 
+/* Sets up the dialogue defaults and allocates the message text (0x80073670). */
 /**
  * Set the default values of dialogue and allocate memory for the active text entry.
  * JFG: also counts the text table entries and sets up a third buffer.
  * DKR: init_dialogue_text
  */
-void func_80073670(void) {
-    D_80104564 = (asset_table_size(5) >> 2) - 2;
-    D_80104588[0] = (char *) mempool_alloc_safe(0x790, 0xFF00FF);
-    D_80104588[1] = D_80104588[0] + 0x3C0;
-    D_80104560 = D_80104588[1] + 0x3C0;
+void init_dialogue_text(void) {
+    gTextTableEntries = (asset_table_size(5) >> 2) - 2;
+    gCurrentMessageText[0] = (char *) mempool_alloc_safe(0x790, 0xFF00FF);
+    gCurrentMessageText[1] = gCurrentMessageText[0] + 0x3C0;
+    D_80104560 = gCurrentMessageText[1] + 0x3C0;
     D_80104594 = 0;
     gShowSubtitles = FALSE;
-    D_80104566 = 0;
-    D_80104568 = 32;
+    gDialogueAlpha = 0;
+    gTextAlphaVelocity = 32;
     gCurrentTextID = 0;
-    D_8010456C = 32;
-    D_80104570 = 288;
+    gDialogueXPos1 = 32;
+    gDialogueXPos2 = 288;
     if (osTvType == OS_TV_PAL) {
-        D_8010456E = 224;
-        D_80104572 = 248;
+        gDialogueYPos1 = 224;
+        gDialogueYPos2 = 248;
     } else {
-        D_8010456E = 202;
-        D_80104572 = 222;
+        gDialogueYPos1 = 202;
+        gDialogueYPos2 = 222;
     }
-    D_800A6FB0 = TRUE;
+    gMessageTextAllocated = TRUE;
 }
 void dialogue_close(s32 dialogueBoxID);
 void dialogue_clear(s32 dialogueBoxID);
 
-void func_80073758(void) {
-    if (D_800A6FB0) {
-        mempool_free(D_80104588[0]);
+/* Closes the screen dialogue and frees its text (0x80073758). */
+void free_message_box(void) {
+    if (gMessageTextAllocated) {
+        mempool_free(gCurrentMessageText[0]);
         dialogue_close(6);
         dialogue_clear(6);
-        D_800A6FB0 = 0;
+        gMessageTextAllocated = 0;
         gShowSubtitles = 0;
     }
 }
 
-extern s32 D_800A6FB8;
+extern s32 gSubtitleSetting;
 
-void func_800737AC(s32 arg0) {
-    D_800A6FB8 = arg0;
+/* Sets whether subtitles may show (0x800737AC). */
+void set_subtitles(s32 arg0) {
+    gSubtitleSetting = arg0;
 }
 
 INCLUDE_ASM("asm/nonmatchings/74270", func_800737B8);

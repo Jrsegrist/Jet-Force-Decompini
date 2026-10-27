@@ -65,9 +65,9 @@ typedef struct M089Shock {
     /* 0x23 */ u8 done;
 } M089Shock;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
-extern void func_8001191C(Object *obj, Object *target);
+extern void obj_list_insert_after(Object *obj, Object *target);
 extern void func_8003D21C(M089Instance *, M089Model *, Object *, f32, f32);
 extern void func_800221F0(Object *, M089Instance *, ObjectShading *, MtxF *);
 extern void func_80009734(Object *, M089Model *, M089Instance *, s32);
@@ -141,7 +141,7 @@ void func_m089_001D0(Object *obj, M089Setup *setup) {
 
     s->target = setup->target;
     s->timer = 0;
-    func_8001191C(obj, s->target);
+    obj_list_insert_after(obj, s->target);
 }
 
 void func_m089_00200(Object *obj, s32 updateRate) {
@@ -151,13 +151,13 @@ void func_m089_00200(Object *obj, s32 updateRate) {
     M089Model *model;
     s32 i;
 
-    func_800541B0(D_m089_00460, 2, 2);
+    runlink_unload_timer_set(D_m089_00460, 2, 2);
     if (s->done) {
         func_800079B8(obj);
         return;
     }
     target = s->target;
-    inst = ((M089Instance **) target->unk6C)[target->modelIndex];
+    inst = ((M089Instance **) target->modelInstances)[target->modelIndex];
     model = inst->model;
     if (target->behaviorId != 0x18 && inst->unkA != 0) {
         if (model->unk4E != 0) {

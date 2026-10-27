@@ -31,7 +31,7 @@ extern void *func_8004A57C(s32 size, u32 colour);    /* DKR mempool_alloc_safe *
 extern void *func_8004D37C(s32 asset);               /* DKR asset_table_load */
 extern s32 func_8004D5F8(s32 asset);                 /* DKR asset_table_size */
 extern void func_80079BD0(void);
-extern void func_800047C0(void);                     /* DKR clear_object_pointers */
+extern void clear_object_pointers(void);
 extern void func_m033_00000(void);
 extern void func_8005342C(s32 module);               /* unloads a runlink module */
 
@@ -74,7 +74,7 @@ void func_m034_00000(void) {
     gObjPtrList = func_8004A57C(0x800, 0xFFFF);
     D_800F2CB4 = func_8004A57C(0x100, 0xFFFF);
     D_800F2C88 = 2.0f;
-    func_800047C0();
+    clear_object_pointers();
     func_m033_00000();
     func_8005342C(33);
 }

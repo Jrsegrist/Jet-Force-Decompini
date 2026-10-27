@@ -15,6 +15,8 @@
   diff      tools/runlink_diff.py finds functions in the module map.
   progress  tools/progress.py on a tiny linked ELF, its map, a module map and
             C files with INCLUDE_ASM lines.
+  rename    tools/rename.py on a made-up tree: the rewrite, --check, --which,
+            re-running, bad maps, and the linker aliases (linked).
 
 Needs mips-linux-gnu-as / ld / objdump (binutils-mips-linux-gnu) and the
 Python packages of requirements.txt (rabbitizer). Run from the repository
@@ -35,6 +37,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 import progress  # noqa: E402
+import rename  # noqa: E402
 import runlink_build  # noqa: E402
 import runlink_diff  # noqa: E402
 import runlink_split  # noqa: E402
@@ -455,6 +458,158 @@ class Progress(unittest.TestCase):
         self.assertEqual(row("runlink modules"), (1, 3, 0x40, 0x110))
         self.assertIn("(0 of 2 modules all C, 1 partly)", out)
         self.assertEqual(row("total"), (2, 6, 72, 328))
+        # names: the one C function (func_80000450) still has its address name
+        self.assertRegex(out, r"(?m)^names\s+0/1\s")
+
+
+RENAME_NAMES = """\
+# a made-up rename map
+func_80001000 = cam_shake
+D_800A0000 = gShakeTimer
+func_80002000 = shake_tick
+func_80003000 = asm_helper
+func_m001_00000 = drops_reset
+field Shake.unk4 = timer
+renamed shake_update = shake_tick
+"""
+RENAME_C = """\
+#include "a.h"
+#define gShakeTimer D_800A0000
+extern s32 D_800A0000;
+INCLUDE_ASM("asm/nonmatchings/a", func_80001000);
+void func_80001000(Shake *s) { s->unk4 = D_800A0000; shake_update(); func_80003000(); }
+void func_80001000_b(void) { /* another symbol: func_80001000x */ }
+"""
+RENAME_C_AFTER = """\
+#include "a.h"
+extern s32 gShakeTimer;
+INCLUDE_ASM("asm/nonmatchings/a", func_80001000);
+void cam_shake(Shake *s) { s->unk4 = gShakeTimer; shake_tick(); asm_helper(); }
+void func_80001000_b(void) { /* another symbol: func_80001000x */ }
+"""
+RENAME_MOD = """\
+static void func_m001_00000(void) {
+}
+void func_m001_00040(void) {
+    func_m001_00000();
+}
+"""
+
+
+class Rename(unittest.TestCase):
+    """tools/rename.py on a made-up tree (a git repository in a temporary directory)."""
+
+    def setUp(self):
+        self.t = tempfile.mkdtemp(prefix="jfg_ci_ren_")
+        t = self.t
+        os.makedirs(os.path.join(t, "src", "modules"))
+        files = {
+            "names.txt": RENAME_NAMES,
+            "src/a.c": RENAME_C,
+            "src/a.h": "typedef struct Shake {\n    /* 0x00 */ s32 unk0;\n    /* 0x04 */ s32 unk4;\n} Shake;\n"
+                       "void func_80002000(void);\n#define shake_update func_80002000\n",
+            "src/modules/m001.c": RENAME_MOD,
+            "undefined_syms.us.txt": "D_800A0000 = 0x800A0000;\n",
+            "symbol_addrs.us.txt": "func_80001000 = 0x80001000; // type:func\n",
+            "README.md": "func_80001000 shakes the camera.\n",
+        }
+        for rel, text in files.items():
+            with open(os.path.join(t, rel), "w") as f:
+                f.write(text)
+        run(["git", "init", "-q"], cwd=t)
+        run(["git", "add", "-A"], cwd=t)
+
+    def tearDown(self):
+        shutil.rmtree(self.t, ignore_errors=True)
+
+    def rename(self, *argv):
+        out = io.StringIO()
+        code = None
+        with contextlib.redirect_stdout(out):
+            try:
+                code = rename.main(["--root", self.t] + list(argv))
+            except SystemExit as e:
+                code = e.code
+        return code, out.getvalue()
+
+    def read(self, rel):
+        with open(os.path.join(self.t, rel)) as f:
+            return f.read()
+
+    def test_apply_check_rerun(self):
+        code, out = self.rename("--check")
+        self.assertEqual(code, 1)
+        code, out = self.rename()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.read("src/a.c"), RENAME_C_AFTER)
+        # (the `#define shake_tick shake_tick` the rename leaves is dropped)
+        self.assertTrue(self.read("src/a.h").endswith("} Shake;\nvoid shake_tick(void);\n"), self.read("src/a.h"))
+        self.assertIn("static void drops_reset(void)", self.read("src/modules/m001.c"))
+        self.assertIn("    drops_reset();", self.read("src/modules/m001.c"))
+        self.assertIn("void func_m001_00040(void)", self.read("src/modules/m001.c"))
+        self.assertEqual(self.read("undefined_syms.us.txt"), "gShakeTimer = 0x800A0000;\n")
+        # splat's symbol file keeps the address name; docs are renamed
+        self.assertEqual(self.read("symbol_addrs.us.txt"), "func_80001000 = 0x80001000; // type:func\n")
+        self.assertEqual(self.read("README.md"), "cam_shake shakes the camera.\n")
+        # safe to re-run
+        code, out = self.rename()
+        self.assertIn("0 replacements", out)
+        # the field is still to be renamed by hand
+        code, out = self.rename("--check")
+        self.assertEqual(code, 1)
+        self.assertIn("struct Shake still has unk4", out)
+        for rel, old, new in (("src/a.h", "s32 unk4;", "s32 timer;"), ("src/a.c", "s->unk4", "s->timer")):
+            text = self.read(rel).replace(old, new)
+            with open(os.path.join(self.t, rel), "w") as f:
+                f.write(text)
+        code, out = self.rename("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("0 old names", out)
+
+    def test_which(self):
+        self.assertEqual(self.rename("--which", "func_80001000"), (0, "func_80001000 = cam_shake\n"))
+        self.assertEqual(self.rename("--which", "cam_shake"), (0, "func_80001000 = cam_shake\n"))
+        self.assertEqual(self.rename("--which", "shake_update"), (0, "shake_update = shake_tick\n"))
+        self.assertEqual(self.rename("--which", "Shake.unk4"), (0, "field Shake.unk4 = timer\n"))
+        self.assertEqual(self.rename("--which", "nothing")[0], 1)
+
+    def test_bad_maps(self):
+        for text, msg in (("func_m001_00040 = drops_main\n", "not static"),
+                          ("func_80001000 = a\nfunc_80002000 = a\n", "new name of two symbols"),
+                          ("func_80001000 = a\nfunc_80001000 = b\n", "renamed twice"),
+                          ("cam_shake = a\n", "not an address name"),
+                          ("func_80001000 = D_80001000\n", "not a name of our own")):
+            with open(os.path.join(self.t, "names.txt"), "w") as f:
+                f.write(text)
+            code, out = self.rename("--dry-run")
+            self.assertIn(msg, str(code), text)
+
+    def test_aliases(self):
+        # C defines cam_shake; undefined_syms defines gShakeTimer (after the
+        # rename); assembly defines func_80002000 and func_80003000
+        self.rename()
+        obj = assemble(HEAD + ".section .text\n.global cam_shake\ncam_shake:\n    nop\n",
+                       os.path.join(self.t, "a.o"))
+        out = os.path.join(self.t, "build", "aliases.txt")
+        code, _ = self.rename("--aliases", out, obj)
+        self.assertEqual(code, 0)
+        lines = [ln for ln in self.read(out).splitlines() if not ln.startswith(("/*", " *"))]
+        self.assertEqual(lines, ["func_80001000 = cam_shake;", "D_800A0000 = gShakeTimer;",
+                                 "PROVIDE(shake_tick = func_80002000);", "PROVIDE(asm_helper = func_80003000);"])
+        # and the linker takes them: asm calls the address name, C the new one
+        asm = assemble(HEAD + ".section .text\n.global func_80002000\nfunc_80002000:\n    jal func_80001000\n"
+                       "    nop\n.global func_80003000\nfunc_80003000:\n    jal shake_tick\n    nop\n"
+                       "    lw $2, %lo(D_800A0000)($0)\n", os.path.join(self.t, "b.o"))
+        with open(os.path.join(self.t, "link.ld"), "w") as f:
+            f.write("SECTIONS {\n  .text 0x80001000 : { *(.text) }\n"
+                    "  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) }\n}\n")
+        run([CROSS + "ld", "-T", "link.ld", "-T", out, "-T", "undefined_syms.us.txt", "-o", "x.elf", obj, asm],
+            cwd=self.t)
+        syms = run([CROSS + "objdump", "-t", "x.elf"], cwd=self.t)
+        addr = {m.group(2): m.group(1) for m in re.finditer(r"^([0-9a-f]{8}) .* (\w+)$", syms, re.M)}
+        self.assertEqual(addr["func_80001000"], addr["cam_shake"])
+        self.assertEqual(addr["shake_tick"], addr["func_80002000"])
+        self.assertEqual(addr["D_800A0000"], "800a0000")
 
 
 if __name__ == "__main__":

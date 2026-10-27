@@ -37,7 +37,7 @@ typedef struct ObjectLight {
     /* 0x5C */ s16 unk5C;
     /* 0x5E */ s16 unk5E;
     /* 0x60 */ u8 pad60[0x6C - 0x60];
-    /* 0x6C */ s32 unk6C;
+    /* 0x6C */ s32 trackLight;
     /* 0x70 */ u8 *unk70; // JFG: 0x200 bytes of the light buffer
 } ObjectLight;
 
@@ -149,20 +149,21 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
 
 extern f32 D_800ABA90;
 s32 func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
-void func_80020D84(ObjectLight *light) {
+/* Gives a light its track light (unless flag 0x40) (0x80020D84). */
+void light_track_light_add(ObjectLight *light) {
     if (!(light->enabled & 0x40)) {
-        light->unk6C = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
+        light->trackLight = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
                                      light->radius * D_800ABA90, (light->colourR * light->intensity) >> 8,
                                      (light->colourG * light->intensity) >> 8, (light->colourB * light->intensity) >> 8);
     } else {
-        light->unk6C = 0;
+        light->trackLight = 0;
     }
 }
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80020E3C);
 
-void func_80057CEC(void *cycle, s32 assetID); // sets up a colour cycle from an asset
-void func_80020D84(ObjectLight *light);
+void colour_cycle_init(void *cycle, s32 assetID); // sets up a colour cycle from an asset
+void light_track_light_add(ObjectLight *light);
 
 /**
  * Official Name: addObjectLight
@@ -201,7 +202,7 @@ ObjectLight *light_add_from_object_header(Object *obj, ObjectHeaderLight *arg1) 
         light->intensity = arg1->intensity;
         light->intensityF = arg1->intensity;
         if (arg1->colourCycleID != -1) {
-            func_80057CEC(light->colourCycle, arg1->colourCycleID);
+            colour_cycle_init(light->colourCycle, arg1->colourCycleID);
         } else {
             light->unk54 = 0;
         }
@@ -209,7 +210,7 @@ ObjectLight *light_add_from_object_header(Object *obj, ObjectHeaderLight *arg1) 
         light->unk5C = 0;
         light->unk5A = arg1->unk17 << 8;
         light->unk5E = 0;
-        func_80020D84(light);
+        light_track_light_add(light);
         light_update(light, 0);
     }
     return light;
@@ -231,13 +232,13 @@ void light_enable(ObjectLight *light) {
     light->enabled |= TRUE;
 }
 
-/* JFG: toggle this light. */
-void func_800212F8(ObjectLight *light) {
+/* JFG: toggle this light (0x800212F8). */
+void light_toggle(ObjectLight *light) {
     light->enabled ^= TRUE;
 }
 
-/* JFG: set a light's colour and flag it as changed. */
-void func_8002130C(ObjectLight *light, u8 red, u8 green, u8 blue) {
+/* JFG: set a light's colour and flag it as changed (0x8002130C). */
+void light_colour_set(ObjectLight *light, u8 red, u8 green, u8 blue) {
     light->colourR = red;
     light->colourG = green;
     light->colourB = blue;
@@ -245,16 +246,16 @@ void func_8002130C(ObjectLight *light, u8 red, u8 green, u8 blue) {
     light->unk54 = 0;
 }
 
-/* JFG: give the light a new colour cycle. */
-void func_80021338(ObjectLight *light, s32 assetID) {
-    func_80057CEC(light->colourCycle, assetID);
+/* JFG: give the light a new colour cycle (0x80021338). */
+void light_colour_cycle_set(ObjectLight *light, s32 assetID) {
+    colour_cycle_init(light->colourCycle, assetID);
 }
 
-/* JFG: set a light's intensity, flagging it as changed when it is linked. */
-void func_80021358(ObjectLight *light, u8 intensity) {
+/* JFG: set a light's intensity, flagging it as changed when it is linked (0x80021358). */
+void light_intensity_set(ObjectLight *light, u8 intensity) {
     light->intensity = intensity;
     light->intensityF = intensity;
-    if (light->unk6C != 0) {
+    if (light->trackLight != 0) {
         light->flags |= 2;
     }
 }
@@ -272,7 +273,7 @@ void light_update_all(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021434);
 
-void func_80013F08(s32 trackLight);
+void track_light_off(s32 trackLight);
 
 /**
  * JFG: also switches off the light's track light.
@@ -287,8 +288,8 @@ void light_remove(ObjectLight *light) {
         }
     }
     if (entry != NULL) {
-        if (light->unk6C != 0) {
-            func_80013F08(light->unk6C);
+        if (light->trackLight != 0) {
+            track_light_off(light->trackLight);
         }
         gNumActiveLights--;
         for (i--; i < gNumActiveLights; i++) {
@@ -361,8 +362,8 @@ void light_setup_light_sources(Object *obj) {
 
 void *func_80023A48(Object *obj, ObjectHeaderCamLight *header);
 
-/* JFG: light_setup_light_sources for the header's camera lights. */
-void func_800226B8(Object *obj) {
+/* JFG: light_setup_light_sources for the header's camera lights (0x800226B8). */
+void light_setup_cam_lights(Object *obj) {
     s32 i;
     for (i = 0; i < obj->header->numCamLights; i++) {
         obj->camLightData[i] = func_80023A48(obj, &obj->header->camLights[i]);

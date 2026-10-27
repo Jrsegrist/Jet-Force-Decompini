@@ -45,7 +45,7 @@ extern s32 func_80016208(void *obj, Vec3f *from, Vec3f *to, f32 radius, s32 arg4
 extern Object *func_8000E4D0();
 
 /* Game flags (switches, triggers) */
-extern s32 func_80047ED0(s32 flag);             /* reads */
+extern s32 game_flag_get(s32 flag);             /* reads */
 extern void func_80047EFC(s32 flag, s32 value); /* writes */
 
 /* Module 6 (the HUD): queues a message for the player (whose object's unk68 is passed) */
@@ -83,7 +83,7 @@ extern void func_80079BB8();
 /*
  * The description of an object light, for func_800210A4 (which adds one to
  * the object, like DKR's light_add_from_object_header; its return value is
- * the light handle that func_8002130C/func_80021358 take). Size 0x18.
+ * the light handle that light_colour_set/light_intensity_set take). Size 0x18.
  */
 typedef struct LightParams {
     /* 0x00 */ u8 type;
@@ -133,7 +133,7 @@ extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
  * Called first thing by most control functions with the module's own number
  * (the s32 at the start of its .data) and (2, 2).
  */
-extern void func_800541B0(s32 module, s32 arg1, s32 arg2);
+extern void runlink_unload_timer_set(s32 module, s32 arg1, s32 arg2);
 
 /* Scales an amount or a timer (m100, m138, m153 use it) */
 extern s32 func_80005064(s32 amount);

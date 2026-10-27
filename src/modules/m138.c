@@ -30,7 +30,7 @@ extern s32 D_800FE9F8;
 
 extern Object *func_m003_053C4(void); /* the closest player */
 extern void func_m003_07E88(s32, s32, s32);
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
@@ -47,7 +47,7 @@ void func_m138_00000(Object *obj) {
     player = func_m003_053C4();
     dist = (obj->trans.x_position - player->trans.x_position) * (obj->trans.x_position - player->trans.x_position) +
            (obj->trans.z_position - player->trans.z_position) * (obj->trans.z_position - player->trans.z_position);
-    func_800541B0(D_m138_002F0, 2, 2);
+    runlink_unload_timer_set(D_m138_002F0, 2, 2);
     if (s->attacking != 0) {
         e->x = player->trans.x_position;
         e->y = player->trans.y_position + 400.0f;

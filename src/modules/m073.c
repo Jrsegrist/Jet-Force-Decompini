@@ -78,7 +78,7 @@ extern void func_80026FD4(Object *obj, s32 updateRate);
 extern void func_80068DF8(M073Flare *flare);
 extern void func_80003614(s32 handle); /* stops a positioned sound */
 extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out);
-extern f32 func_800420F0(f32 x, f32 y, f32 z); /* distance from the camera */
+extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* distance from the camera */
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
 extern void func_80069BE8(Gfx **dl, M073Flare *flare, s32 arg2, s32 alpha);
 
@@ -175,7 +175,7 @@ void func_m073_00000(Object *obj, LevelObjectEntryCommon *setup) {
             def = set->defs;
         }
     }
-    inst = obj->unk6C[obj->modelIndex];
+    inst = obj->modelInstances[obj->modelIndex];
     model = inst->model;
     if (def != NULL && model != NULL) {
         glow = glows;
@@ -261,7 +261,7 @@ void func_m073_003F4(Gfx **dl, s32 arg1, Object *obj) {
     Vec3f *point;
     M073Model *model;
 
-    inst = obj->unk6C[obj->modelIndex];
+    inst = obj->modelInstances[obj->modelIndex];
     glow = obj->unk68;
     model = inst->model;
     n = 0;
@@ -280,7 +280,7 @@ void func_m073_003F4(Gfx **dl, s32 arg1, Object *obj) {
                 z = point->z;
             }
             order[n] = n;
-            dist[n] = func_800420F0(x, y, z);
+            dist[n] = get_distance_to_camera(x, y, z);
             glows[n] = glow;
             /* the & 0xFF (a no-op) is needed to match */
             matrices[n] = &inst->matrices[inst->matrixSet][glow->matrix & 0xFF];

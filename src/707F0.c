@@ -68,8 +68,8 @@ extern s32 D_800A6EB0;
 void draw_dialogue_text_pos_unused(Gfx **displayList, s32 dialogueBoxID, s32 xpos, s32 ypos, char *text,
                                    s32 alignmentFlags);
 
-/* JFG: set the size of dialogue box 0 (the whole screen). */
-void func_8006FBF0(s32 width, s32 height) {
+/* JFG: set the size of dialogue box 0 (the whole screen) (0x8006FBF0). */
+void set_screen_dialogue_box_size(s32 width, s32 height) {
     DialogueBoxBackground *box = &gDialogueBoxBackground[0];
     box->x2 = width - 1;
     box->y2 = height - 1;
@@ -152,7 +152,7 @@ INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FD98);
 
 extern u8 *D_801040E8[]; // JFG: per font, the width of each two-byte character
 extern u8 *D_80104104;   // JFG: the buffer for converted strings
-void func_800720FC(u8 *in, u8 *out);
+void fontConvertString(u8 *in, u8 *out);
 
 /**
  * Returns the width of the text in the given font.
@@ -174,7 +174,7 @@ s32 get_text_width(u8 *text, s32 font, s32 convert) {
     fontData = &gFonts[font];
     widths = D_801040E8[font];
     if (convert) {
-        func_800720FC(text, D_80104104);
+        fontConvertString(text, D_80104104);
         text = D_80104104;
     }
     width = 0;
@@ -629,13 +629,14 @@ INCLUDE_ASM("asm/nonmatchings/707F0", func_80071388);
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_800715E8);
 
-extern u8 D_800A6F04[]; // JFG: the font code of each ASCII character from ' '
+extern u8 gFontConversionTable[]; // JFG: the font code of each ASCII character from ' '
 
+/* Converts a string to font codes (0x800720FC). */
 /* JFG: convert a string to font codes: ASCII from ' ' becomes 0x80 and its code, two-byte characters
  * (bit 7 set) are copied, control characters are kept. */
-void func_800720FC(u8 *in, u8 *out) {
+void fontConvertString(u8 *in, u8 *out) {
     u8 ch;
-    u8 *table = D_800A6F04;
+    u8 *table = gFontConversionTable;
 
     do {
         ch = *in++;

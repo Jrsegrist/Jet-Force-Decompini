@@ -21,7 +21,7 @@ typedef struct M092State {
     /* 0x4 */ s32 unk4;
 } M092State;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 
 s32 D_m092_00330 = 92; /* the module's number */
 
@@ -67,7 +67,7 @@ void func_m092_001F0(Object *obj, s32 updateRate) {
     M092Food *food;
     u8 *flags;
 
-    func_800541B0(D_m092_00330, 2, 2);
+    runlink_unload_timer_set(D_m092_00330, 2, 2);
     food = obj->unk68;
     flags = obj->unk7C;
     food->timer = OBJ_STATE(obj, M092State)->timer;

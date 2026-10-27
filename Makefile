@@ -17,6 +17,8 @@ SHA1FILE := $(BASENAME).$(VERSION).sha1
 BUILD_DIR := build
 TARGET    := $(BUILD_DIR)/$(BASENAME).$(VERSION)
 SYMS_DIR  := $(BUILD_DIR)/syms
+# linker aliases for the names in names.txt (generated, see below)
+NAMES_ALIASES := $(SYMS_DIR)/names_aliases.$(VERSION).txt
 
 VENV   := .venv
 PYTHON := $(VENV)/bin/python3
@@ -73,6 +75,7 @@ LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \
            -T $(SYMS_DIR)/undefined_funcs_auto.$(VERSION).txt \
            -T $(SYMS_DIR)/runlink_aliases.$(VERSION).txt \
+           -T $(NAMES_ALIASES) \
            -T undefined_syms.$(VERSION).txt \
            -Map $(TARGET).map --no-check-sections --no-warn-mismatch
 
@@ -126,8 +129,17 @@ check verify: $(TARGET).z64
 progress: $(TARGET).elf
 	@$(PYTHON) tools/progress.py
 
-$(TARGET).elf: $(O_FILES) $(LD_SCRIPT)
+$(TARGET).elf: $(O_FILES) $(LD_SCRIPT) $(NAMES_ALIASES)
 	$(LD) $(LDFLAGS) -o $@
+
+# names.txt renames address names in C; the assembly keeps them. The aliases
+# that tie the two together depend on which side defines each symbol, so they
+# are generated from the main-segment C objects (tools/rename.py --aliases).
+MAIN_C_O := $(patsubst %.c,$(BUILD_DIR)/%.o,$(filter-out src/modules/%,$(C_FILES)))
+
+$(NAMES_ALIASES): names.txt tools/rename.py undefined_syms.$(VERSION).txt $(MAIN_C_O)
+	@mkdir -p $(dir $@)
+	$(PYTHON) tools/rename.py --aliases $@ $(MAIN_C_O)
 
 $(TARGET).z64: $(TARGET).elf
 	$(OBJCOPY) -O binary --pad-to=0x2000000 --gap-fill=0x00 $< $@
@@ -172,8 +184,9 @@ RL_DIR   := $(BUILD_DIR)/runlink
 MOD_S    := $(sort $(wildcard asm/modules/m*.s))
 MOD_O    := $(MOD_S:%.s=$(BUILD_DIR)/%.o)
 
-$(RL_DIR)/modules.bin: $(MOD_O) tools/runlink_build.py
+$(RL_DIR)/modules.bin: $(MOD_O) tools/runlink_build.py $(NAMES_ALIASES)
 	$(PYTHON) tools/runlink_build.py --symbols $(RL_DIR)/symbols.txt --order $(RL_DIR)/order \
+	    --aliases undefined_syms.$(VERSION).txt $(NAMES_ALIASES) \
 	    --out-modules $(RL_DIR)/modules.bin --out-table $(RL_DIR)/modtab.bin $(MOD_O)
 
 $(RL_DIR)/modtab.bin: $(RL_DIR)/modules.bin

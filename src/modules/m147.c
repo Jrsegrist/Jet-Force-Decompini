@@ -54,7 +54,7 @@ extern void func_m003_07E88(s32, s32, s32);
 extern Object *func_m003_053C4(void);
 extern M147Gun *func_m003_0D2C0(Object *obj);
 extern void func_m003_06D28(Object *home, s32 point, f32 *x, f32 *y, f32 *z);
-extern f32 func_80011C84(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* distance */
+extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* distance */
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 
@@ -114,7 +114,7 @@ void func_m147_000B8(Object *obj, f32 *x, f32 *y, f32 *z) {
             *x = e->x;
             *y = e->y;
             *z = e->z;
-            if (func_80011C84(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 200.0f) {
+            if (point_distance(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 200.0f) {
                 e->state = 3;
             }
             break;
@@ -122,7 +122,7 @@ void func_m147_000B8(Object *obj, f32 *x, f32 *y, f32 *z) {
             *x = player->trans.x_position;
             *y = player->trans.y_position + 80.0f;
             *z = player->trans.z_position;
-            if (func_80011C84(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 600.0f) {
+            if (point_distance(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 600.0f) {
                 e->state = 4;
                 e->shots = 6;
                 e->timer = 1;
@@ -154,13 +154,13 @@ void func_m147_000B8(Object *obj, f32 *x, f32 *y, f32 *z) {
             *x = e->x;
             *y = e->y;
             *z = e->z;
-            if (func_80011C84(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 200.0f) {
+            if (point_distance(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 200.0f) {
                 e->state = 7;
             }
             break;
         case 7:
             func_m003_06D28(home, e->homePoint, x, y, z);
-            if (func_80011C84(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 200.0f) {
+            if (point_distance(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, *x, *y, *z) < 200.0f) {
                 func_m003_04398(1, 200);
             }
             break;

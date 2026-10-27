@@ -254,7 +254,7 @@ void bgdraw_render(Gfx **dList, Mtx **mtx, s32 drawBG) {
     viewport_scissor(dList);
 }
 
-extern Gfx D_800A3698[];
+extern Gfx dRdpInit[];
 
 /**
  * Sets the colour and depth image segments, then the RDP's default modes.
@@ -268,11 +268,12 @@ void rdp_init(Gfx **dList) {
     gDPPipeSync((*dList)++);
     gDPSetColorImage((*dList)++, G_IM_FMT_RGBA, G_IM_SIZ_16b, width, 0x01000000);
     gDPSetDepthImage((*dList)++, 0x02000000);
-    gSPDisplayList((*dList)++, D_800A3698);
+    gSPDisplayList((*dList)++, dRdpInit);
 }
 
-void func_8004E3E8(Gfx **dList) {
-    gSPDisplayList((*dList)++, D_800A3698);
+/* Calls the display list that sets the RDP's default modes (0x8004E3E8). */
+void rdp_set_default_modes(Gfx **dList) {
+    gSPDisplayList((*dList)++, dRdpInit);
 }
 
 /**

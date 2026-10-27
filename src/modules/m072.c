@@ -40,7 +40,7 @@ typedef struct M072Weapons {
     /* 0x34 */ u16 maxAmmo[16];
 } M072Weapons;
 
-/* What func_8003B500 returns: a weapon's properties */
+/* What weapon_info_get returns: a weapon's properties */
 typedef struct M072WeaponInfo {
     /* 0x00 */ u8 pad0[0x26];
     /* 0x26 */ s16 capacityPickup;
@@ -50,10 +50,10 @@ typedef struct M072WeaponInfo {
     /* 0x2E */ s16 maxCapacity;
 } M072WeaponInfo;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
 extern M072Weapons *func_80047C1C(s32 player, s32 arg1);
-extern M072WeaponInfo *func_8003B500(s32 weapon);
+extern M072WeaponInfo *weapon_info_get(s32 weapon);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 s32 D_m072_00480 = 72; /* the module's number */
@@ -83,9 +83,9 @@ void func_m072_00064(Object *obj, s32 updateRate) {
     s32 message;
     s32 take;
 
-    func_800541B0(D_m072_00480, 2, 2);
+    runlink_unload_timer_set(D_m072_00480, 2, 2);
     p = obj->unk68;
-    if (p->objectID == 0xE7 && func_80047ED0(p->flag + 0x80)) {
+    if (p->objectID == 0xE7 && game_flag_get(p->flag + 0x80)) {
         func_800079B8(obj);
         return;
     }
@@ -110,7 +110,7 @@ void func_m072_00064(Object *obj, s32 updateRate) {
             pd = list[i]->unk68;
             w = func_80047C1C(pd->player, pd->unk1);
             weapon = p->weapon;
-            info = func_8003B500(weapon);
+            info = weapon_info_get(weapon);
             if ((w->owned & (1 << p->weapon)) &&
                 (p->objectID != 0xE7 || !(info->maxCapacity < w->maxAmmo[weapon] + info->capacityPickup))) {
                 take = 1;
@@ -175,7 +175,7 @@ u8 func_m072_003BC(Object *obj, s32 player) {
     if (o != NULL) {
         pd = o->unk68;
         w = func_80047C1C(player, pd->unk1);
-        info = func_8003B500(p->weapon);
+        info = weapon_info_get(p->weapon);
         if (!(w->owned & (1 << p->weapon)) ||
             (p->objectID == 0xE7 && info->maxCapacity < w->maxAmmo[p->weapon] + info->capacityPickup)) {
             return p->fade >> 2;

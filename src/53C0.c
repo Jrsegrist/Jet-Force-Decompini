@@ -94,8 +94,8 @@ extern s32 D_800F2D08;
 extern s32 D_800F2D1C; // JFG: the number of animated objects in D_800F2D18
 extern s32 D_800F2D40;
 
-/* JFG: reset the object system's variables. */
-void func_800047C0(void) {
+/* JFG: reset the object system's variables (0x800047C0). */
+void clear_object_pointers(void) {
     D_800F2C60 = 1;
     D_800F2C6C = 0;
     D_800F2C70 = 0;
@@ -276,8 +276,8 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000774C);
 
 extern Object **gParticlePtrList;
 extern s32 gFreeListCount;
-extern s32 D_800F2F20[16];
-extern u8 D_800A097C;
+extern s32 gFreedObjectIds[16];
+extern u8 gFreedObjectIdIndex;
 void func_80026E20(Object *obj);
 
 /**
@@ -292,9 +292,9 @@ void free_object(Object *object) {
         gFreeListCount++;
         object->freed = TRUE;
         func_80026E20(object);
-        D_800F2F20[D_800A097C] = (object->behaviorId << 16) | object->unk4A;
-        D_800A097C++;
-        D_800A097C &= 0xF;
+        gFreedObjectIds[gFreedObjectIdIndex] = (object->behaviorId << 16) | object->unk4A;
+        gFreedObjectIdIndex++;
+        gFreedObjectIdIndex &= 0xF;
     }
 }
 
@@ -764,8 +764,8 @@ void func_800118F4(s32 *a, s32 *b, s32 index) {
     *b = D_800F2CE0[index];
 }
 
-/* JFG: link obj into the list after its head, unless it is already in it. */
-void func_8001191C(Object *obj, Object *list) {
+/* JFG: link obj into the list after its head, unless it is already in it (0x8001191C). */
+void obj_list_insert_after(Object *obj, Object *list) {
     Object *it = list;
 
     if (list != NULL) {
@@ -784,7 +784,8 @@ void func_8001191C(Object *obj, Object *list) {
     }
 }
 
-void func_80011974(Object *obj) {
+/* Unlinks an object from its list (0x80011974). */
+void obj_list_unlink(Object *obj) {
     if (obj->next != NULL) {
         obj->next->prev = obj->prev;
     }
@@ -811,16 +812,16 @@ s32 func_80011C2C(void) {
     return 0;
 }
 
-/* JFG: the distance between two points. */
-f32 func_80011C84(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
+/* JFG: the distance between two points (0x80011C84). */
+f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
     f32 dx = x1 - x2;
     f32 dy = y1 - y2;
     f32 dz = z1 - z2;
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
-/* JFG: the squared distance between two points. */
-f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
+/* JFG: the squared distance between two points (0x80011CE0). */
+f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
     f32 dx = x1 - x2;
     f32 dy = y1 - y2;
     f32 dz = z1 - z2;

@@ -89,14 +89,14 @@ typedef struct SaveFile {
 } SaveFile;
 
 extern u8 D_800FF318[]; // JFG: the global flags
-u8 *func_80047C0C(void);
-u8 *func_8004841C(void);
+u8 *get_settings(void);
+u8 *get_all_save_files_ptr(void);
 void func_8004BC10(s32 file, u8 *game);
-void func_8004BCB4(s32 file, u8 *game);
+void erase_save_file(s32 file, u8 *game);
 void func_8004BD78(void);
 void func_8004BAF4(s32 file, u8 *game);
-void func_8004BE6C(u8 *flags);
-void func_8004BEE4(u8 *flags);
+void read_eeprom_settings(u8 *flags);
+void write_eeprom_settings(u8 *flags);
 void func_8004B56C(s32 updateRate);
 
 /**
@@ -132,16 +132,16 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
             }
         }
         if (saveDataFlags != 0) {
-            settings = func_80047C0C();
+            settings = get_settings();
             if (saveDataFlags & SAVE_FLAG_SAVE_GAME) {
                 func_8004BC10((saveDataFlags >> 3) & 7, settings);
             }
             if (saveDataFlags & SAVE_FLAG_CLEAR_GAME) {
-                func_8004BCB4((saveDataFlags >> 6) & 7, settings);
+                erase_save_file((saveDataFlags >> 6) & 7, settings);
             }
             if (saveDataFlags & SAVE_FLAG_CLEAR_ALL_GAMES) {
                 for (i = 0; i < NUMBER_OF_SAVE_FILES; i++) {
-                    func_8004BCB4(i, settings);
+                    erase_save_file(i, settings);
                 }
             }
             if (saveDataFlags & SAVE_FLAG_ERASE) {
@@ -151,16 +151,16 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
                 func_8004BAF4(saveDataFlags & 7, settings);
             }
             if (saveDataFlags & SAVE_FLAG_LOAD_ALL_GAMES) {
-                allSaves = func_8004841C();
+                allSaves = get_all_save_files_ptr();
                 for (i = 0; i < NUMBER_OF_SAVE_FILES; i++) {
                     func_8004BAF4(i, allSaves + i * SAVE_FILE_SIZE);
                 }
             }
             if (saveDataFlags & SAVE_FLAG_LOAD_GLOBAL_FLAGS) {
-                func_8004BE6C(D_800FF318);
+                read_eeprom_settings(D_800FF318);
             }
             if (saveDataFlags & SAVE_FLAG_SAVE_GLOBAL_FLAGS) {
-                func_8004BEE4(D_800FF318);
+                write_eeprom_settings(D_800FF318);
             }
             // Reset all flags
             saveDataFlags = 0;
@@ -202,13 +202,13 @@ void input_assign_players(void) {
     }
 }
 
-/* JFG: stop taking input for this player. */
-void func_80043404(s32 player) {
+/* JFG: stop taking input for this player (0x80043404). */
+void input_player_disable(s32 player) {
     sPlayerInputEnabled[player & 3] = FALSE;
 }
 
-/* JFG: take input for this player again. */
-void func_80043418(s32 player) {
+/* JFG: take input for this player again (0x80043418). */
+void input_player_enable(s32 player) {
     sPlayerInputEnabled[player & 3] = TRUE;
 }
 
@@ -272,8 +272,8 @@ s32 input_clamp_stick_x(s32 player) {
     return input_clamp_stick_mag(gControllerCurrData[sPlayerID[player]].stick_x);
 }
 
-/* JFG: the raw X joystick axis of the selected player. */
-s8 func_8004359C(s32 player) {
+/* JFG: the raw X joystick axis of the selected player (0x8004359C). */
+s8 input_stick_x_raw(s32 player) {
     return gControllerCurrData[sPlayerID[player]].stick_x;
 }
 
@@ -285,8 +285,8 @@ s32 input_clamp_stick_y(s32 player) {
     return input_clamp_stick_mag(gControllerCurrData[sPlayerID[player]].stick_y);
 }
 
-/* JFG: the raw Y joystick axis of the selected player. */
-s8 func_8004360C(s32 player) {
+/* JFG: the raw Y joystick axis of the selected player (0x8004360C). */
+s8 input_stick_y_raw(s32 player) {
     return gControllerCurrData[sPlayerID[player]].stick_y;
 }
 

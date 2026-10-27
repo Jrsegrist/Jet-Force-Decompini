@@ -27,7 +27,7 @@ typedef struct M097Level {
     /* 0xE2 */ u8 unkE2;
 } M097Level;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern M097Level *func_8004470C(void); /* DKR levelGetLevel */
 
@@ -59,14 +59,14 @@ void func_m097_00100(Object *obj, s32 updateRate) {
     s32 sound;
     s32 mode;
 
-    func_800541B0(D_m097_003C0, 2, 2);
+    runlink_unload_timer_set(D_m097_003C0, 2, 2);
     f = obj->unk68;
     f->timer -= updateRate;
     spin = f->spin * updateRate;
     obj->trans.rotation.y_rotation += spin << 6;
     obj->trans.rotation.x_rotation += spin << 7;
     obj->trans.rotation.z_rotation += spin << 5;
-    if (obj->interactObj != NULL && obj->interactObj->unk6 <= 0) {
+    if (obj->interactObj != NULL && obj->interactObj->hitPoints <= 0) {
         mode = 3;
     } else if (f->timer <= 0) {
         mode = 4;

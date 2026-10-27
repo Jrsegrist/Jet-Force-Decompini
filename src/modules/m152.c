@@ -65,7 +65,7 @@ extern s32 D_800FE9F8; /* frames this update */
 extern s16 func_80049C84(f32 x, f32 z); /* angle of a vector */
 extern f32 func_80097140(f32 x);        /* square root */
 extern s16 func_80049D80(s16 from, s16 to); /* difference between two angles */
-extern f32 func_800420F0(f32 x, f32 y, f32 z); /* depth of a point from the camera */
+extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
 extern void func_80041450(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 x, s32 y, s32 z, s32 arg7, f32 size,
                           f32 arg9, s32 arg10, s32 arg11);
 
@@ -344,7 +344,7 @@ void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 ar
             p = chain->points[0];
             for (j = 0; j < n; j++, p += 4) {
                 if ((hydra->chainMask & (1 << i)) ? inverted : !inverted) {
-                    e->depth = -func_800420F0(p[0], p[1], p[2]);
+                    e->depth = -get_distance_to_camera(p[0], p[1], p[2]);
                     e->chain = i;
                     e->point = j;
                     e++;

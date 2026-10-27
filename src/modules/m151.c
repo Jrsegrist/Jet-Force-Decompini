@@ -77,7 +77,7 @@ typedef struct M151Texture {
 extern u8 *D_80102D60[]; /* the two 8-bit work buffers of each texture */
 extern u8 *D_80102D78[];
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern Object *func_m139_00184(s16 x, s16 z, s32 radius, s32 zone);
 extern s32 func_m139_0038C(Object *obj);
 extern s32 func_m003_0CAA4(f32, f32, s32);
@@ -91,8 +91,8 @@ extern f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2);
 extern s32 func_m003_17910(f32 x, f32 z, s32 zone);
 extern s32 func_m003_057CC(f32 x, f32 z);
 extern s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 zone, s32, s32, s32);
-extern void func_8001191C(Object *obj, Object *target);
-extern void func_80011974(Object *obj);
+extern void obj_list_insert_after(Object *obj, Object *target);
+extern void obj_list_unlink(Object *obj);
 extern void *func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32, f32 scale);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
@@ -115,12 +115,12 @@ void func_m151_00000(Object *obj) {
     Object *food;
 
     food = func_m139_00184(obj->trans.x_position, obj->trans.z_position, 800, home->zone);
-    func_800541B0(D_m151_00FE0, 2, 2);
+    runlink_unload_timer_set(D_m151_00FE0, 2, 2);
     if (food != NULL && func_m003_04260(4, 0x14, 0, 0, 0) != 0) {
         e->x = food->trans.x_position;
         e->z = food->trans.z_position;
         e->target = food;
-        func_8001191C(obj, food);
+        obj_list_insert_after(obj, food);
     }
     if (e->mission != 0x14) {
         if (func_m003_0CAA4(0.0f, 400.0f, 0x17F0) != 0) {
@@ -262,7 +262,7 @@ void func_m151_00438(Object *obj, f32 *x, f32 *y, f32 *z) {
         case 9:
             if (func_m003_04F88(3, 1.0f) != 0 || e->unk4B != 3) {
                 e->unk4B = 0;
-                func_80011974(obj);
+                obj_list_unlink(obj);
                 func_m003_04398(1, 0);
             }
             break;

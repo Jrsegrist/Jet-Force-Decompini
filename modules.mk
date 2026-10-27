@@ -21,7 +21,7 @@ $(BUILD_DIR)/$(MOD_C_DIR)/%.o: $(MOD_C_DIR)/%.c
 
 # (the recipe in the Makefile uses the MOD_O above; it also reads
 # undefined_syms for names given to main-segment addresses)
-$(RL_DIR)/modules.bin: $(MOD_O) undefined_syms.$(VERSION).txt
+$(RL_DIR)/modules.bin: $(MOD_O) undefined_syms.$(VERSION).txt names.txt
 
 # runlink_build.py writes the table together with the images; an (empty)
 # recipe makes make look at the table again, so that the ROM is relinked in

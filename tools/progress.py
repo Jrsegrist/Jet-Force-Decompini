@@ -5,7 +5,9 @@ A function counts as decompiled when it is compiled from C: a function in
 src/ that is not pulled in with INCLUDE_ASM, or an ultralib object. Everything
 assembled from asm/ (or INCLUDE_ASM'd) counts as not decompiled, including
 hand-written assembly. Reads build/jfg.us.elf and build/jfg.us.map, and for
-the runlink modules build/runlink/modules.map (see module_progress).
+the runlink modules build/runlink/modules.map (see module_progress). The
+"names" line counts the C functions that have a real name instead of their
+address name func_XXXXXXXX (names.txt, DKR's names, libultra's).
 
 Usage: tools/progress.py [--version us] [--files] [--modules]
 """
@@ -21,6 +23,7 @@ REGIONS = [
     ("main: game", 0x80000400, 0x80084200),
     ("main: libraries", 0x80084200, 0x800A0660),
 ]
+ADDR_NAME = re.compile(r"func_[0-9A-Fa-f]{8}$")
 
 
 def functions(elf):
@@ -143,6 +146,7 @@ def main():
 
     totals = collections.OrderedDict((r[0], [0, 0, 0, 0]) for r in REGIONS)
     per_file = collections.defaultdict(lambda: [0, 0, 0, 0])
+    named = collections.OrderedDict((r[0], 0) for r in REGIONS)
     for addr, (size, name) in sorted(funcs.items()):
         region = next((r[0] for r in REGIONS if r[1] <= addr < r[2]), None)
         if region is None:
@@ -156,6 +160,8 @@ def main():
             if is_c:
                 row[2] += 1
                 row[3] += size
+        if is_c and not ADDR_NAME.match(name):
+            named[region] += 1
 
     def pct(a, b):
         return 100.0 * a / b if b else 0.0
@@ -167,6 +173,11 @@ def main():
         all_ = [a + b for a, b in zip(all_, (n, sz, nc, szc))]
     n, sz, nc, szc = all_
     print("%-18s %6d/%-5d %5.1f%% %8d/%-7d %5.1f%%" % ("main: total", nc, n, pct(nc, n), szc, sz, pct(szc, sz)))
+    # names: C functions with a real name rather than func_XXXXXXXX (names.txt, DKR, libultra)
+    ng, cg = named[REGIONS[0][0]], totals[REGIONS[0][0]][2]
+    na, ca = sum(named.values()), nc
+    print("%-18s %6d/%-5d %5.1f%% of the game code's C functions (main: %d/%d)" % (
+        "names", ng, cg, pct(ng, cg), na, ca))
     mods = module_progress(MODULE_MAP)
     if mods:
         n, sz, nc, szc = [sum(m[k] for m in mods) for k in range(1, 5)]

@@ -82,7 +82,7 @@ typedef struct VideoMode {
 } VideoMode;
 
 extern VideoMode D_800A392C[];
-extern s8 D_800FECA8;
+extern s8 gVideoModeIndex;
 extern u8 gVideoDeltaCounter;
 extern u8 gVideoDeltaTime;
 extern u8 D_800FECAD;
@@ -115,7 +115,7 @@ extern OSMesgQueue gVideoMesgQueue;
 extern OSMesg gVideoMesgBuf[8];
 extern OSScClient gVideoSched;
 extern void *D_800A3900[]; // JFG: video buffers ([0] the line buffer, [3] the depth buffer allocation)
-extern s8 D_800FECAA;
+extern s8 gVideoVerticalAdjust;
 extern s8 D_800FECA5;
 extern s8 D_800FECA6;
 extern u8 D_800FECA7;
@@ -146,7 +146,7 @@ void video_init(OSSched *sc) {
     osCreateMesgQueue(&gVideoMesgQueue, gVideoMesgBuf, ARRAY_COUNT(gVideoMesgBuf));
     osScAddClient(sc, &gVideoSched, &gVideoMesgQueue, OS_SC_ID_VIDEO);
     D_800A3900[0] = mempool_alloc_safe(height * 1280 + 0x30, -1);
-    D_800FECAA = 0;
+    gVideoVerticalAdjust = 0;
     D_800FECA5 = 0;
     D_800FECA6 = 0;
     D_800FECA7 = 1;
@@ -161,21 +161,21 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_8005483C);
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054B44);
 
 extern s32 D_800FECA0; // JFG: the size of the depth buffer allocation
-extern s32 D_800FECBC; // JFG: the depth buffer, 64-byte aligned
+extern s32 gVideoDepthBuffer; // JFG: the depth buffer, 64-byte aligned
 
-/* JFG: allocate a depth buffer for the given size. */
-void func_80054C4C(s32 width, s32 height) {
+/* JFG: allocate a depth buffer for the given size (0x80054C4C). */
+void zbuffer_alloc(s32 width, s32 height) {
     D_800FECA0 = width * height * 2 + 0x30;
     D_800A3900[3] = mempool_alloc_safe(D_800FECA0, -1);
-    D_800FECBC = ((s32) D_800A3900[3] + 0x3F) & ~0x3F;
+    gVideoDepthBuffer = ((s32) D_800A3900[3] + 0x3F) & ~0x3F;
 }
 
-/* JFG: free the depth buffer (the size arguments are unused). */
-void func_80054CA4(UNUSED s32 width, UNUSED s32 height) {
+/* JFG: free the depth buffer (the size arguments are unused) (0x80054CA4). */
+void zbuffer_free(UNUSED s32 width, UNUSED s32 height) {
     if (D_800A3900[3] != NULL) {
         mempool_free(D_800A3900[3]);
         D_800A3900[3] = NULL;
-        D_800FECBC = 0;
+        gVideoDepthBuffer = 0;
         D_800FECA0 = 0;
     }
 }
@@ -188,7 +188,7 @@ extern VideoFlags D_800FF384;
 extern OSViMode gTvViMode;
 extern s32 D_800A3924; // JFG: set once the first mode was built (the first is not applied here)
 OSViMode *func_800552DC(s32 mode);
-void func_80055480(u8 *src, u8 *dst, s32 size);
+void fb_memcpy(u8 *src, u8 *dst, s32 size);
 
 /**
  * Initialise the VI settings.
@@ -202,14 +202,14 @@ void fb_init_vi(void) {
     s32 i;
     VideoMode *mode;
 
-    mode = &D_800A392C[D_800FECA8];
+    mode = &D_800A392C[gVideoModeIndex];
     tvViMode = func_800552DC(mode->viMode);
-    func_80055480((u8 *) tvViMode, (u8 *) &gTvViMode, sizeof(OSViMode));
+    fb_memcpy((u8 *) tvViMode, (u8 *) &gTvViMode, sizeof(OSViMode));
     gTvViMode.comRegs.width = mode->width;
     gTvViMode.comRegs.xScale = (mode->width << 9) / mode->unk8;
     offset = mode->unk10;
-    if ((D_800FECA8 & 1) && D_800FF384.unk1) {
-        offset += D_800FECAA;
+    if ((gVideoModeIndex & 1) && D_800FF384.unk1) {
+        offset += gVideoVerticalAdjust;
     }
     for (i = 0; i < 2; i++) {
         gTvViMode.fldRegs[i].origin = mode->width * 2;
@@ -230,20 +230,21 @@ void fb_init_vi(void) {
  * Official Name: viGetCurrentSize
  */
 void fb_size(s32 *width, s32 *height) {
-    *width = D_800A392C[D_800FECA8].width;
-    *height = D_800A392C[D_800FECA8].height;
+    *width = D_800A392C[gVideoModeIndex].width;
+    *height = D_800A392C[gVideoModeIndex].height;
 }
 
 extern f32 D_800A391C;
 extern f32 D_800A3920;
 
-/* JFG: scale a position by the screen's scale factors. */
-void func_80054EF0(s32 *x, s32 *y) {
+/* JFG: scale a position by the screen's scale factors (0x80054EF0). */
+void fb_scale_coords(s32 *x, s32 *y) {
     *x = *x * D_800A391C;
     *y = *y * D_800A3920;
 }
 
-void func_80054F74(f32 *x, f32 *y) {
+/* Writes the screen's scale factors (0x80054F74). */
+void fb_get_scale(f32 *x, f32 *y) {
     *x = D_800A391C;
     *y = D_800A3920;
 }
@@ -263,7 +264,7 @@ void video_delta_reset(void) {
 #define LOGIC_60FPS 1
 #define LOGIC_20FPS 3
 
-extern s32 D_800FECB8; // the framebuffer to show next
+extern s32 gVideoLastFramebuffer; // the framebuffer to show next
 void func_8005539C(void);
 
 /**
@@ -308,30 +309,33 @@ s32 fb_update(s32 mesg) {
         osRecvMesg(&gVideoMesgQueue, NULL, OS_MESG_BLOCK);
         tempUpdateRate++;
     }
-    osViSwapBuffer((void *) D_800FECB8);
+    osViSwapBuffer((void *) gVideoLastFramebuffer);
     osRecvMesg(&gVideoMesgQueue, NULL, OS_MESG_BLOCK);
     D_800FECAD = 0;
     return tempUpdateRate;
 }
 
-s32 func_80055180(void) {
-    return D_800FECA8 & 3;
+/* Returns the current video mode index (0x80055180). */
+s32 fb_mode(void) {
+    return gVideoModeIndex & 3;
 }
 
-extern s8 D_800FECAA;
+extern s8 gVideoVerticalAdjust;
 
-s8 func_80055198(void) {
-    return D_800FECAA;
+/* Returns the screen's vertical adjustment (0x80055198). */
+s8 fb_vertical_adjust_get(void) {
+    return gVideoVerticalAdjust;
 }
 
-void func_800551A8(s32 adjust) {
+/* Sets the screen's vertical adjustment (-30 to 30) and applies it (0x800551A8). */
+void fb_vertical_adjust_set(s32 adjust) {
     if (adjust < -30) {
         adjust = -30;
     }
     if (adjust > 30) {
         adjust = 30;
     }
-    D_800FECAA = adjust;
+    gVideoVerticalAdjust = adjust;
     fb_init_vi();
 }
 
@@ -358,11 +362,11 @@ void func_80055228(void) {
     D_800FECA7 = 0;
 }
 
-extern s32 D_800FECB8;
+extern s32 gVideoLastFramebuffer;
 extern s32 D_800A3910;
 
 s32 func_80055234(void) {
-    if (D_800A3910 == D_800FECB8) {
+    if (D_800A3910 == gVideoLastFramebuffer) {
         return 1;
     }
     return 0;
@@ -402,7 +406,8 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_800552DC);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005539C);
 
-void func_80055480(u8 *src, u8 *dst, s32 size) {
+/* Copies bytes from one address to another (0x80055480). */
+void fb_memcpy(u8 *src, u8 *dst, s32 size) {
     while (size--) {
         *dst++ = *src++;
     }
@@ -445,7 +450,7 @@ typedef struct TempTexHeader {
 extern s32 gTextureTableSize[2];
 extern s32 *gTextureAssetTable[2];
 extern TempTexHeader *gTempTextureHeader;
-extern s32 D_800A33F4; // JFG: the texture being loaded (-1 when none)
+extern s32 gForcedColourTag; // JFG: the texture being loaded (-1 when none)
 extern u8 *D_800A4E7C; // JFG: load the next texture at this address
 extern s32 gCiPalettesSize;
 void *mempool_alloc(s32 size, u32 colourTag);
@@ -497,7 +502,7 @@ TextureHeader *load_texture(s32 id) {
     }
     assetOffset = gTextureAssetTable[tableType][assetIndex];
     assetSize = gTextureAssetTable[tableType][assetIndex + 1] - assetOffset;
-    D_800A33F4 = id;
+    gForcedColourTag = id;
     asset_load(assetSection, (u32) gTempTextureHeader, assetOffset, sizeof(TempTexHeader));
     if (!gTempTextureHeader->isCompressed) {
         if (D_800A4E7C) {
@@ -505,7 +510,7 @@ TextureHeader *load_texture(s32 id) {
         } else {
             tex = (TextureHeader *) mempool_alloc(assetSize + 0x90, gTexColourTag);
         }
-        D_800A33F4 = -1;
+        gForcedColourTag = -1;
         if (tex == NULL) {
             return NULL;
         }
@@ -523,7 +528,7 @@ TextureHeader *load_texture(s32 id) {
         } else {
             tex = (TextureHeader *) mempool_alloc(size + 0x90, gTexColourTag);
         }
-        D_800A33F4 = -1;
+        gForcedColourTag = -1;
         if (tex == NULL) {
             return NULL;
         }
@@ -584,7 +589,8 @@ void tex_free(TextureHeader *tex) {
     }
 }
 
-s32 func_80055AB8(s32 texture) {
+/* Returns the cache id of a loaded texture (-1 if not found) (0x80055AB8). */
+s32 tex_find_id(s32 texture) {
     s32 i;
     for (i = 0; i < gNumberOfLoadedTextures; i++) {
         if (texture == gTextureCache[ASSETCACHE_PTR(i)]) {
@@ -597,7 +603,8 @@ s32 func_80055AB8(s32 texture) {
 extern u8 *D_800A4E7C; // JFG: load the next texture at this address
 TextureHeader *load_texture(s32 assetIndex);
 
-TextureHeader *func_80055B0C(s32 textureID, s32 address) {
+/* Loads a texture at a given address (0x80055B0C). */
+TextureHeader *load_texture_at(s32 textureID, s32 address) {
     TextureHeader *tex;
     D_800A4E7C = (u8 *) address;
     tex = load_texture(textureID);
@@ -990,14 +997,16 @@ typedef struct ColourCycle {
     /* 0x0C */ struct ColourCycle *source;
 } ColourCycle;
 s32 *get_misc_asset(s32 index);
-void func_80057D1C(ColourCycle *cycle);
+void colour_cycle_reset(ColourCycle *cycle);
 
-void func_80057CEC(ColourCycle *cycle, s32 assetID) {
+/* Sets up a colour cycle from a misc asset (0x80057CEC). */
+void colour_cycle_init(ColourCycle *cycle, s32 assetID) {
     cycle->source = (ColourCycle *) get_misc_asset(assetID);
-    func_80057D1C(cycle);
+    colour_cycle_reset(cycle);
 }
 
-void func_80057D1C(ColourCycle *cycle) {
+/* Resets a colour cycle to its first colour (0x80057D1C). */
+void colour_cycle_reset(ColourCycle *cycle) {
     ColourCycle *source = cycle->source;
     cycle->unk0 = 0;
     cycle->unk4 = 0;

@@ -21,7 +21,7 @@ typedef struct M119Object {
     M119PlayerData *unk68;
 } M119Object;
 
-extern void func_800541B0(s32, s32, s32);
+extern void runlink_unload_timer_set(s32, s32, s32);
 extern M119Object *func_8000E4D0(s32);
 extern M119Counter *func_80047C1C(s32, s32);
 extern void func_80001248(s32, s32);
@@ -37,7 +37,7 @@ void func_m119_00000(M119Object *obj, s32 updateRate) {
     f32 dy;
     f32 dz;
 
-    func_800541B0(D_m119_00100, 2, 2);
+    runlink_unload_timer_set(D_m119_00100, 2, 2);
     obj->unk0 += updateRate << 8;
     player = func_8000E4D0(0);
     if (player != NULL) {

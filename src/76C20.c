@@ -37,14 +37,15 @@ extern s32 *D_801047C8;
 extern s32 D_801047CC;
 extern s32 D_801047D0;
 
-void func_80076020(s32 *arg0) {
+/* Starts reading a bit stream (0x80076020). */
+void bitstream_init(s32 *arg0) {
     D_801047C8 = arg0;
     D_801047CC = *arg0;
     D_801047D0 = 0x80;
 }
 
-/* JFG: read count bits (most significant first) from the bit stream. */
-s32 func_80076044(u32 count) {
+/* JFG: read count bits (most significant first) from the bit stream (0x80076044). */
+s32 bitstream_read_bits(u32 count) {
     s32 result = 0;
 
     if (count != 0) {
@@ -64,8 +65,8 @@ s32 func_80076044(u32 count) {
     return result;
 }
 
-/* JFG: read a signed count-bit number (sign-extended) from the bit stream. */
-s32 func_800760C0(u32 count) {
+/* JFG: read a signed count-bit number (sign-extended) from the bit stream (0x800760C0). */
+s32 bitstream_read_signed_bits(u32 count) {
     s32 result = 0;
     s32 sign;
 
@@ -90,7 +91,8 @@ s32 func_800760C0(u32 count) {
     return result;
 }
 
-void func_80076154(void) {
+/* Ends reading the bit stream, storing the position after it (0x80076154). */
+void bitstream_end(void) {
     if (D_801047D0 != 0x80) {
         D_801047CC++;
     }
@@ -283,13 +285,13 @@ INCLUDE_ASM("asm/nonmatchings/76C20", func_80076D6C);
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076EA0);
 
 extern s32 D_801045C8[16];
-void func_80001228(s32 soundHandle);
+void sound_stop(s32 soundHandle);
 
 void func_80077004(void) {
     s32 i;
     for (i = 0; i < 16; i++) {
         if (D_801045C8[i] != 0) {
-            func_80001228(D_801045C8[i]);
+            sound_stop(D_801045C8[i]);
             D_801045C8[i] = 0;
         }
     }

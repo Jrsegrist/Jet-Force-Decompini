@@ -1,6 +1,7 @@
 #include "common.h"
 
-void func_8003B870(u16 *src, u16 *dst, s32 size) {
+/* Copies a block as halfwords (size in bytes, rounded up) (0x8003B870). */
+void mem_copy_u16(u16 *src, u16 *dst, s32 size) {
     size = (size + 1) >> 1;
     while (size--) {
         *dst++ = *src++;
@@ -11,8 +12,8 @@ INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B8AC);
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B9E8);
 
-/* JFG: set count matrices to the identity. */
-void func_8003C0C4(s32 count, MtxF *mtx) {
+/* JFG: set count matrices to the identity (0x8003C0C4). */
+void mtxf_set_identity_array(s32 count, MtxF *mtx) {
     while (count > 0) {
         count--;
         (*mtx)[0][0] = 1.0f;
@@ -68,7 +69,7 @@ Instance3C *func_8003C12C(Asset3C *asset) {
         inst->unkA = 2;
         inst->unkB = 0;
         inst->unkC = 0;
-        func_8003B870(asset->entries, entries, asset->count * 10);
+        mem_copy_u16(asset->entries, entries, asset->count * 10);
     }
     return inst;
 }
@@ -243,7 +244,7 @@ typedef struct TexEntry3C {
 
 extern TexEntry3C *D_800A2EC8;
 extern s16 D_800A2ECC;
-void *func_80055B0C(s32 textureID, s32 address);
+void *load_texture_at(s32 textureID, s32 address);
 void mempool_free(void *data);
 
 /* JFG: free the D_800A2EC8 table, loading each entry's texture at its address first. */
@@ -255,7 +256,7 @@ void func_8003F468(void) {
         entry = D_800A2EC8;
         for (i = 0; i < D_800A2ECC; i++, entry++) {
             if (entry->address != 0) {
-                func_80055B0C(entry->id, entry->address);
+                load_texture_at(entry->id, entry->address);
             }
         }
         mempool_free(D_800A2EC8);

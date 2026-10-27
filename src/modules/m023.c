@@ -66,8 +66,8 @@ typedef struct M023Object {
 
 extern M023Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void func_8002179C(M023Light *light);                            /* DKR light_remove */
-extern void func_8002130C(M023Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
-extern void func_80021358(M023Light *light, u8 intensity);             /* sets a light's intensity */
+extern void light_colour_set(M023Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
+extern void light_intensity_set(M023Light *light, u8 intensity);             /* sets a light's intensity */
 extern void func_80022520(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
 extern M023Level *func_8004470C(void);                                   /* DKR levelGetLevel */
 
@@ -192,8 +192,8 @@ void func_m023_0015C(s32 updateRate) {
         sLight->unk5A = BLEND(lightDirA);
         sLight->unk58 = BLEND(lightDirB);
         sLight->flags |= 4;
-        func_8002130C(sLight, BLEND(lightR), BLEND(lightG), BLEND(lightB));
-        func_80021358(sLight, BLEND(lightIntensity));
+        light_colour_set(sLight, BLEND(lightR), BLEND(lightG), BLEND(lightB));
+        light_intensity_set(sLight, BLEND(lightIntensity));
     }
     level = func_8004470C();
     ambient = BLEND(ambient);

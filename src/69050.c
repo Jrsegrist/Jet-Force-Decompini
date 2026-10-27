@@ -26,7 +26,7 @@ typedef struct FadeTransition {
 
 extern Vertex *sTransitionVtx[2];
 extern Triangle *sTransitionTris[2];
-extern Gfx D_800A6928[]; // DKR: dTransitionShapeSettings
+extern Gfx dTransitionShapeSettings[];
 void rendermode_reset(Gfx **dList);
 extern f32 *gTransitionNextVtx;
 extern f32 *gTransitionVertexTarget;
@@ -240,23 +240,26 @@ void func_8006F874(void);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
 
-extern s32 D_800A6780;
+extern s32 gTransitionsDisabled;
 
-void func_8006B95C(void) {
-    D_800A6780 = 0x1;
+/* Sets the flag that blocks new screen transitions (DKR's name) (0x8006B95C). */
+void enable_new_screen_transitions(void) {
+    gTransitionsDisabled = 0x1;
 }
 
-extern s32 D_800A6780;
+extern s32 gTransitionsDisabled;
 
-void func_8006B96C(void) {
-    D_800A6780 = 0;
+/* Clears the flag that blocks new screen transitions (DKR's name) (0x8006B96C). */
+void disable_new_screen_transitions(void) {
+    gTransitionsDisabled = 0;
 }
 
 extern s32 D_800A6784;
-extern s8 D_800A67A0;
+extern s8 gTransitionFadeIn;
 
-s32 func_8006B978(void) {
-    if (D_800A6784 != 0 && (sTransitionFadeTimer != 0 || (gTransitionEndTimer != 0 && D_800A67A0 != 0))) {
+/* Returns whether a transition is still fading (0x8006B978). */
+s32 check_fadeout_transition(void) {
+    if (D_800A6784 != 0 && (sTransitionFadeTimer != 0 || (gTransitionEndTimer != 0 && gTransitionFadeIn != 0))) {
         return 1;
     }
     return 0;
@@ -268,8 +271,8 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006BC34);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006BD54);
 
-/* JFG: clear the transition state. */
-void func_8006BE88(void) {
+/* JFG: clear the transition state (0x8006BE88). */
+void transition_end(void) {
     sTransitionStatus = 0;
     sTransitionTaskNum = 0;
 }
@@ -332,19 +335,20 @@ void transition_update_fullscreen(s32 updateRate) {
     } while (var_v0 == FALSE && updateRate > 0);
 }
 
-extern Gfx D_800A67B8[]; // DKR: dTransitionFadeSettings
+extern Gfx dTransitionFadeSettings[];
 void fb_size(u32 *width, u32 *height);
 
+/* Draws a fullscreen fill rectangle that fades in or out (0x8006C124). */
 /**
  * Draws a simple fillrect covering the whole screen that fades in or out.
  * DKR: transition_render_fullscreen.
  */
-void func_8006C124(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+void transition_render_fullscreen(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     u32 width;
     u32 height;
 
     fb_size(&width, &height);
-    gSPDisplayList((*dList)++, D_800A67B8);
+    gSPDisplayList((*dList)++, dTransitionFadeSettings);
     gDPSetPrimColor((*dList)++, 0, 0, gCurFadeRed, gCurFadeGreen, gCurFadeBlue, gCurFadeAlpha);
     gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gDPFillRectangle((*dList)++, 0, 0, width, height);
@@ -392,37 +396,40 @@ void transition_update_shape(s32 updateRate) {
     }
 }
 
+/* Renders the horizontal barn door transition (0x8006CA30). */
 /**
  * Renders a transition effect on screen that will close in from both sides horizonally.
  * DKR: transition_render_barndoor_hor (JFG: 13 vertices).
  */
-void func_8006CA30(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+void transition_render_barndoor_hor(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     rendermode_reset(dList);
-    gSPDisplayList((*dList)++, D_800A6928);
+    gSPDisplayList((*dList)++, dTransitionShapeSettings);
     gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 13, 0);
     gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(sTransitionTris[sTransitionTaskNum]), 8, TRIN_DISABLE_TEXTURE);
     rendermode_reset(dList);
 }
 
+/* Renders the vertical barn door transition (0x8006CB28). */
 /**
  * Renders a transition effect on screen that will close in from both sides vertically.
  * DKR: transition_render_barndoor_vert (JFG: 13 vertices).
  */
-void func_8006CB28(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+void transition_render_barndoor_vert(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     rendermode_reset(dList);
-    gSPDisplayList((*dList)++, D_800A6928);
+    gSPDisplayList((*dList)++, dTransitionShapeSettings);
     gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 13, 0);
     gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(sTransitionTris[sTransitionTaskNum]), 8, TRIN_DISABLE_TEXTURE);
     rendermode_reset(dList);
 }
 
+/* Renders the diagonal barn door transition (0x8006CC20). */
 /**
  * Renders a transition effect closing in from the corners.
  * DKR: transition_render_barndoor_diag (JFG: 11 vertices).
  */
-void func_8006CC20(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+void transition_render_barndoor_diag(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     rendermode_reset(dList);
-    gSPDisplayList((*dList)++, D_800A6928);
+    gSPDisplayList((*dList)++, dTransitionShapeSettings);
     gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(sTransitionVtx[sTransitionTaskNum]), 11, 0);
     gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(sTransitionTris[sTransitionTaskNum]), 6, TRIN_DISABLE_TEXTURE);
     rendermode_reset(dList);
@@ -475,16 +482,17 @@ void transition_update_blank(s32 updateRate) {
     }
 }
 
+/* Fills the whole screen with the transition colour (0x8006CFC0). */
 /**
  * Fill the whole screen with a solid colour.
  * DKR: transition_render_blank.
  */
-void func_8006CFC0(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
+void transition_render_blank(Gfx **dList, UNUSED Mtx **matrix, UNUSED Vertex **vtx) {
     u32 width;
     u32 height;
 
     fb_size(&width, &height);
-    gSPDisplayList((*dList)++, D_800A67B8);
+    gSPDisplayList((*dList)++, dTransitionFadeSettings);
     gDPSetPrimColor((*dList)++, 0, 0, (gLastFadeRed >> 16), (gLastFadeGreen >> 16), (gLastFadeBlue >> 16), 255);
     gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gDPFillRectangle((*dList)++, 0, 0, width, height);
@@ -559,8 +567,8 @@ void func_8006D60C(s16 x, s16 y, char *text) {
     }
 }
 
-/* JFG: write a number as decimal text; with `decimal` set, the last digit goes after a '.'. */
-void func_8006D70C(char *buf, s32 value, s32 decimal) {
+/* JFG: write a number as decimal text; with `decimal` set, the last digit goes after a '.' (0x8006D70C). */
+void s32_to_decimal_string(char *buf, s32 value, s32 decimal) {
     s32 divisor = 1000000;
     s32 started = FALSE;
     s32 digit;
@@ -590,8 +598,8 @@ void func_8006D70C(char *buf, s32 value, s32 decimal) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D7F0);
 
-/* JFG: add (signed) amounts to the channels of an RGBA5551 colour, clamped to 0..31. */
-void func_8006DA1C(u16 *colour, s8 addRed, s8 addGreen, s8 addBlue) {
+/* JFG: add (signed) amounts to the channels of an RGBA5551 colour, clamped to 0..31 (0x8006DA1C). */
+void rgba5551_add_clamped(u16 *colour, s8 addRed, s8 addGreen, s8 addBlue) {
     s16 red = ((*colour >> 11) & 0x1F) + addRed;
     s16 green = ((*colour >> 6) & 0x1F) + addGreen;
     s16 blue = ((*colour >> 1) & 0x1F) + addBlue;
@@ -617,8 +625,8 @@ void func_8006DA1C(u16 *colour, s8 addRed, s8 addGreen, s8 addBlue) {
     *colour = (red << 11) | (green << 6) | (blue << 1) | 1;
 }
 
-/* JFG: brighten the red and green channels of an RGBA5551 colour (saturating). */
-void func_8006DAE8(u16 *colour, u8 addRed, u8 addGreen) {
+/* JFG: brighten the red and green channels of an RGBA5551 colour (saturating) (0x8006DAE8). */
+void rgba5551_brighten_rg(u16 *colour, u8 addRed, u8 addGreen) {
     s16 red = ((*colour >> 11) & 0x1F) + addRed;
     s16 green = ((*colour >> 6) & 0x1F) + addGreen;
     s16 blue = (*colour >> 1) & 0x1F;
