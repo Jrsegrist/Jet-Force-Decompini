@@ -5,6 +5,7 @@
     tools/rename.py --dry-run       what would change, per file
     tools/rename.py --check         every old name still in the tree; exit 1 if any
     tools/rename.py --which NAME    old <-> new for one symbol
+    tools/rename.py --field-uses    every `.old`/`->old` text of a renamed field
     tools/rename.py FILE...         only these files (e.g. a branch's new files)
     tools/rename.py --aliases OUT OBJ...   the linker aliases (the Makefile runs this)
 
@@ -32,9 +33,15 @@ assembly files splat writes, which keep their address names). A `#define new
 new` line left behind is removed. It is safe to re-run: a renamed name is
 left alone.
 
-Struct fields are renamed by hand (the compiler reports a use that was
-missed); --check verifies that the struct no longer has the old member and
-has the new one.
+Struct fields are renamed by hand: telling the renamed struct's `.old` from
+another struct's member of the same name needs the types. The compiler
+reports a use that was missed, but only in code it compiles (a NON_MATCHING
+body is compiled by `make nonmatching` alone). --check verifies that the
+struct no longer has the old member and has the new one, and fails on a
+`.old`/`->old` text that is STALE (no struct or union has a member `old` any
+more, so it can only be the renamed field). After a rename, and with
+--field-uses, every `.old`/`->old` text of a renamed field's old name is
+listed, so the uses that are of the renamed struct can be checked by hand.
 
 The assembly still uses the old names (or the ROM's own names, aliased to the
 address names at extract time). --aliases writes the linker script lines that
@@ -266,6 +273,69 @@ def check_fields(fields, files, root):
     return problems
 
 
+STRUCT_OPEN = re.compile(r"\b(?:struct|union)\b[^;{}()]*\{")
+COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
+
+
+def member_words(texts):
+    """Every word inside a struct or union body in TEXTS (comments left out)."""
+    words = set()
+    for text in texts:
+        text = COMMENT.sub("", text)
+        for m in STRUCT_OPEN.finditer(text):
+            depth, i = 0, m.end() - 1
+            while i < len(text):
+                if text[i] == "{":
+                    depth += 1
+                elif text[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                i += 1
+            words.update(re.findall(r"[A-Za-z_]\w*", text[m.end():i]))
+    return words
+
+
+def field_uses(fields, files, root):
+    """Every `->old` / `.old` text in the C files, for each field rename that is done (its struct has
+    the new member): [(rel, line number, old, line, ["Type.old = new", ...], stale)]. A use of the old name can
+    be of another struct with a member of that name, which must keep it, so these are not rewritten;
+    STALE means no struct or union anywhere still has a member of that name, so the use must be the
+    renamed field (or another dead name). Uses inside `#ifdef NON_MATCHING` and comments are found
+    too: nothing else would report them."""
+    texts = {}
+    for rel in files:
+        if rel.endswith((".c", ".h")):
+            texts[rel] = read_text(os.path.join(root, rel)) or ""
+    members = member_words(texts.values())
+    hits = {}
+    for typ, old, new, n in fields:
+        done = False
+        for text in texts.values():
+            body = struct_body(text, typ)
+            if body is not None and re.search(r"\b%s\b" % re.escape(new), COMMENT.sub("", body)):
+                done = True
+                break
+        if not done:
+            continue
+        pat = re.compile(r"(?:->|(?<![.\d])\.)\s*%s\b" % re.escape(old))
+        for rel, text in texts.items():
+            for i, line in enumerate(text.splitlines(), 1):
+                if pat.search(line):
+                    key = (rel, i, old)
+                    if key not in hits:
+                        hits[key] = (line.strip(), [], old not in members)
+                    hits[key][1].append("%s.%s = %s" % (typ, old, new))
+    return [(rel, i, old, line, renames, stale) for (rel, i, old), (line, renames, stale) in sorted(hits.items())]
+
+
+def print_field_uses(hits, only_stale=False):
+    for rel, i, old, line, renames, stale in hits:
+        if only_stale and not stale:
+            continue
+        print("%s:%d: %s%s (%s): %s" % (rel, i, "STALE " if stale else "", old, ", ".join(renames), line))
+
+
 def defined_names(objs):
     """Global symbols the objects define."""
     names = set()
@@ -316,6 +386,8 @@ def main(argv=None):
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--check", action="store_true", help="report old names still in the tree; exit 1 if any")
     ap.add_argument("--which", metavar="NAME")
+    ap.add_argument("--field-uses", action="store_true",
+                    help="list every `.old`/`->old` use of a renamed field's old name; exit 1 if one is stale")
     ap.add_argument("--aliases", metavar="OUT", help="write the linker aliases for the C objects given")
     ap.add_argument("--version", default="us")
     ap.add_argument("--root", default=ROOT, help=argparse.SUPPRESS)
@@ -369,9 +441,23 @@ def main(argv=None):
         for p in problems:
             print(p)
         stale += len(problems)
+        hits = field_uses(fields, files, root)
+        print_field_uses(hits, only_stale=True)
+        stale += sum(1 for h in hits if h[5])
+        others = sum(1 for h in hits if not h[5])
         print("rename.py --check: %d old name%s in %d files (%d renames, %d fields)" % (
             stale, "" if stale == 1 else "s", len(files), len(table), len(fields)))
+        if others:
+            print("  (%d `.old`/`->old` uses of renamed fields' old names, each a member of some other "
+                  "struct too: --field-uses lists them)" % others)
         return 1 if stale else 0
+
+    if args.field_uses:
+        hits = field_uses(fields, files, root)
+        print_field_uses(hits)
+        print("rename.py --field-uses: %d use%s, %d STALE (no struct has that member any more)" % (
+            len(hits), "" if len(hits) == 1 else "s", sum(1 for h in hits if h[5])))
+        return 1 if any(h[5] for h in hits) else 0
 
     if not table:
         print("rename.py: %s has no renames" % NAMES)
@@ -400,6 +486,12 @@ def main(argv=None):
             print("fields still to rename by hand:")
             for p in problems:
                 print("  " + p)
+        hits = field_uses(fields, files, root)
+        if hits:
+            print("`.old`/`->old` uses of renamed fields' old names, not rewritten: rename those that are the "
+                  "renamed field by hand (STALE: no struct has that member any more; NON_MATCHING bodies "
+                  "are only compiled by `make nonmatching`):")
+            print_field_uses(hits)
     return 0
 
 
