@@ -34,7 +34,7 @@ extern void func_80052678(void);
 extern void func_80065CE0(void);
 extern void func_80083A90(void);
 extern void func_80096BB0(void *mq, void *msg, s32 count);                  /* osCreateMesgQueue */
-extern void func_8004F85C(void *sched, void *client, void *mq, s32 id);      /* osScAddClient */
+extern void osScAddClient(void *sched, void *client, void *mq, s32 id);      /* osScAddClient */
 extern s32 func_8000E624(s32 arg0);
 extern void func_80097F70(u64 arg0, Gfx **dl); /* a 64-bit first argument (0 passed as two halves) */
 extern void func_80048E20(s32 arg0);
@@ -129,7 +129,7 @@ void func_m036_00000(void) {
     func_80083A90();
     default_alloc_displaylist_heap();
     func_80096BB0(D_800FD800, D_800FD7FC, 1);
-    func_8004F85C(D_800FB440, D_800FD7F0, D_800FD800, 3);
+    osScAddClient(D_800FB440, D_800FD7F0, D_800FD800, 3);
     D_800FD818 = 0;
     check_reset_and_halt();
     D_800FD7B8 = func_8000E624(0x34);

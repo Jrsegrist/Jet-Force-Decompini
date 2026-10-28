@@ -443,3 +443,20 @@ field Object.unk1A = numActiveEmitters
 field Object.unk6C = modelInstances
 field Object.unkA0 = freed
 field ObjectInteraction.unk6 = hitPoints
+
+# round 5, main segment (main5)
+# src/50300.c: the scheduler, a Rare variant of libultra's (ultralib's names)
+func_8004F700 = osCreateScheduler
+func_8004F85C = osScAddClient
+func_8004F8C0 = osScRemoveClient
+func_8004F978 = __scMain
+func_8004FB30 = __scHandleAudioReady
+func_80050154 = __scHandleRetrace
+func_800507F8 = __scHandleRSP
+func_80050924 = __scHandleRDP
+func_800509B0 = __scTaskReady
+func_80050A08 = __scTaskComplete
+func_80050B08 = __scAppendList
+func_80050B70 = __scExec
+func_80050C3C = __scYield
+func_80050C90 = __scSchedule
