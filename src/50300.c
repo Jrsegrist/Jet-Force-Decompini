@@ -232,9 +232,44 @@ void __scHandleAudioReady(OSSched *sc) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/50300", func_8004FBD8);
+/* Debug: the name of a task type (a task's 0x6C field: 1 audio, 2 game, 3-7 the other kinds). */
+char *sc_task_type_name(s32 type) {
+    switch (type) {
+        case 1:
+            return "(Audio task)";
+        case 2:
+            return "(Game task)";
+        case 3:
+            return "(DI task)\n";
+        case 4:
+            return "(DI benchmark test)\n";
+        case 5:
+            return "(Clone task)\n";
+        case 6:
+            return "(Refract task)\n";
+        case 7:
+            return "(Blur task)\n";
+    }
+    return "(Unknown task type %d)\n";
+}
 
-void func_8004FC64(s32 arg0) {
+/* Debug: printed a task's fields (the prints were compiled out; their strings stay). */
+void sc_task_print(SchedTask *t) {
+    stubbed_printf("\nRCP TASK INFO\n");
+    stubbed_printf("-------------\n");
+    stubbed_printf("\ttype\t\t= %u\n");
+    stubbed_printf("\tflags\t\t= %u\n");
+    stubbed_printf("\tucode_boot\t\t= %p\n");
+    stubbed_printf("\tucode_boot_size\t\t= %u\n");
+    stubbed_printf("\tucode\t\t= %p\n");
+    stubbed_printf("\tucode_size\t\t= %u\n");
+    stubbed_printf("\tucode_data\t\t= %p\n");
+    stubbed_printf("\tucode_data_size\t\t= %u\n");
+    stubbed_printf("\toutput_buff\t\t= %p\n");
+    stubbed_printf("\toutput_buff_size\t\t= %u\n");
+    stubbed_printf("\tdata_ptr\t\t= %p\n");
+    stubbed_printf("\tdata_size\t\t= %u\n");
+    stubbed_printf("\tframebuffer\t\t= %p\n");
 }
 
 void __osSpSetStatus(u32 data);
@@ -295,6 +330,8 @@ Gfx *rcp_hang_bisect(OSSched *sc, s32 count, Gfx *dl, OSMesgQueue *mq, Gfx *star
         *(u64 *) next = saved1;
         if (count < 2) {
             if (*(u8 *) dl == G_DL) {
+                stubbed_printf("Branch DisplayList Crash gfx ptr = %x\n");
+                stubbed_printf("*** CHILD DISPLAY LIST\n");
                 from = dl - 40;
                 if ((u32) from < 0x80000000) {
                     from = (Gfx *) ((u32) from + 0x80000000);
@@ -372,20 +409,26 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
     osSetEventMesg(OS_EVENT_SP, &sc->interruptQ, (OSMesg) SC_MSG_SP_DONE);
     osSetEventMesg(OS_EVENT_DP, &sc->interruptQ, (OSMesg) SC_MSG_DP_DONE);
     osViSetEvent(&sc->interruptQ, (OSMesg) SC_MSG_RETRACE, 1);
+    stubbed_printf("Crash gfx ptr = %x\n");
     *aboveB = 0;
     *belowB = 0;
     func_80065E28((u32) dl, &prevB, &prevC, &prevA, &nextB, &nextC, &nextA);
     if (nextB != 0 || prevB != 0) {
+        stubbed_printf("Surrounding traces:\n");
         if (prevB != 0) {
+            stubbed_printf("Previous:\t%s:%5d gfx=%x\n");
             *belowB = prevB;
             *belowC = prevC;
             *belowA = prevA;
         }
         if (nextB != 0) {
+            stubbed_printf("Next:\t\t%s:%5d gfx=%x\n");
             *aboveB = nextB;
             *aboveC = nextC;
             *aboveA = nextA;
         }
+    } else {
+        stubbed_printf("No traces available\n");
     }
     from = dl - 40;
     if ((u32) from < 0x80000000) {
@@ -395,6 +438,12 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
         from = (Gfx *) task->t.data_ptr;
     }
     func_80065F80(from, dl, 0x50);
+    /*
+     * The retrace handler's compiled-out messages come next in .rodata, before its own strings; they
+     * are here while that function is assembly.
+     */
+    stubbed_printf("scheduler: Looks like the SP has crashed %s");
+    stubbed_printf("scheduler: Looks like the DP has crashed %s");
     return dl;
 }
 
@@ -559,4 +608,79 @@ void __scYield(OSSched *sc) {
 INCLUDE_ASM("asm/nonmatchings/50300", func_80050C3C);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/50300", func_80050C90);
+/*
+ * Picks the next tasks for the free processors (availRCP: SC_NEEDS_RSP, SC_NEEDS_RDP): audio first when
+ * it is due, else the next graphics task by its type; tries again while it found something.
+ * Returns the processors left free. (IDO turns the tail call into a loop.)
+ */
+s32 __scSchedule(OSSched *sc, SchedTask **sp, SchedTask **dp, s32 availRCP) {
+    s32 avail = availRCP;
+    SchedTask *gfx = sc->gfxListHead;
+    SchedTask *audio = sc->audioListHead;
+
+    if (sc->doAudio && (avail & SC_NEEDS_RSP)) {
+        if (gfx != NULL && (gfx->flags & SC_PARALLEL_TASK)) {
+            *sp = gfx;
+            avail &= ~SC_NEEDS_RSP;
+        } else {
+            *sp = audio;
+            avail &= ~SC_NEEDS_RSP;
+            sc->doAudio = FALSE;
+            sc->audioListHead = sc->audioListHead->next;
+            if (sc->audioListHead == NULL) {
+                sc->audioListTail = NULL;
+            }
+        }
+    } else if (__scTaskReady(gfx)) {
+        switch (gfx->flags & SC_TYPE_MASK) {
+            case SC_TYPE_XBUS:
+                if (gfx->state & SC_YIELDED) {
+                    if (avail & SC_NEEDS_RSP) {
+                        *sp = gfx;
+                        avail &= ~SC_NEEDS_RSP;
+                        if (gfx->state & SC_NEEDS_RDP) {
+                            *dp = gfx;
+                            avail &= ~SC_NEEDS_RDP;
+                        }
+                        sc->gfxListHead = sc->gfxListHead->next;
+                        if (sc->gfxListHead == NULL) {
+                            sc->gfxListTail = NULL;
+                        }
+                    }
+                } else if (avail == (SC_NEEDS_RSP | SC_NEEDS_RDP)) {
+                    *dp = gfx;
+                    *sp = gfx;
+                    avail &= ~(SC_NEEDS_RSP | SC_NEEDS_RDP);
+                    sc->gfxListHead = sc->gfxListHead->next;
+                    if (sc->gfxListHead == NULL) {
+                        sc->gfxListTail = NULL;
+                    }
+                }
+                break;
+            case 2:
+            case 6:
+            case 7:
+                if ((gfx->state & SC_NEEDS_RSP) && (avail & SC_NEEDS_RSP)) {
+                    *sp = gfx;
+                    avail &= ~SC_NEEDS_RSP;
+                }
+                if ((gfx->state & SC_NEEDS_RDP) && (avail & SC_NEEDS_RDP)) {
+                    *dp = gfx;
+                    avail &= ~SC_NEEDS_RDP;
+                    sc->gfxListHead = sc->gfxListHead->next;
+                    if (sc->gfxListHead == NULL) {
+                        sc->gfxListTail = NULL;
+                    }
+                }
+                break;
+            case 1:
+            case 4:
+            case 5:
+                break;
+        }
+    }
+    if (avail != availRCP) {
+        avail = __scSchedule(sc, sp, dp, avail);
+    }
+    return avail;
+}
