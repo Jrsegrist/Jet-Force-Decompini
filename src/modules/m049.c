@@ -297,8 +297,11 @@ static void func_m049_00668(void) {
     s32 i;
     s32 *p;
 
-    for (i = 0, p = (s32 *) sSpans; i < 32; i++) {
+    i = 0;
+    p = (s32 *) sSpans;
+    while (i < 32) {
         *p++ = 0;
+        i++;
     }
 }
 
@@ -390,13 +393,13 @@ static void func_m049_00878(s32 x, s32 y, s32 dx, s32 dy) {
 static void func_m049_009A8(void) {
     u8 *row = sPixels;
     s32 y;
-    u8 *span;
     s32 x;
 
-    for (y = 0, span = sSpans[0]; y < sHeight; y++, span += 2) {
-        if (span[0] & 0x80) {
-            if (span[1] & 0x80) {
-                for (x = span[0] & ~0x80; x <= (span[1] & ~0x80); x++) {
+    y = 0;
+    while (y < sHeight) {
+        if (sSpans[y][0] & 0x80) {
+            if (sSpans[y][1] & 0x80) {
+                for (x = sSpans[y][0] & ~0x80; x <= (sSpans[y][1] & ~0x80); x++) {
                     if (x & 1) {
                         row[x >> 1] |= 8;
                     } else {
@@ -406,6 +409,7 @@ static void func_m049_009A8(void) {
             }
         }
         row += sWidth >> 1;
+        y++;
     }
 }
 
