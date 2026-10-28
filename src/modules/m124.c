@@ -225,7 +225,7 @@ void func_m124_002B0(Object *obj, M124Setup *setup) {
     }
     obj->modelIndex = 0;
     func_80079D1C(obj, setup->health << 8, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
-    model = *(M124Model **) obj->unk6C;
+    model = *(M124Model **) obj->modelInstances;
     if (model != NULL) {
         dst = model->vertices;
         src = model->header->vertices;
@@ -252,9 +252,9 @@ void func_m124_00678(Object *obj, s32 updateRate) {
     l = obj->unk68;
     objectLight = l->objectLight;
     beamLight = l->beamLight;
-    if (l->on && l->kind != M124_UNBREAKABLE && obj->interactObj->unk6 > 0) {
-        obj->interactObj->unk6 = obj->interactObj->unk6 - obj->unk5C->damage - OBJ_STATE(obj, s32)[0];
-        if (obj->interactObj->unk6 <= 0) {
+    if (l->on && l->kind != M124_UNBREAKABLE && obj->interactObj->hitPoints > 0) {
+        obj->interactObj->hitPoints = obj->interactObj->hitPoints - obj->unk5C->damage - OBJ_STATE(obj, s32)[0];
+        if (obj->interactObj->hitPoints <= 0) {
             func_80003410(0xD3, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
             obj->modelIndex = 1;
             l->on = FALSE;

@@ -6,7 +6,10 @@
 #     runlink_syms, runlink_diff, progress)
 #   - every C file in src/ compiles with IDO 5.3 at the project's flags,
 #     through the Makefile's own rules, with placeholder assembly standing in
-#     for INCLUDE_ASM (tools/ci_stub_asm.py); and `make nonmatching`
+#     for INCLUDE_ASM (tools/ci_stub_asm.py); and `make nonmatching`, which
+#     compiles every main-segment and module file with -DNON_MATCHING
+#   - rename.py --check also fails on a `.old`/`->old` use of a renamed
+#     field's old name that no struct has any more
 #
 # No ROM, nothing derived from it and no secrets are used. The matching build
 # (`make check`) and the ROM-name check (tools/check_names.py) need the ROM

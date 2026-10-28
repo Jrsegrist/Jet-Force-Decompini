@@ -35,7 +35,7 @@ typedef struct M066Model {
     /* 0x24 */ M066Batch *batches;
 } M066Model;
 
-/* What obj->unk6C[obj->modelIndex] points at */
+/* What obj->modelInstances[obj->modelIndex] points at */
 typedef struct M066ModelInstance {
     /* 0x00 */ M066Model *model;
     /* 0x04 */ Vertex *vertices; /* the vertices to render */
@@ -206,7 +206,7 @@ void func_m066_002AC(Object *obj, f32 x, f32 y, f32 z, f32 outer, f32 inner, f32
     s32 n;
 
     data = obj->unk68;
-    inst = obj->unk6C[obj->modelIndex];
+    inst = obj->modelInstances[obj->modelIndex];
     if (inst != NULL) {
         model = inst->model;
         if (model != NULL) {

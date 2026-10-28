@@ -152,8 +152,9 @@ out the same.
 - A function whose C is right but does not match yet keeps that C behind
   `#ifdef NON_MATCHING`, with its `INCLUDE_ASM` in the `#else` branch and a
   `NON_MATCHING:` comment saying what still differs. The normal build uses the
-  assembly; `make nonmatching` compiles the C bodies (into `build_nm/`, not
-  linked) so that they keep building. These functions count as assembly in
+  assembly; `make nonmatching` compiles the C bodies of every main-segment
+  and module file (into `build_nm/`, not linked) so that they keep building;
+  CI runs it. These functions count as assembly in
   `make progress`.
 
 ```c

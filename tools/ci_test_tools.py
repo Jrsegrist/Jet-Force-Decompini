@@ -16,7 +16,8 @@
   progress  tools/progress.py on a tiny linked ELF, its map, a module map and
             C files with INCLUDE_ASM lines.
   rename    tools/rename.py on a made-up tree: the rewrite, --check, --which,
-            re-running, bad maps, and the linker aliases (linked).
+            re-running, bad maps, stale field uses, and the linker aliases
+            (linked).
 
 Needs mips-linux-gnu-as / ld / objdump (binutils-mips-linux-gnu) and the
 Python packages of requirements.txt (rabbitizer). Run from the repository
@@ -565,6 +566,33 @@ class Rename(unittest.TestCase):
         code, out = self.rename("--check")
         self.assertEqual(code, 0, out)
         self.assertIn("0 old names", out)
+
+    def write(self, rel, text):
+        with open(os.path.join(self.t, rel), "w") as f:
+            f.write(text)
+
+    def test_field_uses(self):
+        # the field is renamed in its struct and in the code the compiler sees,
+        # but a NON_MATCHING body still has the old name
+        self.rename()
+        self.write("src/a.h", self.read("src/a.h").replace("s32 unk4;", "s32 timer;"))
+        self.write("src/a.c", self.read("src/a.c").replace("s->unk4", "s->timer")
+                   + "#ifdef NON_MATCHING\nvoid f(Shake *s) { s->unk4 = 0; }\n#endif\n")
+        code, out = self.rename("--check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("src/a.c:7: STALE unk4 (Shake.unk4 = timer)", out)
+        # with another struct that has an unk4, the use may be that struct's:
+        # listed (--field-uses, and after a rename), not an error
+        self.write("src/b.h", "typedef struct Other {\n    s16 unk4;\n} Other;\n")
+        run(["git", "add", "src/b.h"], cwd=self.t)
+        code, out = self.rename("--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("1 `.old`/`->old` use", out)
+        code, out = self.rename("--field-uses")
+        self.assertEqual(code, 0, out)
+        self.assertIn("src/a.c:7: unk4 (Shake.unk4 = timer): void f(Shake *s) { s->unk4 = 0; }", out)
+        code, out = self.rename()
+        self.assertIn("src/a.c:7: unk4 (Shake.unk4 = timer)", out)
 
     def test_which(self):
         self.assertEqual(self.rename("--which", "func_80001000"), (0, "func_80001000 = cam_shake\n"))

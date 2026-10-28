@@ -123,26 +123,26 @@ void func_m125_00120(Object *obj, s32 updateRate) {
     }
     if (t->done == 0 && t->flag != 0 && game_flag_get(t->flag)) {
         obj->unk28 = 1.0f;
-        obj->interactObj->unk6 = 0;
+        obj->interactObj->hitPoints = 0;
         t->level = 4;
         t->done = 1;
         func_8002662C(t->unk8, 0);
     }
     step = t->maxHitPoints >> 10;
-    if (obj->interactObj->unk6 < 0) {
-        obj->interactObj->unk6 = 0;
+    if (obj->interactObj->hitPoints < 0) {
+        obj->interactObj->hitPoints = 0;
     }
-    if (obj->interactObj->unk6 > 0 && obj->interactObj->unk6 < t->maxHitPoints) {
+    if (obj->interactObj->hitPoints > 0 && obj->interactObj->hitPoints < t->maxHitPoints) {
         if (updateRate < t->timer) {
             t->timer -= updateRate;
         } else {
             t->timer = t->time;
-            obj->interactObj->unk6 = t->maxHitPoints;
+            obj->interactObj->hitPoints = t->maxHitPoints;
             func_80001248(0x194, 0);
         }
     }
-    hp = obj->interactObj->unk6 >> 8;
-    model = obj->unk6C[obj->modelIndex];
+    hp = obj->interactObj->hitPoints >> 8;
+    model = obj->modelInstances[obj->modelIndex];
     header = model->header;
     level = 4 - hp / step;
     if (hp % step) {

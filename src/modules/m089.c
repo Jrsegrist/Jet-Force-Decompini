@@ -87,7 +87,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m089", data);
  * and the operand order of the index compare differ.
  */
 s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
-    M089Instance *inst = ((M089Instance **) obj->unk6C)[obj->modelIndex];
+    M089Instance *inst = ((M089Instance **) obj->modelInstances)[obj->modelIndex];
     M089Model *model = inst->model;
     s32 n = model->numBatches;
     M089Batch *batch = model->batches;
@@ -100,7 +100,7 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
     s32 vi;
     s32 bone;
 
-    if (obj->unkA0 != 0) {
+    if (obj->freed != 0) {
         *x = obj->trans.x_position;
         *y = obj->trans.y_position;
         *z = obj->trans.z_position;

@@ -2,8 +2,9 @@
  * Runlink module 113: a rocket projectile. Fired with a speed, a direction and a kind:
  * kind 1 homes in on a target object (or one of its parts), turning at most
  * 600 angle units a frame towards it; the others fly straight while
- * corkscrewing around their path at a growing radius. It explodes when it
- * hits something, runs out of time or is shot down.
+ * corkscrewing around their path at a growing radius. When it hits
+ * something, runs out of time or is shot down, it plays a sound, spawns its
+ * impact objects, turns its light off and removes itself.
  */
 #include "module.h"
 
@@ -210,8 +211,8 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
     m = obj->unk68;
     rate = updateRate;
     m->timer -= updateRate;
-    if (m->timer > 0 && obj->interactObj->unk6 > 0 && m->hit == 0 &&
-        obj->interactObj->unk6 == OBJ_STATE(obj, M113State)->health) {
+    if (m->timer > 0 && obj->interactObj->hitPoints > 0 && m->hit == 0 &&
+        obj->interactObj->hitPoints == OBJ_STATE(obj, M113State)->health) {
         if (m->hit == 0) {
             if (m->kind == 1) {
                 target = m->target;

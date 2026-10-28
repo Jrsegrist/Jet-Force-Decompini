@@ -5,7 +5,7 @@
 #   make           compile, assemble and link build/jfg.us.z64, check its SHA-1
 #   make check     check the SHA-1 of the built ROM
 #   make progress  functions decompiled to C, per segment
-#   make nonmatching  compile the NON_MATCHING C bodies (objects only, build_nm/)
+#   make nonmatching  compile the NON_MATCHING C bodies, main and modules (objects only, build_nm/)
 
 VERSION  ?= us
 BASENAME := jfg
@@ -164,7 +164,8 @@ $(BUILD_DIR)/assets/%.o: assets/%.bin
 
 # Near-miss functions keep a C body behind #ifdef NON_MATCHING, with the
 # INCLUDE_ASM in the #else branch. This compiles the game files with those C
-# bodies, to keep them building; the objects are not linked.
+# bodies, to keep them building; the objects are not linked. The runlink
+# module files are added in modules.mk (they need the module flags).
 NM_DIR     := build_nm
 NM_C_FILES := $(filter-out src/ultra/% src/modules/%,$(C_FILES))
 NM_O_FILES := $(NM_C_FILES:%.c=$(NM_DIR)/%.o)

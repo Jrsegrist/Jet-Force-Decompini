@@ -71,22 +71,23 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80058EF0);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_800595F4);
 
-typedef struct MenuRect {
+typedef struct MenuBox {
     s16 x1, y1, x2, y2;
     s32 colour;
-} MenuRect;
-void func_800595F4(s32 arg0, s32 count, MenuRect *rects, s32 arg3);
+} MenuBox;
+void func_800595F4(s32 arg0, s32 count, MenuBox *boxes, s32 arg3);
 
-/* JFG: draw one rectangle through the list function (0x80059814). */
-void menu_draw_rect(s32 arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
-    MenuRect rect;
+/* JFG: fill one coloured box (corners x1,y1 and x2,y2) through the list function, which emits a
+ * primitive colour and a fill command per box (0x80059814). */
+void menu_fill_box(s32 arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
+    MenuBox box;
 
-    rect.x1 = x1;
-    rect.y1 = y1;
-    rect.x2 = x2;
-    rect.y2 = y2;
-    rect.colour = colour;
-    func_800595F4(arg0, 1, &rect, 1);
+    box.x1 = x1;
+    box.y1 = y1;
+    box.x2 = x2;
+    box.y2 = y2;
+    box.colour = colour;
+    func_800595F4(arg0, 1, &box, 1);
 }
 
 void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);

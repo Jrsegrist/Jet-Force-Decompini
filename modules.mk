@@ -29,6 +29,19 @@ $(RL_DIR)/modules.bin: $(MOD_O) undefined_syms.$(VERSION).txt names.txt
 $(RL_DIR)/modtab.bin: $(RL_DIR)/modules.bin
 	@true
 
+# `make nonmatching` compiles every module C file with -DNON_MATCHING too (with
+# the module flags, into build_nm/ like the main files): nothing else compiles
+# the NON_MATCHING bodies, so a field rename or a header change that breaks one
+# shows up here (and in CI) rather than when someone next works on it.
+NM_MOD_O := $(patsubst %.c,$(NM_DIR)/%.o,$(filter $(MOD_C_DIR)/%,$(C_FILES)))
+
+nonmatching: $(NM_MOD_O)
+
+$(NM_DIR)/$(MOD_C_DIR)/%.o: $(MOD_C_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(PYTHON) $(ASM_PROC) --asm-prelude include/prelude.inc $(CC) -- $(AS) $(ASFLAGS) --no-warn -- \
+	    -c $(MOD_CFLAGS) -DNON_MATCHING $(OPT_FLAGS) $(MIPSISET) -o $@ $<
+
 .PHONY: modules-progress
 modules-progress: $(TARGET).elf
 	@$(PYTHON) tools/progress.py --modules

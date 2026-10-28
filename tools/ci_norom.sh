@@ -45,7 +45,15 @@ mapfile -t OBJS < <(git ls-files 'src/*.c' | sed 's#^#build/#; s#\.c$#.o#')
 make -j"$JOBS" "${OBJS[@]}"
 echo "${#OBJS[@]} objects"
 
-echo "== NON_MATCHING bodies compile (make nonmatching)"
+echo "== NON_MATCHING bodies compile (make nonmatching: main segment and modules)"
 make -j"$JOBS" nonmatching
+NM=$(git ls-files 'src/*.c' | grep -v '^src/ultra/' | sed 's#^#build_nm/#; s#\.c$#.o#' \
+     | while read -r o; do [ -f "$o" ] && echo "$o"; done | wc -l)
+WANT=$(git ls-files 'src/*.c' | grep -v '^src/ultra/' | wc -l)
+echo "$NM of $WANT NON_MATCHING objects"
+if [ "$NM" -ne "$WANT" ]; then
+    echo "ci_norom: make nonmatching did not build every src/*.c outside src/ultra" >&2
+    exit 1
+fi
 
 echo "ci_norom: all checks passed"
