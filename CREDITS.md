@@ -107,6 +107,31 @@ itself was already in C; only the names come from DKR.
 scheduler's public names. Every other name in `names.txt` is our own,
 written from what the code does.
 
+### Round 5, main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/audio.c` | music_sequence_init |
+| `src/audiomgr.c` | amCreateAudioMgr (JFG's form) |
+| `src/game.c` | level_global_init; gTempAssetTable, gLevelNames, gNumberOfWorlds, gRaceTypeCountTable |
+| `src/game_text.c` | render_subtitles, process_subtitles, set_current_text |
+| `src/menu.c` | load_menu_text |
+| `src/objects.c` | try_free_object_header, gParticlePtrList_flush, render_misc_model, render_object_parts, get_first_active_object, init_object_shading, obj_tex_animate; obj_init_emitter's JFG form (NON_MATCHING) |
+| `src/textures_sprites.c` | tex_init_textures |
+| `src/tracks.c` | track_tex_anim, initialise_player_viewport_vars, free_track, update_fog, apply_fog, compute_scene_camera_transform_matrix |
+| `src/weather.c` | rain_set, rain_update |
+| `include/f3ddkr.h`, `include/structs.h` | gDkrDmaDisplayList, gSPPolygon (local copies); Vertex, Triangle, TriangleBatchInfo, TextureHeader, ObjHeaderParticleEntry |
+
+The scheduler in `src/50300.c` (Rare's variant of the SDK's) is written from
+the assembly with our own structures. Its function names are ultralib's
+(`osCreateScheduler`, `osScAddClient`, `osScRemoveClient`, `__scMain`,
+`__scHandleRetrace`, `__scHandleRSP`, `__scHandleRDP`, `__scTaskReady`,
+`__scTaskComplete`, `__scAppendList`, `__scExec`, `__scYield`,
+`__scSchedule`); `__scHandleAudioReady`, `rcp_hang_bisect` and
+`rcp_hang_find` are our own.
+
 ## Tools and libraries
 
 | What | Licence | How it is used |

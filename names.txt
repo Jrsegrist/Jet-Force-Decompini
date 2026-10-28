@@ -462,6 +462,8 @@ func_80050B08 = __scAppendList
 func_80050B70 = __scExec
 func_80050C3C = __scYield
 func_80050C90 = __scSchedule
+# src/2610.c (DKR audiomgr.c)
+func_80001A10 = amCreateAudioMgr
 # src/432D0.c
 func_800427E8 = camera_follow_update
 # src/44350.c (DKR game.c)

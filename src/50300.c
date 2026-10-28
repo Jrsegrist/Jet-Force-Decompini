@@ -22,6 +22,7 @@
 #define SC_TYPE_MASK 0x7
 #define SC_TYPE_XBUS 0x3
 #define SC_SWAPBUFFER 0x20
+#define SC_PARALLEL_TASK 0x10
 
 typedef struct SchedTask {
     /* 0x00 */ struct SchedTask *next;
