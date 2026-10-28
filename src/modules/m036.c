@@ -38,7 +38,7 @@ extern void osScAddClient(void *sched, void *client, void *mq, s32 id);      /* 
 extern s32 func_8000E624(s32 arg0);
 extern void func_80097F70(u64 arg0, Gfx **dl); /* a 64-bit first argument (0 passed as two halves) */
 extern void func_80048E20(s32 arg0);
-extern void func_80043750(void);
+extern void level_global_init(void);
 extern void func_800476F0(void *arg0);
 extern void func_8004791C(void);
 extern void *func_8004A57C(s32 size, s32 colour);                      /* DKR mempool_alloc_safe */
@@ -142,7 +142,7 @@ void func_m036_00000(void) {
 }
 
 static void func_m036_00250(void) {
-    func_80043750();
+    level_global_init();
     D_800FD748 = 0;
     gSettingsPtr = func_8004A57C(0x538, -1);
     func_800476F0(gSettingsPtr);

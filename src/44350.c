@@ -53,8 +53,6 @@ u8 music_current_sequence(void);
 void music_play(u8 seqID);
 void music_volume_fade_stop(void);
 
-INCLUDE_ASM("asm/nonmatchings/44350", func_80043750);
-
 /* Size: 5 bytes */
 typedef struct LevelListEntry {
     /* 0x00 */ u8 type;
@@ -67,6 +65,93 @@ typedef struct LevelListEntry {
 } LevelListEntry;
 extern s32 gNumberOfLevelHeaders;
 extern LevelListEntry *gGlobalLevelTable;
+
+/* The level header fields copied into the level table */
+typedef struct LevelHeaderListFields {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ s8 world;
+    /* 0x21 */ u8 pad21[2];
+    /* 0x23 */ s8 unk23;
+    /* 0x24 */ u8 pad24[0x6C - 0x24];
+    /* 0x6C */ s8 race_type;
+    /* 0x6D */ u8 pad6D[0x72 - 0x6D];
+    /* 0x72 */ u8 music;
+    /* 0x73 */ u8 pad73[0xC8 - 0x73];
+    /* 0xC8 */ s8 blur;
+    /* 0xC9 */ u8 screenMode;
+    /* 0xCA */ u8 padCA[0x102 - 0xCA];
+    /* 0x102 */ u8 region;
+} LevelHeaderListFields;
+
+#define COLOUR_TAG_YELLOW 0xFFFF00FF
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void mempool_free(void *data);
+s32 align4(s32 value);
+extern u32 *gTempAssetTable;     // DKR: gTempAssetTable
+extern s32 gNumberOfWorlds;      // DKR: gNumberOfWorlds
+extern s32 gRaceTypeCountTable[16];  // DKR: gRaceTypeCountTable
+extern char **gLevelNames;   // DKR: gLevelNames
+extern char *gLevelName;
+
+/**
+ * Allocates memory for gGlobalLevelTable, then populates it with relevant data from every level header.
+ * The level headers are streamed from ROM. Then loads the level names.
+ * JFG: 5-byte entries (type, world, region, then three small settings and the tune), a level name
+ * buffer, and the names in one allocation after their pointers.
+ */
+void level_global_init(void) {
+    s32 i;
+    s32 size;
+    u8 *header;
+    char *names;
+
+    header = mempool_alloc_safe(0x114, COLOUR_TAG_YELLOW);
+    gTempAssetTable = asset_table_load(0x1E);
+    i = 0;
+    while (i < 16) {
+        gRaceTypeCountTable[i++] = 0;
+    }
+    gNumberOfLevelHeaders = 0;
+    while ((s32) gTempAssetTable[gNumberOfLevelHeaders] != -1) {
+        gNumberOfLevelHeaders++;
+    }
+    gNumberOfLevelHeaders--;
+    gGlobalLevelTable = mempool_alloc_safe(gNumberOfLevelHeaders * sizeof(LevelListEntry), COLOUR_TAG_YELLOW);
+    gNumberOfWorlds = -1;
+    gCurrentLevelHeader = (LevelHeader *) header;
+    for (i = 0; i < gNumberOfLevelHeaders; i++) {
+        asset_load(0x1F, (u32) gCurrentLevelHeader, gTempAssetTable[i], 0x114);
+        if (gNumberOfWorlds < ((LevelHeaderListFields *) gCurrentLevelHeader)->world) {
+            gNumberOfWorlds = ((LevelHeaderListFields *) gCurrentLevelHeader)->world;
+        }
+        if (((LevelHeaderListFields *) gCurrentLevelHeader)->race_type >= 0 &&
+            ((LevelHeaderListFields *) gCurrentLevelHeader)->race_type < 16) {
+            gRaceTypeCountTable[((LevelHeaderListFields *) gCurrentLevelHeader)->race_type]++;
+        }
+        gGlobalLevelTable[i].type = ((LevelHeaderListFields *) gCurrentLevelHeader)->race_type;
+        gGlobalLevelTable[i].world = ((LevelHeaderListFields *) gCurrentLevelHeader)->world;
+        gGlobalLevelTable[i].region = ((LevelHeaderListFields *) gCurrentLevelHeader)->region;
+        gGlobalLevelTable[i].unk3 = ((LevelHeaderListFields *) gCurrentLevelHeader)->unk23;
+        gGlobalLevelTable[i].blur = ((LevelHeaderListFields *) gCurrentLevelHeader)->blur;
+        gGlobalLevelTable[i].screenMode = ((LevelHeaderListFields *) gCurrentLevelHeader)->screenMode;
+        gGlobalLevelTable[i].tune = ((LevelHeaderListFields *) gCurrentLevelHeader)->music;
+    }
+    gNumberOfWorlds++;
+    mempool_free(gTempAssetTable);
+    mempool_free(header);
+    gLevelName = mempool_alloc_safe(0x20, COLOUR_TAG_YELLOW);
+    gTempAssetTable = asset_table_load(0x22);
+    for (i = 0; (s32) gTempAssetTable[i] != -1; i++) {}
+    i--;
+    size = gTempAssetTable[i] - gTempAssetTable[0];
+    names = mempool_alloc_safe(align4(size) + i * sizeof(char *), COLOUR_TAG_YELLOW);
+    gLevelNames = (char **) (align4(size) + names);
+    asset_load(0x23, (u32) names, 0, size);
+    for (size = 0; size < i; size++) {
+        gLevelNames[size] = &names[gTempAssetTable[size]];
+    }
+    mempool_free(gTempAssetTable);
+}
 
 /* Returns a level's type, or -1 (0x80043B78). */
 s32 leveltable_type(s32 level) {
@@ -217,15 +302,15 @@ LevelHeader *level_header(void) {
 }
 
 extern char *gLevelName;
-extern u32 *D_800FB110;
+extern u32 *gTempAssetTable;
 
 /* JFG: load a level's name into gLevelName (0x8004471C). */
 char *level_name(s32 level) {
     *gLevelName = 0;
     if (level < gNumberOfLevelHeaders) {
-        if ((D_800FB110 = asset_table_load(0x1E)) != NULL) {
-            asset_load(0x1F, (u32) gLevelName, D_800FB110[level], 0x20);
-            mempool_free(D_800FB110);
+        if ((gTempAssetTable = asset_table_load(0x1E)) != NULL) {
+            asset_load(0x1F, (u32) gLevelName, gTempAssetTable[level], 0x20);
+            mempool_free(gTempAssetTable);
         }
     }
     return gLevelName;

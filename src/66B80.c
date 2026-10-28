@@ -99,7 +99,59 @@ s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
     return 8;
 }
 
+extern char D_800AE174[]; // JFG: a format string (.rodata)
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the ROM keeps the case constants 2 and 3 in registers and the mode in two registers */
+/*
+ * JFG: the "set other mode" command: tells the render modes (the second word's low half) apart; the
+ * prints of their names were compiled out. 8 bytes long.
+ */
+s32 func_80066860(u32 *cmd, s32 arg1) {
+    char buffer[0x50];
+    UNUSED s32 pad;
+    s32 type;
+    s32 w1;
+
+    type = (cmd[0] >> 8) & 0xFF;
+    w1 = cmd[1];
+    sprintf(buffer, D_800AE174, arg1);
+    switch (type) {
+    case 0:
+    case 2:
+        break;
+    case 3:
+        w1 &= 0xFFFF;
+        if (w1 == 0x2078 || w1 == 0x2038 || w1 == 0x49D8 || w1 == 0x2D58 || w1 == 0x2D18 ||
+            w1 == 0x4DD8 || w1 == 0x2478 || w1 == 0x45D8 || w1 == 0x7858 || w1 == 0x7F58 ||
+            w1 == 0x3078 || w1 == 0x3478 || w1 == 0x2278) {
+        } else if (w1 == 0x7B || w1 == 0x2078 || w1 == 0x3078) {
+        } else if (w1 == 0x2278 || w1 == 0x2048 || w1 == 0x2008 || w1 == 0x41C8 || w1 == 0x7048 ||
+                   w1 == 0x7248 || w1 == 0x3048 || w1 == 0x2248) {
+        } else if (w1 == 0x4B || w1 == 0x2048 || w1 == 0x3048) {
+        } else if (w1 == 0x2248 || w1 == 0x2230 || w1 == 0x4A50 || w1 == 0x2E10 || w1 == 0x4E50 ||
+                   w1 == 0x4B50 || w1 == 0x4F50 || w1 == 0x233 || w1 == 0x4000 || w1 == 0x4240 ||
+                   w1 == 0x7008 || w1 == 0x4340) {
+        } else if (w1 == 0x4203 || w1 == 0x4340) {
+        } else if (w1 == 0) {
+        } else if (w1 == 0x4040) {
+        } else if (w1 != 0) {
+            if (((w1 >> 8) & 3) == 0) {
+            } else if (((w1 >> 8) & 3) == 1) {
+            }
+            if (((w1 >> 10) & 3) == 0) {
+            } else if (((w1 >> 10) & 3) == 1) {
+            }
+        }
+        break;
+    case 0x10:
+        break;
+    }
+    return 8;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80066860);
+#endif
 
 extern char D_800AE594[]; // JFG: a format string (.rodata)
 

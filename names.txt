@@ -464,6 +464,12 @@ func_80050C3C = __scYield
 func_80050C90 = __scSchedule
 # src/432D0.c
 func_800427E8 = camera_follow_update
+# src/44350.c (DKR game.c)
+func_80043750 = level_global_init
+D_800FB110 = gTempAssetTable
+D_800FB120 = gLevelNames
+D_800FB128 = gNumberOfWorlds
+D_800FB130 = gRaceTypeCountTable
 # src/4E340.c
 func_8004D740 = splitscreen_dividers_draw
 # src/4E610.c
