@@ -54,7 +54,7 @@ typedef struct M073Model {
     /* 0x4E */ s8 unk4E; /* 0: the points must be transformed */
 } M073Model;
 
-/* What obj->unk6C points at */
+/* What obj->modelInstances points at */
 typedef struct M073ModelInstance {
     /* 0x00 */ M073Model *model;
     /* 0x04 */ u8 pad4[0xB - 0x4];

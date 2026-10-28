@@ -210,7 +210,7 @@ s32 func_m049_00204(Object *obj) {
     s32 z;
     s32 pad[4];
 
-    model =((M049Model **) obj->unk6C)[obj->modelIndex];
+    model =((M049Model **) obj->modelInstances)[obj->modelIndex];
     if (model->animated) {
         return 0;
     }
