@@ -143,7 +143,55 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007DE98);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E150);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E328);
+/* JFG: one player's multiplayer scores (0xA0 bytes; 45750.c has the whole record) */
+typedef struct MultiPlayerScore {
+    /* 0x00 */ u16 kills[4];  // JFG: by victim
+    /* 0x08 */ u16 deaths[4]; // JFG: by killer
+    /* 0x10 */ s16 score;
+    /* 0x12 */ u8 pad12;
+    /* 0x13 */ s8 lives;
+    /* 0x14 */ u8 pad14[0xA0 - 0x14];
+} MultiPlayerScore;
+extern MultiPlayerScore D_800FED50[4];
+extern u8 D_800A4FC4; // JFG: a multiplayer game
+extern u8 D_800A4FD8; // JFG: the multiplayer game type
+
+typedef struct PlayerState {
+    /* 0x00 */ s8 player;
+} PlayerState;
+
+typedef struct PlayerObject {
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x68 */ PlayerState *state;
+} PlayerObject;
+
+void func_80054530(); // a module function (patched in by the runtime linker)
+
+/* JFG: in a multiplayer game, score killer's kill of victim (both players); TRUE if it was scored. */
+s32 multiplayer_score_kill(PlayerObject *killer, PlayerObject *victim) {
+    PlayerState *k;
+    PlayerState *v;
+
+    if (D_800A4FC4 && killer->behaviorId == 1 && victim->behaviorId == 1) {
+        k = killer->state;
+        v = victim->state;
+        D_800FED50[k->player].kills[v->player]++;
+        D_800FED50[v->player].deaths[k->player]++;
+        if ((D_800A4FD8 & 0x30) == 0x30) {
+            D_800FED50[v->player].lives--;
+        }
+        if (killer != victim) {
+            D_800FED50[k->player].score++;
+        } else {
+            D_800FED50[k->player].score--;
+        }
+        func_80054530(k, 0x9F);
+        return TRUE;
+    }
+    return FALSE;
+}
 
 Obj7E **func_8007E484(s32 *count) {
     *count = D_801047E0;

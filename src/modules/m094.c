@@ -53,7 +53,7 @@ void func_m094_00030(Object *obj, s32 updateRate) {
                     func_80076928(t->arg.b[1]);
                     break;
                 case 5:
-                    func_800772C4(t->arg.h);
+                    sequence_start(t->arg.h);
                     break;
             }
             t->flag = -1;

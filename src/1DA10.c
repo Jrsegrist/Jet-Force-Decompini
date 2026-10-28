@@ -8,12 +8,43 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D464);
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D500);
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D800);
-
 extern s32 D_800A0E80[4];
 extern s32 D_800A0E90[4];
 extern s32 D_800A0EA0[4];
+extern s32 D_800A0EC8;
+extern s32 D_800F5B00;
+extern s32 D_800F5B04;
+extern s32 D_800F5B08;
+extern s32 D_800F5B0C;
+extern s32 D_800F5B10;
 void mempool_free(void *data);
+s32 mempool_alloc_safe(s32 size, u32 colourTag);
+
+/* JFG: allocate the three shadow buffers (each split in four) for the given counts. */
+void shadow_buffers_alloc(s32 arg0, s32 arg1, s32 count0, s32 count1, s32 count2) {
+    s32 size0;
+    s32 size1;
+    s32 size2;
+    s32 i;
+
+    D_800F5B0C = arg0;
+    D_800F5B10 = arg1;
+    D_800F5B00 = count0;
+    D_800F5B04 = count1;
+    D_800F5B08 = count2;
+    size0 = count0 * 10;
+    D_800A0E80[0] = mempool_alloc_safe(size0 * 4, 0xFFFF00FF);
+    size1 = count1 * 16;
+    D_800A0E90[0] = mempool_alloc_safe(size1 * 4, 0xFFFF00FF);
+    size2 = count2 * 8;
+    D_800A0EA0[0] = mempool_alloc_safe(size2 * 4, 0xFFFF00FF);
+    for (i = 1; i < 4; i++) {
+        D_800A0E80[i] = D_800A0E80[i - 1] + size0;
+        D_800A0E90[i] = D_800A0E90[i - 1] + size1;
+        D_800A0EA0[i] = D_800A0EA0[i - 1] + size2;
+    }
+    D_800A0EC8 = 0;
+}
 
 /* JFG: free the three shadow buffers. */
 void func_8001D938(void) {
@@ -30,8 +61,6 @@ void func_8001D938(void) {
         ((void **) D_800A0EA0)[0] = NULL;
     }
 }
-
-extern s32 D_800A0EC8;
 
 /* JFG: flip between two buffers. */
 void func_8001D9B4(void) {

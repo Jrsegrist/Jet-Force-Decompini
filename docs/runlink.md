@@ -316,7 +316,7 @@ for its siblings. (Kinds are named here from what the code does.)
 | kind | modules | shape |
 | --- | --- | --- |
 | object behaviours | 63, e.g. 20, 74, 78, 84, 88, 92, 93, 100, 103, 108, 123, 128, 134 | an init `(Object *, level entry)` and a control `(Object *, s32 updateRate)` per behaviour, often several pairs per module; state in the object at 0x88 or in `obj->unk68`; most call `func_80079D1C` (hit box) from init |
-| switches and targets | 93, 94, 118 | a behaviour pair whose control runs one of six actions on a game flag or a hit (the same six-way jump table: `func_80079BB8`, `func_80079BA8`, `func_800767EC`, `func_8007688C`, `func_80076928`, `func_800772C4`) |
+| switches and targets | 93, 94, 118 | a behaviour pair whose control runs one of six actions on a game flag or a hit (the same six-way jump table: `func_80079BB8`, `func_80079BA8`, `func_800767EC`, `func_8007688C`, `func_80076928`, `sequence_start`) |
 | pickups | 43, 72, 104, 118, 132 | a behaviour pair that checks the player's distance and gives an item, a flag and a message |
 | enemy behaviours | 3, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148, m150); their attack decisions share one shape (`func_m003_0CAA4` then `func_m003_04260`: m141, m145, m148), and m141 and m145 share their up-and-down movement code |
 | bosses | 50, 51, 52 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions |

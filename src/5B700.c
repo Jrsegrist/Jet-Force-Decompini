@@ -423,7 +423,19 @@ void free_rain_memory(void) {
     gWeatherType = WEATHER_SNOW;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005BDB8);
+/**
+ * Sets the fade times for the rain visuals and how long to take to fade in.
+ * The game will slowly ease into the intended values.
+ * JFG: f32 constants.
+ * DKR: rain_set
+ */
+void rain_set(s32 lightningFrequency, s32 opacity, f32 time) {
+    gRainHiddenTimer = osTvType == OS_TV_PAL ? 50.0f * time : 60.0f * time;
+    gLightningFrequencyTarget = lightningFrequency;
+    gLightningFrequencyStep = (gLightningFrequencyTarget - gLightningFrequency) / gRainHiddenTimer;
+    gRainOpacityTarget = opacity;
+    gRainOpacityStep = (gRainOpacityTarget - gRainOpacity) / gRainHiddenTimer;
+}
 
 /* DKR include/level.h LevelHeader, reduced (JFG offsets) */
 typedef struct LevelHeader {
@@ -464,7 +476,49 @@ f32 func_8005BFC4(void) {
     return amount;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C040);
+/* JFG: a weather position in 16.16 fixed point */
+typedef struct WeatherPosition {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ s32 x;
+    /* 0x10 */ u8 pad10[0x18 - 0x10];
+    /* 0x18 */ s32 y;
+    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
+    /* 0x24 */ s32 z;
+} WeatherPosition;
+extern WeatherPosition D_80100848;
+/* The module trap (0x80054530) under a prototype with float arguments: needs
+   `func_80054530_fff = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
+void rain_sound(s32 updateRate);
+void func_8005C188(s32 updateRate);
+void rain_lightning(s32 updateRate);
+
+/**
+ * When active (single player only), call all the functions related to the behaviour and rendering of
+ * rain, and if necessary, thunder.
+ * JFG: a module draws the rain (at the weather position, 5 units lower).
+ * DKR: rain_update
+ */
+void rain_update(s32 updateRate) {
+    if (get_current_viewport() == 0 && gWeatherType != WEATHER_SNOW) {
+        if (gRainHiddenTimer > 0) {
+            if (updateRate < gRainHiddenTimer) {
+                gRainHiddenTimer -= updateRate;
+                gLightningFrequency += gLightningFrequencyStep * updateRate;
+                gRainOpacity += gRainOpacityStep * updateRate;
+            } else {
+                gRainHiddenTimer = 0;
+                gLightningFrequency = gLightningFrequencyTarget;
+                gRainOpacity = gRainOpacityTarget;
+            }
+        }
+        func_80054530_fff(D_80100848.x / (f32) 0x10000, D_80100848.y / (f32) 0x10000 - 5.0f,
+                          D_80100848.z / (f32) 0x10000, updateRate);
+        rain_sound(updateRate);
+        func_8005C188(updateRate);
+        rain_lightning(updateRate);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
 
@@ -570,7 +624,35 @@ void reset_particles(void) {
     particle_free_dummy();
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CE90);
+extern void **D_800A5D74; // JFG: the particle assets (sprites, textures or models)
+extern s32 D_800A5D78;    // JFG: the number of particle assets
+void func_8003C7C4(void *model);
+
+/* JFG: free the particle assets (the type of each is in the top bits of asset 0x3C's entries). */
+void particle_assets_free(void) {
+    s32 i;
+    s16 *types;
+
+    if (D_800A5D74 != NULL) {
+        types = (s16 *) asset_table_load(0x3C);
+        for (i = 0; i < D_800A5D78; i++) {
+            switch (types[i] & 0xC000) {
+                case 0x8000:
+                    sprite_free(D_800A5D74[i]);
+                    break;
+                case 0xC000:
+                    tex_free(D_800A5D74[i]);
+                    break;
+                case 0:
+                    func_8003C7C4(D_800A5D74[i]);
+                    break;
+            }
+        }
+        mempool_free(types);
+        mempool_free(D_800A5D74);
+        D_800A5D74 = NULL;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CFD0);
 

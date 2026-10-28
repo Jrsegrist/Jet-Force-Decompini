@@ -171,7 +171,7 @@ void func_m118_00140(Object *obj, s32 updateRate) {
                     func_80076928(t->arg);
                     break;
                 case 5:
-                    func_800772C4(t->arg);
+                    sequence_start(t->arg);
                     break;
             }
             hit->hitPoints = 0;

@@ -76,7 +76,7 @@ extern void *func_m010_0000C(SparkParams *spark); /* returns the spark (callers 
 extern void func_800767EC();
 extern void func_8007688C();
 extern void func_80076928();
-extern void func_800772C4();
+extern void sequence_start();
 extern void func_80079BA8();
 extern void func_80079BB8();
 

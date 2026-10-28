@@ -6,9 +6,100 @@
 
 extern u8 gLanguage;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058460);
+extern s32 *D_800A51AC; // JFG: the menu text table (count, then one offset per language)
+extern char **gMenuText;
+s32 *asset_table_load(u32 assetIndex);
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
+/**
+ * Loads the menu text of a language and turns its offsets into pointers (-1 = none).
+ * JFG: five languages, and no string tables to fill afterwards.
+ * DKR: load_menu_text
+ */
+void load_menu_text(s32 language) {
+    char **temp;
+    s32 langIndex;
+    s32 size;
+
+    if (D_800A51AC == NULL) {
+        D_800A51AC = asset_table_load(7);
+    }
+    switch (language) {
+        case 4:
+            langIndex = 5;
+            break;
+        case 3:
+            langIndex = 4;
+            break;
+        case 2:
+            langIndex = 3;
+            break;
+        case 1:
+            langIndex = 2;
+            break;
+        default:
+            langIndex = 1;
+            break;
+    }
+    size = D_800A51AC[langIndex + 1];
+    langIndex = D_800A51AC[langIndex];
+    size -= langIndex;
+    temp = gMenuText;
+    if (temp == NULL) {
+        return;
+    }
+    asset_load(6, (u32) temp, langIndex, size);
+    for (langIndex = 0; langIndex < D_800A51AC[0]; langIndex++) {
+        temp = gMenuText;
+        if ((s32) temp[langIndex] == -1) {
+            temp[langIndex] = NULL;
+        } else {
+            temp[langIndex] += (s32) temp;
+        }
+    }
+}
+
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+extern u8 *D_800FF3A8[3]; // JFG: three 0x538-byte buffers
+extern s32 D_800FF3F8[180]; // JFG: the menu items' loaded assets
+extern u8 D_800FF6C8[];   // JFG: whether each menu item is loaded
+extern u8 D_800A51A0;
+extern s16 *D_800A51D0;   // JFG: the menu item types (ending with -1)
+extern s16 D_800A51D4;    // JFG: the number of menu items
+extern s16 D_800A51D8;    // JFG: the number of loaded menu items
+extern u8 D_800FF1B4[4];
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: only the last 4 stores: the target shares one lui for D_800FF1B4[0..3] (data defined in the file) */
+/* JFG: allocate the menu buffers and text, load the item table and mark every item unloaded. */
+void func_80058590(void) {
+    s32 i;
+
+    D_800FF3A8[0] = mempool_alloc_safe(0xFA8, -1);
+    for (i = 1; i < 3; i++) {
+        D_800FF3A8[i] = D_800FF3A8[i - 1] + 0x538;
+    }
+    gMenuText = mempool_alloc_safe(0x3000, -1);
+    load_menu_text(0);
+    i = 0;
+    while (i < 180) {
+        D_800FF3F8[i++] = 0;
+    }
+    D_800A51A0 = 0;
+    D_800A51D0 = (s16 *) asset_table_load(0x1A);
+    for (D_800A51D4 = 0; D_800A51D0[D_800A51D4] != -1; D_800A51D4++) {
+    }
+    D_800A51D8 = 0;
+    for (i = 0; i < D_800A51D4; i++) {
+        D_800FF6C8[i] = 0;
+    }
+    for (i = 0; i < 4; i++) {
+        D_800FF1B4[i] = 2;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058590);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_800586E0);
 
@@ -46,9 +137,67 @@ u8 menu_mode_get(void) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058A6C);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058C54);
+extern u8 D_800A5194; // JFG: a blink counter
+extern char **gMenuText;
+void fb_scale_coords(s32 *x, s32 *y);
+s32 get_language(void);
+void load_menu_text(s32 language);
+void set_text_font(s32 fontID);
+void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity);
+void set_text_background_colour(s32 red, s32 green, s32 blue, s32 alpha);
+void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentFlags);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058D5C);
+/* JFG: advance the blink counter by delta and, in its "on" half, draw menu text 49 (shadowed) at (160, 208). */
+void menu_draw_blinking_prompt(Gfx **dList, s32 delta) {
+    s32 x, y;
+
+    D_800A5194 += delta;
+    if (D_800A5194 & 0x10) {
+        x = 160;
+        y = 208;
+        fb_scale_coords(&x, &y);
+        load_menu_text(get_language());
+        set_text_font(2);
+        set_text_background_colour(0, 0, 0, 0);
+        set_text_colour(0, 0, 0, 255, 255);
+        draw_text(dList, x + 1, y + 1, gMenuText[49], 12);
+        set_text_colour(255, 255, 255, 0, 255);
+        draw_text(dList, x, y, gMenuText[49], 12);
+    }
+}
+
+typedef struct Object Object;
+Object **get_racer_objects(s32 *numRacers);
+void func_80054530(); // a module function (patched in by the runtime linker)
+extern u8 D_800A4FD8; // JFG: the multiplayer game type (low 4 bits)
+extern u8 D_800A4FB4;
+extern s32 D_800FF398;
+extern s32 D_800FF39C;
+extern s32 D_800FF3A0;
+
+/* JFG: hand the players (or the multiplayer results) to the module that shows them, by game type. */
+void menu_show_results(s32 arg0) {
+    s32 count;
+    Object **racers = get_racer_objects(&count);
+
+    if (D_800A4FC4) {
+        switch (D_800A4FD8 & 0xF) {
+            case 0:
+                func_80054530(count, racers, arg0);
+                break;
+            case 6:
+                func_80054530(&D_800FF398, &D_800FF39C, &D_800FF3A0, D_800A4FD0);
+                break;
+            case 4:
+                func_80054530(&D_800FF398, &D_800FF39C, &D_800FF3A0, D_800A4FD0);
+                break;
+        }
+    } else if (D_800A4FB4) {
+        func_80054530(&D_800FF398, &D_800FF39C, &D_800FF3A0, D_800A4FD0);
+    } else if (count > 0) {
+        func_80054530(racers[0], arg0);
+    }
+}
 
 s8 is_game_paused(void); // JFG: the pause mode
 extern s32 gMenuTimer;  // JFG: a frame counter for the menus
@@ -151,11 +300,36 @@ void func_80059A04(void) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
 
-void func_80059D2C(s16 item);
+void menu_item_free(s32 item);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059CCC);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059D2C);
+void tex_free(void *tex);
+void sprite_free(void *sprite);
+void free_object(void *object);
+void func_8003C7C4(void *model);
+void gParticlePtrList_flush(void);
+
+/* JFG: free menu item's asset (a texture, sprite, object or model by the top bits of its type) if it is loaded. */
+void menu_item_free(s32 item) {
+    if (D_800FF6C8[item]) {
+        if (D_800FF3F8[item]) {
+            if ((D_800A51D0[item] & 0xC000) == 0xC000 && D_800FF3F8[item]) {
+                tex_free((void *) D_800FF3F8[item]);
+            } else if (D_800A51D0[item] & 0x8000) {
+                sprite_free((void *) D_800FF3F8[item]);
+            } else if (D_800A51D0[item] & 0x4000) {
+                free_object((void *) D_800FF3F8[item]);
+            } else {
+                func_8003C7C4((void *) D_800FF3F8[item]);
+            }
+        }
+        D_800FF3F8[item] = 0;
+        D_800FF6C8[item] = 0;
+        D_800A51D8--;
+        gParticlePtrList_flush();
+    }
+}
 
 void func_80059E7C(s16 item);
 
@@ -235,12 +409,12 @@ s32 get_language(void) {
     return gLanguage;
 }
 
-void func_80058460(s32 language);
+void load_menu_text(s32 language);
 
 /* Sets the game's language and loads its text (0x8005A7E0). */
 void set_language(s32 language) {
     gLanguage = language;
-    func_80058460(language);
+    load_menu_text(language);
 }
 
 /* JFG: settings flags (the language and volume bytes below sit in the same block). */
@@ -270,7 +444,30 @@ s32 options_screen_mode_get(void) {
 extern u8 D_800A51A4;
 extern u8 D_800A51A8;
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: registers only: the masked mode is v0 and the u8 copy a0 (target v1 and v0) */
+/* JFG: set the screen mode byte (0-3) and copy its two bits into the settings flags. */
+void func_8005A834(s32 mode) {
+    u8 m;
+
+    if (D_800A51A8 != (mode & 3)) {
+        D_800A51A8 = mode & 3;
+        m = mode & 3;
+        if (m & 1) {
+            D_800FF318.unk6C_1 = 1;
+        } else {
+            D_800FF318.unk6C_1 = 0;
+        }
+        if (m & 2) {
+            D_800FF318.unk6C_2 = 1;
+        } else {
+            D_800FF318.unk6C_2 = 0;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A834);
+#endif
 
 /* JFG: remember the current screen mode byte (func_8005A8D8 returns it). */
 void func_8005A8C4(void) {

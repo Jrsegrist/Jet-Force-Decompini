@@ -474,6 +474,61 @@ D_800FB130 = gRaceTypeCountTable
 func_8004D740 = splitscreen_dividers_draw
 # src/4E610.c
 func_8004DDEC = zbuffer_clear_rect
+# src/53C0.c (DKR objects.c where named so)
+func_80004838 = free_all_objects
+func_80004F04 = try_free_object_header
+func_80005CB0 = level_entry_remove
+func_80006E1C = obj_free_assets
+func_80007A54 = gParticlePtrList_flush
+func_800095A4 = objects_update_special
+func_80009734 = obj_tex_animate
+func_80009E58 = obj_draw_displaylist_origin
+func_80009FB4 = obj_draw_displaylist
+func_8000A154 = render_misc_model
+func_8000DDAC = render_object_parts
+func_8000E108 = get_first_active_object
+# src/12D50.c (DKR tracks.c where named so)
+func_800129AC = track_tex_anim
+func_80013820 = initialise_player_viewport_vars
+func_8001436C = racers_apply_module_values
+func_8001B660 = free_track
+func_8001BE04 = update_fog
+func_8001BF9C = apply_fog
+func_8001C650 = compute_scene_camera_transform_matrix
+# src/1DA10.c
+func_8001D800 = shadow_buffers_alloc
+# src/217C0.c
+func_80022744 = init_object_shading
+func_800228BC = corona_from_level_entry
+# src/51AD0.c
+func_8005122C = troop_leader_spawn
+func_800516EC = troop_member_colours_get
+func_80053C44 = runlink_module_move_to_slot
+# src/55130.c
+func_80054B44 = fb_clear_and_unblank
+func_8005539C = fb_swap
+func_800554B0 = tex_init_textures
+# src/59060.c
+func_80058460 = load_menu_text
+func_80058C54 = menu_draw_blinking_prompt
+func_80058D5C = menu_show_results
+func_80059D2C = menu_item_free
+# src/5B700.c (DKR weather.c)
+func_8005BDB8 = rain_set
+func_8005C040 = rain_update
+func_8005CE90 = particle_assets_free
+# src/67780.c
+func_80067790 = log_show
+func_800680B0 = epc_draw_glyph
+func_800681D0 = epc_draw_string
+func_800683D4 = fault_send_thread
+# src/76C20.c
+func_800766A8 = anim_path_restart
+func_80076D6C = anim_path_link_nodes
+func_80076EA0 = anim_system_init
+func_800772C4 = sequence_start
+# src/7A7D0.c
+func_8007E328 = multiplayer_score_kill
 # src/74270.c (DKR game_text.c)
 func_800737B8 = render_subtitles
 func_80073BDC = process_subtitles

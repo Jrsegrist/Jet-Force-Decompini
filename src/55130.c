@@ -158,7 +158,41 @@ void video_init(OSSched *sc) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005483C);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_80054B44);
+extern s32 D_800FECB0; // JFG: the previous frame's image
+extern s32 gVideoLastFramebuffer; // the framebuffer to show next
+void fb_size(s32 *width, s32 *height);
+void fb_init_vi(void);
+
+/* JFG: clear two framebuffers, switch to the black-screen mode for the TV type (unless in mode 0 or 4) and unblank. */
+void fb_clear_and_unblank(void) {
+    s32 *pixel;
+    u32 count;
+    s32 width, height;
+
+    fb_size(&width, &height);
+    pixel = (s32 *) D_800FECB0;
+    count = ((u32) width * height) >> 1;
+    while (count--) {
+        *pixel++ = 0;
+    }
+    pixel = (s32 *) gVideoLastFramebuffer;
+    count = ((u32) width * height) >> 1;
+    while (count--) {
+        *pixel++ = 0;
+    }
+    osWritebackDCacheAll();
+    if (gVideoModeIndex != 0 && gVideoModeIndex != 4) {
+        if (osTvType == OS_TV_PAL) {
+            gVideoModeIndex = 14;
+        } else if (osTvType == OS_TV_MPAL) {
+            gVideoModeIndex = 13;
+        } else {
+            gVideoModeIndex = 12;
+        }
+        fb_init_vi();
+    }
+    osViBlack(FALSE);
+}
 
 extern s32 D_800FECA0; // JFG: the size of the depth buffer allocation
 extern s32 gVideoDepthBuffer; // JFG: the depth buffer, 64-byte aligned
@@ -265,7 +299,7 @@ void video_delta_reset(void) {
 #define LOGIC_20FPS 3
 
 extern s32 gVideoLastFramebuffer; // the framebuffer to show next
-void func_8005539C(void);
+void fb_swap(void);
 
 /**
  * Wait for the finished message from the scheduler while counting up a timer,
@@ -285,7 +319,7 @@ s32 fb_update(s32 mesg) {
         }
     }
     if (mesg != MESG_SKIP_BUFFER_SWAP) {
-        func_8005539C();
+        fb_swap();
     }
     while (osRecvMesg(&gVideoMesgQueue, NULL, OS_MESG_NOBLOCK) != -1) {
         tempUpdateRate++;
@@ -363,10 +397,10 @@ void func_80055228(void) {
 }
 
 extern s32 gVideoLastFramebuffer;
-extern s32 D_800A3910;
+extern s32 D_800A3910[3]; // JFG: the framebuffers
 
 s32 func_80055234(void) {
-    if (D_800A3910 == gVideoLastFramebuffer) {
+    if (D_800A3910[0] == gVideoLastFramebuffer) {
         return 1;
     }
     return 0;
@@ -404,7 +438,30 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80055260);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800552DC);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_8005539C);
+extern s8 D_800FECA4; // JFG: the framebuffer index
+extern s32 D_800FECB4; // JFG: the frame buffer to draw into
+
+/* JFG: show the next framebuffer and pick the ones to draw into (three buffers when D_800FECA5 is set, else two). */
+void fb_swap(void) {
+    gVideoLastFramebuffer = D_800A3910[D_800FECA4];
+    D_800FECA4++;
+    if (D_800FECA5) {
+        if (D_800FECA4 >= 3) {
+            D_800FECA4 = 0;
+        }
+        D_800FECB4 = D_800A3910[D_800FECA4];
+        if (D_800FECA4 < 2) {
+            D_800FECB0 = D_800A3910[D_800FECA4 + 1];
+        } else {
+            D_800FECB0 = D_800A3910[0];
+        }
+    } else {
+        if (D_800FECA4 >= 2) {
+            D_800FECA4 = 0;
+        }
+        D_800FECB4 = D_800FECB0 = D_800A3910[D_800FECA4];
+    }
+}
 
 /* Copies bytes from one address to another (0x80055480). */
 void fb_memcpy(u8 *src, u8 *dst, s32 size) {
@@ -413,7 +470,59 @@ void fb_memcpy(u8 *src, u8 *dst, s32 size) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_800554B0);
+/* The texture asset's first 0x28 bytes (DKR: TempTexHeader) */
+typedef struct TempTexHeader {
+    /* 0x00 */ u8 pad0[0x19];
+    /* 0x19 */ u8 isCompressed;
+    /* 0x1A */ u8 pad1A[6];
+    /* 0x20 */ u8 uncompressedSize[4];
+    /* 0x24 */ u8 pad24[4];
+} TempTexHeader;
+
+extern s32 gTextureTableSize[2];
+extern s32 *gTextureAssetTable[2];
+extern TempTexHeader *gTempTextureHeader;
+extern s32 gCiPalettesSize;
+extern u8 *gCiPalettes;
+extern SpriteAssetData *gCurrentSpriteAsset;
+extern s32 *gSpriteOffsetTable;
+extern s32 gSpriteTableSize;
+extern s32 gFirstTexIsLoaded;
+
+/**
+ * Load the texture table from ROM and allocate space for all the texture asset management.
+ * JFG: 700 textures, 100 sprites.
+ * DKR: tex_init_textures
+ */
+void tex_init_textures(void) {
+    s32 i;
+
+    gTextureCache = mempool_alloc_safe(8 * 700, 0xFF00FFFF);
+    gCiPalettes = mempool_alloc_safe(0x280, 0xFF00FFFF);
+    gNumberOfLoadedTextures = 0;
+    gCiPalettesSize = 0;
+    gTextureAssetTable[0] = (s32 *) asset_table_load(3);
+    gTextureAssetTable[1] = (s32 *) asset_table_load(1);
+
+    for (i = 0; gTextureAssetTable[0][i] != -1; i++) {}
+    gTextureTableSize[0] = --i;
+
+    for (i = 0; gTextureAssetTable[1][i] != -1; i++) {}
+    gTextureTableSize[1] = --i;
+
+    gSpriteCache = mempool_alloc_safe(8 * 100, 0xFF00FFFF);
+    gCurrentSpriteAsset = mempool_alloc_safe(0x200, 0xFF00FFFF);
+    gSpriteCacheCount = 0;
+    gSpriteOffsetTable = (s32 *) asset_table_load(0x16);
+    gSpriteTableSize = 0;
+    while (gSpriteOffsetTable[gSpriteTableSize] != -1) {
+        gSpriteTableSize++;
+    }
+    gSpriteTableSize--;
+
+    gTempTextureHeader = mempool_alloc_safe(sizeof(TempTexHeader), 0xFF00FFFF);
+    gFirstTexIsLoaded = FALSE;
+}
 
 /**
  * Official Name: texDisableModes
@@ -438,21 +547,8 @@ void func_80055684(u8 arg0) {
 }
 
 #ifdef NON_MATCHING
-/* The texture asset's first 0x28 bytes (DKR: TempTexHeader) */
-typedef struct TempTexHeader {
-    /* 0x00 */ u8 pad0[0x19];
-    /* 0x19 */ u8 isCompressed;
-    /* 0x1A */ u8 pad1A[6];
-    /* 0x20 */ u8 uncompressedSize[4];
-    /* 0x24 */ u8 pad24[4];
-} TempTexHeader;
-
-extern s32 gTextureTableSize[2];
-extern s32 *gTextureAssetTable[2];
-extern TempTexHeader *gTempTextureHeader;
 extern s32 gForcedColourTag; // JFG: the texture being loaded (-1 when none)
 extern u8 *D_800A4E7C; // JFG: load the next texture at this address
-extern s32 gCiPalettesSize;
 void *mempool_alloc(s32 size, u32 colourTag);
 void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag);
 void func_800570D8(TextureHeader *tex, Gfx *dList);

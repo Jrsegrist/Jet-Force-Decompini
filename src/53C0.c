@@ -43,28 +43,111 @@ typedef struct ObjectUnk5C {
     /* 0x134 */ s32 unk134;
 } ObjectUnk5C;
 
+/* DKR include/structs.h */
+typedef struct ObjHeaderParticleEntry {
+    /* 0x00 */ s32 upper;
+    /* 0x04 */ s32 lower;
+} ObjHeaderParticleEntry;
+
+/* JFG: the object header, reduced */
+typedef struct ObjectHeader {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags;
+    /* 0x16 */ u8 pad16[0x1E - 0x16];
+    /* 0x1E */ s8 unk1E;
+    /* 0x1F */ s8 numAttachments;
+    /* 0x20 */ u8 pad20[2];
+    /* 0x22 */ s8 particleCount;
+    /* 0x23 */ u8 pad23[0x40 - 0x23];
+    /* 0x40 */ struct ObjHeaderParticleEntry *objectParticles;
+    /* 0x44 */ u8 pad44[0x54 - 0x44];
+    /* 0x54 */ f32 unk54;
+    /* 0x58 */ u8 pad58[0x61 - 0x58];
+    /* 0x61 */ u8 unk61;
+    /* 0x62 */ u8 unk62;
+    /* 0x63 */ u8 unk63;
+    /* 0x64 */ s16 unk64;
+    /* 0x66 */ u16 unk66;
+    /* 0x68 */ u8 pad68[0xA2 - 0x68];
+    /* 0xA2 */ u8 scrollTexture;
+    /* 0xA3 */ u8 scrollModel; // 0xFF: all
+    /* 0xA4 */ s8 scrollU;
+    /* 0xA5 */ s8 scrollV;
+    /* 0xA6 */ u8 numberOfModelIds;
+    /* 0xA7 */ u8 padA7;
+    /* 0xA8 */ u16 *modelIds;
+    /* 0xAC */ void **assets; // JFG: the loaded model, texture or sprite of each ID
+    /* 0xB0 */ u8 padB0[0xD4 - 0xB0];
+    /* 0xD4 */ void *unkD4;
+} ObjectHeader;
+
+/* JFG: what an object's attachment list points at, reduced */
+typedef struct ObjectAttachment {
+    /* 0x00 */ struct ObjectModel53 *model;
+    /* 0x04 */ u8 pad4[0x8 - 0x4];
+    /* 0x08 */ s8 unk8;
+    /* 0x09 */ u8 pad9;
+    /* 0x0A */ s8 unkA;
+} ObjectAttachment;
+
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 animFrame;
+    /* 0x2C */ u8 pad2C[0x2E - 0x2C];
     /* 0x2E */ s16 segmentID;
-    /* 0x30 */ u8 pad30[0x40 - 0x30];
+    /* 0x30 */ u8 pad30[0x39 - 0x30];
+    /* 0x39 */ u8 opacity;
+    /* 0x3A */ s8 attachmentIndex;
+    /* 0x3B */ u8 pad3B;
+    /* 0x3C */ s32 levelEntry; // JFG: the level object entry it was spawned from
+
     /* 0x40 */ struct ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x48 - 0x44];
     /* 0x48 */ s16 behaviorId;
     /* 0x4A */ s16 unk4A;
-    /* 0x4C */ u8 pad4C[0x5C - 0x4C];
+    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x50 */ struct ObjectSprite *sprite;
+    /* 0x54 */ u8 pad54[0x5C - 0x54];
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ u8 pad60[0x68 - 0x60];
     /* 0x68 */ Object_Racer *racer;
     /* 0x6C */ struct ObjectAttachment **attachments; // JFG
-    /* 0x70 */ u8 pad70[0x7C - 0x70];
+    /* 0x70 */ struct ParticleEmitter *particleEmitter;
+    /* 0x74 */ u8 pad74[0x7C - 0x74];
     /* 0x7C */ u8 *unk7C;
     /* 0x80 */ u8 pad80[0xA0 - 0x80];
     /* 0xA0 */ u8 freed; // JFG: already on the free list
     /* 0xA1 */ u8 padA1[0xA4 - 0xA1];
     /* 0xA4 */ struct Object *prev;
     /* 0xA8 */ struct Object *next;
+    /* 0xAC */ f32 prevAnimFrame;
+    /* 0xB0 */ f32 animSpeed;
 } Object;
+
+/* DKR include/structs.h */
+typedef struct Vertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} Vertex;
+
+/* DKR include/structs.h (Size 0x10) */
+typedef struct Triangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s16 uv[3][2];
+} Triangle;
+
+extern Gfx *gObjectCurrDisplayList;
+extern Mtx *gObjectCurrMatrix;
+extern Vertex *gObjectCurrVertexList;
 
 extern f32 gObjectOffsetY;
 
@@ -112,7 +195,39 @@ void clear_object_pointers(void) {
     D_800F2D40 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004838);
+extern s32 D_800F2D14;
+extern Object **D_800F2CB4; // JFG: a second object list (D_800F2CB8 entries)
+extern void *D_800F2CF0[2];
+void gParticlePtrList_flush(void);
+void func_80007C68(Object *obj, s32 arg1);
+void mempool_free(void *data);
+
+/* JFG: free every object (and the type 0x18 ones of the second list), then reset the object system. */
+void free_all_objects(void) {
+    s32 i;
+    s32 count;
+    Object *obj;
+
+    D_800F2D14 = 0;
+    gParticlePtrList_flush();
+    count = gObjectCount;
+    for (i = 0; i < count; i++) {
+        func_80007C68(gObjPtrList[i], 1);
+    }
+    count = D_800F2CB8;
+    for (i = 0; i < count; i++) {
+        obj = D_800F2CB4[i];
+        if (obj->behaviorId == 0x18) {
+            func_80007C68(obj, 1);
+        }
+    }
+    D_800F2D08 = 0;
+    gObjectCount = 0;
+    gObjectListStart = 0;
+    clear_object_pointers();
+    mempool_free(D_800F2CF0[0]);
+    mempool_free(D_800F2CF0[1]);
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004954);
 
@@ -126,7 +241,43 @@ void func_80004C64(u8 arg0) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004C74);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004F04);
+extern u16 *D_800F2C9C;           // DKR: gObjectHeaderReferences
+extern ObjectHeader **D_800F2C98; // DKR: gLoadedObjectHeaders
+void tex_free(void *tex);
+void sprite_free(void *sprite);
+void func_8003C7C4(void *model);
+void func_8003F0E4(void *arg0);
+
+/**
+ * Remove this object from the loaded header's references.
+ * If the reference number is zero, free the header.
+ * JFG: also frees the header's models, textures and sprites.
+ * DKR: try_free_object_header
+ */
+void try_free_object_header(s32 index) {
+    ObjectHeader *header;
+    s32 i;
+
+    if (D_800F2C9C[index] != 0) {
+        D_800F2C9C[index]--;
+        if (D_800F2C9C[index] == 0) {
+            header = D_800F2C98[index];
+            for (i = 0; i < header->numberOfModelIds; i++) {
+                if ((header->modelIds[i] & 0xC000) == 0xC000) {
+                    tex_free(header->assets[i]);
+                } else if (header->modelIds[i] & 0x8000) {
+                    sprite_free(header->assets[i]);
+                } else {
+                    func_8003C7C4(header->assets[i]);
+                }
+            }
+            if (header->unkD4 != NULL) {
+                func_8003F0E4(header->unkD4);
+            }
+            mempool_free(header);
+        }
+    }
+}
 
 /**
  * Converts the passed value into an accurate countdown value based on the systems region.
@@ -158,7 +309,7 @@ typedef struct LevelObjectEntry53 {
 
 extern s32 D_800F2CD8[]; // JFG: two lists of level object entries
 extern s32 D_800F2CE0[]; // JFG: their sizes in bytes
-void func_80005CB0(LevelObjectEntry53 *entry);
+void level_entry_remove(LevelObjectEntry53 *entry);
 
 #ifdef NON_MATCHING
 /**
@@ -181,7 +332,7 @@ void func_80005BD0(s32 objectID, s32 kind) {
         while (entry < end) {
             if (objectID == ((LevelObjectEntry53 *) entry)->objectID &&
                 kind == ((LevelObjectEntry53 *) entry)->unk11) {
-                func_80005CB0((LevelObjectEntry53 *) entry);
+                level_entry_remove((LevelObjectEntry53 *) entry);
                 end = *size + (u8 *) *list;
             } else {
                 entry += ((LevelObjectEntry53 *) entry)->size;
@@ -195,7 +346,47 @@ void func_80005BD0(s32 objectID, s32 kind) {
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005BD0);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80005CB0);
+/* JFG: take an entry out of the level object entry list it is in, moving the later entries down
+   and fixing the objects' pointers to them. */
+void level_entry_remove(LevelObjectEntry53 *entry) {
+    s32 i;
+    Object *obj;
+    s32 size;
+    s32 ends[2];
+    u8 *src;
+    u8 *dst;
+    u8 *end;
+    s32 listIndex;
+    s32 levelEntry;
+    UNUSED s32 pad;
+
+    size = entry->size;
+    ends[0] = D_800F2CD8[0] + D_800F2CE0[0];
+    ends[1] = D_800F2CD8[1] + D_800F2CE0[1];
+    if ((s32) entry >= D_800F2CD8[0] && (s32) entry < ends[0]) {
+        listIndex = 0;
+    } else if ((s32) entry >= D_800F2CD8[1] && (s32) entry < ends[1]) {
+        listIndex = 1;
+    }
+    dst = (u8 *) entry;
+    src = dst + size;
+    end = (u8 *) ends[listIndex];
+    while (src < end) {
+        *dst++ = *src++;
+    }
+    D_800F2CE0[listIndex] -= size;
+    for (i = 0; i < gObjectCount; i++) {
+        obj = gObjPtrList[i];
+        if (obj != NULL && obj->levelEntry != 0) {
+            levelEntry = obj->levelEntry;
+            if ((s32) entry < obj->levelEntry && obj->levelEntry < (s32) end) {
+                obj->levelEntry -= size;
+            } else if ((s32) entry == levelEntry) {
+                obj->levelEntry = 0;
+            }
+        }
+    }
+}
 
 /**
  * Returns the object at the current offset by ID.
@@ -242,11 +433,77 @@ s16 func_80005EC0(s32 type) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005F14);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80006E1C);
+void func_8003C7C4(void *model);
+void tex_free(void *tex);
+void sprite_free(void *sprite);
+
+/* JFG: free the object's count attachments: models (kind 0), textures (kind 4) or sprites.
+   The list is read as words (a pointer-typed read loads into another register). */
+void obj_free_assets(Object *obj, s32 count, s32 kind) {
+    s32 i;
+
+    if (kind == 0) {
+        for (i = 0; i < count; i++) {
+            if (((s32 *) obj->attachments)[i] != 0) {
+                func_8003C7C4((void *) ((s32 *) obj->attachments)[i]);
+            }
+        }
+    } else if (kind == 4) {
+        for (i = 0; i < count; i++) {
+            if (((s32 *) obj->attachments)[i] != 0) {
+                tex_free((void *) ((s32 *) obj->attachments)[i]);
+            }
+        }
+    } else {
+        for (i = 0; i < count; i++) {
+            if (((s32 *) obj->attachments)[i] != 0) {
+                sprite_free((void *) ((s32 *) obj->attachments)[i]);
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80006F2C);
 
+/* DKR include/structs.h, reduced (Size: 0x24 bytes) */
+typedef struct ParticleEmitter {
+    /* 0x00 */ u8 pad0[0x24];
+} ParticleEmitter;
+
+void emitter_init(ParticleEmitter *emitter, s32 behaviourID, s32 particleID);
+void emitter_init_with_pos(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s16 posX, s16 posY, s16 posZ);
+void emitter_init_at_origin(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s32 arg3);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: a third kind of entry (0xFFFE....) goes to emitter_init_at_origin.
+ * DKR: obj_init_emitter
+ * NON_MATCHING: 2 words: the two induction variables are stepped in the other order at the loop end.
+ */
+s32 func_800072B4(Object *obj, ParticleEmitter *emitter) {
+    ObjHeaderParticleEntry *particleDataEntry;
+    s32 i;
+
+    obj->particleEmitter = emitter;
+    particleDataEntry = obj->header->objectParticles;
+    for (i = 0; i < obj->header->particleCount; i++) {
+        if ((particleDataEntry[i].upper & 0xFFFF0000) == 0xFFFF0000) {
+            emitter_init(&obj->particleEmitter[i], (particleDataEntry[i].upper >> 8) & 0xFF,
+                         particleDataEntry[i].upper & 0xFF);
+        } else if ((particleDataEntry[i].upper & 0xFFFF0000) == 0xFFFE0000) {
+            emitter_init_at_origin(&obj->particleEmitter[i], (particleDataEntry[i].upper >> 8) & 0xFF,
+                          particleDataEntry[i].upper & 0xFF, particleDataEntry[i].lower & 0xFF);
+        } else {
+            emitter_init_with_pos(&obj->particleEmitter[i], (particleDataEntry[i].upper >> 0x18) & 0xFF,
+                                  (particleDataEntry[i].upper >> 0x10) & 0xFF, particleDataEntry[i].upper & 0xFFFF,
+                                  (particleDataEntry[i].lower >> 0x10) & 0xFFFF, particleDataEntry[i].lower & 0xFFFF);
+        }
+    }
+    return ((obj->header->particleCount * sizeof(ParticleEmitter)) + 3) & ~3;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800072B4);
+#endif
 
 /* JFG: attach a block to the object, mark it, and return a size. */
 s32 func_8000740C(Object *obj, u8 *arg1) {
@@ -255,7 +512,66 @@ s32 func_8000740C(Object *obj, u8 *arg1) {
     return 0x28;
 }
 
+/* JFG: an object's sprite block (func_80007420) */
+typedef struct ObjectSprite {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ void *texture;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ u16 unkA;
+    /* 0x0C */ u8 unkC;
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 unkF;
+    /* 0x10 */ u8 pad10[0x1C - 0x10];
+    /* 0x1C */ s32 unk1C;
+} ObjectSprite;
+
+extern u8 D_800A4FC4;
+extern void *D_800F2CA0;
+void *load_texture(s32 id);
+
+#ifdef NON_MATCHING
+/* JFG: set up the object's sprite block from its header and load its texture; returns the block's size (0 on failure).
+   NON_MATCHING: the flags copy and the zero stores are scheduled differently (same instructions). */
+s32 func_80007420(Object *obj, ObjectSprite *sprite) {
+    ObjectHeader *header;
+    s32 flags;
+    s32 size;
+
+    header = obj->header;
+    obj->sprite = sprite;
+    sprite->unk0 = header->unk54;
+    sprite->unkC = header->unk61;
+    flags = sprite->unkC;
+    sprite->unkD = header->unk62;
+    sprite->unkF = 0;
+    sprite->unk8 = 0;
+    sprite->unkE = header->unk63;
+    sprite->unk1C = 0;
+    sprite->unkA = header->unk66;
+    size = 0x20;
+    if (D_800A4FC4 == 0) {
+        if (flags & 8) {
+            sprite->unk1C = (((s32) sprite + 0x20) & ~3) + 4;
+            size = sprite->unk1C - (s32) sprite + 0xBC;
+        } else if (flags & 0x10) {
+            sprite->unk1C = (((s32) sprite + 0x20) & ~3) + 4;
+            size = sprite->unk1C - (s32) sprite + 0x38;
+        }
+    } else {
+        sprite->unkC = 5;
+        sprite->unkD = 1;
+    }
+    sprite->texture = load_texture(header->unk64);
+    if (sprite->texture == NULL) {
+        return 0;
+    }
+    D_800F2CA0 = sprite->texture;
+    return (size & ~3) + 4;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007420);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007528);
 
@@ -298,7 +614,48 @@ void free_object(Object *object) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80007A54);
+/**
+ * Take every object on the free list out of the object list (or else the second list) and destroy it.
+ * JFG: the second list, and the search stops at the object found.
+ * DKR: gParticlePtrList_flush
+ */
+void gParticlePtrList_flush(void) {
+    s32 j, i, k, search_indx;
+    Object *searchObj;
+
+    D_800F2CC4 = 0;
+    for (i = 0; i < gFreeListCount; i++) {
+        search_indx = -1;
+        searchObj = gParticlePtrList[i];
+        for (j = 0; j < gObjectCount; j++) {
+            if (searchObj == gObjPtrList[j]) {
+                search_indx = j;
+                if (j < D_800F2CC2) {
+                    D_800F2CC2--;
+                }
+                gObjectCount--;
+                for (k = j; k < gObjectCount; k++) {
+                    gObjPtrList[k] = gObjPtrList[k + 1];
+                }
+                func_80007C68(searchObj, 0);
+                j = gObjectCount;
+            }
+        }
+        if (search_indx == -1) {
+            for (j = 0; j < D_800F2CB8; j++) {
+                if (searchObj == D_800F2CB4[j]) {
+                    D_800F2CB8--;
+                    for (k = j; k < D_800F2CB8; k++) {
+                        D_800F2CB4[k] = D_800F2CB4[k + 1];
+                    }
+                    func_80007C68(searchObj, 0);
+                    j = D_800F2CB8;
+                }
+            }
+        }
+    }
+    gFreeListCount = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007C68);
 
@@ -323,22 +680,160 @@ void func_80008FE8(void) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FF0);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800095A4);
+extern s32 D_800F2C8C;
+extern f32 D_800F2C88;
+extern s32 D_800F6F54;
+void func_80026A50(Object *obj, s32 updateRate);
+void func_80002AB8(Object **racers, s32 numRacers, s32 updateRate);
+void func_80054530(); // a module function (patched in by the runtime linker)
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80009734);
+/* JFG: update the objects some types need first (one of type 0x80 last), then the racers. */
+void objects_update_special(s32 updateRate) {
+    s32 i;
+    s32 count;
+    Object *obj;
+    Object *deferred;
 
-/* JFG: the object header, reduced */
-typedef struct ObjectHeader {
-    /* 0x00 */ u8 pad0[0x1E];
-    /* 0x1E */ s8 unk1E;
-    /* 0x1F */ s8 numAttachments;
-} ObjectHeader;
+    deferred = NULL;
+    count = gObjectCount;
+    for (i = gObjectListStart; i < count; i++) {
+        obj = gObjPtrList[i];
+        switch (obj->behaviorId) {
+            case 0x64:
+                func_80054530(obj, updateRate);
+                break;
+            case 0x43:
+                func_80026A50(obj, updateRate);
+                break;
+            case 0x80:
+                deferred = obj;
+                break;
+            case 0x81:
+                func_80054530(obj, updateRate);
+                break;
+        }
+    }
+    if (deferred != NULL) {
+        func_80054530(deferred, updateRate);
+    }
+    func_80002AB8(*gRacers, gNumRacers, updateRate);
+    if (D_800F2C8C == 0) {
+        gParticlePtrList_flush();
+    }
+    D_800F2C8C = 1;
+    D_800F2C88 = updateRate;
+    D_800F6F54 = 0;
+}
 
-/* JFG: what an object's attachment list points at, reduced */
-typedef struct ObjectAttachment {
-    /* 0x00 */ u8 pad0[0xA];
-    /* 0x0A */ s8 unkA;
-} ObjectAttachment;
+/* JFG: a texture of an object model, reduced */
+typedef struct ModelTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0x12 - 2];
+    /* 0x12 */ u16 numOfTextures;
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ s16 frameSize;
+    /* 0x18 */ u8 loops;
+} ModelTexture;
+
+typedef struct ModelTextureEntry {
+    /* 0x00 */ ModelTexture *texture;
+    /* 0x04 */ u8 pad4[4];
+} ModelTextureEntry;
+
+/* JFG: an animated texture of an object model (8 bytes) */
+typedef struct ModelTexAnim {
+    /* 0x00 */ s16 offset;
+    /* 0x02 */ s16 nextOffset; // < 0: none
+    /* 0x04 */ u32 flags; // the texture index in the low byte
+} ModelTexAnim;
+
+/* DKR include/structs.h TriangleBatchInfo, reduced (Size 0x10) */
+typedef struct ModelBatch {
+    /* 0x00 */ u8 textureIndex;
+    /* 0x01 */ u8 pad1[7];
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u8 padA[6];
+} ModelBatch;
+
+typedef struct ObjectModel53 {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 numberOfTextures;
+    /* 0x11 */ u8 pad11[0x16 - 0x11];
+    /* 0x16 */ s16 numberOfBatches;
+    /* 0x18 */ ModelTextureEntry *textures;
+    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
+    /* 0x20 */ Triangle *triangles;
+    /* 0x24 */ ModelBatch *batches;
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x2C */ u8 numTexAnims;
+} ObjectModel53;
+
+typedef struct ModelInstance53 {
+    /* 0x00 */ u8 pad0[0xB];
+    /* 0x0B */ s8 outIndex;
+    /* 0x0C */ u8 padC[0x74 - 0xC];
+    /* 0x74 */ ModelTexAnim *texAnims;
+    /* 0x78 */ s16 *texOffsets[2];
+} ModelInstance53;
+
+typedef struct ObjectTexAnimState {
+    /* 0x00 */ u8 pad0[0x9F];
+    /* 0x9F */ u8 unk9F;
+} ObjectTexAnimState;
+
+extern u8 D_800A4E78;
+s32 is_game_paused(void);
+void tex_animate_texture(ModelTexture *texture, u32 *triangleBatchInfoFlags, s32 *arg2, s32 updateRate);
+
+/* JFG: animate an object model's textures and write out the offsets (and next offsets) for drawing. */
+void obj_tex_animate(ObjectTexAnimState *obj, ObjectModel53 *model, ModelInstance53 *inst, s32 updateRate) {
+    s32 texIndex;
+    s32 offset;
+    ModelTexAnim *anim;
+    s16 *out;
+    s32 i;
+    ModelTexture *tex;
+
+    if (is_game_paused()) {
+        updateRate = 0;
+    }
+    anim = inst->texAnims;
+    if (anim != NULL) {
+        out = inst->texOffsets[inst->outIndex];
+        for (i = 0; i < model->numTexAnims; i++) {
+            texIndex = anim->flags & 0xFF;
+            tex = model->textures[texIndex].texture;
+            if (anim->flags & 0x10000) {
+                offset = anim->offset;
+                if (anim->flags & 0x20000) {
+                    D_800A4E78 = obj->unk9F;
+                }
+                tex_animate_texture(tex, &anim->flags, &offset, updateRate);
+                anim->offset = offset;
+                if (anim->nextOffset >= 0) {
+                    offset += 0x100;
+                    if (offset >= tex->numOfTextures) {
+                        if (tex->loops) {
+                            offset = 0;
+                        } else {
+                            offset -= 0x100;
+                        }
+                    }
+                    anim->nextOffset = offset;
+                }
+            }
+            if (anim->nextOffset >= 0) {
+                *out++ = (anim->nextOffset >> 8) * tex->frameSize;
+            }
+            *out++ = (anim->offset >> 8) * tex->frameSize;
+            anim++;
+        }
+        if (obj->unk9F == 1) {
+            obj->unk9F = 2;
+        }
+    }
+}
 
 #ifdef NON_MATCHING
 /**
@@ -509,11 +1004,116 @@ s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos) {
     return FALSE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80009E58);
+/* DKR include/f3ddkr.h: a raw two-word command */
+#define fast3d_cmd(pkt, word0, word1) \
+    {                                 \
+        Gfx *_g = (Gfx *) (pkt);      \
+        _g->words.w0 = word0;         \
+        _g->words.w1 = word1;         \
+    }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80009FB4);
+/* JFG: the game's own vertex load (include/modules/gfx.h gSPVertexJFG), here given the index of
+   the last vertex */
+#define gSPVertexLast(pkt, v, last, v0) \
+    gDma1p(pkt, G_VTX, v, ((last) << 3) + ((last) << 1) + 8, ((last) << 3) | ((u32) (v) & 6) | (v0))
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A154);
+/* DKR include/f3ddkr.h */
+#define gSPPolygon(dl, ptr, numTris, texEnabled)                                                                   \
+    {                                                                                                              \
+        Gfx *_g = (Gfx *) (dl);                                                                                    \
+        _g->words.w0 =                                                                                             \
+            _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(5, 24, 8) | _SHIFTL(((numTris) * 16), 0, 16); \
+        _g->words.w1 = (unsigned int) (ptr);                                                                       \
+    }
+
+/* JFG: an object drawn from its own display lists */
+typedef struct ObjectDisplayLists {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Gfx *dl;
+    /* 0x10 */ Gfx *dlTransparent;
+    /* 0x14 */ u8 pad14[0x1C - 0x14];
+    /* 0x1C */ u8 unk1C;
+} ObjectDisplayLists;
+
+void mtx_cam_push(Gfx **dList, Mtx **mtx, void *trans, f32 scaleY, f32 offsetY);
+void rendermode_reset(Gfx **dList);
+void mtx_pop(Gfx **dList);
+void func_80041DC0(Gfx **dList); // the same as mtx_pop
+void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
+extern u8 D_A0838[];
+
+/* JFG: draw the object's display list at the origin, after D_A0838 when unk1C is set. */
+void obj_draw_displaylist_origin(Object *obj) {
+    ObjectDisplayLists *lists;
+
+    lists = (ObjectDisplayLists *) obj->racer;
+    obj->trans.x_position = 0.0f;
+    obj->trans.y_position = 0.0f;
+    obj->trans.z_position = 0.0f;
+    mtx_cam_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj, 1.0f, (f32) 0);
+    rendermode_reset(&gObjectCurrDisplayList);
+    gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, 255, 255, 255, obj->opacity);
+    gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+    fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
+    if (lists->unk1C) {
+        fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) D_A0838);
+    }
+    gSPDisplayList(gObjectCurrDisplayList++, OS_K0_TO_PHYSICAL(lists->dl));
+    mtx_pop(&gObjectCurrDisplayList);
+    rendermode_reset(&gObjectCurrDisplayList);
+    gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+}
+
+/* JFG: draw the object's display list (its second one while it is see-through). */
+void obj_draw_displaylist(Object *obj) {
+    ObjectDisplayLists *lists;
+
+    lists = (ObjectDisplayLists *) obj->racer;
+    rendermode_reset(&gObjectCurrDisplayList);
+    gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, 255, 255, 255, obj->opacity);
+    gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+    mtx_cam_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj, 1.0f, 0.0f);
+    fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
+    fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) D_A0838);
+    if (obj->opacity == 255) {
+        gSPDisplayList(gObjectCurrDisplayList++, OS_K0_TO_PHYSICAL(lists->dl));
+    } else {
+        gSPDisplayList(gObjectCurrDisplayList++, OS_K0_TO_PHYSICAL(lists->dlTransparent));
+    }
+    fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
+    mtx_pop(&gObjectCurrDisplayList);
+    gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+    rendermode_reset(&gObjectCurrDisplayList);
+}
+
+/**
+ * Set up the basic model view matrix, load a texture, then render the mesh.
+ * A much simpler, faster way to render an object model as opposed to render_3d_model
+ * JFG: a grey level and alpha for the colour (unless flags 0x240), and numVertices
+ * is the index of the last vertex.
+ * DKR: render_misc_model
+ */
+void render_misc_model(Object *obj, Vertex *verts, u32 numVertices, Triangle *triangles, u32 numTriangles,
+                   void *tex, u32 flags, u32 texOffset, f32 scaleY, s32 grey, s32 alpha) {
+    s32 hasTexture = FALSE;
+    mtx_cam_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, &obj->trans, scaleY, 0.0f);
+    if (!(flags & 0x240)) {
+        gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, grey, grey, grey, alpha);
+        gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+    }
+    if (tex != NULL) {
+        hasTexture = TRUE;
+    }
+    if (alpha < 255) {
+        flags |= 4;
+    }
+    func_80055C00(&gObjectCurrDisplayList, tex, flags, texOffset);
+    gSPVertexLast(gObjectCurrDisplayList++, OS_K0_TO_PHYSICAL(verts), numVertices, 0);
+    gSPPolygon(gObjectCurrDisplayList++, OS_K0_TO_PHYSICAL(triangles), numTriangles, hasTexture);
+    func_80041DC0(&gObjectCurrDisplayList);
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
 
@@ -563,21 +1163,7 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9F4);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000CC64);
 
-/* DKR include/structs.h */
-typedef struct Vertex {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s16 z;
-    /* 0x06 */ u8 r;
-    /* 0x07 */ u8 g;
-    /* 0x08 */ u8 b;
-    /* 0x09 */ u8 a;
-} Vertex;
-
-extern Gfx *gObjectCurrDisplayList;
-extern Mtx *gObjectCurrMatrix;
-extern Vertex *gObjectCurrVertexList;
-void func_8000DDAC(Object *obj);
+void render_object_parts(Object *obj);
 
 /**
  * Set the draw pointers, then begin rendering the object.
@@ -591,7 +1177,7 @@ void render_object(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj) {
     gObjectCurrDisplayList = *dList;
     gObjectCurrMatrix = *mtx;
     gObjectCurrVertexList = *verts;
-    func_8000DDAC(obj);
+    render_object_parts(obj);
     *dList = gObjectCurrDisplayList;
     *mtx = gObjectCurrMatrix;
     *verts = gObjectCurrVertexList;
@@ -653,11 +1239,170 @@ void func_8000DD78(Object *obj) {
     D_800F2E98 = scale;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DDAC);
+void func_8000B300(Object *obj);
+void func_8000B46C(Object *obj);
+void func_8000CC64(Object *obj);
+void func_8000AA34(Object *obj);
+void func_80054530(); // a module function (patched in by the runtime linker)
 
+/**
+ * Determine which model type the object is using, then call the related function to render it.
+ * JFG: some object types are drawn by modules or their own functions; no undo afterwards.
+ * DKR: render_object_parts
+ */
+void render_object_parts(Object *obj) {
+    f32 y;
+
+    func_8000DD78(obj);
+    if (obj->behaviorId == 0x72) {
+        func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+    } else if (obj->behaviorId == 0x4E) {
+        func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+    } else if (obj->behaviorId == 0x81) {
+        func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+    } else if (obj->behaviorId == 7) {
+        func_8000B300(obj);
+    } else if (obj->behaviorId == 0x7A) {
+        y = obj->trans.y_position;
+        obj->trans.y_position += 40.0f;
+        func_8000CC64(obj);
+        obj->trans.y_position = y;
+    } else {
+        switch (obj->header->unk1E) {
+            case 0:
+                func_8000CC64(obj);
+                break;
+            case 1:
+                func_8000B46C(obj);
+                break;
+            case 4:
+                func_8000AA34(obj);
+                break;
+        }
+    }
+}
+
+#ifdef NON_MATCHING
+/* JFG: scroll the texture coordinates of the triangles using the header's scroll texture, in one
+   attachment's model or all of them.
+   NON_MATCHING: the same logic, other register allocation (target keeps obj in s0). */
+void func_8000DF00(Object *obj, s32 updateRate) {
+    ObjectHeader *header;
+    s16 du, dv;
+    s32 first, last;
+    s32 texIndex;
+    s32 i, j, k;
+    ObjectModel53 *model;
+    ModelTexture *tex;
+    s16 maskU, maskV;
+    Triangle *tri;
+    s32 uv;
+    s32 d1, d2;
+
+    header = obj->header;
+    du = header->scrollU * updateRate;
+    dv = header->scrollV * updateRate;
+    first = header->scrollModel;
+    texIndex = header->scrollTexture;
+    if (first == 0xFF || first < header->numAttachments) {
+        last = first + 1;
+        if (first == 0xFF) {
+            last = header->numAttachments;
+            first = 0;
+        }
+        for (i = first; i < last; i++) {
+            model = obj->attachments[i]->model;
+            if (texIndex < model->numberOfTextures) {
+                tex = model->textures[texIndex].texture;
+                maskU = tex->width << 5;
+                maskV = tex->height << 5;
+                for (j = 0; j < model->numberOfBatches; j++) {
+                    if (texIndex == model->batches[j].textureIndex) {
+                        for (k = model->batches[j].facesOffset; k < model->batches[j + 1].facesOffset; k++) {
+                            tri = &model->triangles[k];
+                            if (du != 0) {
+                                uv = tri->uv[0][0];
+                                d2 = tri->uv[2][0] - uv;
+                                d1 = tri->uv[1][0] - uv;
+                                tri->uv[0][0] = (uv + du) & (maskU - 1);
+                                uv = tri->uv[0][0];
+                                tri->uv[1][0] = uv + d1;
+                                tri->uv[2][0] = uv + d2;
+                            }
+                            if (dv != 0) {
+                                uv = tri->uv[0][1];
+                                d2 = tri->uv[2][1] - uv;
+                                d1 = tri->uv[1][1] - uv;
+                                tri->uv[0][1] = (uv + dv) & (maskV - 1);
+                                uv = tri->uv[0][1];
+                                tri->uv[1][1] = uv + d1;
+                                tri->uv[2][1] = uv + d2;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DF00);
+#endif
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E108);
+/**
+ * Sort the object list so the objects whose header has flag 1 come first; returns where the
+ * others start (cached in D_800F2CC2).
+ * JFG: no particle checks.
+ * DKR: get_first_active_object
+ */
+s32 get_first_active_object(s32 *retObjCount) {
+    s32 i, j;
+    s32 minIndex, maxIndex;
+    s32 breakLoop;
+
+    *retObjCount = gObjectCount;
+    if (D_800F2CC2 != 0) {
+        // Already sorted
+        return D_800F2CC2;
+    }
+
+    i = gObjectListStart;
+    j = gObjectCount - 1;
+    minIndex = i;
+    maxIndex = j;
+
+    while (i <= j) {
+        breakLoop = 0;
+        while (i <= maxIndex && breakLoop == 0) {
+            if (gObjPtrList[i]->header->flags & 1) {
+                i++;
+            } else {
+                breakLoop = -1;
+            }
+        }
+
+        breakLoop = 0;
+        while (j >= minIndex && breakLoop == 0) {
+            if (!(gObjPtrList[j]->header->flags & 1)) {
+                j--;
+            } else {
+                breakLoop = -1;
+            }
+        }
+
+        if (i < j) {
+            // Swap active and inactive objects
+            Object *tempObject = gObjPtrList[i];
+            gObjPtrList[i] = gObjPtrList[j];
+            gObjPtrList[j] = tempObject;
+            i++;
+            j--;
+        }
+    }
+
+    D_800F2CC2 = i;
+    return i;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E278);
 
@@ -748,11 +1493,69 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800110E4);
 
+#ifdef NON_MATCHING
+/* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there. Returns whether it passed an end.
+   NON_MATCHING: 7 words: the target shares one return block at the end (here it is duplicated). */
+s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
+    ObjectAttachment *attachment;
+    s32 result;
+
+    attachment = obj->attachments[obj->attachmentIndex];
+    obj->prevAnimFrame = obj->animFrame;
+    obj->animFrame += speed * rate;
+    result = 0;
+    obj->animSpeed = speed;
+    if (obj->animFrame >= 1.0f) {
+        if (attachment->unk8) {
+            while (obj->animFrame >= 1.0f) {
+                obj->animFrame -= 1.0f;
+            }
+        } else {
+            obj->animFrame = 1.0f;
+        }
+        return 1;
+    }
+    if (obj->animFrame < 0.0f) {
+        result = 1;
+        if (attachment->unk8) {
+            while (obj->animFrame < 0.0f) {
+                obj->animFrame += 1.0f;
+            }
+        } else {
+            obj->animFrame = 0.0f;
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8001138C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8001149C);
 
+#ifdef NON_MATCHING
+/* JFG: a block with a level at 0x28 (func_800116BC) */
+typedef struct LevelBlock28 {
+    /* 0x00 */ u8 pad0[0x28];
+    /* 0x28 */ f32 level;
+} LevelBlock28;
+
+extern f32 D_800AB50C; // the highest level
+
+/* JFG: set the block's level, clamped to 0..D_800AB50C.
+   NON_MATCHING: 2 words: the limit is a float literal (needs this file's .rodata), loaded before the mtc1. */
+s32 func_800116BC(LevelBlock28 *block, f32 level) {
+    if (level > D_800AB50C) {
+        level = D_800AB50C;
+    } else if (level < 0.0f) {
+        level = 0.0f;
+    }
+    block->level = level;
+    return 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800116BC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80011708);
 

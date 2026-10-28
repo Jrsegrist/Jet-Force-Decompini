@@ -644,7 +644,47 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006DB6C);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DD20);
 
+int sprintf(char *s, const char *fmt, ...);
+void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 arg4);
+extern char D_800AEC90[]; // "%d"
+extern u8 D_800A6BA8[12]; // JFG: the digit glyphs, then '-' and blank
+extern u16 *D_800FECB0;   // JFG: the previous frame's image
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: frame 0x88 (target 0x80, buffer at sp+0x54) and one delay slot; the code is otherwise the same */
+/* JFG: draw number into the previous frame, right-aligned in width digits (nothing if it is wider). */
+void func_8006DF90(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
+    char buffer[40];
+    s32 len = 0;
+    s32 i = 0;
+    u8 glyph;
+    char c;
+
+    sprintf(buffer, D_800AEC90, number);
+    while (buffer[len] != '\0') {
+        len++;
+    }
+    if (len <= width) {
+        do {
+            glyph = D_800A6BA8[11];
+            if (len < width) {
+                len++;
+            } else {
+                c = buffer[i++];
+                if (c == '-') {
+                    glyph = D_800A6BA8[10];
+                } else if (c >= '0' && c <= '9') {
+                    glyph = D_800A6BA8[c - '0'];
+                }
+            }
+            func_8006DD20(D_800FECB0, glyph, x, y, arg4);
+            x += 10;
+        } while (buffer[i] != '\0');
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
+#endif
 
 typedef struct ScreenLine {
     /* 0x00 */ s16 x;
