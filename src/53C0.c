@@ -16,7 +16,9 @@ typedef struct Object_Racer {
     /* 0x048 */ f32 unk48;
     /* 0x04C */ u8 pad4C[0x64 - 0x4C];
     /* 0x064 */ f32 unk64; // DKR: unkD0
-    /* 0x068 */ u8 pad68[0x140 - 0x68];
+    /* 0x068 */ u8 pad68[0xA4 - 0x68];
+    /* 0x0A4 */ u16 fogFlags; // JFG: a bit per player: draw with the flash fog colour
+    /* 0x0A6 */ u8 padA6[0x140 - 0xA6];
     /* 0x140 */ s16 y_rotation_offset;
     /* 0x142 */ s16 z_rotation_offset;
     /* 0x144 */ s16 x_rotation_offset;
@@ -58,9 +60,16 @@ typedef struct ObjectHeader {
     /* 0x1F */ s8 numAttachments;
     /* 0x20 */ u8 pad20[2];
     /* 0x22 */ s8 particleCount;
-    /* 0x23 */ u8 pad23[0x40 - 0x23];
+    /* 0x23 */ u8 pad23[0x30 - 0x23];
+    /* 0x30 */ s32 unk30; // JFG: offsets in the asset, made into pointers when loaded
+    /* 0x34 */ s32 unk34;
+    /* 0x38 */ s32 unk38;
+    /* 0x3C */ s32 unk3C;
     /* 0x40 */ struct ObjHeaderParticleEntry *objectParticles;
-    /* 0x44 */ u8 pad44[0x54 - 0x44];
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s32 unk48;
+    /* 0x4C */ s32 unk4C;
+    /* 0x50 */ s32 unk50;
     /* 0x54 */ f32 unk54;
     /* 0x58 */ u8 pad58[0x61 - 0x58];
     /* 0x61 */ u8 unk61;
@@ -77,8 +86,11 @@ typedef struct ObjectHeader {
     /* 0xA7 */ u8 padA7;
     /* 0xA8 */ u16 *modelIds;
     /* 0xAC */ void **assets; // JFG: the loaded model, texture or sprite of each ID
-    /* 0xB0 */ u8 padB0[0xD4 - 0xB0];
+    /* 0xB0 */ s32 unkB0;
+    /* 0xB4 */ u8 padB4[0xD0 - 0xB4];
+    /* 0xD0 */ s32 unkD0; // 0: none
     /* 0xD4 */ void *unkD4;
+    /* 0xD8 */ s16 unkD8; // -1: none
 } ObjectHeader;
 
 /* JFG: what an object's attachment list points at, reduced */
@@ -233,19 +245,90 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80004954);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80004AF4);
 
-extern u8 D_800A0898;
+extern s8 D_800A0898;
 
 void func_80004C64(u8 arg0) {
     D_800A0898 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004C74);
+extern u16 *D_800F2C9C;           // DKR: gObjectHeaderReferences
+extern ObjectHeader **D_800F2C98; // DKR: gLoadedObjectHeaders
+extern s32 *D_800F2C74;           // DKR: gAssetsObjectHeadersTable
+extern void *D_800F2CB0;          // DKR: gObjectMemoryPool
+void *mempool_alloc_pool(void *pool, s32 size);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+void *load_texture(s32 id);
+void *tex_load_sprite(s32 id, s32 arg1);
+void *func_8003B9E8(s32 id, s32 arg1);
+void *asset_cache2_get(s32 id);
+
+/**
+ * Set the object's header.
+ * Search if the intended header is already loaded and use that.
+ * Otherwise, allocate space and load it into ROM and set it to that.
+ * JFG: falls back to the main pool, more offsets, and loads the header's models, textures and sprites.
+ * DKR: load_object_header
+ */
+ObjectHeader *load_object_header(s32 index) {
+    s32 assetOffset;
+    s32 size;
+    ObjectHeader *address;
+    s32 i;
+
+    if (D_800F2C9C[index] != 0) {
+        D_800F2C9C[index]++;
+        return D_800F2C98[index];
+    }
+    assetOffset = D_800F2C74[index];
+    size = D_800F2C74[index + 1] - assetOffset;
+    address = mempool_alloc_pool(D_800F2CB0, size);
+    if (address == NULL && D_800A0898) {
+        address = mempool_alloc_safe(size, 0xFFFF);
+    }
+    if (address != NULL) {
+        asset_load(0x2F, (u32) address, assetOffset, size);
+        address->unk48 = (u32) address + address->unk48;
+        address->unk4C = (u32) address + address->unk4C;
+        address->objectParticles = (ObjHeaderParticleEntry *) ((u32) address + (u32) address->objectParticles);
+        address->unkB0 = (u32) address + address->unkB0;
+        address->unk34 = (u32) address + address->unk34;
+        address->unk38 = (u32) address + address->unk38;
+        address->unk3C = (u32) address + address->unk3C;
+        address->unk30 = (u32) address + address->unk30;
+        address->modelIds = (u16 *) ((u32) address + (u32) address->modelIds);
+        address->assets = (void **) ((u32) address + (u32) address->assets);
+        address->unk50 = (u32) address + address->unk50;
+        if (address->unkD0 != 0) {
+            address->unkD0 = (u32) address + address->unkD0;
+        }
+        for (i = 0; i < address->numberOfModelIds; i++) {
+            if ((address->modelIds[i] & 0xC000) == 0xC000) {
+                address->assets[i] = load_texture(address->modelIds[i] & 0x3FFF);
+            } else if (address->modelIds[i] & 0x8000) {
+                address->assets[i] = tex_load_sprite(address->modelIds[i] & 0x3FFF, 1);
+            } else {
+                address->assets[i] = func_8003B9E8(address->modelIds[i], 0);
+            }
+        }
+        if (address->unkD8 != -1) {
+            address->unkD4 = asset_cache2_get(address->unkD8);
+        } else {
+            address->unkD4 = NULL;
+        }
+        D_800F2C98[index] = address;
+        D_800F2C9C[index] = 1;
+    } else {
+        return NULL;
+    }
+    return address;
+}
 
 extern u16 *D_800F2C9C;           // DKR: gObjectHeaderReferences
 extern ObjectHeader **D_800F2C98; // DKR: gLoadedObjectHeaders
 void tex_free(void *tex);
 void sprite_free(void *sprite);
-void func_8003C7C4(void *model);
+void free_3d_model(void *model);
 void func_8003F0E4(void *arg0);
 
 /**
@@ -268,7 +351,7 @@ void try_free_object_header(s32 index) {
                 } else if (header->modelIds[i] & 0x8000) {
                     sprite_free(header->assets[i]);
                 } else {
-                    func_8003C7C4(header->assets[i]);
+                    free_3d_model(header->assets[i]);
                 }
             }
             if (header->unkD4 != NULL) {
@@ -293,11 +376,28 @@ s32 normalise_time(s32 timer) {
     }
 }
 
+#ifdef NON_MATCHING
+/* JFG: whether an object type is spawned by func_8005131C rather than spawn_object.
+   NON_MATCHING: the result goes through v1 and the branch delay slots are filled (target: v0, nops). */
+#define IS_TYPE(x) (ret = (objectID == (x)))
+s32 func_800050A8(s32 objectID) {
+    s32 ret;
+
+    IS_TYPE(0x29) || IS_TYPE(0x2A) || IS_TYPE(0x2B) || IS_TYPE(0x2D) || IS_TYPE(0x54) || IS_TYPE(0x149) ||
+        IS_TYPE(0x150) || IS_TYPE(0x151) || IS_TYPE(0x152) || IS_TYPE(0x153) || IS_TYPE(0x166) || IS_TYPE(0x5F) ||
+        IS_TYPE(0x67) || IS_TYPE(0xDF) || IS_TYPE(0xE0) || IS_TYPE(0xE1) || IS_TYPE(0x78) || IS_TYPE(0x8C) ||
+        IS_TYPE(0x83) || IS_TYPE(0x66) || IS_TYPE(0x11C) || IS_TYPE(0x11D) || IS_TYPE(0x11E) || IS_TYPE(0x11F) ||
+        IS_TYPE(0x120) || IS_TYPE(0x70) || IS_TYPE(0x90) || IS_TYPE(0xA5) || IS_TYPE(0x97) || IS_TYPE(0x157) ||
+        IS_TYPE(0x68) || IS_TYPE(0x6D) || IS_TYPE(0xBE) || IS_TYPE(0xBD) || IS_TYPE(0x269) || IS_TYPE(0xEE) ||
+        IS_TYPE(0xEF) || IS_TYPE(0x8D) || IS_TYPE(0x99) || IS_TYPE(0x9C) || IS_TYPE(0x12F) || IS_TYPE(0xE6) ||
+        IS_TYPE(0xF2) || IS_TYPE(0xF3) || IS_TYPE(0x121) || IS_TYPE(0xF1) || IS_TYPE(0xF5) || IS_TYPE(0xF6) ||
+        IS_TYPE(0x122) || IS_TYPE(0x143) || IS_TYPE(0x144) || IS_TYPE(0x112) || IS_TYPE(0x1E5);
+    return ret;
+}
+#undef IS_TYPE
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800050A8);
-
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800053F8);
-
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000561C);
+#endif
 
 /* JFG: a level object entry, reduced */
 typedef struct LevelObjectEntry53 {
@@ -309,7 +409,81 @@ typedef struct LevelObjectEntry53 {
 
 extern s32 D_800F2CD8[]; // JFG: two lists of level object entries
 extern s32 D_800F2CE0[]; // JFG: their sizes in bytes
+extern s32 D_800F2CE8[]; // JFG: their map IDs
+extern s32 D_800F2D00;   // DKR: gObjectMapIndex
+extern s32 D_800F2C8C;
 void level_entry_remove(LevelObjectEntry53 *entry);
+s32 *asset_table_load(s32 tableID);
+s32 func_800050A8(s32 objectID);
+void func_8005131C(LevelObjectEntry53 *entry);
+void func_8005A51C(LevelObjectEntry53 *entry);
+void func_8005269C(s32 list, s32 size);
+Object *spawn_object(LevelObjectEntry53 *entry, s32 arg1);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+
+#ifdef NON_MATCHING
+/**
+ * Load the object map into RAM, then start spawning objects into the world.
+ * JFG: uncompressed maps, two lists, some objects spawned by other functions; no silver coins.
+ * DKR: track_spawn_objects
+ * NON_MATCHING: 10 words: two address temporaries spill one word lower, the mem spill is scheduled
+ * earlier and the list compare takes its registers the other way round.
+ */
+void func_800053F8(s32 mapID, s32 index) {
+    s32 assetSize;
+    UNUSED s32 pad; // DKR: settings
+    s32 i;
+    s32 *mem;
+    s32 var_s0;
+    u32 assetOffset;
+    s32 *objMapTable;
+    s32 temp_t3;
+
+    mem = mempool_alloc_safe(0x3000, 0xFFFF);
+    D_800F2CF0[index] = mem;
+    D_800F2CD8[index] = (s32) mem + 0x10;
+    D_800F2CE0[index] = 0;
+    D_800F2CE8[index] = mapID;
+    objMapTable = asset_table_load(0x1C);
+    for (i = 0; objMapTable[i] != -1; i++) {}
+    i--;
+    if (mapID >= i) {
+        mapID = 0;
+    }
+    assetOffset = objMapTable[mapID];
+    assetSize = objMapTable[mapID + 1] - assetOffset;
+    mempool_free(objMapTable);
+    if (assetSize != 0) {
+        asset_load(0x1D, (u32) mem, assetOffset, assetSize);
+        D_800F2CD8[index] = (s32) D_800F2CF0[index] + 0x10;
+        D_800F2CE0[index] = *mem;
+        D_800F2D00 = index;
+        if (&D_800F2CE8[index] == &D_800F2CE8[1]) {
+            func_8005269C(D_800F2CD8[index], D_800F2CE0[index]);
+        }
+        for (var_s0 = 0; var_s0 < D_800F2CE0[index]; var_s0 += temp_t3) {
+            if (func_800050A8(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
+                func_8005131C((LevelObjectEntry53 *) D_800F2CD8[index]);
+            } else if (((LevelObjectEntry53 *) D_800F2CD8[index])->objectID == 0x12E) {
+                func_8005A51C((LevelObjectEntry53 *) D_800F2CD8[index]);
+            } else {
+                spawn_object((LevelObjectEntry53 *) D_800F2CD8[index], 1);
+            }
+            D_800F2CD8[index] = (s32) &((u8 *) D_800F2CD8[index])[temp_t3 = ((u8 *) D_800F2CD8[index])[2]];
+        }
+        D_800F2CD8[index] = (s32) D_800F2CF0[index] + 0x10;
+        if (D_800F2C8C == 0) {
+            gParticlePtrList_flush();
+        }
+        D_800F2C8C = 1;
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/53C0", func_800053F8);
+#endif
+
+INCLUDE_ASM("asm/nonmatchings/53C0", func_8000561C);
 
 #ifdef NON_MATCHING
 /**
@@ -433,7 +607,7 @@ s16 func_80005EC0(s32 type) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80005F14);
 
-void func_8003C7C4(void *model);
+void free_3d_model(void *model);
 void tex_free(void *tex);
 void sprite_free(void *sprite);
 
@@ -445,7 +619,7 @@ void obj_free_assets(Object *obj, s32 count, s32 kind) {
     if (kind == 0) {
         for (i = 0; i < count; i++) {
             if (((s32 *) obj->attachments)[i] != 0) {
-                func_8003C7C4((void *) ((s32 *) obj->attachments)[i]);
+                free_3d_model((void *) ((s32 *) obj->attachments)[i]);
             }
         }
     } else if (kind == 4) {
@@ -594,7 +768,7 @@ extern Object **gParticlePtrList;
 extern s32 gFreeListCount;
 extern s32 gFreedObjectIds[16];
 extern u8 gFreedObjectIdIndex;
-void func_80026E20(Object *obj);
+void chain_object_unlink_from_players(Object *obj);
 
 /**
  * Adds the object to the free list.
@@ -607,7 +781,7 @@ void free_object(Object *object) {
         gParticlePtrList[gFreeListCount] = object;
         gFreeListCount++;
         object->freed = TRUE;
-        func_80026E20(object);
+        chain_object_unlink_from_players(object);
         gFreedObjectIds[gFreedObjectIdIndex] = (object->behaviorId << 16) | object->unk4A;
         gFreedObjectIdIndex++;
         gFreedObjectIdIndex &= 0xF;
@@ -1159,7 +1333,52 @@ void func_8000C9E8(s32 arg0) {
     D_800A0C6C = arg0;
 }
 
+void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g, u8 *b, u8 *unk2);
+void func_80054530(); // a module function (patched in by the runtime linker)
+
+#ifdef NON_MATCHING
+/* JFG: set the fog for drawing a type 0x18 object (its flash colour while its player's bit is set,
+   counting the flash down), or let a module do it for type 0x82.
+   NON_MATCHING: the frame is 8 bytes bigger (racer and bit take stack words; without them the
+   registers differ). */
+void func_8000C9F4(Object *obj, s32 playerID) {
+    s16 near;
+    s16 far;
+    s16 unk;
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 unk2;
+
+    get_fog_settings(0, &near, &far, &unk, &r, &g, &b, &unk2);
+    if (obj->behaviorId == 0x18) {
+        Object_Racer *racer = obj->racer;
+        s32 bit = 1 << playerID;
+        if (racer->fogFlags & bit) {
+            gDPSetFogColor(gObjectCurrDisplayList++, D_800A0C5C, D_800A0C60, D_800A0C64, 255);
+            gSPFogFactor(gObjectCurrDisplayList++, 0x500, 0x500);
+            if (D_800A0C6C) {
+                racer->fogFlags &= ~bit;
+                if (D_800A0C68 != 0) {
+                    D_800A0C68--;
+                    if (D_800A0C68 == 0) {
+                        D_800A0C5C = 255;
+                        D_800A0C60 = 50;
+                        D_800A0C64 = 50;
+                    }
+                }
+            }
+        } else {
+            gDPSetFogColor(gObjectCurrDisplayList++, r, g, b, 255);
+            gSPFogPosition(gObjectCurrDisplayList++, near, far);
+        }
+    } else if (obj->behaviorId == 0x82) {
+        func_80054530(&gObjectCurrDisplayList, obj, playerID);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9F4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000CC64);
 

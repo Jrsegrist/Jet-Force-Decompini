@@ -514,6 +514,7 @@ func_8004D740 = splitscreen_dividers_draw
 func_8004DDEC = zbuffer_clear_rect
 # src/53C0.c (DKR objects.c where named so)
 func_80004838 = free_all_objects
+func_80004C74 = load_object_header
 func_80004F04 = try_free_object_header
 func_80005CB0 = level_entry_remove
 func_80006E1C = obj_free_assets
@@ -530,6 +531,7 @@ func_800129AC = track_tex_anim
 func_80013820 = initialise_player_viewport_vars
 func_8001436C = racers_apply_module_values
 func_8001B660 = free_track
+func_8001B8E0 = shadow_render
 func_8001BE04 = update_fog
 func_8001BF9C = apply_fog
 func_8001C650 = compute_scene_camera_transform_matrix

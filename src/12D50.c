@@ -201,7 +201,9 @@ typedef struct Object_Racer {
 
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x3C - 0x18];
+    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x39 */ u8 opacity;
+    /* 0x3A */ u8 pad3A[0x3C - 0x3A];
     /* 0x3C */ void *level_entry;
     /* 0x40 */ u8 pad40[0x4A - 0x40];
     /* 0x4A */ s16 objectID;
@@ -263,7 +265,118 @@ void set_skydome_visbility(s32 renderSky) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80012BAC);
 
+/* JFG: the game's own vertex load (include/modules/gfx.h gSPVertexJFG), given the index of the
+   last vertex */
+#define gSPVertexLast(pkt, v, last, v0) \
+    gDma1p(pkt, G_VTX, v, ((last) << 3) + ((last) << 1) + 8, ((last) << 3) | ((u32) (v) & 6) | (v0))
+
+/* DKR include/f3ddkr.h */
+#define gSPPolygon(dl, ptr, numTris, texEnabled)                                                                   \
+    {                                                                                                              \
+        Gfx *_g = (Gfx *) (dl);                                                                                    \
+        _g->words.w0 =                                                                                             \
+            _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(5, 24, 8) | _SHIFTL(((numTris) * 16), 0, 16); \
+        _g->words.w1 = (unsigned int) (ptr);                                                                       \
+    }
+
+/* JFG: the level header, reduced */
+typedef struct LevelHeader12 {
+    /* 0x00 */ u8 pad0[0xCE];
+    /* 0xCE */ u8 bgBottomR;
+    /* 0xCF */ u8 bgBottomG;
+    /* 0xD0 */ u8 bgBottomB;
+    /* 0xD1 */ u8 bgTopR;
+    /* 0xD2 */ u8 bgTopG;
+    /* 0xD3 */ u8 bgTopB;
+} LevelHeader12;
+
+extern Gfx *D_800F2F70;    // DKR: gTrackDL
+extern Mtx *D_800F2F74;    // DKR: gTrackMtxPtr
+extern Vertex *D_800F2F78; // DKR: gTrackVtxPtr
+extern LevelHeader12 *D_800A0D64;
+extern u8 D_A0DA8[];       // the background's two triangles
+void mtx_ortho(Gfx **dList, Mtx **mtx);
+void rendermode_reset(Gfx **dList);
+void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
+void func_8004046C(Gfx **dList, Mtx **mtx);
+void fb_size(u32 *width, u32 *height);
+s32 get_current_viewport(void);
+s32 cam_get_active_camera_id();
+void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u32 *uly, u32 *lrx, u32 *lry);
+
+#ifdef NON_MATCHING
+/* JFG: draw the level's background as a gradient from its top colour to its bottom colour.
+   NON_MATCHING: 23 words: the t-registers of the vertex coordinates are numbered one lower. */
+void func_80013454(void) {
+    u32 width;
+    u32 height;
+    u32 x1;
+    u32 y1;
+    u32 x2;
+    u32 y2;
+    u8 topR;
+    u8 topG;
+    u8 topB;
+    u8 bottomR;
+    u8 bottomG;
+    u8 bottomB;
+    Vertex *verts;
+
+    verts = D_800F2F78;
+    D_800F2FAC = -1;
+    mtx_ortho(&D_800F2F70, &D_800F2F74);
+    rendermode_reset(&D_800F2F70);
+    func_80055C00(&D_800F2F70, NULL, 8, 0);
+    gSPVertexLast(D_800F2F70++, OS_K0_TO_PHYSICAL(verts), 4, 0);
+    gSPPolygon(D_800F2F70++, D_A0DA8, 2, 0);
+    func_8004046C(&D_800F2F70, &D_800F2F74);
+    topR = D_800A0D64->bgTopR;
+    topG = D_800A0D64->bgTopG;
+    topB = D_800A0D64->bgTopB;
+    bottomR = D_800A0D64->bgBottomR;
+    bottomG = D_800A0D64->bgBottomG;
+    bottomB = D_800A0D64->bgBottomB;
+    fb_size(&width, &height);
+    copy_framebuffer_size_to_coords(get_current_viewport(), cam_get_active_camera_id(), &x1, &y1, &x2, &y2);
+    width >>= 1;
+    height >>= 1;
+    verts->x = x1 - width;
+    verts->y = height - y2;
+    verts->z = 16;
+    verts->r = topR;
+    verts->a = 255;
+    verts->g = topG;
+    verts->b = topB;
+    verts++;
+    verts->x = x2 - width;
+    verts->y = height - y2;
+    verts->z = 16;
+    verts->r = topR;
+    verts->a = 255;
+    verts->g = topG;
+    verts->b = topB;
+    verts++;
+    verts->x = x1 - width;
+    verts->y = height - y1;
+    verts->z = 16;
+    verts->r = bottomR;
+    verts->a = 255;
+    verts->b = bottomB;
+    verts->g = bottomG;
+    verts++;
+    verts->x = x2 - width;
+    verts->y = height - y1;
+    verts->z = 16;
+    verts->a = 255;
+    verts->r = bottomR;
+    verts->b = bottomB;
+    verts->g = bottomG;
+    verts++;
+    D_800F2F78 = verts;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800136B8);
 
@@ -1100,7 +1213,74 @@ void trackMakeAbsolute(unk8002D30C_a0 *arg0, s32 arg1) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001B8E0);
+/* DKR src/tracks.h ShadowHeapProperties (8 bytes) */
+typedef struct ShadowHeapProperties {
+    /* 0x00 */ void *texture;
+    /* 0x04 */ s16 triCount;
+    /* 0x06 */ s16 vtxCount;
+} ShadowHeapProperties;
+
+/* JFG: an object's shadow, reduced (up to three meshes) */
+typedef struct ShadowData {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ u16 texOffset;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ u8 group;
+    /* 0x0D */ u8 padD[2];
+    /* 0x0F */ u8 numMeshes;
+    /* 0x10 */ s16 meshStart[3];
+    /* 0x16 */ s16 meshEnd[3];
+} ShadowData;
+
+void func_8001D9D0(s32 flags, Vertex **verts, Triangle **tris, ShadowHeapProperties **data);
+
+/**
+ * Render the shadow of the object on the ground.
+ * JFG: up to three meshes, a texture offset, the alpha in the primitive colour.
+ * DKR: shadow_render
+ */
+void shadow_render(Object *obj, ShadowData *shadow) {
+    s32 i;
+    s32 numVerts;
+    s32 numTris;
+    Vertex *vtx;
+    Triangle *tri;
+    ShadowHeapProperties *mesh;
+    ShadowHeapProperties *data;
+    Triangle *tris;
+    s32 j;
+    Vertex *verts;
+    s32 alpha;
+
+    if (shadow->group) {
+        func_8001D9D0(shadow->group, &verts, &tris, &data);
+        for (i = 0; i < shadow->numMeshes; i++) {
+            if (shadow->meshStart[i] != -1) {
+                j = shadow->meshStart[i];
+                mesh = &data[j];
+                alpha = verts[mesh->vtxCount].a;
+                alpha = (obj->opacity * alpha) >> 8;
+                if (alpha > 0) {
+                    gDPSetPrimColor(D_800F2F70++, 0, 0, 0, 0, 0, alpha);
+                    while (j < shadow->meshEnd[i]) {
+                        func_80055C00(&D_800F2F70, mesh->texture, 0xE, shadow->texOffset << 8);
+                        numTris = mesh->triCount;
+                        numVerts = mesh->vtxCount;
+                        tri = &tris[numTris];
+                        vtx = &verts[numVerts];
+                        numTris = mesh[1].triCount - numTris;
+                        numVerts = mesh[1].vtxCount - numVerts;
+                        gSPVertexLast(D_800F2F70++, OS_K0_TO_PHYSICAL(vtx), numVerts, 0);
+                        gSPPolygon(D_800F2F70++, OS_K0_TO_PHYSICAL(tri), numTris, 1);
+                        j++;
+                        mesh++;
+                    }
+                    gDPSetPrimColor(D_800F2F70++, 0, 0, 255, 255, 255, 255);
+                }
+            }
+        }
+    }
+}
 
 /* DKR src/tracks.h (JFG: 8 more bytes after the current fog, size 0x40) */
 typedef struct EnvironmentFog {
