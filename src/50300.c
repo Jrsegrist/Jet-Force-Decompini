@@ -236,9 +236,166 @@ INCLUDE_ASM("asm/nonmatchings/50300", func_8004FBD8);
 void func_8004FC64(s32 arg0) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/50300", func_8004FC6C);
+void __osSpSetStatus(u32 data);
+void func_80065F80(Gfx *from, Gfx *to, s32 arg2);
+void func_80065E28(u32 addr, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA);
 
-INCLUDE_ASM("asm/nonmatchings/50300", func_8004FF64);
+/* The RSP and RDP set back to run a task: SP halt, broke, interrupts and signals cleared; DP flags cleared */
+#define SP_RESET_STATUS 0xAAAA82
+#define DP_RESET_STATUS 0x1D6
+
+/*
+ * Debug: finds the display list command that hangs the RCP, by bisection: ends the list after a
+ * command (a full sync), runs the task again and waits for the RDP to finish (up to 10 retraces),
+ * then moves forwards or backwards by half the remaining count. A hang in a branch to another
+ * display list continues in that list. Returns the command found.
+ */
+Gfx *rcp_hang_bisect(OSSched *sc, s32 count, Gfx *dl, OSMesgQueue *mq, Gfx *start) {
+    Gfx *next;
+    UNUSED s32 pad0;
+    u64 saved0;
+    u64 saved1;
+    s32 found = FALSE;
+    UNUSED s32 pad[2];
+    OSMesg msg = NULL;
+    s32 retraces;
+    s32 done;
+    Gfx *sub;
+    Gfx *from;
+    Gfx *p;
+
+    do {
+        next = dl + 1;
+        __osSpSetStatus(SP_RESET_STATUS);
+        done = FALSE;
+        retraces = 0;
+        osDpSetStatus(DP_RESET_STATUS);
+        saved0 = *(u64 *) dl;
+        saved1 = *(u64 *) (dl + 1);
+        gDPFullSync(&dl[0]);
+        gSPEndDisplayList(&dl[1]);
+        osWritebackDCacheAll();
+        osSpTaskLoad(&sc->curRSPTask->list);
+        osSpTaskStartGo(&sc->curRSPTask->list);
+        do {
+            osRecvMesg(mq, &msg, OS_MESG_BLOCK);
+            switch ((s32) msg) {
+                case SC_MSG_RETRACE:
+                    retraces++;
+                    break;
+                case SC_MSG_SP_DONE:
+                    break;
+                case SC_MSG_DP_DONE:
+                    done = TRUE;
+                    break;
+            }
+        } while (retraces < 10 && !done);
+        *(u64 *) dl = saved0;
+        *(u64 *) next = saved1;
+        if (count < 2) {
+            if (*(u8 *) dl == G_DL) {
+                from = dl - 40;
+                if ((u32) from < 0x80000000) {
+                    from = (Gfx *) ((u32) from + 0x80000000);
+                }
+                if ((s32) from < (s32) start) {
+                    from = start;
+                }
+                func_80065F80(from, dl, 0x50);
+                p = (Gfx *) dl->words.w1;
+                if ((u32) p < 0x80000000) {
+                    p = (Gfx *) ((u32) p + 0x80000000);
+                }
+                sub = p;
+                for (count = 0; *(s8 *) p != (s8) G_ENDDL; p++) {
+                    count++;
+                }
+                if (count & 1) {
+                    count = count / 2 + 1;
+                } else {
+                    count = count / 2;
+                }
+                dl = sub;
+                dl += count;
+                if ((u32) dl < 0x80000000) {
+                    dl = (Gfx *) ((u32) dl + 0x80000000);
+                }
+                func_80065F80(sub, dl, 0xA0);
+                return rcp_hang_bisect(sc, count, dl, mq, sub);
+            }
+            found = TRUE;
+        }
+        if (!found) {
+            if (count & 1) {
+                count = count / 2 + 1;
+            } else {
+                count = count / 2;
+            }
+            if (done) {
+                dl += count;
+            } else {
+                dl -= count;
+            }
+        }
+    } while (!found);
+    return dl;
+}
+
+/*
+ * Debug: finds the command the running graphics task hangs on (rcp_hang_bisect, from the middle of its
+ * display list, with the scheduler's interrupts sent to a queue of its own), and the nearest marked
+ * positions in the display list before and after it (func_80065E28); dumps the commands before it.
+ */
+Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA) {
+    u32 half;
+    OSMesg msgBuf[8];
+    OSMesgQueue mq;
+    Gfx *dl;
+    OSTask *task;
+    s32 nextB;
+    s32 prevB;
+    s32 nextC;
+    s32 prevC;
+    s32 nextA;
+    s32 prevA;
+    Gfx *from;
+
+    task = &sc->curRSPTask->list;
+    half = task->t.data_size >> 1;
+    dl = (Gfx *) task->t.data_ptr + half;
+    osCreateMesgQueue(&mq, msgBuf, 8);
+    osSetEventMesg(OS_EVENT_SP, &mq, (OSMesg) SC_MSG_SP_DONE);
+    osSetEventMesg(OS_EVENT_DP, &mq, (OSMesg) SC_MSG_DP_DONE);
+    osViSetEvent(&mq, (OSMesg) SC_MSG_RETRACE, 1);
+    dl = rcp_hang_bisect(sc, half, dl, &mq, (Gfx *) task->t.data_ptr);
+    osSetEventMesg(OS_EVENT_SP, &sc->interruptQ, (OSMesg) SC_MSG_SP_DONE);
+    osSetEventMesg(OS_EVENT_DP, &sc->interruptQ, (OSMesg) SC_MSG_DP_DONE);
+    osViSetEvent(&sc->interruptQ, (OSMesg) SC_MSG_RETRACE, 1);
+    *aboveB = 0;
+    *belowB = 0;
+    func_80065E28((u32) dl, &prevB, &prevC, &prevA, &nextB, &nextC, &nextA);
+    if (nextB != 0 || prevB != 0) {
+        if (prevB != 0) {
+            *belowB = prevB;
+            *belowC = prevC;
+            *belowA = prevA;
+        }
+        if (nextB != 0) {
+            *aboveB = nextB;
+            *aboveC = nextC;
+            *aboveA = nextA;
+        }
+    }
+    from = dl - 40;
+    if ((u32) from < 0x80000000) {
+        from = (Gfx *) ((u32) from + 0x80000000);
+    }
+    if ((s32) from < (s32) task->t.data_ptr) {
+        from = (Gfx *) task->t.data_ptr;
+    }
+    func_80065F80(from, dl, 0x50);
+    return dl;
+}
 
 INCLUDE_ASM("asm/nonmatchings/50300", func_80050154);
 
