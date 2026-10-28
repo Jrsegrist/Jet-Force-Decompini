@@ -460,6 +460,10 @@ func_80050B08 = __scAppendList
 func_80050B70 = __scExec
 func_80050C3C = __scYield
 func_80050C90 = __scSchedule
+# src/432D0.c
+func_800427E8 = camera_follow_update
+# src/4E340.c
+func_8004D740 = splitscreen_dividers_draw
 # src/4E610.c
 func_8004DDEC = zbuffer_clear_rect
 # src/74270.c (DKR game_text.c)

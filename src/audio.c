@@ -657,9 +657,64 @@ void music_sequence_start(u8 seqID, ALCSPlayer *seqPlayer) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/audio", func_8000167C);
-
 extern u8 gMusicPlaying;
+s32 func_800899D0(ALCSPlayer *seqp);               // DKR: alCSPGetState
+void func_800899F0(ALCSeq *seq, void *data);       // DKR: alCSeqNew
+void func_8008A3C0(ALCSPlayer *seqp, ALCSeq *seq); // DKR: alCSPSetSeq
+void func_8008A410(ALCSPlayer *seqp);              // DKR: alCSPPlay
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+s32 asset_rom_offset(u32 assetIndex, s32 offset);
+
+/**
+ * If the sequence player is currently inactive, start a new sequence with the current properties.
+ * JFG: the music can keep the base volume (a flag cleared here, with one more), and the sequence
+ * lengths are their own table.
+ */
+void music_sequence_init(ALCSPlayer *seqp, void *sequence, u8 *seqID, ALCSeq *seq) {
+    s32 i;
+
+    if ((func_800899D0(seqp) == AL_STOPPED) && (*seqID != 0)) {
+        asset_load(0x34, (u32) sequence, (u32) gSequenceTable->seqArray[*seqID].offset - asset_rom_offset(0x34, 0),
+                   gSequenceLengths[*seqID]);
+        func_800899F0(seq, sequence);
+        func_8008A3C0(seqp, seq);
+        func_8008A410(seqp);
+        if (seqp == gMusicPlayer) {
+            gCurrentSequenceID = *seqID;
+            gMusicPlaying = TRUE;
+            if (D_800A06B0) {
+                music_volume_set(gMusicBaseVolume);
+            } else {
+                music_volume_set(gSeqSoundTable[*seqID].volume);
+            }
+            if (gSeqSoundTable[*seqID].tempo != 0) {
+                music_tempo_set(gSeqSoundTable[*seqID].tempo);
+            } else {
+                sMusicTempo = -1;
+            }
+            sound_reverb_set(gSeqSoundTable[*seqID].reverb);
+            if (gDynamicMusicChannelMask != MUSIC_CHAN_MASK_NONE) {
+                for (i = 0; i < AUDIO_CHANNELS; i++) {
+                    if ((1 << i) & gDynamicMusicChannelMask) {
+                        music_channel_on(i);
+                    } else {
+                        music_channel_off(i);
+                    }
+                }
+            }
+        } else {
+            music_jingle_volume_set(gSeqSoundTable[*seqID].volume);
+            if (gSeqSoundTable[*seqID].tempo != 0) {
+                sound_jingle_tempo_set(gSeqSoundTable[*seqID].tempo);
+            }
+            gCurrentJingleID = *seqID;
+        }
+        *seqID = 0;
+    }
+    D_800A06B0 = 0;
+    D_800A06B4 = 0;
+}
+
 void func_8008A450(ALCSPlayer *seqp); // stops a sequence player (DKR: alCSPStop)
 
 /**
