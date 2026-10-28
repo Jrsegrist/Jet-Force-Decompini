@@ -21,7 +21,7 @@ extern s32 sBootDelayTimer;
 s32 leveltable_world(s32 level);
 s32 func_800841A0(void);
 s32 func_800841CC(void);
-void func_80044DFC(void);
+void init_game(void);
 void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void check_reset_and_halt(void);
 void func_80044FAC(void);
@@ -45,7 +45,7 @@ void thread3_main(UNUSED void *unused) {
     }
     D_800A331C = func_800841A0();
     D_800A3320 = func_800841CC();
-    func_80044DFC();
+    init_game();
     gSaveDataFlags = input_update(gSaveDataFlags, 0);
     sBootDelayTimer = 0;
     gGameMode = 6;
@@ -59,7 +59,7 @@ void thread3_main(UNUSED void *unused) {
 
 extern s32 D_800A3290;
 void audioStopThread(void);
-void func_80054B44(void);
+void fb_clear_and_unblank(void);
 void rumble_stop_all(s32 arg0);
 void func_8004B56C(s32 updateRate);
 s32 is_reset_pressed(void);
@@ -76,7 +76,7 @@ void check_reset_and_halt(void) {
         }
         __osSpSetStatus(0xAAAA82);
         osDpSetStatus(0x1D6);
-        func_80054B44();
+        fb_clear_and_unblank();
         rumble_stop_all(1);
         func_8004B56C(2);
         func_8004B56C(2);
@@ -86,9 +86,105 @@ void check_reset_and_halt(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80044CF0);
+/* A MIPS instruction word, R-type and I-type views */
+typedef union MipsInstr {
+    struct {
+        u32 op : 6;
+        u32 rs : 5;
+        u32 rt : 5;
+        u32 rd : 5;
+        u32 sa : 5;
+        u32 funct : 6;
+    } r;
+    struct {
+        u32 op : 6;
+        u32 rs : 5;
+        u32 rt : 5;
+        u32 imm : 16;
+    } i;
+} MipsInstr;
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80044DFC);
+extern MipsInstr *D_800A3360[5];
+
+/* JFG: in each of five code areas, rewrite the first `addiu rt, rs, 0x666` of 64 words into `or rt, ra, zero`
+ * and flush the caches for it. */
+void code_patch_addiu_666(void) {
+    s32 i = 5;
+    MipsInstr *instr;
+    s32 j;
+
+    while (i--) {
+        instr = D_800A3360[i];
+        j = 0x40;
+        while (j--) {
+            if (instr->i.op == 9 && instr->i.imm == 0x666) {
+                instr->r.op = 0;
+                instr->r.rs = 31;
+                instr->r.rd = instr->r.rt;
+                instr->r.rt = 0;
+                instr->r.sa = 0;
+                instr->r.funct = 0x25;
+                osWritebackDCache(instr, 4);
+                osInvalICache(instr, 4);
+                break;
+            }
+            instr++;
+        }
+    }
+}
+
+typedef struct OSSched OSSched;
+void osCreateScheduler(OSSched *sc, void *stack, OSPri priority, u8 mode, u8 numFields);
+extern OSSched D_800FB440;    // the scheduler
+extern u8 D_800FD748[];       // the scheduler thread's stack top
+extern void *D_800A3324;
+extern s8 D_800FD7BC;
+extern s32 D_800A3530;        // set while the game is booting (see asset_loading.c)
+void mempool_init_main(void);
+void gzip_init(void);
+void video_init(OSSched *sc);
+void pi_init(void);
+void gfxtask_init(OSSched *sc);
+void func_800539E0(void);
+void func_8005342C(s32 module);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void func_80054530();
+
+/**
+ * JFG: set up the scheduler, memory, video, loading and graphics, checking for a reset between the steps.
+ * DKR: init_game
+ */
+void init_game(void) {
+    s32 viMode;
+
+    if (osTvType == OS_TV_PAL) {
+        viMode = OS_VI_PAL_LPN1;
+    } else if (osTvType == OS_TV_NTSC) {
+        viMode = OS_VI_NTSC_LPN1;
+    } else if (osTvType == OS_TV_MPAL) {
+        viMode = OS_VI_MPAL_LPN1;
+    }
+    osCreateScheduler(&D_800FB440, D_800FD748, 13, viMode, 1);
+    code_patch_addiu_666();
+    mempool_init_main();
+    gzip_init();
+    D_800A3324 = mempool_alloc_safe(0x40, 0x7F7F7FFF);
+    D_800FD7BC = 0;
+    D_800A3530 = 1;
+    video_init(&D_800FB440);
+    check_reset_and_halt();
+    pi_init();
+    check_reset_and_halt();
+    gfxtask_init(&D_800FB440);
+    check_reset_and_halt();
+    func_800539E0();
+    check_reset_and_halt();
+    D_800A3290 = 1;
+    func_80054530();
+    check_reset_and_halt();
+    func_8005342C(0x24);
+    D_800A3530 = 0;
+}
 
 extern s32 D_800A328C;
 extern s16 D_800FD7A4;
@@ -113,9 +209,100 @@ void func_80044F24(s32 step) {
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_80044FAC);
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_8004581C);
+/* JFG: a screen rectangle whose visibility is tested against the depth buffer */
+typedef struct ScreenRect {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ u8 pad4;
+    /* 0x05 */ s8 width;
+    /* 0x06 */ s8 height;
+    /* 0x07 */ s8 visible;
+} ScreenRect;
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045914);
+extern s32 D_800A3378;
+extern ScreenRect D_800FD750[8];
+extern u16 *gVideoDepthBuffer;
+void fb_size(s32 *width, s32 *height);
+
+/* JFG: queue the square of half-size `size` around (x, y), clipped to the screen; returns its index or -1. */
+s32 screen_rect_queue(s32 x, s32 y, s32 size) {
+    s32 index;
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+    s32 width;
+    s32 height;
+
+    fb_size(&width, &height);
+    index = -1;
+    if (D_800A3378 < 8) {
+        x2 = x + size;
+        y2 = y + size;
+        if (x2 >= 0 && y2 >= 0) {
+            x1 = x - size;
+            y1 = y - size;
+            if (x1 < width && y1 < height) {
+                if (x1 < 0) {
+                    x1 = 0;
+                }
+                if (y1 < 0) {
+                    y1 = 0;
+                }
+                if (x2 >= width) {
+                    x2 = width - 1;
+                }
+                if (y2 >= height) {
+                    y2 = height - 1;
+                }
+                index = D_800A3378;
+                D_800A3378++;
+                D_800FD750[index].x = x1;
+                D_800FD750[index].y = y1;
+                D_800FD750[index].width = x2 - x1 + 1;
+                D_800FD750[index].height = y2 - y1 + 1;
+            }
+        }
+    }
+    return index;
+}
+
+/* JFG: for each queued rectangle, visible = no depth-buffer pixel in it is at the far value (0xFFFC). */
+void screen_rects_test_depth(void) {
+    ScreenRect *rect;
+    s32 i;
+    s32 visible;
+    u16 *pixels;
+    s32 width;
+    s32 height;
+    s32 h;
+    s32 w;
+
+    fb_size(&width, &height);
+    rect = D_800FD750;
+    i = 8;
+    while (i--) {
+        visible = 1;
+        if (D_800A3378 > 0) {
+            D_800A3378--;
+            pixels = gVideoDepthBuffer + (rect->y * width + rect->x);
+            h = rect->height;
+            while (h--) {
+                w = rect->width;
+                while (w--) {
+                    if ((pixels[w] & 0xFFFC) == 0xFFFC) {
+                        visible = 0;
+                        goto done;
+                    }
+                }
+                pixels += width;
+            }
+        }
+    done:
+        rect->visible = visible;
+        rect++;
+    }
+}
 
 extern s8 D_800FD757[];
 
@@ -159,7 +346,33 @@ void func_80045B98(s32 a0, s32 a1, s32 a2, s32 a3, s32 a4, s32 a5, s32 a6, s32 a
     D_800A3230 = D_800A3234;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045C38);
+extern s16 D_800A3220;
+extern s16 D_800A3224;
+extern s16 D_800A3228;
+extern s16 D_800A322C;
+extern u8 D_800A321C;
+
+/* JFG: step the transition of four values from D_800FD79C.. towards D_800FD794.. (see func_80045B98);
+ * D_800A321C: still running, or finished going forwards. */
+void transition_values_update(s32 updateRate) {
+    if (D_800A3230) {
+        D_800A3220 = D_800FD79C;
+        D_800A3224 = D_800FD79E;
+        D_800A3228 = D_800FD7A0;
+        D_800A322C = D_800FD7A2;
+        D_800A3230 -= updateRate;
+        if (D_800A3230 > 0) {
+            updateRate = (D_800A3230 << 16) / D_800A3234; // the fraction left, 16.16
+            D_800A3220 += ((D_800FD794 - D_800FD79C) * updateRate) >> 16;
+            D_800A3224 += ((D_800FD796 - D_800FD79E) * updateRate) >> 16;
+            D_800A3228 += ((D_800FD798 - D_800FD7A0) * updateRate) >> 16;
+            D_800A322C += ((D_800FD79A - D_800FD7A2) * updateRate) >> 16;
+        } else {
+            D_800A3230 = 0;
+        }
+    }
+    D_800A321C = D_800A3230 || !D_800A3238;
+}
 
 s16 func_80045DC0(void) {
     return D_800A3230;
@@ -354,12 +567,26 @@ void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
 
 /* JFG: one character's data in the game state (0x76 bytes) */
 typedef struct CharacterData {
-    /* 0x00 */ u8 pad0[4];
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
     /* 0x04 */ u16 unk4_hi : 11;
     /* 0x04 */ u16 unk4_lo : 5;
-    /* 0x06 */ u8 pad6[0x71 - 6];
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ u16 weapons; // one bit per weapon
+    /* 0x0C */ s16 unkC[4];
+    /* 0x14 */ s16 unk14[16]; // per weapon
+    /* 0x34 */ s16 unk34[16]; // per weapon
+    /* 0x54 */ u8 unk54[16];  // per weapon
+    /* 0x64 */ u8 pad64[2];
+    /* 0x66 */ u8 items[8]; // one bit per item, highest bit first
+    /* 0x6E */ u8 pad6E;
+    /* 0x6F */ u8 unk6F;
+    /* 0x70 */ u8 unk70;
     /* 0x71 */ s8 unk71;
-    /* 0x72 */ u8 pad72[4];
+    /* 0x72 */ u8 pad72[2];
+    /* 0x74 */ u16 unk74_hi : 11;
+    /* 0x74 */ u16 unk74_lo : 5;
 } CharacterData;
 
 typedef struct GameStats {
@@ -378,6 +605,10 @@ typedef struct GameStats {
     /* 0x474 */ u32 shots[16];
     /* 0x4B4 */ u32 hits[16];
     /* 0x4F4 */ u16 kills[16];
+    /* 0x514 */ s32 unk514;
+    /* 0x518 */ s32 unk518;
+    /* 0x51C */ u8 pad51C[0x530 - 0x51C];
+    /* 0x530 */ s16 unk530;
 } GameStats;
 extern GameStats *gSettingsPtr;
 
@@ -505,7 +736,48 @@ void func_80047A20(void) {
     }
 }
 
+u8 *weapon_info_get(s32 index);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target loads the item loop's bound (8) before zeroing the counter */
+/* JFG: reset a character's data for a level: the default weapon only, each weapon's values from its info, no
+ * items. */
+void func_80047AE0(CharacterData *chr, s32 level) {
+    s32 i;
+    u8 *info;
+
+    chr->unk0 = 0x2200;
+    chr->unk2 = 6;
+    chr->unk4_hi = level;
+    chr->unk74_hi = level;
+    chr->unk4_lo = 0;
+    for (i = 0; i < 16; i++) {
+        info = weapon_info_get(i);
+        chr->unk14[i] = 0;
+        chr->unk34[i] = *(s16 *) (info + 0x24);
+        chr->unk54[i] = info[3];
+    }
+    info = weapon_info_get(0);
+    chr->unk6F = 1;
+    chr->unk70 = 0;
+    chr->weapons = 1 << chr->unk70;
+    chr->unk14[0] = *(s16 *) (info + 0x28);
+    chr->unkC[0] = 0;
+    chr->unkC[1] = 0;
+    chr->unkC[2] = 0;
+    chr->unkC[3] = 0;
+    i = 0;
+    while (i < 8) {
+        chr->items[i] = 0;
+        i++;
+    }
+    chr->unk6 = 0;
+    chr->unk8 = 0;
+    chr->unk74_lo = 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047AE0);
+#endif
 
 /* Returns the game settings (the save data being played) (0x80047C0C). */
 GameStats *get_settings(void) {
@@ -565,7 +837,23 @@ s32 character_has_item(s32 player, s32 character, s32 item) {
     return has;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target computes each `!= 0` into a fresh t-register and copies it to v0 (mine: a0) */
+/* JFG: whether any of player 0's first three characters has an item. */
+s32 func_80047DD8(s32 item) {
+    s32 ret;
+    ret = character_has_item(0, 0, item) != 0;
+    if (!ret) {
+        ret = character_has_item(0, 1, item) != 0;
+        if (!ret) {
+            ret = character_has_item(0, 2, item) != 0;
+        }
+    }
+    return ret;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047DD8);
+#endif
 
 /* JFG: whether a player's character has a weapon (a bit mask at 0xA) (0x80047E44). */
 s32 character_has_weapon(s32 player, s32 character, s32 weapon) {
@@ -804,8 +1092,59 @@ s32 func_800485C8(s32 player) {
     return D_800FED50[player & 3].unk12;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80048630);
+extern s16 D_800A3268;
+extern s8 *D_800FD7B8;
+extern s8 D_800A3298;
+void objflags_clear_all(void);
+void objflags_select_region(void);
 
+/* JFG: clear the current settings' region bits, counters and weapon statistics. */
+void settings_clear_stats(void) {
+    s32 i;
+
+    for (i = 0; i < 64; i++) {
+        gSettingsPtr->unk5C[i] = 0;
+        gSettingsPtr->unkDC[i] = 0;
+    }
+    gSettingsPtr->unk4 = 0;
+    gSettingsPtr->unk5 = 0;
+    gSettingsPtr->unk6 = D_800FD7B8[D_800A3268];
+    gSettingsPtr->unk530 = 0;
+    gSettingsPtr->unk514 = 0;
+    for (i = 0; i < 16; i++) {
+        gSettingsPtr->shots[i] = 0;
+        gSettingsPtr->hits[i] = 0;
+        gSettingsPtr->kills[i] = 0;
+    }
+    objflags_clear_all();
+    if (D_800A3298 != 0) {
+        objflags_select_region();
+    }
+}
+
+extern s32 D_800A3398;
+extern s32 D_800A339C[];
+extern s32 D_800A32D0;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: registers: the target keeps the pressed buttons in v1 and &D_800A3398 in v0 */
+/* JFG: a button sequence on controller 1 (zero-terminated list D_800A339C) toggles D_800A32D0. */
+void func_800487B8(void) {
+    s32 pressed = input_pressed(0);
+
+    if (pressed != 0) {
+        if (pressed == D_800A339C[D_800A3398]) {
+            if (D_800A339C[++D_800A3398] == 0) {
+                D_800A3398 = 0;
+                D_800A32D0 ^= 1;
+            }
+        } else {
+            D_800A3398 = 0;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_800487B8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004883C);

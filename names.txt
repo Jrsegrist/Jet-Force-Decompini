@@ -464,6 +464,42 @@ func_80050C3C = __scYield
 func_80050C90 = __scSchedule
 # src/2610.c (DKR audiomgr.c)
 func_80001A10 = amCreateAudioMgr
+# src/25A70.c
+func_80026D14 = obj_loop_texture_animator
+func_80026E20 = chain_object_unlink_from_players
+func_80026F38 = chain_slot_find_shortest
+func_8002844C = obj_loop_pickup_trigger
+# src/291B0.c
+func_80029A20 = obj_loop_chroma_sprite
+# src/2BAA0.c
+func_800340A4 = table_lerp_diff
+func_800396CC = player_attachment_spawn
+func_8003B290 = players_forget_object
+# src/3430.c (DKR audio_spatial.c where named so)
+func_80002944 = audspat_reset
+func_80003994 = audio_group_play
+func_80003CA4 = audspat_volume_at_distance
+# src/3C470.c (DKR object_models.c where named so)
+func_8003B8AC = allocate_object_model_pools
+func_8003C7C4 = free_3d_model
+func_8003C92C = free_model_data
+func_8003CFCC = asset_cache_get
+func_8003EF60 = asset_cache2_get
+# src/40240.c
+func_8003FAEC = cam_reset
+func_80041A90 = mtx_model_rotate_translate_push
+func_80041FE0 = screen_to_view
+func_80042310 = cam_shake_near_point
+# src/45750.c
+func_80044CF0 = code_patch_addiu_666
+func_80044DFC = init_game
+func_8004581C = screen_rect_queue
+func_80045914 = screen_rects_test_depth
+func_80045C38 = transition_values_update
+func_80048630 = settings_clear_stats
+# src/4BC70.c
+func_8004B29C = rumble_set
+func_8004B3D8 = rumble_raise
 # src/432D0.c
 func_800427E8 = camera_follow_update
 # src/44350.c (DKR game.c)

@@ -13,7 +13,8 @@ typedef struct AudioPoint {
     /* 0x0F */ u8 pitch;
     /* 0x10 */ u8 minVolume;
     /* 0x11 */ u8 flags;
-    /* 0x12 */ u8 pad12[2];
+    /* 0x12 */ u8 inRange;
+    /* 0x13 */ u8 pad13;
     /* 0x14 */ s32 range;
     /* 0x18 */ void *soundHandle;
     /* 0x1C */ struct AudioPoint **userHandlePtr;
@@ -36,7 +37,7 @@ extern AudioPoint *gAudioPointsPool;
 extern AudioPoint **gFreeAudioPoints;
 void sound_table_properties(struct SoundData **table, s32 *size, s32 *count);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
-void func_80002944(void);
+void audspat_reset(void);
 
 /* Sets up the audio point pools, then resets the spatial audio (0x80002830). */
 /**
@@ -55,7 +56,7 @@ void audspat_init(void) {
     for (i = 0; i < MAX_AUDIO_POINTS; i++) {
         gAudioPointsPool[i].soundHandle = NULL;
     }
-    func_80002944();
+    audspat_reset();
 }
 
 /**
@@ -76,7 +77,71 @@ void audspat_jingle_on(void) {
     gJinglesOff = FALSE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80002944);
+extern AudioPoint **gFreeAudioPoints;
+extern u8 gLastFreePointIndex;
+extern u8 gJinglesOff;
+/* JFG: a point's entry in its group (unk23 is the group, from 1) */
+typedef struct AudioGroupEntry {
+    /* 0x00 */ AudioPoint *point;
+    /* 0x04 */ f32 pitch;
+    /* 0x08 */ u8 volume;
+    /* 0x09 */ u8 fxMix;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ s32 pan;
+} AudioGroupEntry;
+extern AudioGroupEntry D_800F2A48[][3]; // JFG: the groups' entries
+/* The point of every group entry after the first, referenced as their own symbols. */
+extern AudioPoint *D_800F2A58, *D_800F2A68, *D_800F2A78, *D_800F2A88, *D_800F2A98, *D_800F2AA8, *D_800F2AB8,
+    *D_800F2AC8, *D_800F2AD8, *D_800F2AE8, *D_800F2AF8;
+void sound_stop(void *soundHandle);
+s32 runlink_module_loaded(s32 module);
+void func_80054530();
+
+/**
+ * Stops all sounds and deletes all created audio points.
+ * JFG: no audio or reverb lines; clears the four point groups and calls into module 0x2C when it is loaded.
+ * DKR: audspat_reset
+ */
+void audspat_reset(void) {
+    s32 i;
+    void *sound;
+    AudioPoint *audioPoint;
+
+    audioPoint = gAudioPointsPool;
+    gLastFreePointIndex = 0;
+    while (gLastFreePointIndex < MAX_AUDIO_POINTS) {
+        gFreeAudioPoints[gLastFreePointIndex] = audioPoint;
+        audioPoint++;
+        gLastFreePointIndex++;
+    }
+
+    gLastFreePointIndex--;
+
+    for (i = 0; i < gNumAudioPoints; i++) {
+        sound = gAudioPoints[i]->soundHandle;
+        gAudioPoints[i]->inRange = FALSE;
+        if (sound != NULL) {
+            sound_stop(sound);
+        }
+    }
+    gNumAudioPoints = 0;
+    gJinglesOff = FALSE;
+    D_800F2A48[0][0].point = NULL;
+    D_800F2A58 = NULL;
+    D_800F2A68 = NULL;
+    D_800F2A78 = NULL;
+    D_800F2A88 = NULL;
+    D_800F2A98 = NULL;
+    D_800F2AA8 = NULL;
+    D_800F2AB8 = NULL;
+    D_800F2AC8 = NULL;
+    D_800F2AD8 = NULL;
+    D_800F2AE8 = NULL;
+    D_800F2AF8 = NULL;
+    if (runlink_module_loaded(0x2C)) {
+        func_80054530();
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80002AB8);
 
@@ -259,21 +324,45 @@ void audspat_point_create(u16 soundBite, f32 x, f32 y, f32 z, u8 flags, u8 minVo
     }
 }
 
-void func_800037F8(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+/* JFG: empty (DKR's audspat_calculate_echo takes the same arguments). */
+void func_800037F8(void *soundHandle, f32 x, f32 y, f32 z) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_8000380C);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003994);
+extern s32 D_800A0804[]; // JFG: the number of entries of each group
+void sound_play_direct(u16 soundID, u8 volume, u8 pan, f32 pitch, u8 fxMix, void **handlePtr);
+void sndp_set_param(void *soundMask, s16 type, u32 paramValue);
+s32 sound_volume_half(s32 volume);
+void func_80085E94(void *soundHandle, u8 priority);
 
-/* JFG: a point's entry in its group (unk23 is the group, from 1) */
-typedef struct AudioGroupEntry {
-    /* 0x00 */ AudioPoint *point;
-    /* 0x04 */ u8 pad4[0xC];
-} AudioGroupEntry;
+/* JFG: start (or update) the sounds of a group's points with the group's settings. */
+void audio_group_play(s32 group) {
+    AudioGroupEntry *entry = D_800F2A48[group];
+    s32 i;
+    AudioPoint *point;
+
+    for (i = 0; i < D_800A0804[group]; i++, entry++) {
+        if (entry->point != NULL) {
+            point = entry->point;
+            if (point->soundHandle == NULL && (!(point->flags & 4) || !point->triggeredOnce)) {
+                sound_play_direct(point->soundBite, entry->volume, entry->pan, entry->pitch, entry->fxMix,
+                                  &point->soundHandle);
+            }
+            if (point->soundHandle != NULL) {
+                sndp_set_param(point->soundHandle, 8, sound_volume_half(entry->volume << 8)); // volume
+                sndp_set_param(point->soundHandle, 0x10, *(u32 *) &entry->pitch);              // pitch
+                sndp_set_param(point->soundHandle, 4, entry->pan);                             // pan
+                func_80085E94(point->soundHandle, point->priority);
+                func_800037F8(point->soundHandle, point->pos.x, point->pos.y, point->pos.z);
+                sndp_set_param(point->soundHandle, 0x100, entry->fxMix); // effects mix
+            }
+            point->triggeredOnce = TRUE;
+        }
+    }
+}
 
 extern s32 D_800A0800[];               // JFG: the number of entries of each group
-extern AudioGroupEntry D_800F2A48[][3]; // JFG: the groups' entries
 
 #ifdef NON_MATCHING
 /**
@@ -296,9 +385,57 @@ void func_80003B14(AudioPoint *point) {
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003B14);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003B74);
+void func_80003B14(AudioPoint *point);
+void sound_stop(void *soundHandle);
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003CA4);
+/**
+ * Stops the sound associated with the given audio point.
+ * If the sound is currently playing, it stops it and removes the audio point from the list.
+ * JFG: takes the point out of its group; clears the freed list entry.
+ */
+void audspat_point_stop_by_index(s32 index) {
+    AudioPoint *point;
+
+    if (gNumAudioPoints != 0) {
+        point = gAudioPoints[index];
+        if (point->soundHandle != NULL) {
+            sound_stop(point->soundHandle);
+        }
+        if (point->userHandlePtr != NULL) {
+            *point->userHandlePtr = NULL;
+        }
+        if (point->unk23 != 0) {
+            func_80003B14(point);
+        }
+        // put it to the free list
+        gLastFreePointIndex++;
+        gFreeAudioPoints[gLastFreePointIndex] = gAudioPoints[index];
+        // move the last element to the index of the one we are removing
+        gAudioPoints[index] = gAudioPoints[gNumAudioPoints - 1];
+        gNumAudioPoints--;
+        gAudioPoints[gNumAudioPoints] = NULL;
+    }
+}
+
+f32 sqrtf(f32 x);
+
+/* JFG: the volume of a sound heard from a to b: the table volume fading over the range, at least minVolume. */
+s32 audspat_volume_at_distance(u16 soundID, f32 *a, f32 *b) {
+    f32 dx = a[0] - b[0];
+    f32 dy = a[1] - b[1];
+    f32 dz = a[2] - b[2];
+    f32 distance = sqrtf(dx * dx + dy * dy + dz * dz);
+    s32 volume = gSpatialSoundTable[soundID].minVolume;
+    s32 v;
+
+    if (distance < gSpatialSoundTable[soundID].range) {
+        v = (1.0f - distance / gSpatialSoundTable[soundID].range) * gSpatialSoundTable[soundID].volume;
+        if (volume < v) {
+            volume = v;
+        }
+    }
+    return volume;
+}
 
 /* JFG: a node of the D_800F2B10 free list */
 typedef struct FreeNode {

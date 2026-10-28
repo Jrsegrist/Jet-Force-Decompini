@@ -324,7 +324,7 @@ void lights_free(void);
 void func_80023A00(void);
 void free_track(void);
 void func_80079CC4(void);
-void func_80002944(void);
+void audspat_reset(void);
 void sound_volume_change(s32 behaviour);
 void weather_free(void);
 void tex_free(void *tex);
@@ -343,7 +343,7 @@ void level_free(void) {
     func_80023A00();
     free_track();
     func_80079CC4();
-    func_80002944();
+    audspat_reset();
     D_800A089C = 0;
     sound_volume_change(0);
     if (gCurrentLevelHeader->weatherCount > 0) {

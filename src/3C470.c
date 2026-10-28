@@ -8,7 +8,50 @@ void mem_copy_u16(u16 *src, u16 *dst, s32 size) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B8AC);
+#define COLOUR_TAG_GREEN 0x00FF00FF
+
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+u32 *asset_table_load(u32 assetIndex);
+extern s32 *D_800F6F10; // JFG: the model table (asset 0x26)
+extern s32 *D_800F6F14; // JFG: the model cache, (id, model) pairs
+extern s32 *D_800F6F18; // JFG: the free model cache slots
+extern s32 D_800F6F1C;
+extern s32 D_800F6F20; // JFG: the number of models in the table
+extern s32 D_800F6F24;
+extern u8 *D_800F6F28;
+extern u8 *D_800F6F2C;
+extern u8 *D_800F6F34;
+extern s32 *D_800F6F38;
+extern s32 *D_800F6F30;
+extern s32 *D_800F6F3C;
+extern s32 D_800F6F40;
+extern s32 D_800F6F58;
+
+/* JFG: allocate the model caches and buffers and count the model table's entries (DKR
+ * allocate_object_model_pools). */
+void allocate_object_model_pools(void) {
+    u8 *buf;
+
+    D_800F6F14 = mempool_alloc_safe(0x2A8, COLOUR_TAG_GREEN);
+    D_800F6F18 = mempool_alloc_safe(0x190, COLOUR_TAG_GREEN);
+    D_800F6F1C = 0;
+    D_800F6F24 = 0;
+    D_800F6F58 = (s32) mempool_alloc_safe(0x2000, COLOUR_TAG_GREEN);
+    D_800F6F10 = (s32 *) asset_table_load(0x26);
+    D_800F6F20 = 0;
+    while (D_800F6F10[D_800F6F20] != -1) {
+        D_800F6F20++;
+    }
+    D_800F6F20--;
+    buf = mempool_alloc_safe(0xA0, COLOUR_TAG_GREEN);
+    D_800F6F28 = buf;
+    D_800F6F2C = buf + 0x80;
+    D_800F6F38 = (s32 *) D_800F6F2C;
+    D_800F6F34 = buf + 0x90;
+    D_800F6F30 = mempool_alloc_safe(0x800, COLOUR_TAG_GREEN);
+    D_800F6F3C = mempool_alloc_safe(0x100, COLOUR_TAG_GREEN);
+    D_800F6F40 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003B9E8);
 
@@ -76,9 +119,145 @@ Instance3C *func_8003C12C(Asset3C *asset) {
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003C1B4);
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003C7C4);
+/* JFG: a loaded model (only the fields used here) */
+typedef struct ModelTexture3C {
+    /* 0x00 */ void *texture;
+    /* 0x04 */ s32 unk4;
+} ModelTexture3C;
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003C92C);
+typedef struct Model3C7 {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 numberOfTextures;
+    /* 0x11 */ u8 pad11[0x18 - 0x11];
+    /* 0x18 */ ModelTexture3C *textures;
+    /* 0x1C */ u8 pad1C[0x28 - 0x1C];
+    /* 0x28 */ void *unk28;
+    /* 0x2C */ u8 pad2C[0x4C - 0x2C];
+    /* 0x4C */ s16 references;
+    /* 0x4E */ s8 numAssets;
+    /* 0x4F */ u8 pad4F;
+    /* 0x50 */ s8 **assets; // released with func_8003D150
+    /* 0x54 */ u8 pad54[4];
+    /* 0x58 */ void *unk58;
+    /* 0x5C */ void *unk5C;
+    /* 0x60 */ void *unk60;
+    /* 0x64 */ u8 unk64;
+    /* 0x65 */ u8 pad65[0x74 - 0x65];
+    /* 0x74 */ void *unk74;
+    /* 0x78 */ void *unk78;
+    /* 0x7C */ s32 numBuffers; // the last index of buffers
+    /* 0x80 */ u8 pad80[4];
+    /* 0x84 */ void **buffers;
+} Model3C7;
+
+/* JFG: an instance of a model */
+typedef struct ModelInstance3C {
+    /* 0x00 */ Model3C7 *model;
+    /* 0x04 */ u8 pad4[8];
+    /* 0x0C */ void *unkC;
+    /* 0x10 */ u8 pad10[0x80 - 0x10];
+    /* 0x80 */ s8 *assets[2]; // released with func_8003D150
+} ModelInstance3C;
+
+void free_model_data(Model3C7 *model);
+void func_8003D150(s8 *asset);
+void mempool_free(void *data);
+
+/* JFG: free a model instance; free the model itself when it has no references left (DKR free_3d_model). */
+void free_3d_model(ModelInstance3C *modInst) {
+    s32 modelIndex;
+    Model3C7 *model;
+    s32 i;
+
+    if (modInst != NULL) {
+        model = modInst->model;
+        if (modInst->unkC != NULL) {
+            mempool_free(modInst->unkC);
+        }
+        if (model->unk64 != 0) {
+            for (i = 0; i < 2; i++) {
+                if (modInst->assets[i] != NULL) {
+                    func_8003D150(modInst->assets[i]);
+                }
+            }
+        }
+        mempool_free(modInst);
+        model->references--;
+        if (model->references <= 0) {
+            for (i = 0, modelIndex = -1; i < D_800F6F1C; i++) {
+                if ((s32) model == D_800F6F14[(i << 1) + 1]) {
+                    modelIndex = i;
+                }
+            }
+            if (modelIndex != -1) {
+                free_model_data(model);
+                D_800F6F18[D_800F6F24] = modelIndex;
+                D_800F6F24++;
+                D_800F6F14[(modelIndex << 1) + 0] = -1;
+                D_800F6F14[(modelIndex << 1) + 1] = -1;
+            }
+        }
+    }
+}
+
+void tex_free(void *texture);
+
+/* JFG: free a model's textures, buffers and the model itself (DKR free_model_data). */
+void free_model_data(Model3C7 *mdl) {
+    s32 numTextures;
+    s32 i;
+    s32 j;
+
+    numTextures = mdl->numberOfTextures;
+    if (numTextures > 0) {
+        i = 0;
+        j = 0;
+        do {
+            if (mdl->textures[j].texture != NULL) {
+                tex_free(mdl->textures[j].texture);
+                numTextures = mdl->numberOfTextures;
+            }
+            i++;
+            j++;
+        } while (i < numTextures);
+    }
+    if (mdl->unk60 != NULL) {
+        mempool_free(mdl->unk60);
+    }
+    if (mdl->unk28 != NULL) {
+        mempool_free(mdl->unk28);
+    }
+    if (mdl->unk74 != NULL) {
+        mempool_free(mdl->unk74);
+    }
+    if (mdl->unk78 != NULL) {
+        mempool_free(mdl->unk78);
+    }
+    if (mdl->numAssets != 0) {
+        if (mdl->unk64 == 0 && mdl->assets != NULL) {
+            i = 0;
+            j = 0;
+            do {
+                func_8003D150(mdl->assets[j]);
+                i++;
+                j++;
+            } while (i < mdl->numAssets);
+            mempool_free(mdl->assets);
+        }
+        if (mdl->unk5C != NULL) {
+            mempool_free(mdl->unk5C);
+        }
+        mempool_free(mdl->unk58);
+    }
+    if (mdl->buffers != NULL) {
+        i = mdl->numBuffers + 1;
+        while (i--) {
+            mempool_free(mdl->buffers[i]);
+        }
+        mempool_free(mdl->buffers);
+    }
+    mempool_free(mdl);
+}
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CB04);
 
@@ -108,7 +287,51 @@ void *func_8003CF24(s32 index) {
     return data;
 }
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CFCC);
+extern s32 *D_800F6F30; // JFG: a cache of (id, asset) pairs
+extern s32 D_800F6F40;  // JFG: its length
+
+/* JFG: get entry id of asset 0x2B (offsets in table 0x2A) through the D_800F6F30 cache; the first byte of an
+ * asset counts its users. */
+s8 *asset_cache_get(s16 id) {
+    s32 i;
+    s32 slot;
+    s32 start;
+    s32 size;
+    s8 *asset;
+    s32 *offsets;
+
+    slot = -1;
+    for (i = 0; i < D_800F6F40; i++) {
+        if (id == D_800F6F30[(i << 1) + 0]) {
+            asset = (s8 *) D_800F6F30[(i << 1) + 1];
+            (*asset)++;
+            return asset;
+        }
+        if (D_800F6F30[(i << 1) + 0] == -1) {
+            slot = i;
+        }
+    }
+    if (slot == -1) {
+        slot = D_800F6F40;
+        if (D_800F6F40 >= 256) {
+            return NULL;
+        }
+        D_800F6F40++;
+    }
+    asset_load(0x2A, (u32) D_800F6F34, (id & ~1) * 4, 0x10);
+    offsets = (s32 *) ((u32) D_800F6F34 + (id & 1) * 4);
+    start = offsets[0];
+    size = offsets[1] - start;
+    asset = mempool_alloc(size, 0xFF00FF);
+    if (asset == NULL) {
+        return NULL;
+    }
+    asset_load(0x2B, (u32) asset, start, size);
+    *asset = 1;
+    D_800F6F30[(slot << 1) + 0] = id;
+    D_800F6F30[(slot << 1) + 1] = (s32) asset;
+    return asset;
+}
 
 /* DKR's asset cache pairs (as gTextureCache) */
 #define ASSETCACHE_ID(x) ((x << 1) + 0)
@@ -172,7 +395,50 @@ INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E398);
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E638);
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003EF60);
+extern s32 *D_800F6F3C; // JFG: the second cache of (id, asset) pairs
+extern s32 D_800F6F44;
+
+/* JFG: asset_cache_get for asset 0x44 (offsets in table 0x43), the second cache (32 entries, a short count). */
+s16 *asset_cache2_get(s16 id) {
+    s32 i;
+    s32 slot;
+    s32 start;
+    s32 size;
+    s16 *asset;
+    s32 *offsets;
+
+    slot = -1;
+    for (i = 0; i < D_800F6F44; i++) {
+        if (id == D_800F6F3C[(i << 1) + 0]) {
+            asset = (s16 *) D_800F6F3C[(i << 1) + 1];
+            (*asset)++;
+            return asset;
+        }
+        if (D_800F6F3C[(i << 1) + 0] == -1) {
+            slot = i;
+        }
+    }
+    if (slot == -1) {
+        slot = D_800F6F44;
+        if (D_800F6F44 >= 32) {
+            return NULL;
+        }
+        D_800F6F44++;
+    }
+    asset_load(0x43, (u32) D_800F6F34, (id & ~1) * 4, 0x10);
+    offsets = (s32 *) ((u32) D_800F6F34 + (id & 1) * 4);
+    start = offsets[0];
+    size = offsets[1] - start;
+    asset = mempool_alloc(size, 0xFF00FF);
+    if (asset == NULL) {
+        return NULL;
+    }
+    asset_load(0x44, (u32) asset, start, size);
+    *asset = 1;
+    D_800F6F3C[(slot << 1) + 0] = id;
+    D_800F6F3C[(slot << 1) + 1] = (s32) asset;
+    return asset;
+}
 
 extern s32 *D_800F6F3C; // JFG: the second cache of (id, asset) pairs
 extern s32 D_800F6F44;

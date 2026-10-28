@@ -76,7 +76,7 @@ extern s32 D_800A2ED0;
 extern f32 D_800AC40C; // the far plane (a .rodata constant, not split out yet)
 extern MtxF gPerspectiveMatrixF;
 extern u16 perspNorm;
-void func_8003FAEC(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY);
+void cam_reset(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY);
 void cam_shake_stop_all(void);
 void func_80048D84(MtxF *in, Mtx *out);
 
@@ -93,7 +93,7 @@ void cam_init(s32 arg0) {
     D_800FA650 = 0;
     for (j = 0; j < 4; j++) {
         D_800FA634 = j;
-        func_8003FAEC(200, 200, 200, 0, 0, 180);
+        cam_reset(200, 200, 200, 0, 0, 180);
         gCameras[D_800FA634].fov = CAMERA_DEFAULT_FOV;
     }
     cam_shake_stop_all();
@@ -207,7 +207,36 @@ f32 get_distance_to_active_camera(f32 x, f32 y, f32 z) {
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FAEC);
+extern u8 D_800A3170[];
+
+/* JFG: reset the current camera: position (twice), angles in degrees, no shake (DKR camera_reset). */
+void cam_reset(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY) {
+    Camera *cam = &gCameras[D_800FA634];
+    f32 fx, fy, fz;
+
+    cam->z_rotation = angleZ * 0xB6;
+    cam->x_rotation = angleX * 0xB6;
+    cam->y_rotation = angleY * 0xB6;
+    cam->unk4A = 0;
+    fx = x;
+    fy = y;
+    fz = z;
+    cam->x_position = fx;
+    cam->y_position = fy;
+    cam->z_position = fz;
+    cam->unk18 = fx;
+    cam->unk1C = fy;
+    cam->unk20 = fz;
+    cam->unk3C = 0;
+    cam->shakeX = 0.0f;
+    cam->shakeY = 0.0f;
+    cam->shakeZ = 0.0f;
+    cam->unk24 = 128.0f;
+    cam->unk28 = 32.0f;
+    cam->unk3D = D_800A3170[D_800FA634];
+    cam->unk3E = -1;
+    cam->unk40 = 0.0f;
+}
 
 /**
  * Return the index of the active view.
@@ -613,7 +642,32 @@ void mtx_model_push(Gfx **dList, Mtx **mtx, MtxF *in) {
     gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041A90);
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
+
+/* JFG: the model matrix = rot (its translation dropped) times the current one, moved to pos; upload the MVP. */
+void mtx_model_rotate_translate_push(Gfx **dList, Mtx **mtx, f32 *pos, MtxF *rot) {
+    f32 out[3];
+    MtxF tmp;
+    s32 i;
+
+    D_800FAAB0[3][0] = 0.0f;
+    D_800FAAB0[3][1] = 0.0f;
+    D_800FAAB0[3][2] = 0.0f;
+    func_80048C7C(rot, &D_800FAAB0, &tmp);
+    i = 0;
+    while (i < 16) {
+        ((f32 *) D_800FAAB0)[i] = ((f32 *) tmp)[i];
+        i++;
+    }
+    func_80048B60(&D_800FAAB0, pos[0], pos[1], pos[2], &out[0], &out[1], &out[2]);
+    D_800FAAB0[3][0] = pos[0];
+    D_800FAAB0[3][1] = pos[1];
+    D_800FAAB0[3][2] = pos[2];
+    func_80048C7C(&D_800FAAB0, &gViewProjMatrixF, &gCurrentMVPMatrixF);
+    func_80048D84(&gCurrentMVPMatrixF, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
+}
 
 extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
 extern MtxF gCurrentMVPMatrixF;
@@ -716,7 +770,29 @@ MtxF *get_camera_matrix(void) {
 
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041E58);
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041FE0);
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
+
+/* JFG: screen coordinates at depth *outZ back to view space (and to world space with toWorld). */
+void screen_to_view(f32 x, f32 y, f32 *outX, f32 *outY, f32 *outZ, u8 toWorld) {
+    f32 scaleX;
+    f32 scaleY;
+    f32 centreX;
+    f32 centreY;
+    f32 w;
+    Vp *viewport;
+
+    w = (*outZ * gPerspectiveMatrixF[2][2]) * gPerspectiveMatrixF[2][3];
+    viewport = &gViewportStack[D_800FA634];
+    scaleX = viewport->vp.vscale[0] >> 2;
+    scaleY = viewport->vp.vscale[1] >> 2;
+    centreX = viewport->vp.vtrans[0] >> 2;
+    centreY = viewport->vp.vtrans[1] >> 2;
+    *outX = (centreX - x) * w / (gPerspectiveMatrixF[0][0] * scaleX);
+    *outY = (y - centreY) * w / (gPerspectiveMatrixF[1][1] * scaleY);
+    if (toWorld) {
+        func_80048B60(&gInverseViewMatrixF, *outX, *outY, *outZ, outX, outY, outZ);
+    }
+}
 
 /* JFG: the view-space depth of a point (the third column of the view matrix) (0x800420F0). */
 f32 get_distance_to_camera(f32 x, f32 y, f32 z) {
@@ -791,7 +867,28 @@ void cam_shake_stop_all(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042310);
+/* JFG: shake the cameras near a point: shakeY up to magnitude, fading out over range. */
+void cam_shake_near_point(f32 x, f32 y, f32 z, f32 range, f32 magnitude) {
+    s32 i;
+    Camera *cam;
+    f32 dx, dy, dz;
+    f32 distance;
+    f32 shake;
+
+    for (i = 0; i <= gActiveCameraID; i++) {
+        cam = &gCameras[i];
+        dx = x - cam->x_position;
+        dy = y - cam->y_position;
+        dz = z - cam->z_position;
+        distance = sqrtf(dx * dx + dy * dy + dz * dz);
+        if (distance < range) {
+            shake = (range - distance) * magnitude / range;
+            if (cam->shakeY < shake) {
+                cam->shakeY = shake;
+            }
+        }
+    }
+}
 
 extern u8 gCamZoomSet[4];
 extern f32 gCamZoom[4];

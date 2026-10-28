@@ -25,9 +25,12 @@ typedef struct Racer {
     /* 0x001 */ s8 character;
     /* 0x002 */ u8 pad2[0xC0 - 0x2];
     /* 0x0C0 */ s32 sound;
-    /* 0x0C4 */ u8 padC4[0x1A8 - 0xC4];
+    /* 0x0C4 */ u8 padC4[0x1A4 - 0xC4];
+    /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
-    /* 0x1C0 */ u8 pad1C0[0x53A - 0x1C0];
+    /* 0x1C0 */ u8 pad1C0[0x1D4 - 0x1C0];
+    /* 0x1D4 */ s32 unk1D4;
+    /* 0x1D8 */ u8 pad1D8[0x53A - 0x1D8];
     /* 0x53A */ u16 soundId;
     /* 0x53C */ u8 pad53C[0x540 - 0x53C];
     /* 0x540 */ RacerFlags flags;
@@ -458,7 +461,21 @@ void func_80034018(s8 *racer) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800340A4);
+/* JFG: (table(b) - table(a)) / div, the table sampled in steps of 0.1 with linear interpolation. */
+f32 table_lerp_diff(f32 a, f32 b, f32 *table, f32 div) {
+    s32 i;
+    f32 hi;
+
+    b *= 10.0f;
+    i = b;
+    b -= i;
+    hi = table[i] + (table[i + 1] - table[i]) * b;
+    a *= 10.0f;
+    i = a;
+    a -= i;
+    hi -= table[i] + (table[i + 1] - table[i]) * a;
+    return hi / div;
+}
 
 extern u8 D_800A2DB4;
 void func_800496B0(s32, s16 *, void *, u8 *);
@@ -641,7 +658,7 @@ void player_input_latch(s32 player) {
 extern u8 D_800A2DD8[8];
 extern u8 D_800A2DE8[8];
 extern s32 D_800A2DF0[8];
-void func_8004B3D8(s32 arg0, u8 arg1, s32 arg2);
+void rumble_raise(s32 arg0, u8 arg1, s32 arg2);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the unused third parameter gets a home store (sw a2) the target lacks; rest identical */
@@ -659,7 +676,7 @@ void func_8003733C(s32 arg0, s32 flags, UNUSED s32 arg2, s32 index, s32 level) {
         }
     }
     if (flags != 0) {
-        func_8004B3D8(arg0, D_800A2DE8[flags & 7], D_800A2DF0[flags & 7]);
+        rumble_raise(arg0, D_800A2DE8[flags & 7], D_800A2DF0[flags & 7]);
     }
 }
 #else
@@ -912,7 +929,62 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039308);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039544);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800396CC);
+typedef struct SpawnB6 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ s32 owner;
+    /* 0x14 */ s16 unk14[3];
+    /* 0x1A */ s16 unk1A[3];
+    /* 0x20 */ s16 unk20[3];
+    /* 0x26 */ s16 unk26;
+    /* 0x28 */ u8 unk28;
+    /* 0x29 */ u8 unk29;
+    /* 0x2A */ u8 unk2A;
+} SpawnB6;
+
+extern u8 D_800A1553;
+
+/* JFG: give the player its attached object 0xB6 (spawned once), flag it, and set the player's sound to 0x97. */
+void player_attachment_spawn(s32 owner, Racer *racer, UNUSED s32 arg2) {
+    SpawnB6 setup;
+    u8 *obj = racer->attachment;
+    u8 *data;
+
+    if (obj == NULL) {
+        setup.objectID = 0xB6;
+        setup.size = sizeof(SpawnB6);
+        setup.owner = owner;
+        setup.unk28 = D_800A1553;
+        setup.x = 0;
+        setup.y = 0;
+        setup.z = 0;
+        setup.unk26 = 400;
+        setup.unk2A = 0;
+        setup.unk14[0] = 0;
+        setup.unk1A[0] = 0x800;
+        setup.unk20[0] = 0x2000;
+        setup.unk14[1] = 0x4000;
+        setup.unk1A[1] = -0x1200;
+        setup.unk20[1] = 0x2000;
+        setup.unk14[2] = 0;
+        setup.unk1A[2] = 0x800;
+        setup.unk20[2] = -0x2000;
+        setup.unk29 = 0;
+        racer->attachment = spawn_object(&setup, 1);
+        *(s32 *) (racer->attachment + 0x3C) = 0;
+        obj = racer->attachment;
+    }
+    data = *(u8 **) (obj + 0x68);
+    data[0xA7D] = 1;
+    if (racer->soundId != 0x97) {
+        if (racer->sound != 0) {
+            sound_stop(racer->sound);
+        }
+        racer->soundId = 0x97;
+    }
+}
 
 typedef struct SpawnF0 {
     /* 0x00 */ s16 objectID;
@@ -1152,7 +1224,24 @@ void func_8003B16C(s32 obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B290);
+/* JFG: clear every player's references (0x1A4, 0x1D4) to an object. */
+void players_forget_object(s32 obj) {
+    s32 i;
+    s32 numRacers;
+    u8 **racers = get_racer_objects(&numRacers);
+    Racer *racer;
+
+    for (i = 0; i < numRacers; i++) {
+        racer = *(Racer **) (*racers + 0x68);
+        if (obj == racer->unk1A4) {
+            racer->unk1A4 = 0;
+        }
+        if (obj == racer->unk1D4) {
+            racer->unk1D4 = 0;
+        }
+        racers++;
+    }
+}
 
 void func_8003B418(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
     u8 *model;

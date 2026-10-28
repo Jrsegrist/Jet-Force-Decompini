@@ -119,7 +119,7 @@ extern s32 func_8004D530(s32 asset, void *dst, s32 offset, s32 size);        /* 
 extern s32 func_8004D5B0(s32 asset, s32 offset);                             /* DKR asset_rom_offset */
 extern void *func_8004A57C(s32 size, s32 colour);                            /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);                                       /* DKR mempool_free */
-extern void func_80001A10(M025SynConfig *c, s32 pri, void *sched);           /* DKR amCreateAudioMgr */
+extern void amCreateAudioMgr(M025SynConfig *c, s32 pri, void *sched);           /* DKR amCreateAudioMgr */
 extern void func_80084200(M025SndpConfig *config);                           /* DKR sndp_init_player */
 extern void func_80001EA0(void);                                             /* DKR audioStartThread */
 extern void func_80000450(s32 behaviour);                                    /* DKR sound_volume_change */
@@ -309,7 +309,7 @@ void func_m025_00308(void *sched) {
     synthConfig.maxFXbusses = 1;
     synthConfig.outputRate = 0;
     synthConfig.heap = D_800E94E0;
-    func_80001A10(&synthConfig, 12, sched);
+    amCreateAudioMgr(&synthConfig, 12, sched);
     D_800A0660 = M025SeqPlayerInit(32, 150);
     D_800A0664 = M025SeqPlayerInit(16, 50);
     sndpConfig.maxEvents = 200;

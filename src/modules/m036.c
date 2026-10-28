@@ -15,7 +15,7 @@ extern void func_8005342C(s32 arg0);
 extern void audspat_init(void);
 extern s32 func_80042FEC(void);
 extern void tex_init_textures(void);
-extern void func_8003B8AC(void);
+extern void allocate_object_model_pools(void);
 extern void func_m034_00000(void);
 extern void func_80029B78(void);
 extern void func_800436C0(void *arg0, void *arg1);
@@ -91,7 +91,7 @@ void func_m036_00000(void) {
     D_800A32B0 = func_80042FEC();
     tex_init_textures();
     check_reset_and_halt();
-    func_8003B8AC();
+    allocate_object_model_pools();
     check_reset_and_halt();
     func_m034_00000();
     func_8005342C(0x22);
