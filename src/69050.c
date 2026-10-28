@@ -836,8 +836,39 @@ void func_8006F8E4(void) {
     D_80102D54 = 0;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: from the clear loop on, temps numbered one lower and the handler in v0 (target v1) */
+/* JFG: start effect slot (1-4) with a width x height byte pair: two cleared buffers of that size, then its handler. */
+void func_8006F998(s32 slot, u8 *dims) {
+    u8 *buf1;
+    u8 *buf2;
+    s32 count;
 
+    slot--;
+    D_80102D54 |= 1 << slot;
+    D_80102D40[slot] = (s32) dims;
+    if (D_80102D60[slot] == NULL) {
+        D_80102D60[slot] = buf1 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
+        D_80102D78[slot] = buf2 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
+        if (D_80102D60[slot] == NULL || buf2 == NULL) {
+            D_80102D60[slot] = NULL;
+            D_80102D78[slot] = NULL;
+            return;
+        }
+        count = dims[1] * dims[0];
+        while (count--) {
+            *buf1++ = 0;
+            *buf2++ = 0;
+        }
+        func_800531C8(D_800A6E1C + slot);
+        if (D_800A6E1C[slot] != NULL) {
+            D_800A6E1C[slot](slot, D_80102D40[slot], 1);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F998);
+#endif
 
 void mempool_free(void *data);
 

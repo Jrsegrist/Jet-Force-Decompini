@@ -555,10 +555,14 @@ func_80058460 = load_menu_text
 func_80058C54 = menu_draw_blinking_prompt
 func_80058D5C = menu_show_results
 func_80059D2C = menu_item_free
+func_80059E7C = menu_item_load
 # src/5B700.c (DKR weather.c)
 func_8005BDB8 = rain_set
 func_8005C040 = rain_update
 func_8005CE90 = particle_assets_free
+func_8005CFD0 = particle_buffers_free
+func_8005EEFC = obj_enable_emitter
+func_80061FC8 = point_particle_set_update
 # src/67780.c
 func_80067790 = log_show
 func_800680B0 = epc_draw_glyph
@@ -568,6 +572,7 @@ func_800683D4 = fault_send_thread
 func_800766A8 = anim_path_restart
 func_80076D6C = anim_path_link_nodes
 func_80076EA0 = anim_system_init
+func_80077158 = sequence_stop
 func_800772C4 = sequence_start
 # src/7A7D0.c
 func_8007E328 = multiplayer_score_kill

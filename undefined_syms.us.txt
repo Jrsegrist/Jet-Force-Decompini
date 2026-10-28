@@ -593,7 +593,7 @@ func_800252EC = obj_init_animator;
 get_level_segment_index_from_position = 0x80015510;
 obj_loop_animator = 0x800253F0;
 obj_dist_racer = 0x8007E150;
-obj_spawn_particle = 0x8005F5AC;
+func_8005F5AC = obj_spawn_particle;
 
 /* ---- 707F0.c ---- */
 func_8006FC54 = set_text_font;

@@ -346,7 +346,7 @@ void func_80052678(void) {
 extern s32 D_800FE9FC;
 extern u8 *D_800FEA00;
 extern s32 D_800FEA04;
-s32 func_80052CFC(s32 module); // JFG: load a runlink module
+s32 func_80052CFC(); // JFG: load a runlink module (also applies relocations: four arguments)
 
 /* JFG: keep a list of records (s16 id, u8 length); start event 3 if one has id 0x61, 5 or 0x4F. */
 void func_8005269C(u8 *data, s32 size) {
@@ -390,6 +390,19 @@ void func_80052798(SpawnedObject *a, u8 *b) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800527F0);
+
+/* Size: 0x20 bytes */
+typedef struct ModuleEntry {
+    /* 0x00 */ s32 unk0; // the module's code address (0 when not loaded)
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ u16 unk14;
+    /* 0x16 */ u8 pad16[0x1C - 0x16];
+    /* 0x1C */ s32 unk1C; // an entry point offset (-1 for none)
+} ModuleEntry;
+extern ModuleEntry *gRunlinkModules;
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052874);
 
@@ -435,20 +448,74 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_800531C8);
+/* JFG: a module relocation (8 bytes) */
+typedef struct ModuleReloc {
+    /* 0x00 */ s32 symbol;
+    /* 0x04 */ u32 offset : 24;
+    /* 0x07 */ u32 kind : 4;
+    /* 0x07 */ u32 type : 4; // JFG: 3 = in the data section
+} ModuleReloc;
 
-/* Size: 0x20 bytes */
-typedef struct ModuleEntry {
-    /* 0x00 */ s32 unk0; // the module's code address (0 when not loaded)
-    /* 0x04 */ s32 unk4;
-    /* 0x08 */ s32 unk8;
-    /* 0x0C */ s32 unkC;
-    /* 0x10 */ s32 unk10;
-    /* 0x14 */ u16 unk14;
-    /* 0x16 */ u8 pad16[0x1C - 0x16];
-    /* 0x1C */ s32 unk1C; // an entry point offset (-1 for none)
-} ModuleEntry;
-extern ModuleEntry *gRunlinkModules;
+extern s32 gNumRunlinkModules; // JFG: the number of modules
+extern u32 *D_800FEAA8;        // JFG: the symbol table (module << 20 | offset)
+extern ModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
+extern u32 D_800FEAB0;          // JFG: their number
+extern u32 D_800FEAB8[5];       // JFG: the section addresses of the module being searched
+extern u8 gMusicPlayer[];
+extern u8 gMusicSequenceData[];
+void sound_volume_change(s32 behaviour);
+void func_80054530();
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: module->unk0 in v1 (target v0), temps numbered one lower in the search loop, and 3 is reloaded into a3 for the call */
+/* JFG: if a word still points at the module trap, find the relocation that wrote it and apply it again (TRUE if found). */
+s32 func_800531C8(u32 *addr) {
+    ModuleEntry *module;
+    ModuleReloc *reloc;
+    s32 i;
+    u32 n;
+    s32 section;
+    s32 symModule;
+
+    if ((u32) func_80054530 != *addr) {
+        return FALSE;
+    }
+    module = gRunlinkModules;
+    for (i = 0; i < gNumRunlinkModules; i++, module++) {
+        if (module->unk0 != 0) {
+            if (i == 0) {
+                D_800FEAB8[1] = (u32) sound_volume_change;
+                D_800FEAB8[2] = (u32) gMusicPlayer;
+                D_800FEAB8[3] = (u32) gMusicSequenceData;
+                reloc = D_800FEAA4;
+                n = D_800FEAB0;
+                D_800FEAB8[4] = (u32) reloc;
+            } else {
+                D_800FEAB8[1] = module->unk0;
+                D_800FEAB8[2] = D_800FEAB8[1] + module->unk8;
+                D_800FEAB8[3] = D_800FEAB8[2] + module->unkC;
+                reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + module->unk10);
+                n = (u32) module->unk14 >> 3;
+            }
+            while (n--) {
+                section = reloc->type == 3 ? 2 : 1;
+                if ((u32) addr == D_800FEAB8[section] + reloc->offset) {
+                    symModule = D_800FEAA8[reloc->symbol] >> 20;
+                    if (symModule >= 0xFFC) {
+                        symModule = 0;
+                    }
+                    func_80052CFC(symModule, reloc, D_800FEAB8, 3);
+                    return TRUE;
+                }
+                reloc++;
+            }
+        }
+    }
+    return FALSE;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/51AD0", func_800531C8);
+#endif
 
 typedef struct ModuleSlot {
     /* 0x00 */ s32 unk0;
@@ -622,4 +689,60 @@ void func_800542C4(void) {
     }
 }
 
+extern s32 D_800A38F4; // JFG: set when the addresses are not to be resolved
+extern s32 D_800A38F8; // JFG: the number of symbols
+extern char D_800AD140[];
+char *func_800527F0(s32 index);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code shape; temps numbered one higher and the symbol word / module address in swapped registers */
+/* JFG: the module and offset of an address (TRUE if it is in a loaded module), and the name of the nearest symbol below it. */
+s32 func_80054368(u32 address, s32 *module, s32 *offset, char **name) {
+    u32 *sym = D_800FEAA8;
+    u32 best = 0;
+    s32 n;
+    ModuleEntry *m;
+    u32 off;
+    s32 bestIndex;
+
+    *module = 0;
+    *offset = 0;
+    if (name != NULL) {
+        *name = D_800AD140;
+    }
+    if (D_800A38F4) {
+        *offset = address - 0x80000450;
+        return TRUE;
+    }
+    if (name != NULL) {
+        n = D_800A38F8;
+        while (n--) {
+            m = &gRunlinkModules[*sym >> 20];
+            if (m->unk0 != 0) {
+                off = *sym & 0xFFFFF;
+                if ((u32) m->unk8 >= off && address >= m->unk0 + off && best < m->unk0 + off) {
+                    best = m->unk0 + off;
+                    bestIndex = sym - D_800FEAA8;
+                }
+            }
+            sym++;
+        }
+        if (best != 0) {
+            *name = func_800527F0(bestIndex);
+        }
+    }
+    n = gNumRunlinkModules;
+    m = gRunlinkModules;
+    while (n--) {
+        if (address >= (u32) m->unk0 && (u32) (m->unk0 + m->unk8) >= address) {
+            *module = m - gRunlinkModules;
+            *offset = address - m->unk0;
+            return TRUE;
+        }
+        m++;
+    }
+    return FALSE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80054368);
+#endif

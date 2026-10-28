@@ -307,7 +307,7 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80059CCC);
 void tex_free(void *tex);
 void sprite_free(void *sprite);
 void free_object(void *object);
-void func_8003C7C4(void *model);
+void free_3d_model(void *model);
 void gParticlePtrList_flush(void);
 
 /* JFG: free menu item's asset (a texture, sprite, object or model by the top bits of its type) if it is loaded. */
@@ -321,7 +321,7 @@ void menu_item_free(s32 item) {
             } else if (D_800A51D0[item] & 0x4000) {
                 free_object((void *) D_800FF3F8[item]);
             } else {
-                func_8003C7C4((void *) D_800FF3F8[item]);
+                free_3d_model((void *) D_800FF3F8[item]);
             }
         }
         D_800FF3F8[item] = 0;
@@ -331,11 +331,75 @@ void menu_item_free(s32 item) {
     }
 }
 
-void func_80059E7C(s16 item);
+void menu_item_load(s32 item);
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059E1C);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059E7C);
+/* JFG: the spawn entry of a menu object (size 10) */
+typedef struct MenuObjectSpawn {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 unkC;
+} MenuObjectSpawn;
+
+typedef struct MenuModelInstance {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u8 unkA;
+} MenuModelInstance;
+
+typedef struct MenuObjectHeader {
+    /* 0x00 */ u8 pad0[0x1F];
+    /* 0x1F */ s8 numberOfModelIds;
+} MenuObjectHeader;
+
+typedef struct MenuObject {
+    /* 0x00 */ u8 pad0[0x40];
+    /* 0x40 */ MenuObjectHeader *header;
+    /* 0x44 */ u8 pad44[0x6C - 0x44];
+    /* 0x6C */ MenuModelInstance **modelInstances;
+} MenuObject;
+
+void *load_texture(s32 assetIndex);
+void *tex_load_sprite(s32 spriteID, s32 arg1);
+MenuObject *spawn_object(void *entry, s32 arg1);
+void *func_8003B9E8(s32 modelID, s32 arg1);
+
+/* JFG: load menu item's asset (a texture, sprite, object or model by the top bits of its type) unless it is loaded. */
+void menu_item_load(s32 item) {
+    MenuObjectSpawn spawn;
+    MenuObject *obj;
+    MenuModelInstance *inst;
+
+    if (!D_800FF6C8[item]) {
+        if ((D_800A51D0[item] & 0xC000) == 0xC000) {
+            D_800FF3F8[item] = (s32) load_texture(D_800A51D0[item] & 0x3FFF);
+        } else if (D_800A51D0[item] & 0x8000) {
+            D_800FF3F8[item] = (s32) tex_load_sprite(D_800A51D0[item] & 0x3FFF, 0);
+        } else if (D_800A51D0[item] & 0x4000) {
+            spawn.objectID = D_800A51D0[item] & 0x3FFF;
+            spawn.size = 10;
+            spawn.x = 0;
+            spawn.y = 0;
+            spawn.z = 0;
+            spawn.unkC = 0;
+            spawn.unkB = 0x40;
+            spawn.unkA = 0;
+            obj = spawn_object(&spawn, 0);
+            if (obj->header->numberOfModelIds > 0) {
+                inst = obj->modelInstances[0];
+                inst->unkA = 2;
+            }
+            D_800FF3F8[item] = (s32) obj;
+        } else {
+            D_800FF3F8[item] = (s32) func_8003B9E8(D_800A51D0[item] & 0x3FFF, 0);
+        }
+        D_800FF6C8[item] = 1;
+        D_800A51D8++;
+    }
+}
 
 void menu_item_reset(s32 item);
 

@@ -30,7 +30,7 @@ typedef struct AnimNode {
 typedef struct AnimPath {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 unk1;
-    /* 0x02 */ u8 pad2[2];
+    /* 0x02 */ s16 unk2;
     /* 0x04 */ s16 unk4;
     /* 0x06 */ u8 unk6;
     /* 0x07 */ u8 unk7;
@@ -464,14 +464,14 @@ void func_80077004(void) {
 extern void *D_800A74B0;
 extern s32 D_800A74B8;
 void mempool_free(void *data);
-void func_80077158(void);
+void sequence_stop(void);
 
 void func_80077060(void) {
     if (D_800A74B0 != NULL) {
         mempool_free(D_800A74B0);
         D_800A74B0 = NULL;
         D_800A74B8 = -1;
-        func_80077158();
+        sequence_stop();
     }
 }
 
@@ -501,7 +501,51 @@ void func_800770A4(s32 index) {
 INCLUDE_ASM("asm/nonmatchings/76C20", func_800770A4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80077158);
+extern s32 D_800A74C0; // JFG: the current sequence id (-1 for none)
+extern s32 D_800A74C4; // JFG: set when the sequence data at D_800A74BC was allocated
+void func_800762F0(u8 index);
+
+/* JFG: stop the current sequence: free its data if it owns it, free every path and clear the sequence state. */
+void sequence_stop(void) {
+    s32 i;
+
+    if (D_800A74BC != NULL) {
+        if (D_800A74C4) {
+            mempool_free(D_800A74BC);
+            D_800A74C4 = 0;
+        }
+        D_800A74BC = NULL;
+        D_800A74C0 = -1;
+        func_80076198();
+        for (i = 0; i < 256; i++) {
+            func_800762F0(i);
+        }
+        for (i = 0; i < 4; i++) {
+            D_801045B8[i] = NULL;
+        }
+        for (i = 0; i < 8; i++) {
+            D_80104608[i].unk0 = 0xFF;
+            D_80104608[i].unk4 = 0;
+            D_80104608[i].unkC = 0;
+        }
+        for (i = 0; i < 8; i++) {
+            D_801046A8[i].unk0 = -1;
+        }
+        D_800A74E0 = 0;
+        i = 0;
+        while (i < 12) {
+            D_80104708[i++].unk0 = 0;
+        }
+        D_801046EE = 0;
+        D_801046F4 = 0;
+        D_801046F8 = 0;
+        D_80104702 = 0xFF;
+        D_80104704 = D_80104702;
+        D_801046FC = 0;
+        func_80077004();
+        func_80054530();
+    }
+}
 
 typedef struct LevelHeader {
     /* 0x00 */ u8 pad0[0xAC];
@@ -525,7 +569,7 @@ void sequence_start(s32 id) {
     s32 offset;
 
     if (id >= 0 && id < 256 && id != D_800A74C0) {
-        func_80077158();
+        sequence_stop();
         table = D_800A74B0;
         do {
             entry = *table++;
@@ -577,7 +621,72 @@ void func_800773EC(void) {
     }
 }
 
+/* JFG: a path's data in the sequence (nodes follow at 8) */
+typedef struct AnimPathData {
+    /* 0x00 */ u8 numNodes;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7; // JFG: 0x80 = the path loops
+    /* 0x08 */ u8 nodes[1];
+} AnimPathData;
+
+void func_80076B44(u8 numNodes, AnimNode *nodes, u8 *data, s32 arg3, s32 arg4);
+void anim_path_link_nodes(u8 index);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code but register choice (count, slot and flags) and some load scheduling differ */
+/* JFG: create the sequence's paths (count in the top byte of its first word, then id << 24 | offset per path). */
+void func_80077468(void) {
+    u32 *entry = (u32 *) D_800A74BC;
+    s32 numPaths = (*entry++ >> 24) & 0xFF;
+    s32 count;
+    u32 e;
+    AnimPathData *data;
+    s32 slot;
+    u8 index;
+    u8 flags;
+    AnimPath *path;
+
+    func_800762A0();
+    count = numPaths;
+    while (count > 0) {
+        e = *entry++;
+        data = (AnimPathData *) ((u8 *) D_800A74BC + (e & 0xFFFFFF));
+        D_801045B0[slot = (e >> 24) & 0xFF] =
+            mempool_alloc_safe(data->numNodes * sizeof(AnimNode) + sizeof(AnimPath), 0x4080F0FF);
+        path = D_801045B0[slot];
+        index = slot;
+        if (path != NULL) {
+            if (data->numNodes > 0) {
+                path->nodes = (AnimNode *) (path + 1);
+            } else {
+                path->nodes = NULL;
+            }
+            path->obj = NULL;
+            path->unk2 = data->unk2;
+            path->unk0 = data->unk1;
+            path->unk4 = data->unk4;
+            path->unk6 = data->unk6;
+            path->flags = 0;
+            flags = data->unk7;
+            path->unk7 = flags;
+            if (flags & 0x80) {
+                path->flags = 0x80;
+                path->unk7 = flags & 0x7F;
+            }
+            path->numNodes = data->numNodes;
+            anim_path_restart(index);
+            func_80076B44(path->numNodes, path->nodes, data->nodes, 0, 0);
+            anim_path_link_nodes(index);
+        }
+        count--;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077468);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077614);
 

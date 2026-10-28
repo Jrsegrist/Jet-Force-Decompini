@@ -21,13 +21,20 @@ extern u32 gTexColourTag;
 
 /* DKR include/structs.h, with JFG's field offsets */
 typedef struct TextureHeader {
-    /* 0x00 */ u8 pad0[8];
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 format; // Lower 4 bits determines image format.
+    /* 0x03 */ u8 pad3[3];
+    /* 0x06 */ s16 flags;
     /* 0x08 */ u16 numberOfInstances;
-    /* 0x0A */ u8 padA[0x12 - 0x0A];
+    /* 0x0A */ s16 numberOfCommands;
+    /* 0x0C */ Gfx *cmd;
+    /* 0x10 */ u8 pad10[2];
     /* 0x12 */ u16 numOfTextures;
     /* 0x14 */ u16 frameAdvanceDelay;
     /* 0x16 */ s16 textureSize;
-    /* 0x18 */ u8 pad18[0x20 - 0x18];
+    /* 0x18 */ u8 pad18[3];
+    /* 0x1B */ u8 unk1B;
+    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
 } TextureHeader;
 
 /* DKR's Sprite (renamed: libultra's sp.h has a Sprite too), JFG layout */
@@ -975,7 +982,28 @@ void sprite_free(SpriteAsset *sprite) {
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80056D24);
 
+void func_8005719C(Gfx **dList, TextureHeader *tex, s32 arg2, s32 arg3);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: temp registers numbered one lower than the target's (t7.. vs t8..) all through */
+/* JFG: build a texture's display list at dList (a second load for some textures) and count its commands. */
+void func_800570D8(TextureHeader *tex, Gfx *dList) {
+    Gfx *dl = dList;
+
+    tex->cmd = dList;
+    func_8005719C(&dl, tex, 0, 0);
+    if (tex->unk1B < 2 && (tex->flags & 0x40)) {
+        if (!(tex->format & 0xF)) {
+            func_8005719C(&dl, tex, 1, (0x1000 - tex->textureSize) >> 3);
+        } else {
+            func_8005719C(&dl, tex, 1, 0x100);
+        }
+    }
+    tex->numberOfCommands = dl - tex->cmd;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/55130", func_800570D8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005719C);
 

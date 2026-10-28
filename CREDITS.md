@@ -114,13 +114,19 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | DKR file | Functions |
 | --- | --- |
 | `src/audio.c` | music_sequence_init |
-| `src/audiomgr.c` | amCreateAudioMgr (JFG's form) |
+| `src/audio_spatial.c` | audspat_reset, audspat_point_stop_by_index |
+| `src/audiomgr.c` | amCreateAudioMgr (JFG's form); __amHandleDoneMsg (in the notes, not committed: needs a .data split) |
+| `src/camera.c` | camera_reset (the layout of cam_reset) |
 | `src/game.c` | level_global_init; gTempAssetTable, gLevelNames, gNumberOfWorlds, gRaceTypeCountTable |
 | `src/game_text.c` | render_subtitles, process_subtitles, set_current_text |
 | `src/menu.c` | load_menu_text |
-| `src/objects.c` | try_free_object_header, gParticlePtrList_flush, render_misc_model, render_object_parts, get_first_active_object, init_object_shading, obj_tex_animate; obj_init_emitter's JFG form (NON_MATCHING) |
+| `src/object_functions.c` | obj_loop_animator (the template of obj_loop_texture_animator) |
+| `src/object_models.c` | allocate_object_model_pools, free_3d_model, free_model_data |
+| `src/objects.c` | try_free_object_header, gParticlePtrList_flush, render_misc_model, render_object_parts, get_first_active_object, init_object_shading, obj_tex_animate, load_object_header; obj_init_emitter's and track_spawn_objects' JFG forms (NON_MATCHING) |
+| `src/particles.c` | obj_enable_emitter, obj_spawn_particle |
 | `src/textures_sprites.c` | tex_init_textures |
-| `src/tracks.c` | track_tex_anim, initialise_player_viewport_vars, free_track, update_fog, apply_fog, compute_scene_camera_transform_matrix |
+| `src/thread3_main.c` | init_game |
+| `src/tracks.c` | track_tex_anim, initialise_player_viewport_vars, free_track, update_fog, apply_fog, compute_scene_camera_transform_matrix, shadow_render |
 | `src/weather.c` | rain_set, rain_update |
 | `include/f3ddkr.h`, `include/structs.h` | gDkrDmaDisplayList, gSPPolygon (local copies); Vertex, Triangle, TriangleBatchInfo, TextureHeader, ObjHeaderParticleEntry |
 
