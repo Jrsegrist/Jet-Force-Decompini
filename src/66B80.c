@@ -76,8 +76,15 @@ s32 func_80066770(s32 arg0, s32 arg1, s32 arg2) {
     return 0x8;
 }
 
-// Returns 8, but only its second argument is spilled: no C spelling found yet.
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80066784);
+/*
+ * JFG: 8 bytes long. Only the second argument is spilled: IDO homes the parameters a function never
+ * reads, so the first one is tested (the test's body was compiled out).
+ */
+s32 func_80066784(s32 arg0, UNUSED s32 arg1) {
+    if (arg0) {
+    }
+    return 8;
+}
 
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80066790);
 
@@ -94,4 +101,55 @@ s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80066860);
 
+extern char D_800AE594[]; // JFG: a format string (.rodata)
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: one word, the bit test's operand order (and t6,a3,v0 in the ROM) */
+/* JFG: walks the geometry mode bits set in the command's second word (the prints were compiled out). */
+s32 func_80066A68(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
+    char buffer[0x50];
+    UNUSED s32 pad;
+    u32 flags;
+    s32 bit;
+    s32 first;
+
+    bit = 1;
+    first = TRUE;
+    flags = cmd[1];
+    sprintf(buffer, D_800AE594, arg1, flags);
+    for (; bit <= 0x100000; bit <<= 1) {
+        if (bit & flags) {
+            if (first) {
+                first = FALSE;
+            }
+            switch (bit) {
+                case 0x1:
+                    break;
+                case 0x2:
+                    break;
+                case 0x4:
+                    break;
+                case 0x200:
+                    break;
+                case 0x1000:
+                    break;
+                case 0x2000:
+                    break;
+                case 0x10000:
+                    break;
+                case 0x20000:
+                    break;
+                case 0x40000:
+                    break;
+                case 0x80000:
+                    break;
+                case 0x100000:
+                    break;
+            }
+        }
+    }
+    return 8;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80066A68);
+#endif

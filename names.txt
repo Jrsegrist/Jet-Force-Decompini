@@ -460,3 +460,9 @@ func_80050B08 = __scAppendList
 func_80050B70 = __scExec
 func_80050C3C = __scYield
 func_80050C90 = __scSchedule
+# src/4E610.c
+func_8004DDEC = zbuffer_clear_rect
+# src/74270.c (DKR game_text.c)
+func_800737B8 = render_subtitles
+func_80073BDC = process_subtitles
+func_80073D14 = set_current_text
