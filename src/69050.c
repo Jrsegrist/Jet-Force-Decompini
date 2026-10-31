@@ -265,11 +265,81 @@ s32 check_fadeout_transition(void) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B9CC);
-
 extern s32 D_800A6788;  // DKR: sLevelTransitionDelayTimer
 extern s32 D_80102D38;  // DKR: gCurFadeTransition
 void transition_end(void);
+extern s16 D_800A6810[]; // barn door (horizontal) coords
+extern s16 D_800A6848[]; // barn door (vertical) coords
+extern s16 D_800A68BC[]; // barn door (diagonal) coords
+extern u8 D_800A6880[];
+extern u8 D_800A688C[];
+extern u8 D_800A6898[];
+extern u8 D_800A68B0[];
+extern u8 D_800A68EC[];
+extern u8 D_800A68F8[];
+extern u8 D_800A6904[];
+extern u8 D_800A6918[];
+void transition_fullscreen_start(FadeTransition *transition);
+void func_8006C230(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+                   u8 *alpha1, u8 *alpha2, u8 *tris); // DKR: transition_init_shape
+void transition_init_blank(FadeTransition *transition);
+
+/**
+ * DKR: transition_begin. Resets the state, then sets up the transition from its description.
+ * JFG: also sets D_800A6784; the shape transitions share one init function.
+ */
+s32 transition_begin(FadeTransition *transition) {
+    if (gTransitionsDisabled) {
+        return 0;
+    }
+    transition_end();
+    D_800A6784 = 1;
+    if (transition == NULL) {
+        return 0;
+    }
+    sTransitionFadeTimer = transition->duration;
+    sTransitionFadeDuration = transition->duration;
+    gTransitionEndTimer = transition->endTimer;
+    gTransitionFadeIn = !(transition->type & FADE_FLAG_OUT);
+    D_80102D38 = transition->type & 0x3F;
+    gTransitionInvert = transition->type & 0x40;
+    D_800A6788 = 0;
+    if (!gTransitionFadeIn && D_800A6788 == 0) {
+        D_800A6788 = 2;
+    }
+    if (sTransitionFadeTimer > 0) {
+        gLastFadeRed = gCurFadeRed;
+        gLastFadeGreen = gCurFadeGreen;
+        gLastFadeBlue = gCurFadeBlue;
+        gCurFadeRed = transition->red;
+        gCurFadeGreen = transition->green;
+        gCurFadeBlue = transition->blue;
+        switch (D_80102D38) {
+            case 0:
+                transition_fullscreen_start(transition);
+                break;
+            case 1:
+                func_8006C230(transition, 12, 8, D_800A6810, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                              D_800A6898);
+                break;
+            case 2:
+                func_8006C230(transition, 12, 8, D_800A6848, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                              D_800A6898);
+                break;
+            case 3:
+            case 4:
+            case 5:
+                func_8006C230(transition, 10, 6, D_800A68BC, D_800A68EC, D_800A68F8, D_800A6918, D_800A6918,
+                              D_800A6904);
+                break;
+            case 6:
+                transition_init_blank(transition);
+                break;
+        }
+    }
+    return sTransitionStatus;
+}
+
 void func_8006BF50(s32 updateRate);
 void func_8006C77C(s32 updateRate);
 void func_8006CE78(s32 updateRate);

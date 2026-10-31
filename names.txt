@@ -576,6 +576,8 @@ func_80059D2C = menu_item_free
 func_80059E7C = menu_item_load
 func_800586E0 = menu_set_close
 func_8005886C = menu_set_open
+func_80058A6C = menu_set_results
+func_8005A51C = spawn_level_replacement
 # src/5B700.c (DKR weather.c)
 func_8005BDB8 = rain_set
 func_8005C040 = rain_update
@@ -597,6 +599,7 @@ func_800772C4 = sequence_start
 # src/69050.c (DKR transition.c)
 func_8006BC34 = transition_update
 func_8006BD54 = transition_render
+func_8006B9CC = transition_begin
 # src/7A7D0.c
 func_8007E328 = multiplayer_score_kill
 # src/74270.c (DKR game_text.c)

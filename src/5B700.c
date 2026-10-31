@@ -546,7 +546,7 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
 extern u8 gThunderTransition[];
 extern s32 D_800A6784;
 s32 check_fadeout_transition(void);
-void func_8006B9CC(void *transition); // DKR: transition_begin
+void transition_begin(void *transition); // DKR: transition_begin
 void sound_play(u16 soundID, s32 *handlePtr);
 s32 rand_range(s32 min, s32 max);
 
@@ -563,7 +563,7 @@ void rain_lightning(s32 updateRate) {
         gThunderTimer -= updateRate;
         if (gThunderTimer <= 0) {
             if (gRainOpacity > 0x8000 && check_fadeout_transition() == 0) {
-                func_8006B9CC(gThunderTransition);
+                transition_begin(gThunderTransition);
                 D_800A6784 = 0;
             }
             sound_play(6, NULL);

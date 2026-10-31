@@ -126,7 +126,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/particles.c` | obj_enable_emitter, obj_spawn_particle |
 | `src/textures_sprites.c` | tex_init_textures |
 | `src/thread3_main.c` | init_game |
-| `src/transition.c` | transition_update, transition_render |
+| `src/transition.c` | transition_begin, transition_update, transition_render |
 | `src/tracks.c` | track_tex_anim, initialise_player_viewport_vars, free_track, update_fog, apply_fog, compute_scene_camera_transform_matrix, shadow_render |
 | `src/weather.c` | rain_set, rain_update |
 | `include/f3ddkr.h`, `include/structs.h` | gDkrDmaDisplayList, gSPPolygon (local copies); Vertex, Triangle, TriangleBatchInfo, TextureHeader, ObjHeaderParticleEntry |

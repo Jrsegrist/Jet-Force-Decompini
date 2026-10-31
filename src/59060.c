@@ -101,7 +101,7 @@ void func_80058590(void) {
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058590);
 #endif
 
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 s32 func_80052CFC();  // JFG: load a runlink module
 s32 runlink_module_loaded(s32 module);
 void func_8005342C(s32 module); // JFG: unload a runlink module
@@ -276,7 +276,79 @@ u8 menu_mode_get(void) {
     return gMenuMode;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058A6C);
+extern s32 D_800FF398;
+extern s32 D_800FF39C;
+extern s32 D_800FF3A0;
+extern s32 D_800FF3A4;
+void debug_trace_add(s32 a, char *file, s32 line);
+void func_80059A98(s32 arg0);
+void menu_show_results(s32 arg0);
+
+/**
+ * JFG: run the current menu set's module through the results stage (between two checks
+ * tagged with this file's name and line).
+ * Only `case 0` of the empty cases is listed: with all of them, IDO stops keeping arg4 in s0.
+ */
+s32 menu_set_results(s32 *arg0, s32 *arg1, s32 *arg2, s32 *arg3, s32 arg4) {
+    func_80059A98(arg4);
+    D_800FF398 = *arg0;
+    D_800FF39C = *arg1;
+    D_800FF3A0 = *arg2;
+    D_800FF3A4 = *arg3;
+    debug_trace_add(D_800FF398, "front/front.c", 0x256);
+    if (func_80054530()) {
+        switch (gMenuMode) {
+            case 2:
+                func_80054530(arg4);
+                break;
+            case 3:
+                func_80054530(arg4);
+                break;
+            case 4:
+                func_80054530(arg4);
+                break;
+            case 17:
+                func_80054530(arg4);
+                break;
+            case 5:
+                func_80054530(arg4);
+                break;
+            case 6:
+                func_80054530(arg4);
+                break;
+            case 8:
+                func_80054530(arg4);
+                break;
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
+                func_80054530(arg4);
+                break;
+            case 23:
+                func_80054530(arg4);
+                break;
+            case 24:
+                func_80054530(arg4);
+                break;
+            case 16:
+                menu_show_results(arg4);
+                break;
+            case 0:
+                break;
+        }
+    }
+    func_80054530();
+    func_80054530(arg4);
+    debug_trace_add(D_800FF398, "front/front.c", 0x27A);
+    *arg0 = D_800FF398;
+    *arg1 = D_800FF39C;
+    *arg2 = D_800FF3A0;
+    *arg3 = D_800FF3A4;
+    D_800A505C = 0;
+    return 0;
+}
 
 extern u8 D_800A5194; // JFG: a blink counter
 extern char **gMenuText;
@@ -309,7 +381,7 @@ void menu_draw_blinking_prompt(Gfx **dList, s32 delta) {
 
 typedef struct Object Object;
 Object **get_racer_objects(s32 *numRacers);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 extern u8 D_800A4FD8; // JFG: the multiplayer game type (low 4 bits)
 extern u8 D_800A4FB4;
 extern s32 D_800FF398;
@@ -514,6 +586,7 @@ void menu_item_load(s32 item) {
     MenuObject *obj;
     MenuModelInstance *inst;
 
+    stubbed_printf("loadFrontEndItem() - Item no %d out of range 0-%d\n");
     if (!D_800FF6C8[item]) {
         if ((D_800A51D0[item] & 0xC000) == 0xC000) {
             D_800FF3F8[item] = (s32) load_texture(D_800A51D0[item] & 0x3FFF);
@@ -587,7 +660,118 @@ void menu_item_reset(s32 item) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A0D0);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A51C);
+extern u8 D_800A4FF0; // selects one of the three per-level replacement lists
+s32 get_ingame_map_id(void);
+
+/* JFG: a byte-aligned 10-byte spawn entry header (copied byte by byte) */
+typedef struct SpawnHeader {
+    /* 0x00 */ u8 data[10];
+} SpawnHeader;
+
+typedef struct SpawnEntry {
+    /* 0x00 */ SpawnHeader header;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 pad0C[0x28 - 0x0C];
+} SpawnEntry;
+
+typedef struct LevelSpawnTable {
+    /* 0x00 */ s32 level; // negative ends the table
+    /* 0x04 */ s16 (*lists[3])[4];
+} LevelSpawnTable;
+
+/**
+ * JFG: spawn the current level's replacement for a spawn entry (looked up in a table that a module
+ * returns; single-player only). unused0..unused2 only reproduce the original stack frame.
+ */
+void spawn_level_replacement(SpawnHeader *src) {
+    s32 unused0;
+    s32 i;
+    SpawnEntry entry;
+    s32 level;
+    s32 size;
+    s16 (*list)[4];
+    MenuObject *obj;
+    u8 *s;
+    u8 *d;
+    s32 n;
+    s32 unused1;
+    s32 unused2;
+    LevelSpawnTable *table;
+
+    table = NULL;
+    if ((D_800A4FD8 & 0xF) == 0) {
+        table = (LevelSpawnTable *) func_80054530();
+    }
+    if (table != NULL) {
+        i = 0;
+        level = get_ingame_map_id();
+        while (table[i].level >= 0 && table[i].level != level) {
+            i++;
+        }
+        if (level == table[i].level) {
+            list = table[i].lists[D_800A4FF0];
+            switch (list[(s8) src->data[0xA]][0]) {
+                case 0xCF:
+                case 0xE7:
+                case 0xE8:
+                    entry.unkB = list[(s8) src->data[0xA]][1];
+                    size = 0x10;
+                    entry.unkA = list[(s8) src->data[0xA]][2];
+                    break;
+                case 0xA9:
+                case 0xE9:
+                    entry.unkA = list[(s8) src->data[0xA]][1];
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][2];
+                    break;
+                case 0xFA:
+                case 0xFB:
+                case 0xFC:
+                case 0xFD:
+                case 0xFE:
+                case 0xFF:
+                case 0x100:
+                case 0x101:
+                case 0x102:
+                case 0x103:
+                case 0x104:
+                case 0x105:
+                case 0x123:
+                case 0x124:
+                case 0x125:
+                    entry.unkA = 0;
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][1];
+                    break;
+                case 0x12A:
+                    entry.unkA = list[(s8) src->data[0xA]][1];
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][2];
+                    break;
+                case 0x33C:
+                    entry.unkA = list[(s8) src->data[0xA]][1];
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][2];
+                    break;
+                default:
+                    return;
+            }
+            s = src->data;
+            d = (u8 *) &entry;
+            n = 10;
+            while (n--) {
+                *d++ = *s++;
+            }
+            *(s16 *) &entry = list[(s8) src->data[0xA]][0];
+            entry.header.data[2] = size;
+            obj = spawn_object(&entry, 1);
+            if (obj != NULL) {
+                *(s32 *) ((u8 *) obj + 0x3C) = 0;
+            }
+        }
+    }
+}
 
 s32 func_8005A794(void) {
     return 0;

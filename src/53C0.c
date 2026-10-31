@@ -416,7 +416,7 @@ void level_entry_remove(LevelObjectEntry53 *entry);
 s32 *asset_table_load(s32 tableID);
 s32 func_800050A8(s32 objectID);
 void func_8005131C(LevelObjectEntry53 *entry);
-void func_8005A51C(LevelObjectEntry53 *entry);
+void spawn_level_replacement(LevelObjectEntry53 *entry);
 void func_8005269C(s32 list, s32 size);
 Object *spawn_object(LevelObjectEntry53 *entry, s32 arg1);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
@@ -466,7 +466,7 @@ void func_800053F8(s32 mapID, s32 index) {
             if (func_800050A8(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
                 func_8005131C((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else if (((LevelObjectEntry53 *) D_800F2CD8[index])->objectID == 0x12E) {
-                func_8005A51C((LevelObjectEntry53 *) D_800F2CD8[index]);
+                spawn_level_replacement((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else {
                 spawn_object((LevelObjectEntry53 *) D_800F2CD8[index], 1);
             }
