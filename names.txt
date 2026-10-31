@@ -471,9 +471,14 @@ func_80026D14 = obj_loop_texture_animator
 func_80026E20 = chain_object_unlink_from_players
 func_80026F38 = chain_slot_find_shortest
 func_8002844C = obj_loop_pickup_trigger
+func_80027E1C = obj_loop_falling_spark
 # src/291B0.c
 func_80029A20 = obj_loop_chroma_sprite
+func_8002A954 = sphere_distance_min
+func_8002A7D8 = wave_vector_scale
 # src/2BAA0.c
+func_80033D74 = player_turn_limit_update
+func_80039544 = weapon_fire_chain_shot
 func_800340A4 = table_lerp_diff
 func_800396CC = player_attachment_spawn
 func_8003B290 = players_forget_object

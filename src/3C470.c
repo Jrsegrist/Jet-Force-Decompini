@@ -153,10 +153,30 @@ typedef struct Model3C7 {
 /* JFG: an instance of a model */
 typedef struct ModelInstance3C {
     /* 0x00 */ Model3C7 *model;
-    /* 0x04 */ u8 pad4[8];
+    /* 0x04 */ u8 pad4[4];
+    /* 0x08 */ s8 animFlags;
+    /* 0x09 */ s8 prevAnimFlags;
+    /* 0x0A */ u8 padA[2];
     /* 0x0C */ void *unkC;
-    /* 0x10 */ u8 pad10[0x80 - 0x10];
+    /* 0x10 */ u8 pad10[0x24 - 0x10];
+    /* 0x24 */ u16 animIndex;
+    /* 0x26 */ u16 prevAnimIndex;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ f32 unk2C;
+    /* 0x30 */ f32 unk30;
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ f32 animLength;
+    /* 0x3C */ f32 prevAnimLength;
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ f32 unk44;
+    /* 0x48 */ u8 pad48[0x5C - 0x48];
+    /* 0x5C */ s16 unk5C;
+    /* 0x5E */ s16 unk5E;
+    /* 0x60 */ u8 *anim;
+    /* 0x64 */ u8 *prevAnim;
+    /* 0x68 */ u8 pad68[0x80 - 0x68];
     /* 0x80 */ s8 *assets[2]; // released with func_8003D150
+    /* 0x88 */ s16 assetIds[2];
 } ModelInstance3C;
 
 void free_model_data(Model3C7 *model);
@@ -261,7 +281,53 @@ void free_model_data(Model3C7 *mdl) {
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CB04);
 
+s8 *asset_cache_get(s16 id);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: IDO copies the model pointer to v0 for the else arm (target keeps v1) */
+/* JFG: reset a model instance's animation state and select its first animation (shared assets are fetched
+ * through the cache when the model has unk64 set). */
+void func_8003CDAC(ModelInstance3C *inst) {
+    Model3C7 *model = inst->model;
+    s8 *anim;
+
+    inst->animIndex = 0;
+    inst->unk5C = 0;
+    inst->unk5E = 0;
+    inst->animFlags = 0;
+    inst->unk30 = 0.0f;
+    inst->unk28 = 0.0f;
+    inst->unk40 = 0.0f;
+    inst->animLength = 0.0f;
+    if (model->numAssets != 0) {
+        if (model->unk64 != 0) {
+            inst->assets[0] = asset_cache_get(*(s16 *) model->unk5C);
+            inst->assets[1] = asset_cache_get(*(s16 *) inst->model->unk5C);
+            model = inst->model;
+            anim = inst->assets[0];
+            inst->assetIds[0] = *(s16 *) model->unk5C;
+            inst->assetIds[1] = *(s16 *) model->unk5C;
+        } else {
+            anim = model->assets[inst->animIndex];
+        }
+        inst->anim = (u8 *) anim + 8;
+        inst->animFlags = anim[1] & 0xF0;
+        inst->animLength = inst->anim[3];
+        if (inst->animFlags == 0) {
+            inst->animLength -= 1.0f;
+        }
+        inst->prevAnimFlags = inst->animFlags;
+        inst->prevAnim = inst->anim;
+        inst->prevAnimIndex = inst->animIndex;
+        inst->unk2C = inst->unk28;
+        inst->prevAnimLength = inst->animLength;
+        inst->unk44 = inst->unk40;
+        inst->unk34 = inst->unk30;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CDAC);
+#endif
 
 extern s32 *D_800F6F38; // JFG: a buffer for two entries of an offset table
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);

@@ -25,12 +25,22 @@ typedef struct Racer {
     /* 0x001 */ s8 character;
     /* 0x002 */ u8 pad2[0xC0 - 0x2];
     /* 0x0C0 */ s32 sound;
-    /* 0x0C4 */ u8 padC4[0x1A4 - 0xC4];
+    /* 0x0C4 */ u8 padC4[0x11C - 0xC4];
+    /* 0x11C */ s16 unk11C;
+    /* 0x11E */ u8 pad11E[0x198 - 0x11E];
+    /* 0x198 */ u8 unk198;
+    /* 0x199 */ u8 pad199[0x19C - 0x199];
+    /* 0x19C */ s8 unk19C;
+    /* 0x19D */ u8 unk19D;
+    /* 0x19E */ u8 pad19E[0x1A4 - 0x19E];
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
     /* 0x1C0 */ u8 pad1C0[0x1D4 - 0x1C0];
     /* 0x1D4 */ s32 unk1D4;
-    /* 0x1D8 */ u8 pad1D8[0x53A - 0x1D8];
+    /* 0x1D8 */ u8 pad1D8[0x1F9 - 0x1D8];
+    /* 0x1F9 */ u8 unk1F9;
+    /* 0x1FA */ u8 unk1FA;
+    /* 0x1FB */ u8 pad1FB[0x53A - 0x1FB];
     /* 0x53A */ u16 soundId;
     /* 0x53C */ u8 pad53C[0x540 - 0x53C];
     /* 0x540 */ RacerFlags flags;
@@ -39,6 +49,8 @@ typedef struct Racer {
     /* 0x558 */ void *light;
     /* 0x55C */ u8 pad55C[0x560 - 0x55C];
     /* 0x560 */ u8 *attachment;
+    /* 0x564 */ u8 pad564[0x569 - 0x564];
+    /* 0x569 */ u8 unk569;
 } Racer;
 
 s32 func_8003B51C(s32 value, s32 delta);
@@ -422,7 +434,40 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800339D8);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033BB8);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033D74);
+extern s16 D_800A2DB0;
+s32 func_8005AAB8(s32 player);
+
+/* JFG: hysteresis on the angle between angle and the player's 0x11C: unk569 is set when it leaves +-wide (and
+ * func_8005AAB8 is 0) and cleared inside +-narrow or after 30 frames; *out = min(*out, near or far limit). */
+void player_turn_limit_update(UNUSED s32 arg0, Racer *racer, f32 *out, s16 angle, s16 narrow, s16 wide, f32 limit,
+                   f32 turnLimit) {
+    s16 diff = angle - racer->unk11C;
+
+    if (racer->unk569) {
+        if (-narrow < diff && diff < narrow) {
+            racer->unk569 = 0;
+        }
+        if (!(*(u16 *) &racer->flags & 0xF)) {
+            D_800A2DB0++;
+            if (D_800A2DB0 >= 30) {
+                racer->unk569 = 0;
+            }
+        } else {
+            D_800A2DB0 = 0;
+        }
+    } else if (*(u16 *) &racer->flags & 0xF) {
+        if (func_8005AAB8(racer->player) == 0 && (diff < -wide || wide < diff)) {
+            racer->unk569 = 1;
+        }
+    }
+    if (racer->unk569) {
+        if (turnLimit < *out) {
+            *out = turnLimit;
+        }
+    } else if (limit < *out) {
+        *out = limit;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033ED4);
 
@@ -927,7 +972,67 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039098);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039308);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039544);
+typedef struct SpawnA4 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ s32 owner;
+    /* 0x14 */ void *chain;
+    /* 0x18 */ u8 pad18[6];
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ s16 unk20;
+    /* 0x22 */ u8 pad22[2];
+    /* 0x24 */ u8 unk24;
+    /* 0x25 */ u8 chainId;
+    /* 0x26 */ u8 unk26;
+} SpawnA4;
+
+void *chain_slot_find_shortest(s32 obj, u8 *id);
+
+/* JFG: fire object 0xA4 at (x, y, z), attached to the owner's shortest chain; weaker without one. */
+void weapon_fire_chain_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8,
+                   u32 arg9) {
+    SpawnA4 setup;
+    u8 *obj;
+    u8 id;
+
+    stats_shot_add(1);
+    setup.objectID = 0xA4;
+    setup.size = sizeof(SpawnA4);
+    setup.unk3 = 0;
+    setup.chain = chain_slot_find_shortest(owner, &id);
+    setup.chainId = id;
+    setup.unk24 = 1;
+    setup.unkB = arg9;
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.unk1E = arg5;
+    setup.unk20 = arg6;
+    setup.unkC = arg7;
+    setup.unkA = arg8;
+    if (setup.chain == NULL) {
+        setup.unkB = (arg9 & 0xFF) >> 2;
+    }
+    setup.owner = owner;
+    setup.unk26 = 1;
+    if (racer->sound != 0) {
+        sound_stop(racer->sound);
+    }
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+    }
+    if (racer->sound != 0) {
+        sound_stop(racer->sound);
+    }
+    sound_play(0x95, &racer->sound);
+    racer->soundId = 0x95;
+}
 
 typedef struct SpawnB6 {
     /* 0x00 */ s16 objectID;

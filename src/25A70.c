@@ -83,7 +83,9 @@ typedef struct Object {
     /* 0x20 */ f32 y_velocity;
     /* 0x24 */ f32 z_velocity;
     /* 0x28 */ f32 unk28;
-    /* 0x2C */ u8 pad2C[0x3C - 0x2C];
+    /* 0x2C */ u8 pad2C[2];
+    /* 0x2E */ s16 segmentID;
+    /* 0x30 */ u8 pad30[0x3C - 0x30];
     /* 0x3C */ LevelObjectEntry *level_entry;
     /* 0x40 */ ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x68 - 0x44];
@@ -526,7 +528,53 @@ void func_80027DA0(Object *obj, LevelObjectEntry_Mover *entry) {
     state->unkE = entry->unkE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027E1C);
+/* JFG: what func_80018808 writes back (0x2C bytes) */
+typedef struct HitResult {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ f32 unk10[5];
+    /* 0x24 */ s32 flags;
+    /* 0x28 */ f32 unk28;
+} HitResult;
+
+s32 func_80018808(s32 arg0, f32 *from, f32 *to, HitResult *result, s32 flags, s32 arg5);
+void move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos);
+extern f32 D_800ABAF8; // gravity
+
+/* JFG: loop: fall along the velocity; every unkE frames test the path since the last check, and on a hit put
+ * the object there, emit particles by surface type and free it. */
+void obj_loop_falling_spark(Object *obj, s32 updateRate) {
+    HitResult result;
+    MoverState *state;
+    s32 flags;
+
+    state = (MoverState *) obj->animator;
+    move_object(obj, obj->x_velocity * updateRate, obj->y_velocity * updateRate, obj->z_velocity * updateRate);
+    obj->y_velocity -= D_800ABAF8 * updateRate;
+    state->unkC++;
+    if (state->unkC >= state->unkE) {
+        if (func_80018808(0, &state->x, &obj->x_position, &result, 0, 0)) {
+            flags = result.flags;
+            if (flags & 0x8000) {
+                obj->particleEmittersEnabled = 1;
+            } else if (flags & 0x2000) {
+                obj->particleEmittersEnabled = 6;
+            } else {
+                obj->particleEmittersEnabled = 4;
+            }
+            obj->x_position = result.pos[0];
+            obj->y_position = result.pos[1];
+            obj->z_position = result.pos[2];
+            obj->segmentID = get_level_segment_index_from_position(obj->x_position, obj->y_position, obj->z_position);
+            obj_spawn_particle(obj, 2);
+            free_object(obj);
+        }
+        state->unkC = 0;
+        state->x = obj->x_position;
+        state->y = obj->y_position;
+        state->z = obj->z_position;
+    }
+}
 
 typedef struct LevelObjectEntry_Spray {
     /* 0x00 */ u8 pad0[0xA];
@@ -552,7 +600,50 @@ void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
     obj->y_velocity = size * 0.25f + 2.5f;
 }
 
+s32 rand_range(s32 min, s32 max);
+/* The module trap (0x80054530) under a prototype with float arguments: needs
+   `func_80054530_f8 = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_f8(f32 speed, f32 x, f32 y, f32 z, f32 arg4, f32 vx, f32 vy, f32 vz);
+extern f32 D_800ABB04;
+extern f32 D_800ABB08;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: frame 0x80 vs 0x78 (angle/vel 0x10 higher) and the two constants swap $f22/$f24 */
+/* JFG: loop: while unk0 counts down, send three random sparks (through a module) per frame, then emit
+ * particles; free the object when unk4 runs out. */
+void func_80028034(Object *obj, s32 updateRate) {
+    s16 angle[2];
+    f32 vel[3];
+    s32 i;
+    f32 speed;
+    f32 kVel;
+    f32 kSpeed;
+
+    if (obj->properties.common.unk0 != 0) {
+        obj->properties.common.unk0--;
+        kVel = D_800ABB04;
+        kSpeed = D_800ABB08;
+        for (i = 0; i < 3; i++) {
+            speed = rand_range(75, 125) * kSpeed;
+            angle[0] = rand_range(-0x8000, 0x7FFF);
+            angle[1] = rand_range(0x2400, 0x3C00);
+            vel[2] = rand_range(25, 50) * kVel;
+            func_8004944C(angle, vel);
+            func_80054530_f8(speed, obj->x_position, obj->y_position, obj->z_position, obj->y_position, vel[0],
+                             vel[1], vel[2]);
+        }
+        if (obj->properties.common.unk0 == 0) {
+            obj_spawn_particle(obj, updateRate);
+        }
+    }
+    obj->properties.common.unk4 -= updateRate;
+    if (obj->properties.common.unk4 <= 0) {
+        free_object(obj);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80028034);
+#endif
 
 typedef struct LevelObjectEntry_Drift {
     /* 0x00 */ u8 pad0[0xA];

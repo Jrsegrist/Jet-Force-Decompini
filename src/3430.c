@@ -328,7 +328,60 @@ void audspat_point_create(u16 soundBite, f32 x, f32 y, f32 z, u8 flags, u8 minVo
 void func_800037F8(void *soundHandle, f32 x, f32 y, f32 z) {
 }
 
+extern s32 D_800A0800[]; // JFG: the number of entries of each group (groups from 1)
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: IDO unrolls the two search loops by 4 here (the target's are not unrolled) */
+/* JFG: add a point to its group (unk23) with the given sound settings: update its entry, or take a free one,
+ * or replace the quietest entry if this one is louder. */
+void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix) {
+    s32 count = D_800A0800[point->unk23];
+    AudioGroupEntry *entries = D_800F2A48[point->unk23 - 1];
+    AudioGroupEntry *entry = entries;
+    s32 i;
+    s32 quietest;
+    s32 minVolume;
+
+    for (i = 0; i < count; i++, entry++) {
+        if (point == entry->point) {
+            entry->pitch = pitch;
+            entry->pan = pan;
+            entry->volume = volume;
+            entry->fxMix = fxMix;
+            return;
+        }
+    }
+    entry = entries;
+    minVolume = entry->volume;
+    for (i = 0; i < count; i++, entry++) {
+        if (entry->point == NULL) {
+            entry->point = point;
+            entry->pitch = pitch;
+            entry->pan = pan;
+            entry->volume = volume;
+            entry->fxMix = fxMix;
+            return;
+        }
+        if (entry->volume <= minVolume) {
+            minVolume = entry->volume;
+            quietest = i;
+        }
+    }
+    if (minVolume < volume) {
+        entry = &D_800F2A48[point->unk23 - 1][quietest];
+        if (entry->point->soundHandle != NULL) {
+            sound_stop(entry->point->soundHandle);
+        }
+        entry->point = point;
+        entry->pitch = pitch;
+        entry->pan = pan;
+        entry->volume = volume;
+        entry->fxMix = fxMix;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3430", func_8000380C);
+#endif
 
 extern s32 D_800A0804[]; // JFG: the number of entries of each group
 void sound_play_direct(u16 soundID, u8 volume, u8 pan, f32 pitch, u8 fxMix, void **handlePtr);

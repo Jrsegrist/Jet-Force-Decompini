@@ -328,9 +328,109 @@ s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
     return hit;
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002A7D8);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 sqrtf(f32 x);
+extern f32 D_800ABD08;
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002A954);
+typedef struct WaveObject {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ f32 unk10; // angle speed
+    /* 0x14 */ f32 unk14; // amplitude
+} WaveObject;
+
+/* JFG: scale (x, y, z) to a length of at least 1 times the object's wave value at time t; y is kept at least
+ * 1.5 away from 0. */
+void wave_vector_scale(WaveObject *obj, f32 t, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz) {
+    f32 scale;
+    f32 k;
+
+    scale = x * x + y * y + z * z;
+    if (scale != 0.0f) {
+        scale = 1.0f / sqrtf(scale);
+        k = func_80049C30(obj->unk10 * t) * (D_800ABD08 * obj->unk14);
+        if (k < 1.0f) {
+            k = 1.0f;
+        }
+        scale *= k;
+    }
+    *ox = x * scale;
+    *oy = y * scale;
+    *oz = z * scale;
+    if (*oy >= 0.0f) {
+        if (*oy < 1.5f) {
+            *oy = 1.5f;
+        }
+    } else if (*oy > -1.5f) {
+        *oy = -1.5f;
+    }
+}
+
+/* JFG: a collision sphere of an object (0x34 bytes) */
+typedef struct HitSphere {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0xC];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0xC];
+} HitSphere;
+
+typedef struct SphereObject {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0xC];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0x32 - 0x28];
+    /* 0x32 */ s16 numSpheres;
+    /* 0x34 */ u8 pad34[0xC];
+    /* 0x40 */ HitSphere *spheres;
+} SphereObject;
+
+f32 sqrtf(f32 x);
+
+/* JFG: the distance from pos to the nearest surface of the object's spheres (the object itself when it has
+ * none), at most maxDist and at least 0. */
+f32 sphere_distance_min(f32 *pos, SphereObject *obj, f32 maxDist) {
+    s32 n;
+    HitSphere *sphere;
+    f32 x, y, z, r;
+
+    if (obj->numSpheres == 0) {
+        n = 1;
+        sphere = NULL;
+    } else {
+        sphere = obj->spheres;
+        n = obj->numSpheres;
+    }
+    while (n--) {
+        if (sphere == NULL) {
+            x = obj->x;
+            y = obj->y;
+            z = obj->z;
+            r = obj->radius;
+        } else {
+            x = sphere->x;
+            y = sphere->y;
+            z = sphere->z;
+            r = sphere->radius;
+            sphere++;
+        }
+        x -= pos[0];
+        y -= pos[1];
+        z -= pos[2];
+        r = sqrtf(x * x + y * y + z * z) - r;
+        if (r < maxDist) {
+            maxDist = r;
+        }
+    }
+    if (maxDist < 0.0f) {
+        maxDist = 0.0f;
+    }
+    return maxDist;
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AA7C);
 

@@ -768,7 +768,43 @@ MtxF *get_camera_matrix(void) {
     return &gViewMatrixF;
 }
 
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: float registers of px/py and the order of the viewport loads differ */
+/* JFG: project a view-space point (world space with toView) to the current viewport; FALSE when it is not at
+ * least 2 units in front. */
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView) {
+    s32 visible = FALSE;
+    f32 px;
+    f32 py;
+    f32 w;
+    Vp *viewport;
+    f32 scaleX, centreX, scaleY;
+
+    if (toView) {
+        func_80048B60(&gViewMatrixF, x, y, z, &x, &y, &z);
+    }
+    px = gPerspectiveMatrixF[0][0] * x;
+    py = gPerspectiveMatrixF[1][1] * y;
+    w = -(gPerspectiveMatrixF[2][3] * z);
+    if (w < -2.0f) {
+        viewport = &gViewportStack[D_800FA634];
+        if (gScreenViewports[D_800FA634].flags & VIEWPORT_EXTRA_BG) {
+            viewport += gViewportWithBG * 5 + 10;
+        }
+        scaleX = viewport->vp.vscale[0] >> 2;
+        centreX = viewport->vp.vtrans[0] >> 2;
+        scaleY = viewport->vp.vscale[1] >> 2;
+        *outX = centreX - px * scaleX / w;
+        visible = TRUE;
+        *outY = (viewport->vp.vtrans[1] >> 2) + py * scaleY / w;
+    }
+    return visible;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/40240", func_80041E58);
+#endif
 
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
 
