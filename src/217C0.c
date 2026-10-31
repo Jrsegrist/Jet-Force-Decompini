@@ -193,13 +193,12 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
     func_80023170(0xFF, 0xFF, 0xFF, D_800F5B20);
 }
 
-extern f32 D_800ABA90;
 s32 func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
 /* Gives a light its track light (unless flag 0x40) (0x80020D84). */
 void light_track_light_add(ObjectLight *light) {
     if (!(light->enabled & 0x40)) {
         light->trackLight = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
-                                     light->radius * D_800ABA90, (light->colourR * light->intensity) >> 8,
+                                     light->radius * 0.3f, (light->colourR * light->intensity) >> 8,
                                      (light->colourG * light->intensity) >> 8, (light->colourB * light->intensity) >> 8);
     } else {
         light->trackLight = 0;
@@ -410,7 +409,33 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_80021A30);
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021B8C);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80022028);
+f32 sqrtf(f32 x);
+f32 func_80049C30(s32 angle);
+
+/* JFG: scale times a falloff of x = a*b (0: x, 1: 1-x, 2: 1-sqrt x, 3: cos, 4: cos squared, 5: (1-x) squared). */
+f32 light_falloff_scale(f32 scale, f32 arg1, f32 arg2, s32 type) {
+    f32 x = arg1 * arg2;
+    switch (type) {
+        case 1:
+            x = 1.0f - x;
+            break;
+        case 2:
+            x = 1.0f - sqrtf(x);
+            break;
+        case 3:
+            x = func_80049C30(x * 16384.0f);
+            break;
+        case 4:
+            x = func_80049C30(x * 16384.0f);
+            x = x * x;
+            break;
+        case 5:
+            x = 1.0f - x;
+            x = x * x;
+            break;
+    }
+    return scale * x;
+}
 
 /**
  * JFG: the light's direction, the difference vector and the squared distance are

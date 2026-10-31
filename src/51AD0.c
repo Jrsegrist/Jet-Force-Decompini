@@ -332,7 +332,96 @@ void troop_member_colours_get(ColourObject *obj, u8 *r, u8 *g, u8 *b) {
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051880);
 
+/* JFG: a troop leader's state (behaviour 0x17) */
+typedef struct LeaderState2 {
+    /* 0x00 */ u8 pad0;
+    /* 0x01 */ u8 unk1; // JFG: the troop size
+    /* 0x02 */ u8 pad2[0x2C - 0x2];
+    /* 0x2C */ u16 unk2C;
+    /* 0x2E */ u8 pad2E[0x30 - 0x2E];
+    /* 0x30 */ u8 unk30;
+    /* 0x31 */ u8 pad31[0x63 - 0x31];
+    /* 0x63 */ u8 unk63;
+    /* 0x64 */ u8 unk64; // JFG: the troop id
+    /* 0x65 */ u8 pad65[0x75 - 0x65];
+    /* 0x75 */ u8 unk75;
+    /* 0x76 */ u8 pad76[0x88 - 0x76];
+    /* 0x88 */ s32 unk88;
+    /* 0x8C */ s32 unk8C;
+} LeaderState2;
+
+typedef struct LeaderObject {
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x68 */ LeaderState2 *state;
+    /* 0x6C */ u8 pad6C[0xA0 - 0x6C];
+    /* 0xA0 */ u8 freed;
+} LeaderObject;
+
+/* JFG: a level object entry as func_80051CCC sees it */
+typedef struct TroopEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3[0x11 - 0x3];
+    /* 0x11 */ u8 troopId;
+    /* 0x12 */ u8 pad12[0x18 - 0x12];
+    /* 0x18 */ s8 memberIndex;
+} TroopEntry;
+
+void func_800118F4(s32 *a, s32 *b, s32 index);
+LeaderObject **objGetObjList(s32 *arg0, s32 *cnt);
+s32 objflags_reserve_ids(u8 arg0);
+void func_80026824(u8 arg0, s32 arg1);
+s16 func_80005EC0(s32 type);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target strength-reduces the object loop to i * 4 (compared with last * 4 each time) and its frame is 8 bytes bigger */
+/* JFG: for every live troop leader, number the members in both object entry lists (by troop id), and start it. */
+void func_80051CCC(void) {
+    s32 first;
+    s32 last;
+    LeaderObject **objs;
+    LeaderObject *obj;
+    LeaderState2 *state;
+    s32 i;
+    TroopEntry *lists[2];
+    s32 j;
+    s32 offset;
+    s32 sizes[2];
+    TroopEntry *entry;
+
+    func_800118F4((s32 *) &lists[1], &sizes[1], 1);
+    func_800118F4((s32 *) &lists[0], &sizes[0], 0);
+    objs = objGetObjList(&first, &last);
+    for (i = first; i < last; i++) {
+        obj = objs[i];
+        if (obj->freed == 0 && obj->behaviorId == 0x17) {
+            state = obj->state;
+            if (state->unk2C != 0x2CE) {
+                state->unk8C = state->unk88 = objflags_reserve_ids(state->unk1);
+                if (state->unk75) {
+                    func_80026824(state->unk75, 0x20);
+                }
+                for (j = 0; j < 2; j++) {
+                    entry = lists[j];
+                    for (offset = 0; offset < sizes[j]; offset += entry->size, entry = (TroopEntry *) ((u8 *) entry + entry->size)) {
+                        if (func_80005EC0(entry->objectID) == 0x18 && state->unk64 == entry->troopId) {
+                            entry->memberIndex = state->unk8C;
+                            state->unk8C++;
+                        }
+                    }
+                }
+                if (state->unk63 >= state->unk1) {
+                    state->unk30 = 7;
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051CCC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051EA4);
 
@@ -558,7 +647,71 @@ void func_8005338C(s32 module) {
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
 
+typedef struct UnloadTimer {
+    u16 timer : 10;
+    u16 unk : 6;
+} UnloadTimer;
+extern UnloadTimer *D_800FEB58;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation: the code address is loaded into a0 (mine v0), the relocation word into a0 (mine v1), addr in a3 */
+/* JFG: unload a module: free its code (or its slot's buffer) and point the main segment's references to it back at the trap. */
+void func_8005372C(s32 module) {
+    ModuleEntry *entry = &gRunlinkModules[module];
+    ModuleSlot *slot;
+    ModuleReloc *reloc;
+    u32 i;
+    s32 found;
+    s32 symModule;
+    u32 addr;
+    s32 type;
+
+    func_8005338C(module);
+    found = FALSE;
+    if (entry->unk0 == 0) {
+        slot = D_800FEAD8;
+        i = 15;
+        do {
+            if (module == slot->module) {
+                found = TRUE;
+                break;
+            }
+            slot++;
+        } while (i--);
+        if (found) {
+            mempool_free((void *) (slot->unk0 + entry->unk8));
+            slot->module = 0xFFB;
+        }
+    } else {
+        mempool_free((void *) entry->unk0);
+        entry->unk0 = 0;
+        D_800FEB58[module].timer = 0;
+        D_800FEB58[module].unk = 0;
+        reloc = D_800FEAA4;
+        i = D_800FEAB0;
+        while (i--) {
+            symModule = D_800FEAA8[reloc->symbol] >> 20;
+            type = reloc->type;
+            if (symModule >= 0xFFC) {
+                symModule = 0;
+            }
+            if (symModule == module) {
+                if (type == 3) {
+                    addr = (u32) gMusicPlayer + reloc->offset;
+                    reloc->type = 0;
+                } else {
+                    addr = reloc->offset + (u32) sound_volume_change;
+                }
+                runlink_reloc_apply((PatchWord *) addr, reloc->kind == 4 ? (u32) func_80054530 : 0, reloc->kind);
+            }
+            reloc->type = type;
+            reloc++;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005372C);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: 2 words: the target sets up &gRunlinkModules (s3) before i = 15 */
@@ -638,12 +791,6 @@ void func_8005414C(void) {
 #else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005414C);
 #endif
-
-typedef struct UnloadTimer {
-    u16 timer : 10;
-    u16 unk : 6;
-} UnloadTimer;
-extern UnloadTimer *D_800FEB58;
 
 /* JFG: set the frames before a module is unloaded (10 bits) and its other 6-bit count (0x800541B0). */
 void runlink_unload_timer_set(s32 index, u16 timer, u8 value) {

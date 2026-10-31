@@ -547,6 +547,7 @@ func_8001D800 = shadow_buffers_alloc
 # src/217C0.c
 func_80022744 = init_object_shading
 func_800228BC = corona_from_level_entry
+func_80022028 = light_falloff_scale
 # src/51AD0.c
 func_8005122C = troop_leader_spawn
 func_800516EC = troop_member_colours_get
@@ -561,6 +562,8 @@ func_80058C54 = menu_draw_blinking_prompt
 func_80058D5C = menu_show_results
 func_80059D2C = menu_item_free
 func_80059E7C = menu_item_load
+func_800586E0 = menu_set_close
+func_8005886C = menu_set_open
 # src/5B700.c (DKR weather.c)
 func_8005BDB8 = rain_set
 func_8005C040 = rain_update
@@ -579,6 +582,9 @@ func_80076D6C = anim_path_link_nodes
 func_80076EA0 = anim_system_init
 func_80077158 = sequence_stop
 func_800772C4 = sequence_start
+# src/69050.c (DKR transition.c)
+func_8006BC34 = transition_update
+func_8006BD54 = transition_render
 # src/7A7D0.c
 func_8007E328 = multiplayer_score_kill
 # src/74270.c (DKR game_text.c)

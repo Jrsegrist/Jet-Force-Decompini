@@ -101,12 +101,153 @@ void func_80058590(void) {
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058590);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_800586E0);
+void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80052CFC();  // JFG: load a runlink module
+s32 runlink_module_loaded(s32 module);
+void func_8005342C(s32 module); // JFG: unload a runlink module
+void dialogue_clear(s32 dialogueBoxID);
+extern u8 gMenuMode;  // JFG: which menu set is running
+extern u8 D_800A4FC4; // JFG: a multiplayer game
+extern u8 D_800A4FD0; // JFG: the number of players
+extern u8 D_800A4FD8; // JFG: the multiplayer game type (low 4 bits)
+extern u8 D_800A4FB4;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005886C);
+/* JFG: close the current menu set (its module's close function; each func_80054530 call is a different one). */
+void menu_set_close(void) {
+    if (runlink_module_loaded(0xC)) {
+        func_80054530();
+    }
+    if (D_800A51A0) {
+        switch (gMenuMode) {
+            case 0:
+                dialogue_clear(1);
+                break;
+            case 1:
+            case 7:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+            case 23:
+                break;
+            case 2:
+                func_80054530();
+                break;
+            case 3:
+                func_80054530();
+                break;
+            case 4:
+                func_80054530();
+                break;
+            case 5:
+                func_80054530();
+                break;
+            case 6:
+                func_80054530();
+                break;
+            case 8:
+                func_80054530();
+                break;
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
+                func_80054530();
+                break;
+            case 24:
+                func_80054530();
+                break;
+            case 16:
+                if ((D_800A4FC4 && D_800A4FD8 == 4) || D_800A4FB4) {
+                    func_80054530();
+                } else if (D_800A4FD0 == 1) {
+                    func_80054530();
+                } else {
+                    func_80054530();
+                }
+                break;
+            case 17:
+                func_80054530();
+                func_8005342C(9);
+                break;
+        }
+        D_800A51A0 = 0;
+    }
+}
 
-void func_800586E0(void);
-void func_8005886C(void);
+/* JFG: open the current menu set (its module's init function). */
+void menu_set_open(void) {
+    func_80054530();
+    if (D_800A51A0 == 0) {
+        switch (gMenuMode) {
+            case 2:
+                func_80054530();
+                break;
+            case 3:
+                func_80054530();
+                break;
+            case 4:
+                func_80054530(0);
+                break;
+            case 17:
+                func_80054530(0);
+                break;
+            case 5:
+                func_80054530();
+                break;
+            case 6:
+                func_80054530();
+                break;
+            case 8:
+                func_80054530();
+                break;
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
+                func_80054530();
+                break;
+            case 23:
+                func_80054530();
+                break;
+            case 24:
+                func_80054530();
+                break;
+            case 16:
+                if ((D_800A4FC4 && D_800A4FD8 == 4) || D_800A4FB4) {
+                    func_80054530();
+                } else {
+                    func_80052CFC(6);
+                    if (D_800A4FD0 == 1) {
+                        func_80054530();
+                    } else {
+                        func_80054530();
+                    }
+                }
+                break;
+            case 0:
+            case 1:
+            case 7:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+                break;
+        }
+        D_800A51A0 = 1;
+    }
+}
+
+void menu_set_close(void);
+void menu_set_open(void);
 void func_80059A04(void);
 extern u8 gMenuMode; // JFG: which menu set is running
 extern u8 D_800A5058;
@@ -117,9 +258,9 @@ extern u8 D_800A4FCC; // JFG: the number of cameras
 
 /* JFG: store a new gMenuMode between calls to three menu functions; mode 0 also resets to a single player and camera (0x800589F0). */
 void menu_mode_set(s32 mode) {
-    func_800586E0();
+    menu_set_close();
     gMenuMode = mode;
-    func_8005886C();
+    menu_set_open();
     func_80059A04();
     D_800A5058 = 0;
     D_800A505C = 1;
