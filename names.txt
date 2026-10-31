@@ -563,6 +563,7 @@ func_80022028 = light_falloff_scale
 # src/51AD0.c
 func_8005122C = troop_leader_spawn
 func_800516EC = troop_member_colours_get
+func_80050F60 = troop_slot_get
 func_80053C44 = runlink_module_move_to_slot
 # src/55130.c
 func_80054B44 = fb_clear_and_unblank

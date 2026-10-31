@@ -1,5 +1,11 @@
 #include "common.h"
 
+/* The stubbed debug messages of the troop code (unreferenced), in ROM order. */
+const char D_800ACCD0[] = "CRITICAL ERROR: objSetupObject() returned NULL\n";
+const char D_800ACD00[] = "GFDS:%d ???\n";
+const char D_800ACD10[] = "**** WARNING: Duplicate squadron ID:%d ****\n";
+const char D_800ACD40[] = "WARNING:Can't lock to node, no nodes\n";
+
 #ifdef NON_MATCHING
 /* NON_MATCHING: same logic, but the target computes every compare straight into $v0 (mine uses $at/$v1 + move) */
 /* JFG: whether an object id is one of a fixed set (0x11C..0x120 and six others). */
@@ -50,7 +56,66 @@ TroopObject **func_80050F44(s32 *count) {
     return D_800A38E4;
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050F60);
+/* JFG: the slot (0..53) of a troop leader object id, -1 if it has none. The case order follows the ROM. */
+s32 troop_slot_get(s32 id) {
+    switch (id) {
+        case 0x29: return 0;
+        case 0x5F: return 1;
+        case 0xBE: return 2;
+        case 0xBD: return 3;
+        case 0x67: return 4;
+        case 0x78: return 5;
+        case 0x8C: return 6;
+        case 0x83: return 7;
+        case 0x2A: return 9;
+        case 0x2B: return 8;
+        case 0x2D: return 10;
+        case 0x54: return 11;
+        case 0x68: return 12;
+        case 0x8D: return 13;
+        case 0x99: return 14;
+        case 0x9C: return 15;
+        case 0xDF: return 16;
+        case 0xE0: return 17;
+        case 0xE1: return 18;
+        case 0xE6: return 19;
+        case 0xEE: return 20;
+        case 0xEF: return 21;
+        case 0x12F: return 22;
+        case 0xF2: return 23;
+        case 0xF3: return 24;
+        case 0x66: return 25;
+        case 0x11C: return 26;
+        case 0x11D: return 27;
+        case 0x11E: return 28;
+        case 0x11F: return 29;
+        case 0x120: return 30;
+        case 0x121: return 31;
+        case 0xF1: return 32;
+        case 0xF5: return 33;
+        case 0xF6: return 34;
+        case 0x122: return 35;
+        case 0x143: return 36;
+        case 0x144: return 37;
+        case 0x149: return 38;
+        case 0x150: return 39;
+        case 0x151: return 40;
+        case 0x152: return 41;
+        case 0x153: return 42;
+        case 0x166: return 43;
+        case 0x70: return 44;
+        case 0x90: return 45;
+        case 0xA5: return 46;
+        case 0x97: return 47;
+        case 0x157: return 48;
+        case 0x112: return 49;
+        case 0x6D: return 50;
+        case 0x1E5: return 51;
+        case 0x269: return 52;
+        case 0x2CE: return 53;
+    }
+    return -1;
+}
 
 /* JFG: the spawn entry of a troop leader (0x12 bytes) */
 typedef struct LeaderSpawn {
@@ -88,7 +153,6 @@ typedef struct SpawnedObject {
     /* 0x68 */ SpawnedState *state;
 } SpawnedObject;
 
-s32 func_80050F60(void);
 void *spawn_object(void *entry, s32 arg1);
 extern u8 D_800FE9B8[];
 extern SpawnedObject *D_800FEA08;
@@ -96,9 +160,9 @@ extern SpawnedState *D_800FEA0C;
 extern s16 *D_800FEA10;
 extern s32 D_800FEA14;
 
-/* JFG: spawn object id once per slot (func_80050F60) and keep it and its state in D_800FEA08/D_800FEA0C. */
+/* JFG: spawn object id once per slot (troop_slot_get) and keep it and its state in D_800FEA08/D_800FEA0C. */
 void troop_leader_spawn(s32 id) {
-    u8 *done = &D_800FE9B8[func_80050F60()];
+    u8 *done = &D_800FE9B8[troop_slot_get(id)];
     LeaderSpawn spawn;
 
     if (*done == 0) {
