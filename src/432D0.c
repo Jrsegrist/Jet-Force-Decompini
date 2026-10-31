@@ -73,7 +73,9 @@ typedef struct CameraFollow {
     /* 0x0C */ u8 padC[8];
     /* 0x14 */ f32 distance;
     /* 0x18 */ f32 height;
-    /* 0x1C */ u8 pad1C[8];
+    /* 0x1C */ f32 sideLimit;  /* how far the camera may move sideways (0: no limit) */
+    /* 0x20 */ s16 angle;      /* the facing of the follow area */
+    /* 0x22 */ s16 angleRange; /* how far the camera may turn from it */
     /* 0x24 */ f32 offset[3];
 } CameraFollow;
 
@@ -139,7 +141,119 @@ void camera_follow_update(Attachment *target, ObjectTransform *cam, s32 updateRa
     cam->rotation[2] = angle_lerp(cam->rotation[2], 0, angleFactor);
 }
 
+#ifdef NON_MATCHING
+/*
+ * JFG: like camera_follow_update, but the camera stays within sideLimit to the side of the follow
+ * point and within angleRange of its angle. Logic is believed right; the frame is 8 bytes too big
+ * and sinA/cosA land in f22 instead of being spilled.
+ */
+extern f32 D_800AC434;
+f32 func_80049C34(s16 angle);
+f32 func_80049C30(s16 angle);
+void func_80042A74(Attachment *target, ObjectTransform *cam, s32 updateRate, s32 smooth) {
+    s32 yaw;
+    f32 posFactor;
+    f32 angleFactor;
+    f32 tx;
+    f32 tz;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 dy;
+    f32 dz;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 sinA;
+    f32 cosA;
+    f32 dist;
+    f32 side;
+    f32 limit;
+    f32 dx;
+
+    if (((CameraFollow *) D_800FB080)->angleRange < 0x100) {
+        camera_follow_update(target, cam, updateRate, smooth);
+        return;
+    }
+    posFactor = 1.0f;
+    angleFactor = 1.0f;
+    if (smooth) {
+        posFactor = 1.0f - func_80049BEC(D_800AC434, updateRate);
+        angleFactor = 1.0f - func_80049BEC(0.9375f, updateRate);
+    }
+    target->offset[0] = ((CameraFollow *) D_800FB080)->offset[0];
+    target->offset[1] = ((CameraFollow *) D_800FB080)->offset[1];
+    target->offset[2] = ((CameraFollow *) D_800FB080)->offset[2];
+    transform_offset_world_pos(target, &x, &y, &z);
+    tx = ((CameraFollow *) D_800FB080)->x;
+    tz = ((CameraFollow *) D_800FB080)->z;
+    if (((CameraFollow *) D_800FB080)->sideLimit != 0.0f) {
+        sinA = func_80049C34(((CameraFollow *) D_800FB080)->angle);
+        cosA = func_80049C30(((CameraFollow *) D_800FB080)->angle);
+        dx = x - ((CameraFollow *) D_800FB080)->x;
+        dz = z - ((CameraFollow *) D_800FB080)->z;
+        side = (dx * sinA) + (dz * cosA);
+        dx = (dx * cosA) - (dz * sinA);
+        limit = -((CameraFollow *) D_800FB080)->sideLimit;
+        if (dx < limit) {
+            dx = limit;
+        }
+        if (((CameraFollow *) D_800FB080)->sideLimit < dx) {
+            dx = ((CameraFollow *) D_800FB080)->sideLimit;
+        }
+        dz = side;
+        if (side < 0.0f) {
+            dz = -side;
+        }
+        if (dz < ((CameraFollow *) D_800FB080)->distance) {
+            if (((CameraFollow *) D_800FB080)->distance < sqrtf((dx * dx) + (side * side))) {
+                if (dx < 0.0f) {
+                    dx += sqrtf((((CameraFollow *) D_800FB080)->distance * ((CameraFollow *) D_800FB080)->distance) - (dz * dz));
+                } else {
+                    dx -= sqrtf((((CameraFollow *) D_800FB080)->distance * ((CameraFollow *) D_800FB080)->distance) - (dz * dz));
+                }
+            } else {
+                dx = 0.0f;
+            }
+        }
+        tz -= dx * sinA;
+        tx += dx * cosA;
+    }
+    dx = tx - x;
+    dz = tz - z;
+    dist = (dx * dx) + (dz * dz);
+    if (dist > 0.0f) {
+        dist = sqrtf(dist);
+        dx *= ((CameraFollow *) D_800FB080)->distance / dist;
+        dz *= ((CameraFollow *) D_800FB080)->distance / dist;
+    }
+    ny = ((CameraFollow *) D_800FB080)->height + y;
+    nx = x + dx;
+    nz = z + dz;
+    yaw = (s16) (func_80049C84(((CameraFollow *) D_800FB080)->x - nx, ((CameraFollow *) D_800FB080)->z - nz) - ((CameraFollow *) D_800FB080)->angle);
+    if (yaw != 0x7FFF && (yaw < -((CameraFollow *) D_800FB080)->angleRange || ((CameraFollow *) D_800FB080)->angleRange < yaw)) {
+        nx = tx;
+        nz = tz;
+    } else if (dist < ((CameraFollow *) D_800FB080)->distance) {
+        nx = tx;
+        nz = tz;
+    }
+    cam->x_position += (nx - cam->x_position) * posFactor;
+    cam->y_position += (ny - cam->y_position) * posFactor;
+    cam->z_position += (nz - cam->z_position) * posFactor;
+    dx = cam->x_position - x;
+    dy = cam->y_position - y;
+    dz = cam->z_position - z;
+    dist = sqrtf((dx * dx) + (dz * dz));
+    yaw = 0x8000 - func_80049C84(dx, dz);
+    func_80049C84(dy, dist);
+    cam->rotation[0] = angle_lerp(cam->rotation[0], yaw, angleFactor);
+    cam->rotation[1] = angle_lerp(cam->rotation[1], 0, angleFactor);
+    cam->rotation[2] = angle_lerp(cam->rotation[2], 0, angleFactor);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/432D0", func_80042A74);
+#endif
 
 /* JFG: copy the transform of D_800FB084, turned to face the other way. */
 void func_80042F48(ObjectTransform *trans) {
