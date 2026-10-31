@@ -144,7 +144,7 @@ void func_m109_00000(Object *obj, M109Setup *setup) {
     if (obj->modelIndex >= obj->header->numberOfModelIds) {
         obj->modelIndex = obj->header->numberOfModelIds - 1;
     }
-    tex = (M109Texture *) obj->unk6C[obj->modelIndex];
+    tex = (M109Texture *) obj->modelInstances[obj->modelIndex];
     w = tex->width - 1;
     h = tex->height - 1;
     b->tris[0].flags = 0x40;
@@ -228,7 +228,7 @@ void func_m109_00298(Object *obj, s32 updateRate) {
         OBJ_STATE(obj, M109State)->light = 0;
     }
     b->timer -= updateRate;
-    if (b->timer > 0 && obj->interactObj->unk6 > 0) {
+    if (b->timer > 0 && obj->interactObj->hitPoints > 0) {
         if (b->hit == 0) {
             func_80009A04(obj, obj->velocity.x * fy, obj->velocity.y * fy, obj->velocity.z * fy);
             b->distance += b->speed * fy;
