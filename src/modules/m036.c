@@ -31,7 +31,7 @@ extern void func_80058590(void);
 extern void anim_system_init(void);
 extern void func_8006B8C4(void);
 extern void func_80052678(void);
-extern void func_80065CE0(void);
+extern void debug_trace_init(void);
 extern void func_80083A90(void);
 extern void func_80096BB0(void *mq, void *msg, s32 count);                  /* osCreateMesgQueue */
 extern void osScAddClient(void *sched, void *client, void *mq, s32 id);      /* osScAddClient */
@@ -125,7 +125,7 @@ void func_m036_00000(void) {
     func_8006B8C4();
     check_reset_and_halt();
     func_80052678();
-    func_80065CE0();
+    debug_trace_init();
     func_80083A90();
     default_alloc_displaylist_heap();
     func_80096BB0(D_800FD800, D_800FD7FC, 1);

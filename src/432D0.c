@@ -12,15 +12,15 @@ typedef struct ObjectTransform {
 
 extern ObjectTransform *D_800FB084;
 
-void func_800426D0(void) {
+void view_override_clear(void) {
     D_800FB084 = NULL;
 }
 
-void func_800426DC(ObjectTransform *trans) {
+void view_override_set(ObjectTransform *trans) {
     D_800FB084 = trans;
 }
 
-void func_800426E8(ObjectTransform *trans) {
+void view_override_remove(ObjectTransform *trans) {
     if (trans == D_800FB084) {
         D_800FB084 = NULL;
     }
@@ -28,7 +28,7 @@ void func_800426E8(ObjectTransform *trans) {
 
 extern s32 D_800FB080;
 
-s32 func_8004270C(void) {
+s32 camera_follow_get(void) {
     return D_800FB080;
 }
 
@@ -256,7 +256,7 @@ INCLUDE_ASM("asm/nonmatchings/432D0", func_80042A74);
 #endif
 
 /* JFG: copy the transform of D_800FB084, turned to face the other way. */
-void func_80042F48(ObjectTransform *trans) {
+void view_override_copy_reversed(ObjectTransform *trans) {
     if (D_800FB084 != NULL) {
         trans->x_position = D_800FB084->x_position;
         trans->y_position = D_800FB084->y_position;

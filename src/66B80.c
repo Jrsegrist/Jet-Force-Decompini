@@ -3,7 +3,7 @@
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80065F80);
 
 /* JFG: unpack a two-word command: the top byte, the next byte, the low half and the second word. */
-void func_80066594(void *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
+void dl_cmd_unpack_bbh(void *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
     *a = (((u32 *) arg0)[0] >> 24) & 0xFF;
     *d = (((u32 *) arg0)[0] >> 16) & 0xFF;
     *c = ((u32 *) arg0)[0] & 0xFFFF;
@@ -11,7 +11,7 @@ void func_80066594(void *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
 }
 
 /* JFG: unpack a two-word command: the top byte, the middle half, the low byte and the second word. */
-void func_800665D8(u32 *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
+void dl_cmd_unpack_bhb(u32 *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
     *a = (arg0[0] >> 24) & 0xFF;
     *b = (arg0[0] >> 8) & 0xFFFF;
     *c = arg0[0] & 0xFF;
@@ -21,21 +21,21 @@ void func_800665D8(u32 *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
 s32 func_80066620(void *arg0) {
     s32 a, b, c, d;
     s32 pad[4];
-    func_80066594(arg0, &a, &b, &c, &d);
+    dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
 s32 func_80066650(void *arg0) {
     s32 a, b, c, d;
     s32 pad[4];
-    func_80066594(arg0, &a, &b, &c, &d);
+    dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
 s32 func_80066680(void *arg0) {
     s32 a, b, c, d;
     s32 pad[8];
-    func_80066594(arg0, &a, &b, &c, &d);
+    dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
@@ -46,21 +46,21 @@ s32 func_800666B0(s32 arg0, s32 arg1) {
 s32 func_800666C0(void *arg0) {
     s32 a, b, c, d;
     s32 pad[2];
-    func_80066594(arg0, &a, &b, &c, &d);
+    dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
 s32 func_800666F0(void *arg0) {
     s32 a, b, c, d;
     s32 pad[2];
-    func_80066594(arg0, &a, &b, &c, &d);
+    dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
 s32 func_80066720(void *arg0) {
     s32 a, b, c, d;
     s32 pad[2];
-    func_80066594(arg0, &a, &b, &c, &d);
+    dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 

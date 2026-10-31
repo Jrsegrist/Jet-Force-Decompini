@@ -509,6 +509,18 @@ func_8004B29C = rumble_set
 func_8004B3D8 = rumble_raise
 # src/432D0.c
 func_800427E8 = camera_follow_update
+func_800426D0 = view_override_clear
+func_800426DC = view_override_set
+func_800426E8 = view_override_remove
+func_8004270C = camera_follow_get
+func_80042F48 = view_override_copy_reversed
+# src/668E0.c (a debug trace: value, source file, line)
+func_80065CE0 = debug_trace_init
+func_80065D24 = debug_trace_flip
+func_80065D50 = debug_trace_add
+# src/66B80.c (display-list command printers, their output compiled out)
+func_80066594 = dl_cmd_unpack_bbh
+func_800665D8 = dl_cmd_unpack_bhb
 # src/44350.c (DKR game.c)
 func_80043750 = level_global_init
 D_800FB110 = gTempAssetTable
