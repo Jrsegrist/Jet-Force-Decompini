@@ -600,6 +600,9 @@ func_800586E0 = menu_set_close
 func_8005886C = menu_set_open
 func_80058A6C = menu_set_results
 func_8005A51C = spawn_level_replacement
+func_80059CCC = menu_assetgroup_free
+func_80059E1C = menu_assetgroup_load
+func_80059FE8 = menu_assetgroup_reset
 # src/5B700.c (DKR weather.c)
 func_8005BDB8 = rain_set
 func_8005C040 = rain_update

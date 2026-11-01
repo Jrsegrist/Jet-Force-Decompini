@@ -515,7 +515,16 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
 
 void menu_item_free(s32 item);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059CCC);
+/**
+ * Free each menu item of a list ending with -1.
+ * DKR: menu_assetgroup_free
+ */
+void menu_assetgroup_free(s16 *assetGroup) {
+    s32 index = 0;
+    while (assetGroup[index] != -1) {
+        menu_item_free(assetGroup[index++]);
+    }
+}
 
 void tex_free(void *tex);
 void sprite_free(void *sprite);
@@ -546,7 +555,16 @@ void menu_item_free(s32 item) {
 
 void menu_item_load(s32 item);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059E1C);
+/**
+ * Load each menu item of a list ending with -1.
+ * DKR: menu_assetgroup_load
+ */
+void menu_assetgroup_load(s16 *assetGroup) {
+    s32 index = 0;
+    while (assetGroup[index] != -1) {
+        menu_item_load(assetGroup[index++]);
+    }
+}
 
 /* JFG: the spawn entry of a menu object (size 10) */
 typedef struct MenuObjectSpawn {
@@ -617,7 +635,13 @@ void menu_item_load(s32 item) {
 
 void menu_item_reset(s32 item);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059FE8);
+/* JFG: reset each menu item of a list ending with -1 (DKR's menu_assetgroup_free loop). */
+void menu_assetgroup_reset(s16 *assetGroup) {
+    s32 index = 0;
+    while (assetGroup[index] != -1) {
+        menu_item_reset(assetGroup[index++]);
+    }
+}
 
 /* Size: 0x20 bytes */
 typedef struct MenuItem {
