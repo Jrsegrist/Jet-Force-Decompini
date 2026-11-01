@@ -526,6 +526,15 @@ func_800426DC = view_override_set
 func_800426E8 = view_override_remove
 func_8004270C = camera_follow_get
 func_80042F48 = view_override_copy_reversed
+# src/84DA0.c (anti-tamper: a magic word left in RDRAM, cleared once read)
+func_800841A0 = drm_check_rdram_a
+func_800841CC = drm_check_rdram_b
+# src/245D0.c (coronas)
+func_800239D0 = coronas_init
+func_80023A00 = coronas_free_all
+func_80023CB4 = corona_free
+func_80023D48 = coronas_update
+func_80023FA4 = corona_visibility_update
 # src/668E0.c (a debug trace: value, source file, line)
 func_80065CE0 = debug_trace_init
 func_80065D24 = debug_trace_flip

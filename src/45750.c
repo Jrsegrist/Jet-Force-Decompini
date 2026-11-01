@@ -19,8 +19,8 @@ extern s16 D_800A3260;
 extern s16 gPlayableMapId;
 extern s32 sBootDelayTimer;
 s32 leveltable_world(s32 level);
-s32 func_800841A0(void);
-s32 func_800841CC(void);
+s32 drm_check_rdram_a(void);
+s32 drm_check_rdram_b(void);
 void init_game(void);
 void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void check_reset_and_halt(void);
@@ -43,8 +43,8 @@ void thread3_main(UNUSED void *unused) {
             *--mem = 0;
         }
     }
-    D_800A331C = func_800841A0();
-    D_800A3320 = func_800841CC();
+    D_800A331C = drm_check_rdram_a();
+    D_800A3320 = drm_check_rdram_b();
     init_game();
     gSaveDataFlags = input_update(gSaveDataFlags, 0);
     sBootDelayTimer = 0;

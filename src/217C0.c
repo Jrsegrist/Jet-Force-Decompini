@@ -623,9 +623,9 @@ void corona_from_level_entry(Object *obj) {
     obj->unk68 = func_80023A48(NULL, &header);
 }
 
-void func_80023CB4(void *light);
+void corona_free(void *light);
 
 s32 func_800229B8(void *light) {
-    func_80023CB4(light);
+    corona_free(light);
     return 1;
 }

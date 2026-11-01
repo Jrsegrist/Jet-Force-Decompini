@@ -24,7 +24,7 @@ extern void func_m026_002F8(void);
 extern void func_8005AB00(void);
 extern void func_8006D0D8(void);
 extern void func_80068450(void);
-extern void func_800239D0(void);
+extern void coronas_init(void);
 extern void func_m035_00000(void);
 extern void func_8004C2BC(void);
 extern void func_80058590(void);
@@ -112,7 +112,7 @@ void func_m036_00000(void) {
     func_8006D0D8();
     func_80068450();
     check_reset_and_halt();
-    func_800239D0();
+    coronas_init();
     check_reset_and_halt();
     func_m035_00000();
     func_8005342C(0x23);

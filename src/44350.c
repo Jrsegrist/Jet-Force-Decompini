@@ -321,7 +321,7 @@ void func_80068874(void);
 void bgdraw_primcolour(u8 red, u8 green, u8 blue);
 void music_jingle_stop(void);
 void lights_free(void);
-void func_80023A00(void);
+void coronas_free_all(void);
 void free_track(void);
 void func_80079CC4(void);
 void audspat_reset(void);
@@ -340,7 +340,7 @@ void level_free(void) {
     mempool_free(gCurrentLevelHeader);
     music_jingle_stop();
     lights_free();
-    func_80023A00();
+    coronas_free_all();
     free_track();
     func_80079CC4();
     audspat_reset();
