@@ -211,7 +211,9 @@ s32 collision_line_test_objects(CollObj *self, CollObj *other, f32 x1, f32 y1, f
 }
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 2 words near the end (work in progress) */
+/* NON_MATCHING: stack only: hitObj lands at sp+0x40, target sp+0x3C (every extra local grows the frame) */
+/* JFG: how many solid objects (interaction kind 1 or 2, type not skipType1/2) the line from start to end hits;
+ * *dist gets the distance from start to the hit object. */
 s32 func_8007BB00(CollObj *self, Vec3f *start, Vec3f *end, f32 *dist, s32 skipType1, s32 skipType2) {
     s32 first;
     s32 last;
@@ -340,7 +342,83 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007DE98);
 
+typedef struct RacerInfo {
+    /* 0x00 */ s8 playerIndex;
+} RacerInfo;
+
+typedef struct RacerObj {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x68 - 0x18];
+    /* 0x68 */ RacerInfo *racer;
+} RacerObj;
+
+RacerObj **get_racer_objects(s32 *numRacers);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: stack only: numRacers lands at sp+0x94, target sp+0x7C (code and registers match) */
+/* JFG: DKR's obj_dist_racer: the racers within radius of (x, y, z) (2D when is2dCheck), sorted nearest first. */
+s32 func_8007E150(f32 x, f32 y, f32 z, f32 radius, s32 is2dCheck, RacerObj **sortObj) {
+    f32 distances[8];
+    s32 i;
+    s32 j;
+    RacerObj **racers;
+    RacerObj *racerObj;
+    RacerInfo *racer;
+    f32 xDiff;
+    f32 yDiff;
+    f32 zDiff;
+    f32 dist;
+    s32 result;
+    f32 swapf;
+    s32 numRacers;
+
+    result = 0;
+    radius *= radius;
+    racers = get_racer_objects(&numRacers);
+    if (numRacers > 0) {
+        do {
+            racerObj = *racers++;
+            racer = racerObj->racer;
+            if (racer->playerIndex >= 0 && racer->playerIndex < 4) {
+                xDiff = racerObj->x - x;
+                zDiff = racerObj->z - z;
+                dist = xDiff * xDiff + zDiff * zDiff;
+                if (!is2dCheck) {
+                    yDiff = racerObj->y - y;
+                    dist += yDiff * yDiff;
+                }
+                if (dist < radius) {
+                    distances[result] = sqrtf(dist);
+                    sortObj[result] = racerObj;
+                    result++;
+                }
+            }
+        } while (--numRacers > 0);
+        i = result - 1;
+        while (i > 0) {
+            j = 0;
+            do {
+                if (distances[j + 1] < distances[j]) {
+                    swapf = distances[j];
+                    racerObj = sortObj[j];
+                    distances[j] = distances[j + 1];
+                    sortObj[j] = sortObj[j + 1];
+                    distances[j + 1] = swapf;
+                    sortObj[j + 1] = racerObj;
+                }
+                j++;
+            } while (j < i);
+            i--;
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E150);
+#endif
 
 /* JFG: one player's multiplayer scores (0xA0 bytes; 45750.c has the whole record) */
 typedef struct MultiPlayerScore {

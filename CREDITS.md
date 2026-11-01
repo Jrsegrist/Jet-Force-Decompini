@@ -116,13 +116,13 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/audio.c` | music_sequence_init |
 | `src/audio_spatial.c` | audspat_reset, audspat_point_stop_by_index |
 | `src/audiomgr.c` | amCreateAudioMgr (JFG's form); __amHandleDoneMsg (in the notes, not committed: needs a .data split) |
-| `src/camera.c` | camera_reset (the layout of cam_reset) |
+| `src/camera.c` | camera_reset (the layout of cam_reset), copy_viewports_to_stack |
 | `src/game.c` | level_global_init; gTempAssetTable, gLevelNames, gNumberOfWorlds, gRaceTypeCountTable |
 | `src/game_text.c` | render_subtitles, process_subtitles, set_current_text |
 | `src/menu.c` | load_menu_text |
-| `src/object_functions.c` | obj_loop_animator (the template of obj_loop_texture_animator) |
+| `src/object_functions.c` | obj_loop_animator (JFG's form, and the template of obj_loop_texture_animator) |
 | `src/object_models.c` | allocate_object_model_pools, free_3d_model, free_model_data |
-| `src/objects.c` | try_free_object_header, gParticlePtrList_flush, render_misc_model, render_object_parts, get_first_active_object, init_object_shading, obj_tex_animate, load_object_header; obj_init_emitter's and track_spawn_objects' JFG forms (NON_MATCHING) |
+| `src/objects.c` | try_free_object_header, gParticlePtrList_flush, render_misc_model, render_object_parts, get_first_active_object, init_object_shading, obj_tex_animate, load_object_header; obj_init_emitter's, track_spawn_objects' and obj_dist_racer's JFG forms (NON_MATCHING) |
 | `src/particles.c` | obj_enable_emitter, obj_spawn_particle |
 | `src/textures_sprites.c` | tex_init_textures |
 | `src/thread3_main.c` | init_game |
