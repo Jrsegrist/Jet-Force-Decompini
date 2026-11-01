@@ -23,7 +23,10 @@ typedef struct RacerFlags {
 typedef struct Racer {
     /* 0x000 */ s8 player;
     /* 0x001 */ s8 character;
-    /* 0x002 */ u8 pad2[0xC0 - 0x2];
+    /* 0x002 */ u8 pad2[0xB8 - 0x2];
+    /* 0x0B8 */ u16 lastVoice;
+    /* 0x0BA */ u8 padBA[2];
+    /* 0x0BC */ void *voice;
     /* 0x0C0 */ s32 sound;
     /* 0x0C4 */ u8 padC4[0x11C - 0xC4];
     /* 0x11C */ s16 unk11C;
@@ -49,12 +52,15 @@ typedef struct Racer {
     /* 0x558 */ void *light;
     /* 0x55C */ u8 pad55C[0x560 - 0x55C];
     /* 0x560 */ u8 *attachment;
-    /* 0x564 */ u8 pad564[0x569 - 0x564];
+    /* 0x564 */ u8 pad564[0x568 - 0x564];
+    /* 0x568 */ u8 unk568;
     /* 0x569 */ u8 unk569;
+    /* 0x56A */ u8 pad56A[0x5CC - 0x56A];
+    /* 0x5CC */ u8 *held;
 } Racer;
 
 s32 func_8003B51C(s32 value, s32 delta);
-void func_8002AEA0(s32 arg0, s32 arg1);
+void player_voice_play(s32 owner, u8 index);
 u8 *func_80047C1C(s32 player, s32 character);
 void player_drop_held_object(u8 *obj);
 void *spawn_object(void *entry, s32 arg1);
@@ -62,10 +68,9 @@ void stats_shot_add(s32 weapon);
 void sound_stop(s32 soundHandle);
 void sound_play(u16 soundID, s32 *handlePtr);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002AEA0);
-
 typedef struct SoundSet {
     /* 0x00 */ u8 count;
+    /* 0x01 */ u8 flags; // 1: may cut off the sound still playing
     /* 0x04 */ s16 *sounds;
 } SoundSet;
 
@@ -75,14 +80,46 @@ s32 rand_range(s32 min, s32 max);
 f32 sqrtf(f32 x);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
 void func_80052734(u8 *arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
+void audspat_point_stop(void *handle);
+
+/* JFG: play a random sound of set `index` (per character, never the last one again) at obj, keeping its handle
+ * in the player's 0xBC; a sound still playing is stopped first if the set allows it, otherwise nothing plays. */
+void player_voice_play(s32 owner, u8 index) {
+    u8 *obj = (u8 *) owner;
+    Racer *racer = *(Racer **) (obj + 0x68);
+    SoundSet *set;
+    s16 *sounds;
+    s16 sound;
+
+    if (racer->voice != NULL) {
+        if (!(D_800A26C4[index].flags & 1)) {
+            return;
+        }
+        audspat_point_stop(racer->voice);
+    }
+    set = &D_800A26C4[index];
+    sounds = set->count * (racer->character & 3) + set->sounds;
+    if (set->count == 1) {
+        racer->lastVoice = 0x7FFF;
+    }
+    sound = racer->lastVoice;
+    while (sound == racer->lastVoice) {
+        sound = sounds[rand_range(0, set->count - 1)];
+    }
+    audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4,
+                                   &racer->voice);
+    func_80052734(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
+    racer->lastVoice = sound;
+}
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 8 words: register allocation / scheduling around the sound-table index and the rand_range call */
+/* NON_MATCHING: 6 words: the target's spill slots of sounds/sound are 4 bytes higher and it loads 0x1C before
+   0x24 (two f32 locals fix the load order but take 8 bytes) */
 /* JFG: play a random sound of set `index` (per character) at obj if it is moving fast enough. */
 void func_8002B064(u8 *obj, u8 index) {
-    u8 *racer = *(u8 **) (obj + 0x68);
+    Racer *racer = *(Racer **) (obj + 0x68);
     SoundSet *set = &D_800A26C4[index];
-    s16 *sounds = set->sounds + set->count * (racer[1] & 3);
+    s16 *sounds = set->count * (racer->character & 3) + set->sounds;
     s16 sound = sounds[rand_range(0, set->count - 1)];
 
     if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C) + *(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24))) {
@@ -201,7 +238,78 @@ void func_8002F04C(s32 obj) {
     }
 }
 
+/* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
+ * range that applies when the flag is set */
+typedef struct TrackZone {
+    /* 0x00 */ f32 enterRadius;
+    /* 0x04 */ f32 enterTop;
+    /* 0x08 */ f32 enterBottom;
+    /* 0x0C */ f32 exitRadius;
+    /* 0x10 */ f32 exitTop;
+    /* 0x14 */ f32 exitBottom;
+    /* 0x18 */ s32 flags; // 0x4000: enter height range, 0x8000: exit height range
+} TrackZone;
+
+/* Size: 0x2C bytes */
+typedef struct ZoneTrack {
+    /* 0x00 */ u8 *obj;
+    /* 0x04 */ TrackZone *zone;
+    /* 0x08 */ u8 pad8[0x24];
+} ZoneTrack;
+extern ZoneTrack D_800F6E58[4];
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: float registers: the target keeps z and y in $f20/$f22 (dz in $f14), mine z stays in $f14 and
+   only y gets a saved register */
+/* JFG: for a player at (x, y, z): leaves its current zone object when outside its exit circle (or height range),
+ * then if it has none, takes the last listed zone object whose entry circle (and height range) contains it. */
+void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
+    ZoneTrack *track;
+    u8 *obj;
+    TrackZone *zone;
+    s32 i;
+    f32 dx;
+    f32 dz;
+
+    if (player < 0 || player >= 4) {
+        return;
+    }
+    track = &D_800F6E58[player];
+    obj = track->obj;
+    if (obj != NULL && (zone = track->zone) != NULL) {
+        dx = *(f32 *) (obj + 0xC) - x;
+        dz = *(f32 *) (obj + 0x14) - z;
+        if (zone->exitRadius * zone->exitRadius < dx * dx + dz * dz) {
+            track->obj = NULL;
+            obj = NULL;
+        } else if (zone->flags & 0x8000) {
+            if (y < zone->exitBottom || zone->exitTop < y) {
+                track->obj = NULL;
+                obj = NULL;
+            }
+        }
+    }
+    if (obj == NULL) {
+        for (i = 0; i < D_800A2D38; i++) {
+            obj = (u8 *) D_800F6DF8[i];
+            zone = *(TrackZone **) (obj + 0x68);
+            dx = *(f32 *) (obj + 0xC) - x;
+            dz = *(f32 *) (obj + 0x14) - z;
+            if (dx * dx + dz * dz < zone->enterRadius * zone->enterRadius) {
+                track->obj = obj;
+                track->zone = zone;
+                if (zone->flags & 0x4000) {
+                    if (y < zone->enterBottom || zone->enterTop < y) {
+                        track->obj = NULL;
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F0DC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F2B0);
 
@@ -430,12 +538,104 @@ void func_80033920(s32 arg0, s8 *player) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800339D8);
+u8 **objGetObjList(s32 *start, s32 *end);
+s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 is2dCheck, u8 **sortObj);
+void level_next_select(void);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033BB8);
+#ifdef NON_MATCHING
+/* NON_MATCHING: only the stack: the target's frame is 0x10 smaller (no words for the scalar locals below the
+   arrays), so every sp offset of start/end/near/candidates differs by 0x10 */
+/* JFG: restart a player: refill the current weapon and clear its 0x0 and its object's 0x4C->0x6; in multiplayer
+ * respawn it at a random respawn point (object 6) with no other player near, else at its own position. */
+void func_800339D8(s32 owner, s8 *player) {
+    s32 start;
+    s32 end;
+    u8 *near[8];
+    u8 *candidates[8];
+    u8 **list;
+    u8 *obj;
+    s32 n;
+    s32 count;
+    u8 *chr;
+
+    chr = func_80047C1C(player[0], player[1]);
+    *(u16 *) (chr + 0x14) = *(u16 *) (chr + 0x34);
+    *(s16 *) (*(u8 **) ((u8 *) owner + 0x4C) + 6) = 0;
+    *(s16 *) chr = 0;
+    if (func_80048558() >= 2) {
+        list = objGetObjList(&start, &end);
+        n = 0;
+        while (start < end) {
+            obj = list[start++];
+            if (*(s16 *) (obj + 0x48) == 6) {
+                count = obj_dist_racer(*(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 32.0f, 0,
+                                       near);
+                if (count == 0 || (count == 1 && near[0] == (u8 *) owner)) {
+                    candidates[n++] = obj;
+                }
+            }
+        }
+        if (n == 0) {
+            obj = (u8 *) owner;
+        } else if (n == 1) {
+            obj = candidates[0];
+        } else {
+            obj = candidates[rand_range(0, n - 1)];
+        }
+        player_respawn_at((u8 *) owner, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14),
+                          *(s16 *) (obj + 0), *(s16 *) (obj + 2), *(s16 *) (obj + 4));
+    } else {
+        level_next_select();
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800339D8);
+#endif
+
+s32 func_8005AAB8(s32 player);
+s32 camera_follow_get(void);
+s32 func_8004271C(void);
+
+/* JFG: counts unk19C up by rate (to 40, or 64 when arg1's 0x70 is 7 in states 11/5) while the 0x540 low bits
+ * are set and nothing blocks it, otherwise down by 16*rate to 0. */
+void player_charge_meter_update(Racer *racer, u8 *arg1, s32 rate) {
+    s32 enabled = *(u16 *) &racer->flags & 0xF;
+    s32 limit;
+
+    if (func_8005AAB8(racer->player) != 0) {
+        enabled = 0;
+    }
+    limit = 40;
+    if ((racer->character & 3) == 3) {
+        enabled = 0;
+    }
+    if (racer->unk568 == 11 || racer->unk568 == 5) {
+        enabled = 1;
+        if (arg1 != NULL && arg1[0x70] == 7) {
+            limit = 64;
+        }
+    } else if (racer->unk568 == 8 || racer->unk568 == 6 || racer->unk568 == 7 || racer->unk568 == 4) {
+        enabled = 0;
+    } else if (camera_follow_get() != 0) {
+        enabled = 0;
+    }
+    if (racer->unk19D != 0 || racer->unk1F9 != 0 || racer->unk1FA != 0 || racer->unk198 != 0) {
+        enabled = 0;
+    }
+    if (enabled && func_8004271C() == 0) {
+        racer->unk19C += rate;
+        if (limit < racer->unk19C) {
+            racer->unk19C = limit;
+        }
+    } else if (racer->unk19C != 0) {
+        racer->unk19C -= rate * 16;
+        if (racer->unk19C < 0) {
+            racer->unk19C = 0;
+        }
+    }
+}
 
 extern s16 D_800A2DB0;
-s32 func_8005AAB8(s32 player);
 
 /* JFG: hysteresis on the angle between angle and the player's 0x11C: unk569 is set when it leaves +-wide (and
  * func_8005AAB8 is 0) and cleared inside +-narrow or after 30 frames; *out = min(*out, near or far limit). */
@@ -1163,7 +1363,7 @@ void func_80039918(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
     setup.owner = owner;
     obj = spawn_object(&setup, 1);
     sound_play(0x2F, NULL);
-    func_8002AEA0(owner, 2);
+    player_voice_play(owner, 2);
     if (obj != NULL) {
         *(s32 *) (obj + 0x3C) = 0;
     }
@@ -1201,7 +1401,7 @@ void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16
         *(f32 *) (obj + 0x20) = func_80049C34(pitch) * speed;
         *(f32 *) (obj + 0x24) = -func_80049C30(yaw) * func_80049C30(pitch) * speed;
         sound_play(0x2F, NULL);
-        func_8002AEA0(owner, 2);
+        player_voice_play(owner, 2);
         *(s32 *) (obj + 0x3C) = 0;
         stats_shot_add(9);
     }
@@ -1263,10 +1463,79 @@ void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 a
         stats_shot_add(weapon);
     }
     sound_play(0x2F, NULL);
-    func_8002AEA0(owner, 2);
+    player_voice_play(owner, 2);
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039D08);
+typedef struct SpawnF7 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 unkF;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ s32 owner;
+} SpawnF7;
+
+/* The module trap called with a float in a3; needs `func_80054530_pssf = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_pssf(u8 *obj, s16 arg1, s16 arg2, f32 arg3);
+
+/* JFG: throws the held object 0x59 (along arg5/arg6 at arg7) if the player holds one (any other held object is
+ * dropped), otherwise spawns object 0xF7, which characters 2 and 6 keep holding; returns whether it threw or got
+ * something to hold (then with sound 0xF1). */
+s32 weapon_throw_or_hold(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9) {
+    s32 done;
+    SpawnF7 setup;
+    u8 *obj;
+    u8 *held;
+
+    done = FALSE;
+    held = racer->held;
+    if (held != NULL) {
+        if (*(s16 *) (held + 0x48) == 0x59) {
+            func_80054530_pssf(held, arg5, arg6, arg7);
+            racer->held = NULL;
+            done = TRUE;
+        } else {
+            player_drop_held_object((u8 *) owner);
+        }
+    }
+    if (!done) {
+        setup.objectID = 0xF7;
+        setup.x = x;
+        setup.y = y;
+        setup.z = z;
+        setup.unkA = arg5;
+        setup.unkC = arg6;
+        setup.unkE = arg8;
+        setup.unkF = arg9;
+        setup.unk10 = arg7;
+        setup.owner = owner;
+        if (racer->character == 2 || racer->character == 6) {
+            setup.owner = 0;
+            done = TRUE;
+        }
+        obj = spawn_object(&setup, 1);
+        if (obj != NULL) {
+            *(s32 *) (obj + 0x3C) = 0;
+            if (setup.owner != 0) {
+                racer->held = obj;
+            }
+        }
+    }
+    if (done) {
+        if (racer->sound != 0) {
+            sound_stop(racer->sound);
+        }
+        sound_play(0xF1, &racer->sound);
+        racer->soundId = 0xF1;
+        player_voice_play(owner, 2);
+        return TRUE;
+    }
+    return FALSE;
+}
 
 typedef struct Spawn13A {
     /* 0x00 */ s16 objectID;
@@ -1295,7 +1564,7 @@ void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
     obj = spawn_object(&setup, 1);
     if (obj != NULL) {
         sound_play(0x2F, NULL);
-        func_8002AEA0(owner, 2);
+        player_voice_play(owner, 2);
         *(s32 *) (obj + 0x3C) = 0;
         stats_shot_add(14);
     }

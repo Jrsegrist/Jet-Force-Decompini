@@ -279,9 +279,73 @@ void free_model_data(Model3C7 *mdl) {
     mempool_free(mdl);
 }
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CB04);
-
 s8 *asset_cache_get(s16 id);
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+void *func_8003CF24(s32 index);
+
+/* JFG: load model `id`'s asset list (tables 0x28/0x29) into the model: its 0x58 block, the ids (0x5C) and, unless
+ * 0x64 is set, the cached assets (0x50); returns 1 when something could not be had (all freed again). */
+#ifdef NON_MATCHING
+/* NON_MATCHING: work in progress */
+s32 func_8003CB04(Model3C7 *model, s32 id) {
+    s32 start;
+    s32 end;
+    s32 offset;
+    s32 size;
+    s32 i;
+    s32 j;
+
+    asset_load(0x28, (u32) D_800F6F2C, (id & ~3) * 2, 0x10);
+    start = ((u16 *) D_800F6F2C)[id & 3] >> 1;
+    end = ((u16 *) D_800F6F2C)[(id & 3) + 1] >> 1;
+    model->numAssets = end - start;
+    if (start == end) {
+        return 0;
+    }
+    offset = start & 3;
+    size = ((model->numAssets & ~3) + 4) * 2;
+    if (offset) {
+        size += 8;
+    }
+    asset_load(0x29, (u32) D_800F6F28, (start & ~3) * 2, size);
+    if ((model->unk58 = func_8003CF24(id)) == NULL) {
+        return 1;
+    }
+    if (!model->unk64) {
+        model->assets = mempool_alloc(model->numAssets * 4, 0xFF0000FF);
+    }
+    model->unk5C = mempool_alloc(model->numAssets * 2, 0xFF0000FF);
+    if (!model->unk64) {
+        if (model->assets == NULL) {
+            mempool_free(model->unk58);
+            return 1;
+        }
+        i = 0;
+        do {
+            model->assets[i] = asset_cache_get(((s16 *) D_800F6F28)[offset + i]);
+            if (model->assets[i] == NULL) {
+                for (j = 0; j < i; j++) {
+                    func_8003D150(model->assets[j]);
+                }
+                mempool_free(model->assets);
+                mempool_free(model->unk58);
+                mempool_free(model->unk5C);
+                model->assets = NULL;
+                return 1;
+            }
+            ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset + i];
+            i++;
+        } while (i < model->numAssets);
+        return 0;
+    }
+    for (i = 0; i < model->numAssets; i++) {
+        ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset + i];
+    }
+    return 0;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CB04);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: IDO copies the model pointer to v0 for the else arm (target keeps v1) */
@@ -566,8 +630,6 @@ void func_8003F1C8(Obj3C *obj, s32 id, s32 value) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003F284);
-
 /* JFG: an entry of the D_800A2EC8 texture table */
 typedef struct TexEntry3C {
     /* 0x00 */ s32 id;
@@ -576,6 +638,42 @@ typedef struct TexEntry3C {
 
 extern TexEntry3C *D_800A2EC8;
 extern s16 D_800A2ECC;
+s32 tex_find_id(void *texture);
+
+/* JFG: free the textures of every cached model whose id is not in `keep` (ended by -1), noting each one's id
+ * and address in a new D_800A2EC8 table (at most 125). */
+void model_cache_textures_release(s16 *keep) {
+    TexEntry3C *entry;
+    Model3C7 *model;
+    s32 i;
+    s32 j;
+    s32 found;
+
+    D_800A2ECC = 0;
+    entry = D_800A2EC8 = mempool_alloc_safe(1000, 0xFF00FF);
+    for (i = 0; i < D_800F6F1C && D_800A2ECC < 125; i++) {
+        if (D_800F6F14[(i << 1) + 0] != -1) {
+            model = (Model3C7 *) D_800F6F14[(i << 1) + 1];
+            found = FALSE;
+            j = 0;
+            while (keep[j] != -1 && !found) {
+                if (keep[j] == D_800F6F14[(i << 1) + 0]) {
+                    found = TRUE;
+                }
+                j++;
+            }
+            if (!found) {
+                for (j = 0; j < model->numberOfTextures && D_800A2ECC < 125; j++) {
+                    entry->address = (s32) model->textures[j].texture;
+                    entry->id = tex_find_id(model->textures[j].texture);
+                    tex_free(model->textures[j].texture);
+                    D_800A2ECC++;
+                    entry++;
+                }
+            }
+        }
+    }
+}
 void *load_texture_at(s32 textureID, s32 address);
 void mempool_free(void *data);
 

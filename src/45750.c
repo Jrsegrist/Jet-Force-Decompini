@@ -313,7 +313,52 @@ s32 func_80045A14(s32 index) {
     return D_800FD757[index * 8];
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045A44);
+extern s32 D_801008B4;
+s32 check_viewport_background_flag(s32 viewPortIndex);
+void copy_viewport_frame_size_to_coords(s32 viewPortIndex, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
+s32 check_fadeout_transition(void);
+s32 runlink_module_loaded(s32 module);
+f32 func_8005BFC4(void);
+void func_8006F8E4(void);
+void func_8006E188(void);
+void func_8006D0D8(void);
+/* The module trap called with float arguments in a3 and on the stack, and for a result; needs
+   `func_80054530_iiiff = 0x80054530;` and `func_80054530_ret = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_iiiff(u16 *fb, s32 width, s32 height, f32 arg3, f32 arg4);
+s32 func_80054530_ret(void);
+
+/* JFG: after the frame: module 5's pass over the framebuffer rows (from the second frame on, while the height
+ * keeps), the other module hooks, then one of two finish calls. */
+void frame_post_process(u16 *fb, UNUSED s32 arg1) {
+    s32 width;
+    s32 height;
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+
+    fb_size(&width, &height);
+    if (check_viewport_background_flag(0)) {
+        copy_viewport_frame_size_to_coords(0, &x1, &y1, &x2, &y2);
+        fb = &fb[y1 * width];
+        height = y2 - y1 + 1;
+    }
+    if (!check_fadeout_transition() && runlink_module_loaded(5) && func_80054530_ret()) {
+        if (D_801008B4 > 0 && (u32) height >= D_801008B4) {
+            func_80054530_iiiff(fb, width, D_801008B4, 256.0f, func_8005BFC4());
+        }
+        D_801008B4 = height;
+    }
+    func_8006F8E4();
+    if (runlink_module_loaded(2) && !check_fadeout_transition()) {
+        func_80054530();
+    }
+    if (!check_fadeout_transition()) {
+        func_8006E188();
+    } else {
+        func_8006D0D8();
+    }
+}
 
 extern s16 D_800FD794;
 extern s16 D_800FD796;
@@ -445,7 +490,124 @@ void func_80046334(s32 *level, s32 *a, s32 *b) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80046378);
+/* JFG: one character's data in the game state (0x76 bytes) */
+typedef struct CharacterData {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ u16 unk4_hi : 11;
+    /* 0x04 */ u16 unk4_lo : 5;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ u16 weapons; // one bit per weapon
+    /* 0x0C */ s16 unkC[4];
+    /* 0x14 */ s16 unk14[16]; // per weapon
+    /* 0x34 */ s16 unk34[16]; // per weapon
+    /* 0x54 */ u8 unk54[16];  // per weapon
+    /* 0x64 */ s16 unk64;
+    /* 0x66 */ u8 items[8]; // one bit per item, highest bit first
+    /* 0x6E */ u8 pad6E;
+    /* 0x6F */ u8 unk6F;
+    /* 0x70 */ u8 unk70;
+    /* 0x71 */ s8 unk71;
+    /* 0x72 */ u8 pad72[2];
+    /* 0x74 */ u16 unk74_hi : 11;
+    /* 0x74 */ u16 unk74_lo : 5;
+} CharacterData;
+
+typedef struct GameStatsEntry {
+    /* 0x0 */ u8 unk0;
+    /* 0x1 */ u8 unk1;
+    /* 0x2 */ s16 unk2;
+    /* 0x4 */ s32 unk4;
+} GameStatsEntry;
+
+typedef struct GameStats {
+    /* 0x000 */ u8 unk0;
+    /* 0x001 */ u8 unk1;
+    /* 0x002 */ s8 unk2;
+    /* 0x003 */ u8 pad3;
+    /* 0x004 */ u8 unk4;
+    /* 0x005 */ u8 unk5;
+    /* 0x006 */ u8 unk6;
+    /* 0x007 */ u8 pad7;
+    /* 0x008 */ u8 unk8[32];
+    /* 0x028 */ u8 unk28[8];
+    /* 0x030 */ u8 pad30[0x5C - 0x30]; // the game flags start here (see settings_flag_get)
+    /* 0x05C */ u16 unk5C[64];
+    /* 0x0DC */ u16 unkDC[64];
+    /* 0x15C */ CharacterData chars[4];
+    /* 0x334 */ GameStatsEntry unk334[40];
+    /* 0x474 */ u32 shots[16];
+    /* 0x4B4 */ u32 hits[16];
+    /* 0x4F4 */ u16 kills[16];
+    /* 0x514 */ s32 unk514;
+    /* 0x518 */ s32 unk518;
+    /* 0x51C */ u8 pad51C[0x530 - 0x51C];
+    /* 0x530 */ s16 unk530;
+    /* 0x532 */ u8 pad532[2];
+    /* 0x534 */ u8 unk534[4];
+} GameStats;
+
+extern s8 D_800A3294;
+extern s16 gPlayableMapId;
+extern s16 D_800A3240;
+extern s16 D_800A3244;
+extern s16 D_800A3248;
+extern s16 D_800A324C;
+extern s16 D_800A3250;
+extern s16 D_800A3254;
+extern s16 D_800A3258;
+extern s16 D_800A3264;
+extern s16 D_800A3268;
+extern s16 D_800A3270;
+extern s16 D_800A3274;
+extern s16 D_800A3278;
+extern s16 D_800A327C;
+extern s8 D_800A3284;
+extern s8 D_800A3288;
+extern GameStats *gSettingsPtr;
+extern s8 D_800A32A0;
+extern u8 D_800A3304[];
+s32 func_80046550(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4);
+void transition_begin(void *arg0);
+
+/* JFG: once (until D_800A3294 is cleared): pick the next level: a fixed one for some levels, the current
+ * D_800FD7A4 setup (counting D_800A3280 down while it lasts) or the saved one (D_800A3270..7C); then the
+ * character and the module hooks. */
+void level_next_select(void) {
+    if (D_800A3294 == 0) {
+        if (!func_80046550(gPlayableMapId, &D_800A3250, &D_800A3254, &D_800A3258, &D_800A3268)) {
+            if (D_800FD7A4 == 0 || D_800FD7A4 == 0xFF || D_800A3280 > 0) {
+                if (D_800FD7A4 != 0 && D_800FD7A4 != 0xFF) {
+                    D_800A3280--;
+                    D_800A3284 = 1;
+                }
+                D_800A3250 = gPlayableMapId;
+                D_800A3254 = D_800A3248;
+                D_800A3258 = D_800A3244;
+                D_800A3268 = D_800FD7A4;
+            } else {
+                D_800A3250 = D_800A3270;
+                D_800A3254 = D_800A3274;
+                D_800A3258 = D_800A3278;
+                D_800A3268 = D_800A327C;
+                D_800A3288 = 1;
+            }
+        }
+        D_800A3260 = D_800A3240;
+        D_800A3264 = D_800A324C;
+        if (D_800A3288) {
+            if (gSettingsPtr->chars[D_800A3260 & 3].unk4_lo == 1) {
+                gSettingsPtr->chars[D_800A3260 & 3].unk4_lo = 0;
+            }
+        }
+        if (!check_fadeout_transition()) {
+            D_800A32A0 = 0;
+            transition_begin(D_800A3304);
+        }
+        D_800A3294 = 30;
+    }
+}
 
 /* JFG: where some levels send the player (level, two zeros and D_800FD7A4); FALSE for the others. */
 s32 func_80046550(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4) {
@@ -565,51 +727,6 @@ void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
     func_8004665C(level, D_800A3260, 0, arg0, 1, 0);
 }
 
-/* JFG: one character's data in the game state (0x76 bytes) */
-typedef struct CharacterData {
-    /* 0x00 */ s16 unk0;
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ u16 unk4_hi : 11;
-    /* 0x04 */ u16 unk4_lo : 5;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ s16 unk8;
-    /* 0x0A */ u16 weapons; // one bit per weapon
-    /* 0x0C */ s16 unkC[4];
-    /* 0x14 */ s16 unk14[16]; // per weapon
-    /* 0x34 */ s16 unk34[16]; // per weapon
-    /* 0x54 */ u8 unk54[16];  // per weapon
-    /* 0x64 */ u8 pad64[2];
-    /* 0x66 */ u8 items[8]; // one bit per item, highest bit first
-    /* 0x6E */ u8 pad6E;
-    /* 0x6F */ u8 unk6F;
-    /* 0x70 */ u8 unk70;
-    /* 0x71 */ s8 unk71;
-    /* 0x72 */ u8 pad72[2];
-    /* 0x74 */ u16 unk74_hi : 11;
-    /* 0x74 */ u16 unk74_lo : 5;
-} CharacterData;
-
-typedef struct GameStats {
-    /* 0x000 */ u8 unk0;
-    /* 0x001 */ u8 unk1;
-    /* 0x002 */ s8 unk2;
-    /* 0x003 */ u8 pad3;
-    /* 0x004 */ u8 unk4;
-    /* 0x005 */ u8 unk5;
-    /* 0x006 */ u8 unk6;
-    /* 0x007 */ u8 pad7[0x5C - 7];
-    /* 0x05C */ u16 unk5C[64];
-    /* 0x0DC */ u16 unkDC[64];
-    /* 0x15C */ CharacterData chars[4];
-    /* 0x334 */ u8 pad334[0x474 - 0x334];
-    /* 0x474 */ u32 shots[16];
-    /* 0x4B4 */ u32 hits[16];
-    /* 0x4F4 */ u16 kills[16];
-    /* 0x514 */ s32 unk514;
-    /* 0x518 */ s32 unk518;
-    /* 0x51C */ u8 pad51C[0x530 - 0x51C];
-    /* 0x530 */ s16 unk530;
-} GameStats;
 extern GameStats *gSettingsPtr;
 
 void func_80047674(void) {
@@ -617,7 +734,66 @@ void func_80047674(void) {
     gSettingsPtr->unk2 = leveltable_world(gSettingsPtr->unk1);
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800476F0);
+extern s16 D_800A3314[4];
+void func_80047AE0(CharacterData *chr, s32 level);
+void func_80047EFC(s32 arg0, s32 arg1);
+
+/* JFG: clear a game's settings and statistics and reset its characters. */
+void game_settings_reset(GameStats *game) {
+    s32 i;
+    GameStatsEntry *entry;
+
+    game->unk0 = 0;
+    for (i = 0; i < 64; i++) {
+        game->unk5C[i] = 0;
+        game->unkDC[i] = 0;
+    }
+    entry = game->unk334;
+    for (i = 0; i < 40; i++) {
+        entry->unk0 = 0;
+        entry->unk1 = 0;
+        entry->unk4 = 0;
+        entry->unk2 = 0;
+        entry++;
+    }
+    game->unk4 = 0;
+    game->unk5 = 0;
+    game->unk6 = 50;
+    game->unk530 = 0;
+    game->unk514 = 0;
+    game->unk518 = 0;
+    for (i = 0; i < 16; i++) {
+        game->shots[i] = 0;
+        game->hits[i] = 0;
+        game->kills[i] = 0;
+    }
+    i = 0;
+    while (i < 32) {
+        game->unk8[i] = 0;
+        i++;
+    }
+    i = 0;
+    while (i < 8) {
+        game->unk28[i] = 0;
+        i++;
+    }
+    i = 0;
+    while (i < 0x8C) {
+        ((u8 *) game)[0x30 + i] = 0;
+        i++;
+    }
+    func_80047EFC(1, 1);
+    for (i = 0; i < 4; i++) {
+        func_80047AE0(&game->chars[i], D_800A3314[i]);
+    }
+    game->chars[0].unk64 = 0;
+    game->chars[1].unk64 = 0x400;
+    game->chars[2].unk64 = 0;
+    game->unk534[0] = 0;
+    game->unk534[1] = 0;
+    game->unk534[2] = 0;
+    game->unk534[3] = 0;
+}
 
 /* Counts a kill with a weapon in the game statistics (0x80047868). */
 void stats_kill_add(s32 weapon) {
@@ -882,7 +1058,81 @@ s32 game_flag_get(s32 flag) {
     return settings_flag_get(gSettingsPtr, flag);
 }
 
+/* JFG: 0x80 bytes of unlock bits (D_800FF37C and D_800FF391 are its 0x64 and 0x79) */
+typedef struct UnlockBits {
+    /* 0x00 */ u8 pad0[0x64];
+    /* 0x64 */ s32 unk64;
+    /* 0x68 */ u16 unk68;
+    /* 0x6A */ u8 unk6A;
+    /* 0x6B */ u8 unk6B;
+    /* 0x6C */ u8 pad6C[0x79 - 0x6C];
+    /* 0x79 */ u8 unk79;
+    /* 0x7A */ u8 pad7A[6];
+} UnlockBits;
+extern UnlockBits D_800FF318;
+extern s32 D_800FF37C;
+void mark_write_eeprom_settings(void);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the two word loops get other registers (target: src $v1, dst $a0, count $v0) and some
+   temporaries are renumbered; the frame needs a fourth word above copy (pad) */
+/* JFG: set or clear one of the game's 0x480 flags (0x5A and 0x5B are always set while D_800A331C is 0); setting
+ * one also sets the unlock bits it stands for, and mark_write_eeprom_settings runs if any of them changed. */
+void func_80047EFC(s32 flag, s32 set) {
+    s32 *src;
+    s32 *dst;
+    s32 i;
+    UNUSED s32 pad;
+    s32 copy[32];
+
+    if ((flag == 0x5B || flag == 0x5A) && D_800A331C == 0) {
+        set = TRUE;
+    }
+    if (flag >= 0 && flag < 0x480) {
+        if (set) {
+            ((u8 *) gSettingsPtr)[(flag >> 3) + 0x30] |= 1 << (flag & 7);
+        } else {
+            ((u8 *) gSettingsPtr)[(flag >> 3) + 0x30] &= ~(1 << (flag & 7));
+        }
+        if (set) {
+            src = (s32 *) &D_800FF318;
+            dst = copy;
+            i = 32;
+            while (i--) {
+                *dst++ = *src++;
+            }
+            src = (s32 *) &D_800FF318;
+            if (flag >= 0 && flag < 20) {
+                if (flag < 4) {
+                    D_800FF391 = D_800FF318.unk79 | (1 << flag);
+                }
+                D_800FF37C = D_800FF318.unk64 | (1 << flag);
+            } else if (flag >= 0x42 && flag < 0x47) {
+                D_800FF318.unk6A |= 1 << (flag + 30);
+            } else if (flag >= 0x49 && flag < 0x4D) {
+                D_800FF318.unk6B |= 1 << (flag + 23);
+            } else if (flag >= 0x52 && flag < 0x58) {
+                D_800FF318.unk68 |= 1 << (flag + 14);
+            } else if (flag == 0x5F) {
+                D_800FF318.unk79 |= 0x40;
+                D_800FF318.unk64 |= 0x70;
+            } else if (flag == 0x5D) {
+                D_800FF318.unk79 |= 0x80;
+            }
+            dst = copy;
+            i = 32;
+            while (i--) {
+                if (*src++ != *dst++) {
+                    mark_write_eeprom_settings();
+                    return;
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80047EFC);
+#endif
 
 typedef struct LevelHeader {
     /* 0x000 */ u8 pad0[0x103];

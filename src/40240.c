@@ -286,7 +286,69 @@ void func_8003FC60(s32 index, s32 value) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC80);
+extern s32 gViewportWithBG;
+extern Vp gViewportStack[];
+
+/**
+ * Takes the size of each view frame and writes them to the viewport stack, using values compatable with the RSP.
+ * Only does this if extended backgrounds are enabled.
+ * JFG: no mirror cheat.
+ * DKR: copy_viewports_to_stack
+ */
+void copy_viewports_to_stack(void) {
+    s32 width;
+    s32 height;
+    s32 port;
+    s32 yPos;
+    s32 xPos;
+    s32 i;
+
+    gViewportWithBG = 1 - gViewportWithBG;
+    for (i = 0; i < 4; i++) {
+        if (gScreenViewports[i].flags & VIEWPORT_UNK_04) {
+            gScreenViewports[i].flags &= ~VIEWPORT_EXTRA_BG;
+        } else if (gScreenViewports[i].flags & VIEWPORT_UNK_02) {
+            gScreenViewports[i].flags |= VIEWPORT_EXTRA_BG;
+        }
+        gScreenViewports[i].flags &= ~(VIEWPORT_UNK_02 | VIEWPORT_UNK_04);
+
+        if (gScreenViewports[i].flags & VIEWPORT_EXTRA_BG) {
+            if (!(gScreenViewports[i].flags & VIEWPORT_X_CUSTOM)) {
+                xPos = (((gScreenViewports[i].x2 - gScreenViewports[i].x1) + 1) << 1) + (gScreenViewports[i].x1 * 4);
+            } else {
+                xPos = gScreenViewports[i].posX;
+                xPos *= 4;
+            }
+            if (!(gScreenViewports[i].flags & VIEWPORT_Y_CUSTOM)) {
+                yPos = (((gScreenViewports[i].y2 - gScreenViewports[i].y1 + 1)) << 1) + (gScreenViewports[i].y1 * 4);
+            } else {
+                yPos = gScreenViewports[i].posY;
+                yPos *= 4;
+            }
+            if (!(gScreenViewports[i].flags & VIEWPORT_WIDTH_CUSTOM)) {
+                width = gScreenViewports[i].x2 - gScreenViewports[i].x1;
+                width += 1;
+                width *= 2;
+            } else {
+                width = gScreenViewports[i].width;
+                width *= 2;
+            }
+            if (!(gScreenViewports[i].flags & VIEWPORT_HEIGHT_CUSTOM)) {
+                height = (gScreenViewports[i].y2 - gScreenViewports[i].y1) + 1;
+                height *= 2;
+            } else {
+                height = gScreenViewports[i].height;
+                height *= 2;
+            }
+            port = i;
+            port += gViewportWithBG * 5 + 10;
+            gViewportStack[port].vp.vtrans[0] = xPos;
+            gViewportStack[port].vp.vtrans[1] = yPos;
+            gViewportStack[port].vp.vscale[0] = width;
+            gViewportStack[port].vp.vscale[1] = height;
+        }
+    }
+}
 
 void camEnableUserView(s32 viewPortIndex, s32 arg1) {
     if (arg1) {

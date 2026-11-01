@@ -68,12 +68,14 @@ void func_8004B0B8(s32 on) {
 /* JFG: a rumble pak's state (10 bytes per player) */
 typedef struct RumbleData {
     /* 0x00 */ u16 state : 4;
-    /* 0x00 */ u16 unk0 : 4;
+    /* 0x00 */ u16 unk3 : 1;
+    /* 0x00 */ u16 unk2 : 1; // set when a rumble pak was found
+    /* 0x00 */ u16 unk0 : 2;
     /* 0x01 */ u16 unk1 : 8;
     /* 0x02 */ s16 strength;
     /* 0x04 */ s16 strength2;
     /* 0x06 */ s16 time;
-    /* 0x08 */ u8 pad8[2];
+    /* 0x08 */ s16 unk8;
 } RumbleData;
 extern RumbleData gRumble[];
 u8 input_player_id(s32 player);
@@ -467,7 +469,61 @@ s32 start_reading_controller_data(UNUSED s32 controllerIndex) {
     return 0;
 }
 
+OSMesgQueue *si_mesg(void);
+void save_flash_init(void);
+extern u8 D_800A3448; // JFG: controllers with a usable controller pak (one bit each)
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target keeps the loop bound 4 in a register and computes &pfs[i] with shifts; mine keeps
+   sizeof(OSPfs) in a register (multu) and compares with 4 each time, which shifts the saved registers */
+/* JFG: reset the rumble states, then find each controller's controller pak or rumble pak. */
+void func_8004C2BC(void) {
+    RumbleData *rumble;
+    s32 i;
+    u8 bit;
+    u8 pattern;
+    s32 ret;
+
+    sControllerMesgQueue = si_mesg();
+    rumble = gRumble;
+    i = 4;
+    while (i--) {
+        rumble->state = 0;
+        rumble->unk2 = 0;
+        rumble->unk3 = 0;
+        rumble->unk1 = 0;
+        rumble->strength = 0;
+        rumble->time = 0;
+        rumble->unk8 = 0;
+        rumble++;
+    }
+    gRumblePresent = 0;
+    D_800A3448 = 0;
+    osPfsIsPlug(sControllerMesgQueue, &pattern);
+    bit = 1;
+    for (i = 0; i < 4; i++) {
+        if (pattern & bit) {
+            ret = osPfsInit(sControllerMesgQueue, &pfs[i], i);
+            if (ret == PFS_ERR_NEW_PACK) {
+                ret = osPfsInit(sControllerMesgQueue, &pfs[i], i);
+            }
+            if (ret == 0) {
+                D_800A3448 |= bit;
+            } else if (ret == PFS_ERR_ID_FATAL) {
+                if (osMotorInit(sControllerMesgQueue, &pfs[i], i) == 0) {
+                    gRumblePresent |= bit;
+                    gRumble[i].unk2 = 1;
+                }
+            }
+        }
+        bit <<= 1;
+    }
+    osContStartReadData(sControllerMesgQueue);
+    save_flash_init();
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004C2BC);
+#endif
 
 SIDeviceStatus check_for_rumble_pak(s32 controllerIndex) {
     s32 ret;

@@ -33,15 +33,50 @@ typedef struct Object_Animator {
     /* 0x0A */ s16 ySpeed;
 } Object_Animator;
 
+/* DKR TexCoords / Triangle (JFG: 0x10 bytes) */
+typedef struct LevelTexCoords {
+    /* 0x00 */ s16 u;
+    /* 0x02 */ s16 v;
+} LevelTexCoords;
+
+typedef struct LevelTriangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 pad1[3];
+    /* 0x04 */ LevelTexCoords uv0;
+    /* 0x08 */ LevelTexCoords uv1;
+    /* 0x0C */ LevelTexCoords uv2;
+} LevelTriangle;
+
+/* DKR TriangleBatchInfo (JFG: 0x10 bytes) */
+typedef struct LevelBatchInfo {
+    /* 0x00 */ u8 textureIndex;
+    /* 0x01 */ u8 pad1[7];
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u8 padA[6];
+} LevelBatchInfo;
+
+typedef struct LevelTextureHeader {
+    /* 0x00 */ u8 width;
+} LevelTextureHeader;
+
+typedef struct LevelTextureInfo {
+    /* 0x00 */ LevelTextureHeader *texture;
+    /* 0x04 */ s32 unk4;
+} LevelTextureInfo;
+
 /* Size: 0x48 bytes */
 typedef struct LevelModelSegment {
-    /* 0x00 */ u8 pad0[0x28];
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ LevelTriangle *triangles;
+    /* 0x08 */ u8 pad8[4];
+    /* 0x0C */ LevelBatchInfo *batches;
+    /* 0x10 */ u8 pad10[0x28 - 0x10];
     /* 0x28 */ s16 numberOfBatches;
     /* 0x2A */ u8 pad2A[0x48 - 0x2A];
 } LevelModelSegment;
 
 typedef struct LevelModel {
-    /* 0x00 */ s32 unk0;
+    /* 0x00 */ LevelTextureInfo *textures;
     /* 0x04 */ LevelModelSegment *segments;
 } LevelModel;
 
@@ -194,15 +229,160 @@ void obj_init_animator(Object *obj, LevelObjectEntry_Animator *entry, s32 param)
     obj_loop_animator(obj, 0x20000);
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800253F0);
+/**
+ * Object animator loop function.
+ * Scrolls the texture coordinates of a batch of the level model's triangles.
+ * DKR obj_loop_animator (object_functions.c).
+ */
+void obj_loop_animator(Object *obj, s32 updateRate) {
+    s32 pad[2];
+    Object_Animator *animator;
+    LevelModel *levelModel;
+    s32 trisStart;
+    s32 trisEnd;
+    s32 textureIndex;
+    s32 tri;
+    s32 shift; // a1
+    s32 t0;
+    s32 t1;
+    LevelTriangle *curTriangle;
+    LevelBatchInfo *curBatch;
+    LevelModelSegment *curBlock;
+    s32 shift2;
+    LevelTextureHeader *tex;
+
+    animator = obj->animator;
+
+    t0 = animator->speedFactorX;
+    t1 = animator->speedFactorY;
+
+    t0 *= updateRate;
+    t1 *= updateRate;
+
+    t0 <<= 4;
+    t1 <<= 4;
+
+    animator->xSpeed += t0;
+    animator->ySpeed += t1;
+
+    trisStart = animator->xSpeed;
+    t0 = trisStart;
+    trisEnd = animator->ySpeed;
+    t1 = trisEnd;
+
+    animator->xSpeed &= 0xF;
+    animator->ySpeed &= 0xF;
+
+    t0 >>= 4;
+    t1 >>= 4;
+
+    if (animator->segmentId == -1) {
+        return;
+    }
+
+    levelModel = get_current_level_model();
+    curBlock = &levelModel->segments[animator->segmentId];
+    curBatch = &curBlock->batches[animator->batchId];
+    textureIndex = curBatch->textureIndex;
+    trisStart = curBatch->facesOffset;
+    trisEnd = (curBatch + 1)->facesOffset;
+
+    if (textureIndex != 0xFF) {
+        if (!curBatch) {} // Fake
+        tex = levelModel->textures[textureIndex].texture;
+        shift2 = tex->width << 7;
+        shift = tex->width << 7;
+        for (tri = trisStart; tri < trisEnd; tri++) {
+            curTriangle = &curBlock->triangles[tri];
+            if (!(curTriangle->flags & 0x80)) {
+                if ((shift << 1) < curTriangle->uv0.v) {
+                    curTriangle->uv0.v -= shift;
+                    curTriangle->uv1.v -= shift;
+                    curTriangle->uv2.v -= shift;
+                }
+                if (curTriangle->uv0.v < 0) {
+                    curTriangle->uv0.v += shift;
+                    curTriangle->uv1.v += shift;
+                    curTriangle->uv2.v += shift;
+                }
+                if ((shift2 << 1) < curTriangle->uv0.u) {
+                    curTriangle->uv0.u -= shift2;
+                    curTriangle->uv1.u -= shift2;
+                    curTriangle->uv2.u -= shift2;
+                }
+                if (curTriangle->uv0.u < 0) {
+                    curTriangle->uv0.u += shift2;
+                    curTriangle->uv1.u += shift2;
+                    curTriangle->uv2.u += shift2;
+                }
+                curTriangle->uv0.v += t1;
+                curTriangle->uv1.v += t1;
+                curTriangle->uv2.v += t1;
+                curTriangle->uv0.u += t0;
+                curTriangle->uv1.u += t0;
+                curTriangle->uv2.u += t0;
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_8002561C);
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80025A08);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_8002662C);
+u8 **objGetObjList(s32 *start, s32 *end);
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80026824);
+/* JFG: for each object 7 of group `id`: count its 0x4A down; when it reaches 0, replace flag 8 of its 0x3E with
+ * `flag`. */
+void obj_group_countdown(s32 id, u16 flag) {
+    u8 *obj;
+    u8 *state;
+    s32 i;
+    s32 start;
+    s32 end;
+    u8 **list;
+
+    list = objGetObjList(&start, &end);
+    for (i = start; i < end; i++) {
+        obj = list[i];
+        if (*(s16 *) (obj + 0x48) == 7) {
+            state = *(u8 **) (obj + 0x68);
+            if (state[0x44] == id) {
+                if (state[0x4A] > 0) {
+                    state[0x4A]--;
+                }
+                if (state[0x4A] == 0) {
+                    *(u16 *) (state + 0x3E) &= ~8;
+                    *(u16 *) (state + 0x3E) |= flag;
+                }
+            }
+        }
+    }
+}
+
+/* JFG: the first object 7 of group `id` gets `flag` set in its 0x3E and its 0x4A counted up; FALSE if none. */
+s32 obj_group_flag_first(s32 id, u16 flag) {
+    u8 *obj;
+    u8 *state;
+    s32 i;
+    s32 start;
+    s32 end;
+    u8 **list;
+
+    list = objGetObjList(&start, &end);
+    for (i = start; i < end; i++) {
+        obj = list[i];
+        if (*(s16 *) (obj + 0x48) == 7) {
+            state = *(u8 **) (obj + 0x68);
+            if (state[0x44] == id) {
+                *(u16 *) (state + 0x3E) |= flag;
+                state[0x4A]++;
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026A50);
 
@@ -468,7 +648,82 @@ void func_800275CC(Object *obj, u8 *entry) {
     state[1] = entry[0xB];
 }
 
+void *mempool_alloc(s32 size, u32 colourTag);
+s32 func_8003E638(void *out, Object *obj, u8 *target, s32 arg3, s32 arg4, s32 lo, s32 hi);
+s32 rand_range(s32 min, s32 max);
+s32 func_80050ED0(s32 objectID);
+
+/* JFG: an object 0x10 bytes batch of a model (see LevelBatchInfo) */
+typedef struct ModelBatch275 {
+    /* 0x00 */ u8 pad0;
+    /* 0x01 */ s8 unk1;
+    /* 0x02 */ u8 pad2[6];
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ s32 flags;
+} ModelBatch275;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation: the target copies obj/entry to $s2/$s0 first and keeps entry->0xC in $a1,
+   the model in $a3, the batch count in $a0 and the total in $a2 (mine: $t0, $t1, $a2, $a3) */
+/* JFG: init: break the target object's model batches lo..hi (entry 0x10/0x11) off as pieces flying off
+ * at random; freed when it has no such triangles or the buffers can not be had. */
+void func_800275E8(Object *obj, u8 *entry) {
+    u8 *state;
+    s32 total;
+
+    {
+        u8 *target;
+        u8 *model;
+        s32 n;
+        ModelBatch275 *batch;
+
+        target = *(u8 **) (entry + 0xC);
+        model = **(u8 ***) (*(u8 ***) (target + 0x6C) + *(s8 *) (target + 0x3A));
+        state = *(u8 **) &obj->animator;
+        n = *(s16 *) (model + 0x16);
+        batch = *(ModelBatch275 **) (model + 0x24);
+        **(u8 **) ((u8 *) obj + 0x7C) &= ~2;
+        *(s32 *) (state + 4) = 0;
+        *(s32 *) (state + 8) = 0;
+        *(s32 *) (state + 0xC) = 0;
+        *(s32 *) (state + 0x10) = 0;
+        *(u8 **) state = *(u8 **) (entry + 0xC);
+        state[0x17] = entry[0x12];
+        *(s16 *) (state + 0x14) = 0x3B6;
+        total = 0;
+        while (n--) {
+            if (batch->unk1 >= entry[0x10] && batch->unk1 <= entry[0x11] && !(batch->flags & 0x400)) {
+                total += (batch + 1)->facesOffset - batch->facesOffset;
+            }
+            batch++;
+        }
+    }
+    if (total != 0 && (*(void **) (state + 4) = mempool_alloc(total * 26, 0xFF0000FF)) != NULL &&
+        (*(void **) (state + 8) = mempool_alloc(total * 16, 0xFF0000FF)) != NULL) {
+        func_8003E638(state + 0xC, obj, *(u8 **) state, 2, 0, entry[0x10], entry[0x11]);
+        func_8003E638(state + 0x10, obj, *(u8 **) state, 6, 0, entry[0x10], entry[0x11]);
+        if (*(s32 *) (state + 0x10) != 0) {
+            obj->level_entry = NULL;
+            obj->x_velocity = rand_range(-5, 5);
+            obj->y_velocity = rand_range(-5, 5);
+            obj->z_velocity = rand_range(-5, 5);
+            *(s16 *) (state + 0x18) = rand_range(-5000, 5000);
+            *(s16 *) (state + 0x1A) = rand_range(-5000, 5000);
+            *(s16 *) (state + 0x1C) = rand_range(-5000, 5000);
+            if (func_80050ED0(*(s16 *) (*(u8 **) state + 0x4A))) {
+                state[0x1E] = 0;
+            } else {
+                state[0x1E] = 1;
+            }
+            return;
+        }
+    }
+    free_object(obj);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800275E8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80027844);
 

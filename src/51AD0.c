@@ -436,7 +436,7 @@ typedef struct TroopEntry {
 void func_800118F4(s32 *a, s32 *b, s32 index);
 LeaderObject **objGetObjList(s32 *arg0, s32 *cnt);
 s32 objflags_reserve_ids(u8 arg0);
-void func_80026824(u8 arg0, s32 arg1);
+void obj_group_flag_first(u8 arg0, s32 arg1);
 s16 func_80005EC0(s32 type);
 
 #ifdef NON_MATCHING
@@ -465,7 +465,7 @@ void func_80051CCC(void) {
             if (state->unk2C != 0x2CE) {
                 state->unk8C = state->unk88 = objflags_reserve_ids(state->unk1);
                 if (state->unk75) {
-                    func_80026824(state->unk75, 0x20);
+                    obj_group_flag_first(state->unk75, 0x20);
                 }
                 for (j = 0; j < 2; j++) {
                     entry = lists[j];

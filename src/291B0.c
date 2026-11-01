@@ -432,6 +432,84 @@ f32 sphere_distance_min(f32 *pos, SphereObject *obj, f32 maxDist) {
     return maxDist;
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AA7C);
+/* JFG: a hit part of an object (0x34 bytes; HitSphere viewed for damage) */
+typedef struct HitPart {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ s16 damage;
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 percent;
+    /* 0x30 */ u32 unk31 : 1;
+    /* 0x30 */ u32 unk30 : 1;
+    /* 0x30 */ u32 unk29 : 1;
+    /* 0x30 */ u32 unk0 : 29;
+} HitPart;
+
+typedef struct DamageObject {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 health;
+    /* 0x08 */ u32 unk31 : 1;
+    /* 0x08 */ u32 unk30 : 1;
+    /* 0x08 */ u32 unk0 : 30;
+    /* 0x0C */ u8 padC[0x2C - 0xC];
+    /* 0x2C */ s16 damage;
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 percent;
+    /* 0x30 */ u8 pad30;
+    /* 0x31 */ s8 lastPart;
+    /* 0x32 */ s16 numParts;
+    /* 0x34 */ u8 pad34[0xC];
+    /* 0x40 */ HitPart *parts;
+} DamageObject;
+
+/* JFG: applies damage to the object, or shared out over its hit parts (scaled by each one's percent);
+ * returns the damage dealt. */
+s32 obj_apply_damage(DamageObject *obj, s32 damage) {
+    s32 total;
+    s32 n;
+    s32 share;
+    s32 dealt;
+    HitPart *part;
+
+    if (damage <= 0) {
+        return 0;
+    }
+    total = 0;
+    if (obj->numParts == 0) {
+        if (!obj->unk30) {
+            if (obj->percent != 100) {
+                damage = (obj->percent * damage * 164) >> 14;
+            }
+            total = damage;
+            obj->damage += damage;
+            obj->health -= damage;
+        }
+    } else {
+        part = obj->parts;
+        share = damage / obj->numParts;
+        n = obj->numParts;
+        while (n--) {
+            if (n == 0) {
+                share = damage;
+            }
+            if (!part->unk29 && !part->unk30) {
+                dealt = share;
+                if (part->percent != 100) {
+                    dealt = (part->percent * share * 164) >> 14;
+                }
+                total += dealt;
+                obj->lastPart = part - obj->parts;
+                damage -= share;
+                part->damage += dealt;
+                obj->health -= dealt;
+            }
+            part++;
+        }
+        if (total != 0) {
+            obj->health -= damage;
+            total += damage;
+        }
+    }
+    return total;
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AC3C);
