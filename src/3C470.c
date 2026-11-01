@@ -283,14 +283,15 @@ s8 *asset_cache_get(s16 id);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *func_8003CF24(s32 index);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: saved registers: the target keeps &D_800F6F2C in $s0 and id in $s1 (mine the other way round)
+   and reloads/re-spills the offset around each call */
 /* JFG: load model `id`'s asset list (tables 0x28/0x29) into the model: its 0x58 block, the ids (0x5C) and, unless
  * 0x64 is set, the cached assets (0x50); returns 1 when something could not be had (all freed again). */
-#ifdef NON_MATCHING
-/* NON_MATCHING: work in progress */
 s32 func_8003CB04(Model3C7 *model, s32 id) {
+    s32 offset;
     s32 start;
     s32 end;
-    s32 offset;
     s32 size;
     s32 i;
     s32 j;
@@ -322,7 +323,7 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
         }
         i = 0;
         do {
-            model->assets[i] = asset_cache_get(((s16 *) D_800F6F28)[offset + i]);
+            model->assets[i] = asset_cache_get(((s16 *) D_800F6F28)[offset]);
             if (model->assets[i] == NULL) {
                 for (j = 0; j < i; j++) {
                     func_8003D150(model->assets[j]);
@@ -333,13 +334,15 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
                 model->assets = NULL;
                 return 1;
             }
-            ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset + i];
+            ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset];
+            offset++;
             i++;
         } while (i < model->numAssets);
         return 0;
     }
     for (i = 0; i < model->numAssets; i++) {
-        ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset + i];
+        ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset];
+        offset++;
     }
     return 0;
 }
@@ -521,7 +524,93 @@ void func_8003E35C(void) {
     }
 }
 
+/* JFG: a 0x10 byte batch of a model, with the three slot ids it uses */
+typedef struct Batch3E {
+    /* 0x00 */ u8 pad0;
+    /* 0x01 */ s8 ids[3];
+    /* 0x04 */ u8 pad4[0xC];
+} Batch3E;
+
+typedef struct BatchModel3E {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 numBatches;
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x24 */ Batch3E *batches;
+} BatchModel3E;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code, other registers: the target keeps each slot id in $a1 (copied from $v0) and the
+   loop counters/pointers in $v1/$t0/$t1, mine shifts them all by one */
+/* JFG: the three cached slots (D_800F6F48: id, D_800F6F4C: batches until it is used again): count each down and
+ * re-measure; then give each of the three ids a slot (one it has, a free one or the one needed latest that none
+ * of them uses), loading a newly given one with a command (base + id * 0x40). */
+void func_8003E398(Gfx **dList, s8 *ids, s8 *slots, BatchModel3E *model, s32 batchIndex, s32 base) {
+    s32 i;
+    s32 j;
+    s32 best;
+    s32 bestCount;
+    s8 *slot;
+    s8 *id;
+    Gfx *gfx;
+
+    for (i = 0; i < 3; i++) {
+        if (D_800F6F48[i] != -1) {
+            D_800F6F4C[i]--;
+            if (D_800F6F4C[i] <= 0) {
+                D_800F6F4C[i] = 1;
+                for (j = batchIndex + 1; j < model->numBatches; j++) {
+                    if (model->batches[j].ids[0] == D_800F6F48[i] || model->batches[j].ids[1] == D_800F6F48[i] ||
+                        model->batches[j].ids[2] == D_800F6F48[i]) {
+                        j = model->numBatches;
+                    } else {
+                        D_800F6F4C[i]++;
+                    }
+                }
+            }
+        }
+    }
+    slot = slots;
+    id = ids;
+    for (j = 0; j < 3; j++, slot++, id++) {
+        *slot = -1;
+        if (*id == -1) {
+            continue;
+        }
+        for (i = 0; i < 3; i++) {
+            if (D_800F6F48[i] == *id) {
+                *slot = i + 1;
+            }
+        }
+        if (*slot != -1) {
+            continue;
+        }
+        best = -1;
+        for (i = 0; i < 3 && best == -1; i++) {
+            if (D_800F6F48[i] == -1) {
+                best = i;
+            }
+        }
+        if (best == -1) {
+            bestCount = 0;
+            for (i = 0; i < 3; i++) {
+                if (D_800F6F48[i] != ids[0] && D_800F6F48[i] != ids[1] && D_800F6F48[i] != ids[2] &&
+                    bestCount < D_800F6F4C[i]) {
+                    bestCount = D_800F6F4C[i];
+                    best = i;
+                }
+            }
+        }
+        D_800F6F48[best] = *id;
+        D_800F6F4C[best] = 0;
+        *slot = best + 1;
+        gfx = (*dList)++;
+        gfx->words.w0 = (((*slot | 0x80) & 0xFF) << 16) | 0x1000040;
+        gfx->words.w1 = ((*id << 6) + base) & 0x0FFFFFFF;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E398);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E638);
 
