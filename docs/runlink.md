@@ -329,6 +329,25 @@ for its siblings. (Kinds are named here from what the code does.)
 Identical pairs found by comparing the code: 50/52, 71/98, 111/133 (and 74/103
 have the same function sizes but different code).
 
+How far each kind is in C (`tools/progress.py --modules`; a module counts as
+all C when every function is, so modules whose C is only a NON_MATCHING body,
+such as m015, m091 and m149, count as assembly here):
+
+| kind | modules all C | functions in C |
+| --- | --- | --- |
+| switches and targets | 3 of 3 | 11/11 |
+| pickups | 4 of 5 | 15/16 |
+| enemy behaviours | 10 of 18 | 38/284 |
+| bosses | 3 of 3 | 28/28 |
+| weapons (character control) | 0 of 3 | 3/78 |
+| menus and screens | 4 of 14 | 28/136 |
+| effect libraries | 2 of 4 | 19/26 |
+| fog and lighting | 1 of 2 | 10/11 |
+| copy-protection checks | 7 of 7 | 9/9 |
+| other object behaviours | 44 of 98 | 190/684 |
+
+(Modules 21 and 56 are empty: their C files are empty too.)
+
 ## Not covered yet
 
 - The main imports table (0x1ECF220) and the symbol and name tables are still
