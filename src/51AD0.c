@@ -191,7 +191,7 @@ void troop_leader_spawn(s32 id) {
 extern s32 D_800FE9A0;
 extern s32 *D_800FE9AC;
 
-void func_8005131C(s32 arg0) {
+void troop_buffer_push(s32 arg0) {
     D_800FE9AC[D_800FE9A0] = arg0;
     D_800FE9A0++;
 }
@@ -199,7 +199,7 @@ void func_8005131C(s32 arg0) {
 extern TroopObject **D_800FE9A4;
 extern s32 D_800FE9A8;
 
-void func_80051350(TroopObject *obj) {
+void troop_ring_add(TroopObject *obj) {
     D_800FE9A4[D_800FE9A8] = obj;
     if (++D_800FE9A8 >= D_800FE9A0) {
         D_800FE9A8 = 0;
@@ -207,7 +207,7 @@ void func_80051350(TroopObject *obj) {
 }
 
 /* JFG: take the object with byte 0x11 == id out of the ring list. */
-TroopObject *func_800513A0(s32 id) {
+TroopObject *troop_ring_take(s32 id) {
     s32 count = D_800FE9A0;
     TroopObject **list = D_800FE9A4;
     TroopObject *obj;
@@ -230,11 +230,11 @@ TroopObject *func_800513A0(s32 id) {
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 rand_range(s32 min, s32 max);
-extern s32 D_800FE9B0; // JFG: set to 1 by func_80051420
+extern s32 D_800FE9B0; // JFG: set to 1 by troop_lists_init
 extern s32 D_800FE9F4; // JFG: a random frame count, 240 to 360
 
-/* JFG: allocate the 0x400-byte buffer func_8005131C fills (D_800FE9AC) and empty the leader and ring lists. */
-void func_80051420(void) {
+/* JFG: allocate the 0x400-byte buffer troop_buffer_push fills (D_800FE9AC) and empty the leader and ring lists. */
+void troop_lists_init(void) {
     D_800FE9AC = (s32 *) mempool_alloc_safe(0x400, 0xFFFF00FF);
     D_800FE9B0 = 1;
     D_800FE9A4 = NULL;
@@ -244,7 +244,7 @@ void func_80051420(void) {
 }
 
 /* JFG: the last active object whose state byte 0x64 is id. */
-TroopObject *func_80051484(s16 id) {
+TroopObject *troop_find_by_tag(s16 id) {
     s32 i = D_800FE9F0;
     TroopObject *obj;
 
@@ -259,7 +259,7 @@ TroopObject *func_80051484(s16 id) {
 
 
 /* JFG: the leader with id troopId, then the active follower on its list whose byte 0x15 is memberId. */
-TroopObject *func_80051508(s16 troopId, s16 memberId) {
+TroopObject *troop_find_member(s16 troopId, s16 memberId) {
     s32 i = D_800FE9F0;
     TroopObject *obj;
     LeaderState *leader;
@@ -283,7 +283,7 @@ TroopObject *func_80051508(s16 troopId, s16 memberId) {
 }
 
 /* JFG: in every leader's followers, zero state word 0x64 where it equals id. */
-void func_800515D0(s32 id) {
+void troop_members_clear_tag(s32 id) {
     s32 i = D_800FE9F0;
     TroopObject *obj;
     LeaderState *leader;
@@ -303,7 +303,7 @@ void func_800515D0(s32 id) {
 }
 
 /* JFG: zero state word 0xA8 of the first follower (of any leader) where it equals id. */
-void func_80051660(s32 id) {
+void troop_member_clear_link(s32 id) {
     s32 i = D_800FE9F0;
     TroopObject *obj;
     LeaderState *leader;
@@ -502,7 +502,7 @@ extern s32 D_800FEA04;
 s32 func_80052CFC(); // JFG: load a runlink module (also applies relocations: four arguments)
 
 /* JFG: keep a list of records (s16 id, u8 length); start event 3 if one has id 0x61, 5 or 0x4F. */
-void func_8005269C(u8 *data, s32 size) {
+void level_records_scan(u8 *data, s32 size) {
     s32 offset;
     u8 *rec;
 
@@ -522,14 +522,14 @@ s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loade
 void func_80054530();          // a module function (patched in by the runtime linker)
 
 /* JFG: forward a position and three bytes to module 3 (the enemy code), if it is loaded. */
-void func_80052734(s32 a0, s16 a1, s16 a2, s16 a3, u8 a4, u8 a5, u8 a6) {
+void enemy_module_notify(s32 a0, s16 a1, s16 a2, s16 a3, u8 a4, u8 a5, u8 a6) {
     if (runlink_module_loaded(3)) {
         func_80054530(a0, a1, a2, a3, a4, a5, a6);
     }
 }
 
 /* JFG: keep two objects and their word at 0x68 (zero for none). */
-void func_80052798(SpawnedObject *a, u8 *b) {
+void troop_spawn_context_set(SpawnedObject *a, u8 *b) {
     if ((D_800FEA08 = a) != NULL) {
         D_800FEA0C = a->state;
     } else {
@@ -743,7 +743,7 @@ s32 runlink_module_loaded(s32 index) {
 }
 
 /* JFG: run a module's entry point, first loading it if it is in a slot. */
-void func_8005338C(s32 module) {
+void runlink_module_run(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
     s32 i;
@@ -787,7 +787,7 @@ void func_8005372C(s32 module) {
     u32 addr;
     s32 type;
 
-    func_8005338C(module);
+    runlink_module_run(module);
     found = FALSE;
     if (entry->unk0 == 0) {
         slot = D_800FEAD8;
@@ -938,7 +938,7 @@ void runlink_unload_timers_update(void) {
 }
 
 /* JFG: unload the modules with a running timer and no other count right now. */
-void func_800542C4(void) {
+void runlink_unload_idle(void) {
     s32 i = gNumRunlinkModules;
     UnloadTimer *t;
 

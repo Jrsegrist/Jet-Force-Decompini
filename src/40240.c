@@ -577,7 +577,74 @@ void mtx_view_persp_get(s32 arg0, MtxF *out) {
     func_80048C7C(&gViewMatrixF, &gPerspectiveMatrixF, out);
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80040AA4);
+/* JFG: what a billboard sprite is drawn from (an object's transform and more) */
+typedef struct BillboardTrans {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ s32 frame;
+} BillboardTrans;
+
+extern BillboardTrans D_800FA638; // DKR: gCameraTransform
+extern u8 gCamZoomSet[];           // JFG: per camera, set to force the FoV to be applied again
+extern s32 gNoCamShake;            // DKR: gNoCamShake (JFG: the shake moves all three axes)
+extern MtxF gViewProjMatrixF;
+extern u16 perspNorm;
+extern Mtx D_800FAF38; // DKR: gInverseViewMatrix
+void func_8004A1A0(s16 *trans, MtxF *out); // DKR: mtxf_from_inverse_transform
+void func_80049F08(s16 *trans, MtxF *out); // DKR: mtxf_from_transform
+void func_80048D84(MtxF *in, Mtx *out);
+
+/**
+ * Sets the view and projection matrices for the active camera.
+ * JFG: applies the camera's FoV first if it changed, the view matrix is always built, the display list part is
+ * skipped without a list, and the shake offsets all three axes.
+ * DKR: func_80067D3C (Official Name: camGetPlayerProjMtx / camSetProjMtx - ??)
+ */
+void func_80040AA4(Gfx **dList, Mtx **mtx) {
+    Camera *cam = &gCameras[D_800FA634];
+
+    if (gCurCamFOV != cam->fov || gCamZoomSet[D_800FA634]) {
+        cam_set_fov(cam->fov, 0);
+    }
+    if (dList != NULL) {
+        gImmp1((*dList)++, G_RDPHALF_1, perspNorm);
+    }
+    D_800FA638.rotation[0] = cam->y_rotation + 0x8000;
+    D_800FA638.rotation[1] = cam->x_rotation + cam->unk4A;
+    D_800FA638.rotation[2] = cam->z_rotation;
+    D_800FA638.x = -cam->x_position;
+    D_800FA638.y = -cam->y_position;
+    D_800FA638.z = -cam->z_position;
+    if (gNoCamShake) {
+        D_800FA638.x -= cam->shakeX;
+        D_800FA638.y -= cam->shakeY;
+        D_800FA638.z -= cam->shakeZ;
+    }
+    func_8004A1A0(D_800FA638.rotation, &gViewMatrixF);
+    func_80048C7C(&gViewMatrixF, &gPerspectiveMatrixF, &gViewProjMatrixF);
+    if (dList != NULL) {
+        func_80048D84(&gViewProjMatrixF, *mtx);
+        gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+    }
+    D_800FA638.rotation[0] = -0x8000 - cam->y_rotation;
+    D_800FA638.rotation[1] = -(cam->x_rotation + cam->unk4A);
+    D_800FA638.rotation[2] = -cam->z_rotation;
+    D_800FA638.x = cam->x_position;
+    D_800FA638.y = cam->y_position;
+    D_800FA638.z = cam->z_position;
+    if (gNoCamShake) {
+        D_800FA638.x += cam->shakeX;
+        D_800FA638.y += cam->shakeY;
+        D_800FA638.z += cam->shakeZ;
+    }
+    func_80049F08(D_800FA638.rotation, &gInverseViewMatrixF);
+    func_80048D84(&gInverseViewMatrixF, &D_800FAF38);
+}
 
 /**
  * Sets the Y value of the Y axis in the matrix to the passed value.
@@ -689,18 +756,6 @@ typedef struct Vertex40 {
     /* 0x08 */ u8 b;
     /* 0x09 */ u8 a;
 } Vertex40;
-
-/* JFG: what a billboard sprite is drawn from (an object's transform and more) */
-typedef struct BillboardTrans {
-    /* 0x00 */ s16 rotation[3];
-    /* 0x06 */ s16 flags;
-    /* 0x08 */ f32 scale;
-    /* 0x0C */ f32 x;
-    /* 0x10 */ f32 y;
-    /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x28 - 0x18];
-    /* 0x28 */ s32 frame;
-} BillboardTrans;
 
 extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
 extern Mtx *D_800FAB30;

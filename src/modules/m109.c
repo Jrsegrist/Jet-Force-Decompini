@@ -88,7 +88,7 @@ extern void runlink_unload_timer_set(s32, s32, s32);
 extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
 extern void track_light_off(f32 *light);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern void func_80052734(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern Object **func_8000E464(s32 *count); /* the players */
 extern s32 func_80049C84(f32, f32);         /* the angle of a vector */
@@ -233,7 +233,7 @@ void func_m109_00298(Object *obj, s32 updateRate) {
             func_80009A04(obj, obj->velocity.x * fy, obj->velocity.y * fy, obj->velocity.z * fy);
             b->distance += b->speed * fy;
             if (b->shooter->behaviorId == 1) {
-                func_80052734(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, 1, 0);
+                enemy_module_notify(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, 1, 0);
             } else if (b->shooter->behaviorId == 0x18 && b->flybyPlayed == 0 && sFlybySound == 0 &&
                        b->distance > 900.0f) {
                 list = func_8000E464(&count);
@@ -330,7 +330,7 @@ void func_m109_00298(Object *obj, s32 updateRate) {
                     }
                     func_80003410(b->hitSounds[i], obj->trans.x_position, obj->trans.y_position,
                                   obj->trans.z_position, 4, &sHitSound);
-                    func_80052734(NULL, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, 1,
+                    enemy_module_notify(NULL, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, 1,
                                   b->hitSounds[i]);
                 }
                 if (b->hitParticles != NULL && updateRate < 5) {

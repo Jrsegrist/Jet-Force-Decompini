@@ -463,7 +463,7 @@ void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
 
 void free_object(void *obj);
 void update_colour_cycle(void *cycle, s32 updateRate);
-void func_800577A8(void *sprite, s32 *flags, s32 arg2, f32 *frame, s32 updateRate); // animate a sprite
+void sprite_anim_advance(void *sprite, s32 *flags, s32 arg2, f32 *frame, s32 updateRate); // animate a sprite
 
 /* JFG: the sprite object's loop: fade in, then after its lifetime fade out and free it; spin and animate. */
 void obj_loop_chroma_sprite(ChromaSpriteObject *obj, s32 updateRate) {
@@ -503,7 +503,7 @@ void obj_loop_chroma_sprite(ChromaSpriteObject *obj, s32 updateRate) {
     obj->opacity = data->unk8;
     update_colour_cycle(data->colourCycle1, updateRate);
     update_colour_cycle(data->colourCycle2, updateRate);
-    func_800577A8(sprite, &flags, data->unk9, &obj->animFrame, updateRate);
+    sprite_anim_advance(sprite, &flags, data->unk9, &obj->animFrame, updateRate);
 }
 
 /* A sphere (centre and radius) in a fixed table of 16. Size: 0x24 bytes */
@@ -792,4 +792,104 @@ s32 obj_apply_damage(DamageObject *obj, s32 damage) {
     return total;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code and frame, but register choice: the target keeps the model in $t0 (spilled to 0x24) and
+   the sphere in $a1, mine gives the model $a1 and the sphere $a2 (so it homes a1 at entry); 41 words */
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+
+/* JFG: an object model with a bounding box */
+typedef struct BoxModel {
+    /* 0x00 */ u8 pad0[0x8C];
+    /* 0x8C */ s16 bounds[6]; // min x, y, z, max x, y, z
+} BoxModel;
+
+typedef struct BoxObject {
+    /* 0x00 */ s16 yaw;
+    /* 0x02 */ u8 pad2[6];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B[0x6C - 0x3B];
+    /* 0x6C */ BoxModel **models;
+} BoxObject;
+
+/* JFG: whether a sphere (x, y, z, radius) touches the object's current model's bounding box (turned by its yaw,
+ * scaled); the squared distance outside the box goes to distSq (0 inside). */
+s32 func_8002AC3C(BoxObject *obj, f32 *sphere, f32 *distSq) {
+    s32 outside;
+    f32 lx;
+    f32 ly;
+    f32 lz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 lo;
+    f32 hi;
+    f32 d;
+    f32 scale;
+    f32 s;
+    f32 c;
+    s16 *bounds;
+    BoxModel *model;
+
+    if (obj->models[obj->modelIndex] == NULL) {
+        return 0;
+    }
+    model = obj->models[obj->modelIndex];
+    scale = obj->scale;
+    outside = 0;
+    s = func_80049C34(-obj->yaw);
+    c = func_80049C30(-obj->yaw);
+    dx = sphere[0] - obj->x;
+    dz = sphere[2] - obj->z;
+    bounds = model->bounds;
+    lx = dx * c + dz * s;
+    ly = sphere[1] - obj->y;
+    lz = dz * c - dx * s;
+    dx = 0.0f;
+    lo = bounds[0] * scale;
+    hi = bounds[3] * scale;
+    if (lx < lo) {
+        dx = lo - lx;
+        outside = 1;
+    } else if (hi < lx) {
+        dx = lx - hi;
+        outside = 1;
+    }
+    dy = 0.0f;
+    lo = bounds[1] * scale;
+    hi = bounds[4] * scale;
+    if (ly < lo) {
+        dy = lo - ly;
+        outside = 1;
+    } else if (hi < ly) {
+        dy = ly - hi;
+        outside = 1;
+    }
+    dz = 0.0f;
+    lo = bounds[2] * scale;
+    hi = bounds[5] * scale;
+    if (lz < lo) {
+        dz = lo - lz;
+        outside = 1;
+    } else if (hi < lz) {
+        dz = lz - hi;
+        outside = 1;
+    }
+    if (!outside) {
+        *distSq = 0.0f;
+        return 1;
+    }
+    d = dx * dx + dy * dy + dz * dz;
+    *distSq = d;
+    if (d < sphere[3] * sphere[3]) {
+        return 1;
+    }
+    return 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AC3C);
+#endif

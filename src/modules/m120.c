@@ -15,7 +15,7 @@
 
 extern u8 D_800A4FC4; /* a multiplayer game */
 
-extern s32 func_800577A8(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate); /* animates a model */
+extern s32 sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate); /* animates a model */
 extern Object *func_80005F14(void *entry, s32 arg1);                                    /* DKR spawn_object */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern f32 func_80049BEC(f32 base, s32 exponent);
@@ -167,7 +167,7 @@ void func_m120_00060(Object *obj, s32 updateRate) {
     runlink_unload_timer_set(D_m120_00AD0, 2, 2);
     b = obj->unk68;
     anim = 1;
-    if (func_800577A8(obj->modelInstances[0], &anim, 15, &obj->unk28, updateRate) != 0) {
+    if (sprite_anim_advance(obj->modelInstances[0], &anim, 15, &obj->unk28, updateRate) != 0) {
         func_800079B8(obj);
         return;
     }
@@ -363,7 +363,7 @@ void func_m120_008CC(Object *obj, s32 updateRate) {
         obj->particleEmittersEnabled = 1;
         func_8005F5AC(obj, updateRate);
         anim = 9;
-        func_800577A8(obj->modelInstances[0], &anim, 10, &obj->unk28, updateRate);
+        sprite_anim_advance(obj->modelInstances[0], &anim, 10, &obj->unk28, updateRate);
         if (st->timer < 0x40) {
             obj->trans.scale *= func_80049BEC(0.99f, updateRate);
             st->alpha = st->timer * 4;

@@ -319,9 +319,9 @@ void copy_viewport_frame_size_to_coords(s32 viewPortIndex, s32 *x1, s32 *y1, s32
 s32 check_fadeout_transition(void);
 s32 runlink_module_loaded(s32 module);
 f32 func_8005BFC4(void);
-void func_8006F8E4(void);
+void effect_slots_update(void);
 void func_8006E188(void);
-void func_8006D0D8(void);
+void screen_lines_init(void);
 /* The module trap called with float arguments in a3 and on the stack, and for a result; needs
    `func_80054530_iiiff = 0x80054530;` and `func_80054530_ret = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_iiiff(u16 *fb, s32 width, s32 height, f32 arg3, f32 arg4);
@@ -349,14 +349,14 @@ void frame_post_process(u16 *fb, UNUSED s32 arg1) {
         }
         D_801008B4 = height;
     }
-    func_8006F8E4();
+    effect_slots_update();
     if (runlink_module_loaded(2) && !check_fadeout_transition()) {
         func_80054530();
     }
     if (!check_fadeout_transition()) {
         func_8006E188();
     } else {
-        func_8006D0D8();
+        screen_lines_init();
     }
 }
 

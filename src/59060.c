@@ -506,7 +506,7 @@ void menu_fill_box(Gfx **arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
 void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
 void fb_size(s32 *width, s32 *height);
 extern s32 gVideoLastFramebuffer; // JFG: the framebuffer to show next
-void func_8006F424(s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
+void screen_effect_queue(s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
 void func_8006F550(s32 arg0, s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
 
 /* JFG: draw box index of the current screen layout into the framebuffer (0x80059864). */
@@ -519,7 +519,7 @@ void menu_draw_layout_box(s32 arg0, s32 index, s32 colour) {
     if (arg0 != 0) {
         func_8006F550(arg0, gVideoLastFramebuffer, width, height, x1, y1, x2, y2, colour);
     } else {
-        func_8006F424(gVideoLastFramebuffer, width, height, x1, y1, x2, y2, colour);
+        screen_effect_queue(gVideoLastFramebuffer, width, height, x1, y1, x2, y2, colour);
     }
 }
 

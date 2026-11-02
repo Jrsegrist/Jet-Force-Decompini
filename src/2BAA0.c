@@ -79,7 +79,7 @@ extern f32 D_800ABDA8;
 s32 rand_range(s32 min, s32 max);
 f32 sqrtf(f32 x);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
-void func_80052734(u8 *arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
+void enemy_module_notify(u8 *arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
 void audspat_point_stop(void *handle);
 
 /* JFG: play a random sound of set `index` (per character, never the last one again) at obj, keeping its handle
@@ -108,7 +108,7 @@ void player_voice_play(s32 owner, u8 index) {
     }
     audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4,
                                    &racer->voice);
-    func_80052734(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
+    enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     racer->lastVoice = sound;
 }
 
@@ -124,7 +124,7 @@ void func_8002B064(u8 *obj, u8 index) {
 
     if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C) + *(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24))) {
         audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4, NULL);
-        func_80052734(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
+        enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     }
 }
 #else

@@ -537,6 +537,7 @@ func_8005BEF8 = rain_fog;
 gLightningFrequency = 0x800A5D1C;
 func_8005AB00 = weather_init;
 gSnowVertOffset = 0x80100890;
+D_800A5DE8 = 0x800A5DE8;
 gSnowTriCount = 0x80100894;
 gWeatherAssetTableLength = 0x800A5A10;
 
@@ -552,7 +553,6 @@ func_80022624 = light_setup_light_sources;
 func_800210A4 = light_add_from_object_header;
 gActiveLights = 0x800A1008;
 gNumActiveLights = 0x800A1004;
-light_update = 0x80021434;
 func_8002215C = light_direction_calc;
 func_8002179C = light_remove;
 func_80020C50 = lights_init;

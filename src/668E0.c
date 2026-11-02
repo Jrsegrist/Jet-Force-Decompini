@@ -33,4 +33,44 @@ void debug_trace_add(s32 a, s32 b, s32 c) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/668E0", func_80065E28);
+/* JFG: in the previous list, find the entries with the nearest .a at or below key and above key, and
+   return their fields (b, c, a); the first output of each is 0 when there is none. */
+void debug_trace_find_nearest(u32 key, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA) {
+    s32 prev = 1 - D_800A64B8;
+    u32 lo = 0;
+    u32 hi = -1;
+    ListEntry *below = NULL;
+    ListEntry *above = NULL;
+    s32 i;
+    u32 v;
+
+    for (i = 0; i < D_801012A0[prev]; i++) {
+        v = D_800A64B0[prev][i].a;
+        if (key >= v) {
+            if (lo < v) {
+                lo = v;
+                below = &D_800A64B0[prev][i];
+            }
+        }
+        if (key < v) {
+            if (v < hi) {
+                hi = v;
+                above = &D_800A64B0[prev][i];
+            }
+        }
+    }
+    if (below != NULL) {
+        *belowB = below->b;
+        *belowC = below->c;
+        *belowA = below->a;
+    } else {
+        *belowB = 0;
+    }
+    if (above != NULL) {
+        *aboveB = above->b;
+        *aboveC = above->c;
+        *aboveA = above->a;
+    } else {
+        *aboveB = 0;
+    }
+}

@@ -69,7 +69,7 @@ void tex_free(void *tex);
 void mempool_free(void *data);
 
 /* JFG: clear the level effects. */
-void func_80068450(void) {
+void level_effects_clear(void) {
     s32 i;
     LevelEffect *effect;
 
@@ -81,45 +81,45 @@ void func_80068450(void) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068494);
 
-void func_80068A14(LevelEffect *effect);
+void level_effect_unload(LevelEffect *effect);
 
 /* JFG: free the loaded level effects and clear their types. */
-void func_80068874(void) {
+void level_effects_reset(void) {
     s32 i;
     LevelEffect *effect;
 
     for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
         if (effect->loaded) {
-            func_80068A14(effect);
+            level_effect_unload(effect);
         }
         effect->type = 0;
     }
 }
 
-void func_80068A14(LevelEffect *effect);
+void level_effect_unload(LevelEffect *effect);
 
 /* JFG: free the loaded level effects. */
-void func_800688D8(void) {
+void level_effects_unload_all(void) {
     s32 i;
     LevelEffect *effect = D_80102760;
 
     for (i = 0; i < 32; i++, effect++) {
         if (effect->loaded) {
-            func_80068A14(effect);
+            level_effect_unload(effect);
         }
     }
 }
 
-void func_800689BC(LevelEffect *effect);
+void level_effect_load(LevelEffect *effect);
 
 /* JFG: release every active level effect whose id (s16 at 0x1C) matches. */
-void func_80068938(s32 id) {
+void level_effects_release_id(s32 id) {
     s32 i;
     LevelEffect *effect;
 
     for (i = 0, effect = D_80102760; i < 32; i++, effect++) {
         if (effect->type && id == *(s16 *) ((u8 *) effect + 0x1C)) {
-            func_800689BC(effect);
+            level_effect_load(effect);
         }
     }
 }
@@ -129,7 +129,7 @@ void func_800689B4(s32 arg0) {
 
 void *func_80056798(s32 assetID, s32 flags);
 
-void func_800689BC(LevelEffect *effect) {
+void level_effect_load(LevelEffect *effect) {
     if (!effect->loaded) {
         if (effect->type == 4) {
             effect->sprite = func_80056798(0x57, 0);
@@ -140,7 +140,7 @@ void func_800689BC(LevelEffect *effect) {
 
 void sprite_free(void *sprite);
 
-void func_80068A14(LevelEffect *effect) {
+void level_effect_unload(LevelEffect *effect) {
     if (effect->loaded) {
         if (effect->type == 4) {
             sprite_free(effect->sprite);
@@ -149,10 +149,10 @@ void func_80068A14(LevelEffect *effect) {
     }
 }
 
-s32 func_800577A8(void *sprite, s32 *arg1, s32 arg2, s32 *frame, s32 updateRate);
+s32 sprite_anim_advance(void *sprite, s32 *arg1, s32 arg2, s32 *frame, s32 updateRate);
 
 /* JFG: count down the level effects, releasing the expired ones and animating the sprites. */
-void func_80068A64(s32 updateRate) {
+void level_effects_update(s32 updateRate) {
     s32 i;
     s32 arg;
     LevelEffect *effect;
@@ -164,12 +164,12 @@ void func_80068A64(s32 updateRate) {
             if (effect->timer <= 0) {
                 effect->timer = 0;
                 if (effect->loaded) {
-                    func_80068A14(effect);
+                    level_effect_unload(effect);
                 }
                 effect->type = 0;
             } else if (effect->type == 4) {
                 arg = 1;
-                if (func_800577A8(effect->sprite, &arg, 0xF, &effect->unk28, updateRate)) {
+                if (sprite_anim_advance(effect->sprite, &arg, 0xF, &effect->unk28, updateRate)) {
                     effect->timer = 0;
                 }
             }
@@ -179,7 +179,7 @@ void func_80068A64(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068B54);
 
-void func_80068DF8(void **cone) {
+void effect_texture_pair_free(void **cone) {
     if (cone[0] != NULL) {
         tex_free(cone[0]);
     }
@@ -398,7 +398,7 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006A6B0);
 void tex_free(void *tex);
 void mempool_free(void *data);
 
-void func_8006A894(u8 *obj) {
+void ripple_child_free(u8 *obj) {
     void *tex = *(void **) (obj + 0x30);
     if (tex != NULL) {
         tex_free(tex);
@@ -406,12 +406,12 @@ void func_8006A894(u8 *obj) {
     mempool_free(obj);
 }
 
-void func_8006A8D4(u8 *ripple) {
+void ripple_quad_free(u8 *ripple) {
     if (*(void **) (ripple + 0x70) != NULL) {
         tex_free(*(void **) (ripple + 0x70));
     }
     if (*(void **) (ripple + 0x84) != NULL) {
-        func_8006A894(*(void **) (ripple + 0x84));
+        ripple_child_free(*(void **) (ripple + 0x84));
     }
 }
 
@@ -482,7 +482,7 @@ void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
 }
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
-void func_8006F874(void);
+void effect_slots_init(void);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
 
@@ -904,7 +904,7 @@ extern s32 D_80103B88[2];
 extern s32 D_80103B90;
 extern s32 D_80103B94;
 
-void func_8006D0D8(void) {
+void screen_lines_init(void) {
     D_80103B80[0] = 0;
     D_80103B80[1] = 0;
     D_80103B88[0] = 0;
@@ -1054,7 +1054,7 @@ void screen_line_add(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
 }
 
 /* JFG: draw a line with D_80103B94 temporarily set to `window`. */
-void func_8006D58C(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
+void screen_line_add_in_window(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
     s32 prevWindow = D_80103B94;
 
     D_80103B94 = window;
@@ -1064,7 +1064,7 @@ void func_8006D58C(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
 
 extern s32 D_80103B94;
 
-void func_8006D600(s32 arg0) {
+void screen_lines_set_window(s32 arg0) {
     D_80103B94 = arg0;
 }
 
@@ -1077,7 +1077,7 @@ extern DebugText D_80103700[2][16];
 extern u8 D_800A4FC4;
 
 /* JFG: queue a 32-character text line at (x, y) if it is on screen (up to 16 per frame). */
-void func_8006D60C(s16 x, s16 y, char *text) {
+void debug_text_add(s16 x, s16 y, char *text) {
     DebugText *entry;
     char *dst;
     s32 i;
@@ -1295,7 +1295,7 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
 #endif
 
 /* JFG: queue an entry in the current buffer (up to 0x94). */
-void func_8006E0C4(s32 x, s32 u, s32 y, s32 v, s32 flag) {
+void screen_line_add_raw(s32 x, s32 u, s32 y, s32 v, s32 flag) {
     ScreenLine *entry;
 
     if (D_80103B80[D_80103B90] < 0x94) {
@@ -1317,7 +1317,7 @@ extern s32 D_800A6D00;
 extern u8 D_800A6D08;
 extern u8 D_800A6D0C;
 
-void func_8006EDF0(s32 arg0) {
+void glitch_effect_start(s32 arg0) {
     if (arg0) {
         D_800A6D00 = 0x20;
     } else {
@@ -1327,7 +1327,7 @@ void func_8006EDF0(s32 arg0) {
     D_800A6D0C = 1;
 }
 
-void func_8006EE28(s32 arg0) {
+void glitch_effect_stop(s32 arg0) {
     if (arg0) {
         D_800A6D00 = 0;
     } else {
@@ -1338,7 +1338,7 @@ void func_8006EE28(s32 arg0) {
 
 extern s32 D_800A6D00;
 
-s32 func_8006EE50(void) {
+s32 glitch_effect_get(void) {
     return D_800A6D00;
 }
 
@@ -1402,7 +1402,7 @@ void glitch_effect_draw(Gfx **dList) {
                 value >>= 1;
             }
             *p = '\0';
-            func_8006D60C(40, y, text);
+            debug_text_add(40, y, text);
             y += 6;
         }
     }
@@ -1410,7 +1410,7 @@ void glitch_effect_draw(Gfx **dList) {
 
 extern u8 D_800A6D0C;
 
-void func_8006F078(void) {
+void glitch_effect_skip_redraw(void) {
     D_800A6D0C = 0;
 }
 
@@ -1430,7 +1430,7 @@ extern s32 D_800A6E18;
 extern ScreenEffect D_80102CE8[4];
 
 /* JFG: queue a screen effect (up to 4 per frame). */
-void func_8006F424(s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g) {
+void screen_effect_queue(s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g) {
     ScreenEffect *fx;
 
     if (D_800A6E18 < 4) {
@@ -1449,7 +1449,7 @@ void func_8006F424(s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g) {
 void func_8006F550(Gfx **dList, s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g);
 
 /* JFG: draw the queued screen effects and empty the queue. */
-void func_8006F4A0(Gfx **dList) {
+void screen_effects_draw(Gfx **dList) {
     s32 i;
     ScreenEffect *fx = D_80102CE8;
 
@@ -1459,7 +1459,84 @@ void func_8006F4A0(Gfx **dList) {
     D_800A6E18 = 0;
 }
 
+#ifdef NON_MATCHING
+/* The texture rectangle of the older GBI (as in printf.c). */
+#ifndef G_RDPHALF_CONT
+#define G_RDPHALF_CONT 0xB2
+#endif
+#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                   \
+    {                                                                                         \
+        Gfx *_g = (Gfx *) (pkt);                                                              \
+        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));     \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                   \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));          \
+    }
+s32 fb_mode(void);
+extern Gfx D_800A6D20[]; // JFG: render modes for a plain copy
+extern Gfx D_800A6D48[]; // JFG: render modes for a tinted copy
+extern Gfx D_800A6D70[]; // JFG: the texture image command and the slice loading commands
+extern Gfx D_800A6DA8[]; // JFG: the same for display modes 2 and 3
+
+/*
+ * NON_MATCHING: same code and length; the shifted width stays in its saved register (target: a temporary
+ * after a copy), so every saved register from s1 on is numbered differently.
+ * JFG: draw a framebuffer image (width pixels per row) as 4-row texture rectangles from (x1, y1) to (x2, y2),
+ * tinted by the glitch colours when D_800A6D04 is set, else by colour.
+ */
+void func_8006F550(Gfx **dList, s32 image, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
+    Gfx *table;
+    s32 img;
+    s32 s;
+    s32 prevY;
+
+    switch (fb_mode()) {
+        default:
+            table = D_800A6D70;
+            break;
+        case 3:
+            table = D_800A6DA8;
+            break;
+        case 2:
+            table = D_800A6DA8;
+            break;
+    }
+    if (D_800A6D04) {
+        D_800A6D04 = 0;
+        gSPDisplayList((*dList)++, D_800A6D48);
+        gDPSetPrimColor((*dList)++, 0, 0, D_80102CE0, D_80102CE1, D_80102CE2, 255);
+        gDPSetEnvColor((*dList)++, D_80102CE3, D_80102CE4, D_80102CE5, 255);
+    } else {
+        gSPDisplayList((*dList)++, D_800A6D20);
+        gDPSetColor((*dList)++, G_SETPRIMCOLOR, colour);
+    }
+    img = image + width * y1 * 2;
+    s = x1 << 5;
+    x2 <<= 2;
+    y1 <<= 2;
+    x1 <<= 2;
+    width <<= 3;
+    y2 <<= 2;
+    while (y1 < y2) {
+        (*dList)->words.w0 = table->words.w0;
+        (*dList)->words.w1 = img;
+        (*dList)++;
+        gDkrDmaDisplayList((*dList)++, (u8 *) (table + 1) + 0x80000000, 6);
+        img += width;
+        prevY = y1;
+        y1 += 16;
+        if (y2 < y1) {
+            y1 = y2;
+        }
+        gSPTextureRectangleOld((*dList)++, x1, prevY, x2, y1, 0, s, 0, 0x400, 0x400);
+    }
+    rendermode_reset(dList);
+    gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F550);
+#endif
 
 typedef void (*ScreenEffectFunc)(s32 slot, s32 arg, s32 arg2);
 extern s32 D_80102D40[4];
@@ -1472,7 +1549,7 @@ void func_80054530();
 void func_800531C8(void *addr);
 
 /* JFG: clear the four effect slots; a slot is flagged when its handler is the unloaded-module trap. */
-void func_8006F874(void) {
+void effect_slots_init(void) {
     s32 i;
 
     D_80102D54 = 0;
@@ -1485,7 +1562,7 @@ void func_8006F874(void) {
 }
 
 /* JFG: call the handlers of the effect slots flagged in D_80102D54, then clear the flags. */
-void func_8006F8E4(void) {
+void effect_slots_update(void) {
     s32 i = 4;
 
     while (i--) {
@@ -1536,7 +1613,7 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006F998);
 void mempool_free(void *data);
 
 /* JFG: free the four effect slots' buffers; flagged slots get the unloaded-module trap back. */
-void func_8006FB18(void) {
+void effect_slots_free(void) {
     s32 i = 4;
 
     while (i--) {

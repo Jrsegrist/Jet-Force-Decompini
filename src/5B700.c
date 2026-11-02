@@ -28,6 +28,7 @@ typedef struct ParticleBehaviour {
     /* 0x22 */ Vec3s emissionDirection;
     /* 0x28 */ u8 pad28[0x40 - 0x28];
     /* 0x40 */ s16 spawnInterval;
+    /* 0x42 */ s16 burstCount;
 } ParticleBehaviour;
 
 #define PARTICLE_POINT 0x400
@@ -104,15 +105,34 @@ typedef struct PointParticleSet {
     /* 0xBC */ struct ParticleEmitter *emitter;
 } PointParticleSet;
 
+/* JFG: one segment of a line emitter: its two ends, fade and colour */
+typedef struct LineSeg {
+    /* 0x00 */ s16 x0, y0, z0;
+    /* 0x06 */ s16 x1, y1, z1;
+    /* 0x0C */ s16 fadeDelay;
+    /* 0x0E */ union {
+        s16 value; // 8.8 fixed point
+        u8 hi;
+    } alpha;
+    /* 0x10 */ s16 colourDelay;
+    /* 0x12 */ s16 colourIndex;
+    /* 0x14 */ s16 life;
+    /* 0x16 */ s16 fadeRate;
+    /* 0x18 */ u8 r, g, b;
+} LineSeg;
+
 /* JFG: a line emitter's data, size 0x148 */
 typedef struct LineParticleSet {
-    /* 0x000 */ u8 pad0[0x124];
+    /* 0x000 */ s32 count;
+    /* 0x004 */ LineSeg *segs[9];
+    /* 0x028 */ u8 pad28[0x124 - 0x28];
     /* 0x124 */ u8 unk124; // set when the emitter lets go of it
     /* 0x125 */ u8 pad125[0x128 - 0x125];
     /* 0x128 */ struct TextureHeader *texture;
     /* 0x12C */ struct ParticleBehaviour *behaviour;
-    /* 0x130 */ s32 unk130;
-    /* 0x134 */ u8 pad134[4];
+    /* 0x130 */ u32 *colours; // RGBA, cycled through
+    /* 0x134 */ s16 numColours;
+    /* 0x136 */ u8 pad136[2];
     /* 0x138 */ s32 unk138;
     /* 0x13C */ s32 flags;
     /* 0x140 */ f32 frame;
@@ -379,7 +399,70 @@ void weather_update(Gfx **currDisplayList, Mtx **currHudMat, Vertex **currHudVer
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B928);
+/* DKR include/structs.h, size 10 */
+struct Vertex {
+    /* 0x00 */ s16 x, y, z;
+    /* 0x06 */ u8 r, g, b, a;
+};
+
+/* DKR include/f3ddkr.h (JFG: the length is numTris << 4, which IDO does not fold into an expression) */
+#define G_TRIN 5
+#define gSPPolygon(dl, ptr, numTris, texEnabled)                                                        \
+    {                                                                                                   \
+        Gfx *_g = (Gfx *) (dl);                                                                         \
+        _g->words.w0 = _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(G_TRIN, 24, 8) | \
+                       _SHIFTL(((numTris) << 4), 0, 16);                                                \
+        _g->words.w1 = (unsigned int) (ptr);                                                            \
+    }
+/* JFG: DKR's gSPSelectMatrixDKR(pkt, 0) */
+#define gSPSelectMatrix0(pkt)      \
+    {                              \
+        Gfx *_g = (Gfx *) (pkt);   \
+        _g->words.w0 = 0xBC00000A; \
+        _g->words.w1 = 0;          \
+    }
+/* JFG: loads n + 1 vertices (this file's form of the vertex command) */
+#define gSPVertexN1(pkt, v, n) gDma1p(pkt, G_VTX, v, (n) * 8 + (n) * 2 + 8, ((n) * 8) | ((u32) (v) & 6))
+
+extern s32 D_800A59F8; // DKR: gSnowVertCount
+Mtx *get_projection_matrix_s16(void);
+void func_80055C00(Gfx **dList, TextureHeader *tex, s32 flags, s32 frame);
+
+/**
+ * Load and execute the draw commands for the falling snowflakes, seen with snowy weather enabled.
+ * JFG: tinted with fixed primitive and environment colours, reset to white afterwards.
+ * DKR: snow_render
+ */
+void snow_render(void) {
+    s32 i;
+    Mtx *mtx;
+    Vertex *vtx;
+
+    if (gSnowGfx.texture != NULL) {
+        gSnowVertOffset = 4;
+        gSnowTriCount = 2;
+        if (D_800A59F8 >= 4) {
+            i = 0;
+            mtx = get_projection_matrix_s16();
+            gSPMatrix(gCurrWeatherDisplayList++, (u8 *) mtx + 0x80000000, 0);
+            gSPSelectMatrix0(gCurrWeatherDisplayList++);
+            func_80055C00(&gCurrWeatherDisplayList, gSnowGfx.texture, 2, 0);
+            gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 0xE0, 0xF0, 0xFF, 0xA0);
+            gDPSetEnvColor(gCurrWeatherDisplayList++, 0x40, 0x80, 0xFF, 0x00);
+            while (i + gSnowVertOffset < D_800A59F8) {
+                vtx = &gSnowVerts[i];
+                gSPVertexN1(gCurrWeatherDisplayList++, (u8 *) vtx + 0x80000000, gSnowVertOffset);
+                gSPPolygon(gCurrWeatherDisplayList++, (u8 *) gSnowTriangles + 0x80000000, gSnowTriCount, 1);
+                i += gSnowVertOffset;
+            }
+            vtx = &gSnowVerts[i];
+            gSPVertexN1(gCurrWeatherDisplayList++, (u8 *) vtx + 0x80000000, D_800A59F8 - i);
+            gSPPolygon(gCurrWeatherDisplayList++, (u8 *) gSnowTriangles + 0x80000000, (s32) (D_800A59F8 - i) >> 1, 1);
+            gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
+            gDPSetEnvColor(gCurrWeatherDisplayList++, 0xFF, 0xFF, 0xFF, 0xFF);
+        }
+    }
+}
 
 /* DKR's rain state (gLightningFrequencyStep etc. in DKR) */
 typedef struct AudioPoint AudioPoint;
@@ -1029,7 +1112,7 @@ s32 line_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour) {
         if (set->unk124 == 0) {
             set->unk124 = 2;
             set->behaviour = behaviour;
-            set->unk130 = 0;
+            set->colours = NULL;
             found = i;
             i = D_800A5D7C;
         } else {
@@ -1107,7 +1190,7 @@ void func_8005F5A0(f32 arg0) {
     D_800A5DDC = arg0;
 }
 
-void func_8005F76C(ParticleObj *obj, ParticleEmitter *emitter); // DKR: obj_trigger_emitter
+void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter); // DKR: obj_trigger_emitter
 
 /**
  * Update all particle emitters attached to the object and spawn new particles.
@@ -1134,14 +1217,14 @@ void obj_spawn_particle(ParticleObj *obj, s32 updateRate) {
             }
             if (obj->emitters[i].flags & PARTICLE_LINE) {
                 obj->emitters[i].colourIndex += updateRate;
-                func_8005F76C(obj, &obj->emitters[i]);
+                obj_trigger_emitter(obj, &obj->emitters[i]);
             } else if (obj->emitters[i].flags & PARTICLE_POINT) {
                 obj->emitters[i].colourIndex += updateRate;
-                func_8005F76C(obj, &obj->emitters[i]);
+                obj_trigger_emitter(obj, &obj->emitters[i]);
             } else {
                 obj->emitters[i].colourIndex += updateRate;
                 if (obj->emitters[i].colourIndex >= obj->emitters[i].behaviour->spawnInterval) {
-                    func_8005F76C(obj, &obj->emitters[i]);
+                    obj_trigger_emitter(obj, &obj->emitters[i]);
                 }
             }
         } else if (obj->emitters[i].flags & PARTICLE_ACTIVE) {
@@ -1152,7 +1235,64 @@ void obj_spawn_particle(ParticleObj *obj, s32 updateRate) {
     D_800A5DDC = 0.0f;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F76C);
+/* JFG: the part of a general particle obj_trigger_emitter touches */
+typedef struct TrigParticle {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x50 - 0x28];
+    /* 0x50 */ s32 flags;
+} TrigParticle;
+extern f32 D_801008F4; // JFG: a velocity taken off a new particle while it catches up (x, y, z)
+extern f32 D_801008F8;
+extern f32 D_801008FC;
+s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
+s32 func_80061228(s32 particle, s32 updateRate);
+void func_80061698(ParticleObj *obj, ParticleEmitter *emitter);
+void func_80062D5C(void *arg0, ParticleEmitter *emitter);
+
+/**
+ * Generates particles from a specific emitter attached to the object.
+ * JFG: line and point emitters also wait for the spawn interval; a general particle spawned late is
+ * caught up without D_801008F4's velocity and flagged 0x80000.
+ * DKR: obj_trigger_emitter
+ */
+void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
+    s32 i;
+    ParticleBehaviour *behaviour;
+    TrigParticle *particle;
+
+    behaviour = emitter->behaviour;
+    if (emitter->flags & PARTICLE_LINE) {
+        if (emitter->colourIndex >= behaviour->spawnInterval) {
+            emitter->colourIndex -= behaviour->spawnInterval;
+            func_80061698(obj, emitter);
+        }
+    } else if (emitter->flags & PARTICLE_POINT) {
+        if (emitter->colourIndex >= behaviour->spawnInterval) {
+            emitter->colourIndex -= behaviour->spawnInterval;
+            func_80062D5C(obj, emitter);
+        }
+    } else {
+        while (emitter->colourIndex >= behaviour->spawnInterval) {
+            emitter->colourIndex -= behaviour->spawnInterval;
+            for (i = 0; i < behaviour->burstCount; i++) {
+                particle = (TrigParticle *) func_80060434(obj, emitter, -1);
+                if (particle != NULL) {
+                    if (emitter->colourIndex != 0) {
+                        particle->velocity.x -= D_801008F4;
+                        particle->velocity.y -= D_801008F8;
+                        particle->velocity.z -= D_801008FC;
+                        func_80061228((s32) particle, emitter->colourIndex);
+                        particle->velocity.x += D_801008F4;
+                        particle->velocity.y += D_801008F8;
+                        particle->velocity.z += D_801008FC;
+                    }
+                    particle->flags |= 0x80000;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
 
@@ -1285,7 +1425,79 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80061228);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80061698);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80061C30);
+s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+
+/*
+ * JFG: update a line set: move the segments whose life ran out to the end, then age the rest (colour cycle
+ * and fade) and animate the texture; a released set that is empty frees its texture.
+ */
+void line_particle_set_update(LineParticleSet *set, s32 updateRate) {
+    s32 i;
+    s32 j;
+    LineSeg *seg;
+    LineSeg *expired[9];
+
+    i = 0;
+    while (i < set->count && set->segs[i]->life < updateRate) {
+        i++;
+    }
+    if (i > 0) {
+        set->count -= i;
+        for (j = 0; j < i; j++) {
+            expired[j] = set->segs[j];
+        }
+        j = 0;
+        for (; i < 9; j++, i++) {
+            set->segs[j] = set->segs[i];
+        }
+        for (i = 0; j < 9; j++, i++) {
+            set->segs[j] = expired[i];
+        }
+    }
+    if (set->unk124 == 1 && set->count == 0) {
+        set->unk124 = 0;
+        if (set->texture != NULL) {
+            tex_free(set->texture);
+        }
+    } else {
+        for (i = 0; i < set->count; i++) {
+            seg = set->segs[i];
+            seg->life -= updateRate;
+            if (set->colours != NULL) {
+                if (seg->colourDelay == 0) {
+                    seg->colourIndex += updateRate;
+                    if (seg->colourIndex >= set->numColours) {
+                        seg->colourIndex -= set->numColours;
+                    }
+                    seg->r = (set->colours[seg->colourIndex] & 0xFF000000) >> 24;
+                    seg->g = (set->colours[seg->colourIndex] & 0xFF0000) >> 16;
+                    seg->b = (set->colours[seg->colourIndex] & 0xFF00) >> 8;
+                } else {
+                    seg->colourDelay -= updateRate;
+                    if (seg->colourDelay < 0) {
+                        seg->colourIndex -= seg->colourDelay;
+                    }
+                }
+            }
+            if (seg->fadeDelay == 0) {
+                seg->alpha.value += updateRate * seg->fadeRate;
+            } else {
+                seg->fadeDelay -= updateRate;
+                if (seg->fadeDelay < 0) {
+                    seg->alpha.value -= seg->fadeDelay * seg->fadeRate;
+                    seg->fadeDelay = 0;
+                }
+            }
+        }
+        if (set->unk124) {
+            if (set->flags & 0x800) {
+                set->frame = rand_range(0, (set->texture->numOfTextures >> 8) - 1);
+            } else {
+                func_80057A10(set->texture, &set->unk138, set->unk144, &set->frame, updateRate);
+            }
+        }
+    }
+}
 
 s32 func_80061228(s32 particle, s32 updateRate);
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
@@ -1362,7 +1574,56 @@ void func_80062A00(Gfx **dList, Vertex **vtx) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80062A90);
+extern s32 D_800A5D7C;   // JFG: the number of line particle sets
+extern u8 D_800A5DE8[]; // JFG: the triangle strip the line particles share
+
+/* JFG: render the active line particle sets with two vertices per segment (their textures animated). */
+void line_particles_render(Gfx **dList, Vertex **vtxList) {
+    Vertex *vtx;
+    Vertex *start;
+    LineParticleSet *set;
+    LineSeg *seg;
+    Gfx *gfx;
+    s32 i;
+    s32 j;
+    s32 n;
+
+    if (D_800A5D84 != NULL) {
+        gfx = *dList;
+        vtx = *vtxList;
+        set = D_800A5D84;
+        for (i = 0; i < D_800A5D7C; i++, set++) {
+            if (set->unk124 && set->count >= 2) {
+                start = vtx;
+                for (j = 0; j < set->count; j++) {
+                    seg = set->segs[j];
+                    vtx[0].x = seg->x0;
+                    vtx[0].y = seg->y0;
+                    vtx[0].z = seg->z0;
+                    vtx[0].r = seg->r;
+                    vtx[0].g = seg->g;
+                    vtx[0].b = seg->b;
+                    vtx[0].a = seg->alpha.hi;
+                    vtx[1].x = seg->x1;
+                    vtx[1].y = seg->y1;
+                    vtx[1].z = seg->z1;
+                    vtx[1].r = seg->r;
+                    vtx[1].g = seg->g;
+                    vtx[1].b = seg->b;
+                    vtx[1].a = seg->alpha.hi;
+                    vtx += 2;
+                }
+                func_80055C00(&gfx, set->texture, 0x12, set->frame * 65536.0f);
+                n = set->count * 2;
+                gSPVertexN1(gfx++, (u8 *) start + 0x80000000, n);
+                gSPPolygon(gfx++, D_800A5DE8 + 0x80000000, n - 2, 1);
+            }
+        }
+        gDPPipeSync(gfx++);
+        *dList = gfx;
+        *vtxList = vtx;
+    }
+}
 
 struct ParticleDesc {
     /* 0x00 */ u8 pad0[4];
@@ -1567,7 +1828,7 @@ extern s32 D_800A5DD8;
 void set_active_camera(s32 arg0);
 void func_8004046C(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
-void func_80062A90(Gfx **dList, Vertex **vtx);
+void line_particles_render(Gfx **dList, Vertex **vtx);
 void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 void func_8005D660(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 
@@ -1580,7 +1841,7 @@ void render_all_particles(Gfx **dList, Mtx **matrix) {
     func_8004046C(dList, matrix);
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);
-    func_80062A90(dList, &vtx);
+    line_particles_render(dList, &vtx);
     func_80062A00(dList, &vtx);
     func_8005D2E8(dList, matrix, &vtx, D_801008E0[2]);
     func_8005D660(dList, matrix, &vtx, D_801008E0[3]);

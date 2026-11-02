@@ -328,7 +328,7 @@ extern void *func_m001_00188(f32 size, f32 x, f32 y, f32 z, f32 level, f32 vx, f
 extern void func_m001_002A0(void *particle, s32 updateRate);
 extern s32 func_8004966C(s16 angle);
 extern void multiplayer_score_kill(Object *obj, Object *obj2);
-extern void func_8006F078(void);
+extern void glitch_effect_skip_redraw(void);
 extern void menu_draw_layout_box(s32 arg0, s32 player, u32 colour);
 extern u8 D_800A4FC4;
 
@@ -1595,7 +1595,7 @@ static void func_m015_025FC(Object *obj, Racer *racer, s32 updateRate) {
         racer->flash = 0;
     }
     if (racer->flash != 0) {
-        func_8006F078();
+        glitch_effect_skip_redraw();
         menu_draw_layout_box(0, racer->player, 0xFF0000FF);
     }
 }

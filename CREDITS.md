@@ -149,6 +149,19 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/lights.c` | light_add_from_level_object_entry |
 | `src/camera.c` | render_ortho_triangle_image; render_sprite_billboard (structure only) |
 
+### Round 7, main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/weather.c` | snow_render (with `include/f3ddkr.h`'s gSPPolygon and the Vertex layout of `include/structs.h`); snow_vertices (structure only, NON_MATCHING attempts not committed) |
+| `src/particles.c` | obj_trigger_emitter |
+| `src/camera.c` | func_80067D3C (as func_80040AA4) |
+| `src/lights.c` | light_update (structure only) |
+| `src/tracks.c` | render_level_segment (func_80014EBC, NON_MATCHING body) |
+| `src/textures_sprites.c` | sprite_init_frame (func_80056D24, NON_MATCHING body) |
+
 ## Tools and libraries
 
 | What | Licence | How it is used |

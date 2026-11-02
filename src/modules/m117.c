@@ -108,7 +108,7 @@ typedef struct M117Header {
 extern Object *func_80005F14(M117LightEntry *entry, s32 count);
 extern void light_colour_set(s32 light, u8 red, u8 green, u8 blue); /* sets a light's colour */
 extern void light_intensity_set(s32 light, u8 intensity);             /* sets a light's intensity */
-extern s32 func_8007E150(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list);
+extern s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list);
 extern void func_80049DC0(void *trans, MtxF *out);
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
@@ -228,7 +228,7 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
     f32 r;
 
     cloud = obj->unk68;
-    inside = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, cloud->radius, 0,
+    inside = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, cloud->radius, 0,
                            list);
     brightness = cloud->brightness;
     old = brightness;

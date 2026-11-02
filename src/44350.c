@@ -316,8 +316,8 @@ char *level_name(s32 level) {
     return gLevelName;
 }
 
-void func_8006EE28(s32 arg0);
-void func_80068874(void);
+void glitch_effect_stop(s32 arg0);
+void level_effects_reset(void);
 void bgdraw_primcolour(u8 red, u8 green, u8 blue);
 void music_jingle_stop(void);
 void lights_free(void);
@@ -329,13 +329,13 @@ void sound_volume_change(s32 behaviour);
 void weather_free(void);
 void tex_free(void *tex);
 void func_80053934(void);
-void func_8006FB18(void);
+void effect_slots_free(void);
 extern s32 D_800A089C;
 
 /* JFG: free the current level (0x800447B4). */
 void level_free(void) {
-    func_8006EE28(1);
-    func_80068874();
+    glitch_effect_stop(1);
+    level_effects_reset();
     bgdraw_primcolour(0, 0, 0);
     mempool_free(gCurrentLevelHeader);
     music_jingle_stop();
@@ -353,7 +353,7 @@ void level_free(void) {
         tex_free(gCurrentLevelHeader->texture);
     }
     func_80053934();
-    func_8006FB18();
+    effect_slots_free();
 }
 
 /* JFG: the next level (wrapping around) in the given world (0x80044898). */

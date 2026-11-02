@@ -38,7 +38,7 @@ typedef struct M099Frog {
 
 extern s32 osTvType;
 
-extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
+extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 extern void func_800116BC(Object *obj, f32 arg1);
 extern s16 func_80049C84(f32 x, f32 z); /* the angle of (x, z) */
 extern f32 func_80049C34(s32 angle);   /* sine of a 16-bit angle */
@@ -102,7 +102,7 @@ void func_m099_0008C(Object *obj, s32 updateRate) {
             if (f->cooldown > 0) {
                 f->cooldown -= updateRate;
             }
-            if (func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 96.0f, 1, list) > 0) {
+            if (obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 96.0f, 1, list) > 0) {
                 dx = obj->trans.x_position - list[0]->trans.x_position;
                 dy = obj->trans.y_position - list[0]->trans.y_position;
                 dz = obj->trans.z_position - list[0]->trans.z_position;
@@ -177,7 +177,7 @@ void func_m099_0008C(Object *obj, s32 updateRate) {
                 func_80009A04(obj, 0.0f, **floor, 0.0f);
             }
             if (f->cooldown <= 0 && (f->hop < 6 || f->hop >= 27) &&
-                func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list) != 0) {
+                obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list) != 0) {
                 if (f->collect) {
                     func_800079B8(obj);
                     return;

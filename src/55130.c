@@ -21,9 +21,12 @@ extern u32 gTexColourTag;
 
 /* DKR include/structs.h, with JFG's field offsets */
 typedef struct TextureHeader {
-    /* 0x00 */ u8 pad0[2];
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
     /* 0x02 */ u8 format; // Lower 4 bits determines image format.
-    /* 0x03 */ u8 pad3[3];
+    /* 0x03 */ u8 posX;   // JFG: the tile's position in a sprite frame
+    /* 0x04 */ u8 posY;
+    /* 0x05 */ u8 pad5;
     /* 0x06 */ s16 flags;
     /* 0x08 */ u16 numberOfInstances;
     /* 0x0A */ s16 numberOfCommands;
@@ -32,7 +35,8 @@ typedef struct TextureHeader {
     /* 0x12 */ u16 numOfTextures;
     /* 0x14 */ u16 frameAdvanceDelay;
     /* 0x16 */ s16 textureSize;
-    /* 0x18 */ u8 pad18[3];
+    /* 0x18 */ u8 unk18; // JFG: a looping animation runs up to numberOfFrames, not one less (see sprite_anim_advance)
+    /* 0x19 */ u8 pad19[2];
     /* 0x1B */ u8 unk1B;
     /* 0x1C */ u8 pad1C[0x20 - 0x1C];
 } TextureHeader;
@@ -40,14 +44,14 @@ typedef struct TextureHeader {
 /* DKR's Sprite (renamed: libultra's sp.h has a Sprite too), JFG layout */
 typedef struct SpriteAsset {
     /* 0x00 */ u8 numberOfFrames;
-    /* 0x01 */ u8 pad1;
+    /* 0x01 */ s8 unk1; // JFG: copied from the first tile's texture (unk18)
     /* 0x02 */ s16 numberOfTextures;
     /* 0x04 */ s16 numberOfInstances;
     /* 0x06 */ s16 drawFlags;
     /* 0x08 */ u8 unk8[6]; // JFG: copied from the asset
     /* 0x0E */ u8 padE[2];
     /* 0x10 */ TextureHeader **textures;
-    /* 0x14 */ s16 *unk14; // JFG: one entry per texture
+    /* 0x14 */ s8 *unk14; // JFG: with draw flag 0x40, the command counts of the frame's parts, 0-terminated
     /* 0x18 */ Gfx *frames[1]; // Actual size varies.
 } SpriteAsset;
 
@@ -55,7 +59,8 @@ typedef struct SpriteAsset {
 typedef struct SpriteAssetData {
     /* 0x00 */ s16 baseTextureId;
     /* 0x02 */ s16 numberOfFrames;
-    /* 0x04 */ u8 pad4[4];
+    /* 0x04 */ s16 anchorX;
+    /* 0x06 */ s16 anchorY;
     /* 0x08 */ u8 unk8[6];
     /* 0x0E */ s16 flags;
     /* 0x10 */ u8 pad10[4];
@@ -874,7 +879,11 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80056070);
 
 /* Element sizes of the sprite's buffers */
 typedef struct SpriteTriangle {
-    u8 pad[16];
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s16 uv[3][2];
 } SpriteTriangle;
 typedef struct SpriteVertex {
     s16 x, y, z;
@@ -974,7 +983,7 @@ SpriteAsset *tex_load_sprite(s32 spriteID, s32 arg1) {
     gSpriteDLists = (Gfx *) ((u8 *) sprite + dlistsOffset);
     gSpriteVertices = (SpriteVertex *) ((u8 *) sprite + verticesOffset);
     sprite->textures = (TextureHeader **) ((u8 *) sprite + texturesOffset);
-    sprite->unk14 = (s16 *) ((u8 *) sprite + unk14Offset);
+    sprite->unk14 = (s8 *) ((u8 *) sprite + unk14Offset);
 
     allocFailed = FALSE;
     for (i = 0; i < numTextures; i++) {
@@ -1059,7 +1068,183 @@ void sprite_free(SpriteAsset *sprite) {
     }
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 4 words: the target stores the spilled tileEnd before the loop's entry test (in its delay slot),
+   mine in the loop preheader */
+/* JFG's DMA display list, vertex and two-triangle commands here: parameter, command and length or'ed in that
+   order; the vertices are appended (0x200) and counted from 0 */
+#define gDkrDmaDisplayListSpr(pkt, address, numberOfCommands)                                        \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL((numberOfCommands), 16, 8) | _SHIFTL(7, 24, 8) |                      \
+                        _SHIFTL((numberOfCommands) * 8, 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+#define gSPVertexSpr(pkt, v, n)                                                                      \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(((n) << 3) | ((u32) (v) & 6), 16, 8) | _SHIFTL(G_VTX, 24, 8) |        \
+                        _SHIFTL((((n) << 3) + ((n) << 1) + 8) | 0x200, 0, 16));                     \
+        _g->words.w1 = (unsigned int) (v);                                                           \
+    }
+#define gSPPolygonSpr(pkt, ptr)                                                                      \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = 0x05110020; /* two textured triangles */                                       \
+        _g->words.w1 = (unsigned int) (ptr);                                                         \
+    }
+
+/**
+ * Creates a display list that renders the specified sprite frame.
+ * A frame may consist of multiple tiles.
+ * JFG: the first frame always sets the draw flags; with draw flag 0x40 the tiles' own display lists are left out
+ * and the command counts of the parts are recorded in unk14 instead.
+ * DKR: sprite_init_frame
+ */
+void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 frameId) {
+    UNUSED s32 pad[2];
+    s32 anchorX;
+    s32 anchorY;
+    s32 tileEnd;
+    s32 tileOffsetX;
+    s32 tileOffsetY;
+    s32 left;
+    s32 numQuads;
+    s32 curVertIndex;
+    s32 texWidth;
+    s32 texHeight;
+    s32 tileIndex;
+    s32 numMarks;
+    SpriteVertex *vertex;
+    SpriteVertex *curVerts;
+    SpriteTriangle *triangle;
+    Gfx *dlptr;
+    Gfx *mark;
+    TextureHeader *tex;
+
+    anchorX = spriteAsset->anchorX;
+    anchorY = spriteAsset->anchorY;
+    dlptr = gSpriteDLists;
+    vertex = gSpriteVertices;
+    triangle = gSpriteTriangles;
+    tileIndex = spriteAsset->frameTexOffsets[frameId];
+    tileEnd = spriteAsset->frameTexOffsets[frameId + 1];
+    if (frameId == 0 || tileIndex < tileEnd) {
+        tex = sprite->textures[tileIndex];
+        sprite->unk1 = tex->unk18;
+        sprite->drawFlags = (tex->flags & 0xFFFF) & 0xC07B;
+    }
+    curVertIndex = 0;
+    numQuads = 0;
+    mark = dlptr;
+    numMarks = 0;
+    while (tileIndex < tileEnd) {
+        tex = sprite->textures[tileIndex];
+        texWidth = tex->width;
+        texHeight = tex->height;
+        tileOffsetX = tex->posX - anchorX;
+        tileOffsetY = anchorY - tex->posY;
+        curVerts = vertex;
+
+        vertex->x = tileOffsetX;
+        vertex->y = tileOffsetY - 1;
+        vertex->z = 0;
+        vertex->r = 255;
+        vertex->g = 255;
+        vertex->b = 255;
+        vertex->a = 255;
+        vertex++;
+
+        vertex->x = tileOffsetX + texWidth - 1;
+        vertex->y = tileOffsetY - 1;
+        vertex->z = 0;
+        vertex->r = 255;
+        vertex->g = 255;
+        vertex->b = 255;
+        vertex->a = 255;
+        vertex++;
+
+        vertex->x = tileOffsetX + texWidth - 1;
+        vertex->y = tileOffsetY - texHeight;
+        vertex->z = 0;
+        vertex->r = 255;
+        vertex->g = 255;
+        vertex->b = 255;
+        vertex->a = 255;
+        vertex++;
+
+        vertex->x = tileOffsetX;
+        vertex->y = tileOffsetY - texHeight;
+        vertex->z = 0;
+        vertex->r = 255;
+        vertex->g = 255;
+        vertex->b = 255;
+        vertex->a = 255;
+        vertex++;
+
+        if (sprite->drawFlags & 0x40) {
+            if (mark != dlptr) {
+                sprite->unk14[numMarks++] = dlptr - mark;
+                mark = dlptr;
+            }
+        } else {
+            gDkrDmaDisplayListSpr(dlptr++, OS_K0_TO_PHYSICAL(tex->cmd), tex->numberOfCommands);
+        }
+
+        if (numQuads == 0) {
+            left = tileEnd - tileIndex;
+            if (left > 5) {
+                left = 5;
+            }
+            gSPVertexSpr(dlptr++, OS_K0_TO_PHYSICAL(curVerts), left * 4);
+        }
+
+        gSPPolygonSpr(dlptr++, OS_K0_TO_PHYSICAL(triangle));
+        triangle->flags = 0x40;
+        triangle->vi0 = curVertIndex + 3;
+        triangle->vi1 = curVertIndex + 2;
+        triangle->vi2 = curVertIndex + 1;
+        triangle->uv[0][0] = (texWidth - 1) << 5;
+        triangle->uv[0][1] = (texHeight - 1) << 5;
+        triangle->uv[1][0] = (texWidth - 1) << 5;
+        triangle->uv[1][1] = 0;
+        triangle->uv[2][0] = 1;
+        triangle->uv[2][1] = 0;
+        triangle++;
+
+        triangle->flags = 0x40;
+        triangle->vi0 = curVertIndex + 4;
+        triangle->vi1 = curVertIndex + 3;
+        triangle->vi2 = curVertIndex + 1;
+        triangle->uv[0][0] = 1;
+        triangle->uv[0][1] = (texHeight - 1) << 5;
+        triangle->uv[1][0] = (texWidth - 1) << 5;
+        triangle->uv[1][1] = (texHeight - 1) << 5;
+        triangle->uv[2][0] = 1;
+        triangle->uv[2][1] = 0;
+        triangle++;
+
+        curVertIndex += 4;
+        numQuads++;
+        tileIndex++;
+        if (numQuads >= 5) {
+            numQuads = 0;
+            curVertIndex = 0;
+        }
+    }
+    if (sprite->drawFlags & 0x40) {
+        sprite->unk14[numMarks++] = dlptr - mark;
+        sprite->unk14[numMarks] = 0;
+    }
+    gDPPipeSync(dlptr++);
+    gSPEndDisplayList(dlptr++);
+    gSpriteDLists = dlptr;
+    gSpriteVertices = vertex;
+    gSpriteTriangles = triangle;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/55130", func_80056D24);
+#endif
 
 void func_8005719C(Gfx **dList, TextureHeader *tex, s32 arg2, s32 arg3);
 
@@ -1086,11 +1271,93 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_800570D8);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005719C);
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_800577A8);
+extern f32 D_800AD340;
 
-s32 func_800577A8(SpriteAsset *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+/**
+ * JFG: advance a sprite animation's frame position by updateRate * speed / 60 frames in the direction of flag 2
+ * (flag 1: running, 4: ping-pong, 8: loop); returns 1 when it reached an end (and bounced, wrapped or stopped).
+ * The empty address tests keep sprite, updateRate and frame in their stack homes, as the target does.
+ */
+s32 sprite_anim_advance(SpriteAsset *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed) {
+    s32 reverse;
+    s32 loop;
+    s32 pingpong;
+    s32 done;
+    f32 pos;
+    f32 lo;
+    f32 hi;
 
-/* JFG: func_800577A8 for a single texture (as a sprite of its frames). */
+    if (&sprite) {}
+    if (&updateRate) {}
+    if (&frame) {}
+    if (!(*flags & 1)) {
+        return 0;
+    }
+    reverse = *flags & 2;
+    pos = *frame;
+    loop = *flags & 8;
+    pingpong = *flags & 4;
+    done = 0;
+    if (!(sprite->textures[0]->flags & 0x40)) {
+        if (pingpong) {
+            hi = sprite->numberOfFrames - 0.5f;
+            if (loop) {
+                lo = 0.5f;
+            } else {
+                lo = 0.0f;
+            }
+        } else {
+            lo = 0.0f;
+            hi = sprite->numberOfFrames - D_800AD340;
+        }
+    } else {
+        lo = 0.0f;
+        if (pingpong || !loop || !sprite->textures[0]->unk18) {
+            hi = sprite->numberOfFrames - 1.0f;
+        } else {
+            hi = sprite->numberOfFrames;
+        }
+    }
+    if (reverse) {
+        pos -= (s32) (updateRate * speed) / 60.0f;
+        if (pos < lo) {
+            if (pingpong) {
+                if (loop) {
+                    pos = (lo - pos) + lo;
+                    *flags &= ~2;
+                    done = 1;
+                } else {
+                    pos = lo;
+                    done = 1;
+                }
+            } else {
+                if (loop) {
+                    pos += hi;
+                } else {
+                    pos = lo;
+                }
+                done = 1;
+            }
+        }
+    } else {
+        pos += (s32) (updateRate * speed) / 60.0f;
+        if (hi < pos) {
+            done = 1;
+            if (pingpong) {
+                pos = hi - (pos - hi);
+                *flags |= 2;
+            } else if (loop) {
+                pos -= hi;
+            } else {
+                pos = hi;
+            }
+        }
+    }
+    *frame = pos;
+    return done;
+}
+
+/* JFG: sprite_anim_advance for a single texture (as a sprite of its frames). */
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4) {
     SpriteAsset sprite;
     TextureHeader *textures[1];
@@ -1098,7 +1365,7 @@ s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s3
     textures[0] = tex;
     sprite.textures = textures;
     sprite.numberOfFrames = tex->numOfTextures >> 8;
-    return func_800577A8(&sprite, flags, updateRate, frame, arg4);
+    return sprite_anim_advance(&sprite, flags, updateRate, frame, arg4);
 }
 
 /* JFG's texture animation flag bits (DKR: bits 23, 25 and 26) */

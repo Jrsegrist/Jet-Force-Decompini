@@ -114,7 +114,7 @@ extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern M113Level *func_8004470C();                   /* DKR levelGetLevel */
 extern void func_80029BA4(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
 extern void spawn_object_from_list(s32, s16, s16, s16, s32, Object *);
-extern void func_80052734(s32, s16, s16, s16, u8, u8, u8);
+extern void enemy_module_notify(s32, s16, s16, s16, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 #ifdef NON_MATCHING
@@ -364,7 +364,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 spawn_object_from_list(2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
                               sBurstKinds[m->kind], owner);
             }
-            func_80052734(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
+            enemy_module_notify(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
         }
         if (OBJ_STATE(obj, M113State)->light != NULL) {
             track_light_off(OBJ_STATE(obj, M113State)->light);

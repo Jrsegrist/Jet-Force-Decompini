@@ -49,8 +49,8 @@ typedef struct M102Model {
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern void spawn_object_from_list(s16 kind, s16 x, s16 y, s16 z, s32 arg4, Object *thrower);
-extern void func_80052734(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
-extern void func_800577A8(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
+extern void sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_m003_058A4(Object *);
 
@@ -122,7 +122,7 @@ void func_m102_002B4(Object *obj) {
     }
     spawn_object_from_list(kind, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 8, thrower);
     func_80003410(0x22, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
-    func_80052734(NULL, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x22);
+    enemy_module_notify(NULL, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x22);
     func_800079B8(obj);
 }
 
@@ -154,14 +154,14 @@ void func_m102_00490(Object *obj, s32 updateRate) {
         return;
     }
     if (c->flags & 2) {
-        func_80052734(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, 2, 0);
+        enemy_module_notify(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, 2, 0);
     } else {
         scale = c->speed * 0.25f;
         if (scale > 1.0f) {
             scale = 1.0f;
         }
         b->spin += 256.0f * scale * updateRate;
-        func_800577A8(obj->modelInstances[0], &b->anim, 10.0f * scale, &obj->unk28, updateRate);
+        sprite_anim_advance(obj->modelInstances[0], &b->anim, 10.0f * scale, &obj->unk28, updateRate);
     }
     obj->trans.rotation.z_rotation = b->spin;
     if (b->anim & 2) {
