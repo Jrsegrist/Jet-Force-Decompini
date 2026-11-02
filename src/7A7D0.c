@@ -865,7 +865,97 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800822D8);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80082D80);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 3 words: the target adds step + box[n] for the first cell end, IDO here emits box[n] + step */
+/* JFG: the C form of func_8001D464 for three axes: clamp the range to the box, split each axis of the box into
+ * 8 cells and return a 24-bit mask of the cells the range overlaps (x in bits 0-7, z in 8-15, y in 16-23). */
+s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ) {
+    s32 mask;
+    s32 bit;
+    u32 i;
+    s16 step;
+    s16 cellEnd;
+    s16 cellStart;
+
+    if (box == NULL) {
+        return 0;
+    }
+    if (maxX < box[0]) {
+        maxX = box[0];
+    }
+    if (minX < box[0]) {
+        minX = box[0];
+    }
+    if (maxY < box[1]) {
+        maxY = box[1];
+    }
+    if (minY < box[1]) {
+        minY = box[1];
+    }
+    if (maxZ < box[2]) {
+        maxZ = box[2];
+    }
+    if (minZ < box[2]) {
+        minZ = box[2];
+    }
+    if (box[3] < maxX) {
+        maxX = box[3];
+    }
+    if (box[3] < minX) {
+        minX = box[3];
+    }
+    if (box[4] < maxY) {
+        maxY = box[4];
+    }
+    if (box[4] < minY) {
+        minY = box[4];
+    }
+    if (box[5] < maxZ) {
+        maxZ = box[5];
+    }
+    if (box[5] < minZ) {
+        minZ = box[5];
+    }
+    mask = 0;
+    bit = 1;
+    step = ((box[3] - box[0]) >> 3) + 1;
+    cellEnd = step + box[0];
+    cellStart = box[0];
+    for (i = 0; i < 8; i++) {
+        if (cellEnd >= minX && maxX >= cellStart) {
+            mask |= bit;
+        }
+        cellEnd += step;
+        cellStart += step;
+        bit <<= 1;
+    }
+    step = ((box[5] - box[2]) >> 3) + 1;
+    cellEnd = step + box[2];
+    cellStart = box[2];
+    for (i = 0; i < 8; i++) {
+        if (cellEnd >= minZ && maxZ >= cellStart) {
+            mask |= bit;
+        }
+        cellEnd += step;
+        cellStart += step;
+        bit <<= 1;
+    }
+    step = ((box[4] - box[1]) >> 3) + 1;
+    cellEnd = step + box[1];
+    cellStart = box[1];
+    for (i = 0; i < 8; i++) {
+        if (cellEnd >= minY && maxY >= cellStart) {
+            mask |= bit;
+        }
+        cellEnd += step;
+        cellStart += step;
+        bit <<= 1;
+    }
+    return mask;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800835E0);
+#endif
 
 typedef struct MassInfo {
     /* 0x00 */ u8 pad0[0x34];

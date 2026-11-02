@@ -379,7 +379,70 @@ void weather_update(Gfx **currDisplayList, Mtx **currHudMat, Vertex **currHudVer
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B928);
+/* DKR include/structs.h, size 10 */
+struct Vertex {
+    /* 0x00 */ s16 x, y, z;
+    /* 0x06 */ u8 r, g, b, a;
+};
+
+/* DKR include/f3ddkr.h */
+#define G_TRIN 5
+#define gSPPolygon(dl, ptr, numTris, texEnabled)                                                        \
+    {                                                                                                   \
+        Gfx *_g = (Gfx *) (dl);                                                                         \
+        _g->words.w0 = _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(G_TRIN, 24, 8) | \
+                       _SHIFTL(((numTris) * 16), 0, 16);                                                \
+        _g->words.w1 = (unsigned int) (ptr);                                                            \
+    }
+/* JFG: DKR's gSPSelectMatrixDKR(pkt, 0) */
+#define gSPSelectMatrix0(pkt)      \
+    {                              \
+        Gfx *_g = (Gfx *) (pkt);   \
+        _g->words.w0 = 0xBC00000A; \
+        _g->words.w1 = 0;          \
+    }
+/* JFG: loads n + 1 vertices (this file's form of the vertex command) */
+#define gSPVertexN1(pkt, v, n) gDma1p(pkt, G_VTX, v, (n) * 8 + (n) * 2 + 8, ((n) * 8) | ((u32) (v) & 6))
+
+extern s32 D_800A59F8; // DKR: gSnowVertCount
+Mtx *get_projection_matrix_s16(void);
+void func_80055C00(Gfx **dList, TextureHeader *tex, s32 flags, s32 frame);
+
+/**
+ * Load and execute the draw commands for the falling snowflakes, seen with snowy weather enabled.
+ * JFG: tinted with fixed primitive and environment colours, reset to white afterwards.
+ * DKR: snow_render
+ */
+void snow_render(void) {
+    s32 i;
+    Mtx *mtx;
+    Vertex *vtx;
+
+    if (gSnowGfx.texture != NULL) {
+        gSnowVertOffset = 4;
+        gSnowTriCount = 2;
+        if (D_800A59F8 >= 4) {
+            i = 0;
+            mtx = get_projection_matrix_s16();
+            gSPMatrix(gCurrWeatherDisplayList++, (u8 *) mtx + 0x80000000, 0);
+            gSPSelectMatrix0(gCurrWeatherDisplayList++);
+            func_80055C00(&gCurrWeatherDisplayList, gSnowGfx.texture, 2, 0);
+            gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 0xE0, 0xF0, 0xFF, 0xA0);
+            gDPSetEnvColor(gCurrWeatherDisplayList++, 0x40, 0x80, 0xFF, 0x00);
+            while (i + gSnowVertOffset < D_800A59F8) {
+                vtx = &gSnowVerts[i];
+                gSPVertexN1(gCurrWeatherDisplayList++, (u8 *) vtx + 0x80000000, gSnowVertOffset);
+                gSPPolygon(gCurrWeatherDisplayList++, (u8 *) gSnowTriangles + 0x80000000, gSnowTriCount, 1);
+                i += gSnowVertOffset;
+            }
+            vtx = &gSnowVerts[i];
+            gSPVertexN1(gCurrWeatherDisplayList++, (u8 *) vtx + 0x80000000, D_800A59F8 - i);
+            gSPPolygon(gCurrWeatherDisplayList++, (u8 *) gSnowTriangles + 0x80000000, (s32) (D_800A59F8 - i) >> 1, 1);
+            gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
+            gDPSetEnvColor(gCurrWeatherDisplayList++, 0xFF, 0xFF, 0xFF, 0xFF);
+        }
+    }
+}
 
 /* DKR's rain state (gLightningFrequencyStep etc. in DKR) */
 typedef struct AudioPoint AudioPoint;
