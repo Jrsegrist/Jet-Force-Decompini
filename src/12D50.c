@@ -1544,10 +1544,9 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80018024);
 
 f32 sqrtf(f32 x);
 
-#ifdef NON_MATCHING
 /**
  * JFG: where a ray (origin, unit direction) meets a sphere; FALSE if it misses.
- * NON_MATCHING: 7 words: b and b*b swap FP registers ($f14/$f18); the frame matches with the three unused words.
+ * (The empty `if (c) {}` keeps b and b*b in the ROM's registers.)
  */
 s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar) {
     f32 dx, dy, dz;
@@ -1569,15 +1568,13 @@ s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f3
         hit = TRUE;
     }
     if (hit) {
+        if (c) {}
         d = sqrtf(b2 - c);
         *tNear = -b - d;
         *tFar = -b + d;
     }
     return hit;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800183D4);
-#endif
 
 /* JFG: a collision edge of the level geometry (0x30 bytes) */
 typedef struct TrackEdge {
