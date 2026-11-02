@@ -13,7 +13,9 @@ typedef struct M003Member {
     /* 0x00 */ u32 unk0_29 : 1;
     /* 0x00 */ u32 pad0_3 : 8;
     /* 0x00 */ u32 unk0_20 : 1;
-    /* 0x00 */ u32 pad0_2 : 7;
+    /* 0x00 */ u32 pad0_2 : 5;
+    /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
+    /* 0x00 */ u32 pad0_5 : 1;
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
     /* 0x00 */ u32 pad0_4 : 8;
     /* 0x00 */ u32 headless : 1;
@@ -327,7 +329,37 @@ void func_m003_00000(Object *obj, f32 *x, f32 *y, f32 *z) {
     *z = ((M003Home *) sMember->home->unk68)->z;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_000D0);
+/* Circles the troop's home for a while (once near a point), then heads off */
+s32 func_m003_000D0(Object *obj, s16 *angle, f32 x, f32 z) {
+    M003Home *home;
+    f32 dist;
+    s32 turn;
+
+    if (sMember->unk1B == 4) {
+        sMember->unk51--;
+        if (sMember->unk51 == 0) {
+            sMember->unk1B = 7;
+        }
+        home = sHome->unk68;
+        *angle = func_80049C84(home->x - obj->trans.x_position, home->z - obj->trans.z_position);
+        if ((sMember->unk51 / 50) & 1) {
+            turn = 0x3E80;
+        } else {
+            turn = -0x3E80;
+        }
+        *angle += turn;
+        return TRUE;
+    }
+    dist = func_m003_03E68(obj->trans.x_position, obj->trans.z_position, x, z);
+    if (sMember->unk1B == 3 && dist < 500.0f) {
+        sMember->unk1B = 4;
+        sMember->unk51 = 150;
+    } else if (sMember->unk1B == 7 && dist < 2000.0f) {
+        func_m003_04398(1, 0);
+        ((M003Home *) sHome->unk68)->unk33 = 0;
+    }
+    return FALSE;
+}
 
 /* An object's position */
 void func_m003_00258(Object *obj, f32 *x, f32 *y, f32 *z) {
@@ -1052,7 +1084,55 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09680);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09840);
 
+extern Object *rl_m003_07B38(Object *home);
+
+#ifdef NON_MATCHING
+/* Takes a member out of its troop's list */
+/* (the ROM's frame is 8 bigger, with home spilled at 0x28, and t-registers numbered one higher) */
+void func_m003_098A0(Object *obj) {
+    M003Member *m = obj->unk68;
+    M003Member *om;
+    Object *o;
+    Object *home;
+    M003Home *h;
+    s32 i;
+
+    if (!m->unlinked) {
+        home = m->home;
+        if (home != NULL) {
+            h = home->unk68;
+            if (--h->unk0 == 0 && h->count == h->arrived) {
+                if ((h->flags & 4) || h->unk30 == 9) {
+                    h->unk30 = 5;
+                    h->unk2E = 60;
+                    h->arrived = 0;
+                } else {
+                    rl_m003_09840(h, 0x10);
+                }
+            }
+            if (h->flags & 1) {
+                ((M003Member *) rl_m003_07B38(home)->unk68)->unk15 = ((M003Member *) obj->unk68)->unk15;
+            }
+            o = h->first;
+            if (o == obj) {
+                h->first = ((M003Member *) o->unk68)->next;
+            } else {
+                i = h->unk0;
+                while (i--) {
+                    om = o->unk68;
+                    o = om->next;
+                    if (o == obj) {
+                        om->next = ((M003Member *) o->unk68)->next;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_098A0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09A14);
 
