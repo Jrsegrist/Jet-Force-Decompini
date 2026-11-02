@@ -29,7 +29,8 @@ typedef struct M003Member {
     /* 0x10 */ s16 unk10;
     /* 0x12 */ u8 pad12[0x15 - 0x12];
     /* 0x15 */ u8 unk15;
-    /* 0x16 */ u8 pad16[0x1A - 0x16];
+    /* 0x16 */ u8 pad16[0x19 - 0x16];
+    /* 0x19 */ u8 animSet;
     /* 0x1A */ u8 unk1A;
     /* 0x1B */ u8 unk1B; /* < 5: heading for a way point */
     /* 0x1C */ s16 unk1C;
@@ -126,9 +127,14 @@ typedef struct M003Region {
 
 /* An event the troops react to (size 0x10) */
 typedef struct M003Event {
-    /* 0x00 */ u8 pad0[0x8];
-    /* 0x08 */ u8 active;
-    /* 0x09 */ u8 pad9[0xC - 0x9];
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 active; /* frames left */
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ u8 padA[0xC - 0xA];
     /* 0x0C */ u32 id; /* the low two bits are the kind */
 } M003Event;
 
@@ -224,6 +230,20 @@ extern void func_m003_09A14(Object *obj);
 extern void rl_m003_0556C(s32 arg0);
 extern void rl_m003_09840(M003Home *home, s32 arg1);
 extern void rl_m003_105B8(Object *obj);
+extern s32 rl_m003_043FC(s32 arg0);
+extern s32 rl_m003_04968(s32 index, s32 anim, s32 arg2);
+
+/* An animation entry (8 bytes) */
+typedef struct M003Anim {
+    /* 0x00 */ u8 unk0[2];
+    /* 0x02 */ u8 anim;
+    /* 0x03 */ u8 pad3[8 - 3];
+} M003Anim;
+
+/* Parts of the module's .data (still assembly), by module offset */
+extern M003Anim rl_m003_17DB8[]; /* the animation entries */
+extern u16 rl_m003_19278[];      /* per body: its first animation entry (and a second u16) */
+extern s32 rl_m003_197F8;        /* the next event slot to reuse */
 
 /* The module's .data (still assembly) */
 extern u8 rl_m003_17A10[];
@@ -658,7 +678,28 @@ void func_m003_04398(s32 mission, s32 arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_043FC);
 
+#ifdef NON_MATCHING
+/* A member's animation entries (by its troop's body), or the first ones */
+/* (the ROM keeps home in a1 across the call, the result in v0 and materialises the table twice) */
+M003Anim *func_m003_04428(Object *obj) {
+    M003Member *m = obj->unk68;
+    Object *home;
+    M003Anim *anim;
+
+    if (m == NULL) {
+        anim = NULL;
+    } else {
+        home = m->home;
+        anim = rl_m003_17DB8;
+        if (home != NULL) {
+            anim = &rl_m003_17DB8[rl_m003_19278[troop_slot_get(((M003Home *) home->unk68)->kind) * 2]] + m->animSet;
+        }
+    }
+    return anim;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04428);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044B4);
 
@@ -670,7 +711,23 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04968);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04D08);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04EC4);
+/* Starts animation `index` of the member's body, unless it may not move now; returns what 04968 does */
+s32 func_m003_04EC4(s32 arg0, s32 index) {
+    s32 anim = rl_m003_17DB8[rl_m003_19278[sBodyIndex * 2] + index].anim;
+    s32 result;
+
+    if (!rl_m003_043FC(arg0)) {
+        return -1;
+    }
+    if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
+        return -1;
+    }
+    result = rl_m003_04968(index, anim, 0);
+    if (result != -1) {
+        sMember->unk4B = arg0;
+    }
+    return result;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04F88);
 
@@ -1173,7 +1230,45 @@ void func_m003_16750(u32 id) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16750);
 #endif
 
+#ifdef NON_MATCHING
+/* Adds an event the troops react to (or renews the one with this id) */
+/* (IDO keeps the extern counter's address in a register; the ROM addresses the .data word at each use) */
+void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
+    M003Event *event;
+    s32 found = FALSE;
+    s32 i;
+
+    if (id != 0) {
+        event = sEvents;
+        i = 15;
+        do {
+            if (event->active && id == event->id) {
+                found = TRUE;
+                break;
+            }
+            event++;
+        } while (i--);
+    }
+    if (found) {
+        event->active = 10;
+    } else {
+        event = &sEvents[rl_m003_197F8++];
+        if (rl_m003_197F8 >= 16) {
+            rl_m003_197F8 = 0;
+        }
+        event->active = func_80048E2C(30, 40) * (u32) D_800FE9F8;
+    }
+    event->x = x;
+    event->y = y;
+    event->z = z;
+    event->unk6 = arg4;
+    event->id = id;
+    event->unk7 = arg5;
+    event->unk9 = arg6;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_167A0);
+#endif
 
 #ifdef NON_MATCHING
 /* Lists the objects with behaviour 0x9B (up to 32) (obj and isTarget swap a0/v1) */
