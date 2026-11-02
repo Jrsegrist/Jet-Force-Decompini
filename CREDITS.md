@@ -139,6 +139,16 @@ the assembly with our own structures. Its function names are ultralib's
 `__scSchedule`); `__scHandleAudioReady`, `rcp_hang_bisect` and
 `rcp_hang_find` are our own.
 
+### Round 6, main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/tracks.c` | skydome_render, block_visible, func_8002A31C (as view_planes_update) |
+| `src/lights.c` | light_add_from_level_object_entry |
+| `src/camera.c` | render_ortho_triangle_image; render_sprite_billboard (structure only) |
+
 ## Tools and libraries
 
 | What | Licence | How it is used |
