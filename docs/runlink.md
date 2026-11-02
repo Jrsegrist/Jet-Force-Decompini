@@ -159,7 +159,7 @@ from `src/modules/mNNN.c` (see below), lays out .text, .data, .rodata and
 
 | relocation against | entry |
 | --- | --- |
-| a section symbol, a local symbol, `rl_mNNN_XXXXX`, or this module's own unexported `func_`/`D_mNNN_` name | table 2, kind 1, word = module offset of the section, symbol or name; for R_MIPS_26 kind 2, with the target offset written into the jump field and the word copied from the previous kind-0 entry |
+| a section symbol, a local symbol, `rl_mNNN_XXXXX`, or this module's own unexported `func_`/`D_mNNN_` name | table 2, kind 1, word = module offset of the section, symbol or name; for R_MIPS_26 kind 2, with the target offset written into the jump field and the word copied from the previous kind-0 entry. An undefined (extern) `rl_mNNN_XXXXX` that is not a section start is rebased as the original linker wrote it: the word is the section start, and the rest of the offset goes into the relocated field (the %hi/%lo pair, or the word) |
 | `func_XXXXXXXX`/`D_XXXXXXXX`, `func_mNNN_`/`D_mNNN_` of an exported symbol, a runlink name, a name that `undefined_syms.us.txt` gives an address or an address name, or a global defined in the object | kind 0, word = the runlink symbol index; table 2 if the symbol is this module's own, else table 1 |
 
 It takes the initialisation and shutdown offsets from the symbols `__rl_init`
@@ -293,9 +293,11 @@ lessons apply too):
   variable of its own there, materialises that variable's address. For
   .bss the fix is to define the whole section in C, the known variables at
   their offsets and byte arrays for the gaps (m003, m031, m137); IDO aligns
-  arrays to 8 there, so start each gap array at an 8-byte boundary. .data
-  that holds numbers cannot move to C like that, so such functions stay
-  NON_MATCHING (m007).
+  arrays to 8 there, so start each gap array at an 8-byte boundary. For
+  .data that stays assembly, give each variable its own extern name at its
+  module offset (`extern s32 rl_m007_02A24;`): IDO then materialises that
+  variable's address, and the builder rebases the relocation to the section
+  start as the original did (m007, m031, m003's animation tables).
 - An init or fini function that is still INCLUDE_ASM cannot be marked with
   `#pragma weak` (cfe ignores it: no C definition), so write that function
   in C first (m003's are short).
@@ -350,14 +352,14 @@ such as m015, m091 and m149, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 4 of 5 | 15/16 |
-| enemy behaviours | 10 of 18 | 66/284 |
+| enemy behaviours | 10 of 18 | 104/284 |
 | bosses | 3 of 3 | 28/28 |
 | weapons (character control) | 0 of 3 | 3/78 |
 | menus and screens | 4 of 14 | 48/136 |
 | effect libraries | 2 of 4 | 19/26 |
 | fog and lighting | 1 of 2 | 10/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 45 of 98 | 261/684 |
+| other object behaviours | 45 of 98 | 280/684 |
 
 (Modules 21 and 56 are empty: their C files are empty too.)
 

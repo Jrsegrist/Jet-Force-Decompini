@@ -185,11 +185,38 @@ def build_module(path, me, symbols, order):
     secbase = {ti: 0, di: tsize_p, ri: rbase, bi: tsize_p + dtotal}
     image = bytearray(text + block)
 
+    # the original linker's kind-1 words are always a section start, the
+    # offset into the section being in the relocated field
+    starts = sorted(v for k, v in secbase.items() if k is not None)
+
+    def rebase(local, where, typ, rels, k):
+        start = max(s for s in starts if s <= local)
+        delta = local - start
+        if delta == 0:
+            return local
+        w = struct.unpack_from(">I", image, where)[0]
+        if typ == 2:  # R_MIPS_32
+            struct.pack_into(">I", image, where, (w + delta) & 0xFFFFFFFF)
+        elif typ == 6:  # R_MIPS_LO16
+            struct.pack_into(">I", image, where, (w & 0xFFFF0000) | ((w + delta) & 0xFFFF))
+        elif typ == 5:  # R_MIPS_HI16: the addend continues in the next LO16 of the same symbol
+            lo = next((o for o, t, si in rels[k + 1:] if t == 6 and si == rels[k][2]), None)
+            if lo is None:
+                raise SystemExit("m%03d: R_MIPS_HI16 at 0x%X has no R_MIPS_LO16" % (me, where))
+            lw = struct.unpack_from(">I", image, base_of_rels + lo)[0] & 0xFFFF
+            ahl = ((w & 0xFFFF) << 16) + (lw - 0x10000 if lw & 0x8000 else lw) + delta
+            struct.pack_into(">I", image, where, (w & 0xFFFF0000) | (((ahl + 0x8000) >> 16) & 0xFFFF))
+        else:
+            raise SystemExit("m%03d: relocation type %d to a module offset not at a section start" % (me, typ))
+        return start
+
     t1, t2 = [], []
     for sidx, base in ((ti, 0), (di, tsize_p), (ri, rbase)):
         if sidx is None:
             continue
-        for off, typ, symi in e.rels(sidx):
+        rels = e.rels(sidx)
+        base_of_rels = base
+        for k, (off, typ, symi) in enumerate(rels):
             s = e.syms[symi]
             name = s["name"]
             where = base + off
@@ -197,6 +224,7 @@ def build_module(path, me, symbols, order):
             if s["shndx"] == SHN_COMMON:
                 raise SystemExit("%s: %s is a common symbol; define it (or make it static)" % (path, name))
             local = None  # module offset of a kind-1/kind-2 target base
+            rebase_it = False
             idx = None
             if s["type"] == STT_SECTION:
                 local = secbase[s["shndx"]]
@@ -206,6 +234,8 @@ def build_module(path, me, symbols, order):
                 m = LOCAL_RE.match(name)
                 if m and int(m.group(1)) == me:
                     local = int(m.group(2), 16)
+                    # an extern rl_ name in C: C reaching a variable inside assembly data
+                    rebase_it = not defined
                 else:
                     idx = symbols.lookup(name)
                     if idx is None and defined:
@@ -226,7 +256,7 @@ def build_module(path, me, symbols, order):
                     struct.pack_into(">I", image, where, (w & 0xFC000000) | ((tgt >> 2) & 0x3FFFFFF))
                     t2.append([where, typ, 2, None])
                 else:
-                    t2.append([where, typ, 1, local])
+                    t2.append([where, typ, 1, rebase(local, where, typ, rels, k) if rebase_it else local])
             else:
                 tab = t2 if symbols.mod[idx] == me else t1
                 tab.append([where, typ, 0, idx])
