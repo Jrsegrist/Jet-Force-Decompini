@@ -459,8 +459,6 @@ void spheres_push_out(f32 *x, f32 *y, f32 *z, f32 radius, SphereSet *set) {
     *z = pz;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: float register allocation (r/dx/dy/dz in f16-f22 rotated against the target) */
 /* JFG: TRUE if the sphere overlaps any sphere of the set. */
 s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
     s32 i = set->count;
@@ -472,11 +470,11 @@ s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
     f32 dx, dy, dz, r;
 
     while (i--) {
-        r = other->radius + radius;
-        r *= r;
         dx = other->pos.x - x;
         dy = other->pos.y - y;
         dz = other->pos.z - z;
+        r = other->radius + radius;
+        r *= r;
         other++;
         if (dx * dx + dy * dy + dz * dz < r) {
             return TRUE;
@@ -484,9 +482,6 @@ s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
     }
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D0B4);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
 
