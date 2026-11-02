@@ -417,26 +417,18 @@ void audio_group_play(s32 group) {
 
 extern s32 D_800A0800[];               // JFG: the number of entries of each group
 
-#ifdef NON_MATCHING
-/**
- * JFG: take a point out of its group.
- * NON_MATCHING: same length; registers differ and IDO tests i != count (target: slt).
- */
+/* JFG: take a point out of its group. */
 void func_80003B14(AudioPoint *point) {
     s32 i;
-    s32 count = D_800A0800[point->unk23];
     AudioGroupEntry *entry = D_800F2A48[point->unk23 - 1];
 
-    for (i = 0; i < count; i++, entry++) {
+    for (i = 0; i < D_800A0800[point->unk23]; i++, entry++) {
         if (point == entry->point) {
             entry->point = NULL;
             break;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003B14);
-#endif
 
 void func_80003B14(AudioPoint *point);
 void sound_stop(void *soundHandle);
