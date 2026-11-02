@@ -85,9 +85,29 @@ extern s32 func_80049C84(f32 dx, f32 dz);     /* the angle of a vector */
 extern s32 func_80049D80(s32 from, s32 to);   /* the signed difference of two angles */
 extern s32 func_m003_056D4(M142Shape *shape);
 
+/*
+ * The .rodata (the part-name strings, then two error messages no code uses)
+ * stays in asm; the table points into it.
+ */
+extern char rl_m142_014A0[];
+
 static char *sPartNames[] = {
-    "RIGHTLEG", "LEFTLEG", "BODY",   "TORSO",  "LEFTARM", "RIGHTARM", "HEAD",    "GUN_TL",
-    "GUN_TR",   "GUN_BL",  "GUN_BR", "FLESH",  "OTHER",   "HEAD",     "MG_AMMO", "FT_AMMO",
+    rl_m142_014A0 + 0x00, /* RIGHTLEG */
+    rl_m142_014A0 + 0x0C, /* LEFTLEG */
+    rl_m142_014A0 + 0x14, /* BODY */
+    rl_m142_014A0 + 0x1C, /* TORSO */
+    rl_m142_014A0 + 0x24, /* LEFTARM */
+    rl_m142_014A0 + 0x2C, /* RIGHTARM */
+    rl_m142_014A0 + 0x38, /* HEAD */
+    rl_m142_014A0 + 0x40, /* GUN_TL */
+    rl_m142_014A0 + 0x48, /* GUN_TR */
+    rl_m142_014A0 + 0x50, /* GUN_BL */
+    rl_m142_014A0 + 0x58, /* GUN_BR */
+    rl_m142_014A0 + 0x60, /* FLESH */
+    rl_m142_014A0 + 0x68, /* OTHER */
+    rl_m142_014A0 + 0x70, /* HEAD */
+    rl_m142_014A0 + 0x78, /* MG_AMMO */
+    rl_m142_014A0 + 0x80, /* FT_AMMO */
 };
 
 s32 D_m142_01490 = 142; /* the module's number */
@@ -147,7 +167,7 @@ static void func_m142_001BC(f32 x1, f32 y1, f32 x2, f32 y2, u8 edge, u8 kind) {
         return;
     }
     if (sSegCount >= MAX_SEGS) {
-        (void) "ERROR:MAX_LINE_SEGMENTS exceeded\n";
+        /* (an error message in .rodata) */
         for (;;) {}
     }
     sSegs[sSegCount].x1 = x1;
@@ -347,7 +367,6 @@ static void func_m142_00CFC(M142Node *prev, M142Node *node) {
     node->back = &sNodes[sNodeCount];
     sNodeCount++;
     func_m142_00930(node, node->back, 0);
-    (void) "ERROR:MAX_B" "SP_NODES exceeded\n";
     func_m142_00CFC(node, node->front);
     func_m142_00CFC(node, node->back);
 }
@@ -468,3 +487,5 @@ void func_m142_00E40(M142Shape *shape, s32 all) {
 void func_m142_01428(M142Shape *shape) {
     func_m142_00E40(shape, 1);
 }
+
+INCLUDE_ASM("asm/nonmatchings/modules/m142", rodata);
