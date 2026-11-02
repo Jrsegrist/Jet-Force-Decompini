@@ -158,7 +158,7 @@ extern s32 func_m003_04260(s32, s32, s32, s32, s32);
 extern void func_m003_179B0(s32, s32);
 extern s32 func_80049C84(f32 dx, f32 dz); /* the angle of a vector */
 extern s32 func_80049D80(s32 from, s32 to); /* the difference between two angles */
-extern void func_80026E20(Object *obj);
+extern void chain_object_unlink_from_players(Object *obj);
 extern void func_8000C9B4(s32, s32, s32, s32);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern f32 func_80097140(f32 x); /* square root */
@@ -239,17 +239,17 @@ void func_m149_00000(Object *obj) {
             if (!(e->parts & 0x20) && INTERACT(obj)->zones[5].damage > 0xA00) {
                 e->unkA0 |= 0x20;
                 INTERACT(obj)->zones[5].flags.shotAway = 1;
-                func_80026E20(obj);
+                chain_object_unlink_from_players(obj);
             }
             if (!(e->parts & 0x10) && INTERACT(obj)->zones[4].damage > 0xA00) {
                 e->unkA0 |= 0x10;
                 INTERACT(obj)->zones[4].flags.shotAway = 1;
-                func_80026E20(obj);
+                chain_object_unlink_from_players(obj);
             }
             break;
         case 2:
             if (!(e->parts & 4) && INTERACT(obj)->zones[9].damage > 0x1800) {
-                func_80026E20(obj);
+                chain_object_unlink_from_players(obj);
                 INTERACT(obj)->zones[9].flags.shotAway = 1;
                 INTERACT(obj)->zones[9].unk2F = 0;
                 e->unkA0 |= 4;

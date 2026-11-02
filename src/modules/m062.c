@@ -5,9 +5,9 @@
 #include "module.h"
 
 extern s32 *gMenuText; /* the settings, read here as words */
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059FE8(s16 *assets);
-extern void func_80059CCC(s16 *assets); /* frees menu textures */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_reset(s16 *assets);
+extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 extern void music_play(s32 seq);
 
 #define SETTING(offset) (gMenuText[(offset) / 4])
@@ -63,9 +63,9 @@ static s32 sSavedC0[2];
 static s32 sSavedC8[3];
 
 void func_m062_00000(void) {
-    func_80059E1C(sAssets);
-    func_80059FE8(sImages);
-    func_80059E1C(sAssets2);
+    menu_assetgroup_load(sAssets);
+    menu_assetgroup_reset(sImages);
+    menu_assetgroup_load(sAssets2);
     sSaved50[0] = SETTING(0x5A0);
     sSaved50[1] = SETTING(0x5A4);
     sSaved50[2] = SETTING(0x5A8);
@@ -114,8 +114,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m062", func_m062_01A48);
 INCLUDE_ASM("asm/nonmatchings/modules/m062", func_m062_0228C);
 
 void func_m062_02784(void) {
-    func_80059CCC(sAssets);
-    func_80059CCC(sAssets2);
+    menu_assetgroup_free(sAssets);
+    menu_assetgroup_free(sAssets2);
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m062", rodata);

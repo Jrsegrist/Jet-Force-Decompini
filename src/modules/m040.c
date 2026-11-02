@@ -18,7 +18,7 @@ typedef struct M040Box {
 } M040Box;
 
 extern s32 D_800FECCC;
-extern void func_80059CCC(s16 *assets); /* frees menu textures */
+extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 
 static s16 sAssets2[] = { 0x43, 0x44, -1, 0 };
 static s16 sImages[] = { 0x1F, 0x2E, -1, 0 };
@@ -44,7 +44,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_00000);
 INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_0019C);
 
 void func_m040_007C8(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
     D_800FECCC = 0;
 }
 

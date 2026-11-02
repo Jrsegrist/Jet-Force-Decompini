@@ -214,12 +214,12 @@ extern void func_m107_00D08(void *, f32, f32, s32);
 extern void func_8003D21C(M051ModelInstance *, M051ModelData *, Object *, f32, f32);
 extern s32 func_8000BC28(Object *, M051ModelInstance *, M051ModelData *, s32, u8 *, f32 *, f32 *, f32 *);
 extern void func_800221F0(Object *, M051ModelInstance *, ObjectShading *, void *);
-extern void func_80009734(Object *, M051ModelData *, M051ModelInstance *, s32);
+extern void obj_tex_animate(Object *, M051ModelData *, M051ModelInstance *, s32);
 extern s32 func_80037550(Object *obj, M051Player *p, f32 updateRate);
 extern s32 func_80033F4C(s32 weapon);
 extern void func_800116BC(Object *obj, f32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
-extern void func_8002AEA0(Object *obj, s32 arg1);
+extern void player_voice_play(Object *obj, s32 arg1);
 extern s32 func_8003AABC(Object *obj, M051Player *p, s32, s32, s32, s32, s16 *, s16 *, f32);
 extern void cam_fov_zoom_set(s32 player, s32 arg1);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
@@ -483,7 +483,7 @@ void func_m051_00000(Object *obj, s32 updateRate) {
                                              &p->unk54C);
         func_800221F0(obj, inst, obj->shading, inst->matrices[inst->matrixIndex]);
         if (model->unk11 > 0) {
-            func_80009734(obj, model, inst, inst->unkA);
+            obj_tex_animate(obj, model, inst, inst->unkA);
         }
         inst->unkA = 0;
         height = inst->unk70->y + 4.0f - obj->trans.y_position;
@@ -531,7 +531,7 @@ static void func_m051_008F0(Object *obj, M051Player *p, f32 updateRate) {
         p->state = 0x23;
         obj->velocity.y += 10.0f;
         func_m051_01118(obj, p, 5, 0.0f);
-        func_8002AEA0(obj, 0);
+        player_voice_play(obj, 0);
     } else if (gPlayerButtonsHeld & 2) {
         p->speed -= 0.2f * updateRate;
         if (p->speed < -3.0f) {

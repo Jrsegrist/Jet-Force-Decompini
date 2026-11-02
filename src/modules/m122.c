@@ -47,7 +47,7 @@ typedef struct M122Setup {
     /* 0x0C */ s32 modelId;
 } M122Setup;
 
-extern void *func_80026F38(s32 id, u8 *arg1); /* loads a model */
+extern void *chain_slot_find_shortest(s32 id, u8 *arg1); /* loads a model */
 extern void obj_list_insert_after(Object *obj, void *model);
 extern void func_80048C7C(MtxF *a, MtxF *b, MtxF *out); /* out = a * b */
 extern void func_80049DC0(Object *obj, MtxF *out);
@@ -98,7 +98,7 @@ void func_m122_00000(Object *obj, M122Setup *setup) {
     s->age = 0;
     func_80079D1C(obj, 0xA00, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
     obj->unk7C[0] |= 2;
-    if ((s->model = func_80026F38(s->modelId, &unused)) != NULL) {
+    if ((s->model = chain_slot_find_shortest(s->modelId, &unused)) != NULL) {
         obj_list_insert_after(obj, s->model);
     } else {
         s->flags |= 8;

@@ -35,8 +35,8 @@ typedef struct M012Texture {
     /* 0x4 */ s32 unk4;
 } M012Texture;
 
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059CCC(s16 *assets); /* frees them */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_free(s16 *assets); /* frees them */
 extern void mempool_free_queue_flush(void);
 extern void func_8005414C(void);
 extern void load_texture_at(s32 arg0, s32 arg1);
@@ -120,7 +120,7 @@ static void free_textures(void);
 
 void func_m012_00000(void) {
     if (sLoaded) {
-        func_80059CCC(sAssets);
+        menu_assetgroup_free(sAssets);
     }
     sLoaded = 1;
     sFrame.width = 10;
@@ -131,7 +131,7 @@ void func_m012_00000(void) {
     sFrame.texturesFreed = 1;
     sFrame.fade = 4;
     sFrame.distance = 230.0f;
-    func_80059E1C(sAssets);
+    menu_assetgroup_load(sAssets);
     sEnabled = 1;
     sNewLevel = -1;
 }
@@ -141,7 +141,7 @@ void func_m012_00094(void) {
         if (sFrame.texturesFreed == 0) {
             free_textures();
         }
-        func_80059CCC(sAssets);
+        menu_assetgroup_free(sAssets);
     }
     sLoaded = 0;
 }

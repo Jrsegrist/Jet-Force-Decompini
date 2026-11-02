@@ -57,7 +57,7 @@ extern s32 func_800210A4(Object *obj, LightParams *params); /* adds a light */
  */
 #ifdef NON_MATCHING
 static u8 sTrisMade = FALSE;
-static u8 sControlData[8] = { 0x40, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0x00, 0x05 }; /* control passes it to func_8006B9CC */
+static u8 sControlData[8] = { 0x40, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0x00, 0x05 }; /* control passes it to transition_begin */
 /* the texture rows of the three bands (top, bottom) */
 s16 D_m126_0125C[5][2] = { { 0, 0xC0 }, { 0xC0, 0x100 }, { 0x100, 0x1E0 } };
 

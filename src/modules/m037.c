@@ -23,9 +23,9 @@ typedef struct M037Settings {
 } M037Settings;
 
 extern M037Settings *gMenuText;
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059FE8(s16 *assets);
-extern void func_80059CCC(s16 *assets); /* frees menu textures */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_reset(s16 *assets);
+extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 
 /*
  * The module's .data and .rodata are still assembly: they are reached from
@@ -58,10 +58,10 @@ static f32 sUnk5C;
 static f32 sUnk60;
 
 void func_m037_00000(s32 arg0) {
-    func_80059E1C(sAssets);
-    func_80059FE8(sImages);
+    menu_assetgroup_load(sAssets);
+    menu_assetgroup_reset(sImages);
     if (arg0 == 0) {
-        func_80059E1C(sCheatAssets);
+        menu_assetgroup_load(sCheatAssets);
     }
     sUnk5C = rl_m037_01F70[0x14]; /* 0.01f */
     sUnk40 = 0;
@@ -91,9 +91,9 @@ void func_m037_00000(s32 arg0) {
 }
 
 void func_m037_00160(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
     if (sNoCheats == 0) {
-        func_80059CCC(sCheatAssets);
+        menu_assetgroup_free(sCheatAssets);
     }
 }
 

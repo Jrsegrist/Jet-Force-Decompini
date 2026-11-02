@@ -30,7 +30,7 @@ extern s8 D_800A4FEC;
 extern M061Stats D_800FED50[];
 extern M061Stats *D_800FF1C0[]; /* the players, sorted */
 
-extern void func_80059CCC(s16 *assets); /* frees menu textures */
+extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 extern void func_m006_00EFC(void);
 extern void func_80055A00(s32 tex); /* frees a texture */
 extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
@@ -46,7 +46,7 @@ extern u8 rl_m061_02FA0[];
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_00000);
 
 void func_m061_003D0(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
     func_m006_00EFC();
     func_80055A00(sTextures[0]);
     func_80055A00(sTextures[6]);

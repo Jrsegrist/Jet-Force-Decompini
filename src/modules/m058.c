@@ -128,9 +128,9 @@ extern M058Player D_800FEFD8[];
 extern u8 D_800FEFD0[];
 
 extern void func_8003DDBC(s32 arg0);
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059FE8(s16 *assets);
-extern void func_80059CCC(s16 *assets); /* frees menu textures */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_reset(s16 *assets);
+extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 extern Object *func_80005F14(void *entry, s32 arg1); /* spawns an object from a level entry */
 extern s32 fb_mode(void);
 extern Object *func_m135_0205C(void);
@@ -139,7 +139,7 @@ extern void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate);
 extern s32 func_80043510(s32 player); /* the buttons held */
 extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
 extern void load_first_unlocked_level(void);
-extern s32 func_8006B9CC(s16 *arg0);
+extern s32 transition_begin(s16 *arg0);
 extern M058Settings *get_settings(void);
 extern void func_80047580(s32 arg0, s32 player);
 extern s32 leveltable_region(s32 arg0);
@@ -208,9 +208,9 @@ void func_m058_00000(void) {
     M058Asset *asset;
 
     func_8003DDBC(0);
-    func_80059E1C(sAssets);
+    menu_assetgroup_load(sAssets);
     func_8003DDBC(8);
-    func_80059FE8(sImages);
+    menu_assetgroup_reset(sImages);
     sExit = NULL;
     sExitOpen = TRUE;
     sHub = NULL;
@@ -282,7 +282,7 @@ void func_m058_00134(s32 updateRate) {
         }
         if (sWaitTimer <= 0) {
             if (!sLeaving) {
-                func_8006B9CC(sList10F8);
+                transition_begin(sList10F8);
                 sLeaving = TRUE;
                 sFadeTimer = 80;
                 music_volume_fade(1.2f, 0);
@@ -374,7 +374,7 @@ void func_m058_00618(s32 updateRate) {
 }
 
 void func_m058_00894(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
     if (sTeleporter != NULL) {
         func_800079B8(sTeleporter);
         sTeleporter = NULL;

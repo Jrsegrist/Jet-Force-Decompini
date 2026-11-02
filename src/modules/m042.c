@@ -21,9 +21,9 @@ typedef struct M042Ui {
 } M042Ui;
 
 extern M042Ui D_800FF780;
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059FE8(s16 *assets);
-extern void func_80059CCC(s16 *assets); /* frees menu textures */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_reset(s16 *assets);
+extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 extern void mark_read_all_save_files(void *buf);
 extern void music_play(s32 seq);
 
@@ -84,8 +84,8 @@ void func_m042_00000(void) {
 
     if (sLoaded == 0) {
         sLoaded = 1;
-        func_80059E1C(sAssets);
-        func_80059FE8(sImages);
+        menu_assetgroup_load(sAssets);
+        menu_assetgroup_reset(sImages);
         D_800FF780.unk3E6 = 0x97;
         D_800FF780.unk660 = -0x8000;
         sUnk4C = 0x7FF0;
@@ -112,7 +112,7 @@ void func_m042_00000(void) {
 }
 
 void func_m042_00150(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
     sLoaded = 0;
 }
 

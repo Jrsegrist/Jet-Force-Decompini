@@ -322,12 +322,12 @@ extern void func_80057A54(M015Texture *tex, u32 *flags, s32 *frame, s32 updateRa
 extern s32 func_80049D80(s32 a, s32 b);
 extern s32 func_80049C84(f32 x, f32 z);
 extern u8 D_800A4E78;
-extern void func_8002AEA0(Object *obj, s32 arg1);
+extern void player_voice_play(Object *obj, s32 arg1);
 extern void func_800013FC(s32 sound, s32 handle, u8 volume);
 extern void *func_m001_00188(f32 size, f32 x, f32 y, f32 z, f32 level, f32 vx, f32 vy, f32 vz);
 extern void func_m001_002A0(void *particle, s32 updateRate);
 extern s32 func_8004966C(s16 angle);
-extern void func_8007E328(Object *obj, Object *obj2);
+extern void multiplayer_score_kill(Object *obj, Object *obj2);
 extern void func_8006F078(void);
 extern void menu_draw_layout_box(s32 arg0, s32 player, u32 colour);
 extern u8 D_800A4FC4;
@@ -348,9 +348,9 @@ extern M015Buttons *D_800A18B0;
 extern s32 gPlayerButtonsHeld; /* buttons pressed */
 extern s32 gPlayerButtonsPressed; /* buttons held */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
-extern f32 func_800340A4(f32 from, f32 to, void *table, f32 updateRate);
+extern f32 table_lerp_diff(f32 from, f32 to, void *table, f32 updateRate);
 extern s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 arg3, f32 arg4);
-extern void func_80033D74(Object *obj, Racer *racer, f32 *speed, s16 angle, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
+extern void player_turn_limit_update(Object *obj, Racer *racer, f32 *speed, s16 angle, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
 extern void func_800346C4(Object *obj, Racer *racer, f32 *speed, s16 *angle, s32 arg4, s32 arg5, void *arg6, f32 arg7,
                           f32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 amount);
@@ -380,7 +380,7 @@ extern void func_80048518(s32 arg0);
 extern void func_80033920(Object *obj, Racer *racer);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern f32 D_800F6DC4;          /* gravity */
-extern s32 func_8004270C(void);
+extern s32 camera_follow_get(void);
 extern void *func_8004271C(void);
 extern u8 func_8005AAB8(s32 player);
 extern void func_80035514(Object *obj, Racer *racer, void *table, u8 pose);
@@ -691,12 +691,12 @@ extern s32 func_8000BC28(Object *obj, M015ModelInst *inst, M015Model *model, s32
 extern void func_800116BC(Object *obj, f32 frame);
 extern u32 func_800195E8(f32 x, f32 z, f32 *height, u32 mask);
 extern void func_800221F0(Object *obj, M015ModelInst *inst, void *shading, void *arg3);
-extern void func_80026E20(Object *obj);
+extern void chain_object_unlink_from_players(Object *obj);
 extern void player_items_unlink(Racer *racer);
-extern void func_80033BB8(Racer *racer, s32 arg1, s32 updateRate);
+extern void player_charge_meter_update(Racer *racer, s32 arg1, s32 updateRate);
 extern s32 func_80033F4C(s32 arg0);
 extern void func_80034164(Object *obj, Racer *racer);
-extern void func_800341B4(Object *obj, Racer *racer, s32 a, s32 b, s32 updateRate);
+extern void player_loop_sounds_update(Object *obj, Racer *racer, s32 a, s32 b, s32 updateRate);
 extern void func_800349AC(Racer *racer, f32 updateRate);
 extern void func_80035894(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80035AEC(Object *obj, Racer *racer, f32 updateRate);
@@ -902,7 +902,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         racer->unk1F4 = 1;
     }
     if (racer->state != 10) {
-        func_80033BB8(racer, 0, updateRate);
+        player_charge_meter_update(racer, 0, updateRate);
     }
     func_m015_06E40(racer);
     if (racer->state != 4 || obj->animationID != 0x2D) {
@@ -951,7 +951,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             if (D_800A4FC4 == 0) {
                 func_80000510(0x38);
             } else {
-                func_80026E20(obj);
+                chain_object_unlink_from_players(obj);
             }
             racer->state = 10;
             gPlayerButtonsHeld = 0;
@@ -1070,7 +1070,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     }
     if ((racer->unk520 & 0x8000) && racer->state != 10 && racer->unk5C8 == 0) {
         func_80001248(0x214, (s32) &racer->unkD4);
-        func_8002AEA0(obj, 3);
+        player_voice_play(obj, 3);
         interact = obj->interactObj;
         interact->hitPoints -= 0x900;
         interact = obj->interactObj;
@@ -1087,7 +1087,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         } else {
             interact->hitPoints = 0;
             if (D_800A4FC4 != 0) {
-                func_8007E328(obj, obj);
+                multiplayer_score_kill(obj, obj);
             }
         }
     } else if (racer->unk14B > 0) {
@@ -1211,7 +1211,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     if (D_m015_089CE != 0) {
         func_80038630(obj, racer);
     }
-    func_800341B4(obj, racer, 0x800, 0x400, updateRate);
+    player_loop_sounds_update(obj, racer, 0x800, 0x400, updateRate);
     OBJ58(obj)->unk75 = 0;
     flags = OBJ58(obj)->unk84;
     if (flags != NULL) {
@@ -1310,7 +1310,7 @@ static void func_m015_01E14(Object *obj, Racer *racer, s32 updateRate) {
     inst = MODEL_INST(obj, obj->modelIndex);
     pos = &inst->joints->pos;
     if (racer->unk5C4 < temp && temp < pos->y) {
-        func_8002AEA0(obj, 0xB);
+        player_voice_play(obj, 0xB);
         func_80003410(0xF7, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, &racer->unkE8);
         racer->unk5CA = 20;
     }
@@ -1576,7 +1576,7 @@ static void func_m015_025FC(Object *obj, Racer *racer, s32 updateRate) {
         if (INTERACT(obj)->hitPoints < 0x100) {
             INTERACT(obj)->hitPoints = 0;
             if (D_800A4FC4 != 0) {
-                func_8007E328(obj, obj);
+                multiplayer_score_kill(obj, obj);
             }
         }
     }
@@ -1587,7 +1587,7 @@ static void func_m015_025FC(Object *obj, Racer *racer, s32 updateRate) {
         racer->unk190 = 0;
     }
     if (hit && racer->state != 10) {
-        func_8002AEA0(obj, 3);
+        player_voice_play(obj, 3);
         racer->flash = 8;
     } else if (updateRate < racer->flash) {
         racer->flash -= updateRate;
@@ -1619,7 +1619,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         racer->unk11C -= racer->unk10A;
         racer->unk10A = 0;
         angle = racer->unk11C;
-        if (!func_8004270C()) {
+        if (!camera_follow_get()) {
             func_8004271C();
         }
         racer->unk1E2 = 0;
@@ -1637,7 +1637,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         racer->unk1DE = racer->unk1D0;
         return;
     }
-    func_80033D74(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
+    player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
     func_m015_04B4C(obj, racer, 0, updateRate);
     x = racer->unk4;
     if (x < 0.0f) {
@@ -1655,7 +1655,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
                 obj->velocity.y -= racer->unk510->velocity.y;
             }
             func_m015_05180(obj, racer, 6, 0);
-            func_8002AEA0(obj, 0);
+            player_voice_play(obj, 0);
         } else {
             racer->unk57A = 24;
             racer->unk57B = 0;
@@ -1698,7 +1698,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         func_m015_05180(obj, racer, 15, 0);
     }
     oldAngle = racer->unk11C;
-    if (!func_8004270C() && !func_8004271C()) {
+    if (!camera_follow_get() && !func_8004271C()) {
         if ((racer->flags.half[0] & 0xF) && !func_8005AAB8(racer->player)) {
             racer->unk14 += (0.0333f - racer->unk14) * (1.0f - func_80049BEC(0.9f, updateRate));
         } else {
@@ -1808,7 +1808,7 @@ static void func_m015_03564(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         return;
     }
     func_m015_04B4C(obj, racer, 2, updateRate);
-    func_80033D74(obj, racer, &speed, angle, 0x5000, 0x6800, 1.25f, 1.25f);
+    player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 1.25f, 1.25f);
     if (racer->unk569 == 0) {
         speed = -speed;
     } else {
@@ -1860,7 +1860,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
                 func_m015_05180(obj, racer, func_m015_05020(racer), 0);
                 racer->state = 0;
             }
-            func_8002AEA0(obj, 1);
+            player_voice_play(obj, 1);
             if (racer->unk60 < 1.0f) {
                 obj->particleEmittersEnabled |= D_m015_08338[func_8004470C()->unkE2];
             }
@@ -1877,7 +1877,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
                 obj->unk28 = 0.4f;
             }
             racer->unk57A = 0;
-            func_8002AEA0(obj, 0);
+            player_voice_play(obj, 0);
             if (racer->unk569 != 0) {
                 obj->velocity.y += 10.0f;
             } else {
@@ -1942,7 +1942,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     } else if (racer->unk14B == 0 && obj->trans.y_position < racer->unk57C - 120.0f && obj->animationID != 0x19) {
         func_m015_05180(obj, racer, 0x19, 0);
     }
-    func_80033D74(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
+    player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
     if (racer->unk569 == 0) {
         speed = -speed;
     } else {
@@ -2270,7 +2270,7 @@ static void func_m015_04B4C(Object *obj, Racer *racer, s32 mode, f32 updateRate)
         if (to > 1.0f) {
             to = 1.0f;
         }
-        racer->unk10 = func_800340A4(obj->unk28, to, table, updateRate);
+        racer->unk10 = table_lerp_diff(obj->unk28, to, table, updateRate);
         if (racer->roll2 == 3 || racer->roll2 == 1) {
             racer->unk10 = -racer->unk10;
         }
@@ -3099,7 +3099,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
             racer->state = 3;
             racer->unk58E = 0;
             racer->unk594 = 0.0f;
-            func_8002AEA0(obj, 0);
+            player_voice_play(obj, 0);
         } else {
             func_m015_06E40(racer);
             if (D_800A18B0->unk10 & gPlayerButtonsHeld) {
@@ -3146,7 +3146,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (-0.1f < racer->unk10 && racer->unk10 < 0.1f) {
         racer->unk10 = 0.0f;
     }
-    func_80033D74(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
+    player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
     if (racer->unk569 == 0) {
         speed = -speed;
     } else {

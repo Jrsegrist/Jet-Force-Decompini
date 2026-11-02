@@ -121,7 +121,7 @@ extern s32 func_m003_04260(s32, s32, s32, s32, s32);
 extern void func_m003_09A14(Object *obj);
 extern Object *func_m003_053C4(void);
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern s32 func_80050F60(s32 type);
+extern s32 troop_slot_get(s32 type);
 
 extern u8 D_800FE9EE;
 extern s32 D_800FEA98;
@@ -739,7 +739,7 @@ void func_m154_017E8(Object *obj) {
     s32 index;
 
     sEnemy = obj->unk68;
-    index = func_80050F60(sEnemy->type);
+    index = troop_slot_get(sEnemy->type);
     sPlayer = func_m003_053C4();
     if (index != -1) {
         sKind = &D_800A38E0[index];

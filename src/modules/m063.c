@@ -53,12 +53,12 @@ extern void music_play(s32 seq);
 extern void music_volume_set(s32 volume);
 extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
 extern s32 get_settings(void);
-extern void func_800476F0(s32 arg0);
+extern void game_settings_reset(s32 arg0);
 extern void func_800487B8(void);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
 extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059CCC(s16 *assets); /* frees them */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_free(s16 *assets); /* frees them */
 extern s32 fb_mode(void);
 extern void mtx_ortho(Gfx **dList, Mtx **mtx);
 extern void func_80055C00(Gfx **dList, void *tex, s32 arg2, s32 arg3);
@@ -151,7 +151,7 @@ void func_m063_00000(void) {
     sPulse = 0;
     sPulseStep = 4;
     sPulseTimer = 360;
-    func_80059E1C(sAssets);
+    menu_assetgroup_load(sAssets);
     sTitleImage[0].texture = D_800FF3F8[0x66];
     sPlayImage[0].texture = D_800FF3F8[0x68];
     sMultiImage[0].texture = D_800FF3F8[0x69];
@@ -161,7 +161,7 @@ void func_m063_00000(void) {
     D_800A4FC4 = 0;
     D_800A4FC8 = 0;
     D_800A4FD0 = 1;
-    func_800476F0(get_settings());
+    game_settings_reset(get_settings());
 }
 
 void func_m063_00140(s32 updateRate) {
@@ -385,7 +385,7 @@ void func_m063_00140(s32 updateRate) {
 }
 
 void func_m063_00C14(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
     if (sObject != NULL) {
         func_800079B8(sObject);
         sObject = NULL;

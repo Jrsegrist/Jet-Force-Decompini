@@ -113,7 +113,7 @@ extern void func_8001C3D0(s32 player, s32 r, s32 g, s32 b, s32 near, s32 far, f3
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern u16 func_80043510(s32 player);                /* buttons pressed */
 extern M129Forms *func_80047C1C(s32 player, s32 character);
-extern void func_8006B9CC(void *flash);              /* flashes the screen */
+extern void transition_begin(void *flash);              /* flashes the screen */
 extern void func_80003614(s32 handle);               /* stops a positioned sound */
 extern void func_80048518(s32);
 extern void func_m077_00000(s32 id, s32 apart);
@@ -125,7 +125,7 @@ extern f32 func_80049BEC(f32 base, s32 exponent);
 extern s16 angle_lerp(s16 from, s16 to, f32 rate);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern s32 *func_8003B9E8(s32 model, s32 arg1);      /* loads a model instance */
-extern void func_8003C7C4(s32 *inst);                /* frees a model instance */
+extern void free_3d_model(s32 *inst);                /* frees a model instance */
 extern void func_8003D21C(s32 *inst, s32 model, Object *obj, s32 arg3, f32 arg4);
 extern void func_8003DDD8(void *arg0, s32 model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
 extern void func_8004AA80(void *data); /* DKR mempool_free */
@@ -318,7 +318,7 @@ void func_m129_003F4(Object *obj, s32 updateRate) {
                 }
                 break;
             case 1:
-                func_8006B9CC(sFlashIn);
+                transition_begin(sFlashIn);
                 s->state = 6;
                 s->timer = 75;
                 s->nextState = 2;
@@ -345,7 +345,7 @@ void func_m129_003F4(Object *obj, s32 updateRate) {
                 s->state = 3;
                 break;
             case 3:
-                func_8006B9CC(sFlashOut);
+                transition_begin(sFlashOut);
                 s->timer = 60;
                 s->state = 6;
                 s->nextState = 4;
@@ -518,7 +518,7 @@ static void player_set_form(Object *player, s32 model, s32 shadowModel) {
 
     inst = func_8003B9E8(model, 1);
     if (inst != NULL) {
-        func_8003C7C4(player->modelInstances[0]);
+        free_3d_model(player->modelInstances[0]);
         player->modelInstances[0] = inst;
         pd = player->unk68;
         func_8001149C(player, player->animationID, player->unk28);
@@ -532,7 +532,7 @@ static void player_set_form(Object *player, s32 model, s32 shadowModel) {
                 func_8004AA80(sh->unk34);
             }
             if (sh->unk68 != NULL) {
-                func_8003C7C4(sh->unk68);
+                free_3d_model(sh->unk68);
                 sh->unk68 = NULL;
             }
             if (model != shadowModel) {

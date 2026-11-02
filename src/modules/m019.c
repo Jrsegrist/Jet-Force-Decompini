@@ -44,9 +44,9 @@ extern s32 runlink_module_loaded(s32 module);
 extern void dialogue_close(s32 arg0);
 extern void mempool_free_queue_flush(void);
 extern void mempool_free_timer(s32 frames);
-extern void func_80059E1C(s16 *assets); /* loads menu textures */
-extern void func_80059FE8(s16 *assets);
-extern void func_80059CCC(s16 *assets); /* frees them */
+extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
+extern void menu_assetgroup_reset(s16 *assets);
+extern void menu_assetgroup_free(s16 *assets); /* frees them */
 extern s32 get_current_viewport(void);
 extern s32 cam_get_active_camera_id(void);
 extern f32 cam_get_fov(void);
@@ -439,8 +439,8 @@ void func_m019_00840(void) {
 }
 
 static void confirm_open(void) {
-    func_80059E1C(sAssets);
-    func_80059FE8(sAssets2);
+    menu_assetgroup_load(sAssets);
+    menu_assetgroup_reset(sAssets2);
     sFade = 0;
     sDone = 0;
     sFadeStep = 10;
@@ -449,7 +449,7 @@ static void confirm_open(void) {
 }
 
 static void confirm_close(void) {
-    func_80059CCC(sAssets);
+    menu_assetgroup_free(sAssets);
 }
 
 /* Asks whether to leave the level (and, after yes, whether to save) */

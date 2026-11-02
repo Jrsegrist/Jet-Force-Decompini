@@ -281,7 +281,7 @@ typedef struct M136Area {
     /* 0x18 */ u8 pad18[0x34 - 0x18];
 } M136Area;
 
-extern void func_800426DC();
+extern void view_override_set();
 extern s32 func_80001598(s32 sound);
 extern void func_800036C8(u16 sound, f32 x, f32 y, f32 z, s32 arg4, s32 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9,
                           s32 arg10, s32 arg11, s32 *handle);
@@ -349,7 +349,7 @@ void func_m136_00158(Object *obj, M136Entry *setup) {
     obj->trans.rotation.y_rotation = ENTRY_S16(setup, 0xE);
     obj->trans.rotation.x_rotation = ENTRY_S16(setup, 0xC);
     obj->trans.rotation.z_rotation = ENTRY_S16(setup, 0xA);
-    func_800426DC();
+    view_override_set();
 }
 
 #ifdef NON_MATCHING
