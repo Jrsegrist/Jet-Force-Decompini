@@ -912,7 +912,7 @@ typedef struct ParticleSprite {
 
 void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
 void func_80056064(void);
-void func_80041174(Gfx **dList, Mtx **mtx, Vertex **vtx, SpriteParticle *particle, ParticleSprite *sprite, s32 flags,
+void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **vtx, SpriteParticle *particle, ParticleSprite *sprite, s32 flags,
                    s32 alpha);
 
 /* JFG: draw a list's sprite particles (kind 2) with their colours (brightness-scaled, and with an environment
@@ -985,7 +985,7 @@ void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *li
             if (alpha != 255) {
                 flags = 6;
             }
-            func_80041174(dList, mtx, vtx, p, sprite, flags, alpha);
+            render_sprite_billboard(dList, mtx, vtx, p, sprite, flags, alpha);
             if (sprite->flags & 0x200) {
                 func_80056064();
             }
