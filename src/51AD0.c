@@ -896,7 +896,7 @@ void runlink_module_move_to_slot(s32 module) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053D2C);
 
 /* JFG: unload the module of every used slot (0xFFB = free). */
-void func_8005414C(void) {
+void runlink_slots_unload_all(void) {
     ModuleSlot *slot = D_800FEAD8;
     s32 i = 15;
 

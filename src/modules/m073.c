@@ -25,7 +25,7 @@ typedef struct M073GlowSet {
     /* 0x4 */ M073GlowDef *defs;
 } M073GlowSet;
 
-/* A glow flare (what func_80068E58 makes) */
+/* A glow flare (what effect_mesh_create makes) */
 typedef struct M073Flare {
     /* 0x00 */ u8 pad0[0x20];
     /* 0x20 */ s16 size;
@@ -69,7 +69,7 @@ typedef struct M073State {
     /* 0x0 */ u32 soundHandle;
 } M073State;
 
-extern M073Flare *func_80068E58(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
+extern M073Flare *effect_mesh_create(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
                                  s32 arg9);
 extern s32 func_8004966C(s16 angle);
 extern void func_800694CC(M073Flare *flare, s16 angle);
@@ -181,7 +181,7 @@ void func_m073_00000(Object *obj, LevelObjectEntryCommon *setup) {
         glow = glows;
         while (count--) {
             v = &model->vertices[model->points[def->point][0]];
-            glow->flare = func_80068E58(v->x, v->y, v->z, def->unk6, def->unk8, def->unkC, def->unkA, def->unk1,
+            glow->flare = effect_mesh_create(v->x, v->y, v->z, def->unk6, def->unk8, def->unkC, def->unkA, def->unk1,
                                          def->unk2, def->unk4);
             glow->phase = func_80048E2C(0, 255);
             glow->point = def->point;

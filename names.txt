@@ -645,3 +645,11 @@ func_80082118 = falling_objects_hit_box
 func_800737B8 = render_subtitles
 func_80073BDC = process_subtitles
 func_80073D14 = set_current_text
+# round 6 (main6)
+func_8006D390 = screen_line_add
+func_80068E58 = effect_mesh_create
+func_8005414C = runlink_slots_unload_all
+func_80076ADC = anim_path_sound_stop
+func_80066A68 = dl_cmd_print_geometry_mode
+func_80035514 = racer_pose_begin
+func_80009928 = objects_set_attachment_byte

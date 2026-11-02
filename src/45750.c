@@ -503,7 +503,7 @@ extern char D_800AC598[];
 extern s8 D_800A3294;
 struct LevelHeader *level_header(void);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
-void func_80009928(s32 updateRate);
+void objects_set_attachment_byte(s32 updateRate);
 s32 func_80011C2C(void);
 void func_80077614(s32 updateRate);
 void func_80008FF0(s32 updateRate);
@@ -558,7 +558,7 @@ void func_80045F00(s32 updateRate) {
         }
     }
     debug_trace_add(gfx, D_800AC574, 0x62E);
-    func_80009928(updateRate);
+    objects_set_attachment_byte(updateRate);
     v = func_80011C2C();
     D_800A38FC = 1;
     if (gIsPaused == 0 && D_800A3328 == 0 && v == 0) {

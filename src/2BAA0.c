@@ -861,7 +861,7 @@ typedef struct PoseRacer {
 } PoseRacer;
 
 /* JFG: start moving towards the points of a new pose: per-step deltas (0x424) from the current points (0x364). */
-void func_80035514(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 index) {
+void racer_pose_begin(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 index) {
     PoseTarget *pose = &poses[index];
     f32 *from = racer->points[0];
     f32 *step;

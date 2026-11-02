@@ -215,7 +215,7 @@ void func_800694CC(EffectMesh *mesh, s32 arg1);
 
 /* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
    and build it (a single point when segments is 0). */
-EffectMesh *func_80068E58(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 segments, s32 tex1,
+EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 segments, s32 tex1,
                           s32 tex2) {
     s32 sizeA;
     s32 sizeB;
@@ -812,7 +812,7 @@ void menu_layout_box_get(s32 box, s32 *left, s32 *top, s32 *right, s32 *bottom);
 s32 func_8006D110(s16 *x1, s16 *y1, s16 *x2, s16 *y2, s32 left, s32 top, s32 right, s32 bottom);
 
 /* JFG: queue a line clipped to the current window (or the screen); sorted unless the type is 2, 12 or 13. */
-void func_8006D390(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
+void screen_line_add(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
     s32 left;
     s32 top;
     s32 right;
@@ -866,7 +866,7 @@ void func_8006D58C(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
     s32 prevWindow = D_80103B94;
 
     D_80103B94 = window;
-    func_8006D390(x1, y1, x2, y2, colour);
+    screen_line_add(x1, y1, x2, y2, colour);
     D_80103B94 = prevWindow;
 }
 

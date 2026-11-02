@@ -335,7 +335,7 @@ void func_80076A5C(u8 index, u16 soundId) {
 }
 
 /* JFG: stop the sound of a path's object, if it has one playing. */
-void func_80076ADC(u8 index) {
+void anim_path_sound_stop(u8 index) {
     AnimPath *path = D_801045B0[index];
     AnimObject *obj;
 

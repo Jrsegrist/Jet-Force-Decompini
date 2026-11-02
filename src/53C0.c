@@ -1012,7 +1012,7 @@ void obj_tex_animate(ObjectTexAnimState *obj, ObjectModel53 *model, ModelInstanc
 /**
  * JFG: set a byte of every attachment of the objects whose header has unk1E clear.
  */
-void func_80009928(s32 value) {
+void objects_set_attachment_byte(s32 value) {
     s32 i;
     s32 j;
     Object *obj;
