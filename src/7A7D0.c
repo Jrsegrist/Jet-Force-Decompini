@@ -383,8 +383,6 @@ typedef struct PushObj {
     /* 0x68 */ void *data;
 } PushObj;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: float load scheduling of dx/dz only (13 words) */
 /* JFG: push the player (horizontally) out of every sphere of another object's set its spheres overlap. */
 void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *otherSet) {
     PushPlayer *player = obj->data;
@@ -414,8 +412,8 @@ void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *othe
         b = otherSet->spheres;
         for (j = 0; j < otherSet->count; j++, b++) {
             dx = (a->pos.x + player->pushX) - b->pos.x;
-            dz = (a->pos.z + player->pushZ) - b->pos.z;
             dy = a->pos.y - b->pos.y;
+            dz = (a->pos.z + player->pushZ) - b->pos.z;
             r = a->radius + b->radius;
             d = sqrtf(dx * dx + dz * dz);
             if (-r < dy && dy < r && d < r) {
@@ -431,9 +429,6 @@ void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *othe
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007CCF0);
-#endif
 
 /* JFG: push a sphere (position and radius) out of every sphere of the set it overlaps. */
 void spheres_push_out(f32 *x, f32 *y, f32 *z, f32 radius, SphereSet *set) {
