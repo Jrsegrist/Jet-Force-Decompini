@@ -140,10 +140,12 @@ typedef struct M003Node {
 
 /* A region of the level (size 0x2C) */
 typedef struct M003Region {
-    /* 0x00 */ u8 pad0[0x14];
+    /* 0x00 */ u8 pad0[0x4];
+    /* 0x04 */ u32 numEdges;
+    /* 0x08 */ u8 pad8[0x14 - 0x8];
     /* 0x14 */ u32 flags;
-    /* 0x18 */ void *data;
-    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
+    /* 0x18 */ void *data; /* a tree of lines down to the edge lists */
+    /* 0x1C */ void *edges;
     /* 0x20 */ union {
         s16 pos[3]; /* a point in it */
         s32 node;   /* replaced by what func_m003_15BE8 finds there */
@@ -1702,7 +1704,59 @@ void func_m003_16EEC(Object *obj, Object *home) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16EEC);
 #endif
 
+/* A node of a region's tree: a line z = slope * x + offset, or (leaf) a run of edges */
+typedef struct M003RegionNode {
+    /* 0x00 */ struct M003RegionNode *below; /* leaf: u16 first edge, u16 edge count */
+    /* 0x04 */ struct M003RegionNode *above;
+    /* 0x08 */ f32 slope;
+    /* 0x0C */ f32 offset;
+    /* 0x10 */ u8 leaf;
+} M003RegionNode;
+
+/* An edge of a region (0x14 bytes) */
+typedef struct M003Edge {
+    /* 0x00 */ f32 x0;
+    /* 0x04 */ f32 z0;
+    /* 0x08 */ f32 x1;
+    /* 0x0C */ f32 z1;
+    /* 0x10 */ u8 pad10[4];
+} M003Edge;
+
+#ifdef NON_MATCHING
+/* Whether a point is in a region (inside all the edges of its tree's leaf) */
+/* (the ROM loads region->edges into a lower-numbered register than the leaf's first edge and adds it last) */
+s32 func_m003_16F44(f32 x, f32 z, M003Region *region) {
+    M003RegionNode *node = region->data;
+    M003Edge *edge;
+    s32 i;
+    s16 a;
+    s16 b;
+
+    if (region < sRegions || sRegionCount < region - sRegions || region->numEdges < 3) {
+        return FALSE;
+    }
+    while (!node->leaf) {
+        if (z < node->slope * x + node->offset) {
+            node = node->below;
+        } else {
+            node = node->above;
+        }
+    }
+    edge = (M003Edge *) region->edges + ((u16 *) node)[0];
+    i = ((u16 *) node)[1];
+    while (i--) {
+        a = func_80049C84(edge->z0 - z, edge->x0 - x);
+        b = func_80049C84(edge->z1 - z, edge->x1 - x);
+        if (func_80049D80(a, b) < 0) {
+            return FALSE;
+        }
+        edge++;
+    }
+    return TRUE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16F44);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_170D0);
 
