@@ -113,7 +113,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 
 | DKR file | Functions |
 | --- | --- |
-| `src/audio.c` | music_sequence_init |
+| `src/audio.c` | music_sequence_init; initOsc's JFG form (NON_MATCHING, func_80003E40) |
 | `src/audio_spatial.c` | audspat_reset, audspat_point_stop_by_index |
 | `src/audiomgr.c` | amCreateAudioMgr (JFG's form); __amHandleDoneMsg (in the notes, not committed: needs a .data split) |
 | `src/camera.c` | camera_reset (the layout of cam_reset), copy_viewports_to_stack |

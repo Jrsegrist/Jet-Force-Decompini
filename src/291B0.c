@@ -105,11 +105,136 @@ void func_80028E7C(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80028E7C);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80028F90);
+/* JFG: a 10 byte coloured vertex */
+typedef struct ColVertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} ColVertex;
+
+extern u8 D_800A11B0;
+extern f32 D_800F6B10[20];
+extern f32 D_800ABB48;
+f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
+f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
+void *load_texture(s32 id);
+void colour_cycle_init(void *cycle, s32 assetID);
+
+/* JFG: init: (once) the sine/cosine table of 10 angles, then the 40 vertices (white, y 0), the sizes from the
+ * entry, the texture and two colour cycles. */
+void obj_init_col_vertices(u8 *obj, u8 *entry) {
+    u8 *state;
+    s32 i;
+    f32 scale;
+
+    if (D_800A11B0) {
+        f32 *table = D_800F6B10;
+        s32 angle;
+
+        for (i = 0, angle = 0; i < 10; i++, angle += 0x1999) {
+            *table++ = func_80049C34(angle);
+            *table++ = func_80049C30(angle);
+        }
+        D_800A11B0 = 0;
+    }
+    state = *(u8 **) (obj + 0x68);
+    for (i = 0; i < 40; i++) {
+        ((ColVertex *) state)[i].y = 0;
+        ((ColVertex *) state)[i].r = 255;
+        ((ColVertex *) state)[i].g = 255;
+        ((ColVertex *) state)[i].b = 255;
+        ((ColVertex *) state)[i].a = 255;
+    }
+    scale = D_800ABB48;
+    *(s16 *) (obj + 2) = *(s16 *) (entry + 0xA);
+    *(f32 *) (state + 0x198) = *(s16 *) (entry + 0xE) * scale;
+    *(f32 *) (state + 0x194) = *(s16 *) (entry + 0xC) * scale;
+    *(f32 *) (state + 0x19C) = *(s16 *) (entry + 0x10) * scale;
+    *(f32 *) (state + 0x1A0) = *(s16 *) (entry + 0x12) * scale;
+    *(f32 *) (state + 0x1A4) = *(s16 *) (entry + 0x14) * scale;
+    *(f32 *) (state + 0x1A8) = *(s16 *) (entry + 0x16) * scale;
+    *(s16 *) (state + 0x1D8) = *(s16 *) (entry + 0x18);
+    *(u16 *) (state + 0x1D6) = *(u16 *) (entry + 0x1C);
+    *(void **) (state + 0x190) = load_texture(*(s16 *) (entry + 0x1A));
+    state[0x1DA] = 0;
+    *(s16 *) (state + 0x1D4) = entry[0x20] << 8;
+    *(s32 *) (state + 0x1CC) = 0;
+    *(s32 *) (state + 0x1D0) = 0;
+    colour_cycle_init(state + 0x1AC, entry[0x1E]);
+    colour_cycle_init(state + 0x1BC, entry[0x1F]);
+    *(s32 *) (obj + 0x3C) = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_800291BC);
 
+void *cam_get_active_camera(void);
+void mtx_cam_push(Gfx **dList, Mtx **mtx, void *trans, f32 scaleY, f32 offsetY);
+void func_80055C00(Gfx **dList, void *model, s32 flags, s32 alpha);
+void func_80041DC0(Gfx **dList);
+extern u8 D_F2D58[];
+extern u8 D_F2E58[];
+
+/* JFG: a 10 byte vertex of the 0x68 block's two buffers */
+typedef struct Vertex10 {
+    /* 0x00 */ u8 pad0[10];
+} Vertex10;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code and frame; the target's temporaries are numbered one higher from the first command
+   on (and the colour bytes load in another order) */
+/* JFG: draw the object (its 0x68 block): face the camera when 0x2 is set, colours from the block, the model at
+ * 0x190, then its two 20-vertex buffers (the current one at 0x1DA) with the textures at D_F2D58/D_F2E58. */
+void func_80029688(Gfx **dList, Mtx **mtx, u8 *obj) {
+    Gfx *gfx;
+    Mtx *mats;
+    u8 *state;
+    void *cam;
+
+    gfx = *dList;
+    mats = *mtx;
+    gDPPipeSync(gfx++);
+    if (*(s16 *) (obj + 2) != 0) {
+        cam = cam_get_active_camera();
+        *(s16 *) obj = -*(s16 *) cam;
+    }
+    state = *(u8 **) (obj + 0x68);
+    if (*(s16 *) (*(u8 **) (state + 0x190) + 6) & 0x40) {
+        gDPSetEnvColor(gfx++, state[0x1B4], state[0x1B5], state[0x1B6], *(s32 *) (state + 0x1D0));
+    } else {
+        gDPSetEnvColor(gfx++, state[0x1B4], state[0x1B5], state[0x1B6], 255);
+    }
+    gDPSetPrimColor(gfx++, 0, 0, state[0x1C4], state[0x1C5], state[0x1C6], *(u16 *) (state + 0x1D4) >> 8);
+    mtx_cam_push(&gfx, &mats, obj, 1.0f, 0.0f);
+    func_80055C00(&gfx, *(void **) (state + 0x190), 0x20E, *(s32 *) (state + 0x1D0) << 8);
+    {
+        Gfx *_g = gfx++;
+        _g->words.w0 =
+            ((((OS_K0_TO_PHYSICAL(&((Vertex10(*)[20]) state)[state[0x1DA]]) & 6) | 0xA0) & 0xFF) << 16) | 0x040000D0;
+        _g->words.w1 = OS_K0_TO_PHYSICAL(&((Vertex10(*)[20]) state)[state[0x1DA]]);
+    }
+    {
+        Gfx *_g = gfx++;
+        _g->words.w1 = (u32) D_F2D58;
+        _g->words.w0 = 0x05F10100;
+    }
+    {
+        Gfx *_g = gfx++;
+        _g->words.w1 = (u32) D_F2E58;
+        _g->words.w0 = 0x05310040;
+    }
+    func_80041DC0(&gfx);
+    gDPSetEnvColor(gfx++, 255, 255, 255, 255);
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    *dList = gfx;
+    *mtx = mats;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029688);
+#endif
 
 /* A sprite object with two colour cycles, set up from its level entry */
 typedef struct ChromaSpriteState {

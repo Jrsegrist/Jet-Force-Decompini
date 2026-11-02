@@ -480,7 +480,9 @@ func_80029A20 = obj_loop_chroma_sprite
 func_8002A954 = sphere_distance_min
 func_8002A7D8 = wave_vector_scale
 func_8002AA7C = obj_apply_damage
+func_80028F90 = obj_init_col_vertices
 # src/2BAA0.c
+func_800341B4 = player_loop_sounds_update
 func_80033D74 = player_turn_limit_update
 func_80039544 = weapon_fire_chain_shot
 func_80033BB8 = player_charge_meter_update

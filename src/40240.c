@@ -1011,4 +1011,54 @@ void func_80042470(s32 arg0, s32 arg1) {
     D_800FA658[D_800A2ED0++].unk4 = arg1;
 }
 
+extern u8 D_800A3178[4];
+extern MtxF gViewProjMatrixF;
+void func_80074E50(MtxF *mtx);
+s32 rand_range(s32 min, s32 max);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target forms &D_800FA658 in $a1 before indexing (mine folds %lo into the store), which shifts
+   the temporaries of the rest by one */
+/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in over unk0 frames,
+ * hold to unk2, fade out to unk4) into each camera's shakeY. */
+void func_800424A0(s32 updateRate) {
+    s32 i;
+    Camera *cam;
+    CameraShake *shake;
+    s32 magnitude;
+
+    D_800FA658[D_800A2ED0].unk4 = -1;
+    func_80074E50(&gViewProjMatrixF);
+    D_800A2ED0 = 0;
+    gNoCamShake = 0;
+    cam = gCameras;
+    shake = gCameraShakes;
+    i = 4;
+    while (i--) {
+        gCamZoomSet[i] = 0;
+        D_800A3178[i] = 1;
+        cam->shakeX = 0.0f;
+        cam->shakeY = 0.0f;
+        cam->shakeZ = 0.0f;
+        if (shake->unk8 != 0) {
+            shake->frame += updateRate;
+            if (shake->frame >= shake->unk4) {
+                shake->unk8 = 0;
+            } else {
+                gNoCamShake = 1;
+                magnitude = shake->unk8;
+                if (shake->unk2 < shake->frame) {
+                    magnitude = (shake->unk4 - shake->frame) * magnitude / (shake->unk4 - shake->unk2);
+                } else if (shake->frame < shake->unk0) {
+                    magnitude = shake->frame * magnitude / shake->unk0;
+                }
+                cam->shakeY = rand_range(0, magnitude);
+            }
+        }
+        cam++;
+        shake++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/40240", func_800424A0);
+#endif

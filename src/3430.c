@@ -512,7 +512,120 @@ void func_80003DB0(void) {
     node->next = NULL;
 }
 
+/* JFG: an oscillator (vibrato/tremolo) state, taken from the D_800F2B10 free list */
+typedef struct OscState {
+    /* 0x00 */ struct OscState *next;
+    /* 0x04 */ u8 type;
+    /* 0x05 */ u8 stateFlags;
+    /* 0x06 */ u16 cycleSpan;
+    /* 0x08 */ u16 curCount;
+    /* 0x0A */ u8 padA[2];
+    union {
+        struct {
+            /* 0x0C */ u8 halfDepth;
+            /* 0x0D */ u8 baseVol;
+            /* 0x0E */ u8 loVal;
+        } tsin;
+        struct {
+            /* 0x0C */ f32 loRatio;
+            /* 0x10 */ f32 hiRatio;
+        } vsqr;
+        struct {
+            /* 0x0C */ s32 hiCents;
+            /* 0x10 */ s32 detuneScale;
+        } vsaw;
+        /* 0x0C */ f32 depthcents;
+    } data;
+} OscState;
+
+f32 func_80004768(u8 depth);
+f32 alCents2Ratio(s32 cents);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: temporaries only: the target keeps the shared 127 in $v0 (mine $v1) and the cycle spans in
+   t-registers (mine $v0), so the t-register numbering in the cases is shifted */
+/* JFG: start an oscillator of the given type (1-4: tremolo shapes, 0x80-0x83: vibrato shapes); returns its delay
+ * (in 1/0x4000 units), 0 when none is free. */
+s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscDepth, u8 oscDelay) {
+    OscState *osc;
+    s32 retVal = 0;
+    s32 cents;
+
+    if (D_800F2B10 != NULL) {
+        osc = (OscState *) D_800F2B10;
+        D_800F2B10 = (FreeNode *) osc->next;
+        osc->type = oscType;
+        *oscState = osc;
+        retVal = oscDelay << 14;
+        switch (oscType) {
+            case 1:
+                osc->curCount = 0;
+                osc->cycleSpan = 259 - oscRate;
+                osc->data.tsin.halfDepth = oscDepth >> 1;
+                osc->data.tsin.baseVol = 127 - osc->data.tsin.halfDepth;
+                *initVal = osc->data.tsin.baseVol;
+                break;
+            case 2:
+                osc->cycleSpan = 256 - oscRate;
+                osc->curCount = 256 - oscRate;
+                osc->stateFlags = 0;
+                osc->data.tsin.loVal = 127 - oscDepth;
+                osc->data.tsin.baseVol = 127;
+                osc->data.tsin.halfDepth = 127;
+                *initVal = 127.0f;
+                break;
+            case 3:
+                osc->cycleSpan = 256 - oscRate;
+                osc->curCount = 0;
+                osc->data.tsin.halfDepth = 127;
+                osc->data.tsin.baseVol = oscDepth;
+                *initVal = osc->data.tsin.halfDepth;
+                break;
+            case 4:
+                osc->cycleSpan = 256 - oscRate;
+                osc->curCount = 0;
+                osc->data.tsin.halfDepth = 127 - oscDepth;
+                osc->data.tsin.baseVol = oscDepth;
+                *initVal = osc->data.tsin.halfDepth;
+                break;
+            case 0x80:
+                osc->data.depthcents = func_80004768(oscDepth);
+                osc->curCount = 0;
+                osc->cycleSpan = 259 - oscRate;
+                *initVal = 1.0f;
+                break;
+            case 0x81:
+                osc->cycleSpan = 256 - oscRate;
+                osc->curCount = 256 - oscRate;
+                osc->stateFlags = 0;
+                cents = func_80004768(oscDepth);
+                osc->data.vsqr.loRatio = alCents2Ratio(-cents);
+                osc->data.vsqr.hiRatio = alCents2Ratio(cents);
+                *initVal = osc->data.vsqr.hiRatio;
+                break;
+            case 0x82:
+                osc->cycleSpan = 256 - oscRate;
+                osc->curCount = 256 - oscRate;
+                cents = func_80004768(oscDepth);
+                osc->data.vsaw.hiCents = cents;
+                osc->data.vsaw.detuneScale = cents * 2;
+                *initVal = alCents2Ratio(cents);
+                break;
+            case 0x83:
+                osc->cycleSpan = 256 - oscRate;
+                osc->curCount = 256 - oscRate;
+                cents = func_80004768(oscDepth);
+                osc->data.vsaw.hiCents = -cents;
+                osc->data.vsaw.detuneScale = cents * 2;
+                *initVal = alCents2Ratio(-cents);
+                break;
+        }
+    }
+    return retVal;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003E40);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/3430", func_80004164);
 

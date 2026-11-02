@@ -734,7 +734,102 @@ void func_80034164(s16 *pos, u8 *obj) {
     func_800496B0(3, v, &D_800A2DB4, obj + 0x18);
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800341B4);
+void obj_spawn_particle(u8 *obj, s32 updateRate);
+s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
+void func_800694CC(void *handle, s16 pitch);
+void func_8006999C(void *handle, s16 value, u8 volume);
+
+/* JFG: the player's four engine-like loops (0x598, state at 0x5B8, volume 0x5AC, phase 0x5A8): 0 waits for its
+ * bit in 0x14A (spawning particles), 1 fades in, 2 plays (wobbling with the phase), 3 fades out. */
+void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s32 updateRate) {
+    s32 i;
+    s32 bit;
+    void *handle;
+    u8 *p;
+    s32 volume;
+    s32 phase;
+    s32 value;
+    u8 *thing;
+    s32 saved;
+    u8 *q;
+
+    thing = NULL;
+    if (*(u8 ***) (obj + 0x78) != NULL && (thing = **(u8 ***) (obj + 0x78)) != NULL) {
+        if (updateRate * 8 < thing[0x3B]) {
+            thing[0x3B] -= updateRate * 8;
+        } else {
+            thing[0x3B] = 0;
+        }
+    }
+    for (i = 0, bit = 1, q = racer; i < 4; i++, q += 4, bit <<= 1) {
+        handle = *(void **) (q + 0x598);
+        p = racer + i;
+        if (handle == NULL) {
+            continue;
+        }
+        value = *(s16 *) ((u8 *) handle + 0x20);
+        volume = p[0x5AC];
+        phase = (s8) p[0x5A8];
+        switch (p[0x5B8]) {
+            case 0:
+                volume = 0;
+                if (((s8 *) racer)[0x14A] & bit) {
+                    saved = *(s32 *) (obj + 0x84);
+                    *(s32 *) (obj + 0x84) = emitStart;
+                    obj_spawn_particle(obj, 2);
+                    *(s32 *) (obj + 0x84) = saved;
+                    p[0x5B8] = 1;
+                }
+                break;
+            case 1:
+                volume += updateRate * 32;
+                value = (*(s16 *) ((u8 *) handle + 0x20) * volume) >> 7;
+                if (volume >= 256) {
+                    volume = 255;
+                    if (thing != NULL) {
+                        thing[0x3B] = 0x80;
+                    }
+                    if (((s8 *) racer)[0x14A] & bit) {
+                        p[0x5B8] = 2;
+                    } else {
+                        p[0x5B8] = 3;
+                    }
+                }
+                break;
+            case 2:
+                volume += updateRate * 16;
+                if (volume >= 256) {
+                    volume = 255;
+                }
+                phase += updateRate * 16;
+                value = ((func_8004966C(phase << 8) + 0x18000) * ((value * volume) >> 8)) >> 16;
+                *(s32 *) (obj + 0x84) = emitOn;
+                if (!(((s8 *) racer)[0x14A] & bit)) {
+                    p[0x5B8] = 3;
+                }
+                break;
+            case 3:
+                volume -= updateRate * 8;
+                if (volume <= 0) {
+                    volume = 0;
+                    p[0x5B8] = 0;
+                    break;
+                }
+                phase += updateRate * 16;
+                value = ((func_8004966C(phase << 8) + 0x18000) * ((value * volume) >> 8)) >> 16;
+                if (((s8 *) racer)[0x14A] & bit) {
+                    p[0x5B8] = 2;
+                }
+                break;
+        }
+        p[0x5AC] = volume;
+        p[0x5A8] = phase;
+        if (volume != 0) {
+            func_800694CC(handle, (s8) p[0x5A8] << 8);
+            func_8006999C(handle, value, p[0x5AC]);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800344B4);
 

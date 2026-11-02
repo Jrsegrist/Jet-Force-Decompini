@@ -479,7 +479,142 @@ void func_80045E04(UNUSED s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045E04);
 #endif
 
+extern s32 D_800F6F54;
+extern s8 gIsPaused;
+extern u8 D_800A4FC8;
+extern u8 D_800A3208;
+extern u8 D_800A4FC4;
+extern u8 D_800A4FD0;
+extern u8 D_800A4FB4;
+extern s32 D_800A3328;
+extern s32 D_800A38FC;
+extern s32 Time;
+extern s16 D_800A32BC;
+extern s32 D_800FD7C4;
+extern s32 D_800A32B8;
+extern Gfx *gfx;
+extern u8 vtx[];
+extern u8 gGameCurrMatrix[];
+extern u8 gGameCurrTriList[];
+extern char D_800AC574[];
+extern char D_800AC580[];
+extern char D_800AC58C[];
+extern char D_800AC598[];
+extern s8 D_800A3294;
+struct LevelHeader *level_header(void);
+void debug_trace_add(Gfx *dList, char *file, s32 line);
+void func_80009928(s32 updateRate);
+s32 func_80011C2C(void);
+void func_80077614(s32 updateRate);
+void func_80008FF0(s32 updateRate);
+void func_80063358(s32 updateRate);
+void *cam_get_active_camera(void);
+void func_80079890(s32 arg0, void *camera);
+void func_80012150(s32 updateRate);
+void rumble_stop_all(s32 arg0);
+void objects_update_special(s32 updateRate);
+void func_80008FE8(void);
+void gParticlePtrList_flush(void);
+void func_800121C0(Gfx **dList, void *mtx, void *vtx, void *arg3, s32 updateRate);
+void process_subtitles(s32 updateRate);
+void splitscreen_dividers_draw(Gfx **dList);
+/* The module trap called with three floats; needs `func_80054530_fff = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target keeps the held-buttons OR in a stack slot (only $s0/$s1 used, frame 0x48) and tests
+   i < numPlayers with slt; mine gives it $s1 and $s2 */
+/* JFG: one frame of the game: the module hooks, the players' buttons (START pauses), the world update unless
+ * paused, then the drawing passes. */
+void func_80045F00(s32 updateRate) {
+    s32 i;
+    s32 held;
+    u32 pressed;
+    s32 numPlayers;
+    s32 startPlayer;
+    s32 v;
+    u8 *header;
+
+    header = (u8 *) level_header();
+    D_800F6F54 = 1;
+    if (runlink_module_loaded(5) && func_80054530_ret() && !gIsPaused) {
+        func_80054530_fff(0.0f, 0.0f, -2.0f, updateRate);
+    }
+    held = 0;
+    pressed = 0;
+    startPlayer = -1;
+    if (D_800A4FC8 && D_800A3208) {
+        numPlayers = 2;
+    } else if (D_800A4FC4) {
+        numPlayers = D_800A4FD0;
+    } else {
+        numPlayers = 1;
+    }
+    for (i = 0; i < numPlayers; i++) {
+        held |= input_held(i);
+        pressed |= input_pressed(i);
+        if (pressed & START_BUTTON) {
+            startPlayer = i;
+        }
+    }
+    debug_trace_add(gfx, D_800AC574, 0x62E);
+    func_80009928(updateRate);
+    v = func_80011C2C();
+    D_800A38FC = 1;
+    if (gIsPaused == 0 && D_800A3328 == 0 && v == 0) {
+        Time += updateRate;
+        func_80077614(updateRate);
+        if (runlink_module_loaded(3)) {
+            func_80054530(updateRate);
+        }
+        func_80008FF0(updateRate);
+        func_80063358(updateRate);
+        func_80079890(0, cam_get_active_camera());
+        func_80012150(updateRate);
+        if ((s8) header[0x6C] != 1 && (s8) header[0x6C] != 2 && (pressed & START_BUTTON) && D_800A32BC == 0 &&
+            D_800A3294 == 0 && D_800FD7C4 == 0) {
+            rumble_stop_all(1);
+            if (!D_800A4FC4 && !D_800A4FB4) {
+                if (D_800A3208) {
+                    func_80054530(startPlayer);
+                } else {
+                    func_80054530(startPlayer);
+                }
+            } else {
+                func_80054530();
+            }
+            D_800A38FC = 0;
+        }
+    } else if (gIsPaused == 0 && D_800A3328 == 0 && v != 0) {
+        objects_update_special(updateRate);
+        D_800A38FC = 0;
+    } else {
+        func_80008FE8();
+        D_800A38FC = 0;
+    }
+    if (D_800A32BC > 0) {
+        D_800A32BC -= updateRate;
+        if (D_800A32BC < 0) {
+            D_800A32BC = 0;
+        }
+    }
+    gParticlePtrList_flush();
+    debug_trace_add(gfx, D_800AC580, 0x683);
+    func_800121C0(&gfx, gGameCurrMatrix, vtx, gGameCurrTriList, updateRate);
+    debug_trace_add(gfx, D_800AC58C, 0x6C0);
+    process_subtitles(updateRate);
+    if (runlink_module_loaded(7)) {
+        func_80054530(&gfx, updateRate);
+    }
+    if (D_800A32B8) {
+        func_80054530(&gfx, gGameCurrMatrix, vtx, D_800A32B8);
+    }
+    splitscreen_dividers_draw(&gfx);
+    debug_trace_add(gfx, D_800AC598, 0x6DC);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045F00);
+#endif
 
 void func_80046334(s32 *level, s32 *a, s32 *b) {
     s32 value = *level;
@@ -646,7 +781,79 @@ s32 func_80046550(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4) {
     return FALSE;
 }
 
+extern s8 D_800A329C;
+extern u8 D_800A32FC[];
+extern f32 D_800AC624;
+s32 game_flag_get(s32 flag);
+void func_8003B6BC(void);
+s16 leveltable_region(void);
+void set_game_paused(s32 arg0);
+u8 music_current_sequence(void);
+u8 leveltable_tune(s32 level);
+s8 is_game_paused(void);
+void music_volume_fade(f32 arg0, s32 arg1);
+void rumble_stop_all(s32 arg0);
+void rumble_allow_set(s32 arg0);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: temporaries only: the target stores the level through $a0 (reloaded from its home) and numbers
+   the later temporaries one higher; the music compare has its operands the other way round */
+/* JFG: go to a level (with a few swaps by game flag): store it as the next one, mark the module 5 fade, start the
+ * transition and the level's music if it changes, and stop all rumble. */
+void func_8004665C(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
+    u8 seq;
+
+    if (D_800A3294 && level == D_800A3250 && arg1 == D_800A3260 && arg3 == D_800A3264) {
+        return;
+    }
+    if (D_800FD7C4 == 0) {
+        if (level == 0x11E && game_flag_get(0x5E)) {
+            level = 0x130;
+        } else if (level == 0xC2 && game_flag_get(0x4D)) {
+            level = 0x179;
+        } else if (level == 0x14C) {
+            func_8003B6BC();
+        }
+    }
+    D_800A3250 = level;
+    D_800A3254 = 0;
+    D_800A3258 = arg2;
+    D_800A3260 = arg1;
+    D_800A3264 = arg3;
+    D_800A3268 = leveltable_region();
+    if ((arg5 & 1) && D_800FD7A4 != 0 && D_800FD7A4 != 0xFF) {
+        if ((D_800A3268 != D_800FD7A4 && D_800A3268 != 0xFF) || arg3 == 0x11) {
+            D_800A329C = 1;
+            func_80054530();
+            set_game_paused(1);
+        }
+    }
+    if (D_800A3294 > 0) {
+        return;
+    }
+    D_800A3294 = 10;
+    if (!check_fadeout_transition()) {
+        if (!D_800A329C) {
+            if (arg4) {
+                D_800A32A0 = 1;
+                transition_begin(D_800A32FC);
+            } else {
+                D_800A32A0 = 0;
+                transition_begin(D_800A3304);
+            }
+        }
+        D_800A3294 = 30;
+    }
+    seq = music_current_sequence();
+    if (leveltable_tune(D_800A3250) != seq && !is_game_paused()) {
+        music_volume_fade(D_800AC624, 0);
+    }
+    rumble_stop_all(1);
+    rumble_allow_set(0);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/45750", func_8004665C);
+#endif
 
 extern s16 D_800A3254;
 
