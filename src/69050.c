@@ -192,12 +192,11 @@ void func_80068DF8(void **cone) {
 typedef struct EffectMesh {
     /* 0x00 */ void *tex1;
     /* 0x04 */ void *tex2;
-    /* 0x08 */ u8 *bufB;
-    /* 0x0C */ u8 *bufC;
-    /* 0x10 */ u8 *bufA;
+    /* 0x08 */ u8 *verts[2]; // double-buffered vertices
+    /* 0x10 */ u8 *tris;
     /* 0x14 */ u8 numPoints;
     /* 0x15 */ u8 segments;
-    /* 0x16 */ u8 unk16;
+    /* 0x16 */ u8 unk16; // the current vertex buffer
     /* 0x17 */ u8 pad17;
     /* 0x18 */ f32 unk18;
     /* 0x1C */ s16 unk1C;
@@ -240,9 +239,9 @@ EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5
         } else {
             mesh->tex2 = NULL;
         }
-        mesh->bufA = (u8 *) mesh + 0x28;
-        mesh->bufB = mesh->bufA + sizeA;
-        mesh->bufC = mesh->bufB + sizeB;
+        mesh->tris = (u8 *) mesh + 0x28;
+        mesh->verts[0] = mesh->tris + sizeA;
+        mesh->verts[1] = mesh->verts[0] + sizeB;
         mesh->numPoints = segments + 1;
         mesh->unk16 = 0;
         mesh->segments = segments;
@@ -271,7 +270,45 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_800694CC);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006999C);
 
+#ifdef NON_MATCHING
+void func_80055C00();
+
+/* NON_MATCHING: 8 words: in the segments branch numPoints and its * 8 sit in a0/a1 (target v1/a0), segments in v0 (target a2) */
+/* JFG: draw an effect mesh: one textured fan of 18 points (segments 0) or a strip of segments triangles. */
+void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
+    s32 hasTex;
+
+    if (mesh != NULL) {
+        gDPPipeSync((*dList)++);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, alpha);
+        gDPSetEnvColor((*dList)++, 255, 255, 255, 0);
+        if (mesh->tex1 != NULL) {
+            hasTex = TRUE;
+        } else {
+            hasTex = FALSE;
+        }
+        if (mesh->segments == 0) {
+            gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]), 18, 0);
+            func_80055C00(dList, mesh->tex2, flags, 0);
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), 16, hasTex);
+            func_80055C00(dList, mesh->tex1, flags, 0);
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris + 0x200), 8, hasTex);
+            func_80055C00(dList, mesh->tex2, flags, 0);
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris + 0x100), 16, hasTex);
+        } else {
+            func_80055C00(dList, mesh->tex1, flags, 0);
+            gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]),
+                   mesh->numPoints * 8 + 8 + mesh->numPoints * 2,
+                   (mesh->numPoints * 8) | ((u32) OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]) & 6));
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), mesh->segments, hasTex);
+        }
+        gDPPipeSync((*dList)++);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_80069BE8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80069F04);
 
