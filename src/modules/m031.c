@@ -97,7 +97,39 @@ s32 func_m031_00000(s32 n) {
     return FALSE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00044);
+extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 alpha);
+extern void func_8006FCA8(s32 arg0, s32 x, s32 y, s32 arg3, s32 arg4);
+
+/* Draws text that glows: glow 0x80..0xFF fades a white outline in and out */
+void func_m031_00044(s32 arg0, s32 x, s32 y, s32 arg3, s32 arg4, s32 r, s32 g, s32 b, s32 a, s32 glow) {
+    s32 k;
+
+    if (glow != 0) {
+        if (glow >= 0x100) {
+            func_8006FC68(r, g, b, 0xFF, a);
+        } else if (glow < 0x80) {
+            k = glow * 2;
+            func_8006FC68(r, g, b, 0xFF, (a * k) >> 8);
+        } else {
+            if (glow < 0xC0) {
+                k = glow - 0x80;
+                k <<= 2;
+            } else {
+                k = 0x100 - glow;
+                k <<= 2;
+            }
+            glow = (a * k) >> 8;
+            func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, glow);
+            func_8006FCA8(arg0, x - 1, y, arg3, arg4);
+            func_8006FCA8(arg0, x, y + 1, arg3, arg4);
+            func_8006FCA8(arg0, x + 1, y, arg3, arg4);
+            func_8006FCA8(arg0, x, y - 1, arg3, arg4);
+            func_8006FC68((((0xFF - r) * k) >> 8) + r, (((0xFF - g) * k) >> 8) + g, (((0xFF - b) * k) >> 8) + b,
+                          0xFF, glow);
+        }
+        func_8006FCA8(arg0, x, y, arg3, arg4);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00230);
 
@@ -221,7 +253,81 @@ s32 func_m031_01C20(s32 n) {
     return FALSE;
 }
 
+/* A level object entry built on the stack (the racer's pick-up shot) */
+typedef struct M031Entry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 pad2[2];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ Object *owner;
+} M031Entry;
+
+extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights);
+extern Object *func_80005F14(void *entry, s32 arg1);
+
+#ifdef NON_MATCHING
+/* Racer n fires its pick-up (an oil slick or a bomb) */
+/* (same code, but the frame is 8 bytes bigger: every local sits 8 higher) */
+s32 func_m031_01C68(Object *obj, s32 n) {
+    Object *spawned;
+    M031Entry entry;
+    s32 count;
+    f32 **heights;
+    s32 i;
+    M031Racer *racer;
+
+    if (n >= 0 && n < 4) {
+        racer = &sRacers[n];
+        if (racer->pickup != 0) {
+            entry.x = obj->trans.x_position;
+            entry.y = obj->trans.y_position;
+            entry.z = obj->trans.z_position;
+            count = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
+            if (count != 0) {
+                i = count;
+                while (i--) {
+                    if (*heights[i] < obj->trans.y_position) {
+                        entry.y = *heights[i];
+                        break;
+                    }
+                }
+            }
+            entry.owner = obj;
+            if (racer->pickup == 2) {
+                entry.objectID = 0x279;
+                entry.unkA = 0x1E0;
+                if (D_800A503C != 0) {
+                    func_80001248(0x215, 0);
+                } else {
+                    func_80003410(0x215, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4,
+                                  NULL);
+                }
+            } else {
+                if (D_800A503C == 0) {
+                    entry.objectID = 0x278;
+                    func_80003410(0x216, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4,
+                                  NULL);
+                } else {
+                    entry.objectID = 0x1FB;
+                    func_80001248(0x216, 0);
+                }
+                entry.unkA = 0x258;
+            }
+            spawned = func_80005F14(&entry, 1);
+            if (spawned != NULL) {
+                spawned->level_entry = NULL;
+            }
+            racer->pickup = 0;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_01C68);
+#endif
 
 /* Whether the countdown is over */
 s32 func_m031_01EB0(void) {
