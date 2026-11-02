@@ -77,12 +77,10 @@ void func_m005_00010(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* registers only: the red product's operands are swapped and one %hi goes through ra instead of v0 */
 void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom, u32 colourTo, s32 fade) {
     M005Point *pt;
     u16 *colours;
-    s32 i;
+    u32 i;
     s32 r;
     s32 g;
     s32 b;
@@ -108,7 +106,7 @@ void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom,
     sizeX <<= 7;
     sizeY <<= 7;
     sizeZ = (sizeZ + 1) << 8;
-    for (i = 0, pt = sPoints; i < sPointCount; i++) {
+    for (i = 0, pt = sPoints; (s32) i < sPointCount; i++) {
         pt->x = func_80048E2C(-sizeX, sizeX) * (1.0f / 256);
         pt->y = func_80048E2C(-sizeY, sizeY) * (1.0f / 256);
         pt->z = func_80048E2C(0x100, sizeZ) * (1.0f / 256);
@@ -120,15 +118,11 @@ void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom,
     dr = ((colourTo >> 24) & 0xFF) - r;
     dg = ((colourTo >> 16) & 0xFF) - g;
     db = ((colourTo >> 8) & 0xFF) - b;
-    colours = sPointColours;
-    for (i = 0; i < 256; i++) {
-        colours[i] = (((((s32) (dr * i) >> 8) + r) & 0xF8) << 8) | (((((s32) (dg * i) >> 8) + g) & 0xF8) << 3) |
+    for (i = 0, colours = sPointColours; i < 256; i++) {
+        *colours++ = (((((s32) (dr * i) >> 8) + r) & 0xF8) << 8) | (((((s32) (dg * i) >> 8) + g) & 0xF8) << 3) |
                      (((((s32) (db * i) >> 8) + b) & 0xF8) >> 2) | 1;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m005", func_m005_0004C);
-#endif
 
 void func_m005_00434(f32 velX, f32 velY, f32 velZ, s32 updateRate) {
     M005Field *f = &sPointField;
