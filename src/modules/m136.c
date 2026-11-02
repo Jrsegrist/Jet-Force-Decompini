@@ -135,7 +135,7 @@ typedef struct M136Scroll {
     /* 0x0A */ s16 v;
 } M136Scroll;
 
-/* A lens flare's description (func_80023A48) */
+/* A lens flare's description (corona_add) */
 typedef struct M136Flare {
     /* 0x00 */ u8 flags;
     /* 0x01 */ u8 unk1;
@@ -288,8 +288,8 @@ extern void func_800036C8(u16 sound, f32 x, f32 y, f32 z, s32 arg4, s32 arg5, s3
 extern void func_m044_0070C(s32 sound, s32 arg1, f32 x, f32 y, f32 z, s32 arg5, s32 arg6, s32 arg7, s32 arg8,
                             s32 arg9, s32 arg10, s32 arg11, s32 arg12);
 extern void *func_8001B650();
-extern s32 func_80020E3C();
-extern s32 func_80023A48(Object *obj, M136Flare *flare, M136Entry *setup);
+extern s32 light_add_from_level_object_entry();
+extern s32 corona_add(Object *obj, M136Flare *flare, M136Entry *setup);
 extern void func_m011_000D4(s32 spline);
 extern void func_8002F014();
 extern Object **func_80050F44(s32 *count);
@@ -641,7 +641,7 @@ void func_m136_00E30(Object *obj, M136Entry *setup, s32 arg2) {
 }
 
 void func_m136_00ED4(Object *obj, M136Entry *setup, s32 arg2) {
-    obj->unk68 = (void *) func_80020E3C(obj, setup);
+    obj->unk68 = (void *) light_add_from_level_object_entry(obj, setup);
 }
 
 #ifdef NON_MATCHING
@@ -674,7 +674,7 @@ void func_m136_00F04(Object *obj, M136Entry *setup) {
     flare.unk1E = -1;
     flare.unk1F = 1;
     flare.a = ENTRY_U8(setup, 0x15);
-    *(s32 *) &obj->state[0] = func_80023A48(obj, &flare, setup);
+    *(s32 *) &obj->state[0] = corona_add(obj, &flare, setup);
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_00F04);

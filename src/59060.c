@@ -281,7 +281,7 @@ extern s32 D_800FF39C;
 extern s32 D_800FF3A0;
 extern s32 D_800FF3A4;
 void debug_trace_add(s32 a, char *file, s32 line);
-void func_80059A98(s32 arg0);
+void menu_input_update(s32 arg0);
 void menu_show_results(s32 arg0);
 
 /**
@@ -290,7 +290,7 @@ void menu_show_results(s32 arg0);
  * Only `case 0` of the empty cases is listed: with all of them, IDO stops keeping arg4 in s0.
  */
 s32 menu_set_results(s32 *arg0, s32 *arg1, s32 *arg2, s32 *arg3, s32 arg4) {
-    func_80059A98(arg4);
+    menu_input_update(arg4);
     D_800FF398 = *arg0;
     D_800FF39C = *arg1;
     D_800FF3A0 = *arg2;
@@ -431,17 +431,68 @@ s32 menu_timer_advance(UNUSED s32 arg0, s32 limit, s32 delta) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058EF0);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_800595F4);
-
 typedef struct MenuBox {
     s16 x1, y1, x2, y2;
     s32 colour;
 } MenuBox;
-void func_800595F4(s32 arg0, s32 count, MenuBox *boxes, s32 arg3);
+void fb_size(s32 *width, s32 *height);
+
+extern Gfx D_800A58F8[];
+void rendermode_reset(Gfx **dList);
+/* JFG: fill count coloured boxes, clipped to the screen (those off it skipped), changing the primitive
+   colour only when it changes; arg3 picks one of two render modes. */
+void menu_fill_boxes(Gfx **dList, s32 count, MenuBox *boxes, s32 arg3) {
+    s32 x1, y1, x2, y2;
+    s32 colour;
+    u32 width, height;
+
+    fb_size((s32 *) &width, (s32 *) &height);
+    gSPDisplayList((*dList)++, D_800A58F8);
+    if (arg3) {
+        gDPSetOtherMode((*dList)++, 0x82C0F, 0x504340);
+    } else {
+        gDPSetOtherMode((*dList)++, 0x82C0F, 0x504240);
+    }
+    colour = boxes->colour;
+    gDPSetColor((*dList)++, G_SETPRIMCOLOR, colour);
+    while (count--) {
+        x2 = boxes->x2;
+        y2 = boxes->y2;
+        if (x2 >= 0 && y2 >= 0) {
+            x1 = boxes->x1;
+            y1 = boxes->y1;
+            if (x1 < (s32) width && y1 < (s32) height) {
+                if (x1 < 0) {
+                    x1 = 0;
+                }
+                if (y1 < 0) {
+                    y1 = 0;
+                }
+                if ((s32) width < x2) {
+                    x2 = width;
+                }
+                if ((s32) height < y2) {
+                    y2 = height;
+                }
+                if (colour != boxes->colour) {
+                    colour = boxes->colour;
+                    gDPPipeSync((*dList)++);
+                    gDPSetColor((*dList)++, G_SETPRIMCOLOR, colour);
+                }
+                gDPFillRectangle((*dList)++, x1, y1, x2, y2);
+            }
+        }
+        boxes++;
+    }
+    rendermode_reset(dList);
+    gDPSetColor((*dList)++, G_SETPRIMCOLOR, -1);
+}
+
+void menu_fill_boxes(Gfx **dList, s32 count, MenuBox *boxes, s32 arg3);
 
 /* JFG: fill one coloured box (corners x1,y1 and x2,y2) through the list function, which emits a
  * primitive colour and a fill command per box (0x80059814). */
-void menu_fill_box(s32 arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
+void menu_fill_box(Gfx **arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
     MenuBox box;
 
     box.x1 = x1;
@@ -449,7 +500,7 @@ void menu_fill_box(s32 arg0, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour) {
     box.x2 = x2;
     box.y2 = y2;
     box.colour = colour;
-    func_800595F4(arg0, 1, &box, 1);
+    menu_fill_boxes(arg0, 1, &box, 1);
 }
 
 void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
@@ -495,9 +546,9 @@ void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
     fb_scale_coords(x2, y2);
 }
 
-extern u8 D_800FF3E0[4];
-extern u8 D_800FF3E4[4];
-extern s32 D_800FF3E8[4];
+extern s8 D_800FF3E0[4];  // JFG: each player's stick x repeat timer
+extern s8 D_800FF3E4[4];  // JFG: each player's stick y repeat timer
+extern s32 D_800FF3E8[4]; // JFG: each player's buttons held last frame
 
 /* JFG: reset the four players' entries. */
 void func_80059A04(void) {
@@ -511,7 +562,81 @@ void func_80059A04(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
+u16 input_held(s32 player);
+s32 input_clamp_stick_x(s32 player);
+s32 input_clamp_stick_y(s32 player);
+extern s32 D_800FF3B8[4]; // JFG: each player's buttons held
+extern s32 D_800FF3C8[4]; // JFG: each player's buttons pressed this frame
+extern s8 D_800FF3D8[4];  // JFG: each player's stick x move (with auto-repeat)
+extern s8 D_800FF3DC[4];  // JFG: each player's stick y move (with auto-repeat)
+
+/* JFG: read the four players' buttons for the menus, and turn the sticks into moves that repeat
+   (after 20 frames, then every 15) while held. */
+void menu_input_update(s32 updateRate) {
+    s32 i;
+    s32 held;
+
+    for (i = 0; i < 4; i++) {
+        held = input_held(i);
+        D_800FF3B8[i] = held;
+        D_800FF3C8[i] = ~D_800FF3E8[i] & held;
+        D_800FF3E8[i] = held;
+        D_800FF3D8[i] = input_clamp_stick_x(i);
+        if (D_800FF3D8[i] < -35) {
+            if (D_800FF3E0[i] < 0) {
+                D_800FF3E0[i] += updateRate;
+                if (D_800FF3E0[i] >= 0) {
+                    D_800FF3E0[i] = -15;
+                } else {
+                    D_800FF3D8[i] = 0;
+                }
+            } else {
+                D_800FF3E0[i] = -20;
+            }
+        } else if (D_800FF3D8[i] > 35) {
+            if (D_800FF3E0[i] > 0) {
+                D_800FF3E0[i] -= updateRate;
+                if (D_800FF3E0[i] <= 0) {
+                    D_800FF3E0[i] = 15;
+                } else {
+                    D_800FF3D8[i] = 0;
+                }
+            } else {
+                D_800FF3E0[i] = 20;
+            }
+        } else {
+            D_800FF3D8[i] = 0;
+            D_800FF3E0[i] = 0;
+        }
+        D_800FF3DC[i] = input_clamp_stick_y(i);
+        if (D_800FF3DC[i] < -35) {
+            if (D_800FF3E4[i] < 0) {
+                D_800FF3E4[i] += updateRate;
+                if (D_800FF3E4[i] >= 0) {
+                    D_800FF3E4[i] = -15;
+                } else {
+                    D_800FF3DC[i] = 0;
+                }
+            } else {
+                D_800FF3E4[i] = -20;
+            }
+        } else if (D_800FF3DC[i] > 35) {
+            if (D_800FF3E4[i] > 0) {
+                D_800FF3E4[i] -= updateRate;
+                if (D_800FF3E4[i] <= 0) {
+                    D_800FF3E4[i] = 15;
+                } else {
+                    D_800FF3DC[i] = 0;
+                }
+            } else {
+                D_800FF3E4[i] = 20;
+            }
+        } else {
+            D_800FF3DC[i] = 0;
+            D_800FF3E4[i] = 0;
+        }
+    }
+}
 
 void menu_item_free(s32 item);
 

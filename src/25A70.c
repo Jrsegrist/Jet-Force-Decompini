@@ -108,7 +108,8 @@ typedef struct ObjectHeader {
 } ObjectHeader;
 
 typedef struct Object {
-    /* 0x00 */ u8 pad0[0x8];
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 flags;
     /* 0x08 */ f32 scale;
     /* 0x0C */ f32 x_position;
     /* 0x10 */ f32 y_position;
@@ -120,12 +121,15 @@ typedef struct Object {
     /* 0x28 */ f32 unk28;
     /* 0x2C */ u8 pad2C[2];
     /* 0x2E */ s16 segmentID;
-    /* 0x30 */ u8 pad30[0x3C - 0x30];
+    /* 0x30 */ u8 pad30[0x3A - 0x30];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B;
     /* 0x3C */ LevelObjectEntry *level_entry;
     /* 0x40 */ ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x68 - 0x44];
     /* 0x68 */ Object_Animator *animator;
-    /* 0x6C */ u8 pad6C[0x84 - 0x6C];
+    /* 0x6C */ struct ModelInstance26 **models;
+    /* 0x70 */ u8 pad70[0x84 - 0x70];
     /* 0x84 */ s32 particleEmittersEnabled;
     /* 0x88 */ ObjectProperties properties;
 } Object;
@@ -194,7 +198,81 @@ void func_80024F94(u8 *obj, s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F94);
 #endif
 
+/* JFG: a box zone's level object entry */
+typedef struct LevelObjectEntry_BoxZone {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u8 width;
+    /* 0x0B */ u8 height;
+    /* 0x0C */ u8 depth;
+    /* 0x0D */ u8 angle;
+    /* 0x0E */ u8 mode;
+    /* 0x0F */ u8 value;
+} LevelObjectEntry_BoxZone;
+
+/* JFG: a racer's data, reduced */
+typedef struct RacerZoneData {
+    /* 0x000 */ u8 pad0[0x194];
+    /* 0x194 */ u8 zoneMode;
+    /* 0x195 */ u8 zoneValue;
+} RacerZoneData;
+
+Object **get_racer_objects(s32 *numRacers);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+
+#ifdef NON_MATCHING
+/* JFG: loop: give each racer inside the (turned) box the zone's mode and value; in mode 1 the value
+   fades out over the top half of the box.
+   NON_MATCHING: 25 words: dy and dz get $f12/$f2 swapped, and the final multiply's operands swap. */
+void func_8002500C(Object *obj, UNUSED s32 updateRate) {
+    Object **racers;
+    LevelObjectEntry_BoxZone *entry;
+    s32 numRacers;
+    s32 i;
+    Object *racer;
+    RacerZoneData *data;
+    f32 cosA;
+    f32 sinA;
+    f32 width;
+    f32 height;
+    f32 depth;
+    f32 dx;
+    f32 dz;
+    f32 dy;
+    f32 lx;
+
+    entry = (LevelObjectEntry_BoxZone *) obj->level_entry;
+    racers = get_racer_objects(&numRacers);
+    cosA = func_80049C30(-(entry->angle << 8));
+    sinA = func_80049C34(-(entry->angle << 8));
+    width = entry->width * 3;
+    height = entry->height * 3;
+    depth = entry->depth * 3;
+    for (i = 0; i < numRacers; i++) {
+        racer = racers[i];
+        dx = racer->x_position - obj->x_position;
+        dy = racer->y_position - obj->y_position;
+        dz = racer->z_position - obj->z_position;
+        if (-height < dy && dy < height) {
+            lx = dx * cosA + dz * sinA;
+            if (-width < lx && lx < width) {
+                dz = -dx * sinA + dz * cosA;
+                if (-depth < dz && dz < depth) {
+                    dz = height / (f32) 2; // now half the height
+                    data = (RacerZoneData *) racer->animator;
+                    data->zoneMode = entry->mode;
+                    data->zoneValue = entry->value;
+                    if (dz < dy && data->zoneMode == 1) {
+                        data->zoneValue = (1.0f - (dy - dz) / dz) * data->zoneValue;
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/25A70", func_8002500C);
+#endif
 
 /**
  * Object animator init function.
@@ -384,7 +462,129 @@ s32 obj_group_flag_first(s32 id, u16 flag) {
     return FALSE;
 }
 
+/* JFG: a model instance, reduced */
+typedef struct ModelInstance26 {
+    /* 0x00 */ struct ModelHeader26 *header;
+    /* 0x04 */ u8 pad4[0x74 - 0x4];
+    /* 0x74 */ struct ModelBatch26 *batches;
+} ModelInstance26;
+
+typedef struct ModelHeader26 {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 numBatches;
+} ModelHeader26;
+
+typedef struct ModelBatch26 {
+    /* 0x00 */ s16 light;
+    /* 0x02 */ u8 pad2[2];
+    /* 0x04 */ s32 flags;
+} ModelBatch26;
+
+/* JFG: the state of an object lit by a group's flags */
+typedef struct GroupLightState {
+    /* 0x00 */ f32 level;
+    /* 0x04 */ Object *group; // found near the object (func_80004954)
+    /* 0x08 */ u8 lit;
+    /* 0x09 */ u8 module;
+    /* 0x0A */ u8 timer; // 0xFF: none
+    /* 0x0B */ u8 jingle;
+    /* 0x0C */ u8 unkC;
+} GroupLightState;
+
+/* JFG: a group object's state, reduced (obj_group_flag_first) */
+typedef struct GroupState26 {
+    /* 0x00 */ u8 pad0[0x3E];
+    /* 0x3E */ u16 flags;
+} GroupState26;
+
+Object *func_80004954(f32 x, f32 y, f32 z, s32 type);
+s32 normalise_time(s32 timer);
+void func_80054530();
+void music_jingle_play(s32 jingle);
+void func_8001138C(Object *obj, f32 level, f32 updateRate);
+extern f32 D_800ABAE8;
+extern f32 D_800ABAEC;
+extern f32 D_800ABAF0;
+
+#ifdef NON_MATCHING
+/* JFG: loop: find the group object nearby, then follow its flags: light up (setting a level, or a module
+   effect with a jingle after a delay) and pass the lit state to the model's flagged batches.
+   NON_MATCHING: scheduling in three places (the else arm's lit store, the module argument via v0, the
+   loop reloads model->header after the batch store). */
+void func_80026A50(Object *obj, s32 updateRate) {
+    GroupLightState *state;
+    GroupState26 *group;
+    s32 lit;
+    ModelInstance26 *model;
+    ModelBatch26 *batch;
+    s32 i;
+
+    state = (GroupLightState *) obj->animator;
+    lit = state->lit;
+    if (state->group == NULL) {
+        state->group = func_80004954(obj->x_position, obj->y_position, obj->z_position, 7);
+    } else {
+        group = (GroupState26 *) state->group->animator;
+        if (!(group->flags & 8)) {
+            if (state->unkC) {
+                if (group->flags & 5) {
+                    lit = 1;
+                    state->level = D_800ABAE8;
+                } else {
+                    state->level = D_800ABAEC;
+                    lit = 1;
+                }
+            } else if (!(group->flags & 0x10)) {
+                obj->unk28 = 1.0f;
+                lit = 1;
+                state->level = 0.0f;
+            } else {
+                if (state->timer == 0xFF) {
+                    if (state->module) {
+                        state->timer = normalise_time(30);
+                    } else {
+                        state->timer = 0;
+                    }
+                }
+                if (state->module) {
+                    func_80054530(state->module);
+                    state->module = 0;
+                    state->jingle = 1;
+                }
+                if (state->timer != 0xFF) {
+                    if (updateRate < state->timer) {
+                        state->timer -= updateRate;
+                    } else {
+                        if (state->jingle) {
+                            music_jingle_play(15);
+                            state->jingle = 0;
+                        }
+                        state->timer = 0;
+                        lit = 1;
+                        state->level = D_800ABAF0;
+                    }
+                }
+            }
+        }
+    }
+    func_8001138C(obj, state->level, updateRate);
+    if (lit != state->lit) {
+        model = obj->models[obj->modelIndex];
+        batch = model->batches;
+        if (batch != NULL) {
+            for (i = 0; i < model->header->numBatches; i++) {
+                if (batch->flags & 0x10000) {
+                    batch->light = lit << 8;
+                }
+                batch++;
+            }
+        }
+        state->lit = lit;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80026A50);
+#endif
 
 void set_skydome_visbility(s32 renderSky);
 
@@ -629,7 +829,75 @@ void func_80027220(f32 *obj, s32 event) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800272B4);
+/* JFG: a trigger zone's level object entry */
+typedef struct LevelObjectEntry_ZoneTrigger {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 enterRadius;
+    /* 0x0C */ u16 leaveRadius;
+    /* 0x0E */ u8 is2d;
+    /* 0x0F */ u8 id;
+    /* 0x10 */ u8 flags;
+    /* 0x11 */ u8 undoOnLeave;
+    /* 0x12 */ s16 unk12;
+    /* 0x14 */ s16 soundID;
+} LevelObjectEntry_ZoneTrigger;
+
+s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 arg4);
+void func_80076928(s32 id);
+void func_80079BB8(void);
+void anim_path_sound_stop(s32 id);
+void func_800767EC(s32 id);
+void sequence_start(s32 id);
+void func_80076A5C(s32 id, s32 arg1);
+void func_80079BA8(void);
+void sound_play(u16 soundID, s32 *handlePtr);
+
+/* JFG: loop: a trigger zone; entering (a racer within enterRadius, or func_8002A704 with flag 0x40) sets
+   off entry->id one way (flags 0x80/0x20) and a sound, leaving undoes it if asked; flag 1 calls
+   func_80079BA8 while inside. */
+void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
+    Object *racer[8]; // the frame holds 8 words here
+    LevelObjectEntry_ZoneTrigger *entry;
+
+    entry = (LevelObjectEntry_ZoneTrigger *) obj->level_entry;
+    if (entry->flags & 0x40) {
+        if (obj->properties.common.unk0 == 0) {
+            if (func_8002A704(obj->x_position, obj->y_position, obj->z_position, entry->enterRadius, 1)) {
+                obj->properties.common.unk0 = 1;
+            }
+        }
+    } else if (obj->properties.common.unk0 != 0) {
+        if (!obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, entry->leaveRadius, entry->is2d, racer)) {
+            if (entry->undoOnLeave) {
+                if (entry->flags & 0x80) {
+                    func_80076928(entry->id);
+                } else {
+                    func_80079BB8();
+                }
+                if (entry->unk12) {
+                    anim_path_sound_stop(entry->id);
+                }
+            }
+            obj->properties.common.unk0 = 0;
+        }
+    } else if (obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, entry->enterRadius, entry->is2d, racer)) {
+        if (entry->flags & 0x80) {
+            func_800767EC(entry->id);
+        } else if (!(entry->flags & 0x20)) {
+            sequence_start(entry->id);
+        }
+        if (entry->unk12) {
+            func_80076A5C(entry->id, entry->unk12);
+        }
+        if (entry->soundID) {
+            sound_play(entry->soundID, NULL);
+        }
+        obj->properties.common.unk0 = 1;
+    }
+    if (obj->properties.common.unk0 && (entry->flags & 1)) {
+        func_80079BA8();
+    }
+}
 
 void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
                    f32 arg9, f32 argA, s32 argB);
@@ -945,7 +1213,43 @@ void func_800281B4(Object *obj, LevelObjectEntry_Drift *entry) {
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80028274);
+Object *cam_get_cameras(void);
+f32 func_80049BEC(f32 base, s32 exponent);
+extern f32 D_800ABB14;
+extern f32 D_800ABB18;
+
+/* JFG: loop: flag the object while the camera is above its floor height; grow in, then drift (easing the
+   vertical speed to its target) until it rises past that height, where it emits particles and is freed. */
+void obj_loop_drift(Object *obj, s32 updateRate) {
+    f32 moveScale;
+    f32 diff;
+    DriftState *state;
+
+    moveScale = updateRate;
+    state = (DriftState *) obj->animator;
+    diff = cam_get_cameras()->y_position - state->unkC;
+    if (diff > 0.0f) {
+        obj->flags |= 8;
+    } else {
+        obj->flags &= ~8;
+    }
+    if (state->unk4 < 1.0f) {
+        state->unk4 += updateRate * D_800ABB14;
+        if (state->unk4 >= 1.0f) {
+            state->unk4 = 1.0f;
+        }
+        obj->scale = state->unk0 * state->unk4;
+    } else {
+        move_object(obj, obj->x_velocity * moveScale, obj->y_velocity * moveScale, obj->z_velocity * moveScale);
+        obj->y_velocity += (state->unk8 - obj->y_velocity) * (1.0f - func_80049BEC(D_800ABB18, updateRate));
+        if (state->unkC < obj->y_position) {
+            obj->y_position = state->unkC;
+            obj->particleEmittersEnabled = 1;
+            obj_spawn_particle(obj, 2);
+            free_object(obj);
+        }
+    }
+}
 
 void func_80028414(Object *obj, s8 *entry) {
     obj->properties.timer.unk0 = entry[0xA] * 60;

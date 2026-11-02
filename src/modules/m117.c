@@ -114,7 +114,7 @@ extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
 extern void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
 extern void func_80056064(void);
-extern void func_80041174(s32 arg0, s32 arg1, s32 arg2, M117Billboard *board, s32 texture, s32 arg5, s32 alpha);
+extern void render_sprite_billboard(s32 arg0, s32 arg1, s32 arg2, M117Billboard *board, s32 texture, s32 arg5, s32 alpha);
 
 static u8 sCloudColours[4][4] = {
     { 0x08, 0xFF, 0x20, 0x00 },
@@ -365,7 +365,7 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
             board.trans.z_position = positions[*ord].z;
             board.trans.rotation.z_rotation = mote->roll << 8;
             board.trans.scale = func_80049C34(mote->spin << 8) * 0.125f + 0.55f;
-            func_80041174(arg0, arg1, arg2, &board, tex, 7, cloud->brightness);
+            render_sprite_billboard(arg0, arg1, arg2, &board, tex, 7, cloud->brightness);
         }
         func_80056064();
     }

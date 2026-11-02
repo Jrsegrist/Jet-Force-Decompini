@@ -71,7 +71,7 @@ extern MtxF gOrthoMatrixF;
 #define CAMERA_NEAR 10.0f
 #define CAMERA_SCALE 1.0 /* a double: IDO does not share it with the 1.0f in cam_set_fov */
 
-extern u8 D_800FA650;
+extern s8 D_800FA650; // DKR: gAdjustViewportHeight
 extern s32 D_800A2ED0;
 extern f32 D_800AC40C; // the far plane (a .rodata constant, not split out yet)
 extern MtxF gPerspectiveMatrixF;
@@ -679,11 +679,182 @@ void viewport_reset(Gfx **dList) {
 void func_80041168(s32 arg0, s32 arg1) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041174);
+/* JFG: the game's vertex (DKR's Vertex) */
+typedef struct Vertex40 {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} Vertex40;
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041450);
+/* JFG: what a billboard sprite is drawn from (an object's transform and more) */
+typedef struct BillboardTrans {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ s32 frame;
+} BillboardTrans;
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_800416CC);
+extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
+extern Mtx *D_800FAB30;
+extern f32 D_800FECC4; // JFG: the screen's aspect ratio
+extern f32 D_800AC41C;
+s32 fb_mode(void);
+void func_8004924C(s32 angle, f32 scaleX, f32 scaleY, MtxF *out); // DKR: mtxf_billboard
+void func_80049BA0(MtxF *mtx);                                     // an identity matrix
+void func_80056070(Gfx **dList, void *sprite, s32 flags, s32 frame, s32 alpha);
+
+/* JFG: draw a sprite as a billboard at a point: one vertex, a matrix from the camera's roll, the
+   scale (and the aspect ratio) and a vertical flip if asked (flag 0x20000000), then the frame. */
+void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex40 **verts, BillboardTrans *trans, void *sprite, s32 flags,
+                   u8 alpha) {
+    s32 angle;
+    f32 scale;
+    f32 aspect;
+    Vertex40 *v;
+
+    v = *verts;
+    v->x = trans->x;
+    v->y = trans->y;
+    v->z = trans->z;
+    v->r = 255;
+    v->g = 255;
+    v->b = 255;
+    v->a = 255;
+    gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(*verts), 18, (OS_K0_TO_PHYSICAL(*verts) & 6) | 8);
+    (*verts)++;
+    angle = trans->rotation[2] + gCameras[D_800FA634].z_rotation;
+    scale = trans->scale * D_800A3168;
+    aspect = D_800FECC4;
+    if (fb_mode() & 1) {
+        scale *= 0.75f;
+        aspect *= D_800AC41C;
+    }
+    func_8004924C(angle, scale, aspect, &D_800FAAB0);
+    if (flags & 0x20000000) {
+        func_80049BA0(&D_800FAFF8);
+        D_800FAFF8[1][1] = -1.0f;
+        func_80048C7C(&D_800FAAB0, &D_800FAFF8, &D_800FAAB0);
+    }
+    func_80048D84(&D_800FAAB0, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+    gMoveWd((*dList)++, 2, 0, 1);
+    flags &= ~1;
+    if (flags & 4) {
+        flags |= 1;
+    }
+    func_80056070(dList, sprite, flags & 0xF, trans->frame, alpha);
+    gMoveWd((*dList)++, 0xA, 0, 0);
+    gMoveWd((*dList)++, 2, 0, 0);
+}
+
+extern f32 D_800AC420;
+
+/* JFG: render_sprite_billboard for a sprite at a given point, roll and scale instead of a transform. */
+void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex40 **verts, void *sprite, s16 x, s16 y, s16 z, s16 roll,
+                   f32 scale, s32 frame, s32 flags, u8 alpha) {
+    s32 angle;
+    f32 aspect;
+    Vertex40 *v;
+
+    v = *verts;
+    v->x = x;
+    v->y = y;
+    v->z = z;
+    v->r = 255;
+    v->g = 255;
+    v->b = 255;
+    v->a = 255;
+    gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(*verts), 18, (OS_K0_TO_PHYSICAL(*verts) & 6) | 8);
+    (*verts)++;
+    angle = gCameras[D_800FA634].z_rotation + roll;
+    scale *= D_800A3168;
+    aspect = D_800FECC4;
+    if (fb_mode() & 1) {
+        scale *= 0.75f;
+        aspect *= D_800AC420;
+    }
+    func_8004924C(angle, scale, aspect, &D_800FAAB0);
+    if (flags & 0x20000000) {
+        func_80049BA0(&D_800FAFF8);
+        D_800FAFF8[1][1] = -1.0f;
+        func_80048C7C(&D_800FAAB0, &D_800FAFF8, &D_800FAAB0);
+    }
+    func_80048D84(&D_800FAAB0, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+    gMoveWd((*dList)++, 2, 0, 1);
+    flags &= ~1;
+    if (flags & 4) {
+        flags |= 1;
+    }
+    func_80056070(dList, sprite, flags & 0xF, frame, alpha);
+    gMoveWd((*dList)++, 0xA, 0, 0);
+    gMoveWd((*dList)++, 2, 0, 0);
+}
+
+extern BillboardTrans D_800FA638; // DKR: gCameraTransform
+void func_800495D8(MtxF *out, f32 x, f32 y, f32 z); // DKR: mtxf_from_scale
+
+/**
+ * Draws a sprite as an orthogonal image at a point, turned and scaled by its transform.
+ * JFG: one matrix (no model matrix stack), the frame from the transform and an extra argument.
+ * DKR: render_ortho_triangle_image
+ */
+void render_ortho_triangle_image(Gfx **dList, Mtx **mtx, Vertex40 **verts, BillboardTrans *trans, void *sprite,
+                                 s32 flags, u8 alpha) {
+    UNUSED s32 pad;
+    f32 scale;
+    MtxF aspectMtxF;
+    MtxF scaleMtxF;
+    Vertex40 *v;
+
+    if (sprite == NULL) {
+        return;
+    }
+    v = *verts;
+    v->x = trans->x;
+    v->y = trans->y;
+    v->z = trans->z;
+    v->r = 255;
+    v->g = 255;
+    v->b = 255;
+    v->a = 255;
+    gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(*verts), 18, (OS_K0_TO_PHYSICAL(*verts) & 6) | 8);
+    (*verts)++;
+    D_800FA638.rotation[0] = -trans->rotation[0];
+    D_800FA638.rotation[1] = -trans->rotation[1];
+    D_800FA638.rotation[2] = trans->rotation[2] + gCameras[D_800FA634].z_rotation;
+    D_800FA638.x = 0.0f;
+    D_800FA638.y = 0.0f;
+    D_800FA638.z = 0.0f;
+    if (D_800FA650) {
+        scale = trans->scale;
+        func_800495D8(&scaleMtxF, scale, scale, 1.0f);
+        func_8004924C(0, 1.0f, D_800FECC4, &aspectMtxF);
+        func_80048C7C(&aspectMtxF, &scaleMtxF, &D_800FAFF8);
+    } else {
+        scale = trans->scale;
+        func_800495D8(&D_800FAFF8, scale, scale, 1.0f);
+    }
+    func_8004A1A0(D_800FA638.rotation, &aspectMtxF);
+    func_80048C7C(&D_800FAFF8, &aspectMtxF, &D_800FAAB0);
+    func_80048D84(&D_800FAAB0, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
+    gMoveWd((*dList)++, 2, 0, 1);
+    func_80056070(dList, sprite, flags, trans->frame, alpha);
+    gMoveWd((*dList)++, 0xA, 0, 0);
+    gMoveWd((*dList)++, 2, 0, 0);
+}
 
 extern MtxF D_800FAAB0;
 extern Mtx *D_800FAB30;

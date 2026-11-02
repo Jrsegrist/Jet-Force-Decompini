@@ -53,7 +53,7 @@ typedef struct M123BeamParams {
 } M123BeamParams;
 
 extern void *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
-extern void *func_80023A48(Object *obj, M123BeamParams *params);
+extern void *corona_add(Object *obj, M123BeamParams *params);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
 void func_m123_00000(Object *obj, M123Setup *setup) {
@@ -109,7 +109,7 @@ void func_m123_00000(Object *obj, M123Setup *setup) {
         bp.length = setup->beamLength * 4;
         bp.length2 = setup->beamLength * 4;
         bp.unk1E = -1;
-        l->beam = func_80023A48(obj, &bp);
+        l->beam = corona_add(obj, &bp);
     }
     l->mode = setup->mode;
     l->timer = 0;

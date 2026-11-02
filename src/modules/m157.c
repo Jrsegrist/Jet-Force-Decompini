@@ -26,7 +26,7 @@ typedef struct WindowRect {
     /* 0x8 */ u32 colour;
 } WindowRect;
 
-extern void func_800595F4(s32, s32, WindowRect *, s32); /* draws rectangles */
+extern void menu_fill_boxes(s32, s32, WindowRect *, s32); /* draws rectangles */
 
 static WindowPiece sWindowPieces[] = {
     { 0, -4, 0, -4, 1, 4, 0, -3, 0x1A },  { 0, -3, 0, -3, 1, 3, 0, -2, 0x33 },
@@ -75,5 +75,5 @@ void func_m157_00000(s32 arg0, u8 shape, s32 x, s32 y, s32 width, s32 height, u3
         p++;
         r++;
     }
-    func_800595F4(arg0, n, rects, 0);
+    menu_fill_boxes(arg0, n, rects, 0);
 }

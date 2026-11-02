@@ -627,8 +627,140 @@ void parse_string_with_number(char *input, char *output, s32 number) {
     } while (ch);
 }
 
-/* JFG: find the cached glyph of the current font, or load it into free cache blocks (not matched yet). */
+/* JFG: an entry of the glyph cache (256 blocks of 0x80 bytes). Size: 0x10 bytes */
+typedef struct GlyphCacheEntry {
+    /* 0x00 */ u8 font; // 0xFF: free
+    /* 0x01 */ u8 ch;
+    /* 0x02 */ u16 offset; // of the block in D_801040F8
+    /* 0x04 */ u8 state;
+    /* 0x05 */ u8 next; // how many blocks of the glyph follow
+    /* 0x06 */ s16 width;
+    /* 0x08 */ s16 height;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 unkC;
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 padF;
+} GlyphCacheEntry;
+
+/* JFG: the header of a glyph image (asset 0x3B). Size: 0x10 bytes */
+typedef struct GlyphHeader {
+    /* 0x00 */ u16 width;
+    /* 0x02 */ u16 height;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 pad9[7];
+} GlyphHeader;
+
+extern GlyphCacheEntry *D_801040FC;
+extern u8 *D_801040F8;
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+
+#ifdef NON_MATCHING
+/* JFG: find the cached glyph of the current font, or load it into free cache blocks (keeping the 16
+   bytes the glyph's header overwrites in front of its block).
+   NON_MATCHING: the target keeps the 4-word save as a loop (IDO unrolls this one), ch out of $s0,
+   and other argument registers for the counters (frame 0x70). */
+GlyphCacheEntry *func_80071388(u8 ch) {
+    GlyphCacheEntry *entry;
+    FontData *font;
+    s32 i;
+    s32 blocks;
+    s32 run;
+    u32 *src;
+    u32 *dst;
+    u32 saved[4];
+    GlyphHeader *glyph;
+    u32 j;
+    s32 fontID;
+    GlyphCacheEntry *found;
+
+    fontID = fontInUse;
+    found = NULL;
+    i = 0;
+    font = &gFonts[fontID];
+    entry = D_801040FC;
+    do {
+        i++;
+        if (fontID == entry->font && ch == entry->ch) {
+            found = entry;
+        }
+        entry++;
+    } while (i < 256 && found == NULL);
+    entry = D_801040FC;
+    if (found != NULL) {
+        entry = found;
+        do {
+            run = entry->next;
+            entry->state = 2;
+            entry++;
+        } while (run);
+        return found;
+    }
+    i = 0;
+    blocks = (u32) (font->glyphSize + 0x6F) >> 7;
+    run = 0;
+    if (blocks) {
+        do {
+            i++;
+            if (entry->state == 0) {
+                if (run == 0) {
+                    found = entry;
+                }
+                run++;
+            } else {
+                run = 0;
+            }
+            entry++;
+        } while (i < 256 && run != blocks);
+    }
+    if (run == blocks) {
+        entry = found;
+        for (i = blocks - 1; i >= 0; i--) {
+            blocks = entry->next;
+            entry->next = i;
+            entry->font = fontID;
+            entry->ch = ch;
+            entry->state = 2;
+            entry++;
+        }
+        while (blocks) {
+            blocks = entry->next;
+            entry->font = 0xFF;
+            entry->next = 0;
+            entry++;
+        }
+        glyph = (GlyphHeader *) (D_801040F8 + found->offset - 16);
+        src = (u32 *) glyph;
+        dst = saved;
+        j = 0;
+        do {
+            *dst++ = *src++;
+        } while (++j < 4);
+        asset_load(0x3B, (u32) glyph, font->dataOffset + ch * font->glyphSize, font->glyphSize);
+        found->width = found->offset + glyph->width - 16;
+        found->height = found->offset + glyph->height - 16;
+        found->unkA = glyph->unk4;
+        found->unkB = glyph->unk5;
+        found->unkC = glyph->unk6;
+        found->unkD = glyph->unk7;
+        found->unkE = glyph->unk8;
+        ((u32 *) glyph)[0] = saved[0];
+        ((u32 *) glyph)[1] = saved[1];
+        ((u32 *) glyph)[2] = saved[2];
+        ((u32 *) glyph)[3] = saved[3];
+    } else {
+        found = NULL;
+    }
+    return found;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80071388);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_800715E8);
 

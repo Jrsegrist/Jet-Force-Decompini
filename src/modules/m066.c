@@ -66,7 +66,7 @@ typedef struct M066Path {
     /* 0x16 */ u8 flags;
 } M066Path;
 
-/* What func_800218C4 returns: the light nearest to a point */
+/* What light_find_strongest_at returns: the light nearest to a point */
 typedef struct M066Light {
     /* 0x00 */ u8 pad0[0x18];
     /* 0x18 */ f32 x;
@@ -80,7 +80,7 @@ typedef struct M066Light {
 extern M066Path **D_801045B0;
 
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern M066Light *func_800218C4(f32 x, f32 y, f32 z);
+extern M066Light *light_find_strongest_at(f32 x, f32 y, f32 z);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern void func_80041CA0(Gfx **dList, Mtx **mtx, Object *obj, f32 scaleY, f32 offsetY); /* DKR camera_push_model_mtx */
 extern void mtx_pop(Gfx **dList);
@@ -154,7 +154,7 @@ void func_m066_00120(Object *obj, s32 updateRate) {
         }
     }
     if (!(obj->trans.flags & 0x400)) {
-        light = func_800218C4(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+        light = light_find_strongest_at(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
         if (light != NULL) {
             radius = light->radius;
             x = light->x;

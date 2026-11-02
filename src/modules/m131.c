@@ -76,7 +76,7 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_800496B0(s32 arg0, Object *obj, f32 *in, f32 *out);
 extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
 extern void func_80056064(void);
-extern void func_80041174(Gfx **dl, s32 arg1, s32 arg2, M131Sprite *sprite, void *model, s32 arg5, s32 arg6);
+extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M131Sprite *sprite, void *model, s32 arg5, s32 arg6);
 
 s32 D_m131_007C0 = 131; /* the module's number */
 static f32 sSwingRadius[4] = { 8.0f, 12.0f, 16.0f, 20.0f };
@@ -221,7 +221,7 @@ void func_m131_005BC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         sprite.trans.y_position += obj->trans.y_position;
         sprite.trans.z_position += obj->trans.z_position;
         func_8005600C(colour->r, colour->g, colour->b, colour->r2, colour->g2, colour->b2);
-        func_80041174(dl, arg1, arg2, &sprite, model, 14, 255);
+        render_sprite_billboard(dl, arg1, arg2, &sprite, model, 14, 255);
     }
     func_80056064();
     gDPPipeSync((*dl)++);

@@ -721,9 +721,60 @@ void obj_update_matrices(Obj7E *obj, s32 force) {
     }
 }
 
+#ifdef NON_MATCHING
 /* JFG: the object's world bounding box: its model's box transformed by its current matrix
- * (same pattern as func_8007E9E0; frame and loop shape not reproduced yet). */
+ * (same pattern as func_8007E9E0).
+ * NON_MATCHING: the outer loop: the target keeps i as a counter (i != 3, xform + i * 4 recomputed) where
+ * IDO strength-reduces mine; the target's frame is 0x50 with min/max at 0x20/0x18 (two more words above them). */
+void func_8007E794(Obj7E *obj) {
+    Obj7EData *data;
+    f32 (*xform)[4];
+    Obj7EModel *model;
+    s32 i;
+    s32 j;
+    f32 *lo;
+    f32 *hi;
+    f32 a;
+    f32 b;
+    f32 m;
+    s16 min[3];
+    s16 max[3];
+
+    data = obj->data;
+    model = obj->modelInstances[data->unk133];
+    xform = data->mtx2[data->mtxIndex];
+    data->bboxMin[0] = xform[3][0];
+    data->bboxMin[1] = xform[3][1];
+    data->bboxMin[2] = xform[3][2];
+    data->bboxMax[0] = data->bboxMin[0];
+    data->bboxMax[1] = data->bboxMin[1];
+    data->bboxMax[2] = data->bboxMin[2];
+    min[0] = (f32) model->bboxMin[0];
+    min[1] = (f32) model->bboxMin[1];
+    min[2] = (f32) model->bboxMin[2];
+    max[0] = (f32) model->bboxMax[0];
+    max[1] = (f32) model->bboxMax[1];
+    max[2] = (f32) model->bboxMax[2];
+    lo = data->bboxMin;
+    hi = data->bboxMax;
+    for (i = 0; i < 3; i++) {
+        for (j = 0; j < 3; j++) {
+            m = xform[j][i];
+            a = min[j] * m;
+            b = max[j] * m;
+            if (a < b) {
+                lo[i] += a;
+                hi[i] += b;
+            } else {
+                lo[i] += b;
+                hi[i] += a;
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E794);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: loop shape only: the target keeps j as a counter (j != 4, mtx + j * 4 recomputed); mine turns it into pointers */

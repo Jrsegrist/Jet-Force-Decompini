@@ -17,7 +17,11 @@ typedef struct ObjectTransform {
 /* Size: 0x4C bytes */
 typedef struct Camera {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x3E - 0x18];
+    /* 0x18 */ u8 pad18[0x30 - 0x18];
+    /* 0x30 */ f32 unk30; // JFG: an offset added to the position (the skydome's)
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ f32 unk38;
+    /* 0x3C */ u8 pad3C[0x3E - 0x3C];
     /* 0x3E */ s16 cameraSegmentID;
     /* 0x40 */ u8 pad40[0x4C - 0x40];
 } Camera;
@@ -25,7 +29,8 @@ typedef struct Camera {
 /* DKR include/structs.h, reduced (JFG: size 0x10) */
 typedef struct TriangleBatchInfo {
     /* 0x00 */ u8 textureIndex;
-    /* 0x01 */ u8 pad1[0x8 - 1];
+    /* 0x01 */ u8 pad1[0x6 - 1];
+    /* 0x06 */ s16 verticesOffset;
     /* 0x08 */ s16 facesOffset;
     /* 0x0A */ u16 texOffset;
     /* 0x0C */ u32 flags;
@@ -63,7 +68,8 @@ typedef struct LevelModelSegment {
     /* 0x04 */ Triangle *triangles;
     /* 0x08 */ u8 pad8[0xC - 0x8];
     /* 0x0C */ TriangleBatchInfo *batches;
-    /* 0x10 */ u8 pad10[0x24 - 0x10];
+    /* 0x10 */ u32 *triangleMasks; // JFG: per triangle, the bounding box cells it covers (see func_8001D344)
+    /* 0x14 */ u8 pad14[0x24 - 0x14];
     /* 0x24 */ s16 numberOfVertices;
     /* 0x26 */ u8 pad26[0x28 - 0x26];
     /* 0x28 */ s16 numberOfBatches;
@@ -205,7 +211,8 @@ typedef struct Object {
     /* 0x39 */ u8 opacity;
     /* 0x3A */ u8 pad3A[0x3C - 0x3A];
     /* 0x3C */ void *level_entry;
-    /* 0x40 */ u8 pad40[0x4A - 0x40];
+    /* 0x40 */ struct ObjectHeader12 *header;
+    /* 0x44 */ u8 pad44[0x4A - 0x44];
     /* 0x4A */ s16 objectID;
     /* 0x4C */ u8 pad4C[0x68 - 0x4C];
     /* 0x68 */ Object_Racer *racer;
@@ -281,14 +288,24 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80012BAC);
 
 /* JFG: the level header, reduced */
 typedef struct LevelHeader12 {
-    /* 0x00 */ u8 pad0[0xCE];
+    /* 0x00 */ u8 pad0[0x69];
+    /* 0x69 */ s8 skydomeFixed; // JFG: the skydome stays at the camera offset, unrotated (DKR: skyDome)
+    /* 0x6A */ u8 pad6A[0xCE - 0x6A];
     /* 0xCE */ u8 bgBottomR;
     /* 0xCF */ u8 bgBottomG;
     /* 0xD0 */ u8 bgBottomB;
     /* 0xD1 */ u8 bgTopR;
     /* 0xD2 */ u8 bgTopG;
     /* 0xD3 */ u8 bgTopB;
+    /* 0xD4 */ u8 padD4[0xE1 - 0xD4];
+    /* 0xE1 */ u8 skydomeSpin; // JFG: the skydome's rotation per frame
 } LevelHeader12;
+
+/* JFG: an object's header, reduced */
+typedef struct ObjectHeader12 {
+    /* 0x00 */ u8 pad0[0xA2];
+    /* 0xA2 */ u8 unkA2;
+} ObjectHeader12;
 
 extern Gfx *D_800F2F70;    // DKR: gTrackDL
 extern Mtx *D_800F2F74;    // DKR: gTrackMtxPtr
@@ -378,7 +395,41 @@ void func_80013454(void) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800136B8);
+Camera *cam_get_active_camera(void);
+void func_80041168(Gfx **dList, Mtx **matrices); // DKR: mtx_world_origin
+void func_8000DF00(Object *obj, s32 updateRate);
+void render_object(Gfx **dList, Mtx **matrices, Vertex **verts, Object *obj);
+
+/**
+ * Moves the skydome to the camera, spins it, then renders it if set to be visible.
+ * JFG: the camera's offset, a spin and a texture scroll unless the level fixes the skydome.
+ * DKR: skydome_render
+ */
+void skydome_render(s32 updateRate) {
+    Camera *cam;
+
+    if (gSkydomeSegment == NULL) {
+        return;
+    }
+    cam = cam_get_active_camera();
+    if (D_800A0D64->skydomeFixed == 0) {
+        gSkydomeSegment->trans.x_position = cam->trans.x_position + cam->unk30;
+        gSkydomeSegment->trans.y_position = cam->trans.y_position + cam->unk34;
+        gSkydomeSegment->trans.z_position = cam->trans.z_position + cam->unk38;
+        gSkydomeSegment->trans.rotation[0] += D_800A0D64->skydomeSpin * updateRate;
+        if (gSkydomeSegment->header->unkA2 != 0xFF) {
+            func_8000DF00(gSkydomeSegment, updateRate);
+        }
+    } else {
+        gSkydomeSegment->trans.x_position = cam->unk30;
+        gSkydomeSegment->trans.y_position = cam->unk34;
+        gSkydomeSegment->trans.z_position = cam->unk38;
+    }
+    func_80041168(&D_800F2F70, &D_800F2F74);
+    if (gSceneRenderSkyDome) {
+        render_object(&D_800F2F70, &D_800F2F74, &D_800F2F78, gSkydomeSegment);
+    }
+}
 
 /* Returns the skydome object (0x80013810). */
 Object *get_skydome_object(void) {
@@ -775,7 +826,60 @@ void func_8001400C(void) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001400C);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001417C);
+extern u8 D_800A4FCC;  // JFG: the number of cameras
+extern s16 D_80104704; // the vertex colour level (m046)
+extern s16 D_801046FC; // its time left (m046)
+void func_8001D500(LevelModel *model, TrackLight *light, u8 *visible);
+void func_8001400C(void);
+
+/* JFG: flip the segments' double-buffered vertices, update their colours (a module's or func_8001400C)
+   and apply each lit track light; one camera at most. */
+void track_lighting_update(s32 arg0, s32 updateRate) {
+    s32 i;
+    LevelModelSegment *segment;
+    SegmentAlloc *alloc;
+    TrackLight *light;
+
+    if (gCurrentLevelModel == NULL) {
+        return;
+    }
+    if (D_800A4FCC >= 2) {
+        return;
+    }
+    if (arg0 && D_800A0D80 != NULL) {
+        return;
+    }
+    if (!arg0 && D_800A0D80 == NULL) {
+        return;
+    }
+    alloc = D_800A0D80;
+    if (alloc != NULL) {
+        D_800A0D7C ^= 1;
+        i = gCurrentLevelModel->numberOfSegments;
+        segment = gCurrentLevelModel->segments;
+        while (i--) {
+            segment->vertices = (&alloc->vertices)[D_800A0D7C];
+            segment->colourFlags = ((segment->colourFlags << 1) & 2) | ((segment->colourFlags >> 1) & 1);
+            segment++;
+            alloc++;
+        }
+    }
+    if (runlink_module_loaded(0x1B)) {
+        func_80054530(D_800F31E1, gCurrentLevelModel, updateRate);
+    } else if (D_80104704 != 0xFF || D_801046FC != 0 || runlink_module_loaded(0x17) || runlink_module_loaded(0x1D)) {
+        func_80054530(D_800F31E1, gCurrentLevelModel, updateRate);
+    } else {
+        func_8001400C();
+    }
+    i = gMaxTrackLights;
+    light = gTrackLights;
+    while (i--) {
+        if (light->outerRadius != 0.0f) {
+            func_8001D500(gCurrentLevelModel, light, D_800F31E1);
+        }
+        light++;
+    }
+}
 
 /* JFG: what a racer points at from 0x564, reduced */
 typedef struct RacerUnk564 {
@@ -996,9 +1100,131 @@ LevelModelSegmentBoundingBox *block_boundbox(s32 segmentID) {
     return &gCurrentLevelModel->segmentsBoundingBoxes[segmentID];
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800158BC);
+typedef struct Vec3f12 {
+    f32 x, y, z;
+} Vec3f12;
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80015B3C);
+typedef struct Vec4f12 {
+    f32 x, y, z, w;
+} Vec4f12;
+
+extern Vec3f12 D_800A0CF4[3][3]; // DKR: D_800DC8AC
+extern Vec4f12 D_800F2FB8[3];    // DKR: D_8011D0F8
+extern s32 D_800F2F8C;           // DKR: gIsNearCurrBBox
+extern f32 D_800F31D8;           // DKR: gCurrBBoxDistanceToCamera
+MtxF *get_projection_matrix_f32(void);
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // DKR: mtxf_transform_point
+f32 sqrtf(f32 x);
+f32 get_distance_to_active_camera(f32 x, f32 y, f32 z);
+
+/**
+ * JFG: the three view planes from the camera matrix (pointer loops instead of DKR's indices).
+ * DKR: func_8002A31C
+ */
+void view_planes_update(void) {
+    f32 ox1;
+    f32 oy1;
+    f32 oz1;
+    f32 ox2;
+    f32 oy2;
+    f32 oz2;
+    f32 ox3;
+    f32 oy3;
+    f32 oz3;
+    MtxF *cameraMatrix;
+    f32 inverseMagnitude;
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 i;
+    f32 w;
+    Vec3f12 *in;
+    Vec4f12 *out;
+
+    in = D_800A0CF4[0];
+    out = D_800F2FB8;
+    cameraMatrix = get_projection_matrix_f32();
+    i = 0;
+    do {
+        func_80048B60(cameraMatrix, in[0].x, in[0].y, in[0].z, &ox1, &oy1, &oz1);
+        func_80048B60(cameraMatrix, in[1].x, in[1].y, in[1].z, &ox2, &oy2, &oz2);
+        func_80048B60(cameraMatrix, in[2].x, in[2].y, in[2].z, &ox3, &oy3, &oz3);
+        x = ((oz2 - oz3) * oy1) + (oy2 * (oz3 - oz1)) + (oy3 * (oz1 - oz2));
+        y = ((ox2 - ox3) * oz1) + (oz2 * (ox3 - ox1)) + (oz3 * (ox1 - ox2));
+        z = ((oy2 - oy3) * ox1) + (ox2 * (oy3 - oy1)) + (ox3 * (oy1 - oy2));
+        inverseMagnitude = 1.0f / sqrtf((x * x) + (y * y) + (z * z));
+        if (inverseMagnitude > 0.0f) {
+            x *= inverseMagnitude;
+            y *= inverseMagnitude;
+            z *= inverseMagnitude;
+        }
+        i++;
+        w = -((ox1 * x) + (oy1 * y) + (oz1 * z));
+        out->x = x;
+        out->y = y;
+        out->z = z;
+        out->w = w;
+        in += 3;
+        out++;
+    } while (i != 3);
+}
+
+/**
+ * Takes a normalised (0-1) face direction of the active camera, then adds together a magnitude
+ * to a total figure to determine whether or not a segment should be visible.
+ * JFG: three planes, a single-precision distance check.
+ * DKR: block_visible
+ */
+s32 block_visible(LevelModelSegmentBoundingBox *bb) {
+    UNUSED u8 unknown[0x28];
+    s64 sp48;
+    s32 i, j;
+    s32 isVisible;
+    f32 dirX, dirY, dirZ, dirW;
+    f32 x, y, z;
+
+    for (j = 0; j < 3; j++) {
+        dirX = D_800F2FB8[j].x;
+        dirY = D_800F2FB8[j].y;
+        dirZ = D_800F2FB8[j].z;
+        dirW = D_800F2FB8[j].w;
+
+        for (i = 0, isVisible = FALSE; i < 8 && !isVisible; i++) {
+            if (i & 1) {
+                sp48 = bb->x1 * dirX;
+            } else {
+                sp48 = bb->x2 * dirX;
+            }
+            if (i & 2) {
+                sp48 += bb->y1 * dirY;
+            } else {
+                sp48 += bb->y2 * dirY;
+            }
+            if (i & 4) {
+                sp48 += bb->z1 * dirZ;
+            } else {
+                sp48 += bb->z2 * dirZ;
+            }
+            sp48 += dirW;
+            if (sp48 > 0) {
+                isVisible = TRUE;
+            }
+        }
+        if (i == 8 && !isVisible) {
+            return FALSE;
+        }
+    }
+    x = (bb->x2 + bb->x1) >> 1;
+    y = (bb->y2 + bb->y1) >> 1;
+    z = (bb->z2 + bb->z1) >> 1;
+    D_800F31D8 = get_distance_to_active_camera(x, y, z);
+    if (D_800F31D8 < 1000.0f) {
+        D_800F2F8C = TRUE;
+    } else {
+        D_800F2F8C = FALSE;
+    }
+    return TRUE;
+}
 
 extern u8 D_800A4FC4;
 s32 cam_get_active_camera_id(); // the current camera (called with two arguments it ignores)
@@ -1106,7 +1332,64 @@ s32 line_clip_plane(f32 denom, f32 num, f32 *tEnter, f32 *tLeave) {
     return TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800195E8);
+u32 func_8001D344(LevelModelSegmentBoundingBox *bb, s32 x1, s32 z1, s32 x2, s32 z2);
+s32 func_800494AC(s32 x, s32 z, Vertex *v0, Vertex *v1, Vertex *v2); // the point is inside the triangle
+
+/* JFG: the height of the first level triangle (of a batch with one of the flags) under the point,
+   written to *outY (-32768 if none); returns that batch's flags, or 0. */
+s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags) {
+    LevelModelSegment *segment;
+    TriangleBatchInfo *batch;
+    s32 segmentCount;
+    Triangle *tri;
+    s32 batchNum;
+    Vertex *verts;
+    Vertex *v0;
+    s32 batchFlags;
+    s32 i;
+    s16 segmentsInside[32];
+    Vertex *v1;
+    Vertex *v2;
+    u32 mask;
+    u32 bits;
+    s32 faceNum;
+    s32 x;
+    s32 z;
+
+    x = xIn;
+    z = zIn;
+    segmentCount = get_inside_segment_count_xz(x, z, segmentsInside);
+    *outY = -32768.0f;
+    i = 0;
+    while (i < segmentCount) {
+        mask = func_8001D344(&gCurrentLevelModel->segmentsBoundingBoxes[segmentsInside[i]], x, z, x, z);
+        segment = &gCurrentLevelModel->segments[segmentsInside[i++]];
+        batch = segment->batches;
+        for (batchNum = 0; batchNum < segment->numberOfBatches; batchNum++) {
+            batchFlags = batch->flags;
+            if (batchFlags & flags) {
+                tri = &segment->triangles[batch->facesOffset];
+                verts = &segment->vertices[batch->verticesOffset];
+                faceNum = batch->facesOffset;
+                for (; faceNum < batch[1].facesOffset; faceNum++) {
+                    bits = segment->triangleMasks[faceNum] & mask;
+                    if ((bits >> 16) && (bits & 0xFFFF)) {
+                        v0 = &verts[tri->vi0];
+                        v1 = &verts[tri->vi1];
+                        v2 = &verts[tri->vi2];
+                        if (func_800494AC(x, z, v0, v1, v2)) {
+                            *outY = v0->y;
+                            return batchFlags;
+                        }
+                    }
+                    tri++;
+                }
+            }
+            batch++;
+        }
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80019888);
 
