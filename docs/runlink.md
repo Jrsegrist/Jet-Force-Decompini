@@ -337,14 +337,14 @@ such as m015, m091 and m149, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 4 of 5 | 15/16 |
-| enemy behaviours | 10 of 18 | 38/284 |
+| enemy behaviours | 10 of 18 | 49/284 |
 | bosses | 3 of 3 | 28/28 |
 | weapons (character control) | 0 of 3 | 3/78 |
-| menus and screens | 4 of 14 | 28/136 |
+| menus and screens | 4 of 14 | 48/136 |
 | effect libraries | 2 of 4 | 19/26 |
 | fog and lighting | 1 of 2 | 10/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 44 of 98 | 190/684 |
+| other object behaviours | 45 of 98 | 232/684 |
 
 (Modules 21 and 56 are empty: their C files are empty too.)
 
