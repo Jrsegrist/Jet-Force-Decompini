@@ -286,6 +286,19 @@ lessons apply too):
   `rl_mNNN_XXXXX` (m110). Likewise a module's .rodata comes from all C or
   all INCLUDE_ASM, so the functions that use it (jump tables, float
   constants) go to C together.
+- C that reaches assembly .data or .bss through an `extern u8
+  rl_mNNN_<section start>[]` plus an offset gets the right relocations, but
+  where one word is used twice IDO materialises the section's base and
+  puts the offset in the load (`lw 0xB0(a0)`), while the original, having a
+  variable of its own there, materialises that variable's address. For
+  .bss the fix is to define the whole section in C, the known variables at
+  their offsets and byte arrays for the gaps (m003, m031, m137); IDO aligns
+  arrays to 8 there, so start each gap array at an 8-byte boundary. .data
+  that holds numbers cannot move to C like that, so such functions stay
+  NON_MATCHING (m007).
+- An init or fini function that is still INCLUDE_ASM cannot be marked with
+  `#pragma weak` (cfe ignores it: no C definition), so write that function
+  in C first (m003's are short).
 - Debug prints compiled out with `stubbed_printf` still leave their format
   strings in the module's data (m089's "GVP:" string).
 - Module data can stay assembly while its functions are C: C refers to it as
@@ -337,14 +350,14 @@ such as m015, m091 and m149, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 4 of 5 | 15/16 |
-| enemy behaviours | 10 of 18 | 49/284 |
+| enemy behaviours | 10 of 18 | 66/284 |
 | bosses | 3 of 3 | 28/28 |
 | weapons (character control) | 0 of 3 | 3/78 |
 | menus and screens | 4 of 14 | 48/136 |
 | effect libraries | 2 of 4 | 19/26 |
 | fog and lighting | 1 of 2 | 10/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 45 of 98 | 232/684 |
+| other object behaviours | 45 of 98 | 261/684 |
 
 (Modules 21 and 56 are empty: their C files are empty too.)
 
