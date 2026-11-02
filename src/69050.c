@@ -310,7 +310,40 @@ void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
 INCLUDE_ASM("asm/nonmatchings/69050", func_80069BE8);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80069F04);
+f32 func_80049C30(s32 angle);
+f32 func_80049C34(s32 angle);
+
+/* JFG: rotate count points (rotY, then rotX), add (x, y, z) and write them as white vertices. */
+void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 *src, Vertex *dst) {
+    f32 sinY;
+    f32 cosY;
+    f32 sinX;
+    f32 cosX;
+    f32 px;
+    f32 py;
+    f32 pz;
+    f32 t;
+
+    sinY = func_80049C34(rotY);
+    cosY = func_80049C30(rotY);
+    sinX = func_80049C34(rotX);
+    cosX = func_80049C30(rotX);
+    while (count--) {
+        px = src[0];
+        py = src[1];
+        pz = src[2];
+        src += 3;
+        t = pz * cosY + py * sinY;
+        dst->x = (s32) (px * cosX + t * sinX) + x;
+        dst->y = (s32) (py * cosY - pz * sinY) + y;
+        dst->z = (s32) (t * cosX - px * sinX) + z;
+        dst->r = 255;
+        dst->g = 255;
+        dst->b = 255;
+        dst->a = 255;
+        dst++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A0C0);
 
