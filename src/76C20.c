@@ -22,7 +22,17 @@ typedef struct AnimObject {
 
 /* Size: 0x2C bytes */
 typedef struct AnimNode {
-    /* 0x00 */ u8 pad0[0x24];
+    /* 0x00 */ s16 rot[3];
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ s16 unk18[3];
+    /* 0x1E */ u8 unk1E;
+    /* 0x1F */ u8 pad1F;
+    /* 0x20 */ f32 unk20;
     /* 0x24 */ struct AnimNode *prev;
     /* 0x28 */ struct AnimNode *next;
 } AnimNode;
@@ -343,7 +353,54 @@ void func_80076ADC(u8 index) {
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076ADC);
 #endif
 
+extern f32 D_800AEFDC;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: only the order of the four float constant loads before the loop (D_800AEFDC is a literal in the
+ * original, hoisted with the others) */
+/* JFG: unpack numNodes path nodes from the bit stream at data; the next node and stream position go to
+ * nodeOut and dataOut. */
+void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut) {
+    s32 fullScale;
+    f32 scaleUnit;
+
+    if (numNodes > 0) {
+        scaleUnit = D_800AEFDC;
+        do {
+        bitstream_init((s32 *) &data);
+        node->unk6 = bitstream_read_bits(8);
+        fullScale = bitstream_read_bits(1);
+        node->unk7 = bitstream_read_bits(1);
+        node->x = bitstream_read_signed_bits(18) * 0.125f;
+        node->y = bitstream_read_signed_bits(18) * 0.125f;
+        node->z = bitstream_read_signed_bits(18) * 0.125f;
+        node->rot[0] = bitstream_read_bits(12) * 16;
+        node->rot[1] = bitstream_read_bits(12) * 16;
+        node->rot[2] = bitstream_read_bits(12) * 16;
+        node->scale = (u32) bitstream_read_bits(12) * scaleUnit;
+        if (!fullScale) {
+            node->scale *= 0.390625f;
+        }
+        node->unk18[0] = bitstream_read_signed_bits(12) * 4;
+        node->unk18[1] = bitstream_read_signed_bits(12) * 4;
+        node->unk18[2] = bitstream_read_signed_bits(12) * 4;
+        node->unk20 = (u32) bitstream_read_bits(12) * 0.5f;
+        node->unk1E = 0;
+        bitstream_end();
+        numNodes--;
+        node++;
+        } while (numNodes > 0);
+    }
+    if (nodeOut != NULL) {
+        *nodeOut = node;
+    }
+    if (dataOut != NULL) {
+        *dataOut = data;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80076B44);
+#endif
 
 /* JFG: link path index's nodes to their neighbours; the ends link to each other on a looping path, else to themselves. */
 void anim_path_link_nodes(u8 index) {
@@ -632,7 +689,7 @@ typedef struct AnimPathData {
     /* 0x08 */ u8 nodes[1];
 } AnimPathData;
 
-void func_80076B44(u8 numNodes, AnimNode *nodes, u8 *data, s32 arg3, s32 arg4);
+void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut);
 void anim_path_link_nodes(u8 index);
 
 #ifdef NON_MATCHING
@@ -736,7 +793,55 @@ CamPoint *func_80079890(s32 index, CamTarget *cam) {
     return point;
 }
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80079930);
+/* JFG: find up to 3 paths with a node within 32 units (horizontally, 16 vertically) of (x, y, z); the path ids
+ * go to pathIds (-1 terminated, 4 entries) and the nearest node index of each to nodeIds. */
+void anim_paths_find_near(f32 x, f32 y, f32 z, s16 *pathIds, s16 *nodeIds) {
+    s32 count = 0;
+    s32 i;
+    s32 nodeIndex;
+    AnimPath *path;
+    AnimNode *node;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    i = 4;
+    while (i--) {
+        pathIds[i] = -1;
+    }
+    if (D_801045B0 == NULL) {
+        return;
+    }
+    for (i = 0; i < 0x100; i++) {
+        path = D_801045B0[i];
+        if (path != NULL) {
+            node = path->nodes;
+            nodeIndex = 0;
+            while (node != NULL) {
+                dy = node->y - y;
+                if (-16.0f < dy && dy < 16.0f) {
+                    dx = node->x - x;
+                    dz = node->z - z;
+                    if (dx * dx + dz * dz < 1024.0f) {
+                        *pathIds++ = i;
+                        count++;
+                        *nodeIds++ = nodeIndex;
+                        if (count == 3) {
+                            return;
+                        }
+                        break;
+                    }
+                }
+                if (node->next == path->nodes || node == node->next) {
+                    node = NULL;
+                } else {
+                    node = node->next;
+                    nodeIndex++;
+                }
+            }
+        }
+    }
+}
 
 /* JFG: the path of an object (NULL if none). */
 AnimPath *func_80079AA4(AnimObject *obj) {

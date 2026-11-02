@@ -53,7 +53,9 @@ typedef struct FontData {
     u8 y;
     u8 charWidth; // the width of a character without its own entry
     u8 unk3;
-    u8 pad4[0xC];
+    s32 dataOffset; // JFG: of the glyph images in asset 0x3B
+    s16 glyphSize;
+    u8 padA[6];
 } FontData;
 extern FontData *gFonts; // Official Name: Font
 
@@ -625,6 +627,7 @@ void parse_string_with_number(char *input, char *output, s32 number) {
     } while (ch);
 }
 
+/* JFG: find the cached glyph of the current font, or load it into free cache blocks (not matched yet). */
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80071388);
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_800715E8);

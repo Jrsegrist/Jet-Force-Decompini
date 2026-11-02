@@ -626,6 +626,7 @@ func_80076D6C = anim_path_link_nodes
 func_80076EA0 = anim_system_init
 func_80077158 = sequence_stop
 func_800772C4 = sequence_start
+func_80079930 = anim_paths_find_near
 # src/69050.c (DKR transition.c)
 func_8006BC34 = transition_update
 func_8006BD54 = transition_render
@@ -635,6 +636,7 @@ func_8006B69C = ripple_quad_draw
 # src/7A7D0.c
 func_8007E328 = multiplayer_score_kill
 func_8007B99C = collision_line_test_objects
+func_8007A324 = obj_update_collision_spheres
 func_80083914 = velocity_mass_weighted
 func_8007CF28 = spheres_push_out
 func_8007E5EC = obj_update_matrices

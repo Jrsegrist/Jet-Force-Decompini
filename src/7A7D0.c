@@ -44,7 +44,7 @@ typedef struct Obj7E {
     /* 0x40 */ Obj7EHeader *header;
     /* 0x44 */ u8 pad44[0x48 - 0x44];
     /* 0x48 */ s16 type;
-    /* 0x4A */ u8 pad4A[2];
+    /* 0x4A */ s16 unk4A;
     /* 0x4C */ struct Obj7EFlags *flags;
     /* 0x50 */ u8 pad50[0x5C - 0x50];
     /* 0x5C */ Obj7EData *data;
@@ -53,8 +53,32 @@ typedef struct Obj7E {
     /* 0x6C */ struct Obj7EModel **modelInstances;
 } Obj7E;
 
+/* JFG: one collision sphere of a model: centred on a vertex (0xC bytes) */
+typedef struct ModelSphereDef {
+    /* 0x00 */ u16 vertex;
+    /* 0x02 */ u8 pad2[0x8 - 0x2];
+    /* 0x08 */ f32 radius;
+} ModelSphereDef;
+
+typedef struct ModelHeader7E {
+    /* 0x00 */ u8 pad0[0x38];
+    /* 0x38 */ ModelSphereDef *spheres;
+    /* 0x3C */ u8 pad3C[0x4E - 0x3C];
+    /* 0x4E */ s8 animated; // JFG: sphere positions come from the animated vertex list
+} ModelHeader7E;
+
+/* JFG: a vertex (0xA bytes) */
+typedef struct Vertex7E {
+    /* 0x00 */ s16 x, y, z;
+    /* 0x06 */ u8 pad6[4];
+} Vertex7E;
+
 typedef struct Obj7EModel {
-    /* 0x00 */ u8 pad0[0x8C];
+    /* 0x00 */ ModelHeader7E *header;
+    /* 0x04 */ Vertex7E *vertices;
+    /* 0x08 */ u8 pad8[0x70 - 0x8];
+    /* 0x70 */ f32 *animVerts; // JFG: x, y, z per sphere
+    /* 0x74 */ u8 pad74[0x8C - 0x74];
     /* 0x8C */ s16 bboxMin[3];
     /* 0x92 */ s16 bboxMax[3];
 } Obj7EModel;
@@ -115,9 +139,88 @@ void func_80079CC4(void) {
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079D1C);
 
+/* Size: 0x34 bytes */
+typedef struct CollisionSphere {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 flags;
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ Vec3f prevPos;
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ f32 radius2;
+    /* 0x2C */ u8 pad2C[0x30 - 0x2C];
+    /* 0x30 */ u32 reset : 1;
+    /* 0x30 */ u32 pad30 : 31;
+} CollisionSphere;
+
+typedef struct SphereSet {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ s16 count;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ CollisionSphere *spheres;
+} SphereSet;
+
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007A018);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007A324);
+void func_800492DC(Obj7E *obj, Vec3f *v);
+void func_8007A018(Obj7E *obj, SphereSet *set);
+
+/* JFG: move an object's collision spheres to its current model vertices (keeping the previous positions). */
+void obj_update_collision_spheres(Obj7E *obj, SphereSet *set) {
+    s32 i;
+    CollisionSphere *sphere;
+    f32 pos[3];
+    Obj7EModel *model;
+    ModelHeader7E *header;
+    f32 *anim;
+    ModelSphereDef *def;
+    Vertex7E *vert;
+
+    if (set->count == 0) {
+        return;
+    }
+    if (obj->unk4A == 0xE6) {
+        return;
+    }
+    i = set->count;
+    sphere = set->spheres;
+    model = obj->modelInstances[0];
+    header = model->header;
+    anim = model->animVerts;
+    def = header->spheres;
+    do {
+        sphere->flags &= ~0x60;
+        sphere->prevPos.x = sphere->pos.x;
+        sphere->prevPos.y = sphere->pos.y;
+        sphere->prevPos.z = sphere->pos.z;
+        if (header->animated) {
+            sphere->pos.x = *anim++;
+            sphere->pos.y = *anim++;
+            sphere->pos.z = *anim++;
+        } else {
+            vert = &model->vertices[def->vertex];
+            pos[0] = vert->x;
+            pos[1] = vert->y;
+            pos[2] = vert->z;
+            func_800492DC(obj, (Vec3f *) pos);
+            sphere->pos.x = pos[0] + obj->x;
+            sphere->pos.y = pos[1] + obj->y;
+            sphere->pos.z = pos[2] + obj->z;
+        }
+        i--;
+        if (sphere->reset) {
+            sphere->radius2 = sphere->radius = def->radius * obj->scale;
+            sphere->reset = FALSE;
+            sphere->prevPos.x = sphere->pos.x;
+            sphere->prevPos.y = sphere->pos.y;
+            sphere->prevPos.z = sphere->pos.z;
+        }
+        sphere++;
+        def++;
+    } while (i > 0);
+    if (obj->type == 1) {
+        func_8007A018(obj, set);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007A534);
 
@@ -260,25 +363,82 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007BCD0);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007C2E8);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007CCF0);
-
-/* Size: 0x34 bytes */
-typedef struct CollisionSphere {
-    /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ Vec3f pos;
-    /* 0x18 */ u8 pad18[0x24 - 0x18];
-    /* 0x24 */ f32 radius;
-    /* 0x28 */ u8 pad28[0x34 - 0x28];
-} CollisionSphere;
-
-typedef struct SphereSet {
-    /* 0x00 */ u8 pad0[0x32];
-    /* 0x32 */ s16 count;
-    /* 0x34 */ u8 pad34[0x40 - 0x34];
-    /* 0x40 */ CollisionSphere *spheres;
-} SphereSet;
-
 f32 sqrtf(f32 x);
+
+typedef struct PushPlayer {
+    /* 0x000 */ u8 pad0[0x190];
+    /* 0x190 */ u8 flags190;
+    /* 0x191 */ u8 pad191[0x1F9 - 0x191];
+    /* 0x1F9 */ u8 unk1F9;
+    /* 0x1FA */ u8 pad1FA[0x354 - 0x1FA];
+    /* 0x354 */ f32 pushX;
+    /* 0x358 */ f32 pushY;
+    /* 0x35C */ f32 pushZ;
+} PushPlayer;
+
+typedef struct PushInfo {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 flags;
+} PushInfo;
+
+typedef struct PushObj {
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ s16 type;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x68 */ void *data;
+} PushObj;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: float load scheduling of dx/dz only (13 words) */
+/* JFG: push the player (horizontally) out of every sphere of another object's set its spheres overlap. */
+void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *otherSet) {
+    PushPlayer *player = obj->data;
+    s32 flag = 0;
+    s32 i;
+    s32 j;
+    CollisionSphere *a;
+    CollisionSphere *b;
+    PushInfo *info;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 r;
+    f32 d;
+    f32 f;
+
+    if (other->type == 0x18) {
+        info = other->data;
+        if (!(info->flags & 1)) {
+            flag = 0x80;
+        }
+    } else if (other->type == 0x5A && player->unk1F9) {
+        return;
+    }
+    a = set->spheres;
+    for (i = 0; i < set->count; i++, a++) {
+        b = otherSet->spheres;
+        for (j = 0; j < otherSet->count; j++, b++) {
+            dx = (a->pos.x + player->pushX) - b->pos.x;
+            dz = (a->pos.z + player->pushZ) - b->pos.z;
+            dy = a->pos.y - b->pos.y;
+            r = a->radius + b->radius;
+            d = sqrtf(dx * dx + dz * dz);
+            if (-r < dy && dy < r && d < r) {
+                if (d != 0.0f) {
+                    f = (r - d) / d;
+                    player->pushX += dx * f;
+                    player->pushZ += dz * f;
+                } else {
+                    player->pushZ -= d;
+                }
+                player->flags190 |= flag;
+            }
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007CCF0);
+#endif
 
 /* JFG: push a sphere (position and radius) out of every sphere of the set it overlaps. */
 void spheres_push_out(f32 *x, f32 *y, f32 *z, f32 radius, SphereSet *set) {
