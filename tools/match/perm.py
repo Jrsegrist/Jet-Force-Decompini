@@ -48,10 +48,50 @@ HEX_RE = re.compile(r"^(?:func|D)_([0-9A-F]{8})$")
 REF_RE = re.compile(r"(\bjal\s+|\bj\s+|%hi\(|%lo\()([A-Za-z_]\w*)")
 
 
+def skip_literal(src, i):
+    """Index just past the string or char constant starting at SRC[i]."""
+    q, j = src[i], i + 1
+    while j < len(src) and src[j] != q and src[j] != "\n":
+        j += 2 if src[j] == "\\" else 1
+    return j + 1
+
+
 def strip_other_fns(src, keep):
-    sys.path.insert(0, C.need(PERMUTER, "run `git submodule update --init`"))
-    from strip_other_fns import strip_other_fns as strip  # tools/permuter (MIT)
-    return strip(src, keep)
+    """SRC with every function definition but KEEP's turned into a prototype
+    (headers on several lines included)."""
+    out, i, n, last, depth = [], 0, len(src), 0, 0
+    while i < n:
+        c = src[i]
+        if c in "\"'":
+            i = skip_literal(src, i)
+            continue
+        if c == "{" and depth == 0:
+            head = src[last:i]
+            h = re.sub(r"^\s*#.*$", "", head, flags=re.M)
+            m = re.search(r"\b(\w+)\s*\(", h)
+            if m and h.rstrip().endswith(")") and "=" not in h:
+                j, d = i, 0
+                while j < n:
+                    if src[j] in "\"'":
+                        j = skip_literal(src, j)
+                        continue
+                    d += {"{": 1, "}": -1}.get(src[j], 0)
+                    if d == 0:
+                        break
+                    j += 1
+                out.append(src[last:j + 1] if m.group(1) == keep else head.rstrip() + ";")
+                i = last = j + 1
+                continue
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif c == ";" and depth == 0:
+            out.append(src[last:i + 1])
+            last = i + 1
+        i += 1
+    out.append(src[last:])
+    return "".join(out)
 
 
 def find_def(src, name):
@@ -111,7 +151,7 @@ def key_of(name, symtab):
 
 def cmd_import(a):
     src_path = os.path.relpath(os.path.abspath(a.file), C.ROOT)
-    mod = re.match(r"src/modules/(m\d{3})\.c$", src_path)
+    mod = re.match(r"src/modules/(m\d{3})\.c$", src_path) or (a.module and re.match(r"(m\d{3})$", a.module))
     cflags = list(C.GAME_CFLAGS) + (["-I", "include/modules"] if mod else [])
     src = open(C.path(src_path)).read()
 
@@ -152,6 +192,7 @@ def cmd_import(a):
     if r.returncode:
         sys.exit("perm.py: preprocessing failed\n" + r.stderr[-3000:])
     pre = "\n".join(l for l in r.stdout.splitlines() if not l.startswith("#") or l.startswith("#pragma"))
+    pre = re.sub(r"^\s*INCLUDE_(?:ASM|RODATA)\([^)]*\);?[ \t]*$", "", pre, flags=re.M)
     base = strip_other_fns(pre, a.func)
     # statics become plain functions: IDO rejects a static that is only
     # declared, and drops an unreferenced static FUNC (a call is a jal either way)
@@ -159,7 +200,7 @@ def cmd_import(a):
     if not find_def(base, a.func):
         sys.exit("perm.py: no C definition of %s after preprocessing (is it NON_MATCHING C?)" % a.func)
     with open(os.path.join(ws, "base.c"), "w") as f:
-        f.write(base)
+        f.write(base.rstrip("\n") + "\n")
 
     # target: the original assembly, with symbols renamed to the C's spelling
     symtab = C.symbol_addrs()
@@ -188,7 +229,9 @@ def cmd_import(a):
             return m.group(1) + new
         return m.group(0)
     asm = REF_RE.sub(ren, asm)
-    asm = re.sub(r"^(\s*glabel\s+)\w+", lambda m: m.group(1) + a.func, asm, count=1, flags=re.M)
+    g = re.search(r"^\s*glabel\s+(\w+)", asm, re.M)
+    if g and g.group(1) != a.func:
+        asm = re.sub(r"\b%s\b" % re.escape(g.group(1)), a.func, asm)
     with open(os.path.join(ws, "target.s"), "w") as f:
         f.write(open(C.path("include", "prelude.inc")).read() + "\n.section .text\n" + asm)
     r = subprocess.run(["mips-linux-gnu-as"] + C.ASFLAGS + ["-o", os.path.join(ws, "target.o"),
@@ -265,6 +308,7 @@ def main():
     p.add_argument("func", help="the function (its NON_MATCHING or plain C body)")
     p.add_argument("--asm", help="name of the target .s/INCLUDE_ASM (default FUNC; for statics)")
     p.add_argument("--replace", help="file with a definition of FUNC to use instead of FILE's")
+    p.add_argument("--module", help="mNNN: module flags for a FILE outside src/modules (a scratch copy)")
     p.add_argument("--tag", default="", help="workspace suffix (build/perm/FUNC-TAG)")
     p.add_argument("--force", action="store_true", help="replace an existing workspace")
     p = sub.add_parser("best", help="best scores and the best candidate's diff")

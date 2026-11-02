@@ -112,24 +112,22 @@ void player_voice_play(s32 owner, u8 index) {
     racer->lastVoice = sound;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 6 words: the target's spill slots of sounds/sound are 4 bytes higher and it loads 0x1C before
-   0x24 (two f32 locals fix the load order but take 8 bytes) */
 /* JFG: play a random sound of set `index` (per character) at obj if it is moving fast enough. */
 void func_8002B064(u8 *obj, u8 index) {
-    Racer *racer = *(Racer **) (obj + 0x68);
-    SoundSet *set = &D_800A26C4[index];
-    s16 *sounds = set->count * (racer->character & 3) + set->sounds;
-    s16 sound = sounds[rand_range(0, set->count - 1)];
+    Racer *racer;
+    s16 *sounds;
+    s16 sound;
+    SoundSet *set;
 
-    if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C) + *(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24))) {
+    racer = *(Racer **) (obj + 0x68);
+    set = &D_800A26C4[index];
+    sounds = set->count * (racer->character & 3) + set->sounds;
+    sound = sounds[rand_range(0, set->count - 1)];
+    if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24) + *(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C))) {
         audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4, NULL);
         enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B064);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B1D4);
 
