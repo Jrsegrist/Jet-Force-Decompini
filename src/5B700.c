@@ -105,9 +105,20 @@ typedef struct PointParticleSet {
     /* 0xBC */ struct ParticleEmitter *emitter;
 } PointParticleSet;
 
+/* JFG: one segment of a line emitter: its two ends and colour */
+typedef struct LineSeg {
+    /* 0x00 */ s16 x0, y0, z0;
+    /* 0x06 */ s16 x1, y1, z1;
+    /* 0x0C */ u8 padC[2];
+    /* 0x0E */ u8 a;
+    /* 0x0F */ u8 padF[0x18 - 0xF];
+    /* 0x18 */ u8 r, g, b;
+} LineSeg;
+
 /* JFG: a line emitter's data, size 0x148 */
 typedef struct LineParticleSet {
-    /* 0x000 */ u8 pad0[0x124];
+    /* 0x000 */ s32 count;
+    /* 0x004 */ LineSeg *segs[0x48];
     /* 0x124 */ u8 unk124; // set when the emitter lets go of it
     /* 0x125 */ u8 pad125[0x128 - 0x125];
     /* 0x128 */ struct TextureHeader *texture;
@@ -386,13 +397,13 @@ struct Vertex {
     /* 0x06 */ u8 r, g, b, a;
 };
 
-/* DKR include/f3ddkr.h */
+/* DKR include/f3ddkr.h (JFG: the length is numTris << 4, which IDO does not fold into an expression) */
 #define G_TRIN 5
 #define gSPPolygon(dl, ptr, numTris, texEnabled)                                                        \
     {                                                                                                   \
         Gfx *_g = (Gfx *) (dl);                                                                         \
         _g->words.w0 = _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(G_TRIN, 24, 8) | \
-                       _SHIFTL(((numTris) * 16), 0, 16);                                                \
+                       _SHIFTL(((numTris) << 4), 0, 16);                                                \
         _g->words.w1 = (unsigned int) (ptr);                                                            \
     }
 /* JFG: DKR's gSPSelectMatrixDKR(pkt, 0) */
@@ -1483,7 +1494,56 @@ void func_80062A00(Gfx **dList, Vertex **vtx) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80062A90);
+extern s32 D_800A5D7C;   // JFG: the number of line particle sets
+extern u8 D_800A5DE8[]; // JFG: the triangle strip the line particles share
+
+/* JFG: render the active line particle sets with two vertices per segment (their textures animated). */
+void func_80062A90(Gfx **dList, Vertex **vtxList) {
+    Vertex *vtx;
+    Vertex *start;
+    LineParticleSet *set;
+    LineSeg *seg;
+    Gfx *gfx;
+    s32 i;
+    s32 j;
+    s32 n;
+
+    if (D_800A5D84 != NULL) {
+        gfx = *dList;
+        vtx = *vtxList;
+        set = D_800A5D84;
+        for (i = 0; i < D_800A5D7C; i++, set++) {
+            if (set->unk124 && set->count >= 2) {
+                start = vtx;
+                for (j = 0; j < set->count; j++) {
+                    seg = set->segs[j];
+                    vtx[0].x = seg->x0;
+                    vtx[0].y = seg->y0;
+                    vtx[0].z = seg->z0;
+                    vtx[0].r = seg->r;
+                    vtx[0].g = seg->g;
+                    vtx[0].b = seg->b;
+                    vtx[0].a = seg->a;
+                    vtx[1].x = seg->x1;
+                    vtx[1].y = seg->y1;
+                    vtx[1].z = seg->z1;
+                    vtx[1].r = seg->r;
+                    vtx[1].g = seg->g;
+                    vtx[1].b = seg->b;
+                    vtx[1].a = seg->a;
+                    vtx += 2;
+                }
+                func_80055C00(&gfx, set->texture, 0x12, set->frame * 65536.0f);
+                n = set->count * 2;
+                gSPVertexN1(gfx++, (u8 *) start + 0x80000000, n);
+                gSPPolygon(gfx++, D_800A5DE8 + 0x80000000, n - 2, 1);
+            }
+        }
+        gDPPipeSync(gfx++);
+        *dList = gfx;
+        *vtxList = vtx;
+    }
+}
 
 struct ParticleDesc {
     /* 0x00 */ u8 pad0[4];

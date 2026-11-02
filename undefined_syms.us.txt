@@ -537,6 +537,7 @@ func_8005BEF8 = rain_fog;
 gLightningFrequency = 0x800A5D1C;
 func_8005AB00 = weather_init;
 gSnowVertOffset = 0x80100890;
+D_800A5DE8 = 0x800A5DE8;
 gSnowTriCount = 0x80100894;
 gWeatherAssetTableLength = 0x800A5A10;
 
