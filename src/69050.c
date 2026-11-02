@@ -797,7 +797,83 @@ void func_8006D0D8(void) {
     D_80103B94 = -1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D110);
+/* JFG: clip the line (x1, y1)-(x2, y2) to the rectangle; FALSE if nothing of it is left. */
+s32 line_clip_rect(s16 *px1, s16 *py1, s16 *px2, s16 *py2, s32 left, s32 top, s32 right, s32 bottom) {
+    s32 xa;
+    s32 ya;
+    s32 xb;
+    s32 yb;
+    s32 swapped;
+    s32 dx;
+    s32 dy;
+    s32 tmp;
+    s32 tmp2;
+
+    if (*px2 >= *px1) {
+        xa = *px1;
+        ya = *py1;
+        xb = *px2;
+        yb = *py2;
+        swapped = FALSE;
+    } else {
+        xa = *px2;
+        ya = *py2;
+        xb = *px1;
+        yb = *py1;
+        swapped = TRUE;
+    }
+    if (xb < left || right < xa) {
+        return FALSE;
+    }
+    dx = xb - xa;
+    if (xa != xb) {
+        dy = yb - ya;
+        if (right < xb) {
+            yb = (right - xa) * dy / dx + ya;
+            xb = right;
+        }
+        if (xa < left) {
+            ya = (left - xa) * dy / dx + ya;
+            xa = left;
+        }
+    }
+    if (yb < ya) {
+        tmp = xa;
+        tmp2 = ya;
+        xa = xb;
+        ya = yb;
+        xb = tmp;
+        yb = tmp2;
+        swapped ^= 1;
+    }
+    if (yb < top || bottom < ya) {
+        return FALSE;
+    }
+    dx = xb - xa;
+    if (ya != yb) {
+        dy = yb - ya;
+        if (bottom < yb) {
+            xb = (bottom - ya) * dx / dy + xa;
+            yb = bottom;
+        }
+        if (ya < top) {
+            xa = (top - ya) * dx / dy + xa;
+            ya = top;
+        }
+    }
+    if (swapped) {
+        *px1 = xb;
+        *py1 = yb;
+        *px2 = xa;
+        *py2 = ya;
+    } else {
+        *px1 = xa;
+        *py1 = ya;
+        *px2 = xb;
+        *py2 = yb;
+    }
+    return TRUE;
+}
 
 typedef struct ScreenLine {
     /* 0x00 */ s16 x;
@@ -809,7 +885,7 @@ typedef struct ScreenLine {
 extern ScreenLine D_80102DC0[2][0x94];
 
 void menu_layout_box_get(s32 box, s32 *left, s32 *top, s32 *right, s32 *bottom);
-s32 func_8006D110(s16 *x1, s16 *y1, s16 *x2, s16 *y2, s32 left, s32 top, s32 right, s32 bottom);
+s32 line_clip_rect(s16 *x1, s16 *y1, s16 *x2, s16 *y2, s32 left, s32 top, s32 right, s32 bottom);
 
 /* JFG: queue a line clipped to the current window (or the screen); sorted unless the type is 2, 12 or 13. */
 void screen_line_add(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
@@ -836,7 +912,7 @@ void screen_line_add(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
             right = width - 2;
             bottom = height - 2;
         }
-        if (func_8006D110(&x1, &y1, &x2, &y2, left, top, right, bottom)) {
+        if (line_clip_rect(&x1, &y1, &x2, &y2, left, top, right, bottom)) {
             if (x1 != x2 || y1 != y2) {
                 if ((colour & 0xF) != 12 && (colour & 0xF) != 13 && (colour & 0xF) != 2) {
                     if (x2 < x1) {
