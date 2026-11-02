@@ -557,7 +557,73 @@ typedef struct ModuleEntry {
 } ModuleEntry;
 extern ModuleEntry *gRunlinkModules;
 
+/* JFG: a module relocation (8 bytes) */
+typedef struct ModuleReloc {
+    /* 0x00 */ s32 symbol;
+    /* 0x04 */ u32 offset : 24;
+    /* 0x07 */ u32 kind : 4;
+    /* 0x07 */ u32 type : 4; // JFG: 3 = in the data section
+} ModuleReloc;
+
+extern u32 *D_800FEAA8; // JFG: the symbol table (module << 20 | offset)
+
+#ifdef NON_MATCHING
+extern u8 gMusicPlayer[];
+extern u8 D_800B0B50[];
+extern u8 D_800FEAD4[];
+void sound_volume_change(s32 behaviour);
+void func_80054530();
+
+/* NON_MATCHING: same code; the symbol word, delta and module index sit in t1/v1/t0 (target t0/t1/v1) */
+/* JFG: the address a relocation refers to: a symbol (modules 0xFFD..0xFFF are the main segment's sections),
+   an address in the module, or a jump target. Unloaded modules resolve to the trap (calls) or a dummy word. */
+u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
+    u32 *entry;
+    s32 delta;
+    u32 v;
+    u32 ret;
+
+    delta = 0;
+    entry = &D_800FEAA8[symbol];
+    v = *entry >> 20;
+    switch (reloc->type) {
+        case 0:
+            switch (v) {
+                case 0xFFD:
+                    v = 0;
+                    delta = (u32) gMusicPlayer - (u32) sound_volume_change;
+                    break;
+                case 0xFFE:
+                    v = 0;
+                    delta = (u32) gMusicPlayer - (u32) sound_volume_change;
+                    break;
+                case 0xFFF:
+                    v = 0;
+                    delta = (u32) D_800B0B50 - (u32) sound_volume_change;
+                    break;
+            }
+            if (gRunlinkModules[v].unk0 == 0) {
+                if (reloc->kind == 4 || reloc->kind == 2) {
+                    return (u32) func_80054530;
+                }
+                return (u32) D_800FEAD4;
+            }
+            return (*entry & 0xFFFFF) + gRunlinkModules[v].unk0 + delta;
+        case 1:
+            ret = gRunlinkModules[module].unk0 + reloc->symbol;
+            if (reloc->kind == 2) {
+                ret += *insn;
+            }
+            return ret;
+        case 2:
+            return ((*insn & 0x3FFFFFF) << 2) + gRunlinkModules[module].unk0;
+        default:
+            return 0;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052874);
+#endif
 
 typedef union PatchWord {
     u32 word;
@@ -601,16 +667,7 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);
 
-/* JFG: a module relocation (8 bytes) */
-typedef struct ModuleReloc {
-    /* 0x00 */ s32 symbol;
-    /* 0x04 */ u32 offset : 24;
-    /* 0x07 */ u32 kind : 4;
-    /* 0x07 */ u32 type : 4; // JFG: 3 = in the data section
-} ModuleReloc;
-
 extern s32 gNumRunlinkModules; // JFG: the number of modules
-extern u32 *D_800FEAA8;        // JFG: the symbol table (module << 20 | offset)
 extern ModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
 extern u32 D_800FEAB0;          // JFG: their number
 extern u32 D_800FEAB8[5];       // JFG: the section addresses of the module being searched
@@ -838,8 +895,6 @@ void runlink_module_move_to_slot(s32 module) {
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053D2C);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 4 words: the target loads the module into $v0 (then move $a0 in the jal slot), mine into $a0 */
 /* JFG: unload the module of every used slot (0xFFB = free). */
 void func_8005414C(void) {
     ModuleSlot *slot = D_800FEAD8;
@@ -847,14 +902,11 @@ void func_8005414C(void) {
 
     do {
         if (slot->module != 0xFFB) {
-            func_80053D2C(slot->module);
+            func_80053D2C((u32) slot->module); // the cast loads it into v0
         }
         slot++;
     } while (i--);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005414C);
-#endif
 
 /* JFG: set the frames before a module is unloaded (10 bits) and its other 6-bit count (0x800541B0). */
 void runlink_unload_timer_set(s32 index, u16 timer, u8 value) {

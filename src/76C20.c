@@ -334,8 +334,7 @@ void func_80076A5C(u8 index, u16 soundId) {
     }
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the audio point is loaded into a0 (target: v0, moved to a0 in the jal delay slot) */
+/* JFG: stop the sound of a path's object, if it has one playing. */
 void func_80076ADC(u8 index) {
     AnimPath *path = D_801045B0[index];
     AnimObject *obj;
@@ -344,14 +343,11 @@ void func_80076ADC(u8 index) {
         obj = path->obj;
         if (obj != NULL) {
             if (obj->audioPoint != NULL) {
-                audspat_point_stop(obj->audioPoint);
+                audspat_point_stop((void *) (s32) obj->audioPoint); // the int cast loads it into v0
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80076ADC);
-#endif
 
 extern f32 D_800AEFDC;
 

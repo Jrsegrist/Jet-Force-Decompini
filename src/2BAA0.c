@@ -847,34 +847,42 @@ typedef struct PoseTarget {
     /* 0x0C */ u8 padC[8];
 } PoseTarget;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the target schedules the lb of 0x530 before the sw to 0x360 */
+/* JFG: the pose fields of the racer data (the struct fields let IDO load numPoints before the stores) */
+typedef struct PoseRacer {
+    /* 0x000 */ u8 pad0[0x360];
+    /* 0x360 */ PoseTarget *pose;
+    /* 0x364 */ f32 points[16][3];
+    /* 0x424 */ f32 steps[16][3];
+    /* 0x4E4 */ u8 pad4E4[0x4C];
+    /* 0x530 */ s8 numPoints;
+    /* 0x531 */ u8 unk531;
+    /* 0x532 */ u8 pad532[3];
+    /* 0x535 */ s8 numSteps;
+} PoseRacer;
+
 /* JFG: start moving towards the points of a new pose: per-step deltas (0x424) from the current points (0x364). */
-void func_80035514(UNUSED s32 arg0, u8 *racer, PoseTarget *poses, u8 index) {
+void func_80035514(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 index) {
     PoseTarget *pose = &poses[index];
-    f32 *from = (f32 *) (racer + 0x364);
+    f32 *from = racer->points[0];
     f32 *step;
     s32 i;
     f32 steps;
 
-    if (pose != *(PoseTarget **) (racer + 0x360)) {
-        racer[0x531] = pose->unk4;
-        *(PoseTarget **) (racer + 0x360) = pose;
-        racer[0x535] = pose->steps;
-        step = (f32 *) (racer + 0x424);
-        steps = (s8) racer[0x535];
-        for (i = 0; i < (s8) racer[0x530]; i++) {
-            step[0] = ((*(PoseTarget **) (racer + 0x360))->points[i][0] - from[0]) / steps;
-            step[1] = ((*(PoseTarget **) (racer + 0x360))->points[i][1] - from[1]) / steps;
-            step[2] = ((*(PoseTarget **) (racer + 0x360))->points[i][2] - from[2]) / steps;
+    if (pose != racer->pose) {
+        racer->unk531 = pose->unk4;
+        racer->numSteps = pose->steps;
+        racer->pose = pose;
+        step = racer->steps[0];
+        steps = racer->numSteps;
+        for (i = 0; i < racer->numPoints; i++) {
+            step[0] = (racer->pose->points[i][0] - from[0]) / steps;
+            step[1] = (racer->pose->points[i][1] - from[1]) / steps;
+            step[2] = (racer->pose->points[i][2] - from[2]) / steps;
             from += 3;
             step += 3;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035514);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 

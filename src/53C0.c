@@ -1009,10 +1009,8 @@ void obj_tex_animate(ObjectTexAnimState *obj, ObjectModel53 *model, ModelInstanc
     }
 }
 
-#ifdef NON_MATCHING
 /**
  * JFG: set a byte of every attachment of the objects whose header has unk1E clear.
- * NON_MATCHING: 2 words: gObjectCount is loaded before gObjectListStart (target: the other order).
  */
 void func_80009928(s32 value) {
     s32 i;
@@ -1020,7 +1018,8 @@ void func_80009928(s32 value) {
     Object *obj;
     ObjectAttachment *attachment;
 
-    for (i = gObjectListStart; i < gObjectCount; i++) {
+    i = gObjectListStart; // assigned before the loop so it is loaded before gObjectCount
+    for (; i < gObjectCount; i++) {
         obj = gObjPtrList[i];
         if (obj->header->unk1E == 0) {
             for (j = 0; j < obj->header->numAttachments; j++) {
@@ -1032,9 +1031,6 @@ void func_80009928(s32 value) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80009928);
-#endif
 
 /**
  * Make the next call of move_object never mark the object as out of bounds.

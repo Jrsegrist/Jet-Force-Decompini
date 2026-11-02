@@ -189,7 +189,79 @@ void func_80068DF8(void **cone) {
     mempool_free(cone);
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068E58);
+typedef struct EffectMesh {
+    /* 0x00 */ void *tex1;
+    /* 0x04 */ void *tex2;
+    /* 0x08 */ u8 *bufB;
+    /* 0x0C */ u8 *bufC;
+    /* 0x10 */ u8 *bufA;
+    /* 0x14 */ u8 numPoints;
+    /* 0x15 */ u8 segments;
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 pad17;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ s16 unk20;
+    /* 0x22 */ s16 x;
+    /* 0x24 */ s16 y;
+    /* 0x26 */ s16 z;
+} EffectMesh;
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void *load_texture(s32 assetIndex);
+void func_800691F0(EffectMesh *mesh, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
+void func_80069000(EffectMesh *mesh, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
+void func_800694CC(EffectMesh *mesh, s32 arg1);
+
+/* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
+   and build it (a single point when segments is 0). */
+EffectMesh *func_80068E58(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 segments, s32 tex1,
+                          s32 tex2) {
+    s32 sizeA;
+    s32 sizeB;
+    EffectMesh *mesh;
+
+    if (segments == 0) {
+        sizeA = 0x280;
+        sizeB = 0x154;
+    } else {
+        sizeA = segments * 16;
+        sizeB = segments * 10 + 10;
+    }
+    mesh = mempool_alloc_safe(sizeof(EffectMesh) + sizeA + (sizeB * 2), -1);
+    if (mesh != NULL) {
+        if (tex1 >= 0) {
+            mesh->tex1 = load_texture(tex1);
+        } else {
+            mesh->tex1 = NULL;
+        }
+        if (tex2 >= 0) {
+            mesh->tex2 = load_texture(tex2);
+        } else {
+            mesh->tex2 = NULL;
+        }
+        mesh->bufA = (u8 *) mesh + 0x28;
+        mesh->bufB = mesh->bufA + sizeA;
+        mesh->bufC = mesh->bufB + sizeB;
+        mesh->numPoints = segments + 1;
+        mesh->unk16 = 0;
+        mesh->segments = segments;
+        mesh->unk1E = arg4;
+        mesh->unk1C = arg3;
+        mesh->unk20 = arg6;
+        mesh->unk18 = arg5;
+        mesh->x = x;
+        mesh->y = y;
+        mesh->z = z;
+        if (segments + 1 == 1) {
+            func_800691F0(mesh, x, y, z, arg3, arg4, arg5, arg6);
+        } else {
+            func_80069000(mesh, x, y, z, arg3, arg4, arg5, arg6);
+        }
+        func_800694CC(mesh, 0);
+    }
+    return mesh;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80069000);
 
@@ -727,9 +799,67 @@ void func_8006D0D8(void) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006D110);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D390);
+typedef struct ScreenLine {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s32 u : 12;
+    /* 0x04 */ s32 v : 12;
+    /* 0x07 */ s32 flags : 8;
+} ScreenLine;
+extern ScreenLine D_80102DC0[2][0x94];
 
-void func_8006D390(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour);
+void menu_layout_box_get(s32 box, s32 *left, s32 *top, s32 *right, s32 *bottom);
+s32 func_8006D110(s16 *x1, s16 *y1, s16 *x2, s16 *y2, s32 left, s32 top, s32 right, s32 bottom);
+
+/* JFG: queue a line clipped to the current window (or the screen); sorted unless the type is 2, 12 or 13. */
+void func_8006D390(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
+    s32 left;
+    s32 top;
+    s32 right;
+    s32 bottom;
+    ScreenLine *entry;
+    u32 width;
+    u32 height;
+    s32 tmp;
+
+    if (D_80103B80[D_80103B90] < 0x94) {
+        if (D_80103B94 != -1) {
+            menu_layout_box_get(D_80103B94, &left, &top, &right, &bottom);
+            left++;
+            top++;
+            right -= 2;
+            bottom -= 2;
+        } else {
+            fb_size(&width, &height);
+            left = 1;
+            top = 1;
+            right = width - 2;
+            bottom = height - 2;
+        }
+        if (func_8006D110(&x1, &y1, &x2, &y2, left, top, right, bottom)) {
+            if (x1 != x2 || y1 != y2) {
+                if ((colour & 0xF) != 12 && (colour & 0xF) != 13 && (colour & 0xF) != 2) {
+                    if (x2 < x1) {
+                        tmp = x1;
+                        x1 = x2;
+                        x2 = tmp;
+                    }
+                    if (y2 < y1) {
+                        tmp = y1;
+                        y1 = y2;
+                        y2 = tmp;
+                    }
+                }
+                entry = &D_80102DC0[D_80103B90][D_80103B80[D_80103B90]++];
+                entry->x = x1;
+                entry->u = y1;
+                entry->y = x2;
+                entry->v = y2;
+                entry->flags = colour;
+            }
+        }
+    }
+}
 
 /* JFG: draw a line with D_80103B94 temporarily set to `window`. */
 void func_8006D58C(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
@@ -971,15 +1101,6 @@ void func_8006DF90(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
 #else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
 #endif
-
-typedef struct ScreenLine {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s32 u : 12;
-    /* 0x04 */ s32 v : 12;
-    /* 0x07 */ s32 flags : 8;
-} ScreenLine;
-extern ScreenLine D_80102DC0[2][0x94];
 
 /* JFG: queue an entry in the current buffer (up to 0x94). */
 void func_8006E0C4(s32 x, s32 u, s32 y, s32 v, s32 flag) {
