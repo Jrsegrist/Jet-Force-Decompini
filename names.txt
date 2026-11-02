@@ -610,6 +610,9 @@ func_8005CE90 = particle_assets_free
 func_8005CFD0 = particle_buffers_free
 func_8005EEFC = obj_enable_emitter
 func_80061FC8 = point_particle_set_update
+func_80060EC4 = particle_alloc
+func_8005F294 = line_particle_set_alloc
+func_800602C0 = obj_fire_emitter
 # src/67780.c
 func_80067790 = log_show
 func_800680B0 = epc_draw_glyph
@@ -625,6 +628,8 @@ func_800772C4 = sequence_start
 func_8006BC34 = transition_update
 func_8006BD54 = transition_render
 func_8006B9CC = transition_begin
+func_8006EE60 = glitch_effect_draw
+func_8006B69C = ripple_quad_draw
 # src/7A7D0.c
 func_8007E328 = multiplayer_score_kill
 func_8007B99C = collision_line_test_objects

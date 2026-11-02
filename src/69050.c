@@ -233,7 +233,65 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006B090);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B69C);
+/* JFG: a textured two-triangle quad with two vertex frames (ripple_quad_draw) */
+typedef struct RippleTexture {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 flags;
+} RippleTexture;
+
+typedef struct RippleQuad {
+    /* 0x00 */ u8 tris[0x20];     // two Triangles
+    /* 0x20 */ u8 vtx[2][0x28];   // two frames of vertices
+    /* 0x70 */ RippleTexture *tex;
+    /* 0x74 */ u8 frame;
+    /* 0x75 */ u8 pad75;
+    /* 0x76 */ s16 alpha;
+    /* 0x78 */ s16 texFrame;
+    /* 0x7A */ u8 pad7A[0x84 - 0x7A];
+    /* 0x84 */ void *child;
+} RippleQuad;
+
+extern s32 D_800A6950;
+extern Gfx D_800A6958[];
+void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
+void func_8006B3CC(void *child, Gfx **dList);
+
+/* DKR f3ddkr.h: runs a display list of numberOfCommands commands */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(7, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                      \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* JFG: draw a textured quad (faded by its alpha and D_800A6950), then its child, then reset the colours. */
+void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
+    s32 alpha;
+
+    if (obj != NULL && obj->tex != NULL) {
+        if (obj->alpha != 0) {
+            func_80055C00(dList, obj->tex, 0xF, obj->texFrame << 8);
+            gDkrDmaDisplayList((*dList)++, (u8 *) D_800A6958 + 0x80000000, 2);
+            if (obj->tex->flags & 0x40) {
+                alpha = obj->texFrame & 0xFF;
+            } else {
+                alpha = 255;
+            }
+            gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, ((255 - (D_800A6950 >> 1)) * obj->alpha) >> 8);
+            gDPSetEnvColor((*dList)++, alpha, alpha, alpha, alpha);
+            gSPVertexJFG((*dList)++, (u8 *) obj->vtx[obj->frame] + 0x80000000, 5, 0);
+            gSPPolygon((*dList)++, (u32) obj + 0x80000000, 2, 1);
+            rendermode_reset(dList);
+        }
+        if (obj->child != NULL) {
+            func_8006B3CC(obj->child, dList);
+        }
+        gDPPipeSync((*dList)++);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+    }
+}
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void func_8006F874(void);
@@ -971,7 +1029,71 @@ s32 func_8006EE50(void) {
     return D_800A6D00;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE60);
+extern u8 D_80102CE0;
+extern u8 D_80102CE1;
+extern u8 D_80102CE2;
+extern u8 D_80102CE3;
+extern u8 D_80102CE4;
+extern u8 D_80102CE5;
+extern s32 D_800A6D04;
+extern s32 gVideoLastFramebuffer; // JFG: the framebuffer to show next
+extern Gfx D_800A6BB8[];
+s32 rand_range(s32 min, s32 max);
+void func_8006F550(Gfx **dList, s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g);
+
+/**
+ * JFG: while D_800A6D00 runs (1..32, counting up or down by D_800A6D08), fade the D_80102CE0 colours,
+ * redraw the last frame once D_800A6D0C is set, tint the screen and print three random 8-bit binary strings.
+ */
+void glitch_effect_draw(Gfx **dList) {
+    s32 i;
+    s32 j;
+    s32 value;
+    s32 y;
+    u32 width;
+    u32 height;
+    char text[20];
+    char *p;
+
+    if (D_800A6D00) {
+        fb_size(&width, &height);
+        if (D_800A6D00 < 33) {
+            D_80102CE0 = ((D_800A6D00 * -255) >> 5) + 255;
+            D_80102CE1 = ((D_800A6D00 * -16) >> 5) + 255;
+            D_80102CE2 = ((D_800A6D00 * -196) >> 5) + 255;
+            D_80102CE3 = 0;
+            D_80102CE4 = (D_800A6D00 * 16) >> 5;
+            D_80102CE5 = (D_800A6D00 * 4) >> 5;
+            if (D_800A6D08) {
+                D_800A6D00++;
+            } else {
+                D_800A6D00--;
+            }
+        }
+        if (D_800A6D0C) {
+            D_800A6D04 = 1;
+            func_8006F550(dList, gVideoLastFramebuffer, width, height, 0, 0, width, height, 0);
+        }
+        D_800A6D0C = 1;
+        gDPSetPrimColor((*dList)++, 0, 0, 0, 255, 0, D_800A6D00 * 5);
+        gSPDisplayList((*dList)++, D_800A6BB8);
+        rendermode_reset(dList);
+        y = 200;
+        i = 3;
+        while (i--) {
+            value = rand_range(0, 255);
+            p = text;
+            j = 8;
+            while (j--) {
+                *p++ = (value & 1) + '0';
+                value >>= 1;
+            }
+            *p = '\0';
+            func_8006D60C(40, y, text);
+            y += 6;
+        }
+    }
+}
 
 extern u8 D_800A6D0C;
 
