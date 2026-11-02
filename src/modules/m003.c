@@ -13,32 +13,56 @@ typedef struct M003Member {
     /* 0x00 */ u32 pad0_2 : 16;
     /* 0x00 */ u32 headless : 1;
     /* 0x00 */ u32 pad0_1 : 3;
-    /* 0x04 */ u8 pad4[0x7 - 0x4];
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u8 unk6;
     /* 0x07 */ s8 group; /* < 0: not active */
-    /* 0x08 */ u8 pad8[0xB - 0x8];
+    /* 0x08 */ u8 pad8[0xA - 0x8];
+    /* 0x0A */ u8 unkA;
     /* 0x0B */ u8 mission;
-    /* 0x0C */ u8 padC[0x1A - 0xC];
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ s16 unk10;
+    /* 0x12 */ u8 pad12[0x15 - 0x12];
+    /* 0x15 */ u8 unk15;
+    /* 0x16 */ u8 pad16[0x1A - 0x16];
     /* 0x1A */ u8 unk1A;
     /* 0x1B */ u8 unk1B; /* < 5: heading for a way point */
-    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ u8 pad1E[0x24 - 0x1E];
     /* 0x24 */ Object *home;
     /* 0x28 */ Object *next; /* the next member of the troop */
-    /* 0x2C */ u8 pad2C[0x4A - 0x2C];
+    /* 0x2C */ u8 pad2C[0x38 - 0x2C];
+    /* 0x38 */ f32 unk38;
+    /* 0x3C */ f32 unk3C;
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ u8 pad44[0x4A - 0x44];
     /* 0x4A */ u8 unk4A;
     /* 0x4B */ s8 unk4B;
     /* 0x4C */ u8 pad4C[0x50 - 0x4C];
     /* 0x50 */ u8 node;
-    /* 0x51 */ u8 pad51[0x64 - 0x51];
+    /* 0x51 */ u8 unk51;
+    /* 0x52 */ u8 unk52;
+    /* 0x53 */ u8 pad53[0x64 - 0x53];
     /* 0x64 */ s32 shotBy;
 } M003Member;
 
 /* What a troop's home object keeps in obj->unk68 */
 typedef struct M003Home {
-    /* 0x00 */ u8 pad0[0x28];
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 pad1[0x28 - 0x1];
     /* 0x28 */ u16 flags; /* 0x2000: its members may touch */
     /* 0x2A */ u8 pad2A[0x2C - 0x2A];
     /* 0x2C */ u16 kind;
-    /* 0x2E */ u8 pad2E[0x48 - 0x2E];
+    /* 0x2E */ s16 unk2E; /* a countdown */
+    /* 0x30 */ u8 unk30;
+    /* 0x31 */ u8 pad31[0x33 - 0x31];
+    /* 0x33 */ u8 unk33;
+    /* 0x34 */ u8 pad34[0x3C - 0x34];
+    /* 0x3C */ s16 unk3C;
+    /* 0x3E */ s16 unk3E;
+    /* 0x40 */ s16 unk40;
+    /* 0x42 */ s16 unk42;
+    /* 0x44 */ s16 unk44;
+    /* 0x46 */ u8 pad46[0x48 - 0x46];
     /* 0x48 */ f32 x;
     /* 0x4C */ f32 y;
     /* 0x50 */ f32 z;
@@ -56,9 +80,15 @@ typedef struct M003Node {
 
 /* A region of the level (size 0x2C) */
 typedef struct M003Region {
-    /* 0x00 */ u8 pad0[0x18];
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u32 flags;
     /* 0x18 */ void *data;
-    /* 0x1C */ u8 pad1C[0x2C - 0x1C];
+    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
+    /* 0x20 */ union {
+        s16 pos[3]; /* a point in it */
+        s32 node;   /* replaced by what func_m003_15BE8 finds there */
+    } at;
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
 } M003Region;
 
 /* An event the troops react to (size 0x10) */
@@ -71,7 +101,9 @@ typedef struct M003Event {
 
 /* A member's body description (D_800A38E0, 0x80 bytes each) */
 typedef struct M003Body {
-    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ s16 unk24; /* a height */
+    /* 0x26 */ u8 pad26[0x2D - 0x26];
     /* 0x2D */ u8 headPart; /* 0x1F: none */
 } M003Body;
 
@@ -115,6 +147,16 @@ extern void *D_800FE9A4;
 extern void *D_800FEA18[16];
 extern s32 D_800FEA00;
 extern s32 D_800FEA04;
+extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
+extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
+extern void func_80051880(u8 arg0);
+extern s32 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
+extern void func_m155_02BB0(Object *home);
+extern void func_m003_04D08(s32 arg0, s32 node, s32 arg2, s32 arg3);
+extern s32 func_m003_04F88(s32 arg0, f32 arg1);
+extern void func_m003_06D28(Object *home, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
+extern void func_m003_0C324(void);
+extern s32 func_m003_15BE8(f32 x, f32 y, f32 z);
 
 /* The module's .data (still assembly) */
 extern u8 rl_m003_17A10[];
@@ -151,6 +193,8 @@ static u8 sBss270[0xE00 - 0x270]; /* (from 0x26C, IDO aligning it to 8) */
 s32 func_m003_0D2C0(Object *obj);
 void func_m003_10548(Object *obj, s32 shotBy);
 void func_m003_0C0A0();
+void func_m003_04398(s32 mission, s32 arg1);
+void func_m003_0C038(Object *obj);
 
 /* Where the current member is heading: its way point, or its troop's home */
 void func_m003_00000(Object *obj, f32 *x, f32 *y, f32 *z) {
@@ -169,23 +213,58 @@ void func_m003_00000(Object *obj, f32 *x, f32 *y, f32 *z) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_000D0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00258);
+/* An object's position */
+void func_m003_00258(Object *obj, f32 *x, f32 *y, f32 *z) {
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0027C);
+/* Turns to the next way point or, when that is done, ends the mission; keeps the facing */
+s32 func_m003_0027C(Object *obj, s32 arg1, s32 arg2, s32 arg3) {
+    if (sMember->unk1B == 1) {
+        sMember->unk1B = 4;
+        sMember->unk4B = 2;
+        func_m003_04D08(2, sMember->node, sMember->unk51, sMember->unk52);
+    } else if (func_m003_04F88(2, 1.0f)) {
+        func_m003_04398(1, 0);
+        sMember->unk4B = 0;
+    }
+    return obj->trans.rotation.y_rotation;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00328);
+/* An object's position; ends the current mission unless it is mission 5 */
+void func_m003_00328(Object *obj, f32 *x, f32 *y, f32 *z) {
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    if (sMember->unkA != 5) {
+        func_m003_04398(1, 0);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00384);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_009C8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00A5C);
+/* The current member's target point */
+void func_m003_00A5C(Object *obj, f32 *x, f32 *y, f32 *z) {
+    *x = sMember->unk38;
+    *y = sMember->unk3C;
+    *z = sMember->unk40;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00AA0);
+/* The facing towards the current member's target point */
+s32 func_m003_00AA0(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
+    *angle = func_80049C84(obj->trans.x_position - sMember->unk38, obj->trans.z_position - sMember->unk40);
+    return TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00AF4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00C20);
+void func_m003_00C20(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+    func_m003_06D28(sHome, sMember->unk15, arg1, arg2, arg3);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00C70);
 
@@ -195,7 +274,20 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00FD0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01188);
 
+#ifdef NON_MATCHING
+/* Keeps the facing; records the turn towards the closest player */
+/* (the ROM numbers the temporaries of the flag update one higher) */
+s32 func_m003_012E8(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
+    *angle = obj->trans.rotation.y_rotation;
+    sMember->unk10 = func_80049C84(obj->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position,
+                                   obj->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position) -
+                     obj->trans.rotation.y_rotation;
+    sMember->unk6 |= 0x40;
+    return TRUE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_012E8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0136C);
 
@@ -205,13 +297,34 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01764);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01974);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01A50);
+s32 func_m003_01A50(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
+    return FALSE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01A68);
+/* The facing towards whoever shot the member, or the current facing */
+s32 func_m003_01A68(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
+    Object *by = (Object *) sShotBy;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01ACC);
+    if (by != NULL) {
+        *angle = func_80049C84(obj->trans.x_position - by->trans.x_position,
+                               obj->trans.z_position - by->trans.z_position);
+    } else {
+        *angle = obj->trans.rotation.y_rotation;
+    }
+    return TRUE;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01AF0);
+s32 func_m003_01ACC(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
+    *angle = sMember->unk1C;
+    return TRUE;
+}
+
+/* The facing towards the closest player */
+s32 func_m003_01AF0(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
+    *angle = func_80049C84(obj->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position,
+                           obj->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position);
+    return TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01B44);
 
@@ -235,23 +348,75 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02A94);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02BBC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02CA8);
+/* The troop's home takes the closest player's position (at the body's height above it) */
+void func_m003_02CA8(void) {
+    sHomeData->unk40 = ((Object *) sClosestPlayer)->trans.x_position;
+    sHomeData->unk42 = ((Object *) sClosestPlayer)->trans.y_position + sBody->unk24;
+    sHomeData->unk44 = ((Object *) sClosestPlayer)->trans.z_position;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02D58);
+void func_m003_02D58(void) {
+    if (sHomeData->unk2E != 0) {
+        sHomeData->unk2E--;
+        if (sHomeData->unk2E == 0) {
+            sHomeData->unk33 = 0;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02DA0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0301C);
+/* Turns the troop's home towards its target facing, 400 at most */
+void func_m003_0301C(void) {
+    s16 turn = func_80049D80(sHome->trans.rotation.y_rotation, sHomeData->unk3E);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_030CC);
+    if (turn > 400) {
+        turn = 400;
+    } else if (turn < -400) {
+        turn = -400;
+    }
+    sHome->trans.rotation.y_rotation += turn;
+    if (sHome->trans.rotation.y_rotation == sHomeData->unk3E) {
+        sHomeData->unk33 = 0x16;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0312C);
+void func_m003_030CC(void) {
+    if (sHomeData->unk0 == 1) {
+        sHomeData->unk33 = 0;
+    }
+    sHomeData->unk2E--;
+    if (sHomeData->unk2E == 0) {
+        sHomeData->unk33 = 0;
+    }
+}
+
+void func_m003_0312C(void) {
+    sHomeData->unk2E--;
+    if (sHomeData->unk2E == 0) {
+        sHomeData->unk33 = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03170);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0322C);
 
+#ifdef NON_MATCHING
+/* (the ROM copies v into a2 before the shift; `(v & 0xFF00) >> 8` and `(v & ~0xFF) >> 8` come within one instruction) */
+void func_m003_0332C(void) {
+    s16 v;
+
+    sHomeData->unk3E--;
+    if (sHomeData->unk3E <= 0) {
+        sHomeData->unk33 = 0x1F;
+        v = sHomeData->unk3C;
+        func_80051880(func_m154_00DFC(sHomeData->unk30, v & 0xFF, (v & 0xFF00) >> 8));
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0332C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_033B0);
 
@@ -263,7 +428,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_038D4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03AA8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03C84);
+void func_m003_03C84(void) {
+    func_m155_02BB0(sHome);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03CAC);
 
@@ -517,7 +684,17 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CAA4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CD34);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CF40);
+void func_m003_0CF40(void) {
+    s32 shotBy = sMember->shotBy;
+
+    if (!(sMember->unk4 & 1)) {
+        sMember->shotBy = sClosestPlayer;
+        func_m003_0C324();
+        if (sMember->shotBy == 0) {
+            sMember->shotBy = shotBy;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CFA8);
 
@@ -613,7 +790,20 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_14D4C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15BE8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15E34);
+/* Finds what each region's point lies in */
+void func_m003_15E34(void) {
+    s32 i = sRegionCount - 1;
+    M003Region *region = &sRegions[1];
+
+    while (i-- > 0) {
+        if (region->flags & 0x20) {
+            region->at.node = func_m003_15BE8(region->at.pos[0], region->at.pos[1], region->at.pos[2]);
+        } else {
+            region->at.node = 0;
+        }
+        region++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15ED8);
 
