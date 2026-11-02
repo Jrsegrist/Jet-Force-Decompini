@@ -6,10 +6,10 @@
  * scrolling textures, lights, lens flares, spline camera nodes, static hit
  * objects, position overrides, AI points and junctions, and troops.
  *
- * NON_MATCHING: the exit, level, door, lens flare, hit object, override,
- * troop and junction inits and the troop's leader search are written but
- * differ (mostly register numbering and scheduling); they and the .rodata
- * (whose users are among them) stay assembly in the default build.
+ * NON_MATCHING: the troop init (scheduling) and the troop's leader search,
+ * which matches but is only called from the troop init. The .rodata stays
+ * assembly (the leader search uses its last float); C reads it as
+ * rl_m136_01E90[].
  */
 #include "module.h"
 #include "gfx.h"
@@ -294,8 +294,11 @@ extern void func_m011_000D4(s32 spline);
 extern void func_8002F014();
 extern Object **func_80050F44(s32 *count);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
-extern s32 func_m154_00130(f32 x, f32 y, f32 z);
+extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 part);
 extern M136Area *D_800FEA9C;
+/* The .rodata floats (0.05, 0.01, 0.01, 5e9) stay assembly: the leader search that uses the last is only
+   called from assembly */
+extern f32 rl_m136_01E90[];
 
 s32 D_m136_01DB0 = 136;
 /* The door sounds (three) for each list of door objects */
@@ -317,19 +320,18 @@ static s16 *sDoorSounds[] = {
     sDoorSounds5, sDoorSounds6, sDoorSounds7, sDoorSounds8, sDoorSounds9, NULL,
 };
 
-#ifdef NON_MATCHING
 void func_m136_00000(Object *obj, M136Entry *setup) {
     M136Exit *exit;
     f32 sinYaw;
 
     if (ENTRY_U8(setup, 0x12) < 5) {
-        obj->trans.scale = 0.05f;
+        obj->trans.scale = rl_m136_01E90[0];
     } else {
-        obj->trans.scale = ENTRY_U8(setup, 0x12) * 0.01f;
+        obj->trans.scale = rl_m136_01E90[1] * ENTRY_U8(setup, 0x12);
     }
     exit = obj->unk68;
-    obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0x13) << 10;
-    obj->trans.rotation.x_rotation = ENTRY_U8(setup, 0x1B) << 10;
+    obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0x13) << 2 << 8;
+    obj->trans.rotation.x_rotation = ENTRY_U8(setup, 0x1B) << 2 << 8;
     sinYaw = func_80049C34(obj->trans.rotation.y_rotation);
     exit->normal.x = func_80049C30(obj->trans.rotation.x_rotation) * sinYaw;
     exit->normal.y = -func_80049C34(obj->trans.rotation.x_rotation);
@@ -341,9 +343,6 @@ void func_m136_00000(Object *obj, M136Entry *setup) {
     exit->unk14 = ENTRY_S8(setup, 0x18);
     exit->unk16 = ENTRY_S8(setup, 0x15);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_00000);
-#endif
 
 void func_m136_00158(Object *obj, M136Entry *setup) {
     obj->trans.rotation.y_rotation = ENTRY_S16(setup, 0xE);
@@ -352,18 +351,13 @@ void func_m136_00158(Object *obj, M136Entry *setup) {
     view_override_set();
 }
 
-#ifdef NON_MATCHING
 void func_m136_00194(Object *obj, M136Entry *setup) {
     runlink_unload_timer_set(D_m136_01DB0, 2, 2);
     *(s32 *) &obj->state[0] = ENTRY_U8(setup, 0xA);
     *(s32 *) &obj->state[4] = ENTRY_U8(setup, 0xB);
-    obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0xC) << 10;
+    obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0xC) << 2 << 8;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_00194);
-#endif
 
-#ifdef NON_MATCHING
 void func_m136_001FC(Object *obj, M136Entry *setup) {
     M136Door *door = obj->unk68;
     M136ModelInstance *inst;
@@ -372,6 +366,7 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
     Vertex *out;
     s16 **list;
     s16 *ids;
+    s16 *bounds;
     s16 min;
     s16 max;
     s32 i;
@@ -401,8 +396,8 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
         door->unk28 = 0xFF;
     }
     if (door->type == 6) {
-        door->type = 4;
         door->unk40 *= 10;
+        door->type = 4;
     }
     zero = 0.0f;
     switch (door->type) {
@@ -414,7 +409,7 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
             }
             break;
         case 5:
-            unit = 0.01f;
+            unit = rl_m136_01E90[2];
             door->anim[0] = ENTRY_U8(setup, 0x1E);
             door->unk14 = ENTRY_U8(setup, 0x1A) * unit;
             if (ENTRY_U8(setup, 0x1E) == 0xFF) {
@@ -488,7 +483,8 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
             min = 0x7D00;
             max = -0x7D00;
             for (j = 0; j < model->numVerts; j++) {
-                out->y = in->y * door->heightScale;
+                size = in->y * door->heightScale;
+                out->y = size;
                 if (max < out->y) {
                     max = out->y;
                 }
@@ -500,8 +496,8 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
             }
             inst->bounds[1] = min;
             inst->bounds[4] = max;
-            for (j = 0; j < 6; j++) {
-                f = inst->bounds[j];
+            for (j = 0, bounds = inst->bounds; j < 6; j++, bounds++) {
+                f = *bounds;
                 if (f < zero) {
                     f = -f;
                 }
@@ -515,25 +511,21 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
     door->sound[0] = 0;
     door->sound[1] = 0;
     door->sound[2] = 0;
+    list = sDoorSounds;
     found = FALSE;
-    for (list = sDoorSounds; *list != NULL && !found; list++) {
+    for (; *list != NULL && !found; list++) {
         ids = *list;
-        if (ids[3] != -1 && !found) {
-            for (j = 3; ids[j] != -1 && !found; j++) {
-                if (setup->objectID == ids[j]) {
-                    found = TRUE;
-                    door->sound[0] = ids[0];
-                    door->sound[1] = ids[1];
-                    door->sound[2] = ids[2];
-                }
+        for (i = 3; ids[i] != -1 && !found; i++) {
+            if (setup->objectID == ids[i]) {
+                found = TRUE;
+                door->sound[0] = ids[0];
+                door->sound[1] = ids[1];
+                door->sound[2] = ids[2];
             }
         }
     }
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 32.0f, obj->trans.scale * 32.0f, -1.0f, 1.0f, 1);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_001FC);
-#endif
 
 typedef struct M136Switch {
     /* 0x00 */ f32 unk0;
@@ -644,7 +636,6 @@ void func_m136_00ED4(Object *obj, M136Entry *setup, s32 arg2) {
     obj->unk68 = (void *) light_add_from_level_object_entry(obj, setup);
 }
 
-#ifdef NON_MATCHING
 void func_m136_00F04(Object *obj, M136Entry *setup) {
     M136Flare flare;
 
@@ -661,24 +652,21 @@ void func_m136_00F04(Object *obj, M136Entry *setup) {
     }
     flare.unk1 = 0x50;
     flare.unk2 = ENTRY_S16(setup, 0xC);
+    flare.unk4 = ENTRY_S16(setup, 0xA);
     flare.unk6 = 0;
     flare.x = 0.0f;
     flare.y = 0.0f;
     flare.z = 0.0f;
-    flare.unk4 = ENTRY_S16(setup, 0xA);
     flare.r = ENTRY_U8(setup, 0x12);
     flare.g = ENTRY_U8(setup, 0x13);
     flare.b = ENTRY_U8(setup, 0x14);
+    flare.a = ENTRY_U8(setup, 0x15);
     flare.unk1A = 100;
     flare.unk1C = 100;
     flare.unk1E = -1;
     flare.unk1F = 1;
-    flare.a = ENTRY_U8(setup, 0x15);
     *(s32 *) &obj->state[0] = corona_add(obj, &flare, setup);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_00F04);
-#endif
 
 void func_m136_00FF0(Object *obj, M136Entry *setup, s32 arg2) {
     obj->trans.scale = ENTRY_S16(setup, 0xA);
@@ -716,7 +704,6 @@ void func_m136_01030(Object *obj, M136Entry *setup, s32 arg2) {
     func_m011_000D4(node->spline);
 }
 
-#ifdef NON_MATCHING
 void func_m136_01224(Object *obj, M136Entry *setup) {
     M136ModelInstance *inst;
     s16 *bounds;
@@ -725,7 +712,7 @@ void func_m136_01224(Object *obj, M136Entry *setup) {
     f32 f;
     s32 j;
 
-    size = (s32) ENTRY_U8(setup, 0xB);
+    size = ENTRY_U8(setup, 0xB) & 0xFF;
     if (size < 10.0f) {
         size = 10.0f;
     }
@@ -743,8 +730,8 @@ void func_m136_01224(Object *obj, M136Entry *setup) {
     inst = ((M136ModelInstance **) obj->modelInstances)[obj->modelIndex];
     bounds = inst->bounds;
     maxReach = 0.0f;
-    for (j = 0; j < 6; j++) {
-        f = bounds[j];
+    for (j = 0; j < 6; j++, bounds++) {
+        f = *bounds;
         if (f < 0.0f) {
             f = -f;
         }
@@ -754,33 +741,45 @@ void func_m136_01224(Object *obj, M136Entry *setup) {
     }
     OBJ_REACH(obj) = obj->trans.scale * maxReach;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01224);
-#endif
 
-#ifdef NON_MATCHING
-void func_m136_014C0(Object *obj, M136Entry *setup, s32 arg2) {
+/* A position override's level entry */
+typedef struct M136OverrideEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u16 unkA;
+    /* 0x0C */ u16 unkC;
+    /* 0x0E */ u16 unkE;
+    /* 0x10 */ s16 unk10;
+    /* 0x12 */ s16 unk12;
+    /* 0x14 */ s16 offX;
+    /* 0x16 */ s16 offY;
+    /* 0x18 */ s16 offZ;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
+} M136OverrideEntry;
+
+void func_m136_014C0(Object *obj, M136OverrideEntry *setup, s32 arg2) {
     M136Override *ov = obj->unk68;
 
-    ov->unk0 = ENTRY_U16(setup, 0xA);
-    ov->unk4 = setup->y + ENTRY_S16(setup, 0x1A);
-    ov->unk8 = setup->y - ENTRY_S16(setup, 0x1A);
-    ov->unkC = ENTRY_U16(setup, 0xC);
-    ov->unk10 = setup->y + ENTRY_S16(setup, 0x1C);
-    ov->unk14 = setup->y - ENTRY_S16(setup, 0x1C);
-    ov->unk18 = (f32) ENTRY_U16(setup, 0xE);
-    ov->unk1C = ENTRY_S16(setup, 0x10);
-    ov->unk20 = ENTRY_S16(setup, 0x12);
-    ov->pos.x = obj->trans.x_position + ENTRY_S16(setup, 0x14);
-    ov->pos.y = obj->trans.y_position + ENTRY_S16(setup, 0x16);
-    ov->pos.z = obj->trans.z_position + ENTRY_S16(setup, 0x18);
+    ov->unk0 = setup->unkA;
+    ov->unk4 = setup->y + setup->unk1A;
+    ov->unk8 = setup->y - setup->unk1A;
+    ov->unkC = setup->unkC;
+    ov->unk10 = setup->y + setup->unk1C;
+    ov->unk14 = setup->y - setup->unk1C;
+    ov->unk18 = (f32) setup->unkE;
+    ov->unk1C = setup->unk10;
+    ov->unk20 = setup->unk12;
+    ov->pos.x = obj->trans.x_position + setup->offX;
+    ov->pos.y = obj->trans.y_position + setup->offY;
+    ov->pos.z = obj->trans.z_position + setup->offZ;
     if (arg2 == 0) {
         func_8002F014();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_014C0);
-#endif
 
 void func_m136_016D0(Object *obj, M136Entry *setup) {
     M136AIPoint *point = obj->unk68;
@@ -798,21 +797,22 @@ void func_m136_016D0(Object *obj, M136Entry *setup) {
 }
 
 #ifdef NON_MATCHING
+/* matches, but IDO drops this static while its only caller (the troop init below) is assembly */
 /* The nearest other troop object that is not a leader */
-static Object *find_leader(Object *obj) {
+static Object *func_m136_01740(Object *obj) {
+    s32 count;
     Object **objects;
     Object *o;
     Object *nearest;
-    s32 count;
     f32 d;
     f32 best;
 
-    best = 5000000000.0f;
     objects = func_80050F44(&count);
+    best = rl_m136_01E90[3];
     nearest = NULL;
     while (count--) {
         o = objects[count];
-        if (obj != o && (TROOP_KIND16((M136Troop *) o->unk68) >> 12) != 4) {
+        if (obj != o && ((u32) TROOP_KIND16((M136Troop *) o->unk68) >> 12) != 4) {
             d = point_distance_squared(o->trans.x_position, o->trans.y_position, o->trans.z_position, obj->trans.x_position,
                               obj->trans.y_position, obj->trans.z_position);
             if (d < best) {
@@ -828,14 +828,15 @@ INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01740);
 #endif
 
 #ifdef NON_MATCHING
+/* scheduling: the ROM loads the old kind byte later in the copy sequence, and register numbers follow (169 diffs) */
 void func_m136_01850(Object *obj, M136Entry *setup) {
-    M136Troop *troop = obj->unk68;
     M136Area *area;
+    M136Troop *troop = obj->unk68;
 
     troop->unk64 = ENTRY_U8(setup, 0x2D);
-    if ((TROOP_KIND16(troop) >> 12) == 4) {
+    if (((u32) TROOP_KIND16(troop) >> 12) == 4) {
         if (troop->leader == NULL) {
-            troop->leader = find_leader(obj);
+            troop->leader = func_m136_01740(obj);
         }
         ENTRY_U8(setup, 0xB) = 0;
     }
@@ -923,8 +924,8 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     }
     obj->trans.rotation.y_rotation = 0xC000 - (troop->unk1B[0] << 8);
     if ((troop->kind & 0xF) == 6) {
-        area = &D_800FEA9C[func_m154_00130(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position)];
-        if (area != NULL && (area->flags >> 6) != 0) {
+        area = &D_800FEA9C[func_m154_00130(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0)];
+        if (area != NULL && ((u32) area->flags >> 6) != 0) {
             troop->unk33 = 0x1F;
         }
     }
@@ -933,16 +934,15 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01850);
 #endif
 
-#ifdef NON_MATCHING
 void func_m136_01CA4(Object *obj, M136Entry *setup) {
     M136Junction *junction = obj->unk68;
-    M136Junction *other;
+    u8 id;
     Object **objects;
     s32 first;
     s32 count;
     s32 i;
     s32 taken;
-    u8 id;
+    Object *o;
 
     id = 0;
     objects = func_80005E98(&first, &count);
@@ -955,9 +955,11 @@ void func_m136_01CA4(Object *obj, M136Entry *setup) {
                 id++;
                 taken = FALSE;
                 for (i = first; i < count; i++) {
-                    if (objects[i]->behaviorId == 0x1B && objects[i] != obj) {
-                        other = objects[i]->unk68;
-                        if (id == other->id) {
+                    o = objects[i];
+                    if (o->behaviorId == 0x1B) {
+                        /* the ROM reuses `junction` here, so the id is stored into the last junction looked at */
+                        junction = o->unk68;
+                        if (!(o == obj) && junction->id == id) {
                             taken = TRUE;
                             break;
                         }
@@ -969,8 +971,5 @@ void func_m136_01CA4(Object *obj, M136Entry *setup) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01CA4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m136", rodata);
-#endif

@@ -240,21 +240,20 @@ static M154Entry *func_m154_00410(void) {
 }
 
 /* Expands an entry: adds an entry for each link that gets a point more cheaply; 1 if out of entries */
-#ifdef NON_MATCHING
-/* the ROM keeps 0x34 in a register for multu where this hoists &sEnemy (26 diffs) */
-#define EXPAND func_m154_004B0
 static s32 func_m154_004B0(M154Entry *entry) {
     M154Node *node;
     M154Node *next;
     s32 i;
     s32 n;
-    u8 link;
+    s32 link;
 
     node = &D_800FEA9C[entry->path[entry->depth]];
     entry->state = 2;
-    for (i = 0; i < 6 && (link = node->links[i]) != 0; i++) {
+    i = 0;
+    while (i < 6 && (link = node->links[i]) != 0) {
         next = &D_800FEA9C[link];
-        if (next->blockedBy != 0 && sEnemy->group != next->blockedBy) {
+        if (next->blockedBy != 0 && next->blockedBy != sEnemy->group) {
+            i++;
             continue;
         }
         if (node->linkCost[i] + entry->cost < next->cost) {
@@ -281,14 +280,10 @@ static s32 func_m154_004B0(M154Entry *entry) {
                 sBestCost = sCursor->cost;
             }
         }
+        i++;
     }
     return 0;
 }
-#else
-#define EXPAND rl_m154_004B0
-extern s32 rl_m154_004B0(M154Entry *entry);
-INCLUDE_ASM("asm/nonmatchings/modules/m154", func_m154_004B0);
-#endif
 
 /* The search result: 0x100 | the first step when the target was reached, else the best step */
 static s32 func_m154_00720(void) {
@@ -359,7 +354,7 @@ static u16 func_m154_00920(u8 from, u8 to) {
     sTargetZ = D_800FEA9C[to].z;
     sTargetNode = to;
     func_m154_00810(from);
-    e = EXPAND(sCursor);
+    e = func_m154_004B0(sCursor);
     while (TRUE) {
         if (e == 0) {
             e = (s32) func_m154_00410();
@@ -368,7 +363,7 @@ static u16 func_m154_00920(u8 from, u8 to) {
             result = func_m154_00720();
             break;
         }
-        e = EXPAND((M154Entry *) e);
+        e = func_m154_004B0((M154Entry *) e);
         if (e == 1) {
             result = func_m154_00720();
             break;
@@ -448,17 +443,12 @@ u8 func_m154_00A10(u8 from) {
     return func_m154_00920(from, points[3]);
 }
 
-#ifdef NON_MATCHING
-/*
- * 00D68: t6/v0 register choice for n (4 diffs). 00DFC: IDO keeps `cur` in a temporary slot across the calls
- * where the ROM reloads it from its home, so the frame is 0x10 bigger (31 diffs); 00D68 is only called from here.
- */
 /* 0 if the enemy can take the link to `n`; -1 back to `prev`, -2 none, -3 closed, else the group there */
 static s32 func_m154_00D68(u8 n, u8 prev) {
     if (n == prev) {
         return -1;
     }
-    if (n == 0) {
+    if (!n) {
         return -2;
     }
     if ((D_800FEA9C[n].flags & 4) && !sKind->canOpen) {
@@ -475,7 +465,6 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
     u8 pick;
     u8 blocked;
     s32 r;
-    u8 next;
     u8 part;
     M154Node *node;
 
@@ -488,26 +477,26 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
         return 0;
     }
     sEnemy->flags &= ~0x400;
-    if (cur != 0) {
+    if (cur) {
         part = D_800FEA9C[cur].part;
     } else {
         part = 0;
     }
     if (sEnemy->kind == 0x13) {
-        next = func_m154_00920(cur, func_m154_002A8(sPlayer->trans.x_position, sPlayer->trans.y_position,
+        pick = func_m154_00920(cur, func_m154_002A8(sPlayer->trans.x_position, sPlayer->trans.y_position,
                                                     sPlayer->trans.z_position, part));
-        if (cur == next) {
+        if (pick == cur) {
             sEnemy->flags |= 0x400;
         }
-        return next;
+        return pick;
     }
     if (mode == 3) {
-        next = func_m154_00920(cur, func_m154_00130(sPlayer->trans.x_position, sPlayer->trans.y_position,
+        pick = func_m154_00920(cur, func_m154_00130(sPlayer->trans.x_position, sPlayer->trans.y_position,
                                                     sPlayer->trans.z_position, part));
-        if (cur == next) {
+        if (pick == cur) {
             sEnemy->flags |= 0x400;
         }
-        return next;
+        return pick;
     }
     while (i--) {
         r = func_m154_00D68(node->links[i], prev);
@@ -542,10 +531,6 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
     }
     return prev;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m154", func_m154_00D68);
-INCLUDE_ASM("asm/nonmatchings/modules/m154", func_m154_00DFC);
-#endif
 
 /* Runs the point's command */
 void func_m154_01110(s16 *arg0, M154Node *node) {
@@ -611,7 +596,10 @@ s32 func_m154_01278(void) {
 
 /* Builds the way-point graph from the level entries */
 #ifdef NON_MATCHING
-/* register choice and the order of the part-numbering loops differ (183 diffs) */
+/*
+ * t-register choice in the link and part-numbering loops (183 diffs; reusing `n` as the part-loop counter
+ * and `off2` as the found flag gets 160)
+ */
 void func_m154_013A8(M154Setup *setup, s32 size) {
     M154Setup *s;
     M154Setup *l;
