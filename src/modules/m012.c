@@ -38,7 +38,7 @@ typedef struct M012Texture {
 extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
 extern void menu_assetgroup_free(s16 *assets); /* frees them */
 extern void mempool_free_queue_flush(void);
-extern void func_8005414C(void);
+extern void runlink_slots_unload_all(void);
 extern void load_texture_at(s32 arg0, s32 arg1);
 extern void func_8004AA80(void *data); /* frees */
 extern void func_8003F468(void);
@@ -179,7 +179,7 @@ static void free_textures(void) {
     s32 i;
 
     mempool_free_queue_flush();
-    func_8005414C();
+    runlink_slots_unload_all();
     for (i = 0; i < sTextureCount; i++) {
         load_texture_at(sTextures[i].unk0, sTextures[i].unk4);
     }

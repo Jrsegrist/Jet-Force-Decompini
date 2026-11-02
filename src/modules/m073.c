@@ -25,7 +25,7 @@ typedef struct M073GlowSet {
     /* 0x4 */ M073GlowDef *defs;
 } M073GlowSet;
 
-/* A glow flare (what func_80068E58 makes) */
+/* A glow flare (what effect_mesh_create makes) */
 typedef struct M073Flare {
     /* 0x00 */ u8 pad0[0x20];
     /* 0x20 */ s16 size;
@@ -69,11 +69,11 @@ typedef struct M073State {
     /* 0x0 */ u32 soundHandle;
 } M073State;
 
-extern M073Flare *func_80068E58(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
+extern M073Flare *effect_mesh_create(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
                                  s32 arg9);
 extern s32 func_8004966C(s16 angle);
 extern void func_800694CC(M073Flare *flare, s16 angle);
-extern void func_8006999C(M073Flare *flare, s16 size, u8 alpha);
+extern void effect_mesh_update(M073Flare *flare, s16 size, u8 alpha);
 extern void func_80026FD4(Object *obj, s32 updateRate);
 extern void func_80068DF8(M073Flare *flare);
 extern void func_80003614(s32 handle); /* stops a positioned sound */
@@ -181,7 +181,7 @@ void func_m073_00000(Object *obj, LevelObjectEntryCommon *setup) {
         glow = glows;
         while (count--) {
             v = &model->vertices[model->points[def->point][0]];
-            glow->flare = func_80068E58(v->x, v->y, v->z, def->unk6, def->unk8, def->unkC, def->unkA, def->unk1,
+            glow->flare = effect_mesh_create(v->x, v->y, v->z, def->unk6, def->unk8, def->unkC, def->unkA, def->unk1,
                                          def->unk2, def->unk4);
             glow->phase = func_80048E2C(0, 255);
             glow->point = def->point;
@@ -216,7 +216,7 @@ void func_m073_00208(Object *obj, s32 updateRate) {
             glow->phase += updateRate * 16;
             size = (((func_8004966C(glow->phase << 8) * flare->size) >> 20) + flare->size) * glow->alpha >> 8;
             func_800694CC(flare, glow->phase << 8);
-            func_8006999C(flare, size, glow->alpha);
+            effect_mesh_update(flare, size, glow->alpha);
         }
         glow++;
     }

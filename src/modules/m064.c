@@ -84,7 +84,7 @@ extern void mtx_pop(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
 extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
 extern void func_80056064(void);
-extern void func_80041174(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite, s32 arg5, s32 alpha);
+extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite, s32 arg5, s32 alpha);
 
 /* The trail's strip: eighteen vertices, sixteen triangles */
 static Triangle sTrailTris[16] = {
@@ -340,7 +340,7 @@ static void beam_draw_trail(Gfx **dl, M064Beam *beam) {
 static void beam_draw_glow(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite) {
     if (beam->alpha != 0) {
         func_8005600C(255, 255, 255, beam->r, beam->g, beam->b);
-        func_80041174(dl, arg1, arg2, beam, sprite, 14, beam->alpha);
+        render_sprite_billboard(dl, arg1, arg2, beam, sprite, 14, beam->alpha);
         func_80056064();
     }
 }

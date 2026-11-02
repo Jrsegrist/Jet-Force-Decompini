@@ -737,7 +737,7 @@ void func_80034164(s16 *pos, u8 *obj) {
 void obj_spawn_particle(u8 *obj, s32 updateRate);
 s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
 void func_800694CC(void *handle, s16 pitch);
-void func_8006999C(void *handle, s16 value, u8 volume);
+void effect_mesh_update(void *handle, s16 value, u8 volume);
 
 /* JFG: the player's four engine-like loops (0x598, state at 0x5B8, volume 0x5AC, phase 0x5A8): 0 waits for its
  * bit in 0x14A (spawning particles), 1 fades in, 2 plays (wobbling with the phase), 3 fades out. */
@@ -826,7 +826,7 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
         p[0x5A8] = phase;
         if (volume != 0) {
             func_800694CC(handle, (s8) p[0x5A8] << 8);
-            func_8006999C(handle, value, p[0x5AC]);
+            effect_mesh_update(handle, value, p[0x5AC]);
         }
     }
 }
@@ -847,34 +847,42 @@ typedef struct PoseTarget {
     /* 0x0C */ u8 padC[8];
 } PoseTarget;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the target schedules the lb of 0x530 before the sw to 0x360 */
+/* JFG: the pose fields of the racer data (the struct fields let IDO load numPoints before the stores) */
+typedef struct PoseRacer {
+    /* 0x000 */ u8 pad0[0x360];
+    /* 0x360 */ PoseTarget *pose;
+    /* 0x364 */ f32 points[16][3];
+    /* 0x424 */ f32 steps[16][3];
+    /* 0x4E4 */ u8 pad4E4[0x4C];
+    /* 0x530 */ s8 numPoints;
+    /* 0x531 */ u8 unk531;
+    /* 0x532 */ u8 pad532[3];
+    /* 0x535 */ s8 numSteps;
+} PoseRacer;
+
 /* JFG: start moving towards the points of a new pose: per-step deltas (0x424) from the current points (0x364). */
-void func_80035514(UNUSED s32 arg0, u8 *racer, PoseTarget *poses, u8 index) {
+void racer_pose_begin(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 index) {
     PoseTarget *pose = &poses[index];
-    f32 *from = (f32 *) (racer + 0x364);
+    f32 *from = racer->points[0];
     f32 *step;
     s32 i;
     f32 steps;
 
-    if (pose != *(PoseTarget **) (racer + 0x360)) {
-        racer[0x531] = pose->unk4;
-        *(PoseTarget **) (racer + 0x360) = pose;
-        racer[0x535] = pose->steps;
-        step = (f32 *) (racer + 0x424);
-        steps = (s8) racer[0x535];
-        for (i = 0; i < (s8) racer[0x530]; i++) {
-            step[0] = ((*(PoseTarget **) (racer + 0x360))->points[i][0] - from[0]) / steps;
-            step[1] = ((*(PoseTarget **) (racer + 0x360))->points[i][1] - from[1]) / steps;
-            step[2] = ((*(PoseTarget **) (racer + 0x360))->points[i][2] - from[2]) / steps;
+    if (pose != racer->pose) {
+        racer->unk531 = pose->unk4;
+        racer->numSteps = pose->steps;
+        racer->pose = pose;
+        step = racer->steps[0];
+        steps = racer->numSteps;
+        for (i = 0; i < racer->numPoints; i++) {
+            step[0] = (racer->pose->points[i][0] - from[0]) / steps;
+            step[1] = (racer->pose->points[i][1] - from[1]) / steps;
+            step[2] = (racer->pose->points[i][2] - from[2]) / steps;
             from += 3;
             step += 3;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035514);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 

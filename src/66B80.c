@@ -155,13 +155,11 @@ INCLUDE_ASM("asm/nonmatchings/66B80", func_80066860);
 
 extern char D_800AE594[]; // JFG: a format string (.rodata)
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: one word, the bit test's operand order (and t6,a3,v0 in the ROM) */
 /* JFG: walks the geometry mode bits set in the command's second word (the prints were compiled out). */
-s32 func_80066A68(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
+s32 dl_cmd_print_geometry_mode(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
     char buffer[0x50];
     UNUSED s32 pad;
-    u32 flags;
+    s32 flags;
     s32 bit;
     s32 first;
 
@@ -170,7 +168,7 @@ s32 func_80066A68(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
     flags = cmd[1];
     sprintf(buffer, D_800AE594, arg1, flags);
     for (; bit <= 0x100000; bit <<= 1) {
-        if (bit & flags) {
+        if (flags & bit) {
             if (first) {
                 first = FALSE;
             }
@@ -202,6 +200,3 @@ s32 func_80066A68(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
     }
     return 8;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80066A68);
-#endif

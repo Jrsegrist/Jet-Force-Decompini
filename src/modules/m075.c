@@ -109,14 +109,14 @@ extern void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32
 extern Object *D_800A32B8; /* the cabinet whose screen is open */
 extern u8 D_800A4FBC;
 extern u32 D_800FF318[];
-extern void func_800595F4(Gfx **dl, s32 count, MenuBox *boxes, s32 arg3);
+extern void menu_fill_boxes(Gfx **dl, s32 count, MenuBox *boxes, s32 arg3);
 extern void func_8006FC54(s32 font);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
-extern void func_800416CC(Gfx **dl, Mtx **mtx, Vertex **verts, M075Billboard *board, s32 sprite, s32 flags,
+extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **verts, M075Billboard *board, s32 sprite, s32 flags,
                           s32 alpha);
 extern void func_8004046C(Gfx **dl, Mtx **mtx);
 extern void func_80055B80(Gfx **dl);
@@ -374,7 +374,7 @@ static void draw_lights(Gfx **dl, s32 alpha) {
     }
     sLights[18].colour = colour0;
     sLights[19].colour = colour1;
-    func_800595F4(dl, 20, sLights, 0);
+    menu_fill_boxes(dl, 20, sLights, 0);
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m075", func_m075_00830);
@@ -413,7 +413,7 @@ void func_m075_00900(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj) {
         box.x2 = ((size * 120) >> 8) + 160;
         box.y2 = ((size * 90) >> 8) + 120;
         box.colour = 0xE0;
-        func_800595F4(dl, 1, &box, 0);
+        menu_fill_boxes(dl, 1, &box, 0);
         alpha = (state->open - 0x80) << 2;
         if (alpha > 0) {
             if (alpha >= 0x100) {
@@ -436,7 +436,7 @@ void func_m075_00900(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj) {
                     func_80056000(0);
                     gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, (alpha * 224) >> 8);
                     gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
-                    func_800416CC(dl, mtx, verts, &board, sprite, 4, alpha);
+                    render_ortho_triangle_image(dl, mtx, verts, &board, sprite, 4, alpha);
                     func_80056000(1);
                     func_8004046C(dl, mtx);
                     gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);

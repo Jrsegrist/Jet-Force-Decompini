@@ -383,7 +383,7 @@ extern f32 D_800F6DC4;          /* gravity */
 extern s32 camera_follow_get(void);
 extern void *func_8004271C(void);
 extern u8 func_8005AAB8(s32 player);
-extern void func_80035514(Object *obj, Racer *racer, void *table, u8 pose);
+extern void racer_pose_begin(Object *obj, Racer *racer, void *table, u8 pose);
 
 /* The animation table: per animation, its variants and a pose index */
 typedef struct M015Anim {
@@ -403,7 +403,7 @@ typedef struct M015Part {
     /* 0x10 */ u32 flags;
 } M015Part;
 
-/* A list of body parts with its settings (passed to func_80035514) */
+/* A list of body parts with its settings (passed to racer_pose_begin) */
 typedef struct M015PartSet {
     /* 0x00 */ M015Part **parts;
     /* 0x04 */ u32 unk4;
@@ -689,7 +689,7 @@ extern void sound_stop(s32 handle);
 extern s32 func_8000BC28(Object *obj, M015ModelInst *inst, M015Model *model, s32 weapon, s32 *arg4, f32 *x, f32 *y,
                          f32 *z);
 extern void func_800116BC(Object *obj, f32 frame);
-extern u32 func_800195E8(f32 x, f32 z, f32 *height, u32 mask);
+extern u32 track_height_at(f32 x, f32 z, f32 *height, u32 mask);
 extern void func_800221F0(Object *obj, M015ModelInst *inst, void *shading, void *arg3);
 extern void chain_object_unlink_from_players(Object *obj);
 extern void player_items_unlink(Racer *racer);
@@ -911,7 +911,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         racer->unk138 = (1.0f - func_80049BEC(0.925f, updateRate)) * (1.0f - racer->unk138) + racer->unk138;
     }
     deep = 0;
-    hit = func_800195E8(obj->trans.x_position, obj->trans.z_position, &racer->unk5C, 0x80002000);
+    hit = track_height_at(obj->trans.x_position, obj->trans.z_position, &racer->unk5C, 0x80002000);
     if ((hit & 0x80000000) && obj->trans.y_position < racer->unk5C) {
         racer->unk5EE = 1;
     }
@@ -2351,7 +2351,7 @@ static void func_m015_05180(Object *obj, Racer *racer, s32 anim, f32 frame) {
         func_8001149C(obj, anim, frame);
         sAnimChanges++;
     }
-    func_80035514(obj, racer, D_m015_0807C, pose);
+    racer_pose_begin(obj, racer, D_m015_0807C, pose);
 }
 
 /* Picks a random idle animation (or the plain one while carrying or hurt) */

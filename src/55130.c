@@ -163,7 +163,86 @@ void video_init(OSSched *sc) {
     sBlackScreenTimer = 1;
 }
 
+extern f32 D_800A391C; // JFG: the screen's x scale (to 320)
+extern f32 D_800A3920; // JFG: the screen's y scale (to 240)
+extern s32 D_800A3910[3]; // JFG: the framebuffers
+extern s8 D_800FECA4; // JFG: the framebuffer index
+extern u8 D_800FECA7;
+void set_screen_dialogue_box_size(s32 width, s32 height);
+void zbuffer_alloc(s32 width, s32 height);
+void zbuffer_free(s32 width, s32 height);
+void func_80055260(void *buffer, s32 size);
+void video_delta_reset(void);
+void fb_swap(void);
+void fb_init_vi(void);
+
+#ifdef NON_MATCHING
+/* JFG: switch to video mode (0-3, offset for MPAL/PAL; mode 0 on the first call): the screen scale,
+   the depth buffer, two or three framebuffers (the second allocated in modes 2 and 3, the third when
+   asked) cleared unless it is the first call, then the VI.
+   NON_MATCHING: register choice only: the target keeps the global addresses in a1/v1/a3/a2 (mine
+   v1/a3/a2/v1), which also moves the size + 0x30 into a branch delay slot. */
+void func_8005483C(s32 mode) {
+    s32 size;
+    VideoMode *videoMode;
+
+    gVideoModeIndex = mode & 3 & ~D_800A3928;
+    D_800A3928 = 0;
+    if (osTvType == OS_TV_MPAL) {
+        gVideoModeIndex += 4;
+    } else if (osTvType == OS_TV_PAL) {
+        gVideoModeIndex += 8;
+    }
+    videoMode = &D_800A392C[gVideoModeIndex];
+    D_800A391C = videoMode->width / 320.0f;
+    D_800A3920 = videoMode->height / 240.0f;
+    set_screen_dialogue_box_size(videoMode->width, videoMode->height);
+    if (!D_800FECD0) {
+        zbuffer_free(videoMode->width, videoMode->height);
+    }
+    if (D_800A3900[1] != NULL) {
+        mempool_free(D_800A3900[1]);
+        D_800A3900[1] = NULL;
+    }
+    if (D_800A3900[2] != NULL) {
+        mempool_free(D_800A3900[2]);
+        D_800A3900[2] = NULL;
+    }
+    size = videoMode->width * videoMode->height * 2;
+    D_800FECA4 = 0;
+    D_800A3910[0] = ((s32) D_800A3900[0] + 0x3F) & ~0x3F;
+    D_800A3910[1] = 0;
+    D_800A3910[2] = 0;
+    if ((gVideoModeIndex & 3) != 2 && (gVideoModeIndex & 3) != 3) {
+        D_800A3910[1] = D_800A3910[0] + size;
+    } else {
+        D_800A3900[1] = mempool_alloc_safe(size + 0x30, -1);
+        D_800A3910[1] = ((s32) D_800A3900[1] + 0x3F) & ~0x3F;
+    }
+    if (D_800FECA6) {
+        D_800A3900[2] = mempool_alloc_safe(size + 0x30, -1);
+        D_800A3910[2] = ((s32) D_800A3900[2] + 0x3F) & ~0x3F;
+    }
+    D_800FECA5 = D_800FECA6;
+    if (D_800FECA7) {
+        func_80055260((void *) D_800A3910[0], size);
+        func_80055260((void *) D_800A3910[1], size);
+        if (D_800FECA5) {
+            func_80055260((void *) D_800A3910[2], size);
+        }
+    }
+    D_800FECA7 = 1;
+    if (!D_800FECD0) {
+        zbuffer_alloc(videoMode->width, videoMode->height);
+    }
+    video_delta_reset();
+    fb_swap();
+    fb_init_vi();
+    D_800FECD0 = 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005483C);
+#endif
 
 extern s32 D_800FECB0; // JFG: the previous frame's image
 extern s32 gVideoLastFramebuffer; // the framebuffer to show next

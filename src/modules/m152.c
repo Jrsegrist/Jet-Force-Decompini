@@ -66,7 +66,7 @@ extern s16 func_80049C84(f32 x, f32 z); /* angle of a vector */
 extern f32 func_80097140(f32 x);        /* square root */
 extern s16 func_80049D80(s16 from, s16 to); /* difference between two angles */
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
-extern void func_80041450(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 x, s32 y, s32 z, s32 arg7, f32 size,
+extern void render_sprite_billboard_at(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 x, s32 y, s32 z, s32 arg7, f32 size,
                           f32 arg9, s32 arg10, s32 arg11);
 
 f32 func_m152_00E34(s16 from, s16 to, u16 t);
@@ -377,7 +377,7 @@ void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 ar
             j = count;
             while (j--) {
                 p = sChains[e->chain].points[e->point];
-                func_80041450(arg1, arg2, arg3, arg4, p[0], p[1], p[2], 0, p[3], (f32) 0, arg5, arg6);
+                render_sprite_billboard_at(arg1, arg2, arg3, arg4, p[0], p[1], p[2], 0, p[3], (f32) 0, arg5, arg6);
                 e++;
             }
         }

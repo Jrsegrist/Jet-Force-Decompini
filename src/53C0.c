@@ -485,20 +485,17 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800053F8);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000561C);
 
-#ifdef NON_MATCHING
 /**
  * JFG: take every entry of the object and kind out of both lists (the second first).
- * NON_MATCHING: 4 words: the two list pointers are set up, and *size / *list reloaded, in the other order.
  */
-void func_80005BD0(s32 objectID, s32 kind) {
+void level_entries_remove_object(s32 objectID, s32 kind) {
     s32 *list;
     s32 *size;
     s32 i;
     u8 *entry;
     u8 *end;
 
-    list = &D_800F2CD8[1];
-    size = &D_800F2CE0[1];
+    list = &D_800F2CD8[1], size = &D_800F2CE0[1]; // one statement: size's address is set up first
     i = 2;
     while (i--) {
         entry = (u8 *) *list;
@@ -507,7 +504,7 @@ void func_80005BD0(s32 objectID, s32 kind) {
             if (objectID == ((LevelObjectEntry53 *) entry)->objectID &&
                 kind == ((LevelObjectEntry53 *) entry)->unk11) {
                 level_entry_remove((LevelObjectEntry53 *) entry);
-                end = *size + (u8 *) *list;
+                end = (u8 *) *list + *size;
             } else {
                 entry += ((LevelObjectEntry53 *) entry)->size;
             }
@@ -516,9 +513,6 @@ void func_80005BD0(s32 objectID, s32 kind) {
         size--;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80005BD0);
-#endif
 
 /* JFG: take an entry out of the level object entry list it is in, moving the later entries down
    and fixing the objects' pointers to them. */
@@ -1009,18 +1003,17 @@ void obj_tex_animate(ObjectTexAnimState *obj, ObjectModel53 *model, ModelInstanc
     }
 }
 
-#ifdef NON_MATCHING
 /**
  * JFG: set a byte of every attachment of the objects whose header has unk1E clear.
- * NON_MATCHING: 2 words: gObjectCount is loaded before gObjectListStart (target: the other order).
  */
-void func_80009928(s32 value) {
+void objects_set_attachment_byte(s32 value) {
     s32 i;
     s32 j;
     Object *obj;
     ObjectAttachment *attachment;
 
-    for (i = gObjectListStart; i < gObjectCount; i++) {
+    i = gObjectListStart; // assigned before the loop so it is loaded before gObjectCount
+    for (; i < gObjectCount; i++) {
         obj = gObjPtrList[i];
         if (obj->header->unk1E == 0) {
             for (j = 0; j < obj->header->numAttachments; j++) {
@@ -1032,9 +1025,6 @@ void func_80009928(s32 value) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80009928);
-#endif
 
 /**
  * Make the next call of move_object never mark the object as out of bounds.

@@ -503,7 +503,7 @@ extern char D_800AC598[];
 extern s8 D_800A3294;
 struct LevelHeader *level_header(void);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
-void func_80009928(s32 updateRate);
+void objects_set_attachment_byte(s32 updateRate);
 s32 func_80011C2C(void);
 void func_80077614(s32 updateRate);
 void func_80008FF0(s32 updateRate);
@@ -558,7 +558,7 @@ void func_80045F00(s32 updateRate) {
         }
     }
     debug_trace_add(gfx, D_800AC574, 0x62E);
-    func_80009928(updateRate);
+    objects_set_attachment_byte(updateRate);
     v = func_80011C2C();
     D_800A38FC = 1;
     if (gIsPaused == 0 && D_800A3328 == 0 && v == 0) {
@@ -1604,4 +1604,72 @@ void func_800487B8(void) {
 INCLUDE_ASM("asm/nonmatchings/45750", func_800487B8);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_8004883C);
+typedef struct DebugPosObj {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+} DebugPosObj;
+
+DebugPosObj *get_racer_object_by_port(s32 index);
+void set_current_dialogue_box_coords(s32 dialogueBoxID, s32 x1, s32 y1, s32 x2, s32 y2);
+void set_current_dialogue_background_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha);
+void func_8006FC20(u8 red, u8 green, u8 blue);
+void render_dialogue_box(Gfx **dList, void *matrices, void *verts, s32 dialogueBoxID);
+void set_text_font(s32 fontID);
+void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity);
+void set_text_background_colour(s32 red, s32 green, s32 blue, s32 alpha);
+void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentFlags);
+int sprintf(char *s, const char *fmt, ...);
+extern u8 gGameCurrMatrix[];
+extern s32 gPoolFreeBytes[3]; // JFG: three sizes shown in KB
+extern char D_800AC604[];
+extern char D_800AC614[];
+extern char D_800AC61C[];
+
+/* JFG: a debug box: the level's name (upper case), player 1's position and three sizes in KB. */
+void debug_level_info_draw(void) {
+    u8 *name;
+    DebugPosObj *racer;
+    s32 i;
+    u8 *src;
+    char buffer[32];
+    char *dst;
+    u8 c;
+
+    name = (u8 *) level_header();
+    racer = get_racer_object_by_port(0);
+    set_current_dialogue_box_coords(4, 200, 192, 296, 228);
+    set_current_dialogue_background_colour(4, 0, 0, 0, 160);
+    func_8006FC20(0, 0, 0);
+    render_dialogue_box(&gfx, gGameCurrMatrix, vtx, 4);
+    func_8006FC20(0, 80, 0);
+    set_text_font(3);
+    set_text_colour(255, 255, 255, 255, 255);
+    set_text_background_colour(0, 0, 0, 0);
+    if (name != NULL) {
+        src = name;
+        dst = buffer;
+        i = 32;
+        while (i--) {
+            c = *src++;
+            if (c >= 'a' && c <= 'z') {
+                c -= 0x20;
+            }
+            *dst++ = c;
+        }
+        draw_text(&gfx, 208, 194, buffer, 0);
+    }
+    if (racer != NULL) {
+        sprintf(buffer, D_800AC604, (s32) racer->x, (s32) racer->y, (s32) racer->z);
+        draw_text(&gfx, 208, 200, buffer, 0);
+    }
+    i = 0;
+    while (i < 3) {
+        sprintf(buffer, D_800AC614, i);
+        draw_text(&gfx, 208, 208 + i * 6, buffer, 0);
+        sprintf(buffer, D_800AC61C, gPoolFreeBytes[i] / 1024);
+        draw_text(&gfx, 240, 208 + i * 6, buffer, 0);
+        i++;
+    }
+}

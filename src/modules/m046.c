@@ -24,7 +24,7 @@ typedef struct M046Slot {
     /* 0x08 */ Object *obj;
 } M046Slot;
 
-/* A rectangle for func_800595F4, size 0xC */
+/* A rectangle for menu_fill_boxes, size 0xC */
 typedef struct M046Rect {
     /* 0x00 */ s16 x0;
     /* 0x02 */ s16 y0;
@@ -76,7 +76,7 @@ extern s16 D_80104704; /* ... now */
 extern s32 D_800A0D84;
 
 extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 arg5); /* projects to the screen */
-extern void func_800595F4(Gfx **dl, s32 count, M046Rect *rects, s32 arg3);         /* fills rectangles */
+extern void menu_fill_boxes(Gfx **dl, s32 count, M046Rect *rects, s32 arg3);         /* fills rectangles */
 extern void func_80054EA0(s32 *width, s32 *height, Gfx **dl);
 extern void func_80055B80(Gfx **dl);
 extern s32 runlink_module_loaded(s32 module);
@@ -232,7 +232,7 @@ static void render_bracket_box(Gfx **dl, s32 x, s32 y, s32 w, s32 h, s32 r, s32 
     rect->x1 = right + 1;
     rect->y1 = bottom + 1;
     rect->colour = colour;
-    func_800595F4(dl, 8, rects, 0);
+    menu_fill_boxes(dl, 8, rects, 0);
 }
 
 void func_m046_00308(Gfx **dl) {

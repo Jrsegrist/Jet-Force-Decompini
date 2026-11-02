@@ -56,7 +56,162 @@ s32 obj_init_emitter(EmitterObject *obj, Emitter *emitters, EmitterHeader *heade
     return (header->emitterCount * sizeof(Emitter) + 3) & ~3;
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_800286F4);
+/* JFG: an object header's light (217C0.c ObjectHeaderLight). Size: 0x18 bytes */
+typedef struct LightHeader29 {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ s8 unk3;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ s16 homeX;
+    /* 0x08 */ s16 homeY;
+    /* 0x0A */ s16 homeZ;
+    /* 0x0C */ u16 radius;
+    /* 0x0E */ u16 unkE;
+    /* 0x10 */ u8 colourR;
+    /* 0x11 */ u8 colourG;
+    /* 0x12 */ u8 colourB;
+    /* 0x13 */ u8 intensity;
+    /* 0x14 */ s16 colourCycleID;
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 unk17;
+} LightHeader29;
+
+/* JFG: an object header's corona (245D0.c CoronaHeader). Size: 0x20 bytes */
+typedef struct CoronaHeader29 {
+    /* 0x00 */ u8 active;
+    /* 0x01 */ u8 size;
+    /* 0x02 */ s16 rotation[3];
+    /* 0x08 */ f32 offset[3];
+    /* 0x14 */ u8 colour[4];
+    /* 0x18 */ s16 spriteID;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s8 attachPoint;
+    /* 0x1F */ u8 visible;
+} CoronaHeader29;
+
+/* JFG: the level entry of a light object */
+typedef struct LevelObjectEntry_LightObj {
+    /* 0x00 */ u8 pad0[0x31];
+    /* 0x31 */ u8 numFlags;
+    /* 0x32 */ u8 pad32[0x36 - 0x32];
+    /* 0x36 */ s16 lightRadius;
+    /* 0x38 */ s16 lightColourCycle;
+    /* 0x3A */ s16 coronaSize;
+    /* 0x3C */ s16 coronaColourCycle;
+    /* 0x3E */ s16 unk3E;
+    /* 0x40 */ u8 pad40[0x4A - 0x40];
+    /* 0x4A */ s16 zoneSize;
+    /* 0x4C */ u8 zoneValue;
+    /* 0x4D */ u8 pad4D;
+    /* 0x4E */ s16 zoneTime;
+    /* 0x50 */ s8 zoneUnk1F;
+    /* 0x51 */ u8 pad51[3];
+    /* 0x54 */ s32 zoneUnk20;
+} LevelObjectEntry_LightObj;
+
+/* JFG: the state of a light object */
+typedef struct LightObjState {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u8 pad2[2];
+    /* 0x04 */ f32 unk4;
+    /* 0x08 */ void *light;
+    /* 0x0C */ void *corona;
+    /* 0x10 */ u8 colourCycle[8];
+    /* 0x18 */ u8 colour[4]; // set by the colour cycle
+    /* 0x1C */ u8 pad1C[4];
+    /* 0x20 */ LevelObjectEntry_LightObj *entry;
+    /* 0x24 */ u8 *flags;
+    /* 0x28 */ u8 pad28[8];
+    /* 0x30 */ u8 flagBuffer[1];
+} LightObjState;
+
+/* JFG: an object, reduced to what obj_init_light_object uses */
+typedef struct LightObj {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ u8 pad8[4];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x3C - 0x18];
+    /* 0x3C */ void *unk3C;
+    /* 0x40 */ u8 pad40[0x68 - 0x40];
+    /* 0x68 */ LightObjState *state;
+} LightObj;
+
+extern f32 D_800ABB3C;
+void colour_cycle_init(void *cycle, s32 assetID);
+void *light_add_from_object_header(LightObj *obj, LightHeader29 *header);
+void *corona_add(LightObj *owner, CoronaHeader29 *header);
+void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7);
+
+/* JFG: init a light object from its level entry: a light, a corona (with a colour cycle) and a zone,
+   each if the entry has one. */
+void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
+    LightObjState *state;
+    s32 i;
+    LightHeader29 lightHeader;
+    CoronaHeader29 coronaHeader;
+
+    state = obj->state;
+    state->corona = NULL;
+    state->light = NULL;
+    state->flags = state->flagBuffer;
+    state->unk0 = 0;
+    state->entry = entry;
+    state->unk4 = 0;
+    obj->flags |= 0x400;
+    obj->unk3C = NULL;
+    if (entry->unk3E == 0) {
+        state->unk4 = entry->unk3E * D_800ABB3C;
+    }
+    for (i = 0; i < entry->numFlags; i++) {
+        state->flags[i] = 0;
+    }
+    if (entry->lightRadius) {
+        lightHeader.unk0 = 1;
+        lightHeader.unk1 = 3;
+        lightHeader.unk2 = 0x21;
+        lightHeader.unk3 = -1;
+        lightHeader.unk4 = 0;
+        lightHeader.homeX = 0;
+        lightHeader.homeY = 0;
+        lightHeader.homeZ = 0;
+        lightHeader.intensity = 255;
+        lightHeader.radius = entry->lightRadius;
+        lightHeader.unkE = entry->lightRadius;
+        lightHeader.colourCycleID = entry->lightColourCycle;
+        lightHeader.unk16 = 0;
+        lightHeader.unk17 = 0;
+        state->light = light_add_from_object_header(obj, &lightHeader);
+    }
+    if (entry->coronaSize) {
+        colour_cycle_init(state->colourCycle, entry->coronaColourCycle);
+        coronaHeader.active = 1;
+        coronaHeader.spriteID = -1;
+        coronaHeader.size = 0;
+        coronaHeader.rotation[0] = 0;
+        coronaHeader.rotation[1] = 0;
+        coronaHeader.rotation[2] = 0;
+        coronaHeader.offset[0] = 0.0f;
+        coronaHeader.offset[1] = 0.0f;
+        coronaHeader.offset[2] = 0.0f;
+        coronaHeader.colour[0] = state->colour[0];
+        coronaHeader.colour[1] = state->colour[1];
+        coronaHeader.colour[2] = state->colour[2];
+        coronaHeader.colour[3] = state->colour[3];
+        coronaHeader.unk1A = entry->coronaSize;
+        coronaHeader.unk1C = entry->coronaSize;
+        coronaHeader.attachPoint = -1;
+        state->corona = corona_add(obj, &coronaHeader);
+    }
+    if (entry->zoneSize && entry->zoneTime && entry->zoneValue) {
+        func_80029BA4(obj->x, obj->y, obj->z, entry->zoneSize, entry->zoneValue, entry->zoneTime / 60.0f,
+                      entry->zoneUnk1F, entry->zoneUnk20);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80028954);
 

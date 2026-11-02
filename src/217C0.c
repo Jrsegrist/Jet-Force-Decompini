@@ -205,9 +205,105 @@ void light_track_light_add(ObjectLight *light) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80020E3C);
+typedef struct LevelHeader217 {
+    /* 0x00 */ u8 pad0[0x6B];
+    /* 0x6B */ s8 unk6B;
+    /* 0x6C */ u8 pad6C[0x92 - 0x6C];
+    /* 0x92 */ s16 colourCycles[7]; // JFG: colour cycle assets lights can use (-1: none)
+    /* 0xA0 */ u8 padA0[0xD4 - 0xA0];
+    /* 0xD4 */ s16 shadeAngleY;
+    /* 0xD6 */ s16 shadeAngleX;
+    /* 0xD8 */ u8 padD8[0xDB - 0xD8];
+    /* 0xDB */ u8 shadeDiffuse;
+    /* 0xDC */ u8 shadeAmbient;
+    /* 0xDD */ u8 padDD[0xDF - 0xDD];
+    /* 0xDF */ u8 shadeOverride; // JFG: use these instead of the object header's
+} LevelHeader217;
 
+LevelHeader217 *level_header(void);
 void colour_cycle_init(void *cycle, s32 assetID); // sets up a colour cycle from an asset
+
+/* JFG: a light's level object entry (DKR: LevelObjectEntry_RgbaLight) */
+typedef struct LevelObjectEntry_Light {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA; // two nibbles
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 colourR;
+    /* 0x0D */ u8 colourG;
+    /* 0x0E */ u8 colourB;
+    /* 0x0F */ u8 intensity;
+    /* 0x10 */ s16 radius;
+    /* 0x12 */ s16 unk12;
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ s16 unk16;
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ u8 colourCycle; // an index into the level header's, if under 7
+    /* 0x1F */ u8 unk1F;
+} LevelObjectEntry_Light;
+
+/**
+ * Adds a light source from a level object entry.
+ * JFG: the object isn't used; the light's own layout (a colour cycle from the level header).
+ * DKR: light_add_from_level_object_entry
+ */
+ObjectLight *light_add_from_level_object_entry(Object *obj, LevelObjectEntry_Light *lightEntry) {
+    ObjectLight *light;
+    LevelHeader217 *levelHeader;
+
+    light = NULL;
+    if (gNumActiveLights < gMaxLights) {
+        light = gActiveLights[gNumActiveLights++];
+        light->unk0 = (lightEntry->unkA >> 4) & 0xF;
+        light->unk1 = lightEntry->unkA & 0xF;
+        if ((lightEntry->unkB & 0xE0) == 0x40) {
+            light->unk0 = 3;
+        }
+        light->flags = 7;
+        light->enabled = ~lightEntry->unk1F & 0x61;
+        light->unk4 = 0;
+        light->unk6 = -1;
+        light->homeX = 0.0f;
+        light->homeY = 0.0f;
+        light->homeZ = 0.0f;
+        light->owner = NULL;
+        light->posX = lightEntry->x;
+        light->posY = lightEntry->y;
+        light->posZ = lightEntry->z;
+        light->radius = lightEntry->radius;
+        light->unk28 = light->radius;
+        light->unk2C = light->radius;
+        if (light->unk0 == 2) {
+            light->unk28 = lightEntry->unk12;
+        }
+        light->radiusSquare = light->radius * light->radius;
+        light->radiusMag = 1.0f / light->radius;
+        light->colourR = lightEntry->colourR;
+        light->colourG = lightEntry->colourG;
+        light->colourB = lightEntry->colourB;
+        light->intensity = lightEntry->intensity;
+        light->intensityF = lightEntry->intensity;
+        light->unk54 = 0;
+        if (lightEntry->colourCycle < 7) {
+            levelHeader = level_header();
+            if (levelHeader->colourCycles[lightEntry->colourCycle] != -1) {
+                colour_cycle_init(light->colourCycle, levelHeader->colourCycles[lightEntry->colourCycle]);
+            }
+        }
+        light->unk58 = lightEntry->unk16;
+        light->unk5C = lightEntry->unk1A;
+        light->unk5A = lightEntry->unk18;
+        light->unk5E = lightEntry->unk1C;
+        light_track_light_add(light);
+        light_update(light, 0);
+    }
+    return light;
+}
+
 void light_track_light_add(ObjectLight *light);
 
 /**
@@ -354,23 +450,41 @@ ObjectLight **lightGetLights(s32 *numLights) {
     return gActiveLights;
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800218C4);
+f32 sqrtf(f32 x);
 
-typedef struct LevelHeader217 {
-    /* 0x00 */ u8 pad0[0x6B];
-    /* 0x6B */ s8 unk6B;
-    /* 0x6C */ u8 pad6C[0xD4 - 0x6C];
-    /* 0xD4 */ s16 shadeAngleY;
-    /* 0xD6 */ s16 shadeAngleX;
-    /* 0xD8 */ u8 padD8[0xDB - 0xD8];
-    /* 0xDB */ u8 shadeDiffuse;
-    /* 0xDC */ u8 shadeAmbient;
-    /* 0xDD */ u8 padDD[0xDF - 0xDD];
-    /* 0xDF */ u8 shadeOverride; // JFG: use these instead of the object header's
-} LevelHeader217;
+/* JFG: the active light that shines strongest at a point (falloff by distance times intensity), or NULL. */
+ObjectLight *light_find_strongest_at(f32 x, f32 y, f32 z) {
+    s32 i;
+    ObjectLight *light;
+    ObjectLight *best;
+    f32 dx, dy, dz;
+    f32 distSq;
+    f32 strength;
+    f32 bestStrength;
+
+    bestStrength = 0.0f;
+    best = NULL;
+    i = gNumActiveLights;
+    while (i--) {
+        light = gActiveLights[i];
+        if (light != NULL) {
+            dx = x - light->posX;
+            dy = y - light->posY;
+            dz = z - light->posZ;
+            distSq = dx * dx + dy * dy + dz * dz;
+            if (distSq < light->radiusSquare) {
+                strength = (1.0f - sqrtf(distSq) * light->radiusMag) * light->intensityF;
+                if (bestStrength < strength) {
+                    bestStrength = strength;
+                    best = light;
+                }
+            }
+        }
+    }
+    return best;
+}
 
 Object **objGetObjList(s32 *arg0, s32 *cnt);
-LevelHeader217 *level_header(void);
 void func_80021B8C(Object *obj, void *arg1);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
@@ -458,8 +572,6 @@ f32 light_direction_calc(f32 dirX, f32 dirY, f32 dirZ, f32 diffX, f32 diffY, f32
     return result;
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800221F0);
-
 /* JFG: a directional light (D_800F5B28 is the default object light) */
 typedef struct DirLight {
     /* 0x00 */ f32 dir[3];
@@ -489,6 +601,124 @@ typedef struct ShadeProperties {
     /* 0x10 */ DirLight light;
     /* 0x30 */ u8 pad30[0x90 - 0x30];
 } ShadeProperties;
+
+/* JFG: a model, reduced */
+typedef struct ShadeModel {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ void *unk20;
+    /* 0x24 */ u8 pad24[0x4F - 0x24];
+    /* 0x4F */ s8 unk4F;
+    /* 0x50 */ u8 pad50[0x68 - 0x50];
+    /* 0x68 */ void *unk68;
+    /* 0x6C */ void *unk6C;
+    /* 0x70 */ void *unk70;
+} ShadeModel;
+
+typedef struct ShadeModelInstance {
+    /* 0x00 */ ShadeModel *model;
+    /* 0x04 */ void *unk4;
+} ShadeModelInstance;
+
+/* JFG: the camera, reduced */
+typedef struct ShadeCamera {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+} ShadeCamera;
+
+/* JFG: an object's position */
+typedef struct ShadeObject {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+} ShadeObject;
+
+ShadeCamera *cam_get_active_camera(void);
+void func_80049DC0(ShadeObject *obj, MtxF *out);
+void func_800231C8(s32 count, void *lights, s32 n, MtxF *matrix, void *buf);
+void func_800229E0(void *arg0, void *arg1, DirLight *light, void *buf, void *arg4);
+void func_80022BC4(void *arg0, void *arg1, void *buf, s32 n, DirLight *light, void *arg5, void *arg6);
+void func_80022E98(void *arg0, void *arg1, DirLight *light, void *arg3, void *buf, s32 n, s32 count);
+void func_8002333C(void *arg0, void *arg1, void *arg2, void *buf);
+
+#ifdef NON_MATCHING
+/* JFG: shade a model instance: its lights (scaled by shade->unk0 for this call) and an environment
+   direction from the camera when the model has one.
+   NON_MATCHING: the frame is 8 bytes smaller (the target has two more words below localMtx) and the
+   scaled brightness values land in v0/v1 instead of t2/t3. */
+void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *shade, MtxF *matrix) {
+    s32 n;
+    s32 max;
+    s32 min;
+    s32 range;
+    s32 shifted;
+    MtxF localMtx;
+    ShadeModel *model;
+    DirLight *light;
+    ShadeCamera *cam;
+    s32 newMax;
+    s32 newMin;
+    f32 dir[3];
+
+    model = inst->model;
+    if (shade == NULL && model->unk70 == NULL) {
+        return;
+    }
+    n = model->unk4F;
+    if (n <= 0) {
+        if (matrix == NULL) {
+            func_80049DC0(obj, &localMtx);
+            matrix = &localMtx;
+        }
+        n = 1;
+    }
+    if (shade != NULL) {
+        light = &shade->light;
+        if (shade->unk0 != 1.0f) {
+            max = light->max;
+            min = light->min;
+            range = light->range;
+            shifted = light->unk10;
+            newMax = max * shade->unk0;
+            light->max = newMax;
+            newMin = min * shade->unk0;
+            light->range = newMax - newMin;
+            light->unk10 = light->range << light->shift;
+            light->min = newMin;
+        }
+        light = &shade->light;
+        if (shade->unkE > 0) {
+            func_800231C8(shade->unkE, light, n, matrix, D_800A1010);
+            if (shade->unkE == 1) {
+                func_800229E0(inst->unk4, model->unk6C, light, D_800A1010, model->unk68);
+            } else if (shade->unkE == 2) {
+                func_80022BC4(inst->unk4, model->unk6C, D_800A1010, n, light, shade->pad30, model->unk68);
+            } else {
+                func_80022E98(inst->unk4, model->unk6C, light, model->unk68, D_800A1010, n, shade->unkE);
+            }
+        }
+        light = &shade->light;
+        if (shade->unk0 != 1.0f) {
+            light->max = max;
+            light->min = min;
+            light->range = range;
+            light->unk10 = shifted;
+        }
+    }
+    if (model->unk70 != NULL) {
+        cam = cam_get_active_camera();
+        dir[0] = cam->x - obj->x;
+        dir[1] = cam->y - obj->y;
+        dir[2] = cam->z - obj->z;
+        func_800231C8(1, dir, n, matrix, D_800A1010);
+        func_8002333C(model->unk20, model->unk70, model->unk68, D_800A1010);
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/217C0", func_800221F0);
+#endif
 
 extern DirLight D_800F5B28; // JFG: the default object light
 void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift);
@@ -547,13 +777,13 @@ void light_setup_light_sources(Object *obj) {
     }
 }
 
-void *func_80023A48(Object *obj, ObjectHeaderCorona *header);
+void *corona_add(Object *obj, ObjectHeaderCorona *header);
 
 /* JFG: the same loop as light_setup_light_sources, over the header's corona descriptions (0x800226B8). */
 void light_setup_coronas(Object *obj) {
     s32 i;
     for (i = 0; i < obj->header->numCoronas; i++) {
-        obj->coronaData[i] = func_80023A48(obj, &obj->header->coronas[i]);
+        obj->coronaData[i] = corona_add(obj, &obj->header->coronas[i]);
     }
 }
 
@@ -620,7 +850,7 @@ void corona_from_level_entry(Object *obj) {
     header.unk1C = (entry->unkE * entry->unk10) / 100;
     header.unk1E = -1;
     header.unk1F = 0;
-    obj->unk68 = func_80023A48(NULL, &header);
+    obj->unk68 = corona_add(NULL, &header);
 }
 
 void corona_free(void *light);

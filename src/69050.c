@@ -189,7 +189,78 @@ void func_80068DF8(void **cone) {
     mempool_free(cone);
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068E58);
+typedef struct EffectMesh {
+    /* 0x00 */ void *tex1;
+    /* 0x04 */ void *tex2;
+    /* 0x08 */ u8 *verts[2]; // double-buffered vertices
+    /* 0x10 */ u8 *tris;
+    /* 0x14 */ u8 numPoints;
+    /* 0x15 */ u8 segments;
+    /* 0x16 */ u8 unk16; // the current vertex buffer
+    /* 0x17 */ u8 pad17;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ s16 unk20;
+    /* 0x22 */ s16 x;
+    /* 0x24 */ s16 y;
+    /* 0x26 */ s16 z;
+} EffectMesh;
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void *load_texture(s32 assetIndex);
+void func_800691F0(EffectMesh *mesh, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
+void func_80069000(EffectMesh *mesh, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
+void func_800694CC(EffectMesh *mesh, s32 arg1);
+
+/* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
+   and build it (a single point when segments is 0). */
+EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 segments, s32 tex1,
+                          s32 tex2) {
+    s32 sizeA;
+    s32 sizeB;
+    EffectMesh *mesh;
+
+    if (segments == 0) {
+        sizeA = 0x280;
+        sizeB = 0x154;
+    } else {
+        sizeA = segments * 16;
+        sizeB = segments * 10 + 10;
+    }
+    mesh = mempool_alloc_safe(sizeof(EffectMesh) + sizeA + (sizeB * 2), -1);
+    if (mesh != NULL) {
+        if (tex1 >= 0) {
+            mesh->tex1 = load_texture(tex1);
+        } else {
+            mesh->tex1 = NULL;
+        }
+        if (tex2 >= 0) {
+            mesh->tex2 = load_texture(tex2);
+        } else {
+            mesh->tex2 = NULL;
+        }
+        mesh->tris = (u8 *) mesh + 0x28;
+        mesh->verts[0] = mesh->tris + sizeA;
+        mesh->verts[1] = mesh->verts[0] + sizeB;
+        mesh->numPoints = segments + 1;
+        mesh->unk16 = 0;
+        mesh->segments = segments;
+        mesh->unk1E = arg4;
+        mesh->unk1C = arg3;
+        mesh->unk20 = arg6;
+        mesh->unk18 = arg5;
+        mesh->x = x;
+        mesh->y = y;
+        mesh->z = z;
+        if (segments + 1 == 1) {
+            func_800691F0(mesh, x, y, z, arg3, arg4, arg5, arg6);
+        } else {
+            func_80069000(mesh, x, y, z, arg3, arg4, arg5, arg6);
+        }
+        func_800694CC(mesh, 0);
+    }
+    return mesh;
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_80069000);
 
@@ -197,11 +268,128 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_800691F0);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_800694CC);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006999C);
+void func_8004944C(void *angles, f32 *vec);
+f32 func_80049C30(s32 angle);
+f32 func_80049C34(s32 angle);
+void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 *src, Vertex *dst);
 
+/* JFG: flip an effect mesh's vertex buffer and move its tip; a fan mesh (segments 0) also gets its ring of 8
+   points, wider and deeper the higher brightness is above 0x80. */
+void effect_mesh_update(EffectMesh *mesh, s16 depth, s32 brightness) {
+    f32 *p;
+    f32 pts[8][3];
+    Vertex *verts;
+    f32 f;
+    f32 radius;
+    f32 height;
+    s32 i;
+
+    if (mesh != NULL) {
+        mesh->unk16 ^= 1;
+        verts = (Vertex *) mesh->verts[mesh->unk16];
+        p = pts[0];
+        pts[0][2] = -depth;
+        func_8004944C(&mesh->unk1C, p);
+        verts->x = (s32) pts[0][0] + mesh->x;
+        verts->y = (s32) pts[0][1] + mesh->y;
+        verts->z = (s32) pts[0][2] + mesh->z;
+        if (mesh->segments == 0) {
+            radius = mesh->unk18;
+            height = mesh->unk20;
+            if (brightness < 0x80) {
+                f = 0.0f;
+            } else if (brightness >= 0x100) {
+                f = 1.0f;
+            } else {
+                f = (brightness - 0x7F) * 0.0078125f;
+            }
+            radius *= 1.0f + 2.0f * f;
+            height *= 0.25f * f;
+            for (i = 0; i < 8; i++) {
+                p[0] = func_80049C34(i << 13) * radius;
+                p[1] = func_80049C30(i << 13) * radius;
+                p[2] = -height;
+                p += 3;
+            }
+            vertices_rotate_translate(8, mesh->x, mesh->y, mesh->z, mesh->unk1C, mesh->unk1E, pts[0], verts + 9);
+        }
+    }
+}
+
+#ifdef NON_MATCHING
+void func_80055C00();
+
+/* NON_MATCHING: 8 words: in the segments branch numPoints and its * 8 sit in a0/a1 (target v1/a0), segments in v0 (target a2) */
+/* JFG: draw an effect mesh: one textured fan of 18 points (segments 0) or a strip of segments triangles. */
+void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
+    s32 hasTex;
+
+    if (mesh != NULL) {
+        gDPPipeSync((*dList)++);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, alpha);
+        gDPSetEnvColor((*dList)++, 255, 255, 255, 0);
+        if (mesh->tex1 != NULL) {
+            hasTex = TRUE;
+        } else {
+            hasTex = FALSE;
+        }
+        if (mesh->segments == 0) {
+            gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]), 18, 0);
+            func_80055C00(dList, mesh->tex2, flags, 0);
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), 16, hasTex);
+            func_80055C00(dList, mesh->tex1, flags, 0);
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris + 0x200), 8, hasTex);
+            func_80055C00(dList, mesh->tex2, flags, 0);
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris + 0x100), 16, hasTex);
+        } else {
+            func_80055C00(dList, mesh->tex1, flags, 0);
+            gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]),
+                   mesh->numPoints * 8 + 8 + mesh->numPoints * 2,
+                   (mesh->numPoints * 8) | ((u32) OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]) & 6));
+            gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), mesh->segments, hasTex);
+        }
+        gDPPipeSync((*dList)++);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_80069BE8);
+#endif
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80069F04);
+f32 func_80049C30(s32 angle);
+f32 func_80049C34(s32 angle);
+
+/* JFG: rotate count points (rotY, then rotX), add (x, y, z) and write them as white vertices. */
+void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 *src, Vertex *dst) {
+    f32 sinY;
+    f32 cosY;
+    f32 sinX;
+    f32 cosX;
+    f32 px;
+    f32 py;
+    f32 pz;
+    f32 t;
+
+    sinY = func_80049C34(rotY);
+    cosY = func_80049C30(rotY);
+    sinX = func_80049C34(rotX);
+    cosX = func_80049C30(rotX);
+    while (count--) {
+        px = src[0];
+        py = src[1];
+        pz = src[2];
+        src += 3;
+        t = pz * cosY + py * sinY;
+        dst->x = (s32) (px * cosX + t * sinX) + x;
+        dst->y = (s32) (py * cosY - pz * sinY) + y;
+        dst->z = (s32) (t * cosX - px * sinX) + z;
+        dst->r = 255;
+        dst->g = 255;
+        dst->b = 255;
+        dst->a = 255;
+        dst++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A0C0);
 
@@ -725,18 +913,152 @@ void func_8006D0D8(void) {
     D_80103B94 = -1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D110);
+/* JFG: clip the line (x1, y1)-(x2, y2) to the rectangle; FALSE if nothing of it is left. */
+s32 line_clip_rect(s16 *px1, s16 *py1, s16 *px2, s16 *py2, s32 left, s32 top, s32 right, s32 bottom) {
+    s32 xa;
+    s32 ya;
+    s32 xb;
+    s32 yb;
+    s32 swapped;
+    s32 dx;
+    s32 dy;
+    s32 tmp;
+    s32 tmp2;
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D390);
+    if (*px2 >= *px1) {
+        xa = *px1;
+        ya = *py1;
+        xb = *px2;
+        yb = *py2;
+        swapped = FALSE;
+    } else {
+        xa = *px2;
+        ya = *py2;
+        xb = *px1;
+        yb = *py1;
+        swapped = TRUE;
+    }
+    if (xb < left || right < xa) {
+        return FALSE;
+    }
+    dx = xb - xa;
+    if (xa != xb) {
+        dy = yb - ya;
+        if (right < xb) {
+            yb = (right - xa) * dy / dx + ya;
+            xb = right;
+        }
+        if (xa < left) {
+            ya = (left - xa) * dy / dx + ya;
+            xa = left;
+        }
+    }
+    if (yb < ya) {
+        tmp = xa;
+        tmp2 = ya;
+        xa = xb;
+        ya = yb;
+        xb = tmp;
+        yb = tmp2;
+        swapped ^= 1;
+    }
+    if (yb < top || bottom < ya) {
+        return FALSE;
+    }
+    dx = xb - xa;
+    if (ya != yb) {
+        dy = yb - ya;
+        if (bottom < yb) {
+            xb = (bottom - ya) * dx / dy + xa;
+            yb = bottom;
+        }
+        if (ya < top) {
+            xa = (top - ya) * dx / dy + xa;
+            ya = top;
+        }
+    }
+    if (swapped) {
+        *px1 = xb;
+        *py1 = yb;
+        *px2 = xa;
+        *py2 = ya;
+    } else {
+        *px1 = xa;
+        *py1 = ya;
+        *px2 = xb;
+        *py2 = yb;
+    }
+    return TRUE;
+}
 
-void func_8006D390(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour);
+typedef struct ScreenLine {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s32 u : 12;
+    /* 0x04 */ s32 v : 12;
+    /* 0x07 */ s32 flags : 8;
+} ScreenLine;
+extern ScreenLine D_80102DC0[2][0x94];
+
+void menu_layout_box_get(s32 box, s32 *left, s32 *top, s32 *right, s32 *bottom);
+s32 line_clip_rect(s16 *x1, s16 *y1, s16 *x2, s16 *y2, s32 left, s32 top, s32 right, s32 bottom);
+
+/* JFG: queue a line clipped to the current window (or the screen); sorted unless the type is 2, 12 or 13. */
+void screen_line_add(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour) {
+    s32 left;
+    s32 top;
+    s32 right;
+    s32 bottom;
+    ScreenLine *entry;
+    u32 width;
+    u32 height;
+    s32 tmp;
+
+    if (D_80103B80[D_80103B90] < 0x94) {
+        if (D_80103B94 != -1) {
+            menu_layout_box_get(D_80103B94, &left, &top, &right, &bottom);
+            left++;
+            top++;
+            right -= 2;
+            bottom -= 2;
+        } else {
+            fb_size(&width, &height);
+            left = 1;
+            top = 1;
+            right = width - 2;
+            bottom = height - 2;
+        }
+        if (line_clip_rect(&x1, &y1, &x2, &y2, left, top, right, bottom)) {
+            if (x1 != x2 || y1 != y2) {
+                if ((colour & 0xF) != 12 && (colour & 0xF) != 13 && (colour & 0xF) != 2) {
+                    if (x2 < x1) {
+                        tmp = x1;
+                        x1 = x2;
+                        x2 = tmp;
+                    }
+                    if (y2 < y1) {
+                        tmp = y1;
+                        y1 = y2;
+                        y2 = tmp;
+                    }
+                }
+                entry = &D_80102DC0[D_80103B90][D_80103B80[D_80103B90]++];
+                entry->x = x1;
+                entry->u = y1;
+                entry->y = x2;
+                entry->v = y2;
+                entry->flags = colour;
+            }
+        }
+    }
+}
 
 /* JFG: draw a line with D_80103B94 temporarily set to `window`. */
 void func_8006D58C(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour, s32 window) {
     s32 prevWindow = D_80103B94;
 
     D_80103B94 = window;
-    func_8006D390(x1, y1, x2, y2, colour);
+    screen_line_add(x1, y1, x2, y2, colour);
     D_80103B94 = prevWindow;
 }
 
@@ -971,15 +1293,6 @@ void func_8006DF90(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
 #else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
 #endif
-
-typedef struct ScreenLine {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s32 u : 12;
-    /* 0x04 */ s32 v : 12;
-    /* 0x07 */ s32 flags : 8;
-} ScreenLine;
-extern ScreenLine D_80102DC0[2][0x94];
 
 /* JFG: queue an entry in the current buffer (up to 0x94). */
 void func_8006E0C4(s32 x, s32 u, s32 y, s32 v, s32 flag) {

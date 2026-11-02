@@ -24,7 +24,7 @@ typedef struct M063Option {
     /* 0x8 */ char *text;
 } M063Option;
 
-/* What func_800416CC draws the logo with (laid out like the start of an object) */
+/* What render_ortho_triangle_image draws the logo with (laid out like the start of an object) */
 typedef struct M063Sprite {
     /* 0x00 */ ObjectTransform trans;
     /* 0x18 */ u8 pad18[0x28 - 0x18];
@@ -65,7 +65,7 @@ extern void func_80055C00(Gfx **dList, void *tex, s32 arg2, s32 arg3);
 extern void rendermode_reset(Gfx **dList);
 extern void func_80056000(s32 arg0);
 extern ObjectTransform *cam_get_cameras(void);
-extern void func_800416CC(Gfx **dList, Mtx **mtx, Vertex **vtx, M063Sprite *sprite, void *tex, s32 arg5, s32 alpha);
+extern void render_ortho_triangle_image(Gfx **dList, Mtx **mtx, Vertex **vtx, M063Sprite *sprite, void *tex, s32 arg5, s32 alpha);
 extern void func_8004EDBC(Gfx **dList, M063Image *image, s32 x, s32 y, u8 r, u8 g, u8 b, s32 alpha); /* DKR texrect_draw */
 extern void func_8004F02C(Gfx **dList, M063Image *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour,
                           s32 flags); /* DKR texrect_draw_scaled */
@@ -342,7 +342,7 @@ void func_m063_00140(s32 updateRate) {
                 sprite.unk28 = 0.0f;
                 gDPPipeSync(D_800FF398++);
                 gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, i);
-                func_800416CC(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x94], 0, i);
+                render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x94], 0, i);
                 gDPPipeSync(D_800FF398++);
                 gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
                 func_80056000(1);

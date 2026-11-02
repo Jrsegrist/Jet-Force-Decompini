@@ -68,7 +68,7 @@ typedef struct M091PreyData {
 } M091PreyData;
 
 extern s32 func_80048558(void);
-extern s32 func_800195E8(f32 x, f32 z, f32 *y, s32 mask); /* the water level at x, z */
+extern s32 track_height_at(f32 x, f32 z, f32 *y, s32 mask); /* the water level at x, z */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern s16 angle_lerp(s16 from, s16 to, f32 t);              /* steps an angle towards another */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
@@ -207,7 +207,7 @@ void func_m091_0031C(Object *obj, M091Setup *setup, s32 arg2) {
     fish->phase[2] = func_80048E2C(0, 0x10000);
     fish->phaseSpeed[2] = setup->phaseSpeed[2] << 4;
     fish->still = setup->flags & 1;
-    if ((func_800195E8(obj->trans.x_position, obj->trans.z_position, &fish->waterY, 0x2000) & 0x2000) &&
+    if ((track_height_at(obj->trans.x_position, obj->trans.z_position, &fish->waterY, 0x2000) & 0x2000) &&
         obj->trans.y_position < fish->waterY) {
         fish->inWater = 1;
     } else {
