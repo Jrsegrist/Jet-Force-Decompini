@@ -39,7 +39,7 @@ extern void func_80059E1C(s16 *assets); /* loads menu textures */
 extern void func_80059CCC(s16 *assets); /* frees them */
 extern void mempool_free_queue_flush(void);
 extern void func_8005414C(void);
-extern void func_80055B0C(s32 arg0, s32 arg1);
+extern void load_texture_at(s32 arg0, s32 arg1);
 extern void func_8004AA80(void *data); /* frees */
 extern void func_8003F468(void);
 extern void func_80004C64(s32 arg0);
@@ -181,7 +181,7 @@ static void free_textures(void) {
     mempool_free_queue_flush();
     func_8005414C();
     for (i = 0; i < sTextureCount; i++) {
-        func_80055B0C(sTextures[i].unk0, sTextures[i].unk4);
+        load_texture_at(sTextures[i].unk0, sTextures[i].unk4);
     }
     func_8004AA80(sTextures);
     func_8003F468();

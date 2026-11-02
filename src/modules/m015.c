@@ -316,7 +316,7 @@ typedef struct M015SpawnEntry {
     /* 0x10 */ f32 unk10;
 } M015SpawnEntry;
 
-extern s32 func_8003B114(Racer *racer);
+extern s32 weapon_usable_by_character(Racer *racer);
 extern Object *func_80005F14(void *entry, s32 arg1);   /* spawn_object */
 extern void func_80057A54(M015Texture *tex, u32 *flags, s32 *frame, s32 updateRate); /* tex_animate_texture */
 extern s32 func_80049D80(s32 a, s32 b);
@@ -329,7 +329,7 @@ extern void func_m001_002A0(void *particle, s32 updateRate);
 extern s32 func_8004966C(s16 angle);
 extern void func_8007E328(Object *obj, Object *obj2);
 extern void func_8006F078(void);
-extern void func_80059864(s32 arg0, s32 player, u32 colour);
+extern void menu_draw_layout_box(s32 arg0, s32 player, u32 colour);
 extern u8 D_800A4FC4;
 
 /* The controller's button masks for the actions */
@@ -345,15 +345,15 @@ typedef struct M015Buttons {
     /* 0x20 */ u32 unk20;
 } M015Buttons;
 extern M015Buttons *D_800A18B0;
-extern s32 D_800F6DA0; /* buttons pressed */
-extern s32 D_800F6DA4; /* buttons held */
+extern s32 gPlayerButtonsHeld; /* buttons pressed */
+extern s32 gPlayerButtonsPressed; /* buttons held */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern f32 func_800340A4(f32 from, f32 to, void *table, f32 updateRate);
-extern s32 func_80037194(f32 x, f32 y, f32 z, f32 arg3, f32 arg4);
+extern s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 arg3, f32 arg4);
 extern void func_80033D74(Object *obj, Racer *racer, f32 *speed, s16 angle, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
 extern void func_800346C4(Object *obj, Racer *racer, f32 *speed, s16 *angle, s32 arg4, s32 arg5, void *arg6, f32 arg7,
                           f32 updateRate);
-extern s16 func_80033FA4(s16 from, s16 to, f32 amount);
+extern s16 angle_lerp(s16 from, s16 to, f32 amount);
 /* A player's character record (func_80047C1C) */
 typedef struct M015Char {
     /* 0x00 */ u8 pad0[0xA];
@@ -365,7 +365,7 @@ typedef struct M015Char {
 extern M015Char *func_80047C1C(s32 player, s32 character);
 extern s32 func_8003AABC(Object *obj, Racer *racer, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s16 *yaw, s16 *pitch,
                          f32 updateRate);
-extern void func_80042438(s32 player, s32 arg1);
+extern void cam_fov_zoom_set(s32 player, s32 arg1);
 extern void func_80034018(Racer *racer);
 /* The level header (DKR's level_header) as used here */
 typedef struct M015LevelHeader {
@@ -624,7 +624,7 @@ static void func_m015_04B4C(Object *obj, Racer *racer, s32 mode, f32 updateRate)
 static void func_m015_04088(s16 a, s16 b, s16 c, s16 d);
 static void func_m015_06E40(Racer *racer);
 static void func_m015_07724(Object *obj, Racer *racer, f32 arg2, f32 arg3, f32 arg4, s32 updateRate);
-extern s32 D_800F6DBC;
+extern s32 gPlayerInputLocked;
 extern void func_m022_02F38(Object *obj, Racer *racer, s32 updateRate);
 extern void func_m129_00CF8(Object *obj, Racer *racer, s32 updateRate);
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
@@ -654,7 +654,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
 static void func_m015_07890(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate);
 static void func_m015_07BC8(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 
-/* A weapon's entry in D_800A1490 */
+/* A weapon's entry in gWeaponInfo */
 typedef struct M015WeaponInfo {
     /* 0x00 */ u8 pad0[0xC];
     /* 0x0C */ s32 unkC;
@@ -676,23 +676,23 @@ typedef struct M015Obj58 {
 } M015Obj58;
 #define OBJ58(obj) (*(M015Obj58 **) ((u8 *) (obj) + 0x58))
 
-extern M015WeaponInfo D_800A1490[];
+extern M015WeaponInfo gWeaponInfo[];
 extern u32 D_800A197C[4]; /* the button for each weapon slot */
 extern u8 D_800A5070;
 extern u8 D_800A5078;
 extern u8 D_800A5084;
-extern s32 D_800F6DAC; /* stick x */
-extern s32 D_800F6DB0; /* stick y */
+extern s32 gPlayerStickX; /* stick x */
+extern s32 gPlayerStickY; /* stick y */
 extern s16 *D_800F6DC0;
 extern void func_80000510(s32 arg0);
-extern void func_80001228(s32 handle);
+extern void sound_stop(s32 handle);
 extern s32 func_8000BC28(Object *obj, M015ModelInst *inst, M015Model *model, s32 weapon, s32 *arg4, f32 *x, f32 *y,
                          f32 *z);
 extern void func_800116BC(Object *obj, f32 frame);
 extern u32 func_800195E8(f32 x, f32 z, f32 *height, u32 mask);
 extern void func_800221F0(Object *obj, M015ModelInst *inst, void *shading, void *arg3);
 extern void func_80026E20(Object *obj);
-extern void func_80031F44(Racer *racer);
+extern void player_items_unlink(Racer *racer);
 extern void func_80033BB8(Racer *racer, s32 arg1, s32 updateRate);
 extern s32 func_80033F4C(s32 arg0);
 extern void func_80034164(Object *obj, Racer *racer);
@@ -704,20 +704,20 @@ extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 u
 extern void func_800364D4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate, void *table);
 extern void func_80036A30(Object *obj, Racer *racer, s32 updateRate);
 extern void func_80036DBC(Object *obj, Racer *racer, s32 updateRate);
-extern void func_80037244(s32 arg0);
-extern void func_80037250(s32 player);
+extern void player_input_lock_set(s32 arg0);
+extern void player_input_latch(s32 player);
 extern void func_8003733C(s32 player, s32 a, s32 b, s32 c, s32 d);
 extern s32 func_80037550(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80038324(Object *obj, Racer *racer, s32 weapon);
-extern s32 func_80038430(Object *obj, Racer *racer, s32 weapon);
-extern void func_80038528(Object *obj, Racer *racer, s32 weapon);
+extern s32 weapon_select(Object *obj, Racer *racer, s32 weapon);
+extern void weapon_select_prev(Object *obj, Racer *racer, s32 weapon);
 extern void func_80038630(Object *obj, Racer *racer);
 extern void func_80039FCC(Object *obj, Racer *racer, s32 a, s32 b, f32 c, f32 d, f32 e, s32 updateRate);
-extern void func_8003B820(Object *obj);
+extern void player_drop_held_object(Object *obj);
 extern void func_8003D21C(M015ModelInst *inst, M015Model *model, Object *obj, f32 a, f32 b);
-extern u8 *func_80047C0C(void);
-extern void func_80047C9C(s32 player, s32 character, s32 arg2);
-extern s32 func_80047D80(s32 player, s32 character, s32 arg2);
+extern u8 *get_settings(void);
+extern void character_item_give(s32 player, s32 character, s32 arg2);
+extern s32 character_has_item(s32 player, s32 character, s32 arg2);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_8006B090(Object *obj, s32 updateRate);
 extern void func_m107_00D08(void *arg0, f32 a, f32 b, s32 c);
@@ -777,14 +777,14 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     }
     D_m015_089CC = racer->unk577;
     if (racer->unk56B != 0) {
-        func_80037244(1);
+        player_input_lock_set(1);
         racer->unk56B -= updateRate;
         if (racer->unk56B < 0) {
             racer->unk56B = 0;
         }
     }
     if (racer->unk577 != 0) {
-        func_80037244(1);
+        player_input_lock_set(1);
         racer->unk577 -= updateRate;
         if (racer->unk577 < 0) {
             racer->unk577 = 0;
@@ -792,10 +792,10 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     }
     if (racer->unk1F9 != 0 || racer->unk1FA != 0 || racer->unk186 != 0 || racer->unk198 != 0 || racer->unk5EE != 0 ||
         racer->state == 10 || racer->unk5C0 != 0) {
-        func_80037244(1);
+        player_input_lock_set(1);
     }
     if (racer->unk19F != 0 || racer->unk10D != 0) {
-        func_80037244(1);
+        player_input_lock_set(1);
         if (obj->animationID != 0x2F) {
             func_m015_05180(obj, racer, 0x2F, 0);
         }
@@ -810,7 +810,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         racer->unk10D = 0;
         racer->unk594 = 0.0f;
     }
-    func_80037250(racer->player);
+    player_input_latch(racer->player);
     func_80034018(racer);
     if (obj->velocity.x < -20.0f) {
         obj->velocity.x = -20.0f;
@@ -853,13 +853,13 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     racer->unk54 = dir.x;
     racer->unk58 = dir.y;
     racer->unk50 = dir.z;
-    speed = func_80097140(D_800F6DAC * D_800F6DAC + D_800F6DB0 * D_800F6DB0);
+    speed = func_80097140(gPlayerStickX * gPlayerStickX + gPlayerStickY * gPlayerStickY);
     if (speed > 65.0f) {
         speed = 65.0f;
     }
     speed *= D_m015_089D4;
     if (speed != 0.0f) {
-        angle = func_80049C84(D_800F6DAC, -D_800F6DB0) - *D_800F6DC0;
+        angle = func_80049C84(gPlayerStickX, -gPlayerStickY) - *D_800F6DC0;
     } else {
         angle = racer->unk11C;
     }
@@ -889,7 +889,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     if (((racer->pose->unk5 & racer->unk532) && racer->state != 3) || racer->state == 4) {
         racer->unk57C = obj->trans.y_position;
     }
-    info = &D_800A1490[character->weapon];
+    info = &gWeaponInfo[character->weapon];
     if (racer->state != 5 && racer->state != 11 && racer->state != 10) {
         func_80039FCC(obj, racer, info->unkC, info->unk14, info->unk18, info->unk1C, info->unk20, updateRate);
     } else {
@@ -954,11 +954,11 @@ void func_m015_00000(Object *obj, s32 updateRate) {
                 func_80026E20(obj);
             }
             racer->state = 10;
-            D_800F6DA0 = 0;
-            D_800F6DA4 = 0;
+            gPlayerButtonsHeld = 0;
+            gPlayerButtonsPressed = 0;
             racer->unk53D = 0;
-            func_8003B820(obj);
-            func_80031F44(racer);
+            player_drop_held_object(obj);
+            player_items_unlink(racer);
             racer->unk194 = 0;
             func_80034018(racer);
             func_m015_05180(obj, racer, 0x18, 0);
@@ -1030,24 +1030,24 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         character->unk6F = 15;
         character->unkA = 0x7FFF;
     }
-    if ((character->unkA & 0x20) && func_80047D80(racer->player, racer->character, 10) == 0) {
-        func_80047C9C(racer->player, racer->character, 10);
+    if ((character->unkA & 0x20) && character_has_item(racer->player, racer->character, 10) == 0) {
+        character_item_give(racer->player, racer->character, 10);
     }
     racer->flags.bits.weaponDir = 0;
     if (character->unk6F >= 2) {
         oldWeapon = character->weapon;
         cur = racer->unk585;
-        if (character->weapon != cur && D_800F6DBC == 0) {
-            func_80038430(obj, racer, cur);
-        } else if (D_800A18B0->unk4 & D_800F6DA4) {
+        if (character->weapon != cur && gPlayerInputLocked == 0) {
+            weapon_select(obj, racer, cur);
+        } else if (D_800A18B0->unk4 & gPlayerButtonsPressed) {
             func_80038324(obj, racer, cur);
-        } else if (D_800A18B0->unk8 & D_800F6DA4) {
-            func_80038528(obj, racer, cur);
+        } else if (D_800A18B0->unk8 & gPlayerButtonsPressed) {
+            weapon_select_prev(obj, racer, cur);
         } else {
             i = 0;
-            weapons = func_80047C0C();
+            weapons = get_settings();
             for (; i < 4; i++) {
-                if ((D_800A197C[i] & D_800F6DA4) && func_80038430(obj, racer, weapons[0x534 + i]) != 0) {
+                if ((D_800A197C[i] & gPlayerButtonsPressed) && weapon_select(obj, racer, weapons[0x534 + i]) != 0) {
                     break;
                 }
             }
@@ -1162,7 +1162,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     } else {
         obj->particleEmittersEnabled &= ~6;
         if (racer->unkC8 != 0) {
-            func_80001228(racer->unkC8);
+            sound_stop(racer->unkC8);
         }
     }
     inst = MODEL_INST(obj, obj->modelIndex);
@@ -1233,7 +1233,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             func_80001248(0x9C, (s32) &racer->unkCC);
         }
     } else if (racer->unkCC != 0) {
-        func_80001228(racer->unkCC);
+        sound_stop(racer->unkCC);
     }
     func_8003733C(racer->player, D_m015_089C0, D_m015_089C4, result, racer->unk536 / updateRate);
     racer->unk536 = 0;
@@ -1596,7 +1596,7 @@ static void func_m015_025FC(Object *obj, Racer *racer, s32 updateRate) {
     }
     if (racer->flash != 0) {
         func_8006F078();
-        func_80059864(0, racer->player, 0xFF0000FF);
+        menu_draw_layout_box(0, racer->player, 0xFF0000FF);
     }
 }
 
@@ -1615,7 +1615,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (obj->animationID == 0x1A && racer->unk56B == 0) {
         func_m015_05180(obj, racer, func_m015_05020(racer), 0);
     }
-    if (D_800F6DA0 & 0x10) {
+    if (gPlayerButtonsHeld & 0x10) {
         racer->unk11C -= racer->unk10A;
         racer->unk10A = 0;
         angle = racer->unk11C;
@@ -1643,7 +1643,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (x < 0.0f) {
         x = -x;
     }
-    if ((D_800A18B0->unkC & D_800F6DA4) && racer->unk534 == 0) {
+    if ((D_800A18B0->unkC & gPlayerButtonsPressed) && racer->unk534 == 0) {
         if (racer->unk569 != 0) {
             racer->unk57A = 20;
             racer->unk57B = 0;
@@ -1664,7 +1664,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         racer->unk57C = obj->trans.y_position;
         racer->state = 3;
         racer->unk58E = 0;
-    } else if (D_800A18B0->unk10 & D_800F6DA4) {
+    } else if (D_800A18B0->unk10 & gPlayerButtonsPressed) {
         x = racer->unk4;
         if (racer->unk4 < 0) {
             x = -racer->unk4;
@@ -1682,7 +1682,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
         racer->unk56C = 0;
     }
-    if (D_800A18B0->unk0 & D_800F6DA0) {
+    if (D_800A18B0->unk0 & gPlayerButtonsHeld) {
         racer->unk1F4 = 15;
     }
     if (!(racer->pose->unk5 & racer->unk532)) {
@@ -1718,7 +1718,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (racer->unk13E != 0) {
         x = 0.925f;
     }
-    racer->unk11C = func_80033FA4(racer->unk11C, angle, 1.0f - func_80049BEC(x, updateRate));
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(x, updateRate));
     x = racer->unk4;
     racer->unk4 = (1.0f - func_80049BEC(0.95f, updateRate)) * (speed - racer->unk4) + racer->unk4;
     oldAngle = racer->unk11C - oldAngle;
@@ -1740,8 +1740,8 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
 
 /* State 1 */
 static void func_m015_03274(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
-    if ((D_800A18B0->unkC & D_800F6DA0) && racer->unk56C == 0 &&
-        func_80037194(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 52.0f, 13.0f)) {
+    if ((D_800A18B0->unkC & gPlayerButtonsHeld) && racer->unk56C == 0 &&
+        collision_is_clear_above(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 52.0f, 13.0f)) {
         racer->state = 0;
         func_m015_05180(obj, racer, func_m015_05020(racer), 0);
         racer->unk576 = 0;
@@ -1752,7 +1752,7 @@ static void func_m015_03274(Object *obj, Racer *racer, f32 speed, s16 angle, f32
             racer->unk576 = 0;
             racer->unk4 = 0.0f;
             racer->unk10 = 0.0f;
-            if (speed > 0.1f && !(D_800F6DA0 & 0x10)) {
+            if (speed > 0.1f && !(gPlayerButtonsHeld & 0x10)) {
                 racer->state = 2;
                 func_m015_05180(obj, racer, 0x17, 0.0f);
             } else {
@@ -1761,7 +1761,7 @@ static void func_m015_03274(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     }
     if (racer->state == 1 && racer->unk576 == 0) {
-        if ((D_800F6DA0 & 0x10) && func_m015_01B98(obj, racer)) {
+        if ((gPlayerButtonsHeld & 0x10) && func_m015_01B98(obj, racer)) {
             racer->state = 5;
             racer->unk11C -= racer->unk10A;
             racer->unk10A = 0;
@@ -1781,7 +1781,7 @@ static void func_m015_03274(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
         func_m015_04B4C(obj, racer, 1, updateRate);
         if (obj->animationID != 0xB && obj->animationID != 0x32) {
-            if (D_800A18B0->unk0 & D_800F6DA0) {
+            if (D_800A18B0->unk0 & gPlayerButtonsHeld) {
                 racer->unk1F4 = 15;
             }
             if (!(racer->pose->unk5 & racer->unk532)) {
@@ -1801,8 +1801,8 @@ static void func_m015_03564(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     s32 unused;
     s32 rate;
 
-    if ((D_800A18B0->unkC & D_800F6DA0) && racer->unk56C == 0 &&
-        func_80037194(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 52.0f, 13.0f)) {
+    if ((D_800A18B0->unkC & gPlayerButtonsHeld) && racer->unk56C == 0 &&
+        collision_is_clear_above(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 52.0f, 13.0f)) {
         func_m015_05180(obj, racer, 8, 0);
         racer->state = 0;
         return;
@@ -1817,7 +1817,7 @@ static void func_m015_03564(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     func_800346C4(obj, racer, &speed, &angle, 0x6AAA, 0x38E, &unused, 0.0291666674f, updateRate);
     rate = updateRate;
     racer->unk4 = (1.0f - func_80049BEC(0.96f, rate)) * (speed - racer->unk4) + racer->unk4;
-    racer->unk11C = func_80033FA4(racer->unk11C, angle, 1.0f - func_80049BEC(0.975f, rate));
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(0.975f, rate));
 }
 
 /* State 3: in the air */
@@ -1829,7 +1829,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     f32 q;
 
     racer->unk576 = 0;
-    if (!(D_800A18B0->unkC & D_800F6DA0)) {
+    if (!(D_800A18B0->unkC & gPlayerButtonsHeld)) {
         racer->unk58E = 1;
     }
     if ((racer->pose->unk5 & racer->unk532) && racer->unk57A == 0) {
@@ -1867,7 +1867,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     } else if (racer->unk57A > 0) {
         racer->unk57A -= (s32) updateRate;
-        if (D_800A18B0->unkC & D_800F6DA0) {
+        if (D_800A18B0->unkC & gPlayerButtonsHeld) {
             racer->unk57B += (s32) updateRate;
         } else {
             racer->unk57A = 0;
@@ -1893,7 +1893,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         q = func_80049BEC(0.95f, updateRate);
         racer->unk57C += (obj->trans.y_position - racer->unk57C) * (1.0f - q);
         oldTime = racer->unk58C;
-        if ((D_800A18B0->unk10 & D_800F6DA0) && racer->unk58C > 0) {
+        if ((D_800A18B0->unk10 & gPlayerButtonsHeld) && racer->unk58C > 0) {
             if (racer->unk58C > 0) {
                 racer->unk58C -= (s32) updateRate;
             }
@@ -1903,7 +1903,7 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
             obj->velocity.y *= func_80049BEC(0.925f, updateRate);
             D_m015_089C0 |= 1;
             D_m015_089C4 |= 1;
-        } else if ((D_800A18B0->unkC & D_800F6DA0) && racer->unk58C > 0) {
+        } else if ((D_800A18B0->unkC & gPlayerButtonsHeld) && racer->unk58C > 0) {
             if (racer->unk58C > 0) {
                 racer->unk58C -= (s32) updateRate * 2;
             }
@@ -1930,11 +1930,11 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
                 }
             }
         }
-        if (D_800A18B0->unk0 & D_800F6DA0) {
+        if (D_800A18B0->unk0 & gPlayerButtonsHeld) {
             racer->unk1F4 = 15;
         }
     } else if (racer->character == 4 && racer->unk189 == 0 && racer->unk58E != 0 && racer->unk58C > 0 &&
-               ((D_800A18B0->unkC | D_800A18B0->unk10) & D_800F6DA0)) {
+               ((D_800A18B0->unkC | D_800A18B0->unk10) & gPlayerButtonsHeld)) {
         func_m015_05180(obj, racer, 0x2E, 0);
         racer->unk128 = racer->unk11C;
         racer->unk14B = 0;
@@ -1950,10 +1950,10 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     racer->unk4 = (1.0f - func_80049BEC(1.0f - (racer->unk594 * -0.030000001f + 0.05f), updateRate)) *
                       (speed - racer->unk4) + racer->unk4;
-    racer->unk11C = func_80033FA4(racer->unk11C, angle,
+    racer->unk11C = angle_lerp(racer->unk11C, angle,
                                   1.0f - func_80049BEC(1.0f - (racer->unk594 * -0.041f + 0.075f), updateRate));
     if (racer->unk14A != 0) {
-        racer->unk128 = func_80033FA4(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(0.975f, updateRate));
+        racer->unk128 = angle_lerp(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(0.975f, updateRate));
     }
 }
 
@@ -1993,7 +1993,7 @@ static void func_m015_0418C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     func_80047C1C(racer->player, racer->character);
     racer->unk576 = 0;
     racer->unk13E = 0;
-    if (!(D_800F6DA0 & 0x10) && D_m015_089CC == 0) {
+    if (!(gPlayerButtonsHeld & 0x10) && D_m015_089CC == 0) {
         racer->state = 1;
         racer->unk104 = 0x8000 - obj->trans.rotation.y_rotation;
         return;
@@ -2008,7 +2008,7 @@ static void func_m015_0418C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     if (D_m015_089CC == 0) {
         if (func_8003AABC(obj, racer, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &yaw, &pitch, updateRate)) {
-            func_80042438(racer->player, racer->unk1EC);
+            cam_fov_zoom_set(racer->player, racer->unk1EC);
         }
     } else {
         yaw = racer->unk1DC;
@@ -2021,12 +2021,12 @@ static void func_m015_0418C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (racer->unk1E2 > 0x1555) {
         racer->unk1E2 = 0x1555;
     }
-    racer->unk1E0 = func_80033FA4(racer->unk1E0, pitch, amount);
+    racer->unk1E0 = angle_lerp(racer->unk1E0, pitch, amount);
     pitch += racer->unk1E2;
-    racer->unk1DC = func_80033FA4(racer->unk1DC, yaw, amount);
-    racer->unk1DE = func_80033FA4(racer->unk1DE, pitch, amount);
-    racer->unk1CE = func_80033FA4(racer->unk1CE, yaw, amount);
-    racer->unk1D0 = func_80033FA4(racer->unk1D0, pitch, amount);
+    racer->unk1DC = angle_lerp(racer->unk1DC, yaw, amount);
+    racer->unk1DE = angle_lerp(racer->unk1DE, pitch, amount);
+    racer->unk1CE = angle_lerp(racer->unk1CE, yaw, amount);
+    racer->unk1D0 = angle_lerp(racer->unk1D0, pitch, amount);
     racer->unk1C6 = racer->unk1CE + obj->trans.rotation.y_rotation;
     racer->unk1C8 = racer->unk1D0 + obj->trans.rotation.x_rotation;
     racer->unk1CA = racer->unk1C6;
@@ -2058,8 +2058,8 @@ static void func_m015_0418C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     D_m015_089C8++;
     *D_m015_089C8 = racer->unk1DC - yaw;
     D_m015_089C8++;
-    if ((func_8005AAB8(racer->player) && ((D_800A18B0->unk20 | D_800A18B0->unk1C) & D_800F6DA0)) ||
-        (D_800A18B0->unkC & D_800F6DA4)) {
+    if ((func_8005AAB8(racer->player) && ((D_800A18B0->unk20 | D_800A18B0->unk1C) & gPlayerButtonsHeld)) ||
+        (D_800A18B0->unkC & gPlayerButtonsPressed)) {
         racer->state = 11;
         func_m015_05180(obj, racer, func_m015_05020(racer), 0);
     }
@@ -2075,14 +2075,14 @@ static void func_m015_04658(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     chr = func_80047C1C(racer->player, racer->character);
     racer->unk576 = 0;
     racer->unk13E = 0;
-    if (!(D_800F6DA0 & 0x10) && D_m015_089CC == 0) {
+    if (!(gPlayerButtonsHeld & 0x10) && D_m015_089CC == 0) {
         racer->state = 0;
         racer->unk104 = 0x8000 - obj->trans.rotation.y_rotation;
         return;
     }
     if (func_8005AAB8(racer->player) && chr->weapon != 7 &&
-        ((D_800A18B0->unk20 | D_800A18B0->unk1C) & D_800F6DA0)) {
-        if (D_800A18B0->unk1C & D_800F6DA0) {
+        ((D_800A18B0->unk20 | D_800A18B0->unk1C) & gPlayerButtonsHeld)) {
+        if (D_800A18B0->unk1C & gPlayerButtonsHeld) {
             racer->unk4 -= 0.2f * updateRate;
             if (racer->unk4 < -(65.0f * D_m015_089D4)) {
                 racer->unk4 = -(65.0f * D_m015_089D4);
@@ -2102,19 +2102,19 @@ static void func_m015_04658(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     func_m015_04B4C(obj, racer, 0, updateRate);
     if (D_m015_089CC == 0) {
         if (func_8003AABC(obj, racer, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &yaw, &pitch, updateRate)) {
-            func_80042438(racer->player, racer->unk1EC);
+            cam_fov_zoom_set(racer->player, racer->unk1EC);
         }
     } else {
         yaw = racer->unk1DC;
         pitch = racer->unk1DE - racer->unk1E2;
     }
     amount = 1.0f - func_80049BEC(0.8333f, updateRate);
-    racer->unk1E0 = func_80033FA4(racer->unk1E0, pitch, amount);
+    racer->unk1E0 = angle_lerp(racer->unk1E0, pitch, amount);
     pitch += racer->unk1E2;
-    racer->unk1DC = func_80033FA4(racer->unk1DC, yaw, amount);
-    racer->unk1DE = func_80033FA4(racer->unk1DE, pitch, amount);
-    racer->unk1CE = func_80033FA4(racer->unk1CE, yaw, amount);
-    racer->unk1D0 = func_80033FA4(racer->unk1D0, pitch, amount);
+    racer->unk1DC = angle_lerp(racer->unk1DC, yaw, amount);
+    racer->unk1DE = angle_lerp(racer->unk1DE, pitch, amount);
+    racer->unk1CE = angle_lerp(racer->unk1CE, yaw, amount);
+    racer->unk1D0 = angle_lerp(racer->unk1D0, pitch, amount);
     racer->unk1C6 = racer->unk1CE + obj->trans.rotation.y_rotation;
     racer->unk1C8 = racer->unk1D0 + obj->trans.rotation.x_rotation;
     racer->unk1CA = racer->unk1C6;
@@ -2181,38 +2181,38 @@ static void func_m015_04B4C(Object *obj, Racer *racer, s32 mode, f32 updateRate)
     }
     if (racer->roll2 == 0) {
         if (mode == 2) {
-            if (D_800A18B0->unk14 & D_800F6DA0) {
+            if (D_800A18B0->unk14 & gPlayerButtonsHeld) {
                 racer->roll2 = 3;
                 func_m015_05180(obj, racer, 0x33, 0);
                 obj->unk28 = 0.0f;
                 racer->unk56C = 1;
-            } else if (D_800A18B0->unk18 & D_800F6DA0) {
+            } else if (D_800A18B0->unk18 & gPlayerButtonsHeld) {
                 racer->roll2 = 4;
                 func_m015_05180(obj, racer, 0xC, 0);
                 obj->unk28 = 0.0f;
                 racer->unk56C = 1;
             }
         } else if (mode == 1) {
-            if (D_800A18B0->unk14 & D_800F6DA0) {
+            if (D_800A18B0->unk14 & gPlayerButtonsHeld) {
                 racer->roll2 = 1;
                 func_m015_05180(obj, racer, 0x32, 0);
                 obj->unk28 = 0.0f;
                 racer->unk56C = 1;
-            } else if (D_800A18B0->unk18 & D_800F6DA0) {
+            } else if (D_800A18B0->unk18 & gPlayerButtonsHeld) {
                 racer->roll2 = 2;
                 func_m015_05180(obj, racer, 0xB, 0);
                 obj->unk28 = 0.0f;
                 racer->unk56C = 1;
             }
         } else {
-            if (D_800A18B0->unk14 & D_800F6DA0) {
+            if (D_800A18B0->unk14 & gPlayerButtonsHeld) {
                 racer->unk10 -= 0.2f * updateRate;
                 if (racer->unk10 < -2.5f) {
                     racer->unk10 = -2.5f;
                 }
                 anim = 9;
                 racer->unk56C = 1;
-            } else if (D_800A18B0->unk18 & D_800F6DA0) {
+            } else if (D_800A18B0->unk18 & gPlayerButtonsHeld) {
                 racer->unk10 += 0.2f * updateRate;
                 if (racer->unk10 > 2.5f) {
                     racer->unk10 = 2.5f;
@@ -2337,10 +2337,10 @@ static void func_m015_05180(Object *obj, Racer *racer, s32 anim, f32 frame) {
     if (racer->held != NULL) {
         anim = D_m015_08130[anim].alt2;
         pose = D_m015_08130[anim].pose;
-    } else if (racer->unk1F4 != 0 && func_8003B114(racer)) {
+    } else if (racer->unk1F4 != 0 && weapon_usable_by_character(racer)) {
         anim = D_m015_08130[anim].alt1;
         pose = D_m015_08130[anim].alt1Pose;
-    } else if (func_8003B114(racer)) {
+    } else if (weapon_usable_by_character(racer)) {
         anim = D_m015_08130[anim].alt2;
         pose = D_m015_08130[anim].pose;
     } else {
@@ -2568,7 +2568,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
             }
             break;
         case 13:
-            if (D_800F6DA0 & 0x10) {
+            if (gPlayerButtonsHeld & 0x10) {
                 animSpeed += animSpeed;
             }
             if (obj->unk28 > 0.99f) {
@@ -2780,7 +2780,7 @@ static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
         dx += racer->unk6C;
         dz += racer->unk70;
     }
-    if (D_800F6DBC == 1) {
+    if (gPlayerInputLocked == 1) {
         dx *= 0.65f;
         dz *= 0.65f;
         if (racer->unk4 < -0.5f || racer->unk4 > 0.5f) {
@@ -3031,14 +3031,14 @@ static void func_m015_06B3C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         c2 = func_80049C30(racer->unk11C);
         s2 = func_80049C34(racer->unk11C);
         s1 = func_80049C34(angle);
-        if ((racer->unk578 != 0 && speed > 2.0f && s1 * s2 + c2 * c1 > 0.9f) || (D_800A18B0->unkC & D_800F6DA4)) {
+        if ((racer->unk578 != 0 && speed > 2.0f && s1 * s2 + c2 * c1 > 0.9f) || (D_800A18B0->unkC & gPlayerButtonsPressed)) {
             obj->velocity.y = func_80097140(2.0f * D_800F6DC4 * (racer->unk178 - obj->trans.y_position)) +
                               (1.0f + 0.5f * D_800F6DC4 * updateRate);
             racer->unk4 = -1.0f;
             func_m015_05180(obj, racer, 0x24, zero);
             racer->state = 7;
         } else if ((racer->unk578 != 0 && speed > 2.0f && s1 * s2 + c2 * c1 < -0.9f) ||
-                   (D_800A18B0->unk10 & D_800F6DA4) || !(racer->pose->unk6 & racer->unk532)) {
+                   (D_800A18B0->unk10 & gPlayerButtonsPressed) || !(racer->pose->unk6 & racer->unk532)) {
             racer->unk57C = obj->trans.y_position;
             func_m015_05180(obj, racer, 0x19, zero);
             racer->state = 3;
@@ -3079,7 +3079,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     s32 pad;
 
     racer->flags.byte[1] &= ~0xF;
-    if (!func_80037194(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 52.0f, 13.0f)) {
+    if (!collision_is_clear_above(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 52.0f, 13.0f)) {
         racer->unk1FB = 1;
     } else {
         racer->unk1FB = 0;
@@ -3088,7 +3088,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         if (racer->unk60 < D_m015_089E4) {
             racer->unk19E = 1;
         }
-        if ((D_800A18B0->unkC & D_800F6DA4) && racer->unk60 < D_m015_089E4 && racer->unk1FB == 0) {
+        if ((D_800A18B0->unkC & gPlayerButtonsPressed) && racer->unk60 < D_m015_089E4 && racer->unk1FB == 0) {
             racer->unk57A = 0;
             racer->unk57C = obj->trans.y_position;
             obj->velocity.y += 10.0f;
@@ -3102,10 +3102,10 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
             func_8002AEA0(obj, 0);
         } else {
             func_m015_06E40(racer);
-            if (D_800A18B0->unk10 & D_800F6DA0) {
+            if (D_800A18B0->unk10 & gPlayerButtonsHeld) {
                 target = 1.0f;
                 vy = 0.0f;
-            } else if (D_800A18B0->unkC & D_800F6DA0) {
+            } else if (D_800A18B0->unkC & gPlayerButtonsHeld) {
                 target = 1.0f;
                 if (racer->unk60 < D_m015_089E0) {
                     vy = 0.0f;
@@ -3160,7 +3160,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     t = &D_m015_086A4[i];
     v = t[0] + (t[1] - t[0]) * (x - i);
     oldAngle = racer->unk11C;
-    racer->unk11C = func_80033FA4(racer->unk11C, angle, 1.0f - func_80049BEC(1.0f - v, updateRate));
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(1.0f - v, updateRate));
     racer->unk4 = (1.0f - func_80049BEC(0.985f, updateRate)) * (speed - racer->unk4) + racer->unk4;
     x = racer->unk4;
     if (x < 0.0f) {
@@ -3169,7 +3169,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     i = x;
     t = &D_m015_086C4[i];
     v = (x - i) * (t[1] - t[0]) + t[0];
-    racer->unk128 = func_80033FA4(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(1.0f - v, updateRate));
+    racer->unk128 = angle_lerp(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(1.0f - v, updateRate));
     oldAngle = racer->unk11C - oldAngle;
     x = racer->unk4;
     if (x < 0.0f) {
@@ -3182,7 +3182,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (roll > 0x2000) {
         roll = 0x2000;
     }
-    racer->unk12C = func_80033FA4(racer->unk12C, roll, 1.0f - func_80049BEC(0.975f, updateRate));
+    racer->unk12C = angle_lerp(racer->unk12C, roll, 1.0f - func_80049BEC(0.975f, updateRate));
     *D_m015_089C8 = 4;
     D_m015_089C8++;
     *D_m015_089C8 = racer->unk12C;
@@ -3197,7 +3197,7 @@ static void func_m015_06EBC(Object *obj, Racer *racer, f32 speed, s16 angle, f32
             pitch = 0x2000;
         }
     }
-    racer->unk12A = func_80033FA4(racer->unk12A, pitch, 1.0f - func_80049BEC(0.95f, updateRate));
+    racer->unk12A = angle_lerp(racer->unk12A, pitch, 1.0f - func_80049BEC(0.95f, updateRate));
     *D_m015_089C8 = 0;
     D_m015_089C8++;
     *D_m015_089C8 = racer->unk12A;

@@ -77,10 +77,10 @@ typedef struct M064Header {
 
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M064Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
-extern void func_80021358(M064Light *light, s32 intensity);
+extern void light_intensity_set(M064Light *light, s32 intensity);
 /* rotates count vectors by rot */
 extern void func_800496B0(s32 count, Vec3s *rot, void *in, void *out);
-extern void func_80041DA0(Gfx **dl);
+extern void mtx_pop(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
 extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
 extern void func_80056064(void);
@@ -224,7 +224,7 @@ static void beam_update(Object *obj, M064Beam *beam, s32 updateRate) {
         light->pos.x = beam->pos.x;
         light->pos.y = beam->pos.y;
         light->pos.z = beam->pos.z;
-        func_80021358(light, beam->alpha);
+        light_intensity_set(light, beam->alpha);
     }
 }
 
@@ -350,7 +350,7 @@ void func_m064_00B10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M064Beam *beam;
     s32 i;
 
-    func_80041DA0(dl);
+    mtx_pop(dl);
     func_80055C00(dl, *obj->modelInstances, 0x213, 0);
     i = state->count;
     beam = state->beams;

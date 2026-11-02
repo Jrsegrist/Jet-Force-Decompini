@@ -99,7 +99,7 @@ extern f32 sqrtf(f32);
 extern s32 func_80049C84(f32 x, f32 z); /* arctangent as a 16-bit angle */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_80049D80(s32 from, s32 to); /* the difference between two angles */
-extern s32 func_80047D80(s32 player, s32 character, s32 item); /* whether the character has the item */
+extern s32 character_has_item(s32 player, s32 character, s32 item); /* whether the character has the item */
 extern s32 func_80043510(s32 player);                      /* the buttons pressed */
 extern M075Character *func_80047C1C(s32 player, s32 character);
 extern void func_80001170(s32 arg0);
@@ -246,7 +246,7 @@ void func_m075_0038C(Object *obj, M075Setup *setup) {
     state->open = 0;
     state->started = 0;
     state->player = NULL;
-    if (state->game == 0x18D && func_80047D80(0, 0, 0x1B) == 0) {
+    if (state->game == 0x18D && character_has_item(0, 0, 0x1B) == 0) {
         state->game = 0;
     }
 }

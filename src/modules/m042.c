@@ -24,7 +24,7 @@ extern M042Ui D_800FF780;
 extern void func_80059E1C(s16 *assets); /* loads menu textures */
 extern void func_80059FE8(s16 *assets);
 extern void func_80059CCC(s16 *assets); /* frees menu textures */
-extern void func_800483F8(void *buf);
+extern void mark_read_all_save_files(void *buf);
 extern void music_play(s32 seq);
 
 static s16 sAssets[] = { 149, 150, 151, -1 };
@@ -101,7 +101,7 @@ void func_m042_00000(void) {
         sUnk4F = 0;
         sUnk50 = 0;
         sUnk1FE8 = 0;
-        func_800483F8(sBuffer);
+        mark_read_all_save_files(sBuffer);
         for (i = 0; i < 6; i++) {
             sPairs[i][0] = -1;
             sPairs[i][1] = 0;

@@ -4,13 +4,13 @@
  */
 #include "module.h"
 
-extern s32 *D_800A51C8; /* the settings, read here as words */
+extern s32 *gMenuText; /* the settings, read here as words */
 extern void func_80059E1C(s16 *assets); /* loads menu textures */
 extern void func_80059FE8(s16 *assets);
 extern void func_80059CCC(s16 *assets); /* frees menu textures */
 extern void music_play(s32 seq);
 
-#define SETTING(offset) (D_800A51C8[(offset) / 4])
+#define SETTING(offset) (gMenuText[(offset) / 4])
 
 /* The render mode for the page's images (SetCombine, SetOtherMode) */
 static u32 sRenderMode[] = { 0xFC71FEE3, 0xFFFEFB7D, 0xEF000C0F, 0x00504240 };

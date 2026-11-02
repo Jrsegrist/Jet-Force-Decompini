@@ -43,7 +43,7 @@ typedef struct M126State {
     /* 0xFC9 */ u8 unkFC9;
 } M126State;
 
-extern void func_80057CEC(void *arg0, s32 arg1);
+extern void colour_cycle_init(void *arg0, s32 arg1);
 extern s32 func_800210A4(Object *obj, LightParams *params); /* adds a light */
 
 /*
@@ -140,7 +140,7 @@ void func_m126_00000(Object *obj, M126Setup *setup) {
         s->unkF20[i] = (s16) (obj->trans.y_position + setup->height);
         s->unkFAC[i] = 1.0f;
         s->unkF9C[i] = s->scaleA - sConsts[0];
-        func_80057CEC(s->unkF48[i], setup->unk1E[i]);
+        colour_cycle_init(s->unkF48[i], setup->unk1E[i]);
         light.type = 1;
         light.unk1 = 3;
         light.flags = 0x40;

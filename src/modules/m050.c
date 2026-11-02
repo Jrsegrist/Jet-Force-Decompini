@@ -226,7 +226,7 @@ extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern s32 func_8004966C(s16 angle);
 extern void func_80048518(s32 arg0);
 extern void func_80033920(Object *obj, M050Player *p);
-extern s32 func_8003B114(M050Player *p);
+extern s32 weapon_usable_by_character(M050Player *p);
 extern void func_8002B1D4(Object *obj, f32 frame, f32 speed);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 extern f32 func_80097140(f32 x); /* square root */
@@ -704,7 +704,7 @@ static s32 func_m050_01390(M050Player *p) {
 /* Starts a move's animation, unless it is playing already (or the boss is dead) */
 static void func_m050_013D4(Object *obj, M050Player *p, s32 move, f32 frame) {
     if (obj->animationID != 0x17) {
-        if (func_8003B114(p)) {
+        if (weapon_usable_by_character(p)) {
             move = sMoves[move].animArmed;
         } else {
             move = sMoves[move].anim;

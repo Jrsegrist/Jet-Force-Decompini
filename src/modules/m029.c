@@ -51,12 +51,12 @@ extern s32 func_80050ED0(s32 id);
 extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights); /* floor heights at x, z */
 extern s32 func_80082D80(f32 x, f32 z, s32 arg2, f32 ***heights);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern void func_800285B0(s32 index, s16 x, s16 y, s16 z, s32 arg4, Object *obj); /* spawn entry index at x, y, z */
+extern void spawn_object_from_list(s32 index, s16 x, s16 y, s16 z, s32 arg4, Object *obj); /* spawn entry index at x, y, z */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern f32 sqrtf(f32);
 extern s32 func_80049C84(f32 x, f32 z); /* arctangent as a 16-bit angle */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
-extern s16 func_80033FA4(s16 from, s16 to, f32 t); /* steps an angle towards another */
+extern s16 angle_lerp(s16 from, s16 to, f32 t); /* steps an angle towards another */
 
 s32 D_m029_00F90 = 29;
 static s32 sCutTimer = 0;
@@ -216,7 +216,7 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
                 if (sStrikeTimer == 0) {
                     sTarget->interactObj->hitPoints -= 0x5000;
                     ((M029Interaction *) sTarget->interactObj)->unk3C = 0;
-                    func_800285B0(12, sTarget->trans.x_position, sTarget->trans.y_position + 8.0f,
+                    spawn_object_from_list(12, sTarget->trans.x_position, sTarget->trans.y_position + 8.0f,
                                   sTarget->trans.z_position, 15, obj);
                     func_80003410(0x22, sTarget->trans.x_position, sTarget->trans.y_position,
                                   sTarget->trans.z_position, 4, NULL);
@@ -324,8 +324,8 @@ void func_m029_007D4(Object *camera, s32 arg1, s32 updateRate) {
         yaw = 0x8000 - func_80049C84(x, z);
         pitch = func_80049C84(sHeight, sRadius);
         t = 1.0f - func_80049BEC(0.875f, updateRate);
-        camera->trans.rotation.y_rotation = func_80033FA4(camera->trans.rotation.y_rotation, yaw, t);
-        camera->trans.rotation.x_rotation = func_80033FA4(camera->trans.rotation.x_rotation, pitch, t);
+        camera->trans.rotation.y_rotation = angle_lerp(camera->trans.rotation.y_rotation, yaw, t);
+        camera->trans.rotation.x_rotation = angle_lerp(camera->trans.rotation.x_rotation, pitch, t);
     }
 }
 

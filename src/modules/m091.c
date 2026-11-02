@@ -70,7 +70,7 @@ typedef struct M091PreyData {
 extern s32 func_80048558(void);
 extern s32 func_800195E8(f32 x, f32 z, f32 *y, s32 mask); /* the water level at x, z */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern s16 func_80033FA4(s16 from, s16 to, f32 t);              /* steps an angle towards another */
+extern s16 angle_lerp(s16 from, s16 to, f32 t);              /* steps an angle towards another */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern f32 sqrtf(f32);
 extern s32 func_80049C84(f32 x, f32 z); /* arctangent as a 16-bit angle */
@@ -266,8 +266,8 @@ void func_m091_005C4(Object *obj, s32 updateRate) {
         ease = 1.0f - t;
         fish->timer += updateRate << 8;
         obj->trans.rotation.z_rotation =
-            func_80033FA4((s32) (func_80049C34(fish->timer) * 2048.0f) + 0x4000, obj->trans.rotation.z_rotation, ease);
-        obj->trans.rotation.x_rotation = func_80033FA4(0, obj->trans.rotation.x_rotation, ease);
+            angle_lerp((s32) (func_80049C34(fish->timer) * 2048.0f) + 0x4000, obj->trans.rotation.z_rotation, ease);
+        obj->trans.rotation.x_rotation = angle_lerp(0, obj->trans.rotation.x_rotation, ease);
         fish->speed *= func_80049BEC(0.99f, updateRate);
         if (fish->inWater) {
             speed = (fish->waterY - obj->trans.y_position) * 0.020833334f;

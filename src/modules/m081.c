@@ -45,7 +45,7 @@ extern void func_80048F90(MtxF *out, ObjectTransform *trans); /* the matrix of a
 extern void func_80048C7C(MtxF *a, MtxF *b, MtxF *out);       /* out = a * b */
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
 extern void func_80055C00(Gfx **dl, u8 *tex, s32 flags, s32 offset); /* sets a texture */
-extern void func_80041DA0(Gfx **dl);                                  /* mtx_pop */
+extern void mtx_pop(Gfx **dl);                                  /* mtx_pop */
 
 static s32 sEffectCount = 0;
 static s32 sUnused = 0;
@@ -313,7 +313,7 @@ void func_m081_006F8(Gfx **dl, s32 arg1, M081Effect *effect, Vec3s *rot, Vec3f *
                 v++;
             }
         }
-        func_80041DA0(dl);
+        mtx_pop(dl);
     }
 }
 #else

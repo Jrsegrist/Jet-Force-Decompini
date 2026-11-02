@@ -26,7 +26,7 @@ typedef struct M058Player {
     /* 0x74 */ u16 unk74b : 5;
 } M058Player;
 
-/* What func_80047C0C returns */
+/* What get_settings returns */
 typedef struct M058Settings {
     /* 0x000 */ u8 pad0[0x15C];
     /* 0x15C */ M058Player players[4];
@@ -132,21 +132,21 @@ extern void func_80059E1C(s16 *assets); /* loads menu textures */
 extern void func_80059FE8(s16 *assets);
 extern void func_80059CCC(s16 *assets); /* frees menu textures */
 extern Object *func_80005F14(void *entry, s32 arg1); /* spawns an object from a level entry */
-extern s32 func_80055180(void);
+extern s32 fb_mode(void);
 extern Object *func_m135_0205C(void);
-extern s32 func_80047ED0(s32 flag);
+extern s32 game_flag_get(s32 flag);
 extern void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate);
 extern s32 func_80043510(s32 player); /* the buttons held */
-extern void func_800005F8(f32 volume, s32 arg1); /* fades the music */
-extern void func_8004758C(void);
+extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
+extern void load_first_unlocked_level(void);
 extern s32 func_8006B9CC(s16 *arg0);
-extern M058Settings *func_80047C0C(void);
+extern M058Settings *get_settings(void);
 extern void func_80047580(s32 arg0, s32 player);
-extern s32 func_80043C38(s32 arg0);
+extern s32 leveltable_region(s32 arg0);
 extern void func_80046334(u32 *a, s32 *b, s32 *c);
 extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern M058Level *func_8001B650(void);
-extern void func_8003FC2C(s32 camera); /* sets the active camera */
+extern void set_active_camera(s32 camera); /* sets the active camera */
 extern ObjectTransform *func_80041DE0(void);
 extern void input_assign_players(void);
 extern s32 func_800580C0(s32 image); /* loads a full-screen image */
@@ -225,7 +225,7 @@ void func_m058_00000(void) {
     sMarkers[1]->trans.flags |= 0x400;
     asset = D_800FF3F8[D_800FF780[11].unk6];
     asset->unk28 = 1.0f;
-    if (func_80055180() & 1) {
+    if (fb_mode() & 1) {
         D_800FF780[11].unk10 += 20.0f;
     }
     sTime = 0;
@@ -260,19 +260,19 @@ void func_m058_00134(s32 updateRate) {
     if (sTime < 30) {
         sTime += updateRate;
     }
-    if (!func_80047ED0(1) || func_80047ED0(0x5B)) {
+    if (!game_flag_get(1) || game_flag_get(0x5B)) {
         func_8007688C(0);
     }
-    if (!func_80047ED0(0) || func_80047ED0(0x5A)) {
+    if (!game_flag_get(0) || game_flag_get(0x5A)) {
         func_8007688C(1);
     }
-    if (!func_80047ED0(2) || func_80047ED0(0x5C)) {
+    if (!game_flag_get(2) || game_flag_get(0x5C)) {
         func_8007688C(2);
     }
     func_m041_008B4(0, 0, updateRate);
     if (!(sLastFlags & 2) && (func_80043510(0) & B_BUTTON) && D_800FF311 && sTime >= 30) {
-        func_800005F8(0.75f, 0);
-        func_8004758C();
+        music_volume_fade(0.75f, 0);
+        load_first_unlocked_level();
     }
     if (sHubPlayer->flags & 4) {
         if ((func_80043510(0) & A_BUTTON) && sWaitTimer != 480) {
@@ -285,15 +285,15 @@ void func_m058_00134(s32 updateRate) {
                 func_8006B9CC(sList10F8);
                 sLeaving = TRUE;
                 sFadeTimer = 80;
-                func_800005F8(1.2f, 0);
+                music_volume_fade(1.2f, 0);
             } else {
                 sFadeTimer -= updateRate;
                 if (sFadeTimer <= 0) {
-                    settings = func_80047C0C();
+                    settings = get_settings();
                     character = sHubChars[sHubPlayer->index];
                     player = &settings->players[character];
                     func_80047580(0, character);
-                    if (func_80043C38(player->unk74)) {
+                    if (leveltable_region(player->unk74)) {
                         player->character = 0;
                     }
                     a = player->unk74;
@@ -355,7 +355,7 @@ void func_m058_00618(s32 updateRate) {
         } else if ((tp = sTeleporter->unk68)->timer >= 0x137 && sMarkerTime > 0) {
             sMarkers[0]->trans.flags &= ~0x400;
             sMarkers[1]->trans.flags &= ~0x400;
-            func_8003FC2C(0);
+            set_active_camera(0);
             cam = func_80041DE0();
             sMarkers[0]->trans.x_position = obj->trans.x_position;
             sMarkers[0]->trans.y_position = obj->trans.y_position + 35.0f;
@@ -471,8 +471,8 @@ void func_m058_009B8(s32 updateRate) {
                     D_800FF1B0[i] = 0;
                     if (--D_800A4FD0 <= 0) {
                         D_800A5058 = 1;
-                        func_800005F8(0.5f, 0);
-                        func_8004758C();
+                        music_volume_fade(0.5f, 0);
+                        load_first_unlocked_level();
                     }
                 } else {
                     func_m058_00F5C(left, right, &D_800FF1B4[i], 0);
@@ -487,7 +487,7 @@ void func_m058_009B8(s32 updateRate) {
                     }
                     if (start) {
                         D_800A5058 = 1;
-                        func_800005F8(0.5f, 0);
+                        music_volume_fade(0.5f, 0);
                         for (j = 0, p = D_800FF1B0; j < 4; j++, p++) {
                             if (*p) {
                                 picked = &D_800FF1B4[j];

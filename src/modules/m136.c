@@ -293,7 +293,7 @@ extern s32 func_80023A48(Object *obj, M136Flare *flare, M136Entry *setup);
 extern void func_m011_000D4(s32 spline);
 extern void func_8002F014();
 extern Object **func_80050F44(s32 *count);
-extern f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
+extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern s32 func_m154_00130(f32 x, f32 y, f32 z);
 extern M136Area *D_800FEA9C;
 
@@ -813,7 +813,7 @@ static Object *find_leader(Object *obj) {
     while (count--) {
         o = objects[count];
         if (obj != o && (TROOP_KIND16((M136Troop *) o->unk68) >> 12) != 4) {
-            d = func_80011CE0(o->trans.x_position, o->trans.y_position, o->trans.z_position, obj->trans.x_position,
+            d = point_distance_squared(o->trans.x_position, o->trans.y_position, o->trans.z_position, obj->trans.x_position,
                               obj->trans.y_position, obj->trans.z_position);
             if (d < best) {
                 best = d;

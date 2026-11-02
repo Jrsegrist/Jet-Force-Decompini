@@ -48,11 +48,11 @@ typedef struct M122Setup {
 } M122Setup;
 
 extern void *func_80026F38(s32 id, u8 *arg1); /* loads a model */
-extern void func_8001191C(Object *obj, void *model);
+extern void obj_list_insert_after(Object *obj, void *model);
 extern void func_80048C7C(MtxF *a, MtxF *b, MtxF *out); /* out = a * b */
 extern void func_80049DC0(Object *obj, MtxF *out);
 extern void func_80049AE8(s32 angle, MtxF *mtx);
-extern void func_800419AC(Gfx **dl, Mtx **mtx, MtxF *m);
+extern void mtx_model_push(Gfx **dl, Mtx **mtx, MtxF *m);
 
 void func_m122_00000(Object *obj, M122Setup *setup) {
     M122State *s;
@@ -99,7 +99,7 @@ void func_m122_00000(Object *obj, M122Setup *setup) {
     func_80079D1C(obj, 0xA00, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
     obj->unk7C[0] |= 2;
     if ((s->model = func_80026F38(s->modelId, &unused)) != NULL) {
-        func_8001191C(obj, s->model);
+        obj_list_insert_after(obj, s->model);
     } else {
         s->flags |= 8;
     }
@@ -118,11 +118,11 @@ void func_m122_00F38(Gfx **dl, Mtx **mtx, Object *obj) {
     holder = s->holder;
     if (holder != NULL && holder->behaviorId != 0x37) {
         func_80048C7C(&s->mtx, &((M122Joints *) holder->unk5C)->mtx[((u8 *) holder->unk5C)[0x12B]], &m);
-        func_800419AC(dl, mtx, &m);
+        mtx_model_push(dl, mtx, &m);
     } else {
         func_80049DC0(obj, &m);
         func_80049AE8(s->angle, &m);
-        func_800419AC(dl, mtx, &m);
+        mtx_model_push(dl, mtx, &m);
     }
 }
 

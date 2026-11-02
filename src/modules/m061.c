@@ -33,7 +33,7 @@ extern M061Stats *D_800FF1C0[]; /* the players, sorted */
 extern void func_80059CCC(s16 *assets); /* frees menu textures */
 extern void func_m006_00EFC(void);
 extern void func_80055A00(s32 tex); /* frees a texture */
-extern void func_800005F8(f32 volume, s32 arg1); /* fades the music */
+extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
 
 /*
  * The module's .data is still assembly: it is reached from its first symbol
@@ -153,7 +153,7 @@ void func_m061_02E84(s32 count, Object **objs) {
             player->unk5C8 = 240;
         }
     }
-    func_800005F8(2.0f, 0);
+    music_volume_fade(2.0f, 0);
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", data);

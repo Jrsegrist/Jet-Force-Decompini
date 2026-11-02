@@ -3,7 +3,7 @@
  */
 #include "module.h"
 
-/* The box the statistics are drawn in (passed to func_80058A5C) */
+/* The box the statistics are drawn in (passed to menu_mode_get) */
 typedef struct M040Box {
     /* 0x00 */ s16 x;
     /* 0x02 */ s16 y;

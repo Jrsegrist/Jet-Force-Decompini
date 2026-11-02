@@ -38,7 +38,7 @@ extern s32 level_id(void);
 extern s32 leveltable_world(s32 level);
 extern s32 func_800468CC(void);
 extern s32 music_volume(void);
-extern void func_800005F8(f32 volume, s32 arg1); /* fades the music */
+extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
 extern void func_8005342C(s32 module);          /* unloads a runlink module */
 extern s32 runlink_module_loaded(s32 module);
 extern void dialogue_close(s32 arg0);
@@ -202,7 +202,7 @@ void func_m019_00000(s32 arg0) {
         sUnk38 = 0;
         set_game_paused(1);
         D_m012_01C24 = music_volume();
-        func_800005F8(0.5f, 0);
+        music_volume_fade(0.5f, 0);
         func_m012_000E4(320, 240);
         func_80001248(0x21, 0);
         sUnk40 = 0;
@@ -425,7 +425,7 @@ void func_m019_00840(void) {
     if (is_game_paused() == 0) {
         set_game_paused(1);
         D_m012_01C24 = music_volume();
-        func_800005F8(0.5f, 0);
+        music_volume_fade(0.5f, 0);
         func_m012_000E4(320, 240);
         func_80001248(0x21, 0);
         sUnk40 = 0;

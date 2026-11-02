@@ -51,15 +51,15 @@ extern void bgdraw_fillcolour(s32 r, s32 g, s32 b);
 extern void input_assign_players(void);
 extern void music_play(s32 seq);
 extern void music_volume_set(s32 volume);
-extern void func_800005F8(f32 volume, s32 arg1); /* fades the music */
-extern s32 func_80047C0C(void);
+extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
+extern s32 get_settings(void);
 extern void func_800476F0(s32 arg0);
 extern void func_800487B8(void);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
 extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_80059E1C(s16 *assets); /* loads menu textures */
 extern void func_80059CCC(s16 *assets); /* frees them */
-extern s32 func_80055180(void);
+extern s32 fb_mode(void);
 extern void mtx_ortho(Gfx **dList, Mtx **mtx);
 extern void func_80055C00(Gfx **dList, void *tex, s32 arg2, s32 arg3);
 extern void rendermode_reset(Gfx **dList);
@@ -161,7 +161,7 @@ void func_m063_00000(void) {
     D_800A4FC4 = 0;
     D_800A4FC8 = 0;
     D_800A4FD0 = 1;
-    func_800476F0(func_80047C0C());
+    func_800476F0(get_settings());
 }
 
 void func_m063_00140(s32 updateRate) {
@@ -173,8 +173,8 @@ void func_m063_00140(s32 updateRate) {
     s32 textY;
     M063Sprite sprite;
 
-    func_80047C0C();
-    hiRes = func_80055180() & 1;
+    get_settings();
+    hiRes = fb_mode() & 1;
     if (hiRes) {
         textY = 0xB0;
     } else {
@@ -259,7 +259,7 @@ void func_m063_00140(s32 updateRate) {
                     sStage = 3;
                 } else if (sLastOption == D_800A5060) {
                     func_8004665C(0, 0, 0, 4, 1, 0);
-                    func_800005F8(1.0f, 0);
+                    music_volume_fade(1.0f, 0);
                     sStage = 4;
                 } else {
                     D_800A4FC4 = 0;

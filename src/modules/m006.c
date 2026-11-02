@@ -37,9 +37,9 @@ extern char rl_m006_01AC0[]; /* the module's .rodata (still assembly) */
 extern void *mempool_alloc_safe(s32 size, s32 colour);
 extern void mempool_free(void *data);
 extern s32 normalise_time(s32 time);
-extern s32 func_80055180(void);
+extern s32 fb_mode(void);
 extern s32 func_8005AA7C(s32 player);
-extern void func_80054EF0(s32 *x, s32 *y);
+extern void fb_scale_coords(s32 *x, s32 *y);
 extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
 extern void func_80098360(void *data, s32 size);  /* clears */
 
@@ -143,7 +143,7 @@ void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y) {
     s32 offsetY;
     s16 *coords;
 
-    hiRes = func_80055180();
+    hiRes = fb_mode();
     corner *= 2;
     if (D_800A4FD0 == 2) {
         if ((hiRes & 1) || func_8005AA7C(player)) {
@@ -160,10 +160,10 @@ void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y) {
         offsetY = D_m006_01A94[player + 4][1];
         coords = D_m006_01A64;
     }
-    func_80054EF0(&offsetX, &offsetY);
+    fb_scale_coords(&offsetX, &offsetY);
     cornerX = coords[corner];
     cornerY = coords[corner + 1];
-    func_80054EF0(&cornerX, &cornerY);
+    fb_scale_coords(&cornerX, &cornerY);
     *x = cornerX + offsetX;
     *y = cornerY + offsetY;
 }

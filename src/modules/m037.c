@@ -11,7 +11,7 @@ typedef struct M037Words2 {
     s32 w[2];
 } M037Words2;
 
-/* What D_800A51C8 points at (only the fields used here) */
+/* What gMenuText points at (only the fields used here) */
 typedef struct M037Settings {
     /* 0x000 */ M037Words4 unk0;
     /* 0x010 */ u8 pad10[0x264 - 0x10];
@@ -22,7 +22,7 @@ typedef struct M037Settings {
     /* 0x4BC */ M037Words2 unk4BC;
 } M037Settings;
 
-extern M037Settings *D_800A51C8;
+extern M037Settings *gMenuText;
 extern void func_80059E1C(s16 *assets); /* loads menu textures */
 extern void func_80059FE8(s16 *assets);
 extern void func_80059CCC(s16 *assets); /* frees menu textures */
@@ -71,18 +71,18 @@ void func_m037_00000(s32 arg0) {
     sUnk38 = 0x36;
     sUnk3C = 7.0f;
     sUnk48 = 0;
-    sSaved0[0] = D_800A51C8->unk0.w[0];
-    sSaved0[1] = D_800A51C8->unk0.w[1];
-    sSaved0[2] = D_800A51C8->unk0.w[2];
-    sSaved0[3] = D_800A51C8->unk0.w[3];
-    sSaved1[0] = D_800A51C8->unk4BC.w[0];
-    sSaved1[1] = D_800A51C8->unk4BC.w[1];
-    sSaved2[0] = D_800A51C8->unk264.w[0];
-    sSaved2[1] = D_800A51C8->unk264.w[1];
-    sSaved2[2] = D_800A51C8->unk264.w[0];
-    sSaved2[3] = D_800A51C8->unk264.w[1];
-    sSaved3[0] = D_800A51C8->unk274.w[0];
-    sSaved3[1] = D_800A51C8->unk274.w[1];
+    sSaved0[0] = gMenuText->unk0.w[0];
+    sSaved0[1] = gMenuText->unk0.w[1];
+    sSaved0[2] = gMenuText->unk0.w[2];
+    sSaved0[3] = gMenuText->unk0.w[3];
+    sSaved1[0] = gMenuText->unk4BC.w[0];
+    sSaved1[1] = gMenuText->unk4BC.w[1];
+    sSaved2[0] = gMenuText->unk264.w[0];
+    sSaved2[1] = gMenuText->unk264.w[1];
+    sSaved2[2] = gMenuText->unk264.w[0];
+    sSaved2[3] = gMenuText->unk264.w[1];
+    sSaved3[0] = gMenuText->unk274.w[0];
+    sSaved3[1] = gMenuText->unk274.w[1];
     sNoCheats = arg0;
     sUnk30 = 0;
     sUnk3A = 10;
