@@ -247,7 +247,7 @@ extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 arg3); /* the way point near
 extern void anim_paths_find_near(f32 x, f32 y, f32 z, s16 *a, s16 *b);
 extern s32 func_8004966C(s16 angle); /* sine */
 extern s32 func_80049668(s16 angle); /* cosine */
-extern s32 func_80051484(s32 arg0);
+extern s32 troop_find_by_tag(s32 arg0);
 extern s32 objflag_get(s32 arg0);
 extern Object *func_80005F14(void *entry, s32 arg1);
 extern void func_80048130(s32 arg0, s32 arg1);
@@ -1420,7 +1420,7 @@ void func_m003_1477C(void) {
 
 /* A member of the current troop is set up from its level entry (or spawned when that fails) */
 void func_m003_147B8(LevelObjectEntryCommon *entry) {
-    rl_m003_0556C(func_80051484(((u8 *) entry)[0x11]));
+    rl_m003_0556C(troop_find_by_tag(((u8 *) entry)[0x11]));
     if (objflag_get(((u8 *) entry)[0x18])) {
         sHomeData->arrived++;
         if (sHomeData->arrived >= sHomeData->count) {
