@@ -74,6 +74,7 @@ typedef struct M068PieceSetup {
     /* 0x20 */ f32 unk20;
     /* 0x24 */ f32 speed;
     /* 0x28 */ f32 unk28;
+    /* 0x2C */ MtxF *mtx;
 } M068PieceSetup;
 
 typedef struct M068Flyer {
@@ -82,7 +83,61 @@ typedef struct M068Flyer {
     /* 0x8 */ f32 unk8;
     /* 0xC */ s16 timer;
     /* 0xE */ s16 unkE;
+    /* 0x10 */ MtxF *mtx;
 } M068Flyer;
+
+/* A model drawn from a display list (*obj->header->unkAC) */
+typedef struct M068DrawModel {
+    /* 0x00 */ struct M068DrawLists *lists;
+    /* 0x04 */ void *vertices;
+    /* 0x08 */ u8 pad8[0xA - 0x8];
+    /* 0x0A */ u8 drawn;
+    /* 0x0B */ s8 frame;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ void *frames[1];
+} M068DrawModel;
+
+typedef struct M068DrawLists {
+    /* 0x00 */ u8 pad0[0x74];
+    /* 0x74 */ Gfx *dl74;
+    /* 0x78 */ Gfx *dl78;
+} M068DrawLists;
+
+typedef struct M068Header {
+    /* 0x00 */ u8 pad0[0xAC];
+    /* 0xAC */ M068DrawModel **models;
+} M068Header;
+
+/* The colour a piece is drawn in (its obj->unk68) */
+typedef struct M068Glow {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ f32 scale;
+    /* 0x18 */ u8 pad18[0x6C - 0x18];
+    /* 0x6C */ u8 r;
+    /* 0x6D */ u8 g;
+    /* 0x6E */ u8 b;
+} M068Glow;
+
+/* A command with the 0xBF opcode (a model's frame and vertices) */
+#define gSPModelFrameJFG(pkt, frame, verts)                                             \
+    {                                                                                  \
+        Gfx *_g = (Gfx *) (pkt);                                                       \
+        _g->words.w0 = ((u32) OS_K0_TO_PHYSICAL(frame) & 0xFFFFFF) | 0xBF000000;       \
+        _g->words.w1 = (u32) (verts);                                                  \
+    }
+
+/* The same command, clearing the frame */
+#define gSPModelFrameEndJFG(pkt)                                                        \
+    {                                                                                  \
+        Gfx *_g = (Gfx *) (pkt);                                                       \
+        _g->words.w0 = 0xBF000000;                                                     \
+        _g->words.w1 = 0;                                                              \
+    }
+
+extern void func_80049BA0(MtxF *mtx); /* identity */
+extern void func_80049F08(Object *obj, MtxF *out);
+extern void func_80055B80(Gfx **dl);
+extern void mtx_pop(Gfx **dl);
 
 /* A block's set-up */
 typedef struct M068BlockSetup {
@@ -349,7 +404,31 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0EF2C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0EF70);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F2FC);
+void func_m068_0F2FC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068DrawModel *model;
+    M068DrawLists *lists;
+    M068Glow *glow;
+    MtxF objMtx;
+    MtxF mtx;
+
+    model = *((M068Header *) obj->header)->models;
+    glow = obj->unk68;
+    lists = model->lists;
+    func_80049BA0(&mtx);
+    mtx[0][0] = glow->scale;
+    mtx[2][2] = glow->scale;
+    func_80049F08(obj, &objMtx);
+    func_80048C7C(&mtx, &objMtx, &mtx);
+    gDPSetPrimColor((*dl)++, 0, 0, 0xFA, 0x3C, 0x0A, obj->opacity);
+    mtx_model_push(dl, arg1, &mtx);
+    gSPModelFrameJFG((*dl)++, model->frames[model->frame], OS_K0_TO_PHYSICAL(model->vertices));
+    gSPDisplayList((*dl)++, OS_K0_TO_PHYSICAL(lists->dl78));
+    gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    gSPModelFrameEndJFG((*dl)++);
+    mtx_pop(dl);
+    func_80055B80(dl);
+    model->drawn = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F478);
 
@@ -366,7 +445,26 @@ void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10758);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_108C8);
+void func_m068_108C8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068DrawModel *model;
+    M068DrawLists *lists;
+    M068Glow *glow;
+    MtxF mtx;
+
+    model = *((M068Header *) obj->header)->models;
+    glow = obj->unk68;
+    lists = model->lists;
+    func_80049DC0(obj, &mtx);
+    gDPSetPrimColor((*dl)++, 0, 0, glow->r, glow->g, glow->b, 255);
+    mtx_model_push(dl, arg1, &mtx);
+    gSPModelFrameJFG((*dl)++, model->frames[model->frame], OS_K0_TO_PHYSICAL(model->vertices));
+    gSPDisplayList((*dl)++, OS_K0_TO_PHYSICAL(lists->dl74));
+    gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    gSPModelFrameEndJFG((*dl)++);
+    mtx_pop(dl);
+    func_80055B80(dl);
+    model->drawn = 0;
+}
 
 void func_m068_10A28(Object *obj, M068PieceSetup *setup) {
     M068Flyer *f;
@@ -395,7 +493,41 @@ void func_m068_10A28(Object *obj, M068PieceSetup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10B58);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10DD4);
+void func_m068_10DD4(Object *obj, M068PieceSetup *setup) {
+    M068Flyer *f;
+
+    if (setup->active) {
+        f = obj->unk68;
+        obj->velocity.x = setup->velocity.x * setup->speed;
+        obj->velocity.y = setup->velocity.y * setup->speed;
+        obj->velocity.z = setup->velocity.z * setup->speed;
+        f->unk0 = setup->unk28;
+        f->unk4 = setup->unk1C;
+        f->unk8 = setup->unk20;
+        f->timer = func_80048E2C(8, 16);
+        f->unkE = 1;
+        obj->trans.x_position = setup->x;
+        obj->trans.y_position = setup->y;
+        obj->trans.z_position = setup->z;
+        obj->trans.rotation.y_rotation = setup->yRotation;
+        obj->trans.rotation.x_rotation = setup->xRotation;
+        obj->trans.rotation.z_rotation = setup->zRotation;
+        f->mtx = setup->mtx;
+        (*f->mtx)[0][3] = 0.0f;
+        (*f->mtx)[1][3] = 0.0f;
+        (*f->mtx)[2][3] = 0.0f;
+        (*f->mtx)[3][0] = 0.0f;
+        (*f->mtx)[3][1] = 0.0f;
+        (*f->mtx)[3][2] = 0.0f;
+        (*f->mtx)[3][3] = 1.0f;
+        if (obj->unk7C != NULL) {
+            *obj->unk7C &= ~2;
+        }
+        obj->trans.flags &= ~0x400;
+    } else {
+        obj->trans.flags |= 0x400;
+    }
+}
 
 /* Pushes a piece's matrix: its own transform times its base matrix */
 void func_m068_10F90(Gfx **dl, s32 arg1, Object *obj) {
