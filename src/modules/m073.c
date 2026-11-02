@@ -73,7 +73,7 @@ extern M073Flare *effect_mesh_create(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f3
                                  s32 arg9);
 extern s32 func_8004966C(s16 angle);
 extern void func_800694CC(M073Flare *flare, s16 angle);
-extern void func_8006999C(M073Flare *flare, s16 size, u8 alpha);
+extern void effect_mesh_update(M073Flare *flare, s16 size, u8 alpha);
 extern void func_80026FD4(Object *obj, s32 updateRate);
 extern void func_80068DF8(M073Flare *flare);
 extern void func_80003614(s32 handle); /* stops a positioned sound */
@@ -216,7 +216,7 @@ void func_m073_00208(Object *obj, s32 updateRate) {
             glow->phase += updateRate * 16;
             size = (((func_8004966C(glow->phase << 8) * flare->size) >> 20) + flare->size) * glow->alpha >> 8;
             func_800694CC(flare, glow->phase << 8);
-            func_8006999C(flare, size, glow->alpha);
+            effect_mesh_update(flare, size, glow->alpha);
         }
         glow++;
     }

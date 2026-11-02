@@ -268,7 +268,53 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_800691F0);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_800694CC);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006999C);
+void func_8004944C(void *angles, f32 *vec);
+f32 func_80049C30(s32 angle);
+f32 func_80049C34(s32 angle);
+void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 *src, Vertex *dst);
+
+/* JFG: flip an effect mesh's vertex buffer and move its tip; a fan mesh (segments 0) also gets its ring of 8
+   points, wider and deeper the higher brightness is above 0x80. */
+void effect_mesh_update(EffectMesh *mesh, s16 depth, s32 brightness) {
+    f32 *p;
+    f32 pts[8][3];
+    Vertex *verts;
+    f32 f;
+    f32 radius;
+    f32 height;
+    s32 i;
+
+    if (mesh != NULL) {
+        mesh->unk16 ^= 1;
+        verts = (Vertex *) mesh->verts[mesh->unk16];
+        p = pts[0];
+        pts[0][2] = -depth;
+        func_8004944C(&mesh->unk1C, p);
+        verts->x = (s32) pts[0][0] + mesh->x;
+        verts->y = (s32) pts[0][1] + mesh->y;
+        verts->z = (s32) pts[0][2] + mesh->z;
+        if (mesh->segments == 0) {
+            radius = mesh->unk18;
+            height = mesh->unk20;
+            if (brightness < 0x80) {
+                f = 0.0f;
+            } else if (brightness >= 0x100) {
+                f = 1.0f;
+            } else {
+                f = (brightness - 0x7F) * 0.0078125f;
+            }
+            radius *= 1.0f + 2.0f * f;
+            height *= 0.25f * f;
+            for (i = 0; i < 8; i++) {
+                p[0] = func_80049C34(i << 13) * radius;
+                p[1] = func_80049C30(i << 13) * radius;
+                p[2] = -height;
+                p += 3;
+            }
+            vertices_rotate_translate(8, mesh->x, mesh->y, mesh->z, mesh->unk1C, mesh->unk1E, pts[0], verts + 9);
+        }
+    }
+}
 
 #ifdef NON_MATCHING
 void func_80055C00();

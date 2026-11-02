@@ -102,7 +102,7 @@ extern s32 gPlayerStickY; /* stick y */
 
 extern s32 func_8004966C(s16 angle);
 extern void func_800694CC(M054Model *model, s16 angle);
-extern void func_8006999C(M054Model *model, s16 size, u8 scale);
+extern void effect_mesh_update(M054Model *model, s16 size, u8 scale);
 extern void func_80005F14(M054Shot *shot, s32 count);
 extern void player_input_latch(s32 player);
 extern void set_active_camera(s32 player);
@@ -167,7 +167,7 @@ static void craft_models_pulse(M054Craft *craft, s32 updateRate) {
             size += (model->unk20 * func_8004966C(craft->modelPhase[i] << 8)) >> 20;
             size = (size * scale) >> 8;
             func_800694CC(model, craft->modelPhase[i] << 8);
-            func_8006999C(model, size, craft->modelScale[i]);
+            effect_mesh_update(model, size, craft->modelScale[i]);
         }
     }
 }

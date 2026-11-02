@@ -737,7 +737,7 @@ void func_80034164(s16 *pos, u8 *obj) {
 void obj_spawn_particle(u8 *obj, s32 updateRate);
 s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
 void func_800694CC(void *handle, s16 pitch);
-void func_8006999C(void *handle, s16 value, u8 volume);
+void effect_mesh_update(void *handle, s16 value, u8 volume);
 
 /* JFG: the player's four engine-like loops (0x598, state at 0x5B8, volume 0x5AC, phase 0x5A8): 0 waits for its
  * bit in 0x14A (spawning particles), 1 fades in, 2 plays (wobbling with the phase), 3 fades out. */
@@ -826,7 +826,7 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
         p[0x5A8] = phase;
         if (volume != 0) {
             func_800694CC(handle, (s8) p[0x5A8] << 8);
-            func_8006999C(handle, value, p[0x5AC]);
+            effect_mesh_update(handle, value, p[0x5AC]);
         }
     }
 }

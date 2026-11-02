@@ -656,3 +656,4 @@ func_80009928 = objects_set_attachment_byte
 func_80005BD0 = level_entries_remove_object
 func_8006D110 = line_clip_rect
 func_80069F04 = vertices_rotate_translate
+func_8006999C = effect_mesh_update
