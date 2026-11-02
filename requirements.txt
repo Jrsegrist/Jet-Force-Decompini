@@ -6,3 +6,5 @@ colorama
 cxxfilt
 watchdog
 levenshtein
+# decomp-permuter (tools/permuter)
+toml

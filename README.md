@@ -241,7 +241,8 @@ live in the runlink modules.
   [rabbitizer](https://github.com/Decompollaborate/rabbitizer) (MIT),
   [asm-processor](https://github.com/simonlindholm/asm-processor) and
   [asm-differ](https://github.com/simonlindholm/asm-differ) (Unlicense, git
-  submodules), [m2c](https://github.com/matt-kempster/m2c) (GPL-3.0, fetched by
+  submodules), [decomp-permuter](https://github.com/simonlindholm/decomp-permuter)
+  (MIT, git submodule, a matching tool only), [m2c](https://github.com/matt-kempster/m2c) (GPL-3.0, fetched by
   `make setup` and only run as a tool).
 
 Details are in [CREDITS.md](CREDITS.md).
