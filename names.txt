@@ -653,3 +653,4 @@ func_80076ADC = anim_path_sound_stop
 func_80066A68 = dl_cmd_print_geometry_mode
 func_80035514 = racer_pose_begin
 func_80009928 = objects_set_attachment_byte
+func_80005BD0 = level_entries_remove_object
