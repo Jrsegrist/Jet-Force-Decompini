@@ -910,30 +910,26 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80036DBC);
 extern f32 D_800ABF74;
 extern f32 D_800ABF78;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: operand order of the two `cur + ...` add.s instructions */
-/* JFG: ease the value at 0x48 towards the target at 0x4C; on arrival the target becomes 1.0. */
+/* JFG: ease the value at 0x48 towards the target at 0x4C; on arrival the target becomes 1.0.
+   (The (f32) casts set the add.s operand order.) */
 void func_800370D0(u8 *obj, f32 rate) {
     f32 cur = *(f32 *) (obj + 0x48);
     f32 target = *(f32 *) (obj + 0x4C);
 
     if (cur < target) {
-        *(f32 *) (obj + 0x48) = cur + ((target - cur) * 0.125f + D_800ABF74) * rate;
+        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f + D_800ABF74) * rate;
         if (target <= *(f32 *) (obj + 0x48)) {
             *(f32 *) (obj + 0x48) = target;
             *(f32 *) (obj + 0x4C) = 1.0f;
         }
     } else {
-        *(f32 *) (obj + 0x48) = cur + ((target - cur) * 0.125f - D_800ABF78) * rate;
+        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f - D_800ABF78) * rate;
         if (*(f32 *) (obj + 0x48) <= target) {
             *(f32 *) (obj + 0x48) = target;
             *(f32 *) (obj + 0x4C) = 1.0f;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800370D0);
-#endif
 
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
 s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
