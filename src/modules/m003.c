@@ -96,9 +96,9 @@ extern s32 D_800FE9B0;
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern s16 troop_slot_get(u16 kind);
 extern s32 func_80004AF4(s32 arg0, s32 arg1, f32 arg2, s32 arg3);
-extern s32 func_80051508(s16 arg0, u8 arg1);
+extern s32 troop_find_member(s16 arg0, u8 arg1);
 extern void stats_kill_add(s32 sound);
-extern void func_80052798(Object *obj, Object *home);
+extern void troop_spawn_context_set(Object *obj, Object *home);
 extern void func_m154_017E8(Object *home);
 extern s32 rl_m003_0527C(f32 x, f32 y, f32 z);
 extern void rl_m003_053D4(Object *obj);
@@ -352,7 +352,7 @@ s32 func_m003_05450(Object *obj) {
     sClosestPlayer = rl_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
     rl_m003_053D4(sObj);
     sShotBy = sMember->shotBy;
-    func_80052798(sObj, sHome);
+    troop_spawn_context_set(sObj, sHome);
     func_m154_017E8(sHome);
     return func_m003_0D2C0(sObj) != 0;
 }
@@ -425,7 +425,7 @@ s32 func_m003_07BAC(s32 arg0, s32 arg1, f32 arg2, s32 kind, u8 arg4, u8 arg5) {
         case 1:
             return func_80004AF4(arg0, arg1, arg2, 8);
         case 2:
-            return func_80051508(arg4 + 1, arg5);
+            return troop_find_member(arg4 + 1, arg5);
     }
     return 0;
 }

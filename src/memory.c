@@ -304,7 +304,7 @@ void mempool_free(void *data) {
 
 extern void *gFreeQueueAddress[256];
 extern u8 gFreeQueueTimers[256];
-void func_800542C4(void);
+void runlink_unload_idle(void);
 s32 runlink_module_loaded(s32 module);
 void func_80054530(void); // a module function (patched in by the runtime linker)
 
@@ -317,7 +317,7 @@ void mempool_free_queue_clear(void) {
     s32 i;
 
     if (gMainPoolFreeBytes < 0x14000) {
-        func_800542C4();
+        runlink_unload_idle();
         if (gMainPoolFreeBytes < 0xC000) {
             if (runlink_module_loaded(3)) {
                 func_80054530();

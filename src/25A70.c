@@ -160,13 +160,13 @@ void obj_init_torch_mist(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
     obj->unk28 = entry->unkC;
 }
 
-void func_800577A8(void *sprite, s32 *arg1, void *arg2, void *arg3, s32 arg4); // JFG: animate a sprite
+void sprite_anim_advance(void *sprite, s32 *arg1, void *arg2, void *arg3, s32 arg4); // JFG: animate a sprite
 
 /* JFG: animate the object's sprite (mode 9) by the update rate. */
 void func_80024EF4(u8 *obj, s32 updateRate) {
     s32 flags = 9;
 
-    func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+    sprite_anim_advance(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
 }
 
 /* JFG: init: scale from byte 0xB (DKR's radius scaling, see obj_init_torch_mist). */
@@ -181,22 +181,19 @@ void func_80024F40(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
 
 void free_object(Object *object);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: frame 0x30 vs 0x38 (flags at 0x34, prevFrame at 0x2C in the target) and the load order */
 /* JFG: animate the sprite (mode 9); free the object when its animation wrapped. */
-void func_80024F94(u8 *obj, s32 updateRate) {
+void sprite_anim_once_update(u8 *obj, s32 updateRate) {
     s32 flags = 9;
+    void *sprite;
     f32 prevFrame;
 
+    sprite = **(void ***) (obj + 0x6C);
     prevFrame = *(f32 *) (obj + 0x28);
-    func_800577A8(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+    sprite_anim_advance(sprite, &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
     if (*(f32 *) (obj + 0x28) < prevFrame) {
         free_object((Object *) obj);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80024F94);
-#endif
 
 /* JFG: a box zone's level object entry */
 typedef struct LevelObjectEntry_BoxZone {

@@ -32,10 +32,10 @@ typedef struct M106GemEntry {
     /* 0x0A */ u16 size;
 } M106GemEntry;
 
-extern void func_80068DF8(void *flare);
+extern void effect_texture_pair_free(void *flare);
 extern void func_m081_0034C(void *effect);
 extern void func_80003614(s32 sound); /* stops a sound */
-extern void func_800577A8(void *model, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern void sprite_anim_advance(void *model, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern Object *func_80005F14(void *entry, s32 arg1); /* spawns an object from a level entry */
 
@@ -49,10 +49,10 @@ void func_m106_01A30(Object *obj) {
     M106Tank *tank = obj->unk68;
 
     if (tank->flare1 != NULL) {
-        func_80068DF8(tank->flare1);
+        effect_texture_pair_free(tank->flare1);
     }
     if (tank->flare2 != NULL) {
-        func_80068DF8(tank->flare2);
+        effect_texture_pair_free(tank->flare2);
     }
     if (tank->effect != NULL) {
         func_m081_0034C(tank->effect);
@@ -89,7 +89,7 @@ void func_m106_01B1C(Object *obj, s32 updateRate) {
         OBJ_STATE(obj, M106Gem)->alpha = OBJ_STATE(obj, M106Gem)->timer * 4;
     }
     flags = 9;
-    func_800577A8(obj->modelInstances[obj->modelIndex], &flags, 12, &obj->unk28, updateRate);
+    sprite_anim_advance(obj->modelInstances[obj->modelIndex], &flags, 12, &obj->unk28, updateRate);
     if (func_80048E2C(0, 100) > 90) {
         obj->particleEmittersEnabled |= 1;
     } else {

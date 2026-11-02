@@ -24,7 +24,8 @@ typedef struct ObjectLight {
     /* 0x2C */ f32 unk2C;
     /* 0x30 */ f32 radiusSquare;
     /* 0x34 */ f32 radiusMag;
-    /* 0x38 */ u8 pad38[0x40 - 0x38];
+    /* 0x38 */ f32 minY; // JFG: posY - unk28 (light_update)
+    /* 0x3C */ f32 maxY; // JFG: posY + unk28
     /* 0x40 */ u8 colourR;
     /* 0x41 */ u8 colourG;
     /* 0x42 */ u8 colourB;
@@ -36,7 +37,7 @@ typedef struct ObjectLight {
     /* 0x5A */ s16 unk5A;
     /* 0x5C */ s16 unk5C;
     /* 0x5E */ s16 unk5E;
-    /* 0x60 */ u8 pad60[0x6C - 0x60];
+    /* 0x60 */ f32 dir[3]; // JFG: the direction from the angles unk58/unk5A (and the owner's rotation)
     /* 0x6C */ s32 trackLight;
     /* 0x70 */ u8 *unk70; // JFG: 0x200 bytes of the light buffer
 } ObjectLight;
@@ -115,18 +116,40 @@ typedef struct CoronaEntry {
     /* 0x13 */ u8 unk13;
 } CoronaEntry;
 
+/* JFG: a model's header, reduced */
+typedef struct ModelHeader217 {
+    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x2D */ u8 numAttachPoints;
+} ModelHeader217;
+
+/* JFG: an object model, reduced */
+typedef struct Model217 {
+    /* 0x00 */ ModelHeader217 *header;
+    /* 0x04 */ u8 pad4[0x68 - 4];
+    /* 0x68 */ f32 (*attachPoints)[3];
+} Model217;
+
 typedef struct Object {
-    /* 0x00 */ u8 pad0[0x3C];
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ u8 pad6[6];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B;
     /* 0x3C */ CoronaEntry *entry;
     /* 0x40 */ ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x54 - 0x44];
     /* 0x54 */ struct ShadeProperties *shading;
     /* 0x58 */ u8 pad58[0x68 - 0x58];
     /* 0x68 */ void *unk68;
-    /* 0x6C */ u8 pad6C[0x74 - 0x6C];
+    /* 0x6C */ Model217 **models;
+    /* 0x70 */ u8 pad70[0x74 - 0x70];
     /* 0x74 */ ObjectLight **lightData;
     /* 0x78 */ void **coronaData; // JFG
-    /* 0x7C */ u8 pad7C[0xA1 - 0x7C];
+    /* 0x7C */ u8 pad7C[0xA0 - 0x7C];
+    /* 0xA0 */ u8 freed;
     /* 0xA1 */ u8 unkA1;
 } Object;
 
@@ -412,7 +435,90 @@ void light_update_all(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80021434);
+void func_800496B0(s32 arg0, s16 *rotation, f32 *in, f32 *out); // DKR: vec3f_rotate
+void func_8004944C(s16 *rotation, f32 *vec);                     // DKR: vec3f_rotate_py
+void track_light_set_position(s32 trackLight, f32 x, f32 y, f32 z);
+void track_light_set_colour(s32 trackLight, s32 red, s32 green, s32 blue, s32 intensity);
+void update_colour_cycle(void *cycle, s32 updateRate);
+
+/**
+ * Updates a light: its position (from the owner's model attachment point unk6, or its home turned by the owner),
+ * its colour cycle and its angles, then the colour table and the track light.
+ * JFG: flags bit 0 position, bit 1 colour, bit 2 direction changed; cleared at the end.
+ * DKR: light_update
+ */
+void light_update(ObjectLight *light, s32 updateRate) {
+    s16 rot[3];
+    Model217 *model;
+    ModelHeader217 *header;
+    Object *owner;
+
+    owner = light->owner;
+    if (owner != NULL && !owner->freed) {
+if (light->unk6 >= 0) {
+            model = owner->models[owner->modelIndex];
+            if (model != NULL && light->unk6 < (header = model->header)->numAttachPoints) {
+                light->posX = model->attachPoints[light->unk6][0];
+                light->posY = model->attachPoints[light->unk6][1];
+                light->posZ = model->attachPoints[light->unk6][2];
+                light->flags |= 1;
+            }
+        } else {
+            func_800496B0(1, owner->rotation, &light->homeX, &light->posX);
+            light->posX += owner->x;
+            light->posY += owner->y;
+            light->posZ += owner->z;
+            light->flags |= 1;
+        }
+        light->flags |= 4;
+        if (light->trackLight != 0) {
+            track_light_set_position(light->trackLight, light->posX, light->posY, light->posZ);
+        }
+    }
+    if (light->unk54 != 0) {
+        update_colour_cycle(light->colourCycle, updateRate);
+        light->colourR = light->colourCycle[8];
+        light->colourG = light->colourCycle[9];
+        light->colourB = light->colourCycle[10];
+        if (!(light->enabled & 0x10)) {
+            light->intensity = light->colourCycle[11];
+            light->intensityF = light->intensity;
+        }
+        light->flags |= 2;
+    }
+    if (light->unk5C != 0) {
+        light->unk58 += light->unk5C * updateRate;
+        light->flags |= 4;
+    }
+    if (light->unk5E != 0) {
+        light->unk5A += light->unk5E * updateRate;
+        light->flags |= 4;
+    }
+    if ((light->flags & 1) || (owner != NULL && !owner->freed)) {
+        light->minY = light->posY - light->unk28;
+        light->maxY = light->posY + light->unk28;
+    }
+    if (light->flags & 2) {
+        func_80023170(light->colourR, light->colourG, light->colourB, light->unk70);
+        if (light->trackLight != 0) {
+            track_light_set_colour(light->trackLight, light->colourR, light->colourG, light->colourB, light->intensity);
+        }
+    }
+    if ((light->flags & 4) && (light->unk0 == 3 || light->unk0 == 0)) {
+        light->dir[2] = -1.0f;
+        rot[0] = light->unk58;
+        rot[1] = light->unk5A;
+        rot[2] = 0;
+        func_8004944C(rot, light->dir);
+        if (owner != NULL && !owner->freed) {
+            func_800496B0(1, owner->rotation, light->dir, light->dir);
+        }
+        light->dir[0] = -light->dir[0];
+        light->dir[1] = -light->dir[1];
+        light->dir[2] = -light->dir[2];
+    }
+    light->flags = 0;
+}
 
 void track_light_off(s32 trackLight);
 

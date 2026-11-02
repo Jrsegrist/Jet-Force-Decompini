@@ -63,7 +63,7 @@ extern void func_80079D1C(M020Object *, s32, s32, s32, s32, s32, s32, f32, f32, 
 extern void func_80003410(s32, f32, f32, f32, s32, s32 *);
 extern s32 func_80048E2C(s32, s32);
 extern void func_8005F5AC(M020Object *, s32);
-extern s32 func_8007E150(f32, f32, f32, f32, s32, void *);
+extern s32 obj_dist_racer(f32, f32, f32, f32, s32, void *);
 extern void func_800079B8(M020Object *);
 
 void func_m020_00000(M020Object *obj, M020Setup *setup) {
@@ -147,7 +147,7 @@ void func_m020_0036C(M020Object *obj, s32 updateRate) {
         obj->unk88.w[0] = 180;
     }
     if ((obj->unk88.w[0] == 0 || obj->unk88.w[0] > 180) &&
-        func_8007E150(obj->unkC, obj->unk10, obj->unk14, 600.0f, 0, hit) != 0) {
+        obj_dist_racer(obj->unkC, obj->unk10, obj->unk14, 600.0f, 0, hit) != 0) {
         obj->unk84 = 1;
     } else {
         obj->unk84 = 0;

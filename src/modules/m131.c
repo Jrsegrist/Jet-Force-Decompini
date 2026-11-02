@@ -71,7 +71,7 @@ extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32
 extern void track_light_off(f32 *light);
 extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern void func_80052734(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_800496B0(s32 arg0, Object *obj, f32 *in, f32 *out);
 extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
@@ -150,7 +150,7 @@ void func_m131_001A4(Object *obj, s32 updateRate) {
             OBJ_JOINTS(obj)->counterTilt = -OBJ_JOINTS(obj)->tilt;
             obj->particleEmittersEnabled |= 3;
             if (s->shooter->behaviorId == 1) {
-                func_80052734(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, 1, 0);
+                enemy_module_notify(obj, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, 1, 0);
             }
             if (s->hit = func_80018808(obj, &((M131Interaction *) obj->interactObj)->oldPos,
                                        (Vec3f *) &obj->trans.x_position, &hit.h, 0, 0)) {

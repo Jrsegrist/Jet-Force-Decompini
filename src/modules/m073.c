@@ -75,7 +75,7 @@ extern s32 func_8004966C(s16 angle);
 extern void func_800694CC(M073Flare *flare, s16 angle);
 extern void effect_mesh_update(M073Flare *flare, s16 size, u8 alpha);
 extern void func_80026FD4(Object *obj, s32 updateRate);
-extern void func_80068DF8(M073Flare *flare);
+extern void effect_texture_pair_free(M073Flare *flare);
 extern void func_80003614(s32 handle); /* stops a positioned sound */
 extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out);
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* distance from the camera */
@@ -231,7 +231,7 @@ void func_m073_0037C(Object *obj) {
     i = 16;
     while (i--) {
         if (glow->flare != NULL) {
-            func_80068DF8(glow->flare);
+            effect_texture_pair_free(glow->flare);
         }
         glow++;
     }

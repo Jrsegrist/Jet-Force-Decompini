@@ -51,7 +51,7 @@ typedef struct M072WeaponInfo {
 } M072WeaponInfo;
 
 extern void runlink_unload_timer_set(s32, s32, s32);
-extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
+extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 extern M072Weapons *func_80047C1C(s32 player, s32 arg1);
 extern M072WeaponInfo *weapon_info_get(s32 weapon);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
@@ -92,7 +92,7 @@ void func_m072_00064(Object *obj, s32 updateRate) {
     if (p->objectID == 0x17E || p->objectID == 0xE7) {
         obj->trans.rotation.y_rotation += updateRate << 7;
     }
-    n = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list);
+    n = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list);
     if (p->fade == 0) {
         p->timer -= updateRate;
         if (p->timer <= 0) {

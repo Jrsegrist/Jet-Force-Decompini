@@ -69,7 +69,10 @@ typedef struct LevelModelSegment {
     /* 0x08 */ u8 pad8[0xC - 0x8];
     /* 0x0C */ TriangleBatchInfo *batches;
     /* 0x10 */ u32 *triangleMasks; // JFG: per triangle, the bounding box cells it covers (see func_8001D344)
-    /* 0x14 */ u8 pad14[0x24 - 0x14];
+    /* 0x14 */ u8 *triangleHeightMasks; // JFG: per triangle, the height cells it covers (see func_8001ACE0)
+    /* 0x18 */ struct TrianglePlaneRef *trianglePlanes;
+    /* 0x1C */ struct Plane *planes;
+    /* 0x20 */ u8 *edgeFlags; // JFG: per triangle, which of its edges go into the edge list (track_edges_build)
     /* 0x24 */ s16 numberOfVertices;
     /* 0x26 */ u8 pad26[0x28 - 0x26];
     /* 0x28 */ s16 numberOfBatches;
@@ -78,14 +81,18 @@ typedef struct LevelModelSegment {
     /* 0x32 */ s8 colourFlags;
     /* 0x33 */ u8 pad33;
     /* 0x34 */ SegmentColours *colours;
-    /* 0x38 */ u8 pad38[0x48 - 0x38];
+    /* 0x38 */ u8 pad38[0x46 - 0x38];
+    /* 0x46 */ u8 numberOfOpaqueBatches; // DKR: numberofOpaqueBatches
+    /* 0x47 */ u8 unk47;                 // JFG: the end of the second batch group (see func_80014EBC)
 } LevelModelSegment;
 
 /* DKR include/structs.h, reduced */
 typedef struct TextureHeader {
     /* 0x00 */ u8 width;
     /* 0x01 */ u8 height;
-    /* 0x02 */ u8 pad2[0x12 - 2];
+    /* 0x02 */ u8 pad2[0x6 - 2];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ u8 pad8[0x12 - 8];
     /* 0x12 */ u16 numOfTextures;
     /* 0x14 */ u16 frameAdvanceDelay;
 } TextureHeader;
@@ -159,7 +166,70 @@ void func_80012150(s32 arg0) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800121C0);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800127A4);
+extern Gfx *D_800F2F70; // DKR: gTrackDL
+extern s32 D_801008B4;  // JFG: the screen row the effect below starts at (0: all of it)
+Camera *cam_get_active_camera(void);
+s32 cam_get_active_camera_id(); // also called with two arguments it ignores (below)
+u8 func_8003FC4C(s32 index);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+s32 track_height_at(f32 x, f32 z, f32 *y, s32 flags);
+void fb_size(u32 *width, u32 *height);
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
+void func_8006F084(Gfx **dList, s32 arg1, s32 top, s32 width, s32 height, s32 arg5);
+
+/**
+ * JFG: if the ground found (flag 0x2000) 10 units behind the camera is above its height - 16, draw the screen
+ * effect (func_8006F084) from the row where a point 10 units ahead, at that height difference, projects to (or
+ * all of the screen once the camera is 10 or more units below it); the row goes to D_801008B4.
+ */
+void ground_screen_effect_update(s32 arg0) {
+    Camera *cam;
+    u32 width;
+    u32 height;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 screenX;
+    f32 screenY;
+    f32 s;
+    f32 c;
+    s32 top;
+
+    cam = cam_get_active_camera();
+    if (func_8003FC4C(cam_get_active_camera_id())) {
+        x = cam->trans.x_position - func_80049C34(cam->trans.rotation[0] + 0x8000) * 10.0f;
+        z = cam->trans.z_position - func_80049C30(cam->trans.rotation[0] + 0x8000) * 10.0f;
+        if (track_height_at(x, z, &y, 0x2000) & 0x2000) {
+            if (cam->trans.y_position - 16.0f < y) {
+                fb_size(&width, &height);
+                s = func_80049C34(cam->trans.rotation[1]);
+                c = func_80049C30(cam->trans.rotation[1]);
+                y -= cam->trans.y_position;
+                if (y >= 10.0f) {
+                    func_8006F084(&D_800F2F70, 0, 0, width, height, arg0);
+                    D_801008B4 = 0;
+                } else {
+                    z = y * s - 10.0f * c;
+                    y = y * c + 10.0f * s;
+                    if (z > 0.0f) {
+                        z = -z;
+                    }
+                    if (func_80041E58(0.0f, y, z, &screenX, &screenY, 0)) {
+                        top = screenY;
+                        if (top < (s32) height) {
+                            if (top < 0) {
+                                top = 0;
+                            }
+                            func_8006F084(&D_800F2F70, 0, top, width, height, arg0);
+                            D_801008B4 = top;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 void tex_animate_texture(TextureHeader *texture, u32 *triangleBatchInfoFlags, s32 *arg2, s32 updateRate);
 
@@ -299,6 +369,8 @@ typedef struct LevelHeader12 {
     /* 0xD3 */ u8 bgTopB;
     /* 0xD4 */ u8 padD4[0xE1 - 0xD4];
     /* 0xE1 */ u8 skydomeSpin; // JFG: the skydome's rotation per frame
+    /* 0xE2 */ u8 padE2[0xEC - 0xE2];
+    /* 0xEC */ s16 maxEdges; // JFG: the edge list's size (track_edges_build)
 } LevelHeader12;
 
 /* JFG: an object's header, reduced */
@@ -921,7 +993,122 @@ void racers_apply_module_values(s32 *arg0, s32 *arg1, s32 *arg2) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001448C);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: register choice only: the target keeps the batch pointer in $s3 and the texture in $s1 (mine
+   the other way round); 18 words */
+/* JFG's vertex and triangle commands here: length, command and parameter or'ed in that order */
+#define gSPVertexSeg(pkt, v, last)                                                                        \
+    {                                                                                                     \
+        Gfx *_g = (Gfx *) (pkt);                                                                          \
+        _g->words.w0 = _SHIFTL(((last) << 1) + ((last) << 3) + 8, 0, 16) | _SHIFTL(G_VTX, 24, 8) |          \
+                       _SHIFTL(((last) << 3) | ((u32) (v) & 6), 16, 8);                                   \
+        _g->words.w1 = (u32) (v);                                                                         \
+    }
+#define gSPPolygonSeg(pkt, ptr, n, tex)                                                                   \
+    {                                                                                                     \
+        Gfx *_g = (Gfx *) (pkt);                                                                          \
+        _g->words.w0 = _SHIFTL((n) * 16, 0, 16) | _SHIFTL(5, 24, 8) | _SHIFTL((((n) - 1) << 4) | (tex), 16, 8); \
+        _g->words.w1 = (u32) (ptr);                                                                       \
+    }
+extern s32 D_800F2FA0; // JFG: render flags added to batches with neither of 0x180
+void tex_disable_modes(s32 flags);
+void tex_enable_modes(s32 flags);
+void func_8001C778(TextureHeader *tex, s32 texOffset, s32 flags);
+
+/**
+ * Render a group of a level segment's batches: pass 0x10000000 draws the opaque ones (without Z compare), the
+ * others the batches whose flags match (4 and 0x20000000 the second group).
+ * JFG: environment colour from the texture offset for some textures, flag 0x4000 for a special material.
+ * DKR: render_level_segment
+ */
+void func_80014EBC(s32 segmentId, s32 pass) {
+    s32 i;
+    s32 end;
+    s32 batchFlags;
+    s32 mask;
+    s32 wanted;
+    TextureHeader *texture;
+    TriangleBatchInfo *batch;
+    UNUSED s32 numberVertices;
+    UNUSED s32 numberTriangles;
+    s32 vertices;
+    s32 triangles;
+    s32 hasTexture;
+    s32 texOffset;
+    s32 special;
+    UNUSED s32 pad;
+    LevelModelSegment *segment;
+
+    segment = &gCurrentLevelModel->segments[segmentId];
+    mask = 0x10000400;
+    wanted = 0;
+    switch (pass) {
+        case 0x10000000:
+            tex_disable_modes(2);
+            end = segment->numberOfOpaqueBatches;
+            i = 0;
+            wanted = 0x10000000;
+            break;
+        case 4:
+            mask = 0x30000400;
+            i = segment->unk47;
+            end = segment->numberOfBatches;
+            break;
+        case 0x20000000:
+            mask = 0x30000400;
+            wanted = 0x20000000;
+            i = segment->unk47;
+            end = segment->numberOfBatches;
+            break;
+        default:
+            i = segment->numberOfOpaqueBatches;
+            end = segment->unk47;
+            break;
+    }
+    for (batch = &segment->batches[i]; i < end; i++, batch++) {
+        batchFlags = batch->flags;
+        if ((batchFlags & mask) != wanted) {
+            continue;
+        }
+        texture = NULL;
+        if (batch->textureIndex != 0xFF) {
+            hasTexture = TRUE;
+            texture = gCurrentLevelModel->textures[batch->textureIndex].texture;
+        } else {
+            hasTexture = FALSE;
+        }
+        vertices = (s32) &segment->vertices[batch->verticesOffset];
+        triangles = (s32) &segment->triangles[batch->facesOffset];
+        texOffset = batch->texOffset << 8;
+        if (texture != NULL && (texture->flags & 0x40) && (batchFlags & 0x30) != 0x20) {
+            gDPSetEnvColor(D_800F2F70++, (u8) (texOffset >> 8), (u8) (texOffset >> 8), (u8) (texOffset >> 8),
+                           (u8) (texOffset >> 8));
+        } else {
+            gDPSetEnvColor(D_800F2F70++, 255, 255, 255, 0);
+        }
+        if (!(batchFlags & 0x180)) {
+            batchFlags |= D_800F2FA0;
+        }
+        special = batchFlags & 0x4000;
+        if (special && texture != NULL) {
+            func_8001C778(texture, texOffset, batchFlags);
+        } else {
+            func_80055C00(&D_800F2F70, texture, batchFlags | 2, texOffset);
+        }
+        gSPVertexSeg(D_800F2F70++, OS_K0_TO_PHYSICAL(vertices), (batch + 1)->verticesOffset - batch->verticesOffset);
+        gSPPolygonSeg(D_800F2F70++, OS_K0_TO_PHYSICAL(triangles), (batch + 1)->facesOffset - batch->facesOffset,
+                      hasTexture);
+        if (special) {
+            rendermode_reset(&D_800F2F70);
+        }
+    }
+    if (pass == 0x10000000) {
+        tex_enable_modes(2);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80014EBC);
+#endif
 
 /**
  * Parse through applicable segments in the level.
@@ -1254,7 +1441,98 @@ s32 player_get_draw_alpha(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015ED8);
 
+/* JFG: what the sweep tests fill in (func_80016208) */
+typedef struct SweepHit {
+    /* 0x00 */ void *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ f32 normal[3];
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ s32 unk20;
+    /* 0x24 */ u8 unk24;
+    /* 0x25 */ u8 unk25;
+    /* 0x26 */ u8 unk26;
+    /* 0x27 */ u8 unk27;
+} SweepHit;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target copies flags to $s0 (in the delay slot of the first branch) and takes the 0x40 test
+   from that copy, which also moves the hit-field stores after the float stores; IDO propagates my copies away */
+extern f32 D_800ABA28;
+void track_edges_build(void);
+void func_800805F4(void);
+s32 func_8007F280(void *obj, f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
+s32 func_80017094(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
+s32 func_8007FC0C(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags);
+s32 func_80017794(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags);
+
+/* JFG: sweep a sphere from `from` to `to` against objects and the level (and, with flag 0x10, the extra tests),
+ * repeating while something is hit (up to 6 times; then `to` goes back to `from`); flag 0x40: test once. */
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, SweepHit *hit) {
+    s32 found;
+    s32 result;
+    s32 tries;
+    s32 once;
+    s32 extra;
+
+    extra = flags & 0x10;
+    if (extra) {
+        track_edges_build();
+        func_800805F4();
+    }
+    hit->obj = NULL;
+    hit->unk25 = 0;
+    hit->pos[0] = 0.0f;
+    hit->pos[1] = 0.0f;
+    hit->pos[2] = 0.0f;
+    hit->normal[0] = 0.0f;
+    hit->normal[1] = 0.0f;
+    hit->normal[2] = 0.0f;
+    once = flags & 0x40;
+    result = 0;
+    tries = 0;
+    hit->unk24 = 0;
+    hit->unk20 = 0;
+    hit->unk26 = 0;
+    hit->unk27 = 0;
+    hit->unk1C = D_800ABA28;
+    found = TRUE;
+    while (found && !once) {
+        found = FALSE;
+        if (func_8007F280(obj, from, to, hit, radius, flags, radius)) {
+            found = TRUE;
+            result = TRUE;
+        }
+        if (func_80017094(from, to, hit, radius, flags, radius)) {
+            found = TRUE;
+            result = TRUE;
+        }
+        if (extra) {
+            if (func_8007FC0C(from, to, hit, radius, flags)) {
+                found = TRUE;
+                result = TRUE;
+            }
+            if (func_80017794(from, to, hit, radius, flags)) {
+                found = TRUE;
+                result = TRUE;
+            }
+        }
+        if (found) {
+            tries++;
+            if (tries >= 6) {
+                found = FALSE;
+                to[0] = from[0];
+                result = FALSE;
+                to[1] = from[1];
+                to[2] = from[2];
+                hit->unk25 = 0;
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80016208);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800163FC);
 
@@ -1269,7 +1547,7 @@ f32 sqrtf(f32 x);
 #ifdef NON_MATCHING
 /**
  * JFG: where a ray (origin, unit direction) meets a sphere; FALSE if it misses.
- * NON_MATCHING: frame 0x38 (target 0x48, so more locals), and b / b*b swap FP registers.
+ * NON_MATCHING: 7 words: b and b*b swap FP registers ($f14/$f18); the frame matches with the three unused words.
  */
 s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar) {
     f32 dx, dy, dz;
@@ -1277,6 +1555,7 @@ s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f3
     f32 b2;
     f32 c;
     f32 d;
+    UNUSED s32 pad[3];
     s32 hit;
 
     dx = origin[0] - centre[0];
@@ -1300,11 +1579,151 @@ s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f3
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800183D4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800184B4);
+/* JFG: a collision edge of the level geometry (0x30 bytes) */
+typedef struct TrackEdge {
+    /* 0x00 */ f32 x0, y0, z0;
+    /* 0x0C */ f32 x1, y1, z1;
+    /* 0x18 */ f32 dirX, dirY, dirZ; // the unit vector from the first end to the second
+    /* 0x24 */ f32 length;
+    /* 0x28 */ LevelModelSegment *segment;
+    /* 0x2C */ s16 batch;
+    /* 0x2E */ s16 unk2E; // JFG: set from the triangle's flag bit (edge << 2)
+} TrackEdge;
+
+extern TrackEdge *D_800F33B0; // JFG: the edge list
+extern s32 D_800F33B4;        // JFG: the number of edges in it
+extern s32 *D_800F33B8;       // JFG: per entry, a segment address (> 0) or 0 for a triangle
+extern s16 *D_800F33BC;       // JFG: per entry, the batch of the triangle
+extern s16 *D_800F33C0;       // JFG: per entry, the triangle
+extern s32 D_800F33C4;        // JFG: the number of entries
+
+/**
+ * JFG: build the edge list from the entries: a segment entry selects the segment, a triangle entry adds the
+ * triangle's edges that its edge flags mark (ends, direction and length; zero-length edges are skipped), up to
+ * the level header's limit. The segment is only set by an earlier entry.
+ */
+void track_edges_build(void) {
+    UNUSED s32 pad;
+    UNUSED s32 pad2;
+    LevelModelSegment *segment;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 bit;
+    s32 tri;
+    Triangle *triangle;
+    s32 batch;
+    Vertex *verts;
+    Vertex *va;
+    Vertex *vb;
+    TrackEdge *edge;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    D_800F33B4 = 0;
+    for (i = 0; i < D_800F33C4; i++) {
+        if (D_800F33B8[i] > 0) {
+            segment = (LevelModelSegment *) (D_800F33B8[i] | 0x80000000);
+        } else {
+            batch = D_800F33BC[i];
+            tri = D_800F33C0[i];
+            triangle = &segment->triangles[tri];
+            verts = &segment->vertices[segment->batches[batch].verticesOffset];
+            for (j = 0; j < 3; j++) {
+                bit = 1 << j;
+                if (segment->edgeFlags[tri] & bit) {
+                    edge = &D_800F33B0[D_800F33B4];
+                    k = j + 1;
+                    if (k >= 3) {
+                        k = 0;
+                    }
+                    va = &verts[(&triangle->vi0)[j]];
+                    vb = &verts[(&triangle->vi0)[k]];
+                    edge->x0 = va->x;
+                    edge->y0 = va->y;
+                    edge->z0 = va->z;
+                    edge->x1 = vb->x;
+                    edge->y1 = vb->y;
+                    edge->z1 = vb->z;
+                    dx = edge->x1 - edge->x0;
+                    dy = edge->y1 - edge->y0;
+                    dz = edge->z1 - edge->z0;
+                    edge->length = sqrtf(dx * dx + dy * dy + dz * dz);
+                    if (edge->length > 0.0f) {
+                        edge->segment = segment;
+                        edge->dirX = dx / edge->length;
+                        edge->dirY = dy / edge->length;
+                        edge->dirZ = dz / edge->length;
+                        edge->batch = D_800F33BC[i];
+                        edge->unk2E = 0;
+                        if (segment->triangles[tri].flags & (bit << 2)) {
+                            edge->unk2E = 1;
+                        }
+                        if (++D_800F33B4 >= D_800A0D64->maxEdges) {
+                            i = D_800F33C4;
+                            j = 3;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80018808);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800191D8);
+s32 line_clip_plane(f32 denom, f32 num, f32 *tEnter, f32 *tLeave);
+
+/**
+ * JFG: clip the line from (*x0, *y0, *z0) to (*x1, *y1, *z1) against the box min..max: TRUE if part of it is
+ * inside; the ends are moved to the box and the entry and exit fractions go to tEnterOut and tLeaveOut (both 0
+ * for a point inside).
+ */
+s32 line_clip_box(f32 *x0, f32 *y0, f32 *z0, f32 *x1, f32 *y1, f32 *z1, f32 *min, f32 *max, f32 *tEnterOut,
+                  f32 *tLeaveOut) {
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 tEnter;
+    f32 tLeave;
+    s32 hit;
+
+    dx = *x1 - *x0;
+    dy = *y1 - *y0;
+    dz = *z1 - *z0;
+    hit = FALSE;
+    if (dx == 0.0f && dy == 0.0f && dz == 0.0f && min[0] <= *x0 && *x0 <= max[0] && min[1] <= *y0 &&
+        *y0 <= max[1] && min[2] <= *z0 && *z0 <= max[2]) {
+        hit = TRUE;
+        *tEnterOut = 0.0f;
+        *tLeaveOut = 0.0f;
+    } else {
+        tEnter = 0.0f;
+        tLeave = 1.0f;
+        if (line_clip_plane(dx, min[0] - *x0, &tEnter, &tLeave) &&
+            line_clip_plane(-dx, *x0 - max[0], &tEnter, &tLeave) &&
+            line_clip_plane(dy, min[1] - *y0, &tEnter, &tLeave) &&
+            line_clip_plane(-dy, *y0 - max[1], &tEnter, &tLeave) &&
+            line_clip_plane(dz, min[2] - *z0, &tEnter, &tLeave) &&
+            line_clip_plane(-dz, *z0 - max[2], &tEnter, &tLeave)) {
+            hit = TRUE;
+            if (tLeave < 1.0f) {
+                *x1 = *x0 + tLeave * dx;
+                *y1 = *y0 + tLeave * dy;
+                *z1 = *z0 + tLeave * dz;
+            }
+            *tLeaveOut = tLeave;
+            if (tEnter > 0.0f) {
+                *x0 += tEnter * dx;
+                *y0 += tEnter * dy;
+                *z0 += tEnter * dz;
+            }
+            *tEnterOut = tEnter;
+        }
+    }
+    return hit;
+}
 
 /* JFG: clip a line's parameter range [*tEnter, *tLeave] against one plane; FALSE if nothing is left (0x80019518). */
 s32 line_clip_plane(f32 denom, f32 num, f32 *tEnter, f32 *tLeave) {
@@ -1399,7 +1818,101 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_8001A218);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001AB84);
 
+/* JFG: a triangle's entry in the segment's plane index (8 bytes) */
+typedef struct TrianglePlaneRef {
+    /* 0x00 */ u16 plane;
+    /* 0x02 */ u8 pad2[6];
+} TrianglePlaneRef;
+
+/* JFG: a plane a*x + b*y + c*z + d = 0 */
+typedef struct Plane {
+    /* 0x00 */ f32 a, b, c, d;
+} Plane;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: registers only: the plane's b is $f2 and the distance $f14 in the target (mine $f12 and $f2), and
+   some temporaries are numbered differently; 19 words */
+u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
+
+/**
+ * JFG: the level triangle nearest in height to (x, y, z) among those of the point's segment under it (batches
+ * without any of flags): its height goes to *outY and its plane to *outPlane (each if not NULL); NULL if none.
+ */
+Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 flags) {
+    s32 segmentIndex;
+    s32 ix;
+    Triangle *result;
+    TriangleBatchInfo *batch;
+    LevelModelSegment *segment;
+    Triangle *tri;
+    Vertex *verts;
+    u32 *masks;
+    u8 *heightMasks;
+    s32 faceNum;
+    Plane *plane;
+    s32 i;
+    f32 d;
+    f32 h;
+    f32 best;
+    u32 bits;
+    UNUSED s32 pad;
+    u32 mask;
+    s32 iz;
+    u8 heightBits;
+    u8 heightMask;
+
+    segmentIndex = get_level_segment_index_from_position(x, y, z);
+    if (segmentIndex < 0) {
+        return NULL;
+    }
+    best = 32768.0f;
+    ix = x;
+    result = NULL;
+    iz = z;
+    mask = func_8001D344(&gCurrentLevelModel->segmentsBoundingBoxes[segmentIndex], ix, iz, ix, iz);
+    heightMask = func_8001D464(&gCurrentLevelModel->segmentsBoundingBoxes[segmentIndex], y, y);
+    segment = &gCurrentLevelModel->segments[segmentIndex];
+    batch = segment->batches;
+    for (i = 0; i < segment->numberOfBatches; batch++, i++) {
+        if (!(batch->flags & flags)) {
+            faceNum = batch->facesOffset;
+            tri = &segment->triangles[faceNum];
+            verts = &segment->vertices[batch->verticesOffset];
+            masks = &segment->triangleMasks[faceNum];
+            heightMasks = &segment->triangleHeightMasks[faceNum];
+            for (; faceNum < batch[1].facesOffset; faceNum++, tri++) {
+                bits = *masks++ & mask;
+                heightBits = *heightMasks++ & heightMask;
+                if ((bits & 0xFFFF) && (bits >> 16) && (heightBits & 0xFF)) {
+                    if (func_800494AC(ix, iz, &verts[tri->vi0], &verts[tri->vi1], &verts[tri->vi2])) {
+                        plane = &segment->planes[segment->trianglePlanes[faceNum].plane];
+                        if (plane->b != 0.0f) {
+                            h = -((plane->a * x + plane->c * z + plane->d) / plane->b);
+                            d = y - h;
+                            if (y < h) {
+                                d = -d;
+                            }
+                            if (d < best) {
+                                best = d;
+                                if (outY != NULL) {
+                                    *outY = h;
+                                }
+                                if (outPlane != NULL) {
+                                    *outPlane = plane;
+                                }
+                                result = tri;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001ACE0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001B078);
 
@@ -1415,10 +1928,10 @@ extern void *D_800A0D88;
 extern s32 D_800A0D84;
 extern void *D_800A0D68;
 extern void *D_800F31C8;
-extern void *D_800F33B0;
-extern void *D_800F33B8;
-extern void *D_800F33BC;
-extern void *D_800F33C0;
+extern TrackEdge *D_800F33B0;
+extern s32 *D_800F33B8;
+extern s16 *D_800F33BC;
+extern s16 *D_800F33C0;
 extern void *D_800F2FB0;
 extern s8 D_800A0CE0;
 void track_segment_data_free(void);

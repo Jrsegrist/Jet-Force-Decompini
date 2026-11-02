@@ -58,7 +58,7 @@ extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern Object *spawn_object(M130Spawn *entry, s32 arg1); /* DKR */
 extern void spawn_object_from_list(s32, s16, s16, s16, s32, s32);
-extern void func_80052734(s32, s16, s16, s16, u8, u8, u8);
+extern void enemy_module_notify(s32, s16, s16, s16, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 s32 D_m130_005E0 = 130; /* the module's number */
@@ -137,7 +137,7 @@ void func_m130_001AC(Object *obj, s32 updateRate) {
         } else {
             func_80003410(0x96, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
             spawn_object_from_list(2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 100, 0);
-            func_80052734(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
+            enemy_module_notify(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
         }
         if (OBJ_STATE(obj, M130State)->light != 0) {
             track_light_off((f32 *) OBJ_STATE(obj, M130State)->light);

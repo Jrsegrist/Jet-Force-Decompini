@@ -418,7 +418,7 @@ void audio_group_play(s32 group) {
 extern s32 D_800A0800[];               // JFG: the number of entries of each group
 
 /* JFG: take a point out of its group. */
-void func_80003B14(AudioPoint *point) {
+void audspat_point_group_remove(AudioPoint *point) {
     s32 i;
     AudioGroupEntry *entry = D_800F2A48[point->unk23 - 1];
 
@@ -430,7 +430,7 @@ void func_80003B14(AudioPoint *point) {
     }
 }
 
-void func_80003B14(AudioPoint *point);
+void audspat_point_group_remove(AudioPoint *point);
 void sound_stop(void *soundHandle);
 
 /**
@@ -450,7 +450,7 @@ void audspat_point_stop_by_index(s32 index) {
             *point->userHandlePtr = NULL;
         }
         if (point->unk23 != 0) {
-            func_80003B14(point);
+            audspat_point_group_remove(point);
         }
         // put it to the free list
         gLastFreePointIndex++;

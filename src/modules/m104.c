@@ -61,10 +61,10 @@ typedef struct M104PlayerStats {
 /* The object's s16 at 0x2E */
 
 extern void runlink_unload_timer_set(s32, s32, s32);
-extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
+extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 extern M104PlayerStats *func_80047C1C(s32 player, s32 arg1);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
-extern void func_800577A8(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
+extern void sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 s32 D_m104_006A0 = 104; /* the module's number */
@@ -158,9 +158,9 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
         func_8001138C(obj, 0.01f, updateRate);
     } else {
         anim = 9;
-        func_800577A8(obj->modelInstances[obj->modelIndex], &anim, 12, &obj->unk28, updateRate);
+        sprite_anim_advance(obj->modelInstances[obj->modelIndex], &anim, 12, &obj->unk28, updateRate);
     }
-    n = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 250.0f, 0, list);
+    n = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 250.0f, 0, list);
     near = 0;
     if (n != 0) {
         dx = obj->trans.x_position - list[0]->trans.x_position;

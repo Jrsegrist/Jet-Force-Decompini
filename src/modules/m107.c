@@ -82,7 +82,7 @@ typedef struct M107Player {
     /* 0x5C8 */ s16 invincibleTime;
 } M107Player;
 
-extern s32 func_8007E150(f32 x, f32 y, f32 z, f32 radius, s32 arg4, Object **list); /* objects in range */
+extern s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 arg4, Object **list); /* objects in range */
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern void colour_cycle_init(M107ColourCycle *cycle, s32 assetID);
 extern s32 func_800210A4(s32 arg0, LightParams *params); /* adds a light */
@@ -125,7 +125,7 @@ void func_m107_00038(Object *obj, s32 updateRate) {
     s32 count;
     s32 i;
 
-    count = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list);
+    count = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 40.0f, 0, list);
     if (state->fade == 0) {
         state->timer -= updateRate;
         if (state->timer <= 0) {

@@ -91,8 +91,8 @@ extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* the distance to the c
 extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 arg5); /* projects to the screen */
 extern s32 func_800373E4(M013Weapons *w, s32 weapon);                              /* the weapon's ammo capacity */
 extern void s32_to_decimal_string(char *buf, s32 value, s32 arg2);                          /* writes a number */
-extern void func_8006D60C(s16 x, s16 y, char *text);                               /* draws a text */
-extern void func_8006D58C(s16 x0, s16 y0, s16 x1, s16 y1, s32 colour, s32 window); /* draws a line */
+extern void debug_text_add(s16 x, s16 y, char *text);                               /* draws a text */
+extern void screen_line_add_in_window(s16 x0, s16 y0, s16 x1, s16 y1, s32 colour, s32 window); /* draws a line */
 extern void mtx_cam_push(Gfx **dList, Mtx **mtx, ObjectTransform *trans, f32 scaleY, f32 offsetY);
 extern void func_80041DC0(Gfx **dList);
 
@@ -322,21 +322,21 @@ void func_m013_004A8(M013Player *p, s16 x, s16 y, ObjectTransform *trans, f32 di
         case 5:
             s32_to_decimal_string(buf, dist * 50000.0f, 1);
             tmp = (s16) (x + 20);
-            func_8006D60C(tmp, y - 16, buf);
+            debug_text_add(tmp, y - 16, buf);
             s32_to_decimal_string(buf, p->unk1D0 * 0.54931640625f, 1);
-            func_8006D60C(tmp, y - 8, buf);
+            debug_text_add(tmp, y - 8, buf);
             break;
         case 1:
             if (locked) {
                 tmp = (s16) (x + 27);
-                func_8006D60C(tmp, y - 15, "####");
-                func_8006D60C(tmp, y - 8, "LOCK");
+                debug_text_add(tmp, y - 15, "####");
+                debug_text_add(tmp, y - 8, "LOCK");
             } else {
                 s32_to_decimal_string(buf, dist * 50000.0f, 1);
                 tmp = (s16) (x + 27);
-                func_8006D60C(tmp, y - 15, buf);
+                debug_text_add(tmp, y - 15, buf);
                 s32_to_decimal_string(buf, p->unk1D0 * 0.54931640625f, 1);
-                func_8006D60C(tmp, y - 8, buf);
+                debug_text_add(tmp, y - 8, buf);
             }
             break;
         case 3:
@@ -363,12 +363,12 @@ void func_m013_004A8(M013Player *p, s16 x, s16 y, ObjectTransform *trans, f32 di
         case 11:
             fraction = ((p->unk53E - 32) >> 4) * 100.0f;
             s32_to_decimal_string(buf, fraction, 1);
-            func_8006D60C(x + 20, y - 16, buf);
+            debug_text_add(x + 20, y - 16, buf);
             break;
         case 7:
             fraction = (p->unk1EC - 1.0f) * 225.0f + 100.0f;
             s32_to_decimal_string(buf, fraction, 1);
-            func_8006D60C(32, y - 8, buf);
+            debug_text_add(32, y - 8, buf);
             break;
     }
     while (count--) {
@@ -383,32 +383,32 @@ void func_m013_004A8(M013Player *p, s16 x, s16 y, ObjectTransform *trans, f32 di
         tmp = player;
         if (line->copies == 5) {
             if (!D_800A4FC4) {
-                func_8006D58C(line->x0, line->y0 + y, line->x1, line->y1 + y, (u8) colour, tmp);
-                func_8006D58C(320 - line->x1, line->y0 + y, 320 - line->x0, line->y1 + y, (u8) colour, tmp);
+                screen_line_add_in_window(line->x0, line->y0 + y, line->x1, line->y1 + y, (u8) colour, tmp);
+                screen_line_add_in_window(320 - line->x1, line->y0 + y, 320 - line->x0, line->y1 + y, (u8) colour, tmp);
             }
         } else if (line->copies == 6) {
             if (!D_800A4FC4) {
-                func_8006D58C(line->x0 + x, line->y0, line->x1 + x, line->y1, (u8) colour, tmp);
-                func_8006D58C(line->x0 + x, 240 - line->y1, line->x1 + x, 240 - line->y0, (u8) colour, tmp);
+                screen_line_add_in_window(line->x0 + x, line->y0, line->x1 + x, line->y1, (u8) colour, tmp);
+                screen_line_add_in_window(line->x0 + x, 240 - line->y1, line->x1 + x, 240 - line->y0, (u8) colour, tmp);
             }
         } else {
-            func_8006D58C(x + line->x0, y + line->y0, x + line->x1, y + line->y1, (u8) colour, tmp);
+            screen_line_add_in_window(x + line->x0, y + line->y0, x + line->x1, y + line->y1, (u8) colour, tmp);
             switch (line->copies) {
                 case 1:
-                    func_8006D58C(x - line->x0, y + line->y0, x - line->x1, y + line->y1, colour | 0x40, tmp);
+                    screen_line_add_in_window(x - line->x0, y + line->y0, x - line->x1, y + line->y1, colour | 0x40, tmp);
                     break;
                 case 2:
-                    func_8006D58C(x + line->x0, y - line->y0, x + line->x1, y - line->y1, (u8) colour, tmp);
+                    screen_line_add_in_window(x + line->x0, y - line->y0, x + line->x1, y - line->y1, (u8) colour, tmp);
                     break;
                 case 4:
-                    func_8006D58C(x - line->x0, y - line->y0, x - line->x1, y - line->y1, colour | 0x40, tmp);
+                    screen_line_add_in_window(x - line->x0, y - line->y0, x - line->x1, y - line->y1, colour | 0x40, tmp);
                     break;
                 case 3:
-                    func_8006D58C(x - line->x0, y - line->y0, x - line->x1, y - line->y1, (u8) (colour | 0x40),
+                    screen_line_add_in_window(x - line->x0, y - line->y0, x - line->x1, y - line->y1, (u8) (colour | 0x40),
                                   tmp);
-                    func_8006D58C(x - line->y0, y + line->x0, x - line->y1, y + line->x1, (u8) (colour | 0x40),
+                    screen_line_add_in_window(x - line->y0, y + line->x0, x - line->y1, y + line->x1, (u8) (colour | 0x40),
                                   tmp);
-                    func_8006D58C(x + line->y0, y - line->x0, x + line->y1, y - line->x1, (u8) colour, tmp);
+                    screen_line_add_in_window(x + line->y0, y - line->x0, x + line->y1, y - line->x1, (u8) colour, tmp);
                     break;
             }
         }

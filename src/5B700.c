@@ -1190,7 +1190,7 @@ void func_8005F5A0(f32 arg0) {
     D_800A5DDC = arg0;
 }
 
-void func_8005F76C(ParticleObj *obj, ParticleEmitter *emitter); // DKR: obj_trigger_emitter
+void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter); // DKR: obj_trigger_emitter
 
 /**
  * Update all particle emitters attached to the object and spawn new particles.
@@ -1217,14 +1217,14 @@ void obj_spawn_particle(ParticleObj *obj, s32 updateRate) {
             }
             if (obj->emitters[i].flags & PARTICLE_LINE) {
                 obj->emitters[i].colourIndex += updateRate;
-                func_8005F76C(obj, &obj->emitters[i]);
+                obj_trigger_emitter(obj, &obj->emitters[i]);
             } else if (obj->emitters[i].flags & PARTICLE_POINT) {
                 obj->emitters[i].colourIndex += updateRate;
-                func_8005F76C(obj, &obj->emitters[i]);
+                obj_trigger_emitter(obj, &obj->emitters[i]);
             } else {
                 obj->emitters[i].colourIndex += updateRate;
                 if (obj->emitters[i].colourIndex >= obj->emitters[i].behaviour->spawnInterval) {
-                    func_8005F76C(obj, &obj->emitters[i]);
+                    obj_trigger_emitter(obj, &obj->emitters[i]);
                 }
             }
         } else if (obj->emitters[i].flags & PARTICLE_ACTIVE) {
@@ -1256,7 +1256,7 @@ void func_80062D5C(void *arg0, ParticleEmitter *emitter);
  * caught up without D_801008F4's velocity and flagged 0x80000.
  * DKR: obj_trigger_emitter
  */
-void func_8005F76C(ParticleObj *obj, ParticleEmitter *emitter) {
+void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
     s32 i;
     ParticleBehaviour *behaviour;
     TrigParticle *particle;
@@ -1431,7 +1431,7 @@ s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s3
  * JFG: update a line set: move the segments whose life ran out to the end, then age the rest (colour cycle
  * and fade) and animate the texture; a released set that is empty frees its texture.
  */
-void func_80061C30(LineParticleSet *set, s32 updateRate) {
+void line_particle_set_update(LineParticleSet *set, s32 updateRate) {
     s32 i;
     s32 j;
     LineSeg *seg;
@@ -1578,7 +1578,7 @@ extern s32 D_800A5D7C;   // JFG: the number of line particle sets
 extern u8 D_800A5DE8[]; // JFG: the triangle strip the line particles share
 
 /* JFG: render the active line particle sets with two vertices per segment (their textures animated). */
-void func_80062A90(Gfx **dList, Vertex **vtxList) {
+void line_particles_render(Gfx **dList, Vertex **vtxList) {
     Vertex *vtx;
     Vertex *start;
     LineParticleSet *set;
@@ -1828,7 +1828,7 @@ extern s32 D_800A5DD8;
 void set_active_camera(s32 arg0);
 void func_8004046C(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
-void func_80062A90(Gfx **dList, Vertex **vtx);
+void line_particles_render(Gfx **dList, Vertex **vtx);
 void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 void func_8005D660(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 
@@ -1841,7 +1841,7 @@ void render_all_particles(Gfx **dList, Mtx **matrix) {
     func_8004046C(dList, matrix);
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);
-    func_80062A90(dList, &vtx);
+    line_particles_render(dList, &vtx);
     func_80062A00(dList, &vtx);
     func_8005D2E8(dList, matrix, &vtx, D_801008E0[2]);
     func_8005D660(dList, matrix, &vtx, D_801008E0[3]);

@@ -30,7 +30,7 @@ typedef struct M116Obstacle {
 extern s8 D_800A5034; /* which pickups the race has */
 extern s8 D_800A503C;
 extern void func_80001248(s32 sound, s32 arg1);
-extern s32 func_8007E150(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list);
+extern s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list);
 extern void func_8005F5AC(Object *obj, s32 arg1);
 extern void func_m031_01B7C(s32 player);
 extern void func_m031_01BC0(s32 player);
@@ -82,7 +82,7 @@ void func_m116_00038(Object *obj, s32 updateRate) {
     } else {
         obj->trans.rotation.x_rotation += updateRate << 9;
     }
-    touched = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 64.0f, 1, &hit);
+    touched = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 64.0f, 1, &hit);
     if (OBJ_STATE(obj, M116State)->alpha == 0) {
         OBJ_STATE(obj, M116State)->timer += updateRate;
         if (touched == 0 && OBJ_STATE(obj, M116State)->timer >= 360) {
@@ -144,7 +144,7 @@ void func_m116_002FC(Object *obj, s32 updateRate) {
     s32 i;
     s32 hits;
 
-    hits = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 64.0f, 0, list);
+    hits = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 64.0f, 0, list);
     o = obj->unk68;
     found = 0;
     if (hits != 0) {

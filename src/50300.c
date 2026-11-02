@@ -274,7 +274,7 @@ void sc_task_print(SchedTask *t) {
 
 void __osSpSetStatus(u32 data);
 void func_80065F80(Gfx *from, Gfx *to, s32 arg2);
-void func_80065E28(u32 addr, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA);
+void debug_trace_find_nearest(u32 addr, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA);
 
 /* The RSP and RDP set back to run a task: SP halt, broke, interrupts and signals cleared; DP flags cleared */
 #define SP_RESET_STATUS 0xAAAA82
@@ -382,7 +382,7 @@ Gfx *rcp_hang_bisect(OSSched *sc, s32 count, Gfx *dl, OSMesgQueue *mq, Gfx *star
 /*
  * Debug: finds the command the running graphics task hangs on (rcp_hang_bisect, from the middle of its
  * display list, with the scheduler's interrupts sent to a queue of its own), and the nearest marked
- * positions in the display list before and after it (func_80065E28); dumps the commands before it.
+ * positions in the display list before and after it (debug_trace_find_nearest); dumps the commands before it.
  */
 Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA) {
     u32 half;
@@ -412,7 +412,7 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
     stubbed_printf("Crash gfx ptr = %x\n");
     *aboveB = 0;
     *belowB = 0;
-    func_80065E28((u32) dl, &prevB, &prevC, &prevA, &nextB, &nextC, &nextA);
+    debug_trace_find_nearest((u32) dl, &prevB, &prevC, &prevA, &nextB, &nextC, &nextA);
     if (nextB != 0 || prevB != 0) {
         stubbed_printf("Surrounding traces:\n");
         if (prevB != 0) {

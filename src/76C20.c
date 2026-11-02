@@ -5,6 +5,11 @@ typedef struct AnimModel {
     /* 0x0A */ u16 flags;
 } AnimModel;
 
+typedef struct AnimObjectHeader {
+    /* 0x00 */ u8 pad0[0x1F];
+    /* 0x1F */ s8 numVariants; // JFG: the number of values unk3A can take
+} AnimObjectHeader;
+
 typedef struct AnimObject {
     /* 0x00 */ u8 pad0[0x6];
     /* 0x06 */ s16 flags;
@@ -12,7 +17,14 @@ typedef struct AnimObject {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x34];
+    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x3A */ s8 unk3A;
+    /* 0x3B */ u8 pad3B;
+    /* 0x3C */ s32 unk3C;
+    /* 0x40 */ AnimObjectHeader *header;
+    /* 0x44 */ u8 pad44[4];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[2];
     /* 0x4C */ AnimModel *model;
     /* 0x50 */ u8 pad50[0xC];
     /* 0x5C */ s32 unk5C;
@@ -58,7 +70,8 @@ typedef struct AnimPath {
     /* 0x25 */ u8 unk25;
     /* 0x26 */ u8 unk26;
     /* 0x27 */ u8 unk27;
-    /* 0x28 */ u8 pad28[2];
+    /* 0x28 */ u8 unk28;
+    /* 0x29 */ u8 unk29;
     /* 0x2A */ s16 unk2A;
     /* 0x2C */ f32 unk2C;
     /* 0x30 */ f32 unk30;
@@ -154,26 +167,24 @@ s8 func_800761C8(u16 *arg0) {
     return D_800A74F0[(u8) (arg0[1] >> 8)];
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: count and total swapped between s2 and s3 (16 declaration orders tried) */
 /* JFG: the length of the command list at D_800A74C8 (0 if it is broken). */
-s32 func_800761E8() { // JFG: no parameters (the caller passes &D_800A74C8)
+s32 command_list_length() { // JFG: no parameters (the caller passes &D_800A74C8)
     u16 *cmd = (u16 *) D_800A74C8;
     s32 len;
-    s32 total = 0;
-    s32 done = FALSE;
     s32 count = 0;
+    s32 done = FALSE;
+    s32 total = 0;
 
     if (cmd != NULL) {
-        do {
+        while (!done) {
             if ((u8) (cmd[1] >> 8) == 0x7F) {
                 done = TRUE;
             }
             len = func_800761C8(cmd);
             total += len;
             if (len != 0) {
-                count++;
                 cmd += len >> 1;
+                count++;
                 if (count > 0x2000) {
                     done = TRUE;
                 }
@@ -181,14 +192,10 @@ s32 func_800761E8() { // JFG: no parameters (the caller passes &D_800A74C8)
                 total = 0;
                 done = TRUE;
             }
-        } while (!done);
+        }
     }
     return total;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/76C20", func_800761E8);
-s32 func_800761E8(s32 *arg0);
-#endif
 
 extern s32 *D_800A74BC;
 
@@ -198,7 +205,7 @@ void func_800762A0(void) {
 
     D_800A74C8 = (s32) D_800A74BC + (header & 0xFFFFFF);
     D_800A74CC = D_800A74C8;
-    D_800A74D0 = func_800761E8(&D_800A74C8);
+    D_800A74D0 = command_list_length(&D_800A74C8);
 }
 
 void func_800762F0(u8 index) {
@@ -213,7 +220,99 @@ void func_800762F0(u8 index) {
     D_801045B0[index] = NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/76C20", func_8007637C);
+/* JFG: the start of a level object entry (the object ID is an s16 and the size byte follows it) */
+typedef struct LevelObjectEntryCommon {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x04 */ s16 x, y, z;
+} LevelObjectEntryCommon;
+
+typedef struct LevelHeader {
+    /* 0x00 */ u8 pad0[0x6C];
+    /* 0x6C */ s8 unk6C;
+    /* 0x6D */ u8 pad6D[0xAC - 0x6D];
+    /* 0xAC */ s8 unkAC; // JFG: the camera FoV
+} LevelHeader;
+LevelHeader *level_header(void);
+s32 func_800485C8(s32 player);
+s32 game_flag_get(s32 flag);
+s16 func_800468CC(void);
+AnimObject *spawn_object(LevelObjectEntryCommon *entry, s32 arg1);
+void func_8000E480(AnimObject *obj);
+extern s16 D_800A7570[8];
+extern s16 D_800A7580[4];
+extern s16 D_800A7588[4];
+extern u8 D_800A4FC0;
+
+/**
+ * JFG: spawn the object of path index at its first node, unless it has one: the object ID is first swapped
+ * through small tables for some IDs (by character, flag 0x5F or the level type); the new object gets flag
+ * 0x400 as on a path restart.
+ */
+void anim_path_spawn_object(u8 index) {
+    s32 c;
+    LevelObjectEntryCommon setup;
+    s8 type;
+    AnimObject *obj;
+    AnimNode *node;
+    AnimPath *path = D_801045B0[index];
+
+    if (path != NULL) {
+        node = path->nodes;
+        if (node != NULL && path->obj == NULL && path->unk2 != -1) {
+            if (path->unk2 == 0xC5 || path->unk2 == 0xC6) {
+                c = func_800485C8(0);
+                if (game_flag_get(0x5F)) {
+                    c |= 4;
+                }
+                path->unk2 = D_800A7570[c & 7];
+            }
+            if (path->unk2 == 0x106 || path->unk2 == 0x8A || path->unk2 == 0x10A) {
+                type = level_header()->unk6C;
+                if (type == 1 || type == 2) {
+                    path->unk2 = D_800A7580[func_800468CC() & 3];
+                } else {
+                    path->unk2 = D_800A7588[func_800468CC() & 3];
+                }
+            }
+            setup.x = node->x;
+            setup.y = node->y;
+            setup.z = node->z;
+            setup.size = 10;
+            setup.objectID = path->unk2;
+            path->obj = spawn_object(&setup, 1);
+            obj = path->obj;
+            if (obj != NULL) {
+                obj->flags |= 0x400;
+                obj->unk3C = 0;
+                if (obj->behaviorId == 0x33) {
+                    func_8000E480(path->obj);
+                }
+                path->unk24 = 0xFF;
+                path->unk25 = 0xFF;
+                path->unk26 = 0;
+                path->unk27 = 0;
+                path->unk2A = 0;
+                path->unk2C = 1.0f;
+                path->unk30 = 0.0f;
+                if (path->unk2 == 0x29B || path->unk2 == 0x29C || path->unk2 == 0x29D) {
+                    obj->unk3A = func_800468CC() & 3;
+                    if (obj->unk3A == 3) {
+                        obj->unk3A = D_800A4FC0 & 3;
+                    }
+                    if (obj->unk3A >= obj->header->numVariants) {
+                        obj->unk3A = 0;
+                    }
+                }
+                if (path->obj->unk5C != 0) {
+                    path->obj->model->flags &= ~1;
+                }
+            }
+        }
+        path->unk28 = 100;
+        path->unk29 = 0;
+    }
+}
 
 /* The module trap (0x80054530) under a prototype with a float argument: needs
    `func_80054530_f32 = 0x80054530;` in undefined_syms.us.txt. */
@@ -600,11 +699,6 @@ void sequence_stop(void) {
     }
 }
 
-typedef struct LevelHeader {
-    /* 0x00 */ u8 pad0[0xAC];
-    /* 0xAC */ s8 unkAC; // JFG: the camera FoV
-} LevelHeader;
-LevelHeader *level_header(void);
 void func_80077468(void);
 void func_800773AC(void);
 void func_800773EC(void);
@@ -645,12 +739,12 @@ void sequence_start(s32 id) {
     }
 }
 
-void func_8007637C(u8 index);
+void anim_path_spawn_object(u8 index);
 
 void func_800773AC(void) {
     s32 i;
     for (i = 0; i < 256; i++) {
-        func_8007637C(i);
+        anim_path_spawn_object(i);
     }
 }
 

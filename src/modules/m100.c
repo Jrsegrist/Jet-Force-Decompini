@@ -33,7 +33,7 @@ typedef struct M100Player {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
-extern s32 func_8007E150(f32, f32, f32, f32, s32, Object **);
+extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 
 s32 D_m100_002F0 = 100; /* the module's number */
 
@@ -72,7 +72,7 @@ void func_m100_00110(Object *obj, s32 updateRate) {
     pad->last = NULL;
     add = func_80005064(updateRate * 6);
     if (pad->uses != 0) {
-        n = func_8007E150(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 300.0f, 1, list);
+        n = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 300.0f, 1, list);
         if (n != 0) {
             for (i = 0; i < n; i++) {
                 if (pad->uses < 0 || last != list[i]) {

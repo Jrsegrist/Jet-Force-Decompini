@@ -35,7 +35,7 @@ void debug_trace_add(s32 a, s32 b, s32 c) {
 
 /* JFG: in the previous list, find the entries with the nearest .a at or below key and above key, and
    return their fields (b, c, a); the first output of each is 0 when there is none. */
-void func_80065E28(u32 key, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA) {
+void debug_trace_find_nearest(u32 key, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA) {
     s32 prev = 1 - D_800A64B8;
     u32 lo = 0;
     u32 hi = -1;

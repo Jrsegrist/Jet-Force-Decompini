@@ -377,7 +377,7 @@ s32 normalise_time(s32 timer) {
 }
 
 #ifdef NON_MATCHING
-/* JFG: whether an object type is spawned by func_8005131C rather than spawn_object.
+/* JFG: whether an object type is spawned by troop_buffer_push rather than spawn_object.
    NON_MATCHING: the result goes through v1 and the branch delay slots are filled (target: v0, nops). */
 #define IS_TYPE(x) (ret = (objectID == (x)))
 s32 func_800050A8(s32 objectID) {
@@ -415,9 +415,9 @@ extern s32 D_800F2C8C;
 void level_entry_remove(LevelObjectEntry53 *entry);
 s32 *asset_table_load(s32 tableID);
 s32 func_800050A8(s32 objectID);
-void func_8005131C(LevelObjectEntry53 *entry);
+void troop_buffer_push(LevelObjectEntry53 *entry);
 void spawn_level_replacement(LevelObjectEntry53 *entry);
-void func_8005269C(s32 list, s32 size);
+void level_records_scan(s32 list, s32 size);
 Object *spawn_object(LevelObjectEntry53 *entry, s32 arg1);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
@@ -460,11 +460,11 @@ void func_800053F8(s32 mapID, s32 index) {
         D_800F2CE0[index] = *mem;
         D_800F2D00 = index;
         if (&D_800F2CE8[index] == &D_800F2CE8[1]) {
-            func_8005269C(D_800F2CD8[index], D_800F2CE0[index]);
+            level_records_scan(D_800F2CD8[index], D_800F2CE0[index]);
         }
         for (var_s0 = 0; var_s0 < D_800F2CE0[index]; var_s0 += temp_t3) {
             if (func_800050A8(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
-                func_8005131C((LevelObjectEntry53 *) D_800F2CD8[index]);
+                troop_buffer_push((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else if (((LevelObjectEntry53 *) D_800F2CD8[index])->objectID == 0x12E) {
                 spawn_level_replacement((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else {

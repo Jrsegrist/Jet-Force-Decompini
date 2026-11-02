@@ -33,9 +33,9 @@ typedef struct M115PlayerData {
 extern s16 D_80104702;
 extern s16 D_80104704;
 
-extern s32 func_8006EE50(void); /* night vision on */
-extern void func_8006EDF0(s32);
-extern void func_8006EE28(s32);
+extern s32 glitch_effect_get(void); /* night vision on */
+extern void glitch_effect_start(s32);
+extern void glitch_effect_stop(s32);
 extern u16 func_80043510(s32 player); /* buttons pressed */
 extern s32 character_has_item(s32, s32, s32);
 extern void *func_80041E0C(void);
@@ -73,7 +73,7 @@ void func_m115_000E4(Object *obj, s32 updateRate) {
     }
     pd = player->unk68;
     p = obj->unk68;
-    on = func_8006EE50();
+    on = glitch_effect_get();
     D_80104704 = on * 6 + 0x40;
     if (D_80104704 >= 0x100) {
         D_80104704 = 0xFF;
@@ -110,7 +110,7 @@ void func_m115_000E4(Object *obj, s32 updateRate) {
                     func_m085_00250(func_80041E0C(), pd->cutCamera, updateRate);
                 }
                 func_m077_00000(p->cameraOn, 1);
-                func_8006EDF0(0);
+                glitch_effect_start(0);
                 func_80001248(0x1EF, 0);
             }
             break;
@@ -122,7 +122,7 @@ void func_m115_000E4(Object *obj, s32 updateRate) {
                     func_m085_00250(func_80041E0C(), pd->cutCamera, updateRate);
                 }
                 func_m077_00000(p->cameraOff, 1);
-                func_8006EE28(0);
+                glitch_effect_stop(0);
                 func_80001248(0x1EF, 0);
             }
             break;
