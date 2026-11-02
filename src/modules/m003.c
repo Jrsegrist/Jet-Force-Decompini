@@ -8,7 +8,9 @@
 
 /* What a troop member keeps in obj->unk68 */
 typedef struct M003Member {
-    /* 0x00 */ u32 pad0_0 : 28;
+    /* 0x00 */ u32 pad0_0 : 11;
+    /* 0x00 */ u32 unk0_20 : 1;
+    /* 0x00 */ u32 pad0_2 : 16;
     /* 0x00 */ u32 headless : 1;
     /* 0x00 */ u32 pad0_1 : 3;
     /* 0x04 */ u8 pad4[0x7 - 0x4];
@@ -32,13 +34,15 @@ typedef struct M003Member {
 
 /* What a troop's home object keeps in obj->unk68 */
 typedef struct M003Home {
-    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x00 */ u8 pad0[0x28];
+    /* 0x28 */ u16 flags; /* 0x2000: its members may touch */
+    /* 0x2A */ u8 pad2A[0x2C - 0x2A];
     /* 0x2C */ u16 kind;
     /* 0x2E */ u8 pad2E[0x48 - 0x2E];
     /* 0x48 */ f32 x;
     /* 0x4C */ f32 y;
     /* 0x50 */ f32 z;
-    /* 0x54 */ u8 pad54[0x58 - 0x54];
+    /* 0x54 */ Object *leader;
     /* 0x58 */ Object *first; /* the troop's first member */
 } M003Home;
 
@@ -52,8 +56,18 @@ typedef struct M003Node {
 
 /* A region of the level (size 0x2C) */
 typedef struct M003Region {
-    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ void *data;
+    /* 0x1C */ u8 pad1C[0x2C - 0x1C];
 } M003Region;
+
+/* An event the troops react to (size 0x10) */
+typedef struct M003Event {
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ u8 active;
+    /* 0x09 */ u8 pad9[0xC - 0x9];
+    /* 0x0C */ u32 id; /* the low two bits are the kind */
+} M003Event;
 
 /* A member's body description (D_800A38E0, 0x80 bytes each) */
 typedef struct M003Body {
@@ -93,6 +107,10 @@ extern void func_m003_15ED8(s32 arg0, s32 arg1);
 extern void func_m003_16530(void);
 extern void *func_80050F44(s32 *count);
 extern void func_8004AA80(void *data); /* DKR mempool_free */
+extern s32 func_m003_16F44(f32 x, f32 z, M003Region *region);
+extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, s32 arg5, s32 arg6, s32 arg7);
+extern s32 func_m003_04260(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
+extern Object **func_80005E98(s32 *first, s32 *count);
 extern void *D_800FE9A4;
 extern void *D_800FEA18[16];
 extern s32 D_800FEA00;
@@ -100,6 +118,7 @@ extern s32 D_800FEA04;
 
 /* The module's .data (still assembly) */
 extern u8 rl_m003_17A10[];
+#define sRegionData (*(void **) (rl_m003_17A10 + 0x1A18))
 #define sRegions (*(M003Region **) (rl_m003_17A10 + 0x1A1C))
 
 /* The module's .bss (the assembly functions reach it by offset) */
@@ -117,7 +136,17 @@ static s16 sBodyIndex;
 static M003Body *sBody;
 static s32 sShotBy;
 static s32 sClosestPlayer;
-static u8 sBssD0[0xE00 - 0xD0]; /* (from 0xCC, IDO aligning it to 8) */
+static s32 sBssCC;
+static s32 sBssD0;
+static s32 sBssD4;
+static M003Event sEvents[16];
+static s32 sChangeArg1;
+static s32 sChangeArg0;
+static s32 sChangePending;
+static s32 sBss1E4;
+static Object *sTargets[32];
+static s32 sTargetCount;
+static u8 sBss270[0xE00 - 0x270]; /* (from 0x26C, IDO aligning it to 8) */
 
 s32 func_m003_0D2C0(Object *obj);
 void func_m003_10548(Object *obj, s32 shotBy);
@@ -353,7 +382,19 @@ s32 func_m003_056D4(M003Region *region) {
     return region - sRegions;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_056F4);
+/* The region (after the first) that a point is in, or 0 */
+s32 func_m003_056F4(s16 x, s16 z) {
+    s32 i = sRegionCount - 1;
+    M003Region *region = &sRegions[1];
+
+    while (i-- > 0) {
+        if (region->data != NULL && func_m003_16F44(x, z, region)) {
+            return region - sRegions;
+        }
+        region++;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_057CC);
 
@@ -576,7 +617,32 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15E34);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15ED8);
 
+#ifdef NON_MATCHING
+/* Frees the regions (the ROM keeps the address of the region data word in s0 across the call) */
+void func_m003_16530(void) {
+    s32 i;
+    M003Region *region;
+    void **data;
+
+    if (sRegionCount != 0) {
+        i = sRegionCount - 1;
+        region = &sRegions[1];
+        while (i-- > 0) {
+            if (region->data != NULL) {
+                func_8004AA80(region->data);
+            }
+            region++;
+        }
+        func_8004AA80(sRegions);
+        data = &sRegionData;
+        func_8004AA80(*data);
+        sRegions = NULL;
+        *data = NULL;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16530);
+#endif
 
 /* Fini: frees the way points, the region data and the per-level tables */
 void func_m003_165D8(void) {
@@ -606,23 +672,123 @@ void func_m003_165D8(void) {
 }
 #pragma weak __rl_fini = func_m003_165D8
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_166AC);
+/* Whether two members may collide */
+s32 func_m003_166AC(Object *a, Object *b) {
+    M003Home *dataA = a->unk68;
+    M003Home *dataB = b->unk68;
+    Object *homeA = ((M003Member *) dataA)->home;
+    Object *homeB = ((M003Member *) dataB)->home;
 
+    if (homeA != NULL) {
+        dataA = homeA->unk68;
+    } else {
+        dataA = NULL;
+    }
+    if (homeB != NULL) {
+        dataB = homeB->unk68;
+    } else {
+        dataB = NULL;
+    }
+
+    if (homeA == homeB && dataA != NULL && !(dataA->flags & 0x2000)) {
+        return FALSE;
+    }
+    if ((dataA != NULL && b == dataA->leader) || (dataB != NULL && a == dataB->leader)) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+#ifdef NON_MATCHING
+/* Clears the events with this id (the ROM copies the counter in three places and compares the other way) */
+void func_m003_16750(u32 id) {
+    M003Event *event = sEvents;
+    s32 i = 16;
+
+    while (i--) {
+        if (event->active && (event->id & ~3) == id) {
+            event->active = FALSE;
+        }
+        event++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16750);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_167A0);
 
+#ifdef NON_MATCHING
+/* Lists the objects with behaviour 0x9B (up to 32) (obj and isTarget swap a0/v1) */
+void func_m003_168D8(void) {
+    s32 first;
+    s32 end;
+    Object **objs;
+    Object **target;
+    Object *obj;
+    s32 isTarget;
+    s32 i;
+
+    objs = func_80005E98(&first, &end);
+    target = sTargets;
+    sTargetCount = 0;
+    for (i = first; i < end; i++) {
+        obj = objs[i];
+        if (!obj->freed) {
+            isTarget = FALSE;
+            if (obj->behaviorId == 0x9B) {
+                isTarget = TRUE;
+            }
+            if (isTarget) {
+                *target++ = obj;
+                if (++sTargetCount >= 32) {
+                    break;
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_168D8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16990);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16C10);
+void func_m003_16C10(Object *obj) {
+    Object *saved = sObj;
+
+    if (func_m003_05450(obj) && sMember->unk1A != 14) {
+        func_m003_04260(12, 14, 0, 0, 0);
+        sMember->unk0_20 = 0;
+    }
+    if (D_800FE9FC != 0) {
+        sAlert = 3;
+        sAlertKind = 10;
+    }
+    func_m003_05450(saved);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16CB4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16D78);
 
+#ifdef NON_MATCHING
+/* Sets the current member and home directly (v0/v1 and t-register numbering differ) */
+void func_m003_16EEC(Object *obj, Object *home) {
+    if ((sObj = obj) != NULL) {
+        sMember = obj->unk68;
+    } else {
+        sMember = NULL;
+    }
+    if ((sHome = home) != NULL) {
+        sHomeData = home->unk68;
+    } else {
+        sHomeData = NULL;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16EEC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16F44);
 
@@ -632,11 +798,29 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_175E8);
 
+#ifdef NON_MATCHING
+/* (these two: the ROM numbers the index product t6/t7 before the table load) */
+s32 func_m003_17910(f32 x, f32 z, s32 index) {
+    return func_m003_16F44(x, z, index + sRegions);
+}
+
+s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 index, s32 arg5, s32 arg6, u8 arg7) {
+    return func_m003_175E8(x1, z1, x2, z2, index + sRegions, arg5, arg6, arg7);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17910);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_1794C);
+#endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_179B0);
+/* Asks for a level change (once) */
+void func_m003_179B0(s32 arg0, s32 arg1) {
+    if (sChangePending == 0) {
+        sChangeArg1 = arg1;
+        sChangeArg0 = arg0;
+        sChangePending = 1;
+    }
+}
 
 /* Init */
 void func_m003_179E0(void) {
