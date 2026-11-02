@@ -28,6 +28,7 @@ typedef struct ParticleBehaviour {
     /* 0x22 */ Vec3s emissionDirection;
     /* 0x28 */ u8 pad28[0x40 - 0x28];
     /* 0x40 */ s16 spawnInterval;
+    /* 0x42 */ s16 burstCount;
 } ParticleBehaviour;
 
 #define PARTICLE_POINT 0x400
@@ -1215,7 +1216,64 @@ void obj_spawn_particle(ParticleObj *obj, s32 updateRate) {
     D_800A5DDC = 0.0f;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F76C);
+/* JFG: the part of a general particle obj_trigger_emitter touches */
+typedef struct TrigParticle {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x50 - 0x28];
+    /* 0x50 */ s32 flags;
+} TrigParticle;
+extern f32 D_801008F4; // JFG: a velocity taken off a new particle while it catches up (x, y, z)
+extern f32 D_801008F8;
+extern f32 D_801008FC;
+s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
+s32 func_80061228(s32 particle, s32 updateRate);
+void func_80061698(ParticleObj *obj, ParticleEmitter *emitter);
+void func_80062D5C(void *arg0, ParticleEmitter *emitter);
+
+/**
+ * Generates particles from a specific emitter attached to the object.
+ * JFG: line and point emitters also wait for the spawn interval; a general particle spawned late is
+ * caught up without D_801008F4's velocity and flagged 0x80000.
+ * DKR: obj_trigger_emitter
+ */
+void func_8005F76C(ParticleObj *obj, ParticleEmitter *emitter) {
+    s32 i;
+    ParticleBehaviour *behaviour;
+    TrigParticle *particle;
+
+    behaviour = emitter->behaviour;
+    if (emitter->flags & PARTICLE_LINE) {
+        if (emitter->colourIndex >= behaviour->spawnInterval) {
+            emitter->colourIndex -= behaviour->spawnInterval;
+            func_80061698(obj, emitter);
+        }
+    } else if (emitter->flags & PARTICLE_POINT) {
+        if (emitter->colourIndex >= behaviour->spawnInterval) {
+            emitter->colourIndex -= behaviour->spawnInterval;
+            func_80062D5C(obj, emitter);
+        }
+    } else {
+        while (emitter->colourIndex >= behaviour->spawnInterval) {
+            emitter->colourIndex -= behaviour->spawnInterval;
+            for (i = 0; i < behaviour->burstCount; i++) {
+                particle = (TrigParticle *) func_80060434(obj, emitter, -1);
+                if (particle != NULL) {
+                    if (emitter->colourIndex != 0) {
+                        particle->velocity.x -= D_801008F4;
+                        particle->velocity.y -= D_801008F8;
+                        particle->velocity.z -= D_801008FC;
+                        func_80061228((s32) particle, emitter->colourIndex);
+                        particle->velocity.x += D_801008F4;
+                        particle->velocity.y += D_801008F8;
+                        particle->velocity.z += D_801008FC;
+                    }
+                    particle->flags |= 0x80000;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
 
