@@ -105,26 +105,34 @@ typedef struct PointParticleSet {
     /* 0xBC */ struct ParticleEmitter *emitter;
 } PointParticleSet;
 
-/* JFG: one segment of a line emitter: its two ends and colour */
+/* JFG: one segment of a line emitter: its two ends, fade and colour */
 typedef struct LineSeg {
     /* 0x00 */ s16 x0, y0, z0;
     /* 0x06 */ s16 x1, y1, z1;
-    /* 0x0C */ u8 padC[2];
-    /* 0x0E */ u8 a;
-    /* 0x0F */ u8 padF[0x18 - 0xF];
+    /* 0x0C */ s16 fadeDelay;
+    /* 0x0E */ union {
+        s16 value; // 8.8 fixed point
+        u8 hi;
+    } alpha;
+    /* 0x10 */ s16 colourDelay;
+    /* 0x12 */ s16 colourIndex;
+    /* 0x14 */ s16 life;
+    /* 0x16 */ s16 fadeRate;
     /* 0x18 */ u8 r, g, b;
 } LineSeg;
 
 /* JFG: a line emitter's data, size 0x148 */
 typedef struct LineParticleSet {
     /* 0x000 */ s32 count;
-    /* 0x004 */ LineSeg *segs[0x48];
+    /* 0x004 */ LineSeg *segs[9];
+    /* 0x028 */ u8 pad28[0x124 - 0x28];
     /* 0x124 */ u8 unk124; // set when the emitter lets go of it
     /* 0x125 */ u8 pad125[0x128 - 0x125];
     /* 0x128 */ struct TextureHeader *texture;
     /* 0x12C */ struct ParticleBehaviour *behaviour;
-    /* 0x130 */ s32 unk130;
-    /* 0x134 */ u8 pad134[4];
+    /* 0x130 */ u32 *colours; // RGBA, cycled through
+    /* 0x134 */ s16 numColours;
+    /* 0x136 */ u8 pad136[2];
     /* 0x138 */ s32 unk138;
     /* 0x13C */ s32 flags;
     /* 0x140 */ f32 frame;
@@ -1104,7 +1112,7 @@ s32 line_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour) {
         if (set->unk124 == 0) {
             set->unk124 = 2;
             set->behaviour = behaviour;
-            set->unk130 = 0;
+            set->colours = NULL;
             found = i;
             i = D_800A5D7C;
         } else {
@@ -1417,7 +1425,79 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80061228);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80061698);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80061C30);
+s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+
+/*
+ * JFG: update a line set: move the segments whose life ran out to the end, then age the rest (colour cycle
+ * and fade) and animate the texture; a released set that is empty frees its texture.
+ */
+void func_80061C30(LineParticleSet *set, s32 updateRate) {
+    s32 i;
+    s32 j;
+    LineSeg *seg;
+    LineSeg *expired[9];
+
+    i = 0;
+    while (i < set->count && set->segs[i]->life < updateRate) {
+        i++;
+    }
+    if (i > 0) {
+        set->count -= i;
+        for (j = 0; j < i; j++) {
+            expired[j] = set->segs[j];
+        }
+        j = 0;
+        for (; i < 9; j++, i++) {
+            set->segs[j] = set->segs[i];
+        }
+        for (i = 0; j < 9; j++, i++) {
+            set->segs[j] = expired[i];
+        }
+    }
+    if (set->unk124 == 1 && set->count == 0) {
+        set->unk124 = 0;
+        if (set->texture != NULL) {
+            tex_free(set->texture);
+        }
+    } else {
+        for (i = 0; i < set->count; i++) {
+            seg = set->segs[i];
+            seg->life -= updateRate;
+            if (set->colours != NULL) {
+                if (seg->colourDelay == 0) {
+                    seg->colourIndex += updateRate;
+                    if (seg->colourIndex >= set->numColours) {
+                        seg->colourIndex -= set->numColours;
+                    }
+                    seg->r = (set->colours[seg->colourIndex] & 0xFF000000) >> 24;
+                    seg->g = (set->colours[seg->colourIndex] & 0xFF0000) >> 16;
+                    seg->b = (set->colours[seg->colourIndex] & 0xFF00) >> 8;
+                } else {
+                    seg->colourDelay -= updateRate;
+                    if (seg->colourDelay < 0) {
+                        seg->colourIndex -= seg->colourDelay;
+                    }
+                }
+            }
+            if (seg->fadeDelay == 0) {
+                seg->alpha.value += updateRate * seg->fadeRate;
+            } else {
+                seg->fadeDelay -= updateRate;
+                if (seg->fadeDelay < 0) {
+                    seg->alpha.value -= seg->fadeDelay * seg->fadeRate;
+                    seg->fadeDelay = 0;
+                }
+            }
+        }
+        if (set->unk124) {
+            if (set->flags & 0x800) {
+                set->frame = rand_range(0, (set->texture->numOfTextures >> 8) - 1);
+            } else {
+                func_80057A10(set->texture, &set->unk138, set->unk144, &set->frame, updateRate);
+            }
+        }
+    }
+}
 
 s32 func_80061228(s32 particle, s32 updateRate);
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
@@ -1523,14 +1603,14 @@ void func_80062A90(Gfx **dList, Vertex **vtxList) {
                     vtx[0].r = seg->r;
                     vtx[0].g = seg->g;
                     vtx[0].b = seg->b;
-                    vtx[0].a = seg->a;
+                    vtx[0].a = seg->alpha.hi;
                     vtx[1].x = seg->x1;
                     vtx[1].y = seg->y1;
                     vtx[1].z = seg->z1;
                     vtx[1].r = seg->r;
                     vtx[1].g = seg->g;
                     vtx[1].b = seg->b;
-                    vtx[1].a = seg->a;
+                    vtx[1].a = seg->alpha.hi;
                     vtx += 2;
                 }
                 func_80055C00(&gfx, set->texture, 0x12, set->frame * 65536.0f);
