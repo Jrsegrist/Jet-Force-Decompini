@@ -17,8 +17,81 @@ typedef struct ObjectTransform {
 /* Size: 0x4C bytes */
 typedef struct Camera {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x4C - 0x18];
+    /* 0x18 */ u8 pad18[0x3E - 0x18];
+    /* 0x3E */ s16 cameraSegmentID;
+    /* 0x40 */ u8 pad40[0x4C - 0x40];
 } Camera;
+
+/* DKR include/structs.h, reduced (JFG: size 0x10) */
+typedef struct TriangleBatchInfo {
+    /* 0x00 */ u8 textureIndex;
+    /* 0x01 */ u8 pad1[0x8 - 1];
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u16 texOffset;
+    /* 0x0C */ u32 flags;
+} TriangleBatchInfo;
+
+/* DKR include/structs.h */
+typedef struct Vertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} Vertex;
+
+/* DKR include/structs.h (Size 0x10) */
+typedef struct Triangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s16 uv[3][2];
+} Triangle;
+
+/* JFG: a segment's vertex colours (func_8001400C) */
+typedef struct SegmentColours {
+    /* 0x00 */ u8 *colours; // three bytes per vertex
+    /* 0x04 */ u16 *changed; // a bit per vertex, 16 per halfword
+} SegmentColours;
+
+/* JFG: a level segment, reduced. Size: 0x48 bytes */
+typedef struct LevelModelSegment {
+    /* 0x00 */ Vertex *vertices;
+    /* 0x04 */ Triangle *triangles;
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ TriangleBatchInfo *batches;
+    /* 0x10 */ u8 pad10[0x24 - 0x10];
+    /* 0x24 */ s16 numberOfVertices;
+    /* 0x26 */ u8 pad26[0x28 - 0x26];
+    /* 0x28 */ s16 numberOfBatches;
+    /* 0x2A */ u8 pad2A[0x30 - 0x2A];
+    /* 0x30 */ s16 unk30; // DKR: unk28
+    /* 0x32 */ s8 colourFlags;
+    /* 0x33 */ u8 pad33;
+    /* 0x34 */ SegmentColours *colours;
+    /* 0x38 */ u8 pad38[0x48 - 0x38];
+} LevelModelSegment;
+
+/* DKR include/structs.h, reduced */
+typedef struct TextureHeader {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0x12 - 2];
+    /* 0x12 */ u16 numOfTextures;
+    /* 0x14 */ u16 frameAdvanceDelay;
+} TextureHeader;
+
+typedef struct LevelModelTexture {
+    /* 0x00 */ TextureHeader *texture;
+    /* 0x04 */ u8 pad4[4];
+} LevelModelTexture;
+
+typedef struct Vec3i {
+    s32 x, y, z;
+} Vec3i;
 
 typedef struct BspTreeNode {
     /* 0x00 */ s16 leftNode;  // less than split value
@@ -38,8 +111,8 @@ typedef struct LevelModelSegmentBoundingBox {
 } LevelModelSegmentBoundingBox;
 
 typedef struct LevelModel {
-    /* 0x00 */ void *textures;
-    /* 0x04 */ void *segments;
+    /* 0x00 */ LevelModelTexture *textures;
+    /* 0x04 */ LevelModelSegment *segments;
     /* 0x08 */ LevelModelSegmentBoundingBox *segmentsBoundingBoxes;
     /* 0x0C */ u8 *unkC;
     /* 0x10 */ u8 *segmentsBitfields;
@@ -63,7 +136,7 @@ extern s32 gSceneRenderSkyDome;
 extern s32 gSceneStartSegment;
 
 s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loaded
-void func_80054530();          // a module function (patched in by the runtime linker)
+s32 func_80054530();           // a module function (patched in by the runtime linker)
 
 /* JFG: run the track effects of the modules 1, 8 and 10 that are loaded. */
 void func_80012150(s32 arg0) {
@@ -82,14 +155,45 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_800121C0);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800127A4);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800129AC);
+void tex_animate_texture(TextureHeader *texture, u32 *triangleBatchInfoFlags, s32 *arg2, s32 updateRate);
+
+/**
+ * Handle the flipbook effect for level geometry textures.
+ * JFG: the offset is passed as it is, with no misc data.
+ * DKR: track_tex_anim
+ */
+void track_tex_anim(s32 updateRate) {
+    s32 segmentNumber, batchNumber;
+    LevelModelSegment *segment;
+    TextureHeader *texture;
+    TriangleBatchInfo *batch;
+    s32 temp;
+
+    segment = gCurrentLevelModel->segments;
+    for (segmentNumber = 0; segmentNumber < gCurrentLevelModel->numberOfSegments; segmentNumber++) {
+        batch = segment[segmentNumber].batches;
+        for (batchNumber = 0; batchNumber < segment[segmentNumber].numberOfBatches; batchNumber++) {
+            if (batch[batchNumber].flags & 0x10000) {
+                if (batch[batchNumber].textureIndex != 0xFF) {
+                    texture = gCurrentLevelModel->textures[batch[batchNumber].textureIndex].texture;
+                    if (texture->numOfTextures != 0x100 && texture->frameAdvanceDelay) {
+                        temp = batch[batchNumber].texOffset;
+                        tex_animate_texture(texture, &batch[batchNumber].flags, &temp, updateRate);
+                        batch[batchNumber].texOffset = temp;
+                    }
+                }
+            }
+        }
+    }
+}
 
 /* DKR include/structs.h Object, reduced (JFG offsets) */
 typedef struct Object_Racer {
     /* 0x000 */ s8 playerIndex;
     /* 0x001 */ u8 pad1[0x19C - 1];
     /* 0x19C */ s8 unk19C;
-    /* 0x19D */ u8 pad19D[0x568 - 0x19D];
+    /* 0x19D */ u8 pad19D[0x564 - 0x19D];
+    /* 0x564 */ struct RacerUnk564 *unk564;
     /* 0x568 */ u8 unk568;
     /* 0x569 */ u8 pad569[0x5C0 - 0x569];
     /* 0x5C0 */ s32 unk5C0;
@@ -97,7 +201,9 @@ typedef struct Object_Racer {
 
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x3C - 0x18];
+    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x39 */ u8 opacity;
+    /* 0x3A */ u8 pad3A[0x3C - 0x3A];
     /* 0x3C */ void *level_entry;
     /* 0x40 */ u8 pad40[0x4A - 0x40];
     /* 0x4A */ s16 objectID;
@@ -159,7 +265,118 @@ void set_skydome_visbility(s32 renderSky) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80012BAC);
 
+/* JFG: the game's own vertex load (include/modules/gfx.h gSPVertexJFG), given the index of the
+   last vertex */
+#define gSPVertexLast(pkt, v, last, v0) \
+    gDma1p(pkt, G_VTX, v, ((last) << 3) + ((last) << 1) + 8, ((last) << 3) | ((u32) (v) & 6) | (v0))
+
+/* DKR include/f3ddkr.h */
+#define gSPPolygon(dl, ptr, numTris, texEnabled)                                                                   \
+    {                                                                                                              \
+        Gfx *_g = (Gfx *) (dl);                                                                                    \
+        _g->words.w0 =                                                                                             \
+            _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(5, 24, 8) | _SHIFTL(((numTris) * 16), 0, 16); \
+        _g->words.w1 = (unsigned int) (ptr);                                                                       \
+    }
+
+/* JFG: the level header, reduced */
+typedef struct LevelHeader12 {
+    /* 0x00 */ u8 pad0[0xCE];
+    /* 0xCE */ u8 bgBottomR;
+    /* 0xCF */ u8 bgBottomG;
+    /* 0xD0 */ u8 bgBottomB;
+    /* 0xD1 */ u8 bgTopR;
+    /* 0xD2 */ u8 bgTopG;
+    /* 0xD3 */ u8 bgTopB;
+} LevelHeader12;
+
+extern Gfx *D_800F2F70;    // DKR: gTrackDL
+extern Mtx *D_800F2F74;    // DKR: gTrackMtxPtr
+extern Vertex *D_800F2F78; // DKR: gTrackVtxPtr
+extern LevelHeader12 *D_800A0D64;
+extern u8 D_A0DA8[];       // the background's two triangles
+void mtx_ortho(Gfx **dList, Mtx **mtx);
+void rendermode_reset(Gfx **dList);
+void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
+void func_8004046C(Gfx **dList, Mtx **mtx);
+void fb_size(u32 *width, u32 *height);
+s32 get_current_viewport(void);
+s32 cam_get_active_camera_id();
+void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u32 *uly, u32 *lrx, u32 *lry);
+
+#ifdef NON_MATCHING
+/* JFG: draw the level's background as a gradient from its top colour to its bottom colour.
+   NON_MATCHING: 23 words: the t-registers of the vertex coordinates are numbered one lower. */
+void func_80013454(void) {
+    u32 width;
+    u32 height;
+    u32 x1;
+    u32 y1;
+    u32 x2;
+    u32 y2;
+    u8 topR;
+    u8 topG;
+    u8 topB;
+    u8 bottomR;
+    u8 bottomG;
+    u8 bottomB;
+    Vertex *verts;
+
+    verts = D_800F2F78;
+    D_800F2FAC = -1;
+    mtx_ortho(&D_800F2F70, &D_800F2F74);
+    rendermode_reset(&D_800F2F70);
+    func_80055C00(&D_800F2F70, NULL, 8, 0);
+    gSPVertexLast(D_800F2F70++, OS_K0_TO_PHYSICAL(verts), 4, 0);
+    gSPPolygon(D_800F2F70++, D_A0DA8, 2, 0);
+    func_8004046C(&D_800F2F70, &D_800F2F74);
+    topR = D_800A0D64->bgTopR;
+    topG = D_800A0D64->bgTopG;
+    topB = D_800A0D64->bgTopB;
+    bottomR = D_800A0D64->bgBottomR;
+    bottomG = D_800A0D64->bgBottomG;
+    bottomB = D_800A0D64->bgBottomB;
+    fb_size(&width, &height);
+    copy_framebuffer_size_to_coords(get_current_viewport(), cam_get_active_camera_id(), &x1, &y1, &x2, &y2);
+    width >>= 1;
+    height >>= 1;
+    verts->x = x1 - width;
+    verts->y = height - y2;
+    verts->z = 16;
+    verts->r = topR;
+    verts->a = 255;
+    verts->g = topG;
+    verts->b = topB;
+    verts++;
+    verts->x = x2 - width;
+    verts->y = height - y2;
+    verts->z = 16;
+    verts->r = topR;
+    verts->a = 255;
+    verts->g = topG;
+    verts->b = topB;
+    verts++;
+    verts->x = x1 - width;
+    verts->y = height - y1;
+    verts->z = 16;
+    verts->r = bottomR;
+    verts->a = 255;
+    verts->b = bottomB;
+    verts->g = bottomG;
+    verts++;
+    verts->x = x2 - width;
+    verts->y = height - y1;
+    verts->z = 16;
+    verts->a = 255;
+    verts->r = bottomR;
+    verts->b = bottomB;
+    verts->g = bottomG;
+    verts++;
+    D_800F2F78 = verts;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800136B8);
 
@@ -168,7 +385,37 @@ Object *get_skydome_object(void) {
     return gSkydomeSegment;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013820);
+Camera *cam_get_active_camera(void);
+void compute_scene_camera_transform_matrix(void);
+void update_envmap_position(f32 x, f32 y, f32 z);
+void func_8001448C(s32 arg0, s32 arg1);
+extern Vec3i D_800F3360; // DKR: gScenePerspectivePos
+extern f32 D_800F31CC;   // DKR: gPrevCameraX
+extern f32 D_800F31D0;   // DKR: gPrevCameraY
+extern f32 D_800F31D4;   // DKR: gPrevCameraZ
+
+/**
+ * Sets up the variables for the player's view.
+ * JFG: no waves, viewport or level header; ends with a call to func_8001448C.
+ * DKR: initialise_player_viewport_vars
+ */
+void initialise_player_viewport_vars(s32 arg0, s32 arg1) {
+    s32 segmentIndex;
+
+    gSceneActiveCamera = cam_get_active_camera();
+    compute_scene_camera_transform_matrix();
+    update_envmap_position(D_800F3360.x / 65536.0f, D_800F3360.y / 65536.0f, D_800F3360.z / 65536.0f);
+    segmentIndex = gSceneActiveCamera->cameraSegmentID;
+    if (segmentIndex > -1 && (segmentIndex < gCurrentLevelModel->numberOfSegments)) {
+        gSceneStartSegment = gCurrentLevelModel->segments[segmentIndex].unk30;
+    } else {
+        gSceneStartSegment = -1;
+    }
+    D_800F31CC = gSceneActiveCamera->trans.x_position;
+    D_800F31D0 = gSceneActiveCamera->trans.y_position;
+    D_800F31D4 = gSceneActiveCamera->trans.z_position;
+    func_8001448C(arg0, arg1);
+}
 
 extern s32 D_800A0D8C;
 extern s32 D_800F3370[16];
@@ -181,14 +428,10 @@ void func_80013924(s32 arg0, s32 arg1, s32 arg2) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013970);
-
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013B74);
-
 /* JFG: an entry per segment of D_800A0D80 */
 typedef struct SegmentAlloc {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ void *data;
+    /* 0x00 */ Vertex *vertices;
+    /* 0x04 */ void *data; // a copy of the vertices
 } SegmentAlloc;
 
 /* JFG: a track light (Size: 0x80 bytes) */
@@ -208,7 +451,143 @@ extern SegmentAlloc *D_800A0D80;
 extern TrackLight *gTrackLights; // JFG: gMaxTrackLights track lights
 extern s32 gNumTrackLights;
 extern s32 gMaxTrackLights;
+extern s32 D_800A0D7C;
 void mempool_free(void *data);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void track_segment_data_free(void);
+
+#ifdef NON_MATCHING
+/* JFG: scroll the texture coordinates of the triangles using each queued texture (func_80013924).
+   NON_MATCHING: the same code with other registers (target: outer values in t-registers, the
+   per-triangle values in s3..fp, no $ra use). */
+void func_80013970(void) {
+    s32 count;
+    s32 *entry;
+    s32 value;
+    s32 texIndex;
+    s32 du, dv;
+    s32 maskU, maskV;
+    TextureHeader *tex;
+    LevelModelSegment *segment;
+    s32 segCount;
+    TriangleBatchInfo *batch;
+    s32 batchCount;
+    Triangle *tri;
+    s32 triCount;
+    s32 u, v;
+    s32 du1, dv1, du2, dv2;
+
+    if (gCurrentLevelModel != NULL) {
+        entry = D_800F3370;
+        if (D_800A0D8C != 0) {
+            count = D_800A0D8C;
+            while (count--) {
+                value = *entry++;
+                texIndex = (value >> 24) & 0xFF;
+                du = (value << 8) >> 20;
+                dv = (value << 20) >> 20;
+                tex = gCurrentLevelModel->textures[texIndex].texture;
+                segment = gCurrentLevelModel->segments;
+                segCount = gCurrentLevelModel->numberOfSegments;
+                if (tex->width < 0x41 && tex->height < 0x41) {
+                    maskU = (tex->width << 8) - 1;
+                    maskV = (tex->height << 8) - 1;
+                } else {
+                    maskU = (tex->width << 6) - 1;
+                    maskV = (tex->height << 6) - 1;
+                }
+                while (segCount--) {
+                    batchCount = segment->numberOfBatches;
+                    batch = segment->batches;
+                    while (batchCount--) {
+                        if (texIndex == batch->textureIndex) {
+                            triCount = batch[1].facesOffset - batch[0].facesOffset;
+                            tri = &segment->triangles[batch->facesOffset];
+                            while (triCount--) {
+                                u = tri->uv[0][0];
+                                v = tri->uv[0][1];
+                                du1 = tri->uv[1][0] - u;
+                                dv1 = tri->uv[1][1] - v;
+                                du2 = tri->uv[2][0] - u;
+                                dv2 = tri->uv[2][1] - v;
+                                u = (u + du) & maskU;
+                                v = (v + dv) & maskV;
+                                tri->uv[0][0] = u;
+                                tri->uv[0][1] = v;
+                                tri->uv[1][0] = u + du1;
+                                tri->uv[1][1] = v + dv1;
+                                tri->uv[2][0] = u + du2;
+                                tri->uv[2][1] = v + dv2;
+                                tri++;
+                            }
+                        }
+                        batch++;
+                    }
+                    segment++;
+                }
+            }
+        }
+    }
+    D_800A0D8C = 0;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/12D50", func_80013970);
+#endif
+
+#ifdef NON_MATCHING
+/* JFG: allocate count track lights (all free) and, if asked, a copy of every segment's vertices.
+   NON_MATCHING: 19 words: v0/v1 swapped for the loop counters' copies, and the src/failed set-up order. */
+void func_80013B74(s32 count, s32 copyVertices) {
+    s32 failed;
+    s32 i;
+    SegmentAlloc *alloc;
+    LevelModelSegment *segment;
+    u8 *src;
+    u8 *dst;
+    s32 size;
+
+    failed = TRUE;
+    gNumTrackLights = 0;
+    gMaxTrackLights = count;
+    if ((gTrackLights = mempool_alloc_safe(gMaxTrackLights * sizeof(TrackLight), 0xFF0000FF)) != NULL) {
+        i = gMaxTrackLights;
+        while (i--) {
+            gTrackLights[i].outerRadius = 0.0f;
+        }
+        failed = copyVertices;
+        if (copyVertices) {
+            alloc = mempool_alloc_safe(gCurrentLevelModel->numberOfSegments * sizeof(SegmentAlloc), 0xFF0000FF);
+            if (alloc != NULL) {
+                segment = gCurrentLevelModel->segments;
+                D_800A0D7C = 1;
+                D_800A0D80 = alloc;
+                failed = FALSE;
+                for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
+                    src = (u8 *) segment->vertices;
+                    size = segment->numberOfVertices * sizeof(Vertex);
+                    alloc->vertices = segment->vertices;
+                    alloc->data = mempool_alloc_safe(size, 0xFF0000FF);
+                    if (alloc->data != NULL) {
+                        dst = alloc->data;
+                        while (size--) {
+                            *dst++ = *src++;
+                        }
+                    } else {
+                        failed = TRUE;
+                    }
+                    alloc++;
+                    segment++;
+                }
+            }
+        }
+    }
+    if (failed) {
+        track_segment_data_free();
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/12D50", func_80013B74);
+#endif
 
 /* JFG: free the per-segment buffers and the track lights (0x80013D3C). */
 void track_segment_data_free(void) {
@@ -322,11 +701,119 @@ void track_light_set_position(f32 *light, f32 x, f32 y, f32 z) {
     }
 }
 
+extern u8 D_800F31E1[]; // JFG: a flag per segment (whether it is drawn)
+
+#ifdef NON_MATCHING
+/* JFG: copy the vertex colours of the drawn segments into their vertices (all of them while
+   D_800A0D80 is set, else only the changed ones).
+   NON_MATCHING: the t-registers are numbered one lower (target loads the drawn flag into a new temp). */
+void func_8001400C(void) {
+    LevelModelSegment *segment;
+    s32 count;
+    u8 *visible;
+    s32 dir;
+    SegmentColours *colours;
+    s32 n;
+    u8 *src;
+    Vertex *vert;
+    u16 *changed;
+    u32 bits;
+    u8 *s;
+    Vertex *v;
+
+    visible = D_800F31E1;
+    segment = gCurrentLevelModel->segments;
+    count = gCurrentLevelModel->numberOfSegments;
+    if (D_800A0D80 != NULL) {
+        dir = 1;
+    } else {
+        dir = -1;
+    }
+    while (count--) {
+        if (*visible++ && (segment->colourFlags & dir) && (colours = segment->colours) != NULL) {
+            src = colours->colours;
+            vert = segment->vertices;
+            n = segment->numberOfVertices;
+            if (dir > 0) {
+                while (n--) {
+                    vert->r = src[0];
+                    vert->g = src[1];
+                    vert->b = src[2];
+                    vert++;
+                    src += 3;
+                }
+                segment->colourFlags ^= 1;
+            } else {
+                n = (n + 15) >> 4;
+                changed = colours->changed;
+                while (n--) {
+                    v = vert;
+                    s = src;
+                    bits = *changed;
+                    *changed = 0;
+                    while (bits) {
+                        if (bits & 1) {
+                            v->r = s[0];
+                            v->g = s[1];
+                            v->b = s[2];
+                        }
+                        v++;
+                        s += 3;
+                        bits >>= 1;
+                    }
+                    vert += 16;
+                    src += 48;
+                    changed++;
+                }
+                segment->colourFlags = 0;
+            }
+        }
+        segment++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001400C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001417C);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001436C);
+/* JFG: what a racer points at from 0x564, reduced */
+typedef struct RacerUnk564 {
+    /* 0x000 */ u8 pad0[0x620];
+    /* 0x620 */ u32 unk620_0 : 6;
+    u32 unk620_6 : 6;
+    u32 unk620_12 : 20;
+} RacerUnk564;
+
+Object **get_racer_objects(s32 *numRacers);
+
+/* JFG: let each racer's block (from the last racer) change the three values through a module function. */
+void racers_apply_module_values(s32 *arg0, s32 *arg1, s32 *arg2) {
+    Object *obj;
+    Object_Racer *racer;
+    s32 numRacers;
+    Object **racers;
+    RacerUnk564 *block;
+    s32 a;
+    s32 b;
+    s32 c;
+
+    a = *arg0;
+    b = *arg1;
+    c = *arg2;
+    racers = get_racer_objects(&numRacers);
+    while (numRacers--) {
+        obj = racers[numRacers];
+        racer = obj->racer;
+        block = racer->unk564;
+        if (block != NULL && block->unk620_6) {
+            func_80054530(obj, block, &a, &b, &c);
+        }
+    }
+    *arg0 = a;
+    *arg1 = b;
+    *arg2 = c;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001448C);
 
@@ -641,7 +1128,73 @@ LevelModel *get_current_level_model(void) {
     return gCurrentLevelModel;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001B660);
+extern void *D_800A0D88;
+extern s32 D_800A0D84;
+extern void *D_800A0D68;
+extern void *D_800F31C8;
+extern void *D_800F33B0;
+extern void *D_800F33B8;
+extern void *D_800F33BC;
+extern void *D_800F33C0;
+extern void *D_800F2FB0;
+extern s8 D_800A0CE0;
+void track_segment_data_free(void);
+void func_80038F04(void);
+void tex_free(void *tex);
+void func_8001D938(void);
+void free_object(Object *obj);
+void gParticlePtrList_flush(void);
+void func_80077060(void);
+void free_all_objects(void);
+
+/**
+ * Frees and unloads level data from RAM.
+ * JFG: its own buffers, and each segment's block at 0x34.
+ * DKR: free_track
+ */
+void free_track(void) {
+    s32 i;
+
+    track_segment_data_free();
+    if (D_800A0D88 != NULL) {
+        mempool_free(D_800A0D88);
+        D_800A0D88 = NULL;
+        D_800A0D84 = 0;
+    }
+    func_80038F04();
+    if (D_800A0D68 != NULL) {
+        tex_free(D_800A0D68);
+        D_800A0D68 = NULL;
+    }
+    for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
+        if (gCurrentLevelModel->segments[i].colours != NULL) {
+            mempool_free(gCurrentLevelModel->segments[i].colours);
+        }
+    }
+    for (i = 0; i < gCurrentLevelModel->numberOfTextures; i++) {
+        tex_free(gCurrentLevelModel->textures[i].texture);
+    }
+    mempool_free(D_800F31C8);
+    mempool_free(D_800F33B8);
+    mempool_free(D_800F33BC);
+    mempool_free(D_800F33C0);
+    if (func_80054530(osRomBase) != 0) {
+        mempool_free(D_800F33B0);
+    }
+    func_8001D938();
+    if (gSkydomeSegment != NULL) {
+        free_object(gSkydomeSegment);
+        gParticlePtrList_flush();
+    }
+    func_80077060();
+    free_all_objects();
+    gCurrentLevelModel = NULL;
+    if (D_800F2FB0 != NULL) {
+        mempool_free(D_800F2FB0);
+        D_800F2FB0 = NULL;
+    }
+    D_800A0CE0 = 0;
+}
 
 void trackMakeAbsolute(unk8002D30C_a0 *arg0, s32 arg1) {
     while (1) {
@@ -660,7 +1213,74 @@ void trackMakeAbsolute(unk8002D30C_a0 *arg0, s32 arg1) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001B8E0);
+/* DKR src/tracks.h ShadowHeapProperties (8 bytes) */
+typedef struct ShadowHeapProperties {
+    /* 0x00 */ void *texture;
+    /* 0x04 */ s16 triCount;
+    /* 0x06 */ s16 vtxCount;
+} ShadowHeapProperties;
+
+/* JFG: an object's shadow, reduced (up to three meshes) */
+typedef struct ShadowData {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ u16 texOffset;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ u8 group;
+    /* 0x0D */ u8 padD[2];
+    /* 0x0F */ u8 numMeshes;
+    /* 0x10 */ s16 meshStart[3];
+    /* 0x16 */ s16 meshEnd[3];
+} ShadowData;
+
+void func_8001D9D0(s32 flags, Vertex **verts, Triangle **tris, ShadowHeapProperties **data);
+
+/**
+ * Render the shadow of the object on the ground.
+ * JFG: up to three meshes, a texture offset, the alpha in the primitive colour.
+ * DKR: shadow_render
+ */
+void shadow_render(Object *obj, ShadowData *shadow) {
+    s32 i;
+    s32 numVerts;
+    s32 numTris;
+    Vertex *vtx;
+    Triangle *tri;
+    ShadowHeapProperties *mesh;
+    ShadowHeapProperties *data;
+    Triangle *tris;
+    s32 j;
+    Vertex *verts;
+    s32 alpha;
+
+    if (shadow->group) {
+        func_8001D9D0(shadow->group, &verts, &tris, &data);
+        for (i = 0; i < shadow->numMeshes; i++) {
+            if (shadow->meshStart[i] != -1) {
+                j = shadow->meshStart[i];
+                mesh = &data[j];
+                alpha = verts[mesh->vtxCount].a;
+                alpha = (obj->opacity * alpha) >> 8;
+                if (alpha > 0) {
+                    gDPSetPrimColor(D_800F2F70++, 0, 0, 0, 0, 0, alpha);
+                    while (j < shadow->meshEnd[i]) {
+                        func_80055C00(&D_800F2F70, mesh->texture, 0xE, shadow->texOffset << 8);
+                        numTris = mesh->triCount;
+                        numVerts = mesh->vtxCount;
+                        tri = &tris[numTris];
+                        vtx = &verts[numVerts];
+                        numTris = mesh[1].triCount - numTris;
+                        numVerts = mesh[1].vtxCount - numVerts;
+                        gSPVertexLast(D_800F2F70++, OS_K0_TO_PHYSICAL(vtx), numVerts, 0);
+                        gSPPolygon(D_800F2F70++, OS_K0_TO_PHYSICAL(tri), numTris, 1);
+                        j++;
+                        mesh++;
+                    }
+                    gDPSetPrimColor(D_800F2F70++, 0, 0, 255, 255, 255, 255);
+                }
+            }
+        }
+    }
+}
 
 /* DKR src/tracks.h (JFG: 8 more bytes after the current fog, size 0x40) */
 typedef struct EnvironmentFog {
@@ -736,7 +1356,7 @@ s32 runlink_module_loaded(s32 module);
 /* Calls into runtime-linked modules: the jal goes to the dangling-jump trap until
    the module is loaded and the linker patches it. Different modules' functions,
    so no prototype. */
-void func_80054530();
+s32 func_80054530();
 
 /**
  * Writes the current fog settings to the arguments.
@@ -790,9 +1410,69 @@ void reset_fog(s32 playerID) {
     gFogData[playerID].fogChanger = NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001BE04);
+/**
+ * If the fog override timer is active, apply that and slowly degrade.
+ * Otherwise, set the current fog to the intended fog settings.
+ * JFG: a fog whose unk3 is set swings its near plane between unk14 and unk18 instead
+ * (bit 7 gives the direction).
+ * DKR: update_fog
+ */
+void update_fog(s32 viewportCount, s32 updateRate) {
+    s32 i;
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001BF9C);
+    for (i = 0; i < viewportCount; i++) {
+        if (gFogData[i].intendedFog.unk3 > 0) {
+            gFogData[i].fog.near += (updateRate * (gFogData[i].intendedFog.unk3 & 0x7F)) << 11;
+            if (gFogData[i].fog.near > gFogData[i].unk18) {
+                gFogData[i].fog.near = gFogData[i].unk18 + (gFogData[i].unk18 - gFogData[i].fog.near);
+                gFogData[i].intendedFog.unk3 |= 0x80;
+            }
+        } else if (gFogData[i].intendedFog.unk3 < 0) {
+            gFogData[i].fog.near -= (updateRate * (gFogData[i].intendedFog.unk3 & 0x7F)) << 11;
+            if (gFogData[i].fog.near < gFogData[i].unk14) {
+                gFogData[i].fog.near = gFogData[i].unk14 + (gFogData[i].unk14 - gFogData[i].fog.near);
+                gFogData[i].intendedFog.unk3 ^= 0x80;
+            }
+        } else if (gFogData[i].switchTimer > 0) {
+            if (updateRate < gFogData[i].switchTimer) {
+                gFogData[i].fog.r += gFogData[i].addFog.r * updateRate;
+                gFogData[i].fog.g += gFogData[i].addFog.g * updateRate;
+                gFogData[i].fog.b += gFogData[i].addFog.b * updateRate;
+                gFogData[i].fog.near += gFogData[i].addFog.near * updateRate;
+                gFogData[i].fog.far += gFogData[i].addFog.far * updateRate;
+                gFogData[i].switchTimer -= updateRate;
+            } else {
+                gFogData[i].fog.r = gFogData[i].intendedFog.r << 16;
+                gFogData[i].fog.g = gFogData[i].intendedFog.g << 16;
+                gFogData[i].fog.b = gFogData[i].intendedFog.b << 16;
+                gFogData[i].fog.near = gFogData[i].intendedFog.near << 16;
+                gFogData[i].fog.far = gFogData[i].intendedFog.far << 16;
+                gFogData[i].switchTimer = 0;
+            }
+        }
+    }
+}
+
+extern Gfx *D_800F2F70; // DKR: gTrackDL
+
+/**
+ * Sets the fog settings for the active viewport based on the parameters of the environment data.
+ * JFG: through get_fog_settings (which modules can override).
+ * DKR: apply_fog
+ */
+void apply_fog(s32 playerID) {
+    s16 near;
+    s16 far;
+    s16 unk;
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 unk2;
+
+    get_fog_settings(playerID, &near, &far, &unk, &r, &g, &b, &unk2);
+    gDPSetFogColor(D_800F2F70++, r, g, b, 0xFF);
+    gSPFogPosition(D_800F2F70++, near, far);
+}
 
 #define PLAYER_COMPUTER -1
 #define PLAYER_ONE 0
@@ -952,7 +1632,36 @@ void slowly_change_fog(s32 fogIdx, s32 red, s32 green, s32 blue, s32 near, s32 f
     fogData->fogChanger = NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C650);
+void func_80049F08(ObjectTransform *trans, MtxF *mtx); // DKR: mtxf_from_transform (arguments swapped)
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // DKR: mtxf_transform_point
+
+/**
+ * Take the current camera position and calculate the perspective position, for envmapping.
+ * JFG: the scale is left unset.
+ * DKR: compute_scene_camera_transform_matrix
+ */
+void compute_scene_camera_transform_matrix(void) {
+    MtxF mtx;
+    ObjectTransform trans;
+
+    f32 x = 0.0f;
+    f32 y = 0.0f;
+    f32 z = -65536.0f;
+
+    trans.rotation[2] = gSceneActiveCamera->trans.rotation[2];
+    trans.rotation[1] = gSceneActiveCamera->trans.rotation[1];
+    trans.rotation[0] = gSceneActiveCamera->trans.rotation[0];
+    trans.x_position = 0.0f;
+    trans.y_position = 0.0f;
+    trans.z_position = 0.0f;
+
+    func_80049F08(&trans, &mtx);
+    func_80048B60(&mtx, x, y, z, &x, &y, &z);
+
+    D_800F3360.x = x;
+    D_800F3360.y = y;
+    D_800F3360.z = z;
+}
 
 /* JFG: the index of the highest set bit (-1 for zero) (0x8001C758). */
 s32 highest_set_bit(u32 value) {

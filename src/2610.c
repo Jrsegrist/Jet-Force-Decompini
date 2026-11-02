@@ -3,7 +3,22 @@
 /* The audio manager thread (part of DKR's AMAudioMgr __am). */
 extern OSThread sAudioMgrThread;
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_80001A10);
+/* DKR AMDMABuffer */
+typedef struct AMDMABuffer {
+    /* 0x00 */ ALLink node;
+    /* 0x08 */ u32 startAddr;
+    /* 0x0C */ u32 lastFrame;
+    /* 0x10 */ u8 *ptr;
+} AMDMABuffer;
+/* DKR AMDMAState */
+typedef struct AudioMgrHandle {
+    /* 0x00 */ u8 initialised;
+    /* 0x04 */ AMDMABuffer *firstUsed;
+    /* 0x08 */ AMDMABuffer *firstFree;
+} AudioMgrHandle;
+#define NUM_DMA_BUFFERS 76
+extern AMDMABuffer dmaBuffs[NUM_DMA_BUFFERS];
+extern OSMesgQueue audDMAMessageQ;
 
 /* DKR AudioMsg, reduced */
 typedef struct AudioMsgGen {
@@ -14,6 +29,97 @@ extern u8 audioStack[];         // DKR: audioStack (the scheduler client)
 extern OSMesgQueue D_800F1AF4;  // DKR: __am.audioFrameMsgQ
 extern OSMesgQueue D_800F1B0C;  // DKR: __am.audioReplyMsgQ
 extern u8 D_800F19F0[];         // DKR: __am.g
+
+/* JFG's synthesizer configuration (n_audio, FX types as bytes) */
+typedef struct AMSynConfig {
+    /* 0x00 */ s32 maxVVoices;
+    /* 0x04 */ s32 maxPVoices;
+    /* 0x08 */ s32 maxUpdates;
+    /* 0x0C */ s32 maxFXbusses;
+    /* 0x10 */ void *dmaproc;
+    /* 0x14 */ ALHeap *heap;
+    /* 0x18 */ s32 outputRate;
+    /* 0x1C */ u8 fxType[4];
+    /* 0x20 */ s32 *params[4];
+} AMSynConfig;
+
+/* JFG's custom reverb parameters (copied to the stack for each custom FX bus) */
+typedef struct AMFxParams {
+    s32 words[0x108 / 4];
+} AMFxParams;
+
+extern AMFxParams D_800A06F4;
+extern ALHeap *D_800E97A4;          // DKR: gAudioHeap
+extern s32 gVideoRefreshRate;
+extern s32 D_800F2168;              // DKR: frameSize
+extern s32 D_800F216C;              // DKR: minFrameSize
+extern s32 D_800F2170;              // JFG: the size of the frame buffers
+extern u8 D_800F17B8[];             // the audio thread's stack top
+extern OSMesg D_800F1B24[];
+extern OSMesg D_800F1B44[];
+extern OSMesg D_800F28B0[];
+void func_8008A540(void *g, AMSynConfig *c); // DKR: alInit
+void *alHeapDBAlloc(u8 *file, s32 line, ALHeap *hp, s32 num, s32 size);
+void *__amDmaNew(AudioMgrHandle **out);
+void __amMain(void *arg);
+
+/**
+ * Sets up the audio manager: the synthesizer (with JFG's custom reverb), the frame size, the command
+ * lists and output buffers, the sample DMA buffers, the message queues and the thread.
+ * From the Diddy Kong Racing decompilation (CC0 1.0), src/audiomgr.c, JFG's form.
+ * Official Name: amCreateAudioMgr
+ */
+void amCreateAudioMgr(AMSynConfig *c, OSPri pri, void *audSched) {
+    s32 i;
+    f32 fsize;
+    u8 *out;
+    AMFxParams params;
+
+    gAudioSched = audSched;
+    D_800E97A4 = c->heap;
+    c->outputRate = osAiSetFrequency(22020);
+    c->dmaproc = __amDmaNew;
+    for (i = 0; i < c->maxFXbusses; i++) {
+        if (c->fxType[i] == AL_FX_CUSTOM) {
+            params = D_800A06F4;
+            c->params[i] = (s32 *) &params;
+        }
+    }
+    func_8008A540(D_800F19F0, c);
+    fsize = (f32) c->outputRate * 2 / (f32) gVideoRefreshRate;
+    D_800F2168 = (s32) fsize;
+    if (D_800F2168 < fsize) {
+        D_800F2168++;
+    }
+    D_800F2168 = (D_800F2168 / 184) * 184 + 184;
+    D_800F216C = D_800F2168 - 184;
+    D_800F2170 = 0x1000;
+    out = alHeapDBAlloc(0, 0, c->heap, 1, 0x6F40);
+    ((u8 **) ((u8 *) &sAudioMgrThread + 0x280))[0] = out;
+    ((u8 **) ((u8 *) &sAudioMgrThread + 0x280))[1] = out + 0x37A0;
+    ((u8 **) ((u8 *) &sAudioMgrThread + 0x280))[2] = ((u8 **) ((u8 *) &sAudioMgrThread + 0x280))[0];
+    ((u8 **) ((u8 *) &sAudioMgrThread + 0x280))[3] = ((u8 **) ((u8 *) &sAudioMgrThread + 0x280))[1];
+    out = alHeapDBAlloc(0, 0, c->heap, 1, D_800F2170 * 12);
+    for (i = 0; i < 3; i++) {
+        ((u8 **) ((u8 *) &sAudioMgrThread + 0x310))[i] = out;
+        ((u8 **) ((u8 *) &sAudioMgrThread + 0x31C))[i] = out;
+        ((s16 *) ((u8 *) &sAudioMgrThread + 0x308))[i] = 0;
+        out += D_800F2170 * 4;
+    }
+    out = alHeapDBAlloc(0, 0, c->heap, 1, NUM_DMA_BUFFERS * 0x280);
+    dmaBuffs[0].node.prev = NULL;
+    dmaBuffs[0].node.next = NULL;
+    for (i = 0; i < NUM_DMA_BUFFERS - 1; i++) {
+        alLink((ALLink *) &dmaBuffs[i + 1], (ALLink *) &dmaBuffs[i]);
+        dmaBuffs[i].ptr = out;
+        out += 0x280;
+    }
+    dmaBuffs[i].ptr = out;
+    osCreateMesgQueue(&D_800F1B0C, D_800F1B44, 8);
+    osCreateMesgQueue(&D_800F1AF4, D_800F1B24, 8);
+    osCreateMesgQueue(&audDMAMessageQ, D_800F28B0, NUM_DMA_BUFFERS);
+    osCreateThread(&sAudioMgrThread, -4, __amMain, NULL, D_800F17B8, pri);
+}
 void func_80001EF8(void);
 void func_80002484(void);
 void func_8008A5AC(void *synth); // DKR: alClose
@@ -75,24 +181,9 @@ INCLUDE_ASM("asm/nonmatchings/2610", func_80001EF8);
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_80002484);
 
-/* DKR AMDMABuffer */
-typedef struct AMDMABuffer {
-    /* 0x00 */ ALLink node;
-    /* 0x08 */ u32 startAddr;
-    /* 0x0C */ u32 lastFrame;
-    /* 0x10 */ u8 *ptr;
-} AMDMABuffer;
-/* DKR AMDMAState */
-typedef struct AudioMgrHandle {
-    /* 0x00 */ u8 initialised;
-    /* 0x04 */ AMDMABuffer *firstUsed;
-    /* 0x08 */ AMDMABuffer *firstFree;
-} AudioMgrHandle;
 extern AudioMgrHandle dmaState;
-extern u8 dmaBuffs[];
 extern u32 audFrameCt;
 extern u32 nextDMA;
-extern OSMesgQueue audDMAMessageQ;
 
 extern OSIoMesg audDMAIOMesgBuf[];
 

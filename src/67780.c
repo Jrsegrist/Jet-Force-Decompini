@@ -187,7 +187,37 @@ void log_printf(const char *format, ...) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80067790);
+extern char D_800AE92C[];
+
+/* JFG: clear the screen and list up to 20 log lines, from line start after the oldest (0x80067790). */
+void log_show(s32 start) {
+    s32 y;
+    s32 done = FALSE;
+    s32 i;
+    s32 line;
+
+    epc_clear_framebuffer();
+    line = start + gLogStart;
+    if (line >= 500) {
+        line -= 500;
+    }
+    i = 0;
+    y = 30;
+    do { // JFG: 20 lines at most, 8 pixels apart
+        if (!gLogWrapped && line >= gLogLine) {
+            done = TRUE;
+        }
+        if (!done) {
+            epc_printf(20, y, D_800AE92C, i + start, line, (char *) 0x80700000 + line * 41);
+            line++;
+            if (line >= 500) {
+                line -= 500;
+            }
+            y += 8;
+        }
+        i++;
+    } while (i < 20 && !done);
+}
 
 #ifdef NON_MATCHING
 /* JFG: a fault thread record (0x230 bytes, the size bcopied in func_80066D28). */
@@ -235,11 +265,77 @@ void mode_lockup(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/67780", func_80067994);
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_800680B0);
+void fb_size(s32 *width, s32 *height);
+extern u16 *gVideoLastFramebuffer;
+extern s32 D_800A651C; // JFG: the screen mode (nonzero: draw each glyph row twice)
+extern s32 D_800A6520; // JFG: the text colour set
+extern u16 D_800A6768[4];
+extern u16 D_800A6770[4];
+extern u16 D_800A6778[4];
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_800681D0);
+/* JFG: draw a 5-row glyph (2 bits per pixel, 4 colours) straight into the framebuffer at (x, y). */
+void epc_draw_glyph(s32 x, s32 y, u16 *glyph) {
+    u16 *pixel;
+    u16 *colours;
+    u16 *dst;
+    u16 bits;
+    s32 i = 5;
+    s32 rep;
+    s32 width, height;
 
-void func_800681D0(s32 arg0, s32 x, char *text);
+    fb_size(&width, &height);
+    pixel = &gVideoLastFramebuffer[y * width + x];
+    if (D_800A6520 == 2) {
+        colours = D_800A6778;
+    } else if (D_800A6520 != 0) {
+        colours = D_800A6770;
+    } else {
+        colours = D_800A6768;
+    }
+    while (i--) {
+        rep = 1;
+        if (D_800A651C) {
+            rep = 2;
+        }
+        while (rep--) {
+            dst = pixel;
+            bits = *glyph;
+            while (bits) {
+                *dst++ = colours[bits & 3];
+                bits >>= 2;
+            }
+            pixel += width;
+        }
+        glyph++;
+    }
+}
+
+extern u16 D_800A6524[]; // JFG: the font: 5 rows per character, from '!'
+
+/* JFG: draw a string with the 8-pixel font (upper case only; newline, tab and space move the cursor). */
+void epc_draw_string(s32 x, s32 y, char *text) {
+    u8 ch;
+
+    while (*text != '\0') {
+        ch = *text++;
+        if (ch >= 'a' && ch <= 'z') {
+            ch -= 0x20;
+        }
+        if (ch == '\n') {
+            y += 6;
+            x = 32;
+        } else if (ch == '\t') {
+            x = x - (x & 0xF) + 16;
+        } else if (ch == ' ') {
+            x += 4;
+        } else if (ch > ' ' && ch <= 'Z') {
+            epc_draw_glyph(x, y, &D_800A6524[(ch - '!') * 5]);
+            x += 8;
+        }
+    }
+}
+
+void epc_draw_string(s32 arg0, s32 x, char *text);
 extern s32 D_800A651C;
 
 /* JFG: format a line and print it at x (shifted for the screen mode) (0x800682F0). */
@@ -260,7 +356,7 @@ void epc_printf(s32 arg0, s32 x, const char *format, ...) {
         }
         x *= 2;
     }
-    func_800681D0(arg0, x, buffer);
+    epc_draw_string(arg0, x, buffer);
 }
 
 void fb_size(s32 *width, s32 *height);
@@ -280,4 +376,15 @@ void epc_clear_framebuffer(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_800683D4);
+s32 func_80054530(); // a module function (patched in by the runtime linker)
+
+/* JFG: send a fault thread record (0x230 bytes) to the debugger, in as many pieces as it takes (packet type 2). */
+void fault_send_thread(u8 *fault) {
+    volatile f32 f;
+    u32 sent = 0;
+
+    f = 0.0f; // touch the FPU so its registers are saved in the thread context
+    while (sent < 0x230) {
+        sent += func_80054530(fault + sent, 0x230 - sent, 2);
+    }
+}

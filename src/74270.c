@@ -71,7 +71,52 @@ void set_subtitles(s32 arg0) {
     gSubtitleSetting = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/74270", func_800737B8);
+void set_current_dialogue_box_coords(s32 dialogueBoxID, s32 x1, s32 y1, s32 x2, s32 y2);
+void set_current_dialogue_background_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha);
+void set_current_text_background_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha);
+void set_dialogue_font(s32 dialogueBoxID, s32 font);
+void set_current_text_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha, s32 opacity);
+void render_dialogue_text(s32 dialogueBoxID, s32 posX, s32 posY, char *text, s32 number, s32 flags);
+void open_dialogue_box(s32 dialogueBoxID);
+
+/**
+ * Render currently active subtitles on the screen.
+ * JFG: a green-blue box, no offset for two lines.
+ */
+void render_subtitles(void) {
+    s32 textX;
+    s32 textY;
+    s32 i;
+    s32 textFlags;
+    char **textData;
+
+    dialogue_clear(6);
+    set_current_dialogue_box_coords(6, gDialogueXPos1, gDialogueYPos1, gDialogueXPos2, gDialogueYPos2);
+    set_current_dialogue_background_colour(6, 0, 96, 0, (gDialogueAlpha * 100) >> 8);
+    set_current_text_background_colour(6, 0, 0, 0, 0);
+    textY = ((((gDialogueYPos2 - gDialogueYPos1) - (gSubtitleLineCount * 12)) - (gSubtitleLineCount * 2)) + 2) >> 1;
+    for (i = 0; i < gSubtitleLineCount; i++) {
+        textData = &gSubtitleProperties[0];
+        set_dialogue_font(6, (s32) textData[i][5]);
+        textFlags = textData[i][6];
+        if (textFlags == 4) {
+            textX = (gDialogueXPos2 - gDialogueXPos1) >> 1;
+        } else {
+            if (textFlags == 1) {
+                textX = (gDialogueXPos2 - gDialogueXPos1) - 8;
+            } else {
+                textX = 8;
+            }
+        }
+        set_current_text_colour(6, textData[i][1], textData[i][2], textData[i][3], 255,
+                                (textData[i][4] * gDialogueAlpha) >> 8);
+        render_dialogue_text(6, textX, textY, textData[i] + 8, 1, textFlags);
+        set_current_text_colour(6, 0, 0, 0, 255, (gDialogueAlpha * 255) >> 8);
+        render_dialogue_text(6, textX + 1, textY + 1, textData[i] + 8, 1, textFlags);
+        textY += 14;
+    }
+    open_dialogue_box(6);
+}
 
 /**
  * Get the line count and text timer from the next message of the subtitle.
@@ -117,6 +162,78 @@ void find_next_subtitle(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/74270", func_80073BDC);
+void render_subtitles(void);
 
-INCLUDE_ASM("asm/nonmatchings/74270", func_80073D14);
+/**
+ * Handle the subtitle system from here.
+ * Slowly show the text, tick down the timer, find the next message or close the box, then render.
+ * JFG: only while the message text is allocated.
+ */
+void process_subtitles(u32 updateRate) {
+    if (gMessageTextAllocated) {
+        if (gSubtitleSetting == FALSE) {
+            gShowSubtitles = FALSE;
+        }
+        if (gShowSubtitles) {
+            if (gSubtitleTimer <= 0) {
+                gDialogueAlpha -= updateRate * gTextAlphaVelocity;
+                if (gDialogueAlpha < 0) {
+                    gDialogueAlpha = 0;
+                    gShowSubtitles = FALSE;
+                    dialogue_close(6);
+                    dialogue_clear(6);
+                }
+            } else {
+                gDialogueAlpha += updateRate * gTextAlphaVelocity;
+                if (gDialogueAlpha > 256) {
+                    gDialogueAlpha = 256;
+                }
+                gSubtitleTimer -= updateRate;
+                if (gSubtitleTimer <= 0) {
+                    find_next_subtitle();
+                }
+            }
+        }
+        if (gShowSubtitles) {
+            render_subtitles();
+        }
+    }
+}
+
+s32 get_language(void);
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
+
+/**
+ * Set the current text index based on the entry, and show it as a subtitle.
+ * JFG: a text block per language; every entry is a subtitle.
+ */
+void set_current_text(s32 textID) {
+    s32 *entries;
+    s32 temp;
+    s32 size;
+
+    if (gMessageTextAllocated && textID >= 0 && textID < gTextTableEntries) {
+        switch (get_language()) {
+            case 2:
+                textID += 48;
+                break;
+            case 1:
+                textID += 47;
+                break;
+            case 3:
+                textID += 49;
+                break;
+            case 4:
+                textID += 50;
+                break;
+        }
+        asset_load(5, (u32) D_80104560, (textID & ~1) << 2, 16);
+        entries = (s32 *) D_80104560;
+        temp = entries[textID & 1] & 0xFF000000;
+        size = (entries[(textID & 1) + 1] & 0xFFFFFF) - (entries[textID & 1] & 0xFFFFFF);
+        asset_load(4, (u32) gCurrentMessageText[D_80104594], entries[textID & 1] ^ temp, size);
+        gCurrentTextProperties = gCurrentMessageText[D_80104594];
+        find_next_subtitle();
+        D_80104594 = (D_80104594 + 1) & 1;
+    }
+}

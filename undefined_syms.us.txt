@@ -216,7 +216,7 @@ gDelayedSounds = 0x800E9538;
 gMusicSequenceData = 0x800B0B50;
 gJingleSequenceData = 0x800B8B50;
 gJingleSequence = 0x800E9678;
-music_sequence_init = 0x8000167C;
+func_8000167C = music_sequence_init;
 sndp_set_group_volume = 0x80086430;
 gAudioVolumeSetting = 0x800A06A4;
 sndp_play = 0x80085EEC;
@@ -369,7 +369,7 @@ func_80002910 = audspat_jingle_off;
 func_80002938 = audspat_jingle_on;
 func_800035E8 = audspat_point_set_position;
 func_80003614 = audspat_point_stop;
-audspat_point_stop_by_index = 0x80003B74;
+func_80003B74 = audspat_point_stop_by_index;
 gAudioPoints = 0x800F29F4;
 gNumAudioPoints = 0x800A0800;
 gJinglesOff = 0x800F2A04;
@@ -593,7 +593,7 @@ func_800252EC = obj_init_animator;
 get_level_segment_index_from_position = 0x80015510;
 obj_loop_animator = 0x800253F0;
 obj_dist_racer = 0x8007E150;
-obj_spawn_particle = 0x8005F5AC;
+func_8005F5AC = obj_spawn_particle;
 
 /* ---- 707F0.c ---- */
 func_8006FC54 = set_text_font;
@@ -698,3 +698,15 @@ D_80105280 = 0x80105280;
 D_80105980 = 0x80105980;
 D_80105988 = 0x80105988;
 D_8010598C = 0x8010598C;
+
+/* ---- round 5 (main5) ---- */
+/* The runlink trap (calls into modules) under prototypes with float arguments */
+func_80054530_f32 = 0x80054530;
+func_80054530_fff = 0x80054530;
+func_80054530_f8 = 0x80054530;
+func_80054530_pssf = 0x80054530;
+func_80054530_ret = 0x80054530;
+func_80054530_iiiff = 0x80054530;
+gCiPalettes = 0x800FECEC;
+D_800A3360 = 0x800A3360;
+D_800A6958 = 0x800A6958;

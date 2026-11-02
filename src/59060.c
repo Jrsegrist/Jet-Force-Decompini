@@ -6,16 +6,248 @@
 
 extern u8 gLanguage;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058460);
+extern s32 *D_800A51AC; // JFG: the menu text table (count, then one offset per language)
+extern char **gMenuText;
+s32 *asset_table_load(u32 assetIndex);
+s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
+/**
+ * Loads the menu text of a language and turns its offsets into pointers (-1 = none).
+ * JFG: five languages, and no string tables to fill afterwards.
+ * DKR: load_menu_text
+ */
+void load_menu_text(s32 language) {
+    char **temp;
+    s32 langIndex;
+    s32 size;
+
+    if (D_800A51AC == NULL) {
+        D_800A51AC = asset_table_load(7);
+    }
+    switch (language) {
+        case 4:
+            langIndex = 5;
+            break;
+        case 3:
+            langIndex = 4;
+            break;
+        case 2:
+            langIndex = 3;
+            break;
+        case 1:
+            langIndex = 2;
+            break;
+        default:
+            langIndex = 1;
+            break;
+    }
+    size = D_800A51AC[langIndex + 1];
+    langIndex = D_800A51AC[langIndex];
+    size -= langIndex;
+    temp = gMenuText;
+    if (temp == NULL) {
+        return;
+    }
+    asset_load(6, (u32) temp, langIndex, size);
+    for (langIndex = 0; langIndex < D_800A51AC[0]; langIndex++) {
+        temp = gMenuText;
+        if ((s32) temp[langIndex] == -1) {
+            temp[langIndex] = NULL;
+        } else {
+            temp[langIndex] += (s32) temp;
+        }
+    }
+}
+
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+extern u8 *D_800FF3A8[3]; // JFG: three 0x538-byte buffers
+extern s32 D_800FF3F8[180]; // JFG: the menu items' loaded assets
+extern u8 D_800FF6C8[];   // JFG: whether each menu item is loaded
+extern u8 D_800A51A0;
+extern s16 *D_800A51D0;   // JFG: the menu item types (ending with -1)
+extern s16 D_800A51D4;    // JFG: the number of menu items
+extern s16 D_800A51D8;    // JFG: the number of loaded menu items
+extern u8 D_800FF1B4[4];
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: only the last 4 stores: the target shares one lui for D_800FF1B4[0..3] (data defined in the file) */
+/* JFG: allocate the menu buffers and text, load the item table and mark every item unloaded. */
+void func_80058590(void) {
+    s32 i;
+
+    D_800FF3A8[0] = mempool_alloc_safe(0xFA8, -1);
+    for (i = 1; i < 3; i++) {
+        D_800FF3A8[i] = D_800FF3A8[i - 1] + 0x538;
+    }
+    gMenuText = mempool_alloc_safe(0x3000, -1);
+    load_menu_text(0);
+    i = 0;
+    while (i < 180) {
+        D_800FF3F8[i++] = 0;
+    }
+    D_800A51A0 = 0;
+    D_800A51D0 = (s16 *) asset_table_load(0x1A);
+    for (D_800A51D4 = 0; D_800A51D0[D_800A51D4] != -1; D_800A51D4++) {
+    }
+    D_800A51D8 = 0;
+    for (i = 0; i < D_800A51D4; i++) {
+        D_800FF6C8[i] = 0;
+    }
+    for (i = 0; i < 4; i++) {
+        D_800FF1B4[i] = 2;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058590);
+#endif
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_800586E0);
+s32 func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80052CFC();  // JFG: load a runlink module
+s32 runlink_module_loaded(s32 module);
+void func_8005342C(s32 module); // JFG: unload a runlink module
+void dialogue_clear(s32 dialogueBoxID);
+extern u8 gMenuMode;  // JFG: which menu set is running
+extern u8 D_800A4FC4; // JFG: a multiplayer game
+extern u8 D_800A4FD0; // JFG: the number of players
+extern u8 D_800A4FD8; // JFG: the multiplayer game type (low 4 bits)
+extern u8 D_800A4FB4;
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005886C);
+/* JFG: close the current menu set (its module's close function; each func_80054530 call is a different one). */
+void menu_set_close(void) {
+    if (runlink_module_loaded(0xC)) {
+        func_80054530();
+    }
+    if (D_800A51A0) {
+        switch (gMenuMode) {
+            case 0:
+                dialogue_clear(1);
+                break;
+            case 1:
+            case 7:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+            case 23:
+                break;
+            case 2:
+                func_80054530();
+                break;
+            case 3:
+                func_80054530();
+                break;
+            case 4:
+                func_80054530();
+                break;
+            case 5:
+                func_80054530();
+                break;
+            case 6:
+                func_80054530();
+                break;
+            case 8:
+                func_80054530();
+                break;
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
+                func_80054530();
+                break;
+            case 24:
+                func_80054530();
+                break;
+            case 16:
+                if ((D_800A4FC4 && D_800A4FD8 == 4) || D_800A4FB4) {
+                    func_80054530();
+                } else if (D_800A4FD0 == 1) {
+                    func_80054530();
+                } else {
+                    func_80054530();
+                }
+                break;
+            case 17:
+                func_80054530();
+                func_8005342C(9);
+                break;
+        }
+        D_800A51A0 = 0;
+    }
+}
 
-void func_800586E0(void);
-void func_8005886C(void);
+/* JFG: open the current menu set (its module's init function). */
+void menu_set_open(void) {
+    func_80054530();
+    if (D_800A51A0 == 0) {
+        switch (gMenuMode) {
+            case 2:
+                func_80054530();
+                break;
+            case 3:
+                func_80054530();
+                break;
+            case 4:
+                func_80054530(0);
+                break;
+            case 17:
+                func_80054530(0);
+                break;
+            case 5:
+                func_80054530();
+                break;
+            case 6:
+                func_80054530();
+                break;
+            case 8:
+                func_80054530();
+                break;
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
+                func_80054530();
+                break;
+            case 23:
+                func_80054530();
+                break;
+            case 24:
+                func_80054530();
+                break;
+            case 16:
+                if ((D_800A4FC4 && D_800A4FD8 == 4) || D_800A4FB4) {
+                    func_80054530();
+                } else {
+                    func_80052CFC(6);
+                    if (D_800A4FD0 == 1) {
+                        func_80054530();
+                    } else {
+                        func_80054530();
+                    }
+                }
+                break;
+            case 0:
+            case 1:
+            case 7:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+            case 15:
+                break;
+        }
+        D_800A51A0 = 1;
+    }
+}
+
+void menu_set_close(void);
+void menu_set_open(void);
 void func_80059A04(void);
 extern u8 gMenuMode; // JFG: which menu set is running
 extern u8 D_800A5058;
@@ -26,9 +258,9 @@ extern u8 D_800A4FCC; // JFG: the number of cameras
 
 /* JFG: store a new gMenuMode between calls to three menu functions; mode 0 also resets to a single player and camera (0x800589F0). */
 void menu_mode_set(s32 mode) {
-    func_800586E0();
+    menu_set_close();
     gMenuMode = mode;
-    func_8005886C();
+    menu_set_open();
     func_80059A04();
     D_800A5058 = 0;
     D_800A505C = 1;
@@ -44,11 +276,141 @@ u8 menu_mode_get(void) {
     return gMenuMode;
 }
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058A6C);
+extern s32 D_800FF398;
+extern s32 D_800FF39C;
+extern s32 D_800FF3A0;
+extern s32 D_800FF3A4;
+void debug_trace_add(s32 a, char *file, s32 line);
+void func_80059A98(s32 arg0);
+void menu_show_results(s32 arg0);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058C54);
+/**
+ * JFG: run the current menu set's module through the results stage (between two checks
+ * tagged with this file's name and line).
+ * Only `case 0` of the empty cases is listed: with all of them, IDO stops keeping arg4 in s0.
+ */
+s32 menu_set_results(s32 *arg0, s32 *arg1, s32 *arg2, s32 *arg3, s32 arg4) {
+    func_80059A98(arg4);
+    D_800FF398 = *arg0;
+    D_800FF39C = *arg1;
+    D_800FF3A0 = *arg2;
+    D_800FF3A4 = *arg3;
+    debug_trace_add(D_800FF398, "front/front.c", 0x256);
+    if (func_80054530()) {
+        switch (gMenuMode) {
+            case 2:
+                func_80054530(arg4);
+                break;
+            case 3:
+                func_80054530(arg4);
+                break;
+            case 4:
+                func_80054530(arg4);
+                break;
+            case 17:
+                func_80054530(arg4);
+                break;
+            case 5:
+                func_80054530(arg4);
+                break;
+            case 6:
+                func_80054530(arg4);
+                break;
+            case 8:
+                func_80054530(arg4);
+                break;
+            case 18:
+            case 19:
+            case 20:
+            case 21:
+            case 22:
+                func_80054530(arg4);
+                break;
+            case 23:
+                func_80054530(arg4);
+                break;
+            case 24:
+                func_80054530(arg4);
+                break;
+            case 16:
+                menu_show_results(arg4);
+                break;
+            case 0:
+                break;
+        }
+    }
+    func_80054530();
+    func_80054530(arg4);
+    debug_trace_add(D_800FF398, "front/front.c", 0x27A);
+    *arg0 = D_800FF398;
+    *arg1 = D_800FF39C;
+    *arg2 = D_800FF3A0;
+    *arg3 = D_800FF3A4;
+    D_800A505C = 0;
+    return 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058D5C);
+extern u8 D_800A5194; // JFG: a blink counter
+extern char **gMenuText;
+void fb_scale_coords(s32 *x, s32 *y);
+s32 get_language(void);
+void load_menu_text(s32 language);
+void set_text_font(s32 fontID);
+void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity);
+void set_text_background_colour(s32 red, s32 green, s32 blue, s32 alpha);
+void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentFlags);
+
+/* JFG: advance the blink counter by delta and, in its "on" half, draw menu text 49 (shadowed) at (160, 208). */
+void menu_draw_blinking_prompt(Gfx **dList, s32 delta) {
+    s32 x, y;
+
+    D_800A5194 += delta;
+    if (D_800A5194 & 0x10) {
+        x = 160;
+        y = 208;
+        fb_scale_coords(&x, &y);
+        load_menu_text(get_language());
+        set_text_font(2);
+        set_text_background_colour(0, 0, 0, 0);
+        set_text_colour(0, 0, 0, 255, 255);
+        draw_text(dList, x + 1, y + 1, gMenuText[49], 12);
+        set_text_colour(255, 255, 255, 0, 255);
+        draw_text(dList, x, y, gMenuText[49], 12);
+    }
+}
+
+typedef struct Object Object;
+Object **get_racer_objects(s32 *numRacers);
+s32 func_80054530(); // a module function (patched in by the runtime linker)
+extern u8 D_800A4FD8; // JFG: the multiplayer game type (low 4 bits)
+extern u8 D_800A4FB4;
+extern s32 D_800FF398;
+extern s32 D_800FF39C;
+extern s32 D_800FF3A0;
+
+/* JFG: hand the players (or the multiplayer results) to the module that shows them, by game type. */
+void menu_show_results(s32 arg0) {
+    s32 count;
+    Object **racers = get_racer_objects(&count);
+
+    if (D_800A4FC4) {
+        switch (D_800A4FD8 & 0xF) {
+            case 0:
+                func_80054530(count, racers, arg0);
+                break;
+            case 6:
+                func_80054530(&D_800FF398, &D_800FF39C, &D_800FF3A0, D_800A4FD0);
+                break;
+            case 4:
+                func_80054530(&D_800FF398, &D_800FF39C, &D_800FF3A0, D_800A4FD0);
+                break;
+        }
+    } else if (D_800A4FB4) {
+        func_80054530(&D_800FF398, &D_800FF39C, &D_800FF3A0, D_800A4FD0);
+    } else if (count > 0) {
+        func_80054530(racers[0], arg0);
+    }
+}
 
 s8 is_game_paused(void); // JFG: the pause mode
 extern s32 gMenuTimer;  // JFG: a frame counter for the menus
@@ -151,21 +513,135 @@ void func_80059A04(void) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_80059A98);
 
-void func_80059D2C(s16 item);
+void menu_item_free(s32 item);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059CCC);
+/**
+ * Free each menu item of a list ending with -1.
+ * DKR: menu_assetgroup_free
+ */
+void menu_assetgroup_free(s16 *assetGroup) {
+    s32 index = 0;
+    while (assetGroup[index] != -1) {
+        menu_item_free(assetGroup[index++]);
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059D2C);
+void tex_free(void *tex);
+void sprite_free(void *sprite);
+void free_object(void *object);
+void free_3d_model(void *model);
+void gParticlePtrList_flush(void);
 
-void func_80059E7C(s16 item);
+/* JFG: free menu item's asset (a texture, sprite, object or model by the top bits of its type) if it is loaded. */
+void menu_item_free(s32 item) {
+    if (D_800FF6C8[item]) {
+        if (D_800FF3F8[item]) {
+            if ((D_800A51D0[item] & 0xC000) == 0xC000 && D_800FF3F8[item]) {
+                tex_free((void *) D_800FF3F8[item]);
+            } else if (D_800A51D0[item] & 0x8000) {
+                sprite_free((void *) D_800FF3F8[item]);
+            } else if (D_800A51D0[item] & 0x4000) {
+                free_object((void *) D_800FF3F8[item]);
+            } else {
+                free_3d_model((void *) D_800FF3F8[item]);
+            }
+        }
+        D_800FF3F8[item] = 0;
+        D_800FF6C8[item] = 0;
+        D_800A51D8--;
+        gParticlePtrList_flush();
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059E1C);
+void menu_item_load(s32 item);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059E7C);
+/**
+ * Load each menu item of a list ending with -1.
+ * DKR: menu_assetgroup_load
+ */
+void menu_assetgroup_load(s16 *assetGroup) {
+    s32 index = 0;
+    while (assetGroup[index] != -1) {
+        menu_item_load(assetGroup[index++]);
+    }
+}
+
+/* JFG: the spawn entry of a menu object (size 10) */
+typedef struct MenuObjectSpawn {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 unkC;
+} MenuObjectSpawn;
+
+typedef struct MenuModelInstance {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u8 unkA;
+} MenuModelInstance;
+
+typedef struct MenuObjectHeader {
+    /* 0x00 */ u8 pad0[0x1F];
+    /* 0x1F */ s8 numberOfModelIds;
+} MenuObjectHeader;
+
+typedef struct MenuObject {
+    /* 0x00 */ u8 pad0[0x40];
+    /* 0x40 */ MenuObjectHeader *header;
+    /* 0x44 */ u8 pad44[0x6C - 0x44];
+    /* 0x6C */ MenuModelInstance **modelInstances;
+} MenuObject;
+
+void *load_texture(s32 assetIndex);
+void *tex_load_sprite(s32 spriteID, s32 arg1);
+MenuObject *spawn_object(void *entry, s32 arg1);
+void *func_8003B9E8(s32 modelID, s32 arg1);
+
+/* JFG: load menu item's asset (a texture, sprite, object or model by the top bits of its type) unless it is loaded. */
+void menu_item_load(s32 item) {
+    MenuObjectSpawn spawn;
+    MenuObject *obj;
+    MenuModelInstance *inst;
+
+    stubbed_printf("loadFrontEndItem() - Item no %d out of range 0-%d\n");
+    if (!D_800FF6C8[item]) {
+        if ((D_800A51D0[item] & 0xC000) == 0xC000) {
+            D_800FF3F8[item] = (s32) load_texture(D_800A51D0[item] & 0x3FFF);
+        } else if (D_800A51D0[item] & 0x8000) {
+            D_800FF3F8[item] = (s32) tex_load_sprite(D_800A51D0[item] & 0x3FFF, 0);
+        } else if (D_800A51D0[item] & 0x4000) {
+            spawn.objectID = D_800A51D0[item] & 0x3FFF;
+            spawn.size = 10;
+            spawn.x = 0;
+            spawn.y = 0;
+            spawn.z = 0;
+            spawn.unkC = 0;
+            spawn.unkB = 0x40;
+            spawn.unkA = 0;
+            obj = spawn_object(&spawn, 0);
+            if (obj->header->numberOfModelIds > 0) {
+                inst = obj->modelInstances[0];
+                inst->unkA = 2;
+            }
+            D_800FF3F8[item] = (s32) obj;
+        } else {
+            D_800FF3F8[item] = (s32) func_8003B9E8(D_800A51D0[item] & 0x3FFF, 0);
+        }
+        D_800FF6C8[item] = 1;
+        D_800A51D8++;
+    }
+}
 
 void menu_item_reset(s32 item);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_80059FE8);
+/* JFG: reset each menu item of a list ending with -1 (DKR's menu_assetgroup_free loop). */
+void menu_assetgroup_reset(s16 *assetGroup) {
+    s32 index = 0;
+    while (assetGroup[index] != -1) {
+        menu_item_reset(assetGroup[index++]);
+    }
+}
 
 /* Size: 0x20 bytes */
 typedef struct MenuItem {
@@ -208,7 +684,118 @@ void menu_item_reset(s32 item) {
 
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A0D0);
 
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A51C);
+extern u8 D_800A4FF0; // selects one of the three per-level replacement lists
+s32 get_ingame_map_id(void);
+
+/* JFG: a byte-aligned 10-byte spawn entry header (copied byte by byte) */
+typedef struct SpawnHeader {
+    /* 0x00 */ u8 data[10];
+} SpawnHeader;
+
+typedef struct SpawnEntry {
+    /* 0x00 */ SpawnHeader header;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 pad0C[0x28 - 0x0C];
+} SpawnEntry;
+
+typedef struct LevelSpawnTable {
+    /* 0x00 */ s32 level; // negative ends the table
+    /* 0x04 */ s16 (*lists[3])[4];
+} LevelSpawnTable;
+
+/**
+ * JFG: spawn the current level's replacement for a spawn entry (looked up in a table that a module
+ * returns; single-player only). unused0..unused2 only reproduce the original stack frame.
+ */
+void spawn_level_replacement(SpawnHeader *src) {
+    s32 unused0;
+    s32 i;
+    SpawnEntry entry;
+    s32 level;
+    s32 size;
+    s16 (*list)[4];
+    MenuObject *obj;
+    u8 *s;
+    u8 *d;
+    s32 n;
+    s32 unused1;
+    s32 unused2;
+    LevelSpawnTable *table;
+
+    table = NULL;
+    if ((D_800A4FD8 & 0xF) == 0) {
+        table = (LevelSpawnTable *) func_80054530();
+    }
+    if (table != NULL) {
+        i = 0;
+        level = get_ingame_map_id();
+        while (table[i].level >= 0 && table[i].level != level) {
+            i++;
+        }
+        if (level == table[i].level) {
+            list = table[i].lists[D_800A4FF0];
+            switch (list[(s8) src->data[0xA]][0]) {
+                case 0xCF:
+                case 0xE7:
+                case 0xE8:
+                    entry.unkB = list[(s8) src->data[0xA]][1];
+                    size = 0x10;
+                    entry.unkA = list[(s8) src->data[0xA]][2];
+                    break;
+                case 0xA9:
+                case 0xE9:
+                    entry.unkA = list[(s8) src->data[0xA]][1];
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][2];
+                    break;
+                case 0xFA:
+                case 0xFB:
+                case 0xFC:
+                case 0xFD:
+                case 0xFE:
+                case 0xFF:
+                case 0x100:
+                case 0x101:
+                case 0x102:
+                case 0x103:
+                case 0x104:
+                case 0x105:
+                case 0x123:
+                case 0x124:
+                case 0x125:
+                    entry.unkA = 0;
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][1];
+                    break;
+                case 0x12A:
+                    entry.unkA = list[(s8) src->data[0xA]][1];
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][2];
+                    break;
+                case 0x33C:
+                    entry.unkA = list[(s8) src->data[0xA]][1];
+                    size = 0xC;
+                    entry.unkB = list[(s8) src->data[0xA]][2];
+                    break;
+                default:
+                    return;
+            }
+            s = src->data;
+            d = (u8 *) &entry;
+            n = 10;
+            while (n--) {
+                *d++ = *s++;
+            }
+            *(s16 *) &entry = list[(s8) src->data[0xA]][0];
+            entry.header.data[2] = size;
+            obj = spawn_object(&entry, 1);
+            if (obj != NULL) {
+                *(s32 *) ((u8 *) obj + 0x3C) = 0;
+            }
+        }
+    }
+}
 
 s32 func_8005A794(void) {
     return 0;
@@ -235,12 +822,12 @@ s32 get_language(void) {
     return gLanguage;
 }
 
-void func_80058460(s32 language);
+void load_menu_text(s32 language);
 
 /* Sets the game's language and loads its text (0x8005A7E0). */
 void set_language(s32 language) {
     gLanguage = language;
-    func_80058460(language);
+    load_menu_text(language);
 }
 
 /* JFG: settings flags (the language and volume bytes below sit in the same block). */
@@ -270,7 +857,30 @@ s32 options_screen_mode_get(void) {
 extern u8 D_800A51A4;
 extern u8 D_800A51A8;
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: registers only: the masked mode is v0 and the u8 copy a0 (target v1 and v0) */
+/* JFG: set the screen mode byte (0-3) and copy its two bits into the settings flags. */
+void func_8005A834(s32 mode) {
+    u8 m;
+
+    if (D_800A51A8 != (mode & 3)) {
+        D_800A51A8 = mode & 3;
+        m = mode & 3;
+        if (m & 1) {
+            D_800FF318.unk6C_1 = 1;
+        } else {
+            D_800FF318.unk6C_1 = 0;
+        }
+        if (m & 2) {
+            D_800FF318.unk6C_2 = 1;
+        } else {
+            D_800FF318.unk6C_2 = 0;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A834);
+#endif
 
 /* JFG: remember the current screen mode byte (func_8005A8D8 returns it). */
 void func_8005A8C4(void) {

@@ -63,25 +63,71 @@ typedef struct ObjectHeaderLight {
 } ObjectHeaderLight;
 
 typedef struct ObjectHeader {
-    /* 0x00 */ u8 pad0[0x25];
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ s8 unk1E;
+    /* 0x1F */ u8 pad1F[0x25 - 0x1F];
     /* 0x25 */ s8 numLightSources;
     /* 0x26 */ u8 numCoronas; // JFG
     /* 0x27 */ u8 pad27[0x48 - 0x27];
     /* 0x48 */ struct ObjectHeaderLight *lights;
     /* 0x4C */ struct ObjectHeaderCorona *coronas; // JFG
+    /* 0x50 */ u8 pad50[0x90 - 0x50];
+    /* 0x90 */ f32 shadeDiffuse;
+    /* 0x94 */ f32 shadeAmbient;
+    /* 0x98 */ u8 pad98[0x9C - 0x98];
+    /* 0x9C */ s16 shadeAngleX;
+    /* 0x9E */ s16 shadeAngleY;
+    /* 0xA0 */ s16 shadeShift;
 } ObjectHeader;
 
 /* JFG: the description of one of an object's coronas (245D0.c). Size: 0x20 bytes */
 typedef struct ObjectHeaderCorona {
-    /* 0x00 */ u8 pad0[0x20];
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 pad2[6];
+    /* 0x08 */ f32 x;
+    /* 0x0C */ f32 y;
+    /* 0x10 */ f32 z;
+    /* 0x14 */ u8 unk14;
+    /* 0x15 */ u8 unk15;
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 unk17;
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ u16 unk1A;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s8 unk1E;
+    /* 0x1F */ s8 unk1F;
 } ObjectHeaderCorona;
 
+/* JFG: the level entry of an object with a corona (corona_from_level_entry) */
+typedef struct CoronaEntry {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 unkC;
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u16 unkE;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 pad11[2];
+    /* 0x13 */ u8 unk13;
+} CoronaEntry;
+
 typedef struct Object {
-    /* 0x00 */ u8 pad0[0x40];
+    /* 0x00 */ u8 pad0[0x3C];
+    /* 0x3C */ CoronaEntry *entry;
     /* 0x40 */ ObjectHeader *header;
-    /* 0x44 */ u8 pad44[0x74 - 0x44];
+    /* 0x44 */ u8 pad44[0x54 - 0x44];
+    /* 0x54 */ struct ShadeProperties *shading;
+    /* 0x58 */ u8 pad58[0x68 - 0x58];
+    /* 0x68 */ void *unk68;
+    /* 0x6C */ u8 pad6C[0x74 - 0x6C];
     /* 0x74 */ ObjectLight **lightData;
     /* 0x78 */ void **coronaData; // JFG
+    /* 0x7C */ u8 pad7C[0xA1 - 0x7C];
+    /* 0xA1 */ u8 unkA1;
 } Object;
 
 void light_update(ObjectLight *light, s32 updateRate);
@@ -147,13 +193,12 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
     func_80023170(0xFF, 0xFF, 0xFF, D_800F5B20);
 }
 
-extern f32 D_800ABA90;
 s32 func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
 /* Gives a light its track light (unless flag 0x40) (0x80020D84). */
 void light_track_light_add(ObjectLight *light) {
     if (!(light->enabled & 0x40)) {
         light->trackLight = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
-                                     light->radius * D_800ABA90, (light->colourR * light->intensity) >> 8,
+                                     light->radius * 0.3f, (light->colourR * light->intensity) >> 8,
                                      (light->colourG * light->intensity) >> 8, (light->colourB * light->intensity) >> 8);
     } else {
         light->trackLight = 0;
@@ -311,11 +356,86 @@ ObjectLight **lightGetLights(s32 *numLights) {
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800218C4);
 
+typedef struct LevelHeader217 {
+    /* 0x00 */ u8 pad0[0x6B];
+    /* 0x6B */ s8 unk6B;
+    /* 0x6C */ u8 pad6C[0xD4 - 0x6C];
+    /* 0xD4 */ s16 shadeAngleY;
+    /* 0xD6 */ s16 shadeAngleX;
+    /* 0xD8 */ u8 padD8[0xDB - 0xD8];
+    /* 0xDB */ u8 shadeDiffuse;
+    /* 0xDC */ u8 shadeAmbient;
+    /* 0xDD */ u8 padDD[0xDF - 0xDD];
+    /* 0xDF */ u8 shadeOverride; // JFG: use these instead of the object header's
+} LevelHeader217;
+
+Object **objGetObjList(s32 *arg0, s32 *cnt);
+LevelHeader217 *level_header(void);
+void func_80021B8C(Object *obj, void *arg1);
+void func_80054530(); // a module function (patched in by the runtime linker)
+
+#ifdef NON_MATCHING
+/**
+ * JFG: shade every 3D-model object that has shading (and unkA1 clear): func_80021B8C, or a module
+ * function when the level header says so.
+ * NON_MATCHING: i and count sit two words higher (target 0x24/0x20, with no temporaries below).
+ */
+void func_80021A30(void) {
+    Object **objs;
+    Object *obj;
+    s32 i;
+    s32 count;
+
+    objs = objGetObjList(&i, &count);
+    if (level_header()->unk6B) {
+        while (i < count) {
+            obj = objs[i++];
+            if (obj->shading != NULL && obj->header->unk1E == 0 && obj->unkA1 == 0) {
+                func_80054530(obj, obj->shading);
+            }
+        }
+    } else {
+        while (i < count) {
+            obj = objs[i++];
+            if (obj->shading != NULL && obj->header->unk1E == 0 && obj->unkA1 == 0) {
+                func_80021B8C(obj, obj->shading);
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021A30);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021B8C);
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80022028);
+f32 sqrtf(f32 x);
+f32 func_80049C30(s32 angle);
+
+/* JFG: scale times a falloff of x = a*b (0: x, 1: 1-x, 2: 1-sqrt x, 3: cos, 4: cos squared, 5: (1-x) squared). */
+f32 light_falloff_scale(f32 scale, f32 arg1, f32 arg2, s32 type) {
+    f32 x = arg1 * arg2;
+    switch (type) {
+        case 1:
+            x = 1.0f - x;
+            break;
+        case 2:
+            x = 1.0f - sqrtf(x);
+            break;
+        case 3:
+            x = func_80049C30(x * 16384.0f);
+            break;
+        case 4:
+            x = func_80049C30(x * 16384.0f);
+            x = x * x;
+            break;
+        case 5:
+            x = 1.0f - x;
+            x = x * x;
+            break;
+    }
+    return scale * x;
+}
 
 /**
  * JFG: the light's direction, the difference vector and the squared distance are
@@ -340,15 +460,82 @@ f32 light_direction_calc(f32 dirX, f32 dirY, f32 dirZ, f32 diffX, f32 diffY, f32
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_800221F0);
 
-extern u8 D_800F5B28[]; // JFG: the default object light
-void func_80022520(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
+/* JFG: a directional light (D_800F5B28 is the default object light) */
+typedef struct DirLight {
+    /* 0x00 */ f32 dir[3];
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ u8 shift;
+    /* 0x15 */ u8 max;
+    /* 0x16 */ u8 range;
+    /* 0x17 */ u8 min;
+    /* 0x18 */ u8 *table;
+    /* 0x1C */ s16 angle1;
+    /* 0x1E */ s16 angle0;
+} DirLight;
+
+/* JFG: an object's shading (Size: 0x90 bytes, 8 for sprites) */
+typedef struct ShadeProperties {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 padB[0xE - 0xB];
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ DirLight light;
+    /* 0x30 */ u8 pad30[0x90 - 0x30];
+} ShadeProperties;
+
+extern DirLight D_800F5B28; // JFG: the default object light
+void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift);
 
 /* JFG: set up the default object light. */
 void func_800224D0(s32 a, s32 b, s16 c, s16 d, s32 e) {
-    func_80022520(D_800F5B28, a, b, c, d, e);
+    func_80022520(&D_800F5B28, a, b, c, d, e);
 }
 
+void func_800492DC(s16 *rotation, f32 *vec); // rotates a vector by three angles
+
+#ifdef NON_MATCHING
+/* JFG: set up a directional light: brightness range min(a, b)..b, a shift, and the direction from two angles.
+   NON_MATCHING: 20 words: the range/shift computation is scheduled differently (store order 17, 15, 16, 10, 14). */
+void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift) {
+    s16 rotation[3];
+    f32 dir[3];
+
+    a &= 0xFF;
+    b &= 0xFF;
+    shift &= 7;
+    if (b < a) {
+        a = b;
+    }
+    light->min = a;
+    light->max = b;
+    light->range = b - a;
+    light->shift = shift;
+    light->unk10 = light->range << light->shift;
+    light->unkC = (1 << (8 - shift)) << 6;
+    light->angle0 = angle0;
+    light->angle1 = angle1;
+    rotation[1] = angle0;
+    rotation[2] = 0;
+    rotation[0] = angle1;
+    dir[0] = 0.0f;
+    dir[1] = 0.0f;
+    dir[2] = 1.0f;
+    func_800492DC(rotation, dir);
+    light->dir[0] = dir[0];
+    light->dir[1] = dir[1];
+    light->dir[2] = dir[2];
+    light->table = D_800F5B20;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80022520);
+#endif
 
 /**
  * Official Name: lightSetupLightSources
@@ -370,13 +557,75 @@ void light_setup_coronas(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80022744);
+/**
+ * Sets the shading properties of the object.
+ * JFG: a directional light from the level header (when it overrides) or the object header.
+ * DKR: init_object_shading
+ */
+s32 init_object_shading(Object *obj, ShadeProperties *shadeData) {
+    s32 returnSize;
+    LevelHeader217 *levelHeader;
+    ObjectHeader *objHeader;
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_800228BC);
+    levelHeader = level_header();
+    returnSize = 0;
+    objHeader = obj->header;
+    obj->shading = shadeData;
+    if (objHeader->unk1E == 0) {
+        shadeData->unkE = 1;
+        returnSize = sizeof(ShadeProperties);
+        if (levelHeader->shadeOverride) {
+            func_80022520(&shadeData->light, levelHeader->shadeAmbient, levelHeader->shadeDiffuse,
+                          levelHeader->shadeAngleX, levelHeader->shadeAngleY + 0x8000, 0);
+        } else {
+            func_80022520(&shadeData->light, objHeader->shadeAmbient * 255.0f, objHeader->shadeDiffuse * 255.0f,
+                          objHeader->shadeAngleX, objHeader->shadeAngleY, objHeader->shadeShift);
+        }
+        shadeData->unk4 = 255;
+        shadeData->unk5 = 255;
+        shadeData->unk6 = 255;
+        shadeData->unk7 = 255;
+        shadeData->unk8 = 255;
+        shadeData->unk9 = 255;
+        shadeData->unkA = 255;
+        shadeData->unk0 = 1.0f;
+    } else if (objHeader->unk1E == 1) {
+        shadeData->unk4 = 255;
+        shadeData->unk5 = 255;
+        shadeData->unk6 = 255;
+        shadeData->unk7 = 0;
+        returnSize = 8;
+        shadeData->unk0 = 1.0f;
+    }
+    return (returnSize & ~3) + 4;
+}
 
-void func_80023CB4(void *light);
+/* JFG: give the object a corona described by its level entry. */
+void corona_from_level_entry(Object *obj) {
+    ObjectHeaderCorona header;
+    CoronaEntry *entry;
+
+    entry = obj->entry;
+    header.unk0 = 0x41;
+    header.unk1 = entry->unk13;
+    header.x = entry->x;
+    header.y = entry->y;
+    header.z = entry->z;
+    header.unk14 = entry->unkA;
+    header.unk15 = entry->unkB;
+    header.unk16 = entry->unkC;
+    header.unk17 = entry->unkD;
+    header.unk18 = 0x61;
+    header.unk1A = entry->unkE;
+    header.unk1C = (entry->unkE * entry->unk10) / 100;
+    header.unk1E = -1;
+    header.unk1F = 0;
+    obj->unk68 = func_80023A48(NULL, &header);
+}
+
+void corona_free(void *light);
 
 s32 func_800229B8(void *light) {
-    func_80023CB4(light);
+    corona_free(light);
     return 1;
 }

@@ -53,7 +53,9 @@ typedef struct FontData {
     u8 y;
     u8 charWidth; // the width of a character without its own entry
     u8 unk3;
-    u8 pad4[0xC];
+    s32 dataOffset; // JFG: of the glyph images in asset 0x3B
+    s16 glyphSize;
+    u8 padA[6];
 } FontData;
 extern FontData *gFonts; // Official Name: Font
 
@@ -625,6 +627,7 @@ void parse_string_with_number(char *input, char *output, s32 number) {
     } while (ch);
 }
 
+/* JFG: find the cached glyph of the current font, or load it into free cache blocks (not matched yet). */
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80071388);
 
 INCLUDE_ASM("asm/nonmatchings/707F0", func_800715E8);
@@ -652,7 +655,75 @@ void fontConvertString(u8 *in, u8 *out) {
     } while (ch);
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation only: the target keeps 0x80/0xF in t3/t4 and the D_801040E8 address unhoisted (4 saved registers, mine 7) */
+/* JFG: word wrap: from text, find where the line that fits maxWidth ends (spaces are 0x80 0x0F); the line's
+ * first word goes to *lineStart. Returns NULL at the end of the text or if not even one word fits. */
+u8 *func_8007216C(s32 font, u8 *text, s32 maxWidth, u8 **lineStart) {
+    s32 width = 0;
+    s32 first = TRUE;
+    s32 overflow = FALSE;
+    s32 end = FALSE;
+    s32 brk = FALSE;
+    s32 wordWidth;
+    u8 *wordStart;
+    u8 ch;
+    u8 *widths;
+
+    do {
+        wordWidth = 0;
+        wordStart = text;
+        do {
+            ch = *text;
+            if (ch == 0x80 && text[1] == 0xF) {
+                text += 2;
+                if (!first) {
+                    wordWidth += gFonts[font].charWidth;
+                }
+            } else if (ch == 0) {
+                end = TRUE;
+            } else if (ch != 0x80) {
+                text++;
+            } else {
+                brk = TRUE;
+            }
+        } while (!brk && !end);
+        if (first) {
+            first = FALSE;
+            if (end) {
+                return NULL;
+            }
+            *lineStart = text;
+        }
+        ch = *text;
+        if (ch == 0x80 && text[1] != 0xF) {
+            widths = D_801040E8[font];
+            do {
+                wordWidth += widths[text[1]];
+                ch = text[2];
+                text += 2;
+            } while (ch == 0x80 && text[1] != 0xF);
+        }
+        width += wordWidth;
+        if (maxWidth < width) {
+            ch = *wordStart;
+            overflow = TRUE;
+            width -= wordWidth;
+            text = wordStart;
+        }
+        if (ch == 0) {
+            end = TRUE;
+        }
+        brk = FALSE;
+    } while (!overflow && !end);
+    if (text == *lineStart) {
+        return NULL;
+    }
+    return text;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/707F0", func_8007216C);
+#endif
 
 u8 func_8007230C(s32 font) {
     return gFonts[font].unk3;

@@ -76,7 +76,7 @@ typedef struct M118Check {
 extern u8 D_800A3208;
 
 extern s32 check_fadeout_transition(void);
-extern void func_8006B9CC(void *);
+extern void transition_begin(void *);
 extern void func_m022_02430(s32 message, s32 arg1);
 extern void func_m022_023FC(M118PlayerData *player);
 
@@ -171,7 +171,7 @@ void func_m118_00140(Object *obj, s32 updateRate) {
                     func_80076928(t->arg);
                     break;
                 case 5:
-                    func_800772C4(t->arg);
+                    sequence_start(t->arg);
                     break;
             }
             hit->hitPoints = 0;
@@ -225,7 +225,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
             dz = obj->trans.z_position - rd->z;
             if (dx * dx + dy * dy + dz * dz < radiusSq) {
                 if (check_fadeout_transition() == 0) {
-                    func_8006B9CC(D_m118_00900);
+                    transition_begin(D_m118_00900);
                 }
                 func_80001248(0x8A, 0);
                 func_m022_02430(c->message, 0);

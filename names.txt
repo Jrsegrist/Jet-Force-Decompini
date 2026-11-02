@@ -443,3 +443,205 @@ field Object.unk1A = numActiveEmitters
 field Object.unk6C = modelInstances
 field Object.unkA0 = freed
 field ObjectInteraction.unk6 = hitPoints
+
+# round 5, main segment (main5)
+# src/50300.c: the scheduler, a Rare variant of libultra's (ultralib's names)
+func_8004F700 = osCreateScheduler
+func_8004F85C = osScAddClient
+func_8004F8C0 = osScRemoveClient
+func_8004F978 = __scMain
+func_8004FB30 = __scHandleAudioReady
+func_8004FBD8 = sc_task_type_name
+func_8004FC64 = sc_task_print
+func_8004FC6C = rcp_hang_bisect
+func_8004FF64 = rcp_hang_find
+func_80050154 = __scHandleRetrace
+func_800507F8 = __scHandleRSP
+func_80050924 = __scHandleRDP
+func_800509B0 = __scTaskReady
+func_80050A08 = __scTaskComplete
+func_80050B08 = __scAppendList
+func_80050B70 = __scExec
+func_80050C3C = __scYield
+func_80050C90 = __scSchedule
+# src/2610.c (DKR audiomgr.c)
+func_80001A10 = amCreateAudioMgr
+# src/25A70.c
+func_80026D14 = obj_loop_texture_animator
+func_80026E20 = chain_object_unlink_from_players
+func_80026F38 = chain_slot_find_shortest
+func_8002844C = obj_loop_pickup_trigger
+func_80027E1C = obj_loop_falling_spark
+func_8002662C = obj_group_countdown
+func_80026824 = obj_group_flag_first
+func_800253F0 = obj_loop_animator
+# src/291B0.c
+func_80029A20 = obj_loop_chroma_sprite
+func_8002A954 = sphere_distance_min
+func_8002A7D8 = wave_vector_scale
+func_8002AA7C = obj_apply_damage
+func_80028F90 = obj_init_col_vertices
+# src/2BAA0.c
+func_800341B4 = player_loop_sounds_update
+func_80033D74 = player_turn_limit_update
+func_80039544 = weapon_fire_chain_shot
+func_80033BB8 = player_charge_meter_update
+func_8002AEA0 = player_voice_play
+func_80039D08 = weapon_throw_or_hold
+func_800340A4 = table_lerp_diff
+func_800396CC = player_attachment_spawn
+func_8003B290 = players_forget_object
+# src/3430.c (DKR audio_spatial.c where named so)
+func_80002944 = audspat_reset
+func_80003994 = audio_group_play
+func_80003CA4 = audspat_volume_at_distance
+# src/3C470.c (DKR object_models.c where named so)
+func_8003B8AC = allocate_object_model_pools
+func_8003C7C4 = free_3d_model
+func_8003C92C = free_model_data
+func_8003CFCC = asset_cache_get
+func_8003EF60 = asset_cache2_get
+func_8003F284 = model_cache_textures_release
+# src/40240.c
+func_8003FAEC = cam_reset
+func_80041A90 = mtx_model_rotate_translate_push
+func_80041FE0 = screen_to_view
+func_80042310 = cam_shake_near_point
+func_8003FC80 = copy_viewports_to_stack
+# src/45750.c
+func_80044CF0 = code_patch_addiu_666
+func_80044DFC = init_game
+func_8004581C = screen_rect_queue
+func_80045914 = screen_rects_test_depth
+func_80045C38 = transition_values_update
+func_80048630 = settings_clear_stats
+func_80045A44 = frame_post_process
+func_800476F0 = game_settings_reset
+func_80046378 = level_next_select
+# src/4BC70.c
+func_8004B29C = rumble_set
+func_8004B3D8 = rumble_raise
+# src/432D0.c
+func_800427E8 = camera_follow_update
+func_800426D0 = view_override_clear
+func_800426DC = view_override_set
+func_800426E8 = view_override_remove
+func_8004270C = camera_follow_get
+func_80042F48 = view_override_copy_reversed
+# src/84DA0.c (anti-tamper: a magic word left in RDRAM, cleared once read)
+func_800841A0 = drm_check_rdram_a
+func_800841CC = drm_check_rdram_b
+# src/245D0.c (coronas)
+func_800239D0 = coronas_init
+func_80023A00 = coronas_free_all
+func_80023CB4 = corona_free
+func_80023D48 = coronas_update
+func_80023FA4 = corona_visibility_update
+# src/668E0.c (a debug trace: value, source file, line)
+func_80065CE0 = debug_trace_init
+func_80065D24 = debug_trace_flip
+func_80065D50 = debug_trace_add
+# src/66B80.c (display-list command printers, their output compiled out)
+func_80066594 = dl_cmd_unpack_bbh
+func_800665D8 = dl_cmd_unpack_bhb
+# src/44350.c (DKR game.c)
+func_80043750 = level_global_init
+D_800FB110 = gTempAssetTable
+D_800FB120 = gLevelNames
+D_800FB128 = gNumberOfWorlds
+D_800FB130 = gRaceTypeCountTable
+# src/4E340.c
+func_8004D740 = splitscreen_dividers_draw
+# src/4E610.c
+func_8004DDEC = zbuffer_clear_rect
+# src/53C0.c (DKR objects.c where named so)
+func_80004838 = free_all_objects
+func_80004C74 = load_object_header
+func_80004F04 = try_free_object_header
+func_80005CB0 = level_entry_remove
+func_80006E1C = obj_free_assets
+func_80007A54 = gParticlePtrList_flush
+func_800095A4 = objects_update_special
+func_80009734 = obj_tex_animate
+func_80009E58 = obj_draw_displaylist_origin
+func_80009FB4 = obj_draw_displaylist
+func_8000A154 = render_misc_model
+func_8000DDAC = render_object_parts
+func_8000E108 = get_first_active_object
+# src/12D50.c (DKR tracks.c where named so)
+func_800129AC = track_tex_anim
+func_80013820 = initialise_player_viewport_vars
+func_8001436C = racers_apply_module_values
+func_8001B660 = free_track
+func_8001B8E0 = shadow_render
+func_8001BE04 = update_fog
+func_8001BF9C = apply_fog
+func_8001C650 = compute_scene_camera_transform_matrix
+# src/1DA10.c
+func_8001D800 = shadow_buffers_alloc
+# src/217C0.c
+func_80022744 = init_object_shading
+func_800228BC = corona_from_level_entry
+func_80022028 = light_falloff_scale
+# src/51AD0.c
+func_8005122C = troop_leader_spawn
+func_800516EC = troop_member_colours_get
+func_80050F60 = troop_slot_get
+func_80053C44 = runlink_module_move_to_slot
+# src/55130.c
+func_80054B44 = fb_clear_and_unblank
+func_8005539C = fb_swap
+func_800554B0 = tex_init_textures
+# src/59060.c
+func_80058460 = load_menu_text
+func_80058C54 = menu_draw_blinking_prompt
+func_80058D5C = menu_show_results
+func_80059D2C = menu_item_free
+func_80059E7C = menu_item_load
+func_800586E0 = menu_set_close
+func_8005886C = menu_set_open
+func_80058A6C = menu_set_results
+func_8005A51C = spawn_level_replacement
+func_80059CCC = menu_assetgroup_free
+func_80059E1C = menu_assetgroup_load
+func_80059FE8 = menu_assetgroup_reset
+# src/5B700.c (DKR weather.c)
+func_8005BDB8 = rain_set
+func_8005C040 = rain_update
+func_8005CE90 = particle_assets_free
+func_8005CFD0 = particle_buffers_free
+func_8005EEFC = obj_enable_emitter
+func_80061FC8 = point_particle_set_update
+func_80060EC4 = particle_alloc
+func_8005F294 = line_particle_set_alloc
+func_800602C0 = obj_fire_emitter
+# src/67780.c
+func_80067790 = log_show
+func_800680B0 = epc_draw_glyph
+func_800681D0 = epc_draw_string
+func_800683D4 = fault_send_thread
+# src/76C20.c
+func_800766A8 = anim_path_restart
+func_80076D6C = anim_path_link_nodes
+func_80076EA0 = anim_system_init
+func_80077158 = sequence_stop
+func_800772C4 = sequence_start
+func_80079930 = anim_paths_find_near
+# src/69050.c (DKR transition.c)
+func_8006BC34 = transition_update
+func_8006BD54 = transition_render
+func_8006B9CC = transition_begin
+func_8006EE60 = glitch_effect_draw
+func_8006B69C = ripple_quad_draw
+# src/7A7D0.c
+func_8007E328 = multiplayer_score_kill
+func_8007B99C = collision_line_test_objects
+func_8007A324 = obj_update_collision_spheres
+func_80083914 = velocity_mass_weighted
+func_8007CF28 = spheres_push_out
+func_8007E5EC = obj_update_matrices
+func_80082118 = falling_objects_hit_box
+# src/74270.c (DKR game_text.c)
+func_800737B8 = render_subtitles
+func_80073BDC = process_subtitles
+func_80073D14 = set_current_text

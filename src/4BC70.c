@@ -68,12 +68,14 @@ void func_8004B0B8(s32 on) {
 /* JFG: a rumble pak's state (10 bytes per player) */
 typedef struct RumbleData {
     /* 0x00 */ u16 state : 4;
-    /* 0x00 */ u16 unk0 : 4;
+    /* 0x00 */ u16 unk3 : 1;
+    /* 0x00 */ u16 unk2 : 1; // set when a rumble pak was found
+    /* 0x00 */ u16 unk0 : 2;
     /* 0x01 */ u16 unk1 : 8;
     /* 0x02 */ s16 strength;
     /* 0x04 */ s16 strength2;
     /* 0x06 */ s16 time;
-    /* 0x08 */ u8 pad8[2];
+    /* 0x08 */ s16 unk8;
 } RumbleData;
 extern RumbleData gRumble[];
 u8 input_player_id(s32 player);
@@ -109,9 +111,57 @@ void rumble_stop(s32 pad, s32 force) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B29C);
+extern f32 D_800AC944;
+extern f32 D_800AC948;
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B3D8);
+/* JFG: set a controller's rumble strength (when nonzero) and, unless it is stopping, restart it for time
+ * seconds. */
+void rumble_set(s32 pad, s32 strength, f32 time) {
+    RumbleData *rumble;
+    s32 id;
+
+    if (rumble_is_allowed() != 0) {
+        if (pad >= 0 && pad < 4) {
+            id = input_player_id(pad);
+            if (strength != 0) {
+                gRumble[id].strength = strength * strength * D_800AC944;
+            }
+            rumble = &gRumble[id];
+            if (rumble->state != 2 && time != 0.0f) {
+                rumble->state = 1;
+                rumble->time = time * 60.0f;
+            }
+        }
+    }
+}
+
+/* JFG: raise a controller's rumble strength and time to at least the given ones (time in seconds). */
+void rumble_raise(s32 pad, s32 strength, f32 time) {
+    RumbleData *rumble;
+    s32 value;
+
+    if (rumble_is_allowed() != 0) {
+        if (pad >= 0 && pad < 4) {
+            rumble = &gRumble[input_player_id(pad)];
+            if (rumble->time <= 0) {
+                rumble->strength = 0;
+            }
+            if (strength != 0) {
+                strength = strength * strength * D_800AC948;
+                if (rumble->strength < strength) {
+                    rumble->strength = strength;
+                }
+            }
+            if (rumble->state != 2) {
+                rumble->state = 1;
+                value = time * 60.0f;
+                if (rumble->time < value) {
+                    rumble->time = value;
+                }
+            }
+        }
+    }
+}
 
 void rumble_stop(s32 pad, s32 arg1);
 
@@ -169,9 +219,70 @@ void flash_write_page(u32 page, u8 *data);
 void flash_read_page(u32 page, u8 *data);
 extern s32 gSaveFilePages[]; // JFG: the first flash page of each save slot
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target counts the page loop down in bytes from an unfolded 11 << 7 (and guards it), so its
+ * registers differ */
+/* JFG: read a save file (0x538 bytes) from its slot's flash sector; byte 3 gets the slot number, or -1 when the
+ * checksum in the sector's last page does not match. */
+s32 func_8004BAF4(s32 slot, u8 *data) {
+    s32 page = gSaveFilePages[slot];
+    s32 checksumPage = page + 0x7F;
+    u8 *buf;
+    u8 *p;
+    s32 i;
+    s32 checksum;
 
+    buf = mempool_alloc_safe(11 * 0x80, -1);
+    p = buf;
+    for (i = 0; i < 11; i++) {
+        flash_read_page(page++, p);
+        p += 0x80;
+    }
+    for (i = 0; i < 0x538; i++) {
+        data[i] = buf[i];
+    }
+    checksum = calculate_save_file_checksum(buf, 0x538);
+    flash_read_page(checksumPage, buf);
+    if (checksum != *(s32 *) buf) {
+        ((s8 *) data)[3] = -1;
+    } else {
+        data[3] = slot;
+    }
+    mempool_free(buf);
+    return 0;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
+#endif
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target keeps a `beqz` guard before the page loop (IDO here knows the count is 11) */
+/* JFG: write a save file (0x538 bytes, slot number at byte 3) to its slot's flash sector, the checksum in the
+ * sector's last page. */
+s32 func_8004BC10(s32 slot, u8 *data) {
+    s32 page = gSaveFilePages[slot];
+    s32 checksumPage = page + 0x7F;
+    s32 pad;
+    s32 checksum;
+    UNUSED s32 pad2[2];
+
+    data[3] = slot;
+    slot = 11;
+    checksum = calculate_save_file_checksum(data, 0x538);
+    if (is_reset_pressed() == 0) {
+        func_80083EB0(page);
+        while (slot != 0) {
+            flash_write_page(page++, data);
+            slot--;
+            data += 0x80;
+        }
+        flash_write_page(checksumPage, (u8 *) &checksum);
+    }
+    return 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BC10);
+#endif
 
 /* JFG: erase a save slot's flash sector (fill its pages with 0xFF) (0x8004BCB4). */
 void erase_save_file(s32 slot, UNUSED s32 arg1) {
@@ -358,7 +469,61 @@ s32 start_reading_controller_data(UNUSED s32 controllerIndex) {
     return 0;
 }
 
+OSMesgQueue *si_mesg(void);
+void save_flash_init(void);
+extern u8 D_800A3448; // JFG: controllers with a usable controller pak (one bit each)
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target keeps the loop bound 4 in a register and computes &pfs[i] with shifts; mine keeps
+   sizeof(OSPfs) in a register (multu) and compares with 4 each time, which shifts the saved registers */
+/* JFG: reset the rumble states, then find each controller's controller pak or rumble pak. */
+void func_8004C2BC(void) {
+    RumbleData *rumble;
+    s32 i;
+    u8 bit;
+    u8 pattern;
+    s32 ret;
+
+    sControllerMesgQueue = si_mesg();
+    rumble = gRumble;
+    i = 4;
+    while (i--) {
+        rumble->state = 0;
+        rumble->unk2 = 0;
+        rumble->unk3 = 0;
+        rumble->unk1 = 0;
+        rumble->strength = 0;
+        rumble->time = 0;
+        rumble->unk8 = 0;
+        rumble++;
+    }
+    gRumblePresent = 0;
+    D_800A3448 = 0;
+    osPfsIsPlug(sControllerMesgQueue, &pattern);
+    bit = 1;
+    for (i = 0; i < 4; i++) {
+        if (pattern & bit) {
+            ret = osPfsInit(sControllerMesgQueue, &pfs[i], i);
+            if (ret == PFS_ERR_NEW_PACK) {
+                ret = osPfsInit(sControllerMesgQueue, &pfs[i], i);
+            }
+            if (ret == 0) {
+                D_800A3448 |= bit;
+            } else if (ret == PFS_ERR_ID_FATAL) {
+                if (osMotorInit(sControllerMesgQueue, &pfs[i], i) == 0) {
+                    gRumblePresent |= bit;
+                    gRumble[i].unk2 = 1;
+                }
+            }
+        }
+        bit <<= 1;
+    }
+    osContStartReadData(sControllerMesgQueue);
+    save_flash_init();
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004C2BC);
+#endif
 
 SIDeviceStatus check_for_rumble_pak(s32 controllerIndex) {
     s32 ret;

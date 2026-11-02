@@ -26,6 +26,8 @@ typedef struct ParticleBehaviour {
     /* 0x14 */ Vec3s sourceRotation;
     /* 0x1A */ u8 pad1A[0x22 - 0x1A];
     /* 0x22 */ Vec3s emissionDirection;
+    /* 0x28 */ u8 pad28[0x40 - 0x28];
+    /* 0x40 */ s16 spawnInterval;
 } ParticleBehaviour;
 
 #define PARTICLE_POINT 0x400
@@ -36,7 +38,8 @@ typedef struct ParticleBehaviour {
 typedef struct ParticleEmitter {
     /* 0x00 */ ParticleBehaviour *behaviour;
     /* 0x04 */ s32 flags;
-    /* 0x08 */ u8 pad8[2];
+    /* 0x08 */ u8 sourceRotationCounter;
+    /* 0x09 */ u8 emissionDirRotationCounter;
     /* 0x0A */ s16 descriptorID;
     /* 0x0C */ s16 colourIndex;
     /* 0x0E */ Vec3s sourceRotation;
@@ -71,29 +74,50 @@ typedef struct ParticleObj {
     /* 0x1A */ s16 activeEmitters;
     /* 0x1C */ u8 pad1C[0x40 - 0x1C];
     /* 0x40 */ ParticleObjHeader *header;
-    /* 0x44 */ u8 pad44[0x68 - 0x44];
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
     /* 0x68 */ struct {
         u8 pad0[0x20];
         ParticleObjModel *model;
     } *unk68;
     /* 0x6C */ u8 pad6C[4];
     /* 0x70 */ ParticleEmitter *emitters;
+    /* 0x74 */ u8 pad74[0x84 - 0x74];
+    /* 0x84 */ u32 particleEmittersEnabled;
 } ParticleObj;
 
 /* JFG: a point emitter's particles, size 0xC0 */
 typedef struct PointParticleSet {
     /* 0x00 */ s32 points[15];
     /* 0x3C */ s32 count;
-    /* 0x40 */ u8 pad40[0xA4 - 0x40];
+    /* 0x40 */ s32 numVerts;
+    /* 0x44 */ Vec3f verts[8];
     /* 0xA4 */ u8 unkA4; // set when the emitter lets go of it
-    /* 0xA5 */ u8 padA5[0xC0 - 0xA5];
+    /* 0xA5 */ u8 padA5[0xA8 - 0xA5];
+    /* 0xA8 */ s32 texFlags;
+    /* 0xAC */ s32 flags;
+    /* 0xB0 */ f32 frame;
+    /* 0xB4 */ s16 texUpdateRate;
+    /* 0xB6 */ u8 padB6[2];
+    /* 0xB8 */ struct TextureHeader *texture;
+    /* 0xBC */ struct ParticleEmitter *emitter;
 } PointParticleSet;
 
 /* JFG: a line emitter's data, size 0x148 */
 typedef struct LineParticleSet {
     /* 0x000 */ u8 pad0[0x124];
     /* 0x124 */ u8 unk124; // set when the emitter lets go of it
-    /* 0x125 */ u8 pad125[0x148 - 0x125];
+    /* 0x125 */ u8 pad125[0x128 - 0x125];
+    /* 0x128 */ struct TextureHeader *texture;
+    /* 0x12C */ struct ParticleBehaviour *behaviour;
+    /* 0x130 */ s32 unk130;
+    /* 0x134 */ u8 pad134[4];
+    /* 0x138 */ s32 unk138;
+    /* 0x13C */ s32 flags;
+    /* 0x140 */ f32 frame;
+    /* 0x144 */ s16 unk144;
+    /* 0x146 */ u8 pad146[2];
 } LineParticleSet;
 
 extern PointParticleSet *D_800A5D88;
@@ -160,6 +184,11 @@ extern Vertex *gSnowVertexData[2];
 extern s8 gSnowVertexFlip;
 
 typedef struct TextureHeader TextureHeader;
+/* JFG layout (55130.c has more) */
+struct TextureHeader {
+    /* 0x00 */ u8 pad0[0x12];
+    /* 0x12 */ u16 numOfTextures;
+};
 
 typedef struct SnowGfxData {
     /* 0x00 */ void *pos;
@@ -423,7 +452,19 @@ void free_rain_memory(void) {
     gWeatherType = WEATHER_SNOW;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005BDB8);
+/**
+ * Sets the fade times for the rain visuals and how long to take to fade in.
+ * The game will slowly ease into the intended values.
+ * JFG: f32 constants.
+ * DKR: rain_set
+ */
+void rain_set(s32 lightningFrequency, s32 opacity, f32 time) {
+    gRainHiddenTimer = osTvType == OS_TV_PAL ? 50.0f * time : 60.0f * time;
+    gLightningFrequencyTarget = lightningFrequency;
+    gLightningFrequencyStep = (gLightningFrequencyTarget - gLightningFrequency) / gRainHiddenTimer;
+    gRainOpacityTarget = opacity;
+    gRainOpacityStep = (gRainOpacityTarget - gRainOpacity) / gRainHiddenTimer;
+}
 
 /* DKR include/level.h LevelHeader, reduced (JFG offsets) */
 typedef struct LevelHeader {
@@ -464,14 +505,56 @@ f32 func_8005BFC4(void) {
     return amount;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C040);
+/* JFG: a weather position in 16.16 fixed point */
+typedef struct WeatherPosition {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ s32 x;
+    /* 0x10 */ u8 pad10[0x18 - 0x10];
+    /* 0x18 */ s32 y;
+    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
+    /* 0x24 */ s32 z;
+} WeatherPosition;
+extern WeatherPosition D_80100848;
+/* The module trap (0x80054530) under a prototype with float arguments: needs
+   `func_80054530_fff = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
+void rain_sound(s32 updateRate);
+void func_8005C188(s32 updateRate);
+void rain_lightning(s32 updateRate);
+
+/**
+ * When active (single player only), call all the functions related to the behaviour and rendering of
+ * rain, and if necessary, thunder.
+ * JFG: a module draws the rain (at the weather position, 5 units lower).
+ * DKR: rain_update
+ */
+void rain_update(s32 updateRate) {
+    if (get_current_viewport() == 0 && gWeatherType != WEATHER_SNOW) {
+        if (gRainHiddenTimer > 0) {
+            if (updateRate < gRainHiddenTimer) {
+                gRainHiddenTimer -= updateRate;
+                gLightningFrequency += gLightningFrequencyStep * updateRate;
+                gRainOpacity += gRainOpacityStep * updateRate;
+            } else {
+                gRainHiddenTimer = 0;
+                gLightningFrequency = gLightningFrequencyTarget;
+                gRainOpacity = gRainOpacityTarget;
+            }
+        }
+        func_80054530_fff(D_80100848.x / (f32) 0x10000, D_80100848.y / (f32) 0x10000 - 5.0f,
+                          D_80100848.z / (f32) 0x10000, updateRate);
+        rain_sound(updateRate);
+        func_8005C188(updateRate);
+        rain_lightning(updateRate);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
 
 extern u8 gThunderTransition[];
 extern s32 D_800A6784;
 s32 check_fadeout_transition(void);
-void func_8006B9CC(void *transition); // DKR: transition_begin
+void transition_begin(void *transition); // DKR: transition_begin
 void sound_play(u16 soundID, s32 *handlePtr);
 s32 rand_range(s32 min, s32 max);
 
@@ -488,7 +571,7 @@ void rain_lightning(s32 updateRate) {
         gThunderTimer -= updateRate;
         if (gThunderTimer <= 0) {
             if (gRainOpacity > 0x8000 && check_fadeout_transition() == 0) {
-                func_8006B9CC(gThunderTransition);
+                transition_begin(gThunderTransition);
                 D_800A6784 = 0;
             }
             sound_play(6, NULL);
@@ -570,9 +653,92 @@ void reset_particles(void) {
     particle_free_dummy();
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CE90);
+extern void **D_800A5D74; // JFG: the particle assets (sprites, textures or models)
+extern s32 D_800A5D78;    // JFG: the number of particle assets
+void free_3d_model(void *model);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CFD0);
+/* JFG: free the particle assets (the type of each is in the top bits of asset 0x3C's entries). */
+void particle_assets_free(void) {
+    s32 i;
+    s16 *types;
+
+    if (D_800A5D74 != NULL) {
+        types = (s16 *) asset_table_load(0x3C);
+        for (i = 0; i < D_800A5D78; i++) {
+            switch (types[i] & 0xC000) {
+                case 0x8000:
+                    sprite_free(D_800A5D74[i]);
+                    break;
+                case 0xC000:
+                    tex_free(D_800A5D74[i]);
+                    break;
+                case 0:
+                    free_3d_model(D_800A5D74[i]);
+                    break;
+            }
+        }
+        mempool_free(types);
+        mempool_free(D_800A5D74);
+        D_800A5D74 = NULL;
+    }
+}
+
+typedef struct WeatherParticleList WeatherParticleList;
+extern WeatherParticleList *D_801008E0[5];
+extern s32 D_800A5D7C; // JFG: the number of line particle sets
+extern s32 D_800A5D80; // JFG: the number of point particle sets
+extern s32 D_800A5DB4;
+extern void *D_800A5F48;
+extern void *D_800A5F80;
+extern PoolEmitter *D_800A5DAC;
+extern s32 D_800A5DB0;
+void free_particle_list(WeatherParticleList **listPtr);
+
+/* JFG: free the particle lists, the line and point sets (and their textures) and the other particle buffers. */
+void particle_buffers_free(void) {
+    WeatherParticleList **list;
+    LineParticleSet *line;
+    PointParticleSet *point;
+    s32 i;
+
+    for (list = D_801008E0; list < D_801008E0 + 5; list++) {
+        free_particle_list(list);
+    }
+    D_800A5DB4 = 0;
+    if (D_800A5D84 != NULL) {
+        line = D_800A5D84;
+        for (i = 0; i < D_800A5D7C; i++, line++) {
+            if (line->unk124 && line->texture != NULL) {
+                tex_free(line->texture);
+            }
+        }
+        mempool_free(D_800A5D84);
+        D_800A5D84 = NULL;
+    }
+    if (D_800A5D88 != NULL) {
+        point = D_800A5D88;
+        for (i = 0; i < D_800A5D80; i++, point++) {
+            if (point->unkA4 && point->texture != NULL) {
+                tex_free(point->texture);
+            }
+        }
+        mempool_free(D_800A5D88);
+        D_800A5D88 = NULL;
+    }
+    if (D_800A5F48 != NULL) {
+        mempool_free(D_800A5F48);
+        D_800A5F48 = NULL;
+    }
+    if (D_800A5F80 != NULL) {
+        mempool_free(D_800A5F80);
+        D_800A5F80 = NULL;
+    }
+    if (D_800A5DAC != NULL) {
+        mempool_free(D_800A5DAC);
+        D_800A5DAC = NULL;
+        D_800A5DB0 = 0;
+    }
+}
 
 extern Vertex *D_800A5D8C[2];
 
@@ -598,13 +764,17 @@ typedef struct WeatherParticle {
     /* 0x50 */ u8 pad50[0x78 - 0x50];
 } WeatherParticle;
 
-typedef struct WeatherParticleList {
+struct WeatherParticleList {
     /* 0x00 */ u8 pad0[0x14];
     /* 0x14 */ WeatherParticle *particles;
     /* 0x18 */ s32 count;
-} WeatherParticleList;
+    /* 0x1C */ s32 activeCount;
+    /* 0x20 */ u32 *freeMask; // one bit per free particle slot
+    /* 0x24 */ s32 lastMaskWord;
+    /* 0x28 */ s32 full;      // set when an allocation found the list full
+};
 
-void func_8003C7C4(void *model);
+void free_3d_model(void *model);
 
 /* JFG: free a particle list and the assets of its particles (0x8005D1DC). */
 void free_particle_list(WeatherParticleList **listPtr) {
@@ -624,7 +794,7 @@ void free_particle_list(WeatherParticleList **listPtr) {
                     tex_free(p->asset);
                     break;
                 case 3:
-                    func_8003C7C4(p->asset);
+                    free_3d_model(p->asset);
                     break;
             }
         }
@@ -713,11 +883,182 @@ ParticleEmitter *emitter_alloc_from_pool(s32 behaviourID, s32 particleID) {
     return NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005EEFC);
+typedef struct ParticleDesc ParticleDesc;
+extern ParticleDesc **D_800A5D9C;
+u8 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter);
+s32 line_particle_set_alloc(); // JFG: takes (desc, behaviour); the caller below also passes the emitter
 
+/**
+ * Initializes the emitter if it has been activated for an object.
+ * JFG: line and point emitters get a particle buffer; no point opacity or line reference.
+ * DKR: obj_enable_emitter
+ */
+void obj_enable_emitter(ParticleObj *obj, s32 emitterIndex) {
+    ParticleBehaviour *behaviour;
+    ParticleEmitter *emitter;
+    ParticleDesc *desc;
+
+    emitter = &obj->emitters[emitterIndex];
+    desc = D_800A5D9C[emitter->descriptorID];
+    behaviour = emitter->behaviour;
+    emitter->colourIndex = 0;
+    if (emitter->flags & PARTICLE_LINE) {
+        emitter->index = line_particle_set_alloc(desc, behaviour, emitter);
+    } else {
+        if (behaviour->flags & 1) {
+            emitter->sourceRotationCounter = 0;
+            emitter->sourceRotation.y_rotation = behaviour->sourceRotation.y_rotation;
+            emitter->sourceRotation.x_rotation = behaviour->sourceRotation.x_rotation;
+            emitter->sourceRotation.z_rotation = behaviour->sourceRotation.z_rotation;
+        }
+        if (behaviour->flags & 4) {
+            emitter->emissionDirRotationCounter = 0;
+            emitter->emissionDirection.y_rotation = behaviour->emissionDirection.y_rotation;
+            emitter->emissionDirection.x_rotation = behaviour->emissionDirection.x_rotation;
+            emitter->emissionDirection.z_rotation = behaviour->emissionDirection.z_rotation;
+        }
+    }
+    if (emitter->flags & PARTICLE_POINT) {
+        emitter->index = func_8005F048(desc, behaviour, emitter);
+    }
+    emitter->flags |= PARTICLE_ACTIVE;
+    obj->activeEmitters++;
+}
+
+/* JFG: the part of a particle description that line and point sets take */
+typedef struct LineDesc {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 shape : 4; // point count and D_800A5F78 shape index
+    /* 0x05 */ u8 unk5 : 4;
+    /* 0x06 */ s16 textureID; // -1 for none
+    /* 0x08 */ s16 unk8;
+} LineDesc;
+
+extern f32 D_800AD81C; // 0.01f
+extern f32 D_800AD820; // 0.01f
+extern f32 *D_800A5F78[]; // JFG: point shapes, (x, y) pairs
+
+#ifdef NON_MATCHING
+/* JFG: give an emitter a point particle set: reuse the one it let go of, or claim a free one (index, 0xFF if none).
+   NON_MATCHING: same code; the constant 2 for unkA4 is hoisted into the second loop's blez slot and the
+   return value is moved early (target: move v1,zero in the slot, li 2 in the beq slot). */
+u8 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter) {
+    s32 found;
+    s32 i;
+    s32 j;
+    TextureHeader *tex;
+    PointParticleSet *set;
+    s32 numFrames;
+    Vec3f *v;
+    f32 *src;
+
+    if (D_800A5D88 == NULL) {
+        return 0xFF;
+    }
+    set = D_800A5D88;
+    found = 0xFF;
+    for (i = 0; i < D_800A5D80; i++, set++) {
+        if (emitter == set->emitter && set->unkA4 == 1) {
+            set->unkA4 = 2;
+            return i;
+        }
+    }
+    set = D_800A5D88;
+    for (i = 0; i < D_800A5D80; i++) {
+        if (set->unkA4 == 0) {
+            found = i;
+            i = D_800A5D80;
+        } else {
+            set++;
+        }
+    }
+    if (found != 0xFF) {
+        set->unkA4 = 2;
+        set->numVerts = ((LineDesc *) desc)->shape;
+        v = set->verts;
+        src = D_800A5F78[((LineDesc *) desc)->shape];
+        for (j = 0; j < set->numVerts; j++) {
+            v->x = src[0];
+            v->y = src[1];
+            v->z = 0.0f;
+            src += 2;
+            v++;
+        }
+        set->texFlags = ((LineDesc *) desc)->unk0;
+        set->flags = behaviour->flags;
+        if (((LineDesc *) desc)->textureID == -1) {
+            set->texture = NULL;
+            set->texUpdateRate = 0;
+            set->frame = 0.0f;
+        } else {
+            tex = load_texture(((LineDesc *) desc)->textureID);
+            set->texture = tex;
+            set->texUpdateRate = ((LineDesc *) desc)->unk8;
+            numFrames = tex->numOfTextures >> 8;
+            if (behaviour->flags & 0x800) {
+                set->frame = rand_range(0, numFrames - 1);
+            } else if ((set->texFlags & 1) == 2) {
+                set->frame = numFrames - D_800AD81C;
+            } else {
+                set->frame = 0.0f;
+            }
+        }
+        set->emitter = emitter;
+    }
+    return found;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F048);
+#endif
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F294);
+/* JFG: claim a free line particle set for a description; returns its index, 0xFF if none is free. */
+s32 line_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour) {
+    s32 found;
+    s32 i;
+    TextureHeader *tex;
+    LineParticleSet *set;
+    s32 numFrames;
+
+    if (D_800A5D84 == NULL) {
+        return 0xFF;
+    }
+    set = D_800A5D84;
+    found = 0xFF;
+    for (i = 0; i < D_800A5D7C; i++) {
+        if (set->unk124 == 0) {
+            set->unk124 = 2;
+            set->behaviour = behaviour;
+            set->unk130 = 0;
+            found = i;
+            i = D_800A5D7C;
+        } else {
+            set++;
+        }
+    }
+    if (found != 0xFF) {
+        set->unk138 = ((LineDesc *) desc)->unk0;
+        set->flags = behaviour->flags;
+        if (((LineDesc *) desc)->textureID == -1) {
+            set->texture = NULL;
+            set->unk144 = 0;
+            set->frame = 0.0f;
+        } else {
+            tex = load_texture(((LineDesc *) desc)->textureID);
+            set->texture = tex;
+            set->unk144 = ((LineDesc *) desc)->unk8;
+            numFrames = tex->numOfTextures >> 8;
+            if (behaviour->flags & 0x800) {
+                set->frame = rand_range(0, numFrames - 1);
+            } else if ((set->unk138 & 1) == 2) {
+                set->frame = numFrames - D_800AD820;
+            } else {
+                set->frame = 0.0f;
+            }
+        }
+    }
+    return found;
+}
 
 /* JFG: switch off an object's emitter and release its line/point buffer (0x8005F438). */
 void obj_disable_emitter(ParticleObj *obj, s32 emitterIndex) {
@@ -766,7 +1107,50 @@ void func_8005F5A0(f32 arg0) {
     D_800A5DDC = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F5AC);
+void func_8005F76C(ParticleObj *obj, ParticleEmitter *emitter); // DKR: obj_trigger_emitter
+
+/**
+ * Update all particle emitters attached to the object and spawn new particles.
+ * JFG: the emitter count can come from the object's model; disabled emitters are switched off at once.
+ */
+void obj_spawn_particle(ParticleObj *obj, s32 updateRate) {
+    s32 i;
+    u32 bits;
+    s32 count;
+    ParticleObjModel *model;
+
+    bits = obj->particleEmittersEnabled;
+    i = 0;
+    if (obj->behaviorId == 0x27) {
+        model = obj->unk68->model;
+        count = model->emitterCount;
+    } else {
+        count = obj->header->emitterCount;
+    }
+    for (; i < count; i++) {
+        if (bits & 1) {
+            if (!(obj->emitters[i].flags & PARTICLE_ACTIVE)) {
+                obj_enable_emitter(obj, i);
+            }
+            if (obj->emitters[i].flags & PARTICLE_LINE) {
+                obj->emitters[i].colourIndex += updateRate;
+                func_8005F76C(obj, &obj->emitters[i]);
+            } else if (obj->emitters[i].flags & PARTICLE_POINT) {
+                obj->emitters[i].colourIndex += updateRate;
+                func_8005F76C(obj, &obj->emitters[i]);
+            } else {
+                obj->emitters[i].colourIndex += updateRate;
+                if (obj->emitters[i].colourIndex >= obj->emitters[i].behaviour->spawnInterval) {
+                    func_8005F76C(obj, &obj->emitters[i]);
+                }
+            }
+        } else if (obj->emitters[i].flags & PARTICLE_ACTIVE) {
+            obj_disable_emitter(obj, i);
+        }
+        bits >>= 1;
+    }
+    D_800A5DDC = 0.0f;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F76C);
 
@@ -774,11 +1158,126 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005FE4C);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_800602C0);
+typedef struct EmitterSpec {
+    /* 0x00 */ s16 behaviourID;
+    /* 0x02 */ s16 descriptorID;
+    /* 0x04 */ s16 trigger;
+} EmitterSpec;
+
+typedef struct EmitterObjHeader {
+    /* 0x00 */ u8 pad0[0xB0];
+    /* 0xB0 */ EmitterSpec *emitters;
+} EmitterObjHeader;
+
+typedef struct EmitterObj {
+    /* 0x00 */ u8 pad0[0x40];
+    /* 0x40 */ EmitterObjHeader *header;
+    /* 0x44 */ u8 pad44[0x80 - 0x44];
+    /* 0x80 */ ParticleEmitter *emitters;
+    /* 0x84 */ u8 pad84[0x91 - 0x84];
+    /* 0x91 */ u8 emitterCount;
+} EmitterObj;
+
+typedef struct EmittedParticle {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+} EmittedParticle;
+
+s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
+
+/* JFG: set up one of an object's emitters from its header's table and fire it, giving the new particle a velocity. */
+void obj_fire_emitter(EmitterObj *obj, f32 velX, f32 velY, f32 velZ, s32 index) {
+    ParticleEmitter *emitter;
+    ParticleBehaviour *behaviour;
+    EmittedParticle *particle;
+
+    if (index < obj->emitterCount) {
+        emitter = &obj->emitters[index];
+        behaviour = gParticleBehavioursAssetTable[obj->header->emitters[index].behaviourID];
+        emitter->behaviour = behaviour;
+        emitter->descriptorID = obj->header->emitters[index].descriptorID;
+        emitter->flags = 0;
+        emitter->colourIndex = 0;
+        emitter->posX = 0;
+        emitter->posY = 0;
+        emitter->posZ = 0;
+        emitter->unk20 = 0;
+        emitter->sourceRotation.y_rotation = behaviour->sourceRotation.y_rotation;
+        emitter->sourceRotation.x_rotation = behaviour->sourceRotation.x_rotation;
+        emitter->sourceRotation.z_rotation = behaviour->sourceRotation.z_rotation;
+        emitter->emissionDirection.y_rotation = behaviour->emissionDirection.y_rotation;
+        emitter->emissionDirection.x_rotation = behaviour->emissionDirection.x_rotation;
+        emitter->emissionDirection.z_rotation = behaviour->emissionDirection.z_rotation;
+        emitter->unk23 = -1;
+        particle = (EmittedParticle *) func_80060434(obj, emitter, obj->header->emitters[index].trigger);
+        if (particle != NULL && (velX != 0.0f || velY != 0.0f || velZ != 0.0f)) {
+            particle->velocity.x = velX;
+            particle->velocity.y = velY;
+            particle->velocity.z = velZ;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80060434);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80060EC4);
+/**
+ * JFG: take a free particle of a kind from its list: the lowest free slot when slot is -1,
+ * otherwise the highest. NULL if the list is full (then its full flag is set).
+ */
+WeatherParticle *particle_alloc(s32 kind, s32 slot) {
+    WeatherParticleList *list;
+    WeatherParticle *p = NULL;
+    s32 i = 0;
+    s32 bit;
+
+    if (kind >= 5) {
+        return NULL;
+    }
+    list = D_801008E0[kind];
+    if (list != NULL) {
+        if (list->activeCount >= list->count) {
+            if (list->full == 0) {
+                list->full = 1;
+            }
+        } else {
+            if (slot == -1) {
+                while (list->freeMask[i] == 0 && i <= list->lastMaskWord) {
+                    i++;
+                }
+                if (i > list->lastMaskWord) {
+                    return NULL;
+                }
+                bit = 0;
+                while (!(list->freeMask[i] & (1 << bit))) {
+                    bit++;
+                }
+                list->freeMask[i] &= ~(1 << bit);
+                i = (i << 5) + bit;
+            } else {
+                i = list->lastMaskWord;
+                while (i > 0 && list->freeMask[i] == 0) {
+                    i--;
+                }
+                if (list->freeMask[i] == 0) {
+                    return NULL;
+                }
+                bit = 31;
+                while (!(list->freeMask[i] & (1 << bit))) {
+                    bit--;
+                }
+                list->freeMask[i] &= ~(1 << bit);
+                i = (i << 5) + bit;
+            }
+            if (i >= list->count) {
+                return NULL;
+            }
+            p = &list->particles[i];
+            p->kind = kind;
+            list->activeCount++;
+        }
+    }
+    return p;
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_800610CC);
 
@@ -788,7 +1287,60 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80061698);
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80061C30);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80061FC8);
+s32 func_80061228(s32 particle, s32 updateRate);
+s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+
+/* JFG: update a point set's particles, pack the live ones to the front, then free or animate its texture. */
+void point_particle_set_update(PointParticleSet *set, s32 updateRate) {
+    s32 removed = FALSE;
+    s32 i;
+    s32 j;
+    s32 found;
+    TextureHeader *tex;
+
+    for (i = 0; i < set->count; i++) {
+        if (func_80061228(set->points[i], updateRate)) {
+            set->points[i] = 0;
+            removed = TRUE;
+        }
+    }
+    if (removed) {
+        set->count = 0;
+        for (i = 0; i < 15; i++) {
+            found = FALSE;
+            for (j = i; j < 15; j++) {
+                if (set->points[j] != 0) {
+                    found = TRUE;
+                    if (i != j) {
+                        set->points[i] = set->points[j];
+                        set->points[j] = 0;
+                    }
+                    j = 15;
+                    set->count++;
+                }
+            }
+            if (!found) {
+                set->points[i] = 0;
+            }
+        }
+    }
+    if (set->unkA4 == 1 && set->count == 0) {
+        tex = set->texture;
+        set->unkA4 = 0;
+        if (tex != NULL) {
+            tex_free(tex);
+            set->texture = NULL;
+        }
+    }
+    if (set->unkA4) {
+        tex = set->texture;
+        if (set->flags & 0x800) {
+            set->frame = rand_range(0, (tex->numOfTextures >> 8) - 1);
+        } else {
+            func_80057A10(tex, &set->texFlags, set->texUpdateRate, &set->frame, updateRate);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80062178);
 
@@ -812,10 +1364,10 @@ void func_80062A00(Gfx **dList, Vertex **vtx) {
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80062A90);
 
-typedef struct ParticleDesc {
+struct ParticleDesc {
     /* 0x00 */ u8 pad0[4];
     /* 0x04 */ u32 flags; // top 4 bits: kind (4 = point)
-} ParticleDesc;
+};
 extern ParticleDesc **D_800A5D9C;
 s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
 

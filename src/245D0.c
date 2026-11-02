@@ -15,7 +15,7 @@ extern Corona D_800F5B60[50];
 extern s32 D_800A110C;
 
 /* JFG: mark the 50 corona slots free (no sprite). */
-void func_800239D0(void) {
+void coronas_init(void) {
     Corona *corona = D_800F5B60;
     s32 i = 50;
     while (i--) {
@@ -26,14 +26,14 @@ void func_800239D0(void) {
     D_800A110C = 0;
 }
 
-void func_80023CB4(Corona *light);
+void corona_free(Corona *light);
 
 /* JFG: free every one of the 50 coronas. */
-void func_80023A00(void) {
+void coronas_free_all(void) {
     Corona *corona = D_800F5B60;
     s32 i = 50;
     while (i--) {
-        func_80023CB4(corona);
+        corona_free(corona);
         corona++;
     }
 }
@@ -45,7 +45,7 @@ extern void *D_800A1110; // JFG: one sprite all coronas use
 void sprite_free(void *sprite);
 
 /* JFG: free an active corona and its sprite; freeing the last one also frees the common sprite. */
-void func_80023CB4(Corona *corona) {
+void corona_free(Corona *corona) {
     if (corona != NULL && corona->active) {
         corona->active = 0;
         if (corona->unk3C != NULL) {
@@ -64,7 +64,7 @@ void func_80023CB4(Corona *corona) {
 void func_80023DAC(Corona *corona);
 
 /* JFG: run func_80023DAC on each active corona. */
-void func_80023D48(void) {
+void coronas_update(void) {
     Corona *corona;
     s32 i;
 
@@ -90,7 +90,7 @@ typedef struct HitResult {
 s32 func_80018808(s32 arg0, f32 *from, f32 *to, HitResult *result, s32 flags, s32 arg5);
 
 /* JFG: raise the corona's opacity by 5 (up to 16) when func_80018808 finds nothing between pos and it, else lower it (down to 0). */
-void func_80023FA4(f32 *pos, Corona *corona) {
+void corona_visibility_update(f32 *pos, Corona *corona) {
     HitResult result;
 
     if (func_80018808(0, pos + 3, corona->pos, &result, 0x2404, 0) == 0) {

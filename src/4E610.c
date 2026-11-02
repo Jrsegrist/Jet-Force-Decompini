@@ -186,7 +186,30 @@ void bgdraw_fillcolour(s32 red, s32 green, s32 blue) {
     sBackgroundFillColour |= (sBackgroundFillColour << 16);
 }
 
-INCLUDE_ASM("asm/nonmatchings/4E610", func_8004DDEC);
+extern s32 gVideoDepthBuffer;
+
+/*
+ * JFG: clears a rectangle of the depth buffer: fill mode, the depth buffer as the colour image, the
+ * farthest depth as the fill colour, then the colour image back (needs a depth buffer).
+ */
+void zbuffer_clear_rect(Gfx **dList, u32 width, u32 height, s32 ulx, s32 uly, s32 lrx, s32 lry) {
+    Gfx *gfx;
+
+    if (gVideoDepthBuffer && ulx < lrx && uly < lry) {
+        gfx = *dList;
+        ulx &= ~3;
+        lrx = (lrx + 3) & ~3;
+        gDPPipeSync(gfx++);
+        gDPSetScissor(gfx++, G_SC_NON_INTERLACE, 0, 0, width - 1, height - 1);
+        gDPSetOtherMode(gfx++, G_CYC_FILL | 0xF, 0);
+        gDPSetColorImage(gfx++, G_IM_FMT_RGBA, G_IM_SIZ_16b, width, 0x02000000);
+        gDPSetFillColor(gfx++, (GPACK_ZDZ(G_MAXFBZ, 0) << 16) | GPACK_ZDZ(G_MAXFBZ, 0));
+        gDPFillRectangle(gfx++, ulx, uly, lrx, lry);
+        gDPPipeSync(gfx++);
+        gDPSetColorImage(gfx++, G_IM_FMT_RGBA, G_IM_SIZ_16b, width, 0x01000000);
+        *dList = gfx;
+    }
+}
 
 void fb_size(u32 *width, u32 *height);
 extern s32 gChequerBGEnabled;
@@ -197,13 +220,12 @@ s32 copy_viewport_background_size_to_coords(s32 viewPortIndex, s32 *x1, s32 *y1,
 void viewport_scissor(Gfx **dList);
 void bgdraw_chequer(Gfx **dList);
 void bgdraw_texture(Gfx **dList);
-void func_8004DDEC(Gfx **dList, u32 width, u32 height, s32 ulx, s32 uly, s32 lrx, s32 lry);
 
 /**
  * Clears the ZBuffer first, then decides how to draw the background which goes directly
  * over the colour buffer. DrawBG if set to 0 (which never happens) will completely skip
  * over clearing the colour buffer.
- * JFG: the depth buffer clear is its own function (func_8004DDEC).
+ * JFG: the depth buffer clear is its own function (zbuffer_clear_rect).
  * Official Name: rcpClearScreen
  */
 void bgdraw_render(Gfx **dList, Mtx **mtx, s32 drawBG) {
@@ -215,7 +237,7 @@ void bgdraw_render(Gfx **dList, Mtx **mtx, s32 drawBG) {
     s32 y2;
 
     fb_size(&w, &h);
-    func_8004DDEC(dList, w, h, 0, 0, w, h);
+    zbuffer_clear_rect(dList, w, h, 0, 0, w, h);
     if (drawBG) {
         if (check_viewport_background_flag(0)) {
             if (gChequerBGEnabled) {
@@ -356,6 +378,99 @@ void bgdraw_chequer(Gfx **dList) {
     gDPPipeSync((*dList)++);
 }
 
+/* A texture's header (DKR's TextureHeader, structs.h), the fields used here */
+typedef struct RectTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0xA - 0x2];
+    /* 0x0A */ s16 numberOfCommands;
+    /* 0x0C */ Gfx *cmd;
+} RectTexture;
+
+/* One textured rectangle of a list (ended by a NULL texture) */
+typedef struct TexturedRect {
+    /* 0x00 */ RectTexture *tex;
+    /* 0x04 */ s32 frame;
+    /* 0x08 */ s16 x;
+    /* 0x0A */ s16 y;
+} TexturedRect;
+
+RectTexture *set_animated_texture_header(RectTexture *texHead, s32 offset);
+extern Gfx D_800A37A8[];
+
+/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                 \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* The texture rectangle in the older microcode's form (RDPHALF_2, RDPHALF_CONT) */
+#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                    \
+    {                                                                                         \
+        Gfx *_g = (Gfx *) (pkt);                                                              \
+                                                                                              \
+        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));     \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                   \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));          \
+    }
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the texture pointer comes through v0 (the ROM loads it into s1 for the loop test) */
+/*
+ * JFG: draws a list of textured rectangles at (x, y) plus each one's offset, in a primitive colour,
+ * clipped at the screen's top and left edges.
+ */
+void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 green, u8 blue, u8 alpha) {
+    Gfx *gfx;
+    RectTexture *tex;
+    s32 xl;
+    s32 yl;
+    s32 xh;
+    s32 yh;
+    s32 s;
+    s32 t;
+    s32 count;
+
+    gfx = *dList;
+    gSPDisplayList(gfx++, D_800A37A8);
+    gDPSetPrimColor(gfx++, 0, 0, red, green, blue, alpha);
+    x <<= 2;
+    y <<= 2;
+    for (; rects->tex != NULL; rects++) {
+        tex = rects->tex;
+        xl = (rects->x << 2) + x;
+        yl = (rects->y << 2) + y;
+        xh = (tex->width << 2) + xl;
+        yh = (tex->height << 2) + yl;
+        if (xh > 0 && yh > 0) {
+            s = 0;
+            t = 0;
+            if (xl < 0) {
+                s = -(xl << 3);
+                xl = 0;
+            }
+            if (yl < 0) {
+                t = -(yl << 3);
+                yl = 0;
+            }
+            gfx->words.w0 = tex->cmd->words.w0;
+            gfx->words.w1 = (u32) set_animated_texture_header(tex, rects->frame) + 0x80000000;
+            gfx++;
+            count = tex->numberOfCommands - 1;
+            gDkrDmaDisplayList(gfx++, (u32) (tex->cmd + 1) + 0x80000000, count);
+            gSPTextureRectangleOld(gfx++, xl, yl, xh, yh, 0, s, t, 0x400, 0x400);
+        }
+    }
+    gDPPipeSync(gfx++);
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    *dList = gfx;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4E610", func_8004EDBC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/4E610", func_8004F02C);

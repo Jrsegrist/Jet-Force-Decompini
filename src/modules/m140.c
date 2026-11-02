@@ -60,7 +60,7 @@ extern Object **func_80050F44(s32 *count);
 extern s32 func_80050ED0(s32 id);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* squared distance? */
 extern s32 func_80049C84(f32 dx, f32 dz);
-extern s32 func_8007B99C(Object *obj, Object *other, f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
+extern s32 collision_line_test_objects(Object *obj, Object *other, f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern Object *func_m003_053C4(void);
 extern s32 func_m003_17910(f32 x, f32 z, s32 zone);
 extern void func_m003_0CD34(Object *obj);
@@ -117,7 +117,7 @@ void func_m140_00000(Object *obj) {
         }
         playerDist = point_distance_squared(x, y, z, player->trans.x_position, player->trans.y_position, player->trans.z_position);
         if (playerDist < (f32) ((home->viewRange << 12) * home->viewRange) && angle < home->viewAngle * 91) {
-            if (func_8007B99C(obj, player, x, y, z, ((M140Point *) player->interactObj)->x,
+            if (collision_line_test_objects(obj, player, x, y, z, ((M140Point *) player->interactObj)->x,
                               ((M140Point *) player->interactObj)->y, ((M140Point *) player->interactObj)->z) == 0) {
                 e->seen = 1;
             }

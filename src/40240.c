@@ -76,7 +76,7 @@ extern s32 D_800A2ED0;
 extern f32 D_800AC40C; // the far plane (a .rodata constant, not split out yet)
 extern MtxF gPerspectiveMatrixF;
 extern u16 perspNorm;
-void func_8003FAEC(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY);
+void cam_reset(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY);
 void cam_shake_stop_all(void);
 void func_80048D84(MtxF *in, Mtx *out);
 
@@ -93,7 +93,7 @@ void cam_init(s32 arg0) {
     D_800FA650 = 0;
     for (j = 0; j < 4; j++) {
         D_800FA634 = j;
-        func_8003FAEC(200, 200, 200, 0, 0, 180);
+        cam_reset(200, 200, 200, 0, 0, 180);
         gCameras[D_800FA634].fov = CAMERA_DEFAULT_FOV;
     }
     cam_shake_stop_all();
@@ -207,7 +207,36 @@ f32 get_distance_to_active_camera(f32 x, f32 y, f32 z) {
     return sqrtf(dx * dx + dy * dy + dz * dz);
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FAEC);
+extern u8 D_800A3170[];
+
+/* JFG: reset the current camera: position (twice), angles in degrees, no shake (DKR camera_reset). */
+void cam_reset(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY) {
+    Camera *cam = &gCameras[D_800FA634];
+    f32 fx, fy, fz;
+
+    cam->z_rotation = angleZ * 0xB6;
+    cam->x_rotation = angleX * 0xB6;
+    cam->y_rotation = angleY * 0xB6;
+    cam->unk4A = 0;
+    fx = x;
+    fy = y;
+    fz = z;
+    cam->x_position = fx;
+    cam->y_position = fy;
+    cam->z_position = fz;
+    cam->unk18 = fx;
+    cam->unk1C = fy;
+    cam->unk20 = fz;
+    cam->unk3C = 0;
+    cam->shakeX = 0.0f;
+    cam->shakeY = 0.0f;
+    cam->shakeZ = 0.0f;
+    cam->unk24 = 128.0f;
+    cam->unk28 = 32.0f;
+    cam->unk3D = D_800A3170[D_800FA634];
+    cam->unk3E = -1;
+    cam->unk40 = 0.0f;
+}
 
 /**
  * Return the index of the active view.
@@ -257,7 +286,69 @@ void func_8003FC60(s32 index, s32 value) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8003FC80);
+extern s32 gViewportWithBG;
+extern Vp gViewportStack[];
+
+/**
+ * Takes the size of each view frame and writes them to the viewport stack, using values compatable with the RSP.
+ * Only does this if extended backgrounds are enabled.
+ * JFG: no mirror cheat.
+ * DKR: copy_viewports_to_stack
+ */
+void copy_viewports_to_stack(void) {
+    s32 width;
+    s32 height;
+    s32 port;
+    s32 yPos;
+    s32 xPos;
+    s32 i;
+
+    gViewportWithBG = 1 - gViewportWithBG;
+    for (i = 0; i < 4; i++) {
+        if (gScreenViewports[i].flags & VIEWPORT_UNK_04) {
+            gScreenViewports[i].flags &= ~VIEWPORT_EXTRA_BG;
+        } else if (gScreenViewports[i].flags & VIEWPORT_UNK_02) {
+            gScreenViewports[i].flags |= VIEWPORT_EXTRA_BG;
+        }
+        gScreenViewports[i].flags &= ~(VIEWPORT_UNK_02 | VIEWPORT_UNK_04);
+
+        if (gScreenViewports[i].flags & VIEWPORT_EXTRA_BG) {
+            if (!(gScreenViewports[i].flags & VIEWPORT_X_CUSTOM)) {
+                xPos = (((gScreenViewports[i].x2 - gScreenViewports[i].x1) + 1) << 1) + (gScreenViewports[i].x1 * 4);
+            } else {
+                xPos = gScreenViewports[i].posX;
+                xPos *= 4;
+            }
+            if (!(gScreenViewports[i].flags & VIEWPORT_Y_CUSTOM)) {
+                yPos = (((gScreenViewports[i].y2 - gScreenViewports[i].y1 + 1)) << 1) + (gScreenViewports[i].y1 * 4);
+            } else {
+                yPos = gScreenViewports[i].posY;
+                yPos *= 4;
+            }
+            if (!(gScreenViewports[i].flags & VIEWPORT_WIDTH_CUSTOM)) {
+                width = gScreenViewports[i].x2 - gScreenViewports[i].x1;
+                width += 1;
+                width *= 2;
+            } else {
+                width = gScreenViewports[i].width;
+                width *= 2;
+            }
+            if (!(gScreenViewports[i].flags & VIEWPORT_HEIGHT_CUSTOM)) {
+                height = (gScreenViewports[i].y2 - gScreenViewports[i].y1) + 1;
+                height *= 2;
+            } else {
+                height = gScreenViewports[i].height;
+                height *= 2;
+            }
+            port = i;
+            port += gViewportWithBG * 5 + 10;
+            gViewportStack[port].vp.vtrans[0] = xPos;
+            gViewportStack[port].vp.vtrans[1] = yPos;
+            gViewportStack[port].vp.vscale[0] = width;
+            gViewportStack[port].vp.vscale[1] = height;
+        }
+    }
+}
 
 void camEnableUserView(s32 viewPortIndex, s32 arg1) {
     if (arg1) {
@@ -613,7 +704,32 @@ void mtx_model_push(Gfx **dList, Mtx **mtx, MtxF *in) {
     gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041A90);
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
+
+/* JFG: the model matrix = rot (its translation dropped) times the current one, moved to pos; upload the MVP. */
+void mtx_model_rotate_translate_push(Gfx **dList, Mtx **mtx, f32 *pos, MtxF *rot) {
+    f32 out[3];
+    MtxF tmp;
+    s32 i;
+
+    D_800FAAB0[3][0] = 0.0f;
+    D_800FAAB0[3][1] = 0.0f;
+    D_800FAAB0[3][2] = 0.0f;
+    func_80048C7C(rot, &D_800FAAB0, &tmp);
+    i = 0;
+    while (i < 16) {
+        ((f32 *) D_800FAAB0)[i] = ((f32 *) tmp)[i];
+        i++;
+    }
+    func_80048B60(&D_800FAAB0, pos[0], pos[1], pos[2], &out[0], &out[1], &out[2]);
+    D_800FAAB0[3][0] = pos[0];
+    D_800FAAB0[3][1] = pos[1];
+    D_800FAAB0[3][2] = pos[2];
+    func_80048C7C(&D_800FAAB0, &gViewProjMatrixF, &gCurrentMVPMatrixF);
+    func_80048D84(&gCurrentMVPMatrixF, *mtx);
+    D_800FAB30 = *mtx;
+    gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_PROJECTION);
+}
 
 extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
 extern MtxF gCurrentMVPMatrixF;
@@ -714,9 +830,67 @@ MtxF *get_camera_matrix(void) {
     return &gViewMatrixF;
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041E58);
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80041FE0);
+#ifdef NON_MATCHING
+/* NON_MATCHING: float registers of px/py and the order of the viewport loads differ */
+/* JFG: project a view-space point (world space with toView) to the current viewport; FALSE when it is not at
+ * least 2 units in front. */
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView) {
+    s32 visible = FALSE;
+    f32 px;
+    f32 py;
+    f32 w;
+    Vp *viewport;
+    f32 scaleX, centreX, scaleY;
+
+    if (toView) {
+        func_80048B60(&gViewMatrixF, x, y, z, &x, &y, &z);
+    }
+    px = gPerspectiveMatrixF[0][0] * x;
+    py = gPerspectiveMatrixF[1][1] * y;
+    w = -(gPerspectiveMatrixF[2][3] * z);
+    if (w < -2.0f) {
+        viewport = &gViewportStack[D_800FA634];
+        if (gScreenViewports[D_800FA634].flags & VIEWPORT_EXTRA_BG) {
+            viewport += gViewportWithBG * 5 + 10;
+        }
+        scaleX = viewport->vp.vscale[0] >> 2;
+        centreX = viewport->vp.vtrans[0] >> 2;
+        scaleY = viewport->vp.vscale[1] >> 2;
+        *outX = centreX - px * scaleX / w;
+        visible = TRUE;
+        *outY = (viewport->vp.vtrans[1] >> 2) + py * scaleY / w;
+    }
+    return visible;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/40240", func_80041E58);
+#endif
+
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // transform a point
+
+/* JFG: screen coordinates at depth *outZ back to view space (and to world space with toWorld). */
+void screen_to_view(f32 x, f32 y, f32 *outX, f32 *outY, f32 *outZ, u8 toWorld) {
+    f32 scaleX;
+    f32 scaleY;
+    f32 centreX;
+    f32 centreY;
+    f32 w;
+    Vp *viewport;
+
+    w = (*outZ * gPerspectiveMatrixF[2][2]) * gPerspectiveMatrixF[2][3];
+    viewport = &gViewportStack[D_800FA634];
+    scaleX = viewport->vp.vscale[0] >> 2;
+    scaleY = viewport->vp.vscale[1] >> 2;
+    centreX = viewport->vp.vtrans[0] >> 2;
+    centreY = viewport->vp.vtrans[1] >> 2;
+    *outX = (centreX - x) * w / (gPerspectiveMatrixF[0][0] * scaleX);
+    *outY = (y - centreY) * w / (gPerspectiveMatrixF[1][1] * scaleY);
+    if (toWorld) {
+        func_80048B60(&gInverseViewMatrixF, *outX, *outY, *outZ, outX, outY, outZ);
+    }
+}
 
 /* JFG: the view-space depth of a point (the third column of the view matrix) (0x800420F0). */
 f32 get_distance_to_camera(f32 x, f32 y, f32 z) {
@@ -791,7 +965,28 @@ void cam_shake_stop_all(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042310);
+/* JFG: shake the cameras near a point: shakeY up to magnitude, fading out over range. */
+void cam_shake_near_point(f32 x, f32 y, f32 z, f32 range, f32 magnitude) {
+    s32 i;
+    Camera *cam;
+    f32 dx, dy, dz;
+    f32 distance;
+    f32 shake;
+
+    for (i = 0; i <= gActiveCameraID; i++) {
+        cam = &gCameras[i];
+        dx = x - cam->x_position;
+        dy = y - cam->y_position;
+        dz = z - cam->z_position;
+        distance = sqrtf(dx * dx + dy * dy + dz * dz);
+        if (distance < range) {
+            shake = (range - distance) * magnitude / range;
+            if (cam->shakeY < shake) {
+                cam->shakeY = shake;
+            }
+        }
+    }
+}
 
 extern u8 gCamZoomSet[4];
 extern f32 gCamZoom[4];
@@ -816,4 +1011,54 @@ void func_80042470(s32 arg0, s32 arg1) {
     D_800FA658[D_800A2ED0++].unk4 = arg1;
 }
 
+extern u8 D_800A3178[4];
+extern MtxF gViewProjMatrixF;
+void func_80074E50(MtxF *mtx);
+s32 rand_range(s32 min, s32 max);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target forms &D_800FA658 in $a1 before indexing (mine folds %lo into the store), which shifts
+   the temporaries of the rest by one */
+/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in over unk0 frames,
+ * hold to unk2, fade out to unk4) into each camera's shakeY. */
+void func_800424A0(s32 updateRate) {
+    s32 i;
+    Camera *cam;
+    CameraShake *shake;
+    s32 magnitude;
+
+    D_800FA658[D_800A2ED0].unk4 = -1;
+    func_80074E50(&gViewProjMatrixF);
+    D_800A2ED0 = 0;
+    gNoCamShake = 0;
+    cam = gCameras;
+    shake = gCameraShakes;
+    i = 4;
+    while (i--) {
+        gCamZoomSet[i] = 0;
+        D_800A3178[i] = 1;
+        cam->shakeX = 0.0f;
+        cam->shakeY = 0.0f;
+        cam->shakeZ = 0.0f;
+        if (shake->unk8 != 0) {
+            shake->frame += updateRate;
+            if (shake->frame >= shake->unk4) {
+                shake->unk8 = 0;
+            } else {
+                gNoCamShake = 1;
+                magnitude = shake->unk8;
+                if (shake->unk2 < shake->frame) {
+                    magnitude = (shake->unk4 - shake->frame) * magnitude / (shake->unk4 - shake->unk2);
+                } else if (shake->frame < shake->unk0) {
+                    magnitude = shake->frame * magnitude / shake->unk0;
+                }
+                cam->shakeY = rand_range(0, magnitude);
+            }
+        }
+        cam++;
+        shake++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/40240", func_800424A0);
+#endif

@@ -60,13 +60,181 @@ INCLUDE_ASM("asm/nonmatchings/291B0", func_800286F4);
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80028954);
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80028E7C);
+/* JFG: the level entry of object 0x73 (0x22 bytes) */
+typedef struct LevelObjectEntry73 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ s16 unk10;
+    /* 0x12 */ s16 unk12;
+    /* 0x14 */ u8 pad14[4];
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ u8 pad1A[2];
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ u8 pad1E[4];
+} LevelObjectEntry73;
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80028F90);
+extern f32 D_800ABB44;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target loads D_800ABB44 before moving `a` to $f12 (the first two instructions swap) */
+/* JFG: spawn an object 0x73 at (x, y, z); the four values are scaled by D_800ABB44. */
+void func_80028E7C(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8 arg8) {
+    LevelObjectEntry73 entry;
+
+    entry.size = sizeof(LevelObjectEntry73);
+    entry.objectID = 0x73;
+    entry.unkC = a * D_800ABB44;
+    entry.unkE = b * D_800ABB44;
+    entry.unk10 = c * D_800ABB44;
+    entry.unk12 = d * D_800ABB44;
+    entry.x = x;
+    entry.unk18 = arg7;
+    entry.unk1C = arg8;
+    entry.y = y;
+    entry.z = z;
+    spawn_object((SpawnEntry *) &entry, 1);
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/291B0", func_80028E7C);
+#endif
+
+/* JFG: a 10 byte coloured vertex */
+typedef struct ColVertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} ColVertex;
+
+extern u8 D_800A11B0;
+extern f32 D_800F6B10[20];
+extern f32 D_800ABB48;
+f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
+f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
+void *load_texture(s32 id);
+void colour_cycle_init(void *cycle, s32 assetID);
+
+/* JFG: init: (once) the sine/cosine table of 10 angles, then the 40 vertices (white, y 0), the sizes from the
+ * entry, the texture and two colour cycles. */
+void obj_init_col_vertices(u8 *obj, u8 *entry) {
+    u8 *state;
+    s32 i;
+    f32 scale;
+
+    if (D_800A11B0) {
+        f32 *table = D_800F6B10;
+        s32 angle;
+
+        for (i = 0, angle = 0; i < 10; i++, angle += 0x1999) {
+            *table++ = func_80049C34(angle);
+            *table++ = func_80049C30(angle);
+        }
+        D_800A11B0 = 0;
+    }
+    state = *(u8 **) (obj + 0x68);
+    for (i = 0; i < 40; i++) {
+        ((ColVertex *) state)[i].y = 0;
+        ((ColVertex *) state)[i].r = 255;
+        ((ColVertex *) state)[i].g = 255;
+        ((ColVertex *) state)[i].b = 255;
+        ((ColVertex *) state)[i].a = 255;
+    }
+    scale = D_800ABB48;
+    *(s16 *) (obj + 2) = *(s16 *) (entry + 0xA);
+    *(f32 *) (state + 0x198) = *(s16 *) (entry + 0xE) * scale;
+    *(f32 *) (state + 0x194) = *(s16 *) (entry + 0xC) * scale;
+    *(f32 *) (state + 0x19C) = *(s16 *) (entry + 0x10) * scale;
+    *(f32 *) (state + 0x1A0) = *(s16 *) (entry + 0x12) * scale;
+    *(f32 *) (state + 0x1A4) = *(s16 *) (entry + 0x14) * scale;
+    *(f32 *) (state + 0x1A8) = *(s16 *) (entry + 0x16) * scale;
+    *(s16 *) (state + 0x1D8) = *(s16 *) (entry + 0x18);
+    *(u16 *) (state + 0x1D6) = *(u16 *) (entry + 0x1C);
+    *(void **) (state + 0x190) = load_texture(*(s16 *) (entry + 0x1A));
+    state[0x1DA] = 0;
+    *(s16 *) (state + 0x1D4) = entry[0x20] << 8;
+    *(s32 *) (state + 0x1CC) = 0;
+    *(s32 *) (state + 0x1D0) = 0;
+    colour_cycle_init(state + 0x1AC, entry[0x1E]);
+    colour_cycle_init(state + 0x1BC, entry[0x1F]);
+    *(s32 *) (obj + 0x3C) = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_800291BC);
 
+void *cam_get_active_camera(void);
+void mtx_cam_push(Gfx **dList, Mtx **mtx, void *trans, f32 scaleY, f32 offsetY);
+void func_80055C00(Gfx **dList, void *model, s32 flags, s32 alpha);
+void func_80041DC0(Gfx **dList);
+extern u8 D_F2D58[];
+extern u8 D_F2E58[];
+
+/* JFG: a 10 byte vertex of the 0x68 block's two buffers */
+typedef struct Vertex10 {
+    /* 0x00 */ u8 pad0[10];
+} Vertex10;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code and frame; the target's temporaries are numbered one higher from the first command
+   on (and the colour bytes load in another order) */
+/* JFG: draw the object (its 0x68 block): face the camera when 0x2 is set, colours from the block, the model at
+ * 0x190, then its two 20-vertex buffers (the current one at 0x1DA) with the textures at D_F2D58/D_F2E58. */
+void func_80029688(Gfx **dList, Mtx **mtx, u8 *obj) {
+    Gfx *gfx;
+    Mtx *mats;
+    u8 *state;
+    void *cam;
+
+    gfx = *dList;
+    mats = *mtx;
+    gDPPipeSync(gfx++);
+    if (*(s16 *) (obj + 2) != 0) {
+        cam = cam_get_active_camera();
+        *(s16 *) obj = -*(s16 *) cam;
+    }
+    state = *(u8 **) (obj + 0x68);
+    if (*(s16 *) (*(u8 **) (state + 0x190) + 6) & 0x40) {
+        gDPSetEnvColor(gfx++, state[0x1B4], state[0x1B5], state[0x1B6], *(s32 *) (state + 0x1D0));
+    } else {
+        gDPSetEnvColor(gfx++, state[0x1B4], state[0x1B5], state[0x1B6], 255);
+    }
+    gDPSetPrimColor(gfx++, 0, 0, state[0x1C4], state[0x1C5], state[0x1C6], *(u16 *) (state + 0x1D4) >> 8);
+    mtx_cam_push(&gfx, &mats, obj, 1.0f, 0.0f);
+    func_80055C00(&gfx, *(void **) (state + 0x190), 0x20E, *(s32 *) (state + 0x1D0) << 8);
+    {
+        Gfx *_g = gfx++;
+        _g->words.w0 =
+            ((((OS_K0_TO_PHYSICAL(&((Vertex10(*)[20]) state)[state[0x1DA]]) & 6) | 0xA0) & 0xFF) << 16) | 0x040000D0;
+        _g->words.w1 = OS_K0_TO_PHYSICAL(&((Vertex10(*)[20]) state)[state[0x1DA]]);
+    }
+    {
+        Gfx *_g = gfx++;
+        _g->words.w1 = (u32) D_F2D58;
+        _g->words.w0 = 0x05F10100;
+    }
+    {
+        Gfx *_g = gfx++;
+        _g->words.w1 = (u32) D_F2E58;
+        _g->words.w0 = 0x05310040;
+    }
+    func_80041DC0(&gfx);
+    gDPSetEnvColor(gfx++, 255, 255, 255, 255);
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    *dList = gfx;
+    *mtx = mats;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029688);
+#endif
 
 /* A sprite object with two colour cycles, set up from its level entry */
 typedef struct ChromaSpriteState {
@@ -82,9 +250,15 @@ typedef struct ChromaSpriteState {
     /* 0x30 */ void *entry;
 } ChromaSpriteState;
 typedef struct ChromaSpriteObject {
-    /* 0x00 */ u8 pad0[8];
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u8 pad6[2];
     /* 0x08 */ f32 scale;
-    /* 0x0C */ u8 padC[0x30];
+    /* 0x0C */ u8 padC[0x28 - 0xC];
+    /* 0x28 */ f32 animFrame;
+    /* 0x2C */ u8 pad2C[0x39 - 0x2C];
+    /* 0x39 */ u8 opacity;
+    /* 0x3A */ u8 pad3A[2];
     /* 0x3C */ s32 unk3C;
     /* 0x40 */ u8 pad40[0x28];
     /* 0x68 */ ChromaSpriteState *data;
@@ -95,14 +269,18 @@ typedef struct ChromaSpriteEntry {
     /* 0x04 */ s16 x;
     /* 0x06 */ s16 y;
     /* 0x08 */ s16 z;
-    /* 0x0A */ u8 padA[4];
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ s16 lifetime;
     /* 0x0E */ s16 spriteID;
     /* 0x10 */ u8 pad10[2];
     /* 0x12 */ u16 scale;
-    /* 0x14 */ u8 pad14[2];
+    /* 0x14 */ u8 fadeOut;
+    /* 0x15 */ u8 fadeIn;
     /* 0x16 */ u8 unk16;
     /* 0x17 */ u8 colourCycle1;
     /* 0x18 */ u8 colourCycle2;
+    /* 0x19 */ u8 pad19;
+    /* 0x1A */ u16 spin;
 } ChromaSpriteEntry;
 void sprite_free(void *sprite);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
@@ -128,7 +306,50 @@ void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
     colour_cycle_init(data->colourCycle2, entry->colourCycle2);
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80029A20);
+void free_object(void *obj);
+void update_colour_cycle(void *cycle, s32 updateRate);
+void func_800577A8(void *sprite, s32 *flags, s32 arg2, f32 *frame, s32 updateRate); // animate a sprite
+
+/* JFG: the sprite object's loop: fade in, then after its lifetime fade out and free it; spin and animate. */
+void obj_loop_chroma_sprite(ChromaSpriteObject *obj, s32 updateRate) {
+    ChromaSpriteState *data;
+    ChromaSpriteEntry *entry;
+    void *sprite;
+    s32 flags;
+    u16 opacity;
+    s32 fade;
+
+    flags = 1;
+    data = obj->data;
+    sprite = *obj->sprite;
+    entry = (ChromaSpriteEntry *) data->entry;
+    if (sprite == NULL) {
+        free_object(obj);
+        return;
+    }
+    data->unk6 += updateRate;
+    if (data->unk6 >= entry->lifetime) {
+        fade = updateRate;
+        fade *= entry->fadeOut;
+        if (fade < data->unk8) {
+            data->unk8 -= fade;
+        } else {
+            free_object(obj);
+            return;
+        }
+    } else if (data->unk8 < 0xFF) {
+        opacity = data->unk8 + updateRate * entry->fadeIn;
+        if (opacity >= 0x100) {
+            opacity = 0xFF;
+        }
+        data->unk8 = opacity;
+    }
+    obj->unk4 += updateRate * entry->spin;
+    obj->opacity = data->unk8;
+    update_colour_cycle(data->colourCycle1, updateRate);
+    update_colour_cycle(data->colourCycle2, updateRate);
+    func_800577A8(sprite, &flags, data->unk9, &obj->animFrame, updateRate);
+}
 
 /* A sphere (centre and radius) in a fixed table of 16. Size: 0x24 bytes */
 typedef struct Zone {
@@ -136,9 +357,13 @@ typedef struct Zone {
     /* 0x04 */ f32 y;
     /* 0x08 */ f32 z;
     /* 0x0C */ f32 size;
-    /* 0x10 */ u8 pad10[0xC];
-    /* 0x1C */ s16 unk1C;
-    /* 0x1E */ u8 pad1E[6];
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ f32 value;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ s16 unk1C; // frames left (0: unused)
+    /* 0x1E */ u8 unk1E;
+    /* 0x1F */ u8 unk1F;
+    /* 0x20 */ s32 unk20;
 } Zone;
 extern Zone D_800F6B60[16];
 extern s32 D_800A11B4;
@@ -154,7 +379,45 @@ void func_80029B78(void) {
     D_800A11B4 = 0;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target keeps the `i != 0` guards of the constant-count loops (and other registers) */
+/* JFG: add a zone: the first unused one, or (all 16 in use) the one with the smallest value. */
+void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7) {
+    Zone *zone = D_800F6B60;
+    Zone *other;
+    s32 i;
+
+    if (D_800A11B4 < 16) {
+        i = 15;
+        while (i-- && zone->unk1C != 0) {
+            zone++;
+        }
+        D_800A11B4++;
+    } else {
+        other = &D_800F6B60[1];
+        i = 15;
+        while (i--) {
+            if (other->value < zone->value) {
+                zone = other;
+            }
+            other++;
+        }
+    }
+    zone->x = x;
+    zone->y = y;
+    zone->z = z;
+    zone->size = size;
+    zone->unk10 = 16384.0f / size;
+    zone->unk1E = 1;
+    zone->value = value;
+    zone->unk1C = time * 60.0f;
+    zone->unk18 = value / zone->unk1C;
+    zone->unk1F = arg6;
+    zone->unk20 = arg7;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029BA4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029CFC);
 
@@ -190,10 +453,188 @@ s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
     return hit;
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002A7D8);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 sqrtf(f32 x);
+extern f32 D_800ABD08;
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002A954);
+typedef struct WaveObject {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ f32 unk10; // angle speed
+    /* 0x14 */ f32 unk14; // amplitude
+} WaveObject;
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AA7C);
+/* JFG: scale (x, y, z) to a length of at least 1 times the object's wave value at time t; y is kept at least
+ * 1.5 away from 0. */
+void wave_vector_scale(WaveObject *obj, f32 t, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz) {
+    f32 scale;
+    f32 k;
+
+    scale = x * x + y * y + z * z;
+    if (scale != 0.0f) {
+        scale = 1.0f / sqrtf(scale);
+        k = func_80049C30(obj->unk10 * t) * (D_800ABD08 * obj->unk14);
+        if (k < 1.0f) {
+            k = 1.0f;
+        }
+        scale *= k;
+    }
+    *ox = x * scale;
+    *oy = y * scale;
+    *oz = z * scale;
+    if (*oy >= 0.0f) {
+        if (*oy < 1.5f) {
+            *oy = 1.5f;
+        }
+    } else if (*oy > -1.5f) {
+        *oy = -1.5f;
+    }
+}
+
+/* JFG: a collision sphere of an object (0x34 bytes) */
+typedef struct HitSphere {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0xC];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0xC];
+} HitSphere;
+
+typedef struct SphereObject {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0xC];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0x32 - 0x28];
+    /* 0x32 */ s16 numSpheres;
+    /* 0x34 */ u8 pad34[0xC];
+    /* 0x40 */ HitSphere *spheres;
+} SphereObject;
+
+f32 sqrtf(f32 x);
+
+/* JFG: the distance from pos to the nearest surface of the object's spheres (the object itself when it has
+ * none), at most maxDist and at least 0. */
+f32 sphere_distance_min(f32 *pos, SphereObject *obj, f32 maxDist) {
+    s32 n;
+    HitSphere *sphere;
+    f32 x, y, z, r;
+
+    if (obj->numSpheres == 0) {
+        n = 1;
+        sphere = NULL;
+    } else {
+        sphere = obj->spheres;
+        n = obj->numSpheres;
+    }
+    while (n--) {
+        if (sphere == NULL) {
+            x = obj->x;
+            y = obj->y;
+            z = obj->z;
+            r = obj->radius;
+        } else {
+            x = sphere->x;
+            y = sphere->y;
+            z = sphere->z;
+            r = sphere->radius;
+            sphere++;
+        }
+        x -= pos[0];
+        y -= pos[1];
+        z -= pos[2];
+        r = sqrtf(x * x + y * y + z * z) - r;
+        if (r < maxDist) {
+            maxDist = r;
+        }
+    }
+    if (maxDist < 0.0f) {
+        maxDist = 0.0f;
+    }
+    return maxDist;
+}
+
+/* JFG: a hit part of an object (0x34 bytes; HitSphere viewed for damage) */
+typedef struct HitPart {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ s16 damage;
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 percent;
+    /* 0x30 */ u32 unk31 : 1;
+    /* 0x30 */ u32 unk30 : 1;
+    /* 0x30 */ u32 unk29 : 1;
+    /* 0x30 */ u32 unk0 : 29;
+} HitPart;
+
+typedef struct DamageObject {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 health;
+    /* 0x08 */ u32 unk31 : 1;
+    /* 0x08 */ u32 unk30 : 1;
+    /* 0x08 */ u32 unk0 : 30;
+    /* 0x0C */ u8 padC[0x2C - 0xC];
+    /* 0x2C */ s16 damage;
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 percent;
+    /* 0x30 */ u8 pad30;
+    /* 0x31 */ s8 lastPart;
+    /* 0x32 */ s16 numParts;
+    /* 0x34 */ u8 pad34[0xC];
+    /* 0x40 */ HitPart *parts;
+} DamageObject;
+
+/* JFG: applies damage to the object, or shared out over its hit parts (scaled by each one's percent);
+ * returns the damage dealt. */
+s32 obj_apply_damage(DamageObject *obj, s32 damage) {
+    s32 total;
+    s32 n;
+    s32 share;
+    s32 dealt;
+    HitPart *part;
+
+    if (damage <= 0) {
+        return 0;
+    }
+    total = 0;
+    if (obj->numParts == 0) {
+        if (!obj->unk30) {
+            if (obj->percent != 100) {
+                damage = (obj->percent * damage * 164) >> 14;
+            }
+            total = damage;
+            obj->damage += damage;
+            obj->health -= damage;
+        }
+    } else {
+        part = obj->parts;
+        share = damage / obj->numParts;
+        n = obj->numParts;
+        while (n--) {
+            if (n == 0) {
+                share = damage;
+            }
+            if (!part->unk29 && !part->unk30) {
+                dealt = share;
+                if (part->percent != 100) {
+                    dealt = (part->percent * share * 164) >> 14;
+                }
+                total += dealt;
+                obj->lastPart = part - obj->parts;
+                damage -= share;
+                part->damage += dealt;
+                obj->health -= dealt;
+            }
+            part++;
+        }
+        if (total != 0) {
+            obj->health -= damage;
+            total += damage;
+        }
+    }
+    return total;
+}
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AC3C);

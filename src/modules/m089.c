@@ -70,7 +70,7 @@ extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 
 extern void obj_list_insert_after(Object *obj, Object *target);
 extern void func_8003D21C(M089Instance *, M089Model *, Object *, f32, f32);
 extern void func_800221F0(Object *, M089Instance *, ObjectShading *, MtxF *);
-extern void func_80009734(Object *, M089Model *, M089Instance *, s32);
+extern void obj_tex_animate(Object *, M089Model *, M089Instance *, s32);
 
 #ifdef NON_MATCHING
 s32 D_m089_00460 = 89; /* the module's number */
@@ -170,7 +170,7 @@ void func_m089_00200(Object *obj, s32 updateRate) {
             func_800221F0(obj, inst, obj->shading, inst->matrices[inst->matrixIndex]);
         }
         if (model->unk11 > 0) {
-            func_80009734(obj, model, inst, inst->unkA);
+            obj_tex_animate(obj, model, inst, inst->unkA);
         }
         inst->unkA = 0;
     }

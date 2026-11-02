@@ -233,7 +233,65 @@ INCLUDE_ASM("asm/nonmatchings/69050", func_8006B090);
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B69C);
+/* JFG: a textured two-triangle quad with two vertex frames (ripple_quad_draw) */
+typedef struct RippleTexture {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 flags;
+} RippleTexture;
+
+typedef struct RippleQuad {
+    /* 0x00 */ u8 tris[0x20];     // two Triangles
+    /* 0x20 */ u8 vtx[2][0x28];   // two frames of vertices
+    /* 0x70 */ RippleTexture *tex;
+    /* 0x74 */ u8 frame;
+    /* 0x75 */ u8 pad75;
+    /* 0x76 */ s16 alpha;
+    /* 0x78 */ s16 texFrame;
+    /* 0x7A */ u8 pad7A[0x84 - 0x7A];
+    /* 0x84 */ void *child;
+} RippleQuad;
+
+extern s32 D_800A6950;
+extern Gfx D_800A6958[];
+void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
+void func_8006B3CC(void *child, Gfx **dList);
+
+/* DKR f3ddkr.h: runs a display list of numberOfCommands commands */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(7, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                      \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* JFG: draw a textured quad (faded by its alpha and D_800A6950), then its child, then reset the colours. */
+void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
+    s32 alpha;
+
+    if (obj != NULL && obj->tex != NULL) {
+        if (obj->alpha != 0) {
+            func_80055C00(dList, obj->tex, 0xF, obj->texFrame << 8);
+            gDkrDmaDisplayList((*dList)++, (u8 *) D_800A6958 + 0x80000000, 2);
+            if (obj->tex->flags & 0x40) {
+                alpha = obj->texFrame & 0xFF;
+            } else {
+                alpha = 255;
+            }
+            gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, ((255 - (D_800A6950 >> 1)) * obj->alpha) >> 8);
+            gDPSetEnvColor((*dList)++, alpha, alpha, alpha, alpha);
+            gSPVertexJFG((*dList)++, (u8 *) obj->vtx[obj->frame] + 0x80000000, 5, 0);
+            gSPPolygon((*dList)++, (u32) obj + 0x80000000, 2, 1);
+            rendermode_reset(dList);
+        }
+        if (obj->child != NULL) {
+            func_8006B3CC(obj->child, dList);
+        }
+        gDPPipeSync((*dList)++);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+    }
+}
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void func_8006F874(void);
@@ -265,11 +323,165 @@ s32 check_fadeout_transition(void) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B9CC);
+extern s32 D_800A6788;  // DKR: sLevelTransitionDelayTimer
+extern s32 D_80102D38;  // DKR: gCurFadeTransition
+void transition_end(void);
+extern s16 D_800A6810[]; // barn door (horizontal) coords
+extern s16 D_800A6848[]; // barn door (vertical) coords
+extern s16 D_800A68BC[]; // barn door (diagonal) coords
+extern u8 D_800A6880[];
+extern u8 D_800A688C[];
+extern u8 D_800A6898[];
+extern u8 D_800A68B0[];
+extern u8 D_800A68EC[];
+extern u8 D_800A68F8[];
+extern u8 D_800A6904[];
+extern u8 D_800A6918[];
+void transition_fullscreen_start(FadeTransition *transition);
+void func_8006C230(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+                   u8 *alpha1, u8 *alpha2, u8 *tris); // DKR: transition_init_shape
+void transition_init_blank(FadeTransition *transition);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006BC34);
+/**
+ * DKR: transition_begin. Resets the state, then sets up the transition from its description.
+ * JFG: also sets D_800A6784; the shape transitions share one init function.
+ */
+s32 transition_begin(FadeTransition *transition) {
+    if (gTransitionsDisabled) {
+        return 0;
+    }
+    transition_end();
+    D_800A6784 = 1;
+    if (transition == NULL) {
+        return 0;
+    }
+    sTransitionFadeTimer = transition->duration;
+    sTransitionFadeDuration = transition->duration;
+    gTransitionEndTimer = transition->endTimer;
+    gTransitionFadeIn = !(transition->type & FADE_FLAG_OUT);
+    D_80102D38 = transition->type & 0x3F;
+    gTransitionInvert = transition->type & 0x40;
+    D_800A6788 = 0;
+    if (!gTransitionFadeIn && D_800A6788 == 0) {
+        D_800A6788 = 2;
+    }
+    if (sTransitionFadeTimer > 0) {
+        gLastFadeRed = gCurFadeRed;
+        gLastFadeGreen = gCurFadeGreen;
+        gLastFadeBlue = gCurFadeBlue;
+        gCurFadeRed = transition->red;
+        gCurFadeGreen = transition->green;
+        gCurFadeBlue = transition->blue;
+        switch (D_80102D38) {
+            case 0:
+                transition_fullscreen_start(transition);
+                break;
+            case 1:
+                func_8006C230(transition, 12, 8, D_800A6810, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                              D_800A6898);
+                break;
+            case 2:
+                func_8006C230(transition, 12, 8, D_800A6848, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                              D_800A6898);
+                break;
+            case 3:
+            case 4:
+            case 5:
+                func_8006C230(transition, 10, 6, D_800A68BC, D_800A68EC, D_800A68F8, D_800A6918, D_800A6918,
+                              D_800A6904);
+                break;
+            case 6:
+                transition_init_blank(transition);
+                break;
+        }
+    }
+    return sTransitionStatus;
+}
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006BD54);
+void func_8006BF50(s32 updateRate);
+void func_8006C77C(s32 updateRate);
+void func_8006CE78(s32 updateRate);
+
+/* DKR: transition_update. Returns the transition status. */
+s32 transition_update(s32 updateRate) {
+    if (D_800A6788) {
+        D_800A6788--;
+        updateRate = 0;
+    } else if (updateRate >= 6) {
+        updateRate = 5;
+    }
+
+    if (sTransitionStatus != 0) {
+        if (sTransitionFadeTimer == 0) {
+            sTransitionStatus = -1;
+        }
+        if (sTransitionFadeTimer == 0 && gTransitionEndTimer == 0) {
+            transition_end();
+        } else {
+            if (sTransitionFadeTimer > 0) {
+                sTransitionTaskNum = 1 - sTransitionTaskNum;
+            }
+            switch (D_80102D38) {
+                case 0:
+                    func_8006BF50(updateRate);
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                    func_8006C77C(updateRate);
+                    break;
+                case 6:
+                    func_8006CE78(updateRate);
+                    break;
+            }
+        }
+    }
+    return sTransitionStatus;
+}
+
+void set_ortho_matrix_height(f32 height);
+void mtx_ortho(Gfx **dList, Mtx **mtx);
+void transition_render_fullscreen(Gfx **dList, Mtx **matrix, Vertex **vtx);
+void transition_render_barndoor_hor(Gfx **dList, Mtx **matrix, Vertex **vtx);
+void transition_render_barndoor_vert(Gfx **dList, Mtx **matrix, Vertex **vtx);
+void transition_render_barndoor_diag(Gfx **dList, Mtx **matrix, Vertex **vtx);
+void transition_render_blank(Gfx **dList, Mtx **matrix, Vertex **vtx);
+void func_8004046C(Gfx **dList, Mtx **mtx);
+
+/* DKR: transition_render. */
+void transition_render(Gfx **dList, Mtx **mtx, Vertex **vtx) {
+    if (sTransitionStatus) {
+        if (osTvType == OS_TV_PAL) {
+            set_ortho_matrix_height(1.4f);
+        } else {
+            set_ortho_matrix_height(1.2f);
+        }
+        mtx_ortho(dList, mtx);
+        set_ortho_matrix_height(1.0f);
+        switch (D_80102D38) {
+            case 0:
+                transition_render_fullscreen(dList, mtx, vtx);
+                break;
+            case 1:
+                transition_render_barndoor_hor(dList, mtx, vtx);
+                break;
+            case 2:
+                transition_render_barndoor_vert(dList, mtx, vtx);
+                break;
+            case 3:
+            case 4:
+            case 5:
+                transition_render_barndoor_diag(dList, mtx, vtx);
+                break;
+            case 6:
+                transition_render_blank(dList, mtx, vtx);
+                break;
+        }
+        func_8004046C(dList, mtx);
+    }
+}
 
 /* JFG: clear the transition state (0x8006BE88). */
 void transition_end(void) {
@@ -640,11 +852,125 @@ void rgba5551_brighten_rg(u16 *colour, u8 addRed, u8 addGreen) {
     *colour = (red << 11) | (green << 6) | (blue << 1) | 1;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: frame 0x60 (target 0x50: width/height at sp+0x3C/0x38) and register numbering differ; same code otherwise */
+/* JFG: brighten the green of a 2-pixel-wide line in the framebuffer (horizontal, or vertical when vertical is set). */
+void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
+    u16 *center;
+    u16 *after;
+    u16 *before;
+    u16 *after2;
+    u32 width, height;
+    s32 count;
+    s32 step;
+    u16 pixel;
+    s32 green;
+    s32 newGreen;
+
+    fb_size(&width, &height);
+    if ((!vertical && x2 < x1) || (vertical && y2 < y1)) {
+        count = x1;
+        x1 = x2;
+        x2 = count;
+        count = y1;
+        y1 = y2;
+        y2 = count;
+    }
+    count = y2 - y1 + 1;
+    step = width;
+    center = &fb[y1 * width + x1];
+    if (!vertical) {
+        after = center + width;
+        before = center - width;
+        after2 = after + width;
+        count = x2 - x1 + 1;
+        step = 1;
+        if (y1 < y2) {
+            step = width + 1;
+        }
+        if (y2 < y1) {
+            step -= width;
+        }
+    } else {
+        after = center + 1;
+        before = center - 1;
+        after2 = center + 2;
+        if (x1 < x2) {
+            step = width + 1;
+        }
+        if (x2 < x1) {
+            step -= 1;
+        }
+    }
+    while (count--) {
+        *before = *before;
+        before += step;
+        *after2 = *after2;
+        after2 += step;
+        pixel = *center;
+        green = pixel & 0x7C0;
+        newGreen = green + 0x200;
+        if (newGreen & 0xF800) {
+            newGreen = 0x7C0;
+        }
+        *center = (pixel ^ green) | newGreen;
+        center += step;
+        pixel = *after;
+        green = pixel & 0x7C0;
+        newGreen = green + 0x200;
+        if (newGreen & 0xF800) {
+            newGreen = 0x7C0;
+        }
+        *after = (pixel ^ green) | newGreen;
+        after += step;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DB6C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DD20);
 
+int sprintf(char *s, const char *fmt, ...);
+void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 arg4);
+extern u8 D_800A6BA8[12]; // JFG: the digit glyphs, then '-' and blank
+extern u16 *D_800FECB0;   // JFG: the previous frame's image
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: frame 0x88 (target 0x80, buffer at sp+0x54) and one delay slot; the code is otherwise the same */
+/* JFG: draw number into the previous frame, right-aligned in width digits (nothing if it is wider). */
+void func_8006DF90(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
+    char buffer[40];
+    s32 len = 0;
+    s32 i = 0;
+    u8 glyph;
+    char c;
+
+    sprintf(buffer, "%d", number);
+    while (buffer[len] != '\0') {
+        len++;
+    }
+    if (len <= width) {
+        do {
+            glyph = D_800A6BA8[11];
+            if (len < width) {
+                len++;
+            } else {
+                c = buffer[i++];
+                if (c == '-') {
+                    glyph = D_800A6BA8[10];
+                } else if (c >= '0' && c <= '9') {
+                    glyph = D_800A6BA8[c - '0'];
+                }
+            }
+            func_8006DD20(D_800FECB0, glyph, x, y, arg4);
+            x += 10;
+        } while (buffer[i] != '\0');
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
+#endif
 
 typedef struct ScreenLine {
     /* 0x00 */ s16 x;
@@ -703,7 +1029,71 @@ s32 func_8006EE50(void) {
     return D_800A6D00;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006EE60);
+extern u8 D_80102CE0;
+extern u8 D_80102CE1;
+extern u8 D_80102CE2;
+extern u8 D_80102CE3;
+extern u8 D_80102CE4;
+extern u8 D_80102CE5;
+extern s32 D_800A6D04;
+extern s32 gVideoLastFramebuffer; // JFG: the framebuffer to show next
+extern Gfx D_800A6BB8[];
+s32 rand_range(s32 min, s32 max);
+void func_8006F550(Gfx **dList, s32 type, s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g);
+
+/**
+ * JFG: while D_800A6D00 runs (1..32, counting up or down by D_800A6D08), fade the D_80102CE0 colours,
+ * redraw the last frame once D_800A6D0C is set, tint the screen and print three random 8-bit binary strings.
+ */
+void glitch_effect_draw(Gfx **dList) {
+    s32 i;
+    s32 j;
+    s32 value;
+    s32 y;
+    u32 width;
+    u32 height;
+    char text[20];
+    char *p;
+
+    if (D_800A6D00) {
+        fb_size(&width, &height);
+        if (D_800A6D00 < 33) {
+            D_80102CE0 = ((D_800A6D00 * -255) >> 5) + 255;
+            D_80102CE1 = ((D_800A6D00 * -16) >> 5) + 255;
+            D_80102CE2 = ((D_800A6D00 * -196) >> 5) + 255;
+            D_80102CE3 = 0;
+            D_80102CE4 = (D_800A6D00 * 16) >> 5;
+            D_80102CE5 = (D_800A6D00 * 4) >> 5;
+            if (D_800A6D08) {
+                D_800A6D00++;
+            } else {
+                D_800A6D00--;
+            }
+        }
+        if (D_800A6D0C) {
+            D_800A6D04 = 1;
+            func_8006F550(dList, gVideoLastFramebuffer, width, height, 0, 0, width, height, 0);
+        }
+        D_800A6D0C = 1;
+        gDPSetPrimColor((*dList)++, 0, 0, 0, 255, 0, D_800A6D00 * 5);
+        gSPDisplayList((*dList)++, D_800A6BB8);
+        rendermode_reset(dList);
+        y = 200;
+        i = 3;
+        while (i--) {
+            value = rand_range(0, 255);
+            p = text;
+            j = 8;
+            while (j--) {
+                *p++ = (value & 1) + '0';
+                value >>= 1;
+            }
+            *p = '\0';
+            func_8006D60C(40, y, text);
+            y += 6;
+        }
+    }
+}
 
 extern u8 D_800A6D0C;
 
@@ -796,8 +1186,39 @@ void func_8006F8E4(void) {
     D_80102D54 = 0;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: from the clear loop on, temps numbered one lower and the handler in v0 (target v1) */
+/* JFG: start effect slot (1-4) with a width x height byte pair: two cleared buffers of that size, then its handler. */
+void func_8006F998(s32 slot, u8 *dims) {
+    u8 *buf1;
+    u8 *buf2;
+    s32 count;
 
+    slot--;
+    D_80102D54 |= 1 << slot;
+    D_80102D40[slot] = (s32) dims;
+    if (D_80102D60[slot] == NULL) {
+        D_80102D60[slot] = buf1 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
+        D_80102D78[slot] = buf2 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
+        if (D_80102D60[slot] == NULL || buf2 == NULL) {
+            D_80102D60[slot] = NULL;
+            D_80102D78[slot] = NULL;
+            return;
+        }
+        count = dims[1] * dims[0];
+        while (count--) {
+            *buf1++ = 0;
+            *buf2++ = 0;
+        }
+        func_800531C8(D_800A6E1C + slot);
+        if (D_800A6E1C[slot] != NULL) {
+            D_800A6E1C[slot](slot, D_80102D40[slot], 1);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F998);
+#endif
 
 void mempool_free(void *data);
 

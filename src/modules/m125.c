@@ -66,8 +66,8 @@ typedef struct M125Model {
 } M125Model;
 
 extern s32 func_80005064(s32);
-extern u8 func_80026824(s32, s32);
-extern void func_8002662C(s32, s32);
+extern u8 obj_group_flag_first(s32, s32);
+extern void obj_group_countdown(s32, s32);
 extern void func_m085_00074(s32);
 extern void func_80001170(u8 sound);
 
@@ -119,14 +119,14 @@ void func_m125_00120(Object *obj, s32 updateRate) {
     f32 *weight;
 
     if (t->unkC == 0) {
-        t->unkC = func_80026824(t->unk8, 0x40);
+        t->unkC = obj_group_flag_first(t->unk8, 0x40);
     }
     if (t->done == 0 && t->flag != 0 && game_flag_get(t->flag)) {
         obj->unk28 = 1.0f;
         obj->interactObj->hitPoints = 0;
         t->level = 4;
         t->done = 1;
-        func_8002662C(t->unk8, 0);
+        obj_group_countdown(t->unk8, 0);
     }
     step = t->maxHitPoints >> 10;
     if (obj->interactObj->hitPoints < 0) {
@@ -171,7 +171,7 @@ void func_m125_00120(Object *obj, s32 updateRate) {
             func_m085_00074(t->unk9);
         }
         func_80001170(15);
-        func_8002662C(t->unk8, 0x10);
+        obj_group_countdown(t->unk8, 0x10);
         if (t->flag != 0) {
             func_80047EFC(t->flag, 1);
         }

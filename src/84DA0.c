@@ -1,6 +1,6 @@
 #include "common.h"
 
-s32 func_800841A0(void) {
+s32 drm_check_rdram_a(void) {
     s32 ok = FALSE;
     if (*(u32 *) 0xA02FB1F4 == 0xAD090010) {
         ok = TRUE;
@@ -9,7 +9,7 @@ s32 func_800841A0(void) {
     return ok;
 }
 
-s32 func_800841CC(void) {
+s32 drm_check_rdram_b(void) {
     s32 ok = FALSE;
     if (*(u32 *) 0xA02FE1C0 == 0xAD170014) {
         ok = TRUE;
