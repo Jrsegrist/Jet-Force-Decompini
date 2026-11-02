@@ -194,7 +194,7 @@ typedef struct M003Interact {
     /* 0x08 */ u32 unk8_3 : 1;
     /* 0x08 */ u32 sound : 4;
     /* 0x08 */ u32 pad8_1 : 24;
-    /* 0x0C */ u8 padC[0x18 - 0xC];
+    /* 0x0C */ f32 centre[3];
     /* 0x18 */ f32 pos[3]; /* where it was hit */
     /* 0x24 */ f32 radius;
     /* 0x28 */ u8 pad28[0x31 - 0x28];
@@ -426,7 +426,35 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00D44);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00FD0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01188);
+/* An object's position; the mission that waits at a way point */
+void func_m003_01188(Object *obj, f32 *x, f32 *y, f32 *z) {
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    switch (sMember->unk1B) {
+        case 1:
+            if (sHomeData->unk30 == 2 && !(((u16 *) obj->header)[0x14 / 2] & 0x80)) {
+                sHomeData->unk30 = 3;
+            }
+            if (sHomeData->unk0 < 2) {
+                sMember->unk0_29 = 0;
+                sMember->unk4B = 0;
+                func_m003_04398(1, 0);
+            } else {
+                sMember->unk1B = 4;
+                func_m003_04D08(3, 2, 0, 0);
+            }
+            break;
+        case 4:
+            if (sMember->unk4B != 3 || func_m003_04F88(3, 1.0f)) {
+                sMember->unk0_29 = 0;
+                sMember->unk4B = 0;
+                func_m003_04398(1, 0);
+                func_m003_04D08(0, 5, 6, 1);
+            }
+            break;
+    }
+}
 
 /* Keeps the facing; records the turn towards the closest player */
 s32 func_m003_012E8(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
@@ -891,7 +919,50 @@ s32 func_m003_057CC(f32 x, f32 z) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_058A4);
 
+/* A model instance as used here */
+typedef struct M003Model {
+    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x2D */ u8 numJoints;
+} M003Model;
+
+typedef struct M003ModelInst {
+    /* 0x00 */ M003Model *model;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA; /* the joints need updating */
+    /* 0x0B */ u8 padB[0x68 - 0xB];
+    /* 0x68 */ Vec3f *joints;
+} M003ModelInst;
+
+extern void func_m003_058A4(Object *obj);
+
+#ifdef NON_MATCHING
+/* Where joint `joint` of the current member's model is (or its hit centre) */
+/* (the ROM keeps the object in s0 and spills inst at 0x24 of a 0x28 frame) */
+void func_m003_0609C(s32 joint, f32 *x, f32 *y, f32 *z) {
+    M003ModelInst *inst;
+    Object *obj = sObj;
+
+    inst = obj->modelInstances[obj->modelIndex];
+    if (inst != NULL) {
+        if (inst->unkA != 0) {
+            func_m003_058A4(obj);
+        }
+        if (joint < inst->model->numJoints) {
+            if (inst->joints != NULL) {
+                *x = inst->joints[joint].x;
+                *y = inst->joints[joint].y;
+                *z = inst->joints[joint].z;
+            }
+            return;
+        }
+    }
+    *x = ((M003Interact *) sObj->interactObj)->centre[0];
+    *y = ((M003Interact *) sObj->interactObj)->centre[1];
+    *z = ((M003Interact *) sObj->interactObj)->centre[2];
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0609C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_061FC);
 
@@ -905,7 +976,56 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06D28);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07980);
 
+#ifdef NON_MATCHING
+/* The speed change that brings a mover to a stop `dist` away, accelerating by `accel` */
+/* (the ROM keeps 0.0f in f18 and accel in the saved f20 all through, with one return path) */
+f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
+    f32 zero = 0.0f;
+    f32 pos = zero;
+    f32 step = zero;
+    s32 neg = dist < 0;
+    f32 fdist;
+    f32 result;
+
+    if (neg) {
+        dist = -dist;
+        speed = -speed;
+    }
+    if (speed < zero) {
+        if (neg) {
+            return -accel;
+        }
+        return accel;
+    }
+    fdist = dist;
+    do {
+        step += accel;
+        pos += step;
+    } while (pos + step < fdist);
+    if (fdist <= accel && speed <= accel && ((dist >= 0 && zero <= speed) || (dist <= 0 && speed <= zero))) {
+        result = zero;
+    } else if (speed + accel <= step - accel) {
+        result = speed + accel;
+    } else if (speed - accel < step) {
+        result = step - accel;
+        if (step == accel) {
+            result = accel;
+        }
+    } else {
+        result = speed - accel;
+        if (result == zero) {
+            result = accel;
+        }
+    }
+    if (neg) {
+        result = -result;
+        speed = -speed;
+    }
+    return result - speed;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_079D8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07B38);
 
