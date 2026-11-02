@@ -53,7 +53,7 @@ typedef struct M112ObjState {
 extern void func_80003614(s32 handle); /* stops a positioned sound */
 extern void func_80011D1C(Object *obj);
 extern void func_80049DC0(Object *obj, MtxF *out);
-extern void func_800419AC(Gfx **dList, Mtx **mtx, MtxF *transform);
+extern void mtx_model_push(Gfx **dList, Mtx **mtx, MtxF *transform);
 
 void func_m112_00000(Object *obj) {
     M112State *s = obj->unk68;
@@ -119,7 +119,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m112", func_m112_01004);
 void func_m112_013B4(Gfx **dList, Mtx **mtx, Object *obj) {
     M112State *s = obj->unk68;
 
-    func_800419AC(dList, mtx, &s->mtx);
+    mtx_model_push(dList, mtx, &s->mtx);
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m112", data);

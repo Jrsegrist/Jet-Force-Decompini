@@ -94,10 +94,10 @@ extern u8 *D_800A38E0;       /* the body descriptions */
 extern s32 D_800FE9FC;
 extern s32 D_800FE9B0;
 extern f32 func_80097140(f32 x); /* sqrtf */
-extern s16 func_80050F60(u16 kind);
+extern s16 troop_slot_get(u16 kind);
 extern s32 func_80004AF4(s32 arg0, s32 arg1, f32 arg2, s32 arg3);
 extern s32 func_80051508(s16 arg0, u8 arg1);
-extern void func_80047868(s32 sound);
+extern void stats_kill_add(s32 sound);
 extern void func_80052798(Object *obj, Object *home);
 extern void func_m154_017E8(Object *home);
 extern s32 rl_m003_0527C(f32 x, f32 y, f32 z);
@@ -503,7 +503,7 @@ void func_m003_0C038(Object *obj) {
         obj->interactObj->hitPoints = 0;
     }
     if (((M003Interact *) obj->interactObj)->unk8_3 != 15) {
-        func_80047868(((M003Interact *) obj->interactObj)->sound);
+        stats_kill_add(((M003Interact *) obj->interactObj)->sound);
     }
 }
 
@@ -530,7 +530,7 @@ s32 func_m003_0D2C0(Object *obj) {
     if (obj->behaviorId != 0x18 || home == NULL) {
         return 0;
     }
-    sBodyIndex = func_80050F60(((M003Home *) home->unk68)->kind);
+    sBodyIndex = troop_slot_get(((M003Home *) home->unk68)->kind);
     if (sBodyIndex != -1) {
         sBody = (M003Body *) (D_800A38E0 + (sBodyIndex << 7));
     } else {
