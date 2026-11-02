@@ -8,7 +8,8 @@
 
 /* What a troop member keeps in obj->unk68 */
 typedef struct M003Member {
-    /* 0x00 */ u32 pad0_0 : 2;
+    /* 0x00 */ u32 pad0_0 : 1;
+    /* 0x00 */ u32 onFire : 1;
     /* 0x00 */ u32 unk0_29 : 1;
     /* 0x00 */ u32 pad0_3 : 8;
     /* 0x00 */ u32 unk0_20 : 1;
@@ -20,9 +21,12 @@ typedef struct M003Member {
     /* 0x04 */ u16 unk4;
     /* 0x06 */ u8 unk6_7 : 1;
     /* 0x06 */ u8 turning : 1; /* unk10 holds a turn */
-    /* 0x06 */ u8 unk6_0 : 6;
+    /* 0x06 */ u8 unk6_5 : 1;
+    /* 0x06 */ u8 unk6_4 : 1;
+    /* 0x06 */ u8 unk6_0 : 4;
     /* 0x07 */ s8 group; /* < 0: not active */
-    /* 0x08 */ u8 pad8[0xA - 0x8];
+    /* 0x08 */ u8 flags8; /* bit flags, read as the word M003Flags8 */
+    /* 0x09 */ u8 unk9;
     /* 0x0A */ u8 unkA;
     /* 0x0B */ u8 mission;
     /* 0x0C */ u8 padC[0x10 - 0xC];
@@ -57,7 +61,27 @@ typedef struct M003Member {
     /* 0x68 */ u8 pad68[0xA0 - 0x68];
     /* 0xA0 */ u16 unkA0; /* body parts hit (kind 15) */
     /* 0xA2 */ u16 unkA2; /* body parts hit (other kinds) */
+    /* 0xA4 */ u8 padA4[0xBC - 0xA4];
+    /* 0xBC */ s32 sound; /* the burning sound's handle */
+    /* 0xC0 */ u8 padC0[0xC8 - 0xC0];
+    /* 0xC8 */ Object *spark; /* the electric spark on the member */
 } M003Member;
+
+/* The member's word at 0x8 as bit fields */
+typedef struct M003Flags8 {
+    u32 pad5 : 5;
+    u32 shocked : 1;
+    u32 unk24 : 2;
+    u32 rest : 24;
+} M003Flags8;
+#define FLAGS8(m) ((M003Flags8 *) &(m)->flags8)
+
+/* The body's word at 0x24 as bit fields */
+typedef struct M003BodyFlags {
+    u32 pad27 : 27;
+    u32 fireproof : 1;
+    u32 rest : 4;
+} M003BodyFlags;
 
 /* What a troop's home object keeps in obj->unk68 */
 typedef struct M003Home {
@@ -154,7 +178,9 @@ typedef struct M003Body {
     /* 0x24 */ s16 unk24; /* a height */
     /* 0x26 */ u8 pad26[0x29 - 0x26];
     /* 0x29 */ u8 numParts;
-    /* 0x2A */ u8 pad2A[0x2D - 0x2A];
+    /* 0x2A */ u8 pad2A;
+    /* 0x2B */ u8 unk2B; /* 5: does not burn */
+    /* 0x2C */ u8 pad2C;
     /* 0x2D */ u8 headPart; /* 0x1F: none */
     /* 0x2E */ u8 pad2E[0x40 - 0x2E];
     /* 0x40 */ M003BodyPart parts[8];
@@ -414,7 +440,46 @@ s32 func_m003_012E8(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0136C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01608);
+extern void func_m003_0512C(s32 arg0, f32 arg1, s32 arg2);
+
+/* An object's position; counts the current member through its mission's three stages */
+void func_m003_01608(Object *obj, f32 *x, f32 *y, f32 *z) {
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    switch (sMember->unk1B) {
+        case 1:
+            sMember->unk9 = 0;
+            if (sMember->node <= D_800FE9F8) {
+                sMember->unk1B = 4;
+                sMember->node = 45;
+            } else {
+                sMember->node -= D_800FE9F8;
+            }
+            func_m003_0512C(3, 1.0f, 0x3B);
+            break;
+        case 4:
+            if (sMember->node <= D_800FE9F8) {
+                sMember->unk1B = 5;
+                sMember->node = 30;
+            } else {
+                sMember->node -= D_800FE9F8;
+            }
+            func_m003_04F88(3, 1.0f);
+            break;
+        case 5:
+            sMember->unk9 = 3;
+            if (sMember->node <= D_800FE9F8) {
+                sMember->unk1A = 16;
+                sMember->unk1B = 1;
+                sMember->unk9 = 1;
+            } else {
+                sMember->node -= D_800FE9F8;
+            }
+            func_m003_04F88(3, 1.0f);
+            break;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01764);
 
@@ -1001,9 +1066,73 @@ void func_m003_0CF40(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CFA8);
+extern void func_80003614(s32 handle);
+extern void rl_m003_044F4(Object *obj);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D134);
+/* A member is set on fire (or dies at once if its body cannot burn) */
+void func_m003_0CFA8(Object *obj) {
+    if (func_m003_05450(obj)) {
+        if (sHomeData->kind != 0x112) {
+            if (sBody->unk2B == 5 || ((M003BodyFlags *) &sBody->unk24)->fireproof) {
+                ((M003Interact *) obj->interactObj)->sound = 6;
+                func_m003_0C038(obj);
+            } else {
+                if (!sMember->headless && !sMember->onFire) {
+                    if (sMember->sound != 0) {
+                        func_80003614(sMember->sound);
+                    }
+                    func_80003410(func_80048E2C(0, 1) + 0x191, obj->trans.x_position, obj->trans.y_position,
+                                  obj->trans.z_position, 4, &sMember->sound);
+                }
+                rl_m003_044F4(obj);
+                func_m003_04D08(8, 15, 13, 0);
+                func_m003_04260(9, 11, 0, 0, 0);
+            }
+            sMember->onFire = 1;
+            sMember->unk6_4 = 0;
+            sMember->unk3C = 0.0f;
+        }
+    }
+}
+
+/* A level object entry built on the stack (a spark on a member) */
+typedef struct M003Entry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ Object *owner;
+} M003Entry;
+
+extern s32 func_80005064(s32 arg0);
+
+/* A member is electrocuted */
+void func_m003_0D134(Object *obj) {
+    M003Entry entry;
+
+    if (func_m003_05450(obj)) {
+        if (!FLAGS8(sMember)->shocked && sHomeData->kind != 0xE6) {
+            if (func_m003_04260(0x12, 0x19, (u8) func_80005064(func_80048E2C(120, 140)), 0, 0)) {
+                func_m003_04D08(0xB, 0x15, 0, 0);
+            }
+            FLAGS8(sMember)->shocked = 1;
+            FLAGS8(sMember)->unk24 = 3;
+            entry.objectID = 0x29A;
+            entry.size = 0x10;
+            entry.unk3 = 0;
+            entry.x = obj->trans.x_position;
+            entry.y = obj->trans.y_position;
+            entry.z = obj->trans.z_position;
+            entry.owner = obj;
+            if ((sMember->spark = func_80005F14(&entry, 1)) != NULL) {
+                sMember->spark->level_entry = NULL;
+            }
+        }
+    }
+}
 
 /* Looks up the body description of a member (behaviour 0x18) */
 s32 func_m003_0D2C0(Object *obj) {
