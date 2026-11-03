@@ -2958,7 +2958,7 @@ static void func_m015_068BC(Object *obj, Racer *racer, f32 updateRate) {
     } else if (racer->unk578 > 0 && racer->unk579 == 0) {
         v = racer->unk578 - a;
         if (v >= 0) {
-            racer->unk578 = v;
+            racer->unk578 -= a;
             racer->unk4 = racer->unk170;
             racer->unk10 = racer->unk174;
         } else if (v < 0 && racer->unk578 > 0) {
