@@ -30,7 +30,7 @@ extern OSMesg gEPCMesgBuf[8];
 extern OSMesgQueue gEPCPIQueue;
 extern OSMesg gEPCPIBuf[8];
 void stop_all_threads_except_main(void);
-void func_80066E14(void);
+void crash_find_faulted_thread(void);
 
 /**
  * Main thread for the epc lockup screen. Thread 0.
@@ -54,7 +54,7 @@ void thread0_Main(UNUSED void *unused) {
         }
         s0 &= ~8;
         stop_all_threads_except_main();
-        func_80066E14();
+        crash_find_faulted_thread();
     }
 }
 
@@ -114,7 +114,7 @@ void func_80066D28(OSThread *thread);
 void func_80066EB0(OSThread *thread);
 
 /* JFG: find the first faulted thread (or the end of the queue) and show it. */
-void func_80066E14(void) {
+void crash_find_faulted_thread(void) {
     OSThread *thread;
 
     for (thread = __osGetActiveQueue(); thread->priority != -1; thread = thread->tlnext) {
@@ -228,7 +228,7 @@ void func_80067994(FaultThread *fault);
 
 /* JFG: show the crash screen for a fake thread (pc, a0, a1) and hang.
    (The (u64) cast on pc, a no-op for the u32 field, gives the ROM's load order; found by the permuter.) */
-void func_800678C4(u32 pc, s32 a0, u32 a1) {
+void crash_show_fake_thread(u32 pc, s32 a0, u32 a1) {
     FaultThread fault;
 
     bzero(&fault, sizeof(fault));

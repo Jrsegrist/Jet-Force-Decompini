@@ -281,7 +281,7 @@ void free_model_data(Model3C7 *mdl) {
 
 s8 *asset_cache_get(s16 id);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
-void *func_8003CF24(s32 index);
+void *model_asset_block_load(s32 index);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: saved registers: the target keeps &D_800F6F2C in $s0 and id in $s1 (mine the other way round)
@@ -309,7 +309,7 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
         size += 8;
     }
     asset_load(0x29, (u32) D_800F6F28, (start & ~3) * 2, size);
-    if ((model->unk58 = func_8003CF24(id)) == NULL) {
+    if ((model->unk58 = model_asset_block_load(id)) == NULL) {
         return 1;
     }
     if (!model->unk64) {
@@ -400,7 +400,7 @@ extern s32 *D_800F6F38; // JFG: a buffer for two entries of an offset table
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 /* JFG: load an entry of asset 0x2D, found by its offset in table 0x2C. */
-void *func_8003CF24(s32 index) {
+void *model_asset_block_load(s32 index) {
     s32 start;
     s32 end;
     s32 *offsets;

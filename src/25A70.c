@@ -1000,7 +1000,7 @@ typedef struct BufferState {
 void mempool_free(void *data);
 
 /* JFG: free the four buffers of the object's state. */
-void func_80027D08(Object *obj) {
+void obj_state_buffers_free(Object *obj) {
     BufferState *state = (BufferState *) obj->animator;
 
     if (state->buffers[0] != NULL) {

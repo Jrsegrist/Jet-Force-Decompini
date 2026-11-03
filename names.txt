@@ -750,3 +750,7 @@ func_80005EC0 = obj_header_field_get
 func_80008F70 = anim_obj_list_remove
 func_8000A9EC = obj_debug_line_draw
 func_8000C9F4 = obj_flash_fog_set
+func_800678C4 = crash_show_fake_thread
+func_80066E14 = crash_find_faulted_thread
+func_80027D08 = obj_state_buffers_free
+func_8003CF24 = model_asset_block_load
