@@ -161,6 +161,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/lights.c` | light_update (structure only) |
 | `src/tracks.c` | render_level_segment (func_80014EBC, NON_MATCHING body) |
 | `src/textures_sprites.c` | sprite_init_frame (func_80056D24, NON_MATCHING body) |
+| `src/tracks.c` | init_track, generate_track, func_8002C954, func_8002C71C and LOCAL_OFFSET_TO_RAM_ADDRESS, in module 24 (`src/modules/m024.c`, JFG's forms) |
 
 ## Tools and libraries
 
