@@ -754,3 +754,6 @@ func_800678C4 = crash_show_fake_thread
 func_80066E14 = crash_find_faulted_thread
 func_80027D08 = obj_state_buffers_free
 func_8003CF24 = model_asset_block_load
+func_80055260 = buffer_clear_words
+func_80021A30 = objects_shade_all
+func_8004BD78 = flash_erase_sectors

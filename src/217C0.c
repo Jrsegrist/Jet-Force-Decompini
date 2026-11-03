@@ -599,7 +599,7 @@ void func_80054530(); // a module function (patched in by the runtime linker)
  * function when the level header says so. (The shading read into a local per loop, as found by the
  * permuter, gives the ROM's frame.)
  */
-void func_80021A30(void) {
+void objects_shade_all(void) {
     Object **objs;
     struct ShadeProperties *shading2;
     struct ShadeProperties *shading;

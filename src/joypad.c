@@ -93,7 +93,7 @@ u8 *get_settings(void);
 u8 *get_all_save_files_ptr(void);
 void func_8004BC10(s32 file, u8 *game);
 void erase_save_file(s32 file, u8 *game);
-void func_8004BD78(void);
+void flash_erase_sectors(void);
 void func_8004BAF4(s32 file, u8 *game);
 void read_eeprom_settings(u8 *flags);
 void write_eeprom_settings(u8 *flags);
@@ -145,7 +145,7 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
                 }
             }
             if (saveDataFlags & SAVE_FLAG_ERASE) {
-                func_8004BD78();
+                flash_erase_sectors();
             }
             if (saveDataFlags & SAVE_FLAG_LOAD_GAME) {
                 func_8004BAF4(saveDataFlags & 7, settings);

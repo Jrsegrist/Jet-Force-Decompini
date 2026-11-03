@@ -306,7 +306,7 @@ void erase_save_file(s32 slot, UNUSED s32 arg1) {
 
 /* JFG: erase the first 8 flash sectors.
    (`if (buf) {}` in the fill loop keeps buf in the ROM's saved register; found by the permuter.) */
-void func_8004BD78(void) {
+void flash_erase_sectors(void) {
     s32 i;
     u8 *buf = mempool_alloc_safe(0x80, -1);
     u8 *p;
