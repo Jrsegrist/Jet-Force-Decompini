@@ -393,7 +393,146 @@ void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rot
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A0C0);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006A6B0);
+/* JFG: a ripple effect's level object header (only the fields used here) */
+typedef struct RippleHeader {
+    /* 0x00 */ u8 pad0[0x73];
+    /* 0x73 */ s8 childType;
+    /* 0x74 */ u8 pad74[4];
+    /* 0x78 */ f32 unk78;
+    /* 0x7C */ s16 textureID;
+    /* 0x7E */ s16 unk7E;
+    /* 0x80 */ s32 unk80;
+    /* 0x84 */ s32 unk84;
+    /* 0x88 */ s32 unk88;
+    /* 0x8C */ s16 unk8C;
+    /* 0x8E */ s16 unk8E;
+} RippleHeader;
+
+typedef struct RippleObj {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x40 - 0x18];
+    /* 0x40 */ RippleHeader *header;
+    /* 0x44 */ u8 pad44[0x58 - 0x44];
+    /* 0x58 */ void *data;
+} RippleObj;
+
+typedef struct RippleTri {
+    u8 flags;
+    u8 vi0, vi1, vi2;
+    s16 u0, v0;
+    s16 u1, v1;
+    s16 u2, v2;
+} RippleTri;
+
+typedef struct RippleVtx {
+    s16 x, y, z;
+    u8 r, g, b, a;
+} RippleVtx;
+
+/* JFG: a ripple's data block (two textured triangles over two sets of four vertices) */
+typedef struct RippleInit {
+    /* 0x00 */ RippleTri tris[2];
+    /* 0x20 */ RippleVtx vtx[2][4];
+    /* 0x70 */ struct RippleTexture *tex;
+    /* 0x74 */ u8 frame;
+    /* 0x75 */ u8 unk75;
+    /* 0x76 */ s16 alpha;
+    /* 0x78 */ s16 texFrame;
+    /* 0x7A */ s16 unk7A;
+    /* 0x7C */ f32 unk7C;
+    /* 0x80 */ u8 unk80[4];
+    /* 0x84 */ void *child;
+} RippleInit;
+
+s32 align4(s32 value);
+s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags);
+void *func_8006A0C0(s32 type, s32 arg1, s32 arg2, s32 arg3, s32 arg4, f32 arg5);
+
+/* JFG: set up a ripple's data block at r (aligned up to 8): its texture, two triangles, white vertices and its
+   child effect. Returns the bytes used (alignment included), 0 if the texture didn't load.
+   (The alignment remainder is not a variable; the unused words keep the frame.) */
+s32 ripple_data_init(RippleObj *obj, RippleInit *r) {
+    s32 pad;
+    s32 unused[6];
+    RippleHeader *hdr;
+    RippleVtx *v;
+    RippleTri *tri;
+    s32 w;
+    s32 h;
+    s32 i;
+
+    if ((((s32) r) & 7) != 0) {
+        pad = 8 - (((s32) r) & 7);
+        r = (RippleInit *) (((u8 *) r) + pad);
+    } else {
+        pad = 0;
+    }
+    pad += align4(sizeof(RippleInit));
+    hdr = obj->header;
+    obj->data = r;
+    r->tex = load_texture(hdr->textureID);
+    if (r->tex == 0) {
+        return 0;
+    }
+    tri = r->tris;
+    w = (((u8 *) r->tex)[0] - 1) << 5;
+    h = (((u8 *) r->tex)[1] - 1) << 5;
+    tri[0].flags = 0x40;
+    tri[0].vi0 = 0;
+    tri[0].u0 = w;
+    tri[0].v0 = 0;
+    tri[0].vi1 = 1;
+    tri[0].u1 = 0;
+    tri[0].v1 = 0;
+    tri[0].vi2 = 2;
+    tri[0].u2 = w;
+    tri[0].v2 = h;
+    tri[1].flags = 0x40;
+    tri[1].vi0 = 1;
+    tri[1].u0 = 0;
+    tri[1].v0 = 0;
+    tri[1].vi1 = 2;
+    tri[1].u1 = w;
+    tri[1].v1 = h;
+    tri[1].vi2 = 3;
+    tri[1].u2 = 0;
+    tri[1].v2 = h;
+    for (i = 0; i < 2; i++) {
+        ;
+        r->vtx[i][1].r = 255;
+        r->vtx[i][1].g = 255;
+        r->vtx[i][1].b = 255;
+        r->vtx[i][1].a = 255;
+        r->vtx[i][2].r = 255;
+        r->vtx[i][2].g = 255;
+        r->vtx[i][2].b = 255;
+        r->vtx[i][2].a = 255;
+        r->vtx[i][3].r = 255;
+        r->vtx[i][3].g = 255;
+        r->vtx[i][3].b = 255;
+        r->vtx[i][3].a = 255;
+        r->vtx[i][0].r = 255;
+        r->vtx[i][0].g = 255;
+        r->vtx[i][0].b = 255;
+        r->vtx[i][0].a = 255;
+    }
+
+    r->frame = 0;
+    r->unk75 = 0;
+    r->alpha = 0;
+    r->texFrame = 0;
+    r->unk7A = hdr->unk7E;
+    r->unk7C = hdr->unk78;
+    track_height_at(obj->x, obj->z, (f32 *) r->unk80, 0x2000);
+    r->child = 0;
+    if (hdr->childType != -1) {
+        r->child = func_8006A0C0(hdr->childType, hdr->unk88, hdr->unk80, hdr->unk84, hdr->unk8C, hdr->unk8E);
+    }
+    return pad;
+}
 
 void tex_free(void *tex);
 void mempool_free(void *data);
