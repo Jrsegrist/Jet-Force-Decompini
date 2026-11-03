@@ -1823,8 +1823,8 @@ static void func_m015_03564(Object *obj, Racer *racer, f32 speed, s16 angle, f32
 static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     f32 fall;
     s32 i;
-    s32 j;
     s32 oldTime;
+    s32 j;
     f32 q;
 
     racer->unk576 = 0;
