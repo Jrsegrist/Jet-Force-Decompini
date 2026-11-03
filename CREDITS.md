@@ -194,3 +194,11 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | --- | --- |
 | `src/tracks.c` | get_level_segment_waves, rewritten as JFG's func_8001B078 (the planes under a point in every segment there, sorted by height; DKR's pointer loop and sort kept); with it track_nearest_triangle (round 9) drops its NON_MATCHING |
 | `src/screen_asset.c` | screenimage_load (screenLoad): its earlier NON_MATCHING body now matches (one word for the header and the compressed data, colour tag 0xFFFF) |
+
+### Round 11 (perm11), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/objects.c` | track_spawn_objects: its JFG form (NON_MATCHING until now) matches (DKR's locals without the settings pad, the map pointer re-read after the store, `index == 1` for the list test) |

@@ -783,3 +783,9 @@ func_8003E35C = batch_slots_reset
 func_8006A6B0 = ripple_data_init
 func_80026FE0 = obj_init_model_swap
 func_800580C0 = screenimage_load
+# round 11 (perm11)
+func_800053F8 = track_spawn_objects
+func_80007420 = obj_sprite_init
+func_80013B74 = track_segment_data_alloc
+func_800339D8 = player_restart
+func_8003CDAC = model_instance_anim_reset

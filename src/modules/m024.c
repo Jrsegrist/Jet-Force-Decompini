@@ -134,7 +134,7 @@ extern s32 func_m071_00000(void);
 extern s32 mempool_free_timer_get(void);
 extern void func_8004AA08(s32 timer); /* DKR mempool_free_timer */
 extern void func_8004A828(s32 size, void *address, s32 colour); /* DKR mempool_alloc_fixed */
-extern void func_80013B74(s32 arg0, s32 arg1);
+extern void track_segment_data_alloc(s32 arg0, s32 arg1);
 static void func_m024_00908(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, s32 arg2);
 extern s32 rl_m024_00CE4(LevelModelSegment *seg);
 static void func_m024_018B4(LevelModelSegment *segment);
@@ -151,7 +151,7 @@ extern void *func_8004A57C(u32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M024LevelHeader *func_8004470C(void);      /* DKR level_header */
 extern u8 func_80048548(void);                    /* the number of cameras */
 extern void cam_set_layout(s32 layout);
-extern void func_800053F8(s32 mapID, s32 index); /* DKR track_spawn_objects */
+extern void track_spawn_objects(s32 mapID, s32 index); /* DKR track_spawn_objects */
 extern void sequence_table_load(s32 arg0);
 extern void func_8000561C(s32 arg0);
 extern void shadow_buffers_alloc(void *model, s32 waveBlocks, s32 arg2, s32 arg3, s32 arg4);
@@ -174,8 +174,8 @@ void func_m024_00000(s32 geometry, s32 skybox, s32 arg2, s32 arg3, s32 arg4, s32
     func_m024_001F8(geometry);
     D_800F31DC = 0;
     cam_set_layout(func_80048548() - 1);
-    func_800053F8(arg4, 0);
-    func_800053F8(arg3, 1);
+    track_spawn_objects(arg4, 0);
+    track_spawn_objects(arg3, 1);
     sequence_table_load(arg5);
     func_8000561C(arg2);
     D_800F2FA0 = 0;
@@ -329,7 +329,7 @@ static void func_m024_001F8(s32 modelId) {
     check_reset_and_halt();
     func_80055B34(0xFF00FFFF);
     D_800A0D8C = 0;
-    func_80013B74(D_800A0D64->unk105, D_800A0D64->unk106);
+    track_segment_data_alloc(D_800A0D64->unk105, D_800A0D64->unk106);
     D_80102550 = 0;
 }
 

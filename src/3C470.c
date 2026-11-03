@@ -350,11 +350,9 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CB04);
 #endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: IDO copies the model pointer to v0 for the else arm (target keeps v1) */
 /* JFG: reset a model instance's animation state and select its first animation (shared assets are fetched
  * through the cache when the model has unk64 set). */
-void func_8003CDAC(ModelInstance3C *inst) {
+void model_instance_anim_reset(ModelInstance3C *inst) {
     Model3C7 *model = inst->model;
     s8 *anim;
 
@@ -368,12 +366,11 @@ void func_8003CDAC(ModelInstance3C *inst) {
     inst->animLength = 0.0f;
     if (model->numAssets != 0) {
         if (model->unk64 != 0) {
-            inst->assets[0] = asset_cache_get(*(s16 *) model->unk5C);
+            inst->assets[0] = asset_cache_get(*(s16 *) inst->model->unk5C);
             inst->assets[1] = asset_cache_get(*(s16 *) inst->model->unk5C);
-            model = inst->model;
             anim = inst->assets[0];
-            inst->assetIds[0] = *(s16 *) model->unk5C;
-            inst->assetIds[1] = *(s16 *) model->unk5C;
+            inst->assetIds[0] = *(s16 *) inst->model->unk5C;
+            inst->assetIds[1] = *(s16 *) inst->model->unk5C;
         } else {
             anim = model->assets[inst->animIndex];
         }
@@ -392,9 +389,6 @@ void func_8003CDAC(ModelInstance3C *inst) {
         inst->unk34 = inst->unk30;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CDAC);
-#endif
 
 extern s32 *D_800F6F38; // JFG: a buffer for two entries of an offset table
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
