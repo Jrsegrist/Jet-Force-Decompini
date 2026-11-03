@@ -68,7 +68,7 @@ extern M023Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_
 extern void func_8002179C(M023Light *light);                            /* DKR light_remove */
 extern void light_colour_set(M023Light *light, u8 red, u8 green, u8 blue); /* sets a light's colour */
 extern void light_intensity_set(M023Light *light, u8 intensity);             /* sets a light's intensity */
-extern void func_80022520(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
+extern void dir_light_setup(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
 extern M023Level *func_8004470C(void);                                   /* DKR levelGetLevel */
 
 void func_m023_0015C(s32 updateRate);
@@ -208,7 +208,7 @@ void func_m023_0015C(s32 updateRate) {
         while (i < count) {
             obj = objs[i++];
             if (obj->unk54 != NULL && obj->unk40->unk1E == 0 && obj->unkA1 == 0) {
-                func_80022520(&obj->unk54->unk10, ambient, ambient + 1, 0, 0, 0);
+                dir_light_setup(&obj->unk54->unk10, ambient, ambient + 1, 0, 0, 0);
             }
         }
     }

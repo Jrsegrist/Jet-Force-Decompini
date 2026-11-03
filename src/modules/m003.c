@@ -991,7 +991,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07980);
 
 #ifdef NON_MATCHING
 /* The speed change that brings a mover to a stop `dist` away, accelerating by `accel` */
-/* (the ROM keeps 0.0f in f18 and accel in the saved f20 all through, with one return path) */
+/* (31 words: speed and the result take f12/f14 the other way round; the early ternary return already
+   gives the ROM's single exit and the saved f20) */
 f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
     f32 zero = 0.0f;
     f32 pos = zero;
@@ -1005,10 +1006,8 @@ f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
         speed = -speed;
     }
     if (speed < zero) {
-        if (neg) {
-            return -accel;
-        }
-        return accel;
+        result = neg ? -accel : accel;
+        return result;
     }
     fdist = dist;
     do {

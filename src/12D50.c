@@ -658,10 +658,8 @@ void func_80013970(void) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80013970);
 #endif
 
-#ifdef NON_MATCHING
-/* JFG: allocate count track lights (all free) and, if asked, a copy of every segment's vertices.
-   NON_MATCHING: 19 words: v0/v1 swapped for the loop counters' copies, and the src/failed set-up order. */
-void func_80013B74(s32 count, s32 copyVertices) {
+/* JFG: allocate count track lights (all free) and, if asked, a copy of every segment's vertices. */
+void track_segment_data_alloc(s32 count, s32 copyVertices) {
     s32 failed;
     s32 i;
     SegmentAlloc *alloc;
@@ -685,14 +683,15 @@ void func_80013B74(s32 count, s32 copyVertices) {
                 segment = gCurrentLevelModel->segments;
                 D_800A0D7C = 1;
                 D_800A0D80 = alloc;
+                i = 0;
                 failed = FALSE;
-                for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
+                for (; i < gCurrentLevelModel->numberOfSegments; i++) {
                     src = (u8 *) segment->vertices;
                     size = segment->numberOfVertices * sizeof(Vertex);
-                    alloc->vertices = segment->vertices;
+                    alloc->vertices = (void *) src;
                     alloc->data = mempool_alloc_safe(size, 0xFF0000FF);
-                    if (alloc->data != NULL) {
-                        dst = alloc->data;
+                    dst = alloc->data;
+                    if (dst != NULL) {
                         while (size--) {
                             *dst++ = *src++;
                         }
@@ -709,9 +708,6 @@ void func_80013B74(s32 count, s32 copyVertices) {
         track_segment_data_free();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013B74);
-#endif
 
 /* JFG: free the per-segment buffers and the track lights (0x80013D3C). */
 void track_segment_data_free(void) {

@@ -519,7 +519,7 @@ extern s8 D_800FED63[][0xA0];
 s32 func_80048558(void);
 void func_80048518(s32 arg0);
 u32 input_pressed(s32 player);
-void func_800339D8(s32 arg0, s8 *player);
+void player_restart(s32 arg0, s8 *player);
 
 void func_80033920(s32 arg0, s8 *player) {
     u32 buttons;
@@ -532,7 +532,7 @@ void func_80033920(s32 arg0, s8 *player) {
         buttons = 0;
     }
     if (buttons & 0xF00F) {
-        func_800339D8(arg0, player);
+        player_restart(arg0, player);
     }
 }
 
@@ -540,20 +540,19 @@ u8 **objGetObjList(s32 *start, s32 *end);
 s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 is2dCheck, u8 **sortObj);
 void level_next_select(void);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: only the stack: the target's frame is 0x10 smaller (no words for the scalar locals below the
-   arrays), so every sp offset of start/end/near/candidates differs by 0x10 */
 /* JFG: restart a player: refill the current weapon and clear its 0x0 and its object's 0x4C->0x6; in multiplayer
- * respawn it at a random respawn point (object 6) with no other player near, else at its own position. */
-void func_800339D8(s32 owner, s8 *player) {
+ * respawn it at a random respawn point (object 6) with no other player near, else at its own position.
+ * The candidate list really is 4 entries in the original frame (more respawn points overrun it into the
+ * locals around it, as in the ROM). */
+void player_restart(s32 owner, s8 *player) {
     s32 start;
     s32 end;
     u8 *near[8];
-    u8 *candidates[8];
     u8 **list;
     u8 *obj;
     s32 n;
     s32 count;
+    u8 *candidates[4];
     u8 *chr;
 
     chr = func_80047C1C(player[0], player[1]);
@@ -586,9 +585,6 @@ void func_800339D8(s32 owner, s8 *player) {
         level_next_select();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800339D8);
-#endif
 
 s32 func_8005AAB8(s32 player);
 s32 camera_follow_get(void);
@@ -1003,10 +999,12 @@ extern s32 D_800A2DF0[8];
 void rumble_raise(s32 arg0, u8 arg1, s32 arg2);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the unused third parameter gets a home store (sw a2) the target lacks; rest identical */
+/* NON_MATCHING: 2 words: the table byte is loaded into t7 (target t6, with t7 unused after it); the
+   `if (arg2) {}` stops the home store of the unused parameter and the no-op mask fixes the later temps */
 void func_8003733C(s32 arg0, s32 flags, UNUSED s32 arg2, s32 index, s32 level) {
+    if (arg2) {}
     if (index >= 0 && index < 8) {
-        flags |= D_800A2DD8[index];
+        flags |= D_800A2DD8[index] & 0xFF;
     }
     if (level >= 0x20) {
         if (level >= 0x80) {

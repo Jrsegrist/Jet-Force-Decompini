@@ -1397,15 +1397,13 @@ void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 arg4);
 extern u8 D_800A6BA8[12]; // JFG: the digit glyphs, then '-' and blank
 extern u16 *D_800FECB0;   // JFG: the previous frame's image
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: frame 0x88 (target 0x80, buffer at sp+0x54) and one delay slot; the code is otherwise the same */
 /* JFG: draw number into the previous frame, right-aligned in width digits (nothing if it is wider). */
-void func_8006DF90(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
-    char buffer[40];
+void frame_number_draw(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
     s32 len = 0;
-    s32 i = 0;
     u8 glyph;
+    s32 i = 0;
     char c;
+    char buffer[28];
 
     sprintf(buffer, "%d", number);
     while (buffer[len] != '\0') {
@@ -1423,15 +1421,13 @@ void func_8006DF90(s32 x, s32 y, s32 number, s32 width, s32 arg4) {
                 } else if (c >= '0' && c <= '9') {
                     glyph = D_800A6BA8[c - '0'];
                 }
+                if (c && c && c) {} // fake (found by the permuter): keeps the '-' arm's branch delay slot empty
             }
             func_8006DD20(D_800FECB0, glyph, x, y, arg4);
             x += 10;
         } while (buffer[i] != '\0');
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006DF90);
-#endif
 
 /* JFG: queue an entry in the current buffer (up to 0x94). */
 void screen_line_add_raw(s32 x, s32 u, s32 y, s32 v, s32 flag) {
@@ -1685,7 +1681,7 @@ extern void *D_80102D78[4];
 extern u8 D_80102D9C[4];
 extern ScreenEffectFunc D_800A6E1C[4];
 void func_80054530();
-void func_800531C8(void *addr);
+s32 func_800531C8(void *addr); /* returns a value (51AD0.c): that keeps IDO off v0 after the call */
 
 /* JFG: clear the four effect slots; a slot is flagged when its handler is the unloaded-module trap. */
 void effect_slots_init(void) {
@@ -1715,10 +1711,8 @@ void effect_slots_update(void) {
     D_80102D54 = 0;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: from the clear loop on, temps numbered one lower and the handler in v0 (target v1) */
 /* JFG: start effect slot (1-4) with a width x height byte pair: two cleared buffers of that size, then its handler. */
-void func_8006F998(s32 slot, u8 *dims) {
+void effect_slot_start(s32 slot, u8 *dims) {
     u8 *buf1;
     u8 *buf2;
     s32 count;
@@ -1729,7 +1723,7 @@ void func_8006F998(s32 slot, u8 *dims) {
     if (D_80102D60[slot] == NULL) {
         D_80102D60[slot] = buf1 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
         D_80102D78[slot] = buf2 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
-        if (D_80102D60[slot] == NULL || buf2 == NULL) {
+        if (D_80102D60[slot] == NULL || D_80102D78[slot] == NULL) {
             D_80102D60[slot] = NULL;
             D_80102D78[slot] = NULL;
             return;
@@ -1745,9 +1739,6 @@ void func_8006F998(s32 slot, u8 *dims) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F998);
-#endif
 
 void mempool_free(void *data);
 

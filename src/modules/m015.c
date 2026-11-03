@@ -4,8 +4,9 @@
  */
 #ifdef NON_MATCHING
 /* The whole module in C, but the build uses the asm: func_m015_00000 is 4 instructions off (the joint loop's
-   counter k and its copy take a1/a0, the ROM a0/a1), and 025FC, 03740, 04658, 05328, 05ED4, 0663C, 068BC and
-   07BC8 still differ (the C text is 0x20 bytes longer). */
+   counter k and its copy take a1/a0, the ROM a0/a1); 03740 (float temps one register off from the 400.0f
+   compare on), 05328 (ax spilled, the ROM keeps it in a register; 0x18 bytes longer), 05ED4 (inv in f2, the
+   ROM f0) and 068BC (rate copies' registers) still differ. */
 /* func_8001149C returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
 #define func_8001149C func_8001149C_void
 #include "module.h"
@@ -1564,7 +1565,7 @@ static void func_m015_025FC(Object *obj, Racer *racer, s32 updateRate) {
                 D_m015_089C4 |= 2;
             }
         } else if (racer->unk56F != 0) {
-            if (racer->unk190 == 0) {
+            if (!racer->unk190) {
                 racer->unk190 = 0x3C;
                 D_m015_089C0 |= 1;
                 D_m015_089C4 |= 1;
@@ -1822,8 +1823,8 @@ static void func_m015_03564(Object *obj, Racer *racer, f32 speed, s16 angle, f32
 static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     f32 fall;
     s32 i;
-    s32 j;
     s32 oldTime;
+    s32 j;
     f32 q;
 
     racer->unk576 = 0;
@@ -2079,7 +2080,7 @@ static void func_m015_04658(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         return;
     }
     if (func_8005AAB8(racer->player) && chr->weapon != 7 &&
-        ((D_800A18B0->unk20 | D_800A18B0->unk1C) & gPlayerButtonsHeld)) {
+        ((s32) (D_800A18B0->unk20 | D_800A18B0->unk1C) & gPlayerButtonsHeld)) {
         if (D_800A18B0->unk1C & gPlayerButtonsHeld) {
             racer->unk4 -= 0.2f * updateRate;
             if (racer->unk4 < -(65.0f * D_m015_089D4)) {
@@ -2394,9 +2395,10 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
     if (vy < 0.0f) {
         ay = -ay;
     }
-    big = ax;
     if (ax < az) {
         big = az;
+    } else {
+        big = ax;
     }
     anim = obj->animationID;
     frame = obj->unk28;
@@ -2723,10 +2725,10 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
 static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
     f32 dx;
     f32 dz;
-    f32 t;
+    s32 pad0;
     s32 pad1;
     Vec3f vec;
-    f32 inv;
+    f32 t; /* also 1 / updateRate */
     f32 sine;
     s32 pad2;
     s32 hit;
@@ -2804,13 +2806,13 @@ static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
         obj->velocity.y < 4.0f) {
         func_80009A04(obj, 0.0f, racer->unk5C - D_m015_089DC - obj->trans.y_position, 0.0f);
     }
-    inv = 1.0f / updateRate;
-    dx = (obj->trans.x_position - racer->unk3C) * inv;
-    dz = (obj->trans.z_position - racer->unk44) * inv;
+    t = 1.0f / updateRate;
+    dx = (obj->trans.x_position - racer->unk3C) * t;
+    dz = (obj->trans.z_position - racer->unk44) * t;
     hit = func_80034BB0(obj, racer, updateRate);
-    obj->velocity.x = (obj->trans.x_position - racer->unk3C) * inv;
-    obj->velocity.y = (obj->trans.y_position - racer->unk40) * inv;
-    obj->velocity.z = (obj->trans.z_position - racer->unk44) * inv;
+    obj->velocity.x = (obj->trans.x_position - racer->unk3C) * t;
+    obj->velocity.y = (obj->trans.y_position - racer->unk40) * t;
+    obj->velocity.z = (obj->trans.z_position - racer->unk44) * t;
     if (racer->unk534 != 0 && obj->velocity.y > 0.0f) {
         obj->velocity.y = 0.0f;
     } else if (racer->unk510 != NULL && racer->unk532 != 0) {
@@ -2824,10 +2826,7 @@ static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
     rot.y_rotation = -angle;
     rot.x_rotation = -obj->trans.rotation.x_rotation;
     rot.z_rotation = -obj->trans.rotation.z_rotation;
-    vec.z = dz;
-    vec.y = 0.0f;
-    vec.x = dx;
-    func_80049394(&rot, &vec);
+    vec.x = dx; vec.y = 0.0f; vec.z = dz; func_80049394(&rot, &vec);
     dx = vec.x;
     if (racer->unk149 != 0) {
         racer->unk149 -= (s32) updateRate;
@@ -2906,19 +2905,10 @@ static void func_m015_0663C(Object *obj, Racer *racer, s32 updateRate) {
     }
     if (racer->unk1F5 > 0 && racer->state != 10) {
         pitch = racer->unk1DA;
-        if (pitch < -14563.553f) {
-            pitch = -0x38E3;
-        }
-        if (pitch > 14563.553f) {
-            pitch = 0x38E3;
-        }
+        /* each clamp on one line (IDO schedules by source line) */
+        if (pitch < -14563.553f) { pitch = -0x38E3; } if (pitch > 14563.553f) { pitch = 0x38E3; }
         yaw = racer->unk1D8;
-        if (yaw < -3640.8882f) {
-            yaw = -0xE38;
-        }
-        if (yaw > 3640.8882f) {
-            yaw = 0xE38;
-        }
+        if (yaw < -3640.8882f) { yaw = -0xE38; } if (yaw > 3640.8882f) { yaw = 0xE38; }
         racer->unk1F5 -= updateRate;
     } else {
         pitch = 0;
@@ -2951,10 +2941,10 @@ static void func_m015_068BC(Object *obj, Racer *racer, f32 updateRate) {
     obj->velocity.z = 0.0f;
     rate = updateRate;
     if (racer->unk579 > 0) {
-        v = racer->unk579 - (s32) updateRate;
+        v = racer->unk579 - rate;
         if (v >= 0) {
-            racer->unk579 -= rate;
             racer->unk11C -= racer->unk17C * rate;
+            racer->unk579 -= rate;
         } else if (v < 0) {
             racer->unk11C -= racer->unk17C * racer->unk579;
             racer->unk579 = 0;
@@ -2966,9 +2956,9 @@ static void func_m015_068BC(Object *obj, Racer *racer, f32 updateRate) {
             func_m015_05180(obj, racer, 0x23, 0);
         }
     } else if (racer->unk578 > 0 && racer->unk579 == 0) {
-        v = racer->unk578 - (s32) updateRate;
+        v = racer->unk578 - rate;
         if (v >= 0) {
-            racer->unk578 = v;
+            racer->unk578 -= rate;
             racer->unk4 = racer->unk170;
             racer->unk10 = racer->unk174;
         } else if (v < 0 && racer->unk578 > 0) {
@@ -3296,13 +3286,12 @@ static void func_m015_07890(Object *obj, Racer *racer, f32 speed, f32 angle, f32
 
 /* State 12 */
 static void func_m015_07BC8(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
-    s32 rate;
-    s32 rate2;
     s32 v;
     f32 f;
+    s32 rate;
 
     rate = updateRate;
-    rate2 = rate;
+    v = rate;
     racer->unk4 = 0.0f;
     racer->unk8 = 0.0f;
     racer->unk10 = 0.0f;
@@ -3311,13 +3300,13 @@ static void func_m015_07BC8(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (obj->animationID != 0x23) {
         func_m015_05180(obj, racer, 0x23, 0.0f);
     }
-    v = racer->unk578 - rate;
+    v = racer->unk578 - v;
     if (racer->unk578 != 0) {
         if (v >= 0) {
             obj->velocity.x = racer->unk170;
             obj->velocity.z = racer->unk174;
-            racer->unk578 -= rate2;
-            racer->unk11C -= racer->unk17C * rate2;
+            racer->unk11C -= racer->unk17C * rate;
+            racer->unk578 -= rate;
         } else if (v < 0 && racer->unk578 > 0) {
             f = racer->unk578;
             obj->velocity.x = racer->unk170 * f / updateRate;

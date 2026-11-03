@@ -376,28 +376,21 @@ s32 normalise_time(s32 timer) {
     }
 }
 
-#ifdef NON_MATCHING
-/* JFG: whether an object type is spawned by troop_buffer_push rather than spawn_object.
-   NON_MATCHING: the result goes through v1 and the branch delay slots are filled (target: v0, nops). */
-#define IS_TYPE(x) (ret = (objectID == (x)))
-s32 func_800050A8(s32 objectID) {
-    s32 ret;
-
-    IS_TYPE(0x29) || IS_TYPE(0x2A) || IS_TYPE(0x2B) || IS_TYPE(0x2D) || IS_TYPE(0x54) || IS_TYPE(0x149) ||
-        IS_TYPE(0x150) || IS_TYPE(0x151) || IS_TYPE(0x152) || IS_TYPE(0x153) || IS_TYPE(0x166) || IS_TYPE(0x5F) ||
-        IS_TYPE(0x67) || IS_TYPE(0xDF) || IS_TYPE(0xE0) || IS_TYPE(0xE1) || IS_TYPE(0x78) || IS_TYPE(0x8C) ||
-        IS_TYPE(0x83) || IS_TYPE(0x66) || IS_TYPE(0x11C) || IS_TYPE(0x11D) || IS_TYPE(0x11E) || IS_TYPE(0x11F) ||
-        IS_TYPE(0x120) || IS_TYPE(0x70) || IS_TYPE(0x90) || IS_TYPE(0xA5) || IS_TYPE(0x97) || IS_TYPE(0x157) ||
-        IS_TYPE(0x68) || IS_TYPE(0x6D) || IS_TYPE(0xBE) || IS_TYPE(0xBD) || IS_TYPE(0x269) || IS_TYPE(0xEE) ||
-        IS_TYPE(0xEF) || IS_TYPE(0x8D) || IS_TYPE(0x99) || IS_TYPE(0x9C) || IS_TYPE(0x12F) || IS_TYPE(0xE6) ||
-        IS_TYPE(0xF2) || IS_TYPE(0xF3) || IS_TYPE(0x121) || IS_TYPE(0xF1) || IS_TYPE(0xF5) || IS_TYPE(0xF6) ||
-        IS_TYPE(0x122) || IS_TYPE(0x143) || IS_TYPE(0x144) || IS_TYPE(0x112) || IS_TYPE(0x1E5);
-    return ret;
+/* returns int, not s32 (long): with int IDO computes each compare straight into v0, as the ROM does */
+/* JFG: whether an object type is spawned by troop_buffer_push rather than spawn_object. */
+int obj_id_is_troop_spawned(s32 objectID) {
+    return objectID == 0x29 || objectID == 0x2A || objectID == 0x2B || objectID == 0x2D || objectID == 0x54 ||
+           objectID == 0x149 || objectID == 0x150 || objectID == 0x151 || objectID == 0x152 || objectID == 0x153 ||
+           objectID == 0x166 || objectID == 0x5F || objectID == 0x67 || objectID == 0xDF || objectID == 0xE0 ||
+           objectID == 0xE1 || objectID == 0x78 || objectID == 0x8C || objectID == 0x83 || objectID == 0x66 ||
+           objectID == 0x11C || objectID == 0x11D || objectID == 0x11E || objectID == 0x11F || objectID == 0x120 ||
+           objectID == 0x70 || objectID == 0x90 || objectID == 0xA5 || objectID == 0x97 || objectID == 0x157 ||
+           objectID == 0x68 || objectID == 0x6D || objectID == 0xBE || objectID == 0xBD || objectID == 0x269 ||
+           objectID == 0xEE || objectID == 0xEF || objectID == 0x8D || objectID == 0x99 || objectID == 0x9C ||
+           objectID == 0x12F || objectID == 0xE6 || objectID == 0xF2 || objectID == 0xF3 || objectID == 0x121 ||
+           objectID == 0xF1 || objectID == 0xF5 || objectID == 0xF6 || objectID == 0x122 || objectID == 0x143 ||
+           objectID == 0x144 || objectID == 0x112 || objectID == 0x1E5;
 }
-#undef IS_TYPE
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800050A8);
-#endif
 
 /* JFG: a level object entry, reduced */
 typedef struct LevelObjectEntry53 {
@@ -414,7 +407,7 @@ extern s32 D_800F2D00;   // DKR: gObjectMapIndex
 extern s32 D_800F2C8C;
 void level_entry_remove(LevelObjectEntry53 *entry);
 s32 *asset_table_load(s32 tableID);
-s32 func_800050A8(s32 objectID);
+int obj_id_is_troop_spawned(s32 objectID);
 void troop_buffer_push(LevelObjectEntry53 *entry);
 void spawn_level_replacement(LevelObjectEntry53 *entry);
 void level_records_scan(s32 list, s32 size);
@@ -422,27 +415,24 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 arg1);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
-#ifdef NON_MATCHING
 /**
  * Load the object map into RAM, then start spawning objects into the world.
  * JFG: uncompressed maps, two lists, some objects spawned by other functions; no silver coins.
  * DKR: track_spawn_objects
- * NON_MATCHING: 10 words: two address temporaries spill one word lower, the mem spill is scheduled
- * earlier and the list compare takes its registers the other way round.
  */
-void func_800053F8(s32 mapID, s32 index) {
+void track_spawn_objects(s32 mapID, s32 index) {
     s32 assetSize;
-    UNUSED s32 pad; // DKR: settings
     s32 i;
-    s32 *mem;
     s32 var_s0;
+    s32 *mem;
     u32 assetOffset;
     s32 *objMapTable;
     s32 temp_t3;
 
-    mem = mempool_alloc_safe(0x3000, 0xFFFF);
-    D_800F2CF0[index] = mem;
-    D_800F2CD8[index] = (s32) mem + 0x10;
+    D_800F2CF0[index] = mempool_alloc_safe(0x3000, 0xFFFF);
+    // clang-format off
+    mem = D_800F2CF0[index]; D_800F2CD8[index] = (s32) mem + 0x10; // Required to be one line to match
+    // clang-format on
     D_800F2CE0[index] = 0;
     D_800F2CE8[index] = mapID;
     objMapTable = asset_table_load(0x1C);
@@ -459,11 +449,11 @@ void func_800053F8(s32 mapID, s32 index) {
         D_800F2CD8[index] = (s32) D_800F2CF0[index] + 0x10;
         D_800F2CE0[index] = *mem;
         D_800F2D00 = index;
-        if (&D_800F2CE8[index] == &D_800F2CE8[1]) {
+        if (index == 1) {
             level_records_scan(D_800F2CD8[index], D_800F2CE0[index]);
         }
         for (var_s0 = 0; var_s0 < D_800F2CE0[index]; var_s0 += temp_t3) {
-            if (func_800050A8(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
+            if (obj_id_is_troop_spawned(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
                 troop_buffer_push((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else if (((LevelObjectEntry53 *) D_800F2CD8[index])->objectID == 0x12E) {
                 spawn_level_replacement((LevelObjectEntry53 *) D_800F2CD8[index]);
@@ -479,9 +469,6 @@ void func_800053F8(s32 mapID, s32 index) {
         D_800F2C8C = 1;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800053F8);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000561C);
 
@@ -680,7 +667,7 @@ s32 func_8000740C(Object *obj, u8 *arg1) {
     return 0x28;
 }
 
-/* JFG: an object's sprite block (func_80007420) */
+/* JFG: an object's sprite block (obj_sprite_init) */
 typedef struct ObjectSprite {
     /* 0x00 */ f32 unk0;
     /* 0x04 */ void *texture;
@@ -698,31 +685,28 @@ extern u8 D_800A4FC4;
 extern void *D_800F2CA0;
 void *load_texture(s32 id);
 
-#ifdef NON_MATCHING
-/* JFG: set up the object's sprite block from its header and load its texture; returns the block's size (0 on failure).
-   NON_MATCHING: the flags copy and the zero stores are scheduled differently (same instructions). */
-s32 func_80007420(Object *obj, ObjectSprite *sprite) {
+/* JFG: set up the object's sprite block from its header and load its texture; returns the block's size (0 on failure). */
+s32 obj_sprite_init(Object *obj, ObjectSprite *sprite) {
     ObjectHeader *header;
-    s32 flags;
+    UNUSED s32 pad;
     s32 size;
 
     header = obj->header;
     obj->sprite = sprite;
     sprite->unk0 = header->unk54;
     sprite->unkC = header->unk61;
-    flags = sprite->unkC;
     sprite->unkD = header->unk62;
+    sprite->unkE = header->unk63;
     sprite->unkF = 0;
     sprite->unk8 = 0;
-    sprite->unkE = header->unk63;
-    sprite->unk1C = 0;
     sprite->unkA = header->unk66;
+    sprite->unk1C = 0;
     size = 0x20;
     if (D_800A4FC4 == 0) {
-        if (flags & 8) {
+        if (sprite->unkC & 8) {
             sprite->unk1C = (((s32) sprite + 0x20) & ~3) + 4;
             size = sprite->unk1C - (s32) sprite + 0xBC;
-        } else if (flags & 0x10) {
+        } else if (sprite->unkC & 0x10) {
             sprite->unk1C = (((s32) sprite + 0x20) & ~3) + 4;
             size = sprite->unk1C - (s32) sprite + 0x38;
         }
@@ -737,9 +721,6 @@ s32 func_80007420(Object *obj, ObjectSprite *sprite) {
     D_800F2CA0 = sprite->texture;
     return (size & ~3) + 4;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80007420);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007528);
 
@@ -1057,7 +1038,7 @@ typedef struct LevelModel {
 LevelModel *get_current_level_model(void);
 LevelModelSegmentBoundingBox *block_boundbox(s32 segmentID);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
-void func_800339D8(Object *obj, Object_Racer *racer); // JFG: restart a player
+void player_restart(Object *obj, Object_Racer *racer); // JFG: restart a player
 extern f32 D_800AA840; // 3000.0f, in .rodata (not split out yet)
 
 /**
@@ -1130,7 +1111,7 @@ s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos) {
             return TRUE;
         }
         if (obj->behaviorId == BHV_RACER) {
-            func_800339D8(obj, obj->racer);
+            player_restart(obj, obj->racer);
         }
         obj->segmentID = -1;
         return TRUE;

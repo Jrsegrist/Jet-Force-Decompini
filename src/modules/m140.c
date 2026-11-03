@@ -57,7 +57,7 @@ typedef struct M140Point {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern Object **func_80050F44(s32 *count);
-extern s32 func_80050ED0(s32 id);
+extern s32 obj_id_is_special(s32 id);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* squared distance? */
 extern s32 func_80049C84(f32 dx, f32 dz);
 extern s32 collision_line_test_objects(Object *obj, Object *other, f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
@@ -97,7 +97,7 @@ void func_m140_00000(Object *obj) {
     runlink_unload_timer_set(D_m140_003B0, 10, 5);
     while (count--) {
         o = list[count];
-        if (func_80050ED0(((M140Group *) o->unk68)->id) != 0) {
+        if (obj_id_is_special(((M140Group *) o->unk68)->id) != 0) {
             for (o = ((M140Group *) o->unk68)->first; o != NULL; o = c->next) {
                 c = o->unk68;
                 if (o->freed == 0 && c->health > 0) {

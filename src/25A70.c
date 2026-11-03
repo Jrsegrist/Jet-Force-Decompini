@@ -909,7 +909,7 @@ void func_800275CC(Object *obj, u8 *entry) {
 void *mempool_alloc(s32 size, u32 colourTag);
 s32 func_8003E638(void *out, Object *obj, u8 *target, s32 arg3, s32 arg4, s32 lo, s32 hi);
 s32 rand_range(s32 min, s32 max);
-s32 func_80050ED0(s32 objectID);
+s32 obj_id_is_special(s32 objectID);
 
 /* JFG: an object 0x10 bytes batch of a model (see LevelBatchInfo) */
 typedef struct ModelBatch275 {
@@ -969,7 +969,7 @@ void func_800275E8(Object *obj, u8 *entry) {
             *(s16 *) (state + 0x18) = rand_range(-5000, 5000);
             *(s16 *) (state + 0x1A) = rand_range(-5000, 5000);
             *(s16 *) (state + 0x1C) = rand_range(-5000, 5000);
-            if (func_80050ED0(*(s16 *) (*(u8 **) state + 0x4A))) {
+            if (obj_id_is_special(*(s16 *) (*(u8 **) state + 0x4A))) {
                 state[0x1E] = 0;
             } else {
                 state[0x1E] = 1;

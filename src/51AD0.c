@@ -6,16 +6,12 @@ const char D_800ACD00[] = "GFDS:%d ???\n";
 const char D_800ACD10[] = "**** WARNING: Duplicate squadron ID:%d ****\n";
 const char D_800ACD40[] = "WARNING:Can't lock to node, no nodes\n";
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: same logic, but the target computes every compare straight into $v0 (mine uses $at/$v1 + move) */
+/* returns int, not s32 (long): with int IDO computes each compare straight into v0, as the ROM does */
 /* JFG: whether an object id is one of a fixed set (0x11C..0x120 and six others). */
-s32 func_80050ED0(s32 id) {
+int obj_id_is_special(s32 id) {
     return (id >= 0x11C && id < 0x121) || id == 0x66 || id == 0x70 || id == 0x90 || id == 0x97 || id == 0x157 ||
            id == 0xA5;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80050ED0);
-#endif
 
 typedef struct TroopObject TroopObject;
 

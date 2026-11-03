@@ -85,7 +85,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_0007C);
 
-extern void func_8006F998(s32 arg0, void *tex);
+extern void effect_slot_start(s32 arg0, void *tex);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
 extern void func_80041CA0(Gfx **dl, Mtx **mtx, Object *obj, f32 scale, f32 arg4);
 extern void func_80041DC0(Gfx **dl);
@@ -114,7 +114,7 @@ void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
     g = *dl;
     ring = obj->unk68;
     m = *mtx;
-    func_8006F998(2, rl_m143_032D0);
+    effect_slot_start(2, rl_m143_032D0);
     func_80055C00(&g, rl_m143_032D0, 0x20E, 0);
     gDPSetPrimColor(g++, 0, 0, 255, 255, 0, 255);
     gDPSetEnvColor(g++, 229, 0, 0, 0);
@@ -172,7 +172,7 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     }
     rl_m143_032D0->flags &= ~0x100;
     ring->hit = 0;
-    func_8006F998(2, rl_m143_032D0);
+    effect_slot_start(2, rl_m143_032D0);
     h = (rl_m143_032D0->height - 1) << 5;
     u = 0;
     w = (rl_m143_032D0->width - 1) << 5;
