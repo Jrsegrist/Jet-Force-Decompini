@@ -2,6 +2,7 @@
  * Runlink module 143: an enemy kind that flies in a linked group.
  */
 #include "module.h"
+#include "gfx.h"
 
 /* What each member's obj->unk68 points at */
 typedef struct M143Member {
@@ -25,7 +26,10 @@ typedef struct M143Vtx {
     /* 0x00 */ s16 x;
     /* 0x02 */ s16 y;
     /* 0x04 */ s16 z;
-    /* 0x06 */ u8 pad6[4];
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
 } M143Vtx;
 
 /* What a ring's obj->unk68 points at */
@@ -81,9 +85,133 @@ INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_0007C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00280);
+extern void func_8006F998(s32 arg0, void *tex);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
+extern void func_80041CA0(Gfx **dl, Mtx **mtx, Object *obj, f32 scale, f32 arg4);
+extern void func_80041DC0(Gfx **dl);
+/* The start of a texture */
+typedef struct M143Texture {
+    /* 0x0 */ u8 width;
+    /* 0x1 */ u8 height;
+    /* 0x2 */ u8 pad2[4];
+    /* 0x6 */ s16 flags;
+} M143Texture;
 
+extern M143Texture *rl_m143_032D0; /* the ring's texture (.bss) */
+
+#ifdef NON_MATCHING
+/*
+ * Draws a ring: its three batches of vertices and their triangles. Same
+ * instructions; the ROM adds each batch's offset to the buffer start without
+ * the 0x300, and the scheduling and t-registers differ.
+ */
+void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
+    M143Ring *ring;
+    Gfx *g;
+    Mtx *m;
+    M143Vtx *v;
+
+    g = *dl;
+    ring = obj->unk68;
+    m = *mtx;
+    func_8006F998(2, rl_m143_032D0);
+    func_80055C00(&g, rl_m143_032D0, 0x20E, 0);
+    gDPSetPrimColor(g++, 0, 0, 255, 255, 0, 255);
+    gDPSetEnvColor(g++, 229, 0, 0, 0);
+    func_80041CA0(&g, &m, obj, 1.0f, 0.0f);
+    gDPPipeSync(g++);
+    v = &ring->verts[ring->buffer * 48];
+    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(v), 25, 0);
+    gSPPolygon(g++, OS_K0_TO_PHYSICAL(ring), 12, 1);
+    gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0xC0), 10, 1);
+    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(v + 22), 25, 0);
+    gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0x160), 12, 1);
+    gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0x220), 10, 1);
+    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(v + 44), 7, 0);
+    gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0x2C0), 4, 1);
+    func_80041DC0(&g);
+    gDPPipeSync(g++);
+    gDPSetEnvColor(g++, 255, 255, 255, 255);
+    gDPSetPrimColor(g++, 0, 0, 255, 255, 255, 255);
+    *dl = g;
+    *mtx = m;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00280);
+#endif
+
+#ifdef NON_MATCHING
+/*
+ * A ring's init: clears its vertices and lays out its 48 triangles round them,
+ * mapping the texture. The ROM unrolls the triangle loop twice and orders the
+ * stores differently.
+ */
+void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
+    M143Ring *ring;
+    M143Vtx *v;
+    Triangle *t;
+    s32 i;
+    s32 k;
+    s16 u;
+    s16 w;
+    s16 h;
+    s16 tmp;
+
+    ring = obj->unk68;
+    v = ring->verts;
+    i = 100;
+    while (i--) {
+        v->x = 0;
+        v->y = 0;
+        v->z = 0;
+        v->r = 0xFF;
+        v->g = 0xFF;
+        v->b = 0xFF;
+        v->a = 0xFF;
+        v++;
+    }
+    rl_m143_032D0->flags &= ~0x100;
+    ring->hit = 0;
+    func_8006F998(2, rl_m143_032D0);
+    h = (rl_m143_032D0->height - 1) << 5;
+    u = 0;
+    w = (rl_m143_032D0->width - 1) << 5;
+    k = 0;
+    t = (Triangle *) ring;
+    for (i = 0; i < 48; i += 2) {
+        t[0].flags = 0x40;
+        t[0].vi0 = k % 24;
+        t[0].vi1 = (k + 3) % 24;
+        t[0].vi2 = (k + 1) % 24;
+        t[0].uv[0][0] = u;
+        t[0].uv[0][1] = 0;
+        t[0].uv[1][0] = w;
+        t[0].uv[1][1] = h;
+        t[0].uv[2][0] = u;
+        t[0].uv[2][1] = h;
+        t[1].flags = 0x40;
+        t[1].vi0 = k % 24;
+        t[1].vi1 = (k + 2) % 24;
+        t[1].vi2 = (k + 3) % 24;
+        t[1].uv[0][0] = u;
+        t[1].uv[0][1] = 0;
+        t[1].uv[1][0] = w;
+        t[1].uv[1][1] = 0;
+        t[1].uv[2][0] = w;
+        t[1].uv[2][1] = h;
+        t += 2;
+        k += 2;
+        if (k >= 21) {
+            k = 0;
+        }
+        tmp = u;
+        u = w;
+        w = tmp;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00548);
+#endif
 
 /* A ring that grows outwards along the ground and hurts a player it passes */
 void func_m143_008C0(Object *obj, s32 speed) {

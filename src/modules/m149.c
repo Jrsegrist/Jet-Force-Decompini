@@ -167,16 +167,6 @@ extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a positio
 extern void func_80029BA4(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 
-/*
- * NON_MATCHING: .data, .rodata and five of the seven functions (009A4, 0121C,
- * 01868, 019C8, 01D20) match. Still different (register choice only):
- * func_m149_00000 keeps the phase in a3 and copies it to a2 for the final
- * module 3 call (the original has it in a2, one instruction shorter), and
- * func_m149_01450 holds obj->header->unk50 in v0 instead of v1 for the
- * second collision call. Every function uses .rodata, so the default build
- * uses the assembly for the whole module.
- */
-#ifdef NON_MATCHING
 static s16 sSpeed = 0x140; /* the boss's speed along its way */
 
 static M149State sState;
@@ -190,7 +180,7 @@ void func_m149_00000(Object *obj) {
     Object *ownerObj;
     M149OwnerData *owner;
     Object *player;
-    s32 pad54;
+    s32 cur;
     M149State *state;
     M149HitZone *zone;
     s32 first;
@@ -303,13 +293,14 @@ void func_m149_00000(Object *obj) {
     }
     if (owner->unk30 == 3 && e->unk4A == 0 && e->unk1A != 5 && state->phase != 4 &&
         func_m003_04260(0x10, 5, 0, 0, 0)) {
-        phase = state->phase;
+        cur = state->phase;
+        phase = cur;
         action = 6;
         if (phase & 0x80) {
             action = 7;
         } else {
             state->unk0 = 0;
-            switch (state->phase) {
+            switch (cur) {
                 case 1:
                     if ((e->parts & 0x10) && (e->parts & 0x20)) {
                         phase = state->phase = 2;
@@ -602,10 +593,8 @@ void func_m149_01450(Object *obj, s32 updateRate) {
     rate = updateRate;
     bolt = obj->unk68;
     bolt->age++;
-    func_8001CE10(1, &bolt->prev, (Vec3f *) &obj->trans.x_position, &obj->header->unk50->radius, 0xCE000000, 0,
-                  0);
-    hitWall = func_80016208(obj, &bolt->prev, (Vec3f *) &obj->trans.x_position, obj->header->unk50->radius,
-                            obj->header->unk50->unk10, &hit);
+    func_8001CE10(1, &bolt->prev, (Vec3f *) &obj->trans.x_position, &obj->header->unk50->radius, 0xCE000000, 0, 0);
+    hitWall = func_80016208(obj, &bolt->prev, (Vec3f *) &obj->trans.x_position, obj->header->unk50->radius, obj->header->unk50->unk10, &hit);
     bolt->prev.x = obj->trans.x_position;
     bolt->prev.y = obj->trans.y_position;
     bolt->prev.z = obj->trans.z_position;
@@ -808,24 +797,3 @@ void func_m149_01D20(Object *obj, f32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_00000);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_009A4);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_0121C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_01450);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_01868);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_019C8);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", func_m149_01D20);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", data);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", rodata);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m149", bss);
-#endif

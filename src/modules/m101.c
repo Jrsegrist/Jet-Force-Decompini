@@ -51,7 +51,64 @@ INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_0056C);
 
+/* The pane's level entry */
+typedef struct M101Setup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ s16 yRotation;
+    /* 0x0C */ s16 xRotation;
+    /* 0x0E */ s16 zRotation;
+    /* 0x10 */ u8 scale;
+    /* 0x11 */ u8 pad11;
+    /* 0x12 */ u8 strength;
+} M101Setup;
+
+/* The model the pane's texture comes from */
+typedef struct M101Model {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ M101Texture **textures;
+} M101Model;
+
+extern f32 rl_m101_01174;       /* a .rodata float: the scale factor */
+extern Vertex rl_m101_01134[];  /* the quad's vertices (.data) */
+
+#ifdef NON_MATCHING
+/* Registers: the ROM loads the texture through a0/a3 and computes pane->tris early in v1 */
+void func_m101_009F8(Object *obj, M101Setup *setup) {
+    M101Pane *pane;
+    Triangle *t;
+    s32 i;
+
+    obj->trans.rotation.y_rotation = setup->yRotation;
+    pane = obj->unk68;
+    obj->trans.rotation.x_rotation = setup->xRotation;
+    obj->trans.rotation.z_rotation = setup->zRotation;
+    obj->trans.scale = obj->header->scale * setup->scale * rl_m101_01174;
+    PANE_STATE(obj)->strength = setup->strength << 8;
+    if (PANE_STATE(obj)->strength <= 0) {
+        PANE_STATE(obj)->strength = 0x100;
+    }
+    PANE_STATE(obj)->buffer = 1;
+    pane->texture = (*(M101Model **) obj->modelInstances[0])->textures[0];
+    pane->quadTris[0] = pane->tris[0];
+    pane->quadTris[1] = pane->tris[1];
+    pane->quadVerts = rl_m101_01134;
+    for (i = 0; i < 2; i++) {
+        t = pane->quadTris[i];
+        t->flags = 0x40;
+        t->vi0 = 0;
+        t->vi1 = 1;
+        t->vi2 = 2;
+        t++;
+        t->flags = 0x40;
+        t->vi0 = 0;
+        t->vi1 = 2;
+        t->vi2 = 3;
+    }
+    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_009F8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_00B64);
 

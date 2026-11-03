@@ -14,7 +14,9 @@ typedef struct M068Setup {
 
 /* The boss's state (obj->unk68), as far as used here */
 typedef struct M068State {
-    /* 0x00 */ u8 pad0[0x58];
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ s32 flags; /* 0x20: (unknown) */
+    /* 0x4C */ u8 pad4C[0x58 - 0x4C];
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
     /* 0x60 */ u8 pad60[0x6C - 0x60];
@@ -257,11 +259,118 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0092C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_00C70);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0104C);
+/* What hit the boss */
+typedef struct M068HitSource {
+    /* 0x00 */ u8 pad0[0x2F];
+    /* 0x2F */ u8 damage;
+} M068HitSource;
+
+/* A hit on the boss */
+typedef struct M068Hit {
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ M068HitSource *source;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ f32 x;
+    /* 0x14 */ f32 y;
+    /* 0x18 */ f32 z;
+} M068Hit;
+
+extern f32 func_80049BEC(f32 base, s32 exponent);
+extern s32 func_80049C84(f32 x, f32 z); /* the angle of a vector */
+extern s16 angle_lerp(s16 from, s16 to, f32 t);
+extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32 arg7, f32 scale);
+extern void func_m008_00334(f32 x, f32 y, f32 z, s32 alpha, s32 arg4);
+
+/* The boss is hit: a shot of behaviour 0x9E throws sparks back along its path */
+void func_m068_0104C(Object *obj, Object *shot, M068Hit *hit) {
+    M068State *s;
+    s32 i;
+    Vec3f v;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 len;
+    s32 alpha;
+    s16 yaw;
+    s16 pitch;
+    s32 lo;
+    s32 hi;
+    UNUSED s32 pad;
+    Vec3s rot;
+
+    s = obj->unk68;
+    if (hit->source->damage <= 0) {
+        return;
+    }
+    if (shot->behaviorId == 0x9E) {
+        alpha = obj->shading->unk0 * 255.0f;
+        dx = -shot->velocity.x;
+        dy = -shot->velocity.y;
+        dz = -shot->velocity.z;
+        len = func_80097140(dx * dx + dy * dy + dz * dz);
+        dx /= len;
+        dz /= len;
+        dy /= len;
+        yaw = func_80049C84(dx, dz) + 0x8000;
+        pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+        if (s->flags & 0x20) {
+            lo = 1;
+            hi = 4;
+        } else {
+            lo = 5;
+            hi = 10;
+        }
+        for (i = 0; i < 6; i++) {
+            v.x = 0.0f;
+            v.y = 0.0f;
+            v.z = -(f32) func_80048E2C(lo, hi);
+            rot.y_rotation = func_80048E2C(-0x1000, 0x1000) + yaw;
+            rot.x_rotation = func_80048E2C(-0x1000, 0x1000) + pitch;
+            func_8004944C(&rot, &v);
+            func_m008_001CC(hit->x, hit->y, hit->z, v.x, v.y, v.z, alpha, 4, 2.0f);
+        }
+    } else if (s->flags & 0x20) {
+        func_m008_00334(hit->x, hit->y, hit->z, obj->shading->unk0 * 255.0f, 4);
+        func_80003410(func_80048E2C(0xAB, 0xAD), hit->x, hit->y, hit->z, 4, NULL);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_01330);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_01628);
+extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
+extern Vec3f *rl_m068_1261C;   /* what it looks at */
+extern f32 rl_m068_12620;      /* its height over the centre */
+extern f32 rl_m068_12624;      /* its distance from the centre */
+extern f32 rl_m068_1274C;      /* a .rodata float: how slowly it settles */
+extern f32 rl_m068_13740;      /* the centre (.bss) */
+extern f32 rl_m068_13748;
+extern f32 rl_m068_1374C;
+
+/* A cut-scene camera: moves towards its place round the centre and turns to its target */
+void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 f;
+    s16 yaw;
+    s16 pitch;
+
+    x = func_80049C34(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740;
+    y = rl_m068_1374C + rl_m068_12620;
+    z = func_80049C30(rl_m068_1260C) * rl_m068_12624 + rl_m068_13748;
+    f = 1.0f - func_80049BEC(rl_m068_1274C, updateRate);
+    cam->trans.x_position += (x - cam->trans.x_position) * f;
+    cam->trans.y_position += (y - cam->trans.y_position) * f;
+    cam->trans.z_position += (z - cam->trans.z_position) * f;
+    x = cam->trans.x_position - rl_m068_1261C->x;
+    y = cam->trans.y_position - rl_m068_1261C->y;
+    z = cam->trans.z_position - rl_m068_1261C->z;
+    yaw = 0x8000 - func_80049C84(x, z);
+    pitch = func_80049C84(y, func_80097140(x * x + z * z));
+    cam->trans.rotation.y_rotation = angle_lerp(cam->trans.rotation.y_rotation, yaw, f);
+    cam->trans.rotation.x_rotation = angle_lerp(cam->trans.rotation.x_rotation, pitch, f);
+    cam->trans.rotation.z_rotation = angle_lerp(cam->trans.rotation.z_rotation, 0, f);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_017EC);
 
@@ -432,7 +541,25 @@ void func_m068_0C874(Object *obj, M068ShotSetup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0C944);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0CDD8);
+extern f32 rl_m068_129EC; /* a .rodata float: the scale of the later frames */
+
+/* Draws a shot as a sprite: its first frame opaque, the later ones see-through and scaled */
+void func_m068_0CDD8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068Sprite *sprite;
+    f32 scale;
+
+    sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[obj->modelIndex];
+    if (obj->modelIndex == 0) {
+        func_8005600C(255, 255, 255, 0, 255, 40);
+        scale = obj->trans.scale;
+    } else {
+        func_8005600C(255, 255, 255, 150, 255, 150);
+        scale = obj->trans.scale * rl_m068_129EC;
+    }
+    render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position,
+                               obj->trans.z_position, 0, scale, obj->unk28, 12, obj->opacity);
+    func_80056064();
+}
 
 void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
     f32 len;
@@ -800,7 +927,113 @@ void func_m068_0F2FC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     model->drawn = 0;
 }
 
+/* A falling boulder's state (obj->unk68) */
+typedef struct M068Boulder {
+    /* 0x00 */ u8 *colour; /* its light's colour, or NULL */
+    /* 0x04 */ Vec3f trail[5];
+    /* 0x40 */ Vec3f velocity;
+    /* 0x4C */ f32 speed;
+    /* 0x50 */ u8 pad50[0x5C - 0x50];
+    /* 0x5C */ f32 radius;
+    /* 0x60 */ u8 pad60[0x6C - 0x60];
+    /* 0x6C */ u8 r;
+    /* 0x6D */ u8 g;
+    /* 0x6E */ u8 b;
+    /* 0x6F */ u8 pad6F;
+    /* 0x70 */ s16 unk70;
+    /* 0x72 */ s16 unk72;
+    /* 0x74 */ s16 kind;
+} M068Boulder;
+
+/* A boulder's level entry */
+typedef struct M068BoulderSetup {
+    /* 0x0 */ u8 pad0[3];
+    /* 0x3 */ u8 kind;
+} M068BoulderSetup;
+
+extern void func_80049394(Vec3s *rotation, Vec3f *vec);
+extern s32 rl_m068_125E8;       /* how many trail points (.data) */
+extern s32 rl_m068_125FC;       /* the boulders made (.data) */
+extern Vec3f rl_m068_136F0[];   /* the trail's start (.bss) */
+
+#ifdef NON_MATCHING
+/*
+ * A boulder: starts 1000 units back along a random direction, with a trail, a
+ * speed and a size. The frame is 8 bytes bigger (rotation 4 higher) and the
+ * temporaries after the trail end are one lower than the ROM's.
+ */
+void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
+    M068Boulder *b;
+    s32 i;
+    f32 f;
+    ObjectHeaderUnk50 *hit;
+    Vec3f *t;
+    Vec3f *src;
+    Vec3f v;
+    Vec3s rot;
+
+    b = obj->unk68;
+    b->unk70 = 0;
+    b->kind = setup->kind;
+    rot.y_rotation = 0;
+    rot.x_rotation = 0x3000;
+    rot.z_rotation = func_80048E2C(-0x7FBC, 0x7FBC);
+    v.x = 0.0f;
+    v.y = 0.0f;
+    v.z = -1000.0f;
+    func_80049394(&rot, &v);
+    obj->trans.x_position += v.x;
+    obj->trans.y_position += v.y;
+    obj->trans.z_position += v.z;
+    for (i = 0, t = b->trail, src = rl_m068_136F0; i < rl_m068_125E8; i++, t++, src++) {
+        t->x = src->x;
+        t->y = src->y;
+        t->z = src->z;
+    }
+    if (rl_m068_125E8 > 0) {
+        rot.y_rotation = 0;
+        rot.x_rotation = 0x4000;
+        rot.z_rotation = func_80048E2C(-0x3000, 0x3000);
+        v.x = 0.0f;
+        v.y = 0.0f;
+        v.z = func_80048E2C(-400, -200);
+        func_80049394(&rot, &v);
+        t = &b->trail[rl_m068_125E8 - 1];
+        t->x += v.x;
+        t->y += v.y;
+        t->z += v.z;
+    }
+    f = func_80048E2C(100, 200) / 10.0f;
+    b->speed = f;
+    b->velocity.x = -v.x;
+    b->velocity.y = -v.y;
+    b->velocity.z = -v.z;
+    b->unk72 = f * 100.0f;
+    if (obj->light != NULL && *obj->light != 0) {
+        b->colour = (u8 *) *obj->light + 0x48;
+        b->r = b->colour[8];
+        b->g = b->colour[9];
+        b->b = b->colour[10];
+    } else {
+        b->colour = NULL;
+        b->r = 155;
+        b->g = 155;
+        b->b = 155;
+    }
+    obj->trans.scale = func_80048E2C(30, 100) / 100.0f;
+    hit = obj->header->unk50;
+    b->radius = hit->radius * obj->trans.scale;
+    func_80079D1C(obj, 0x100, 1, 5, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x10);
+    if (b->kind == 2 || b->kind == 1) {
+        ((u8 *) obj->interactObj)[0x2F] = 0;
+    } else {
+        ((u8 *) obj->interactObj)[0x2F] = 100;
+    }
+    rl_m068_125FC++;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F478);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F7C8);
 
@@ -993,7 +1226,101 @@ void func_m068_10FE8(Object *obj, M068BlockSetup *setup) {
     ((M068Object *) obj)->radius = model->radius * obj->trans.scale;
 }
 
+/* A point the pieces fly from: a vertex of the model */
+typedef struct M068Point {
+    /* 0x0 */ u16 vertex;
+    /* 0x2 */ u16 unk2;
+} M068Point;
+
+/* A model vertex (size 0xA) */
+typedef struct M068Vertex {
+    /* 0x0 */ s16 x;
+    /* 0x2 */ s16 y;
+    /* 0x4 */ s16 z;
+    /* 0x6 */ u8 pad6[4];
+} M068Vertex;
+
+/* The model of the object that breaks up */
+typedef struct M068BreakModel {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ M068Vertex *vertices;
+    /* 0x20 */ u8 pad20[0x30 - 0x20];
+    /* 0x30 */ M068Point *points;
+} M068BreakModel;
+
+/* What obj->unk5C points at here: the object's matrices */
+typedef struct M068Matrices {
+    /* 0x000 */ u8 pad0[0x80];
+    /* 0x080 */ MtxF mtx[2];
+    /* 0x100 */ u8 pad100[0x12B - 0x100];
+    /* 0x12B */ u8 current;
+} M068Matrices;
+
+extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* transforms a point */
+extern Object *rl_m068_12F70[6]; /* the six pieces (.bss) */
+extern MtxF rl_m068_1250C;       /* (.data) */
+extern f32 rl_m068_12A20;        /* a .rodata float */
+
+/* Breaks the object up: sends each of the six pieces flying out from its point of the model, then frees it */
+#ifdef NON_MATCHING
+/* Frame and slots match; the t-registers of the set-up are one higher and two loads swap places */
+void func_m068_110E0(Object *obj, s32 updateRate) {
+    s32 *state;
+    M068BreakModel *model;
+    MtxF *mtx;
+    Object *piece;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    M068PieceSetup entry;
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 i;
+    f32 d;
+    M068Vertex *v;
+    UNUSED s32 pad[1];
+
+    state = obj->unk68;
+    if (*state != 0) {
+        model = *(M068BreakModel **) obj->modelInstances[obj->modelIndex];
+        mtx = &((M068Matrices *) obj->unk5C)->mtx[((M068Matrices *) obj->unk5C)->current];
+        entry.objectID = 0x65;
+        entry.active = 1;
+        entry.yRotation = obj->trans.rotation.y_rotation;
+        entry.xRotation = obj->trans.rotation.x_rotation;
+        entry.mtx = &rl_m068_1250C;
+        entry.unk1C = 3.0f;
+        entry.zRotation = obj->trans.rotation.z_rotation;
+        entry.unk20 = 2.0f;
+        entry.unk28 = rl_m068_12A20;
+        for (i = 0; i < 6; i++) {
+            v = &model->vertices[model->points[i].vertex];
+            func_80048B60(mtx, v->x, v->y, v->z, &x, &y, &z);
+            entry.x = x;
+            entry.y = y;
+            entry.z = z;
+            dx = x - obj->trans.x_position;
+            dy = y - obj->trans.y_position;
+            dz = z - obj->trans.z_position;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            piece = rl_m068_12F70[i];
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            entry.velocity.x = dx;
+            entry.velocity.y = dy;
+            entry.velocity.z = dz;
+            entry.speed = d / 10.0f;
+            func_m068_10DD4(piece, &entry);
+            piece->trans.scale = obj->trans.scale;
+        }
+        func_800079B8(obj);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_110E0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", data);
 

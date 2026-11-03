@@ -49,8 +49,14 @@ typedef struct M067Shot {
     /* 0x7 */ u8 unk7;
 } M067Shot;
 
-extern s32 rl_m067_00008(s32 from, s32 to, f32 *x, f32 *y, f32 *z, s16 *yRotation, s16 *xRotation);
+/* A jump point's data (the unk68 of an object with behaviour 0x68) */
+typedef struct M067JumpPoint {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ s16 id;
+} M067JumpPoint;
+
 extern M067JumpKind rl_m067_04430[];
+extern s8 rl_m067_04580[][8]; /* the jump kind between two jump points (-1: none) */
 extern s16 func_80049D80(s16 angle, s16 target);
 
 /* The enemy's state (obj->unk68), as far as used here */
@@ -129,15 +135,44 @@ extern void func_80069BE8(Gfx **dl, void *flame, s32 arg2, s32 alpha);
 extern void mtx_pop(Gfx **dl);
 extern void effect_texture_pair_free(void *flame);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00000);
+void func_m067_00000(UNUSED s32 arg0) {
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00008);
+/*
+ * Finds the jump point with the given id (its position and rotation go to the
+ * pointers) and returns the jump kind from point `from` to it (2 with no `from`)
+ */
+static s32 func_m067_00008(s32 from, s32 to, f32 *x, f32 *y, f32 *z, s16 *yRotation, s16 *xRotation) {
+    s32 first;
+    s32 count;
+    Object **objs;
+    Object *o;
+    M067JumpPoint *p;
+
+    objs = func_80005E98(&first, &count);
+    count -= first;
+    objs = first + objs;
+    while (count--) {
+        o = *objs++;
+        if (o->behaviorId == 0x68 && (p = o->unk68)->id == to) {
+            *x = o->trans.x_position;
+            *y = o->trans.y_position;
+            *z = o->trans.z_position;
+            *yRotation = o->trans.rotation.y_rotation;
+            *xRotation = o->trans.rotation.x_rotation;
+        }
+    }
+    if (from != -1) {
+        return rl_m067_04580[from][to];
+    }
+    return 2;
+}
 
 /* Starts a jump to target (an index into the jump table); returns whether there was one */
 s32 func_m067_00130(Object *obj, M067Jump *j, s32 target) {
     s32 kind;
 
-    kind = rl_m067_00008(j->target, target, &j->dest.x, &j->dest.y, &j->dest.z, &j->yRotation2, &j->xRotation2);
+    kind = func_m067_00008(j->target, target, &j->dest.x, &j->dest.y, &j->dest.z, &j->yRotation2, &j->xRotation2);
     if (kind != -1) {
         j->kind = kind;
         j->target = target;
@@ -274,7 +309,99 @@ void func_m067_02BF0(Gfx **dl, Object *obj, s32 part) {
     }
 }
 
+/* A missile's set-up */
+typedef struct M067MissileSetup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ s16 yRotation;
+    /* 0x0C */ s16 xRotation;
+    /* 0x0E */ s16 zRotation;
+    /* 0x10 */ u8 scale;
+    /* 0x11 */ s8 speedY;
+    /* 0x12 */ u16 unk12;
+    /* 0x14 */ s16 unk14;
+    /* 0x16 */ s16 unk16;
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s32 unk1C;
+} M067MissileSetup;
+
+/* A missile's whole state (obj->unk68) */
+typedef struct M067MissileState {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ s8 unk1;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ f32 thrust;
+    /* 0x08 */ void *flame;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ s16 unk14;
+    /* 0x16 */ s16 unk16;
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ s32 unk20;
+} M067MissileState;
+
+/* A model vertex (size 0xA) */
+typedef struct M067Vertex {
+    /* 0x0 */ s16 x;
+    /* 0x2 */ s16 y;
+    /* 0x4 */ s16 z;
+    /* 0x6 */ u8 pad6[4];
+} M067Vertex;
+
+/* The missile's model */
+typedef struct M067Model {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ M067Vertex *vertices;
+    /* 0x20 */ u8 pad20[0x30 - 0x20];
+    /* 0x30 */ u16 *flameVertex; /* the vertex the flame comes from */
+} M067Model;
+
+extern f32 rl_m067_04E5C; /* the .rodata scale factor */
+extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8, s32 arg9);
+
+#ifdef NON_MATCHING
+/* Scheduling: from the speedY conversion on, every t-register is one lower than the ROM's */
+void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
+    f32 k;
+    M067Model *model;
+    M067Vertex *v;
+    M067MissileState *m;
+
+    k = rl_m067_04E5C;
+    obj->trans.rotation.y_rotation = setup->yRotation;
+    obj->trans.rotation.x_rotation = setup->xRotation;
+    m = obj->unk68;
+    obj->trans.rotation.z_rotation = setup->zRotation;
+    obj->trans.scale = setup->scale * k;
+    obj->velocity.x = 0.0f;
+    obj->velocity.y = setup->speedY * k;
+    obj->velocity.z = 0.0f;
+    m->unkC = 0.0f;
+    m->unk10 = setup->unk12 * k;
+    m->unk1E = 0;
+    m->unk14 = setup->unk14;
+    m->unk16 = setup->unk16;
+    m->unk18 = setup->unk18;
+    m->unk1A = 0;
+    m->unk1C = 0;
+    m->unk1E = 0;
+    m->unk20 = setup->unk1C;
+    model = *(M067Model **) obj->modelInstances[0];
+    v = &model->vertices[*model->flameVertex];
+    m->thrust = 0.0f;
+    m->unk2 = 0;
+    m->unk3 = 0;
+    m->flame = effect_mesh_create(v->x, v->y, v->z, -0x8000, 0, 20.0f, 200.0f, 8, 16, -1);
+    m->unk0 = 0;
+    m->unk1 = setup->unk1A * 6;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_02E38);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_02FDC);
 

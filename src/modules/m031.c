@@ -26,12 +26,23 @@ typedef struct M031Checkpoint {
 
 /* A racer's record (size 0x28) */
 typedef struct M031Racer {
-    /* 0x00 */ u8 pad0[0x15];
+    /* 0x00 */ Object *next;     /* the checkpoint ahead */
+    /* 0x04 */ Object *previous; /* the checkpoint behind */
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ f32 distance;     /* from the plane of the checkpoint behind */
+    /* 0x14 */ u8 unk14;
     /* 0x15 */ u8 computer;
-    /* 0x16 */ u8 pad16[0x19 - 0x16];
+    /* 0x16 */ s8 unk16;
+    /* 0x17 */ s8 unk17;
+    /* 0x18 */ s8 position;
     /* 0x19 */ u8 boosts;
     /* 0x1A */ u8 pickup; /* 1: oil, 2: bomb */
-    /* 0x1B */ u8 pad1B[0x28 - 0x1B];
+    /* 0x1B */ u8 unk1B;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ u8 unk1E;
+    /* 0x1F */ u8 pad1F[0x24 - 0x1F];
+    /* 0x24 */ s32 unk24;
 } M031Racer;
 
 extern s8 D_800A4FB4;
@@ -98,7 +109,8 @@ extern s32 rl_m031_03F78, rl_m031_03F90, rl_m031_03FB4, rl_m031_03FCC, rl_m031_0
 static s32 sBss0;
 static s32 sCountdown;
 static Object *sCheckpoints[256];
-static Object *sBss408[(0x498 - 0x408) / 4]; /* the objects 0x274 */
+static Object *sBss408[32]; /* the objects 0x274 */
+static s32 sBss488[4];
 static M031Racer sRacers[4];
 
 /* Whether racer n is computer-driven */
@@ -273,6 +285,7 @@ Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
     return best;
 }
 #else
+Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat);
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_005AC);
 #endif
 
@@ -336,7 +349,7 @@ s32 func_m031_006F0(Object *checkpoint, f32 x, f32 y, f32 z, s32 flat) {
 }
 
 /* The distance of a point from a checkpoint's plane */
-f32 func_m031_007B4(Object *checkpoint, f32 x, f32 y, f32 z) {
+f32 func_m031_007B4(Object *checkpoint, f32 x, f32 y, f32 z, UNUSED s32 flat) {
     M031Checkpoint *c;
     f32 dist = 32768.0f;
 
@@ -347,7 +360,79 @@ f32 func_m031_007B4(Object *checkpoint, f32 x, f32 y, f32 z) {
     return dist;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_0080C);
+extern Object **func_8000E464(s32 *count); /* the players */
+extern s32 rl_m031_040EC; /* (.data) */
+extern s32 rl_m031_040F0;
+extern s32 rl_m031_040F4;
+extern s32 rl_m031_040F8;
+
+/* Starts the race: finds each racer's checkpoints and resets its record */
+void func_m031_0080C(void) {
+    s32 i;
+    M031Racer *r;
+    s32 count;
+    Object **players;
+    Object *checkpoint;
+    Object *player;
+    u8 *data;
+    s32 side;
+
+    func_m031_00230();
+    players = func_8000E464(&count);
+    r = sRacers;
+    for (i = 0; i < count; i++, r++) {
+        player = *players++;
+        side = 0;
+        if (player != NULL) {
+            checkpoint = func_m031_005AC(player->trans.x_position, player->trans.y_position, player->trans.z_position, 1);
+            side = func_m031_006F0(checkpoint, player->trans.x_position, player->trans.y_position, player->trans.z_position, 1);
+            if (checkpoint != NULL) {
+                data = checkpoint->unk68;
+            }
+        }
+        switch (side) {
+            default:
+                r->next = NULL;
+                r->previous = NULL;
+                break;
+            case -1:
+                r->next = func_m031_0066C(*data);
+                r->previous = checkpoint;
+                break;
+            case 1:
+                r->next = checkpoint;
+                r->previous = func_m031_006AC(*data);
+                break;
+        }
+        r->unk8 = 0;
+        r->unkC = 0;
+        r->distance = func_m031_007B4(r->previous, player->trans.x_position, player->trans.y_position,
+                                      player->trans.z_position, 1);
+        r->unk14 = 0;
+        r->computer = i >= count - D_800A4FD4;
+        r->unk16 = i - 1;
+        r->unk17 = i - 1;
+        r->position = i;
+        r->boosts = D_800A5038;
+        r->pickup = 0;
+        r->unk1B = 0;
+        r->unk1C = 0;
+        r->unk1E = 0;
+        r->unk24 = 0;
+    }
+    sCountdown = 360;
+    if (*(u8 *) &D_800A4FB4 != 0 && D_800A503C == 0) {
+        sCountdown += 300;
+    }
+    rl_m031_040EC = 0;
+    rl_m031_040F0 = -1;
+    sBss488[0] = 0;
+    sBss488[1] = 0;
+    sBss488[2] = 0;
+    sBss488[3] = 0;
+    rl_m031_040F4 = 0;
+    rl_m031_040F8 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00A3C);
 
