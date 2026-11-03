@@ -103,7 +103,8 @@ void func_m043_00014(Object *obj, s32 updateRate) {
     if (*OBJ_STATE(obj, s32) != 0) {
         i = 2;
         while (i--) {
-            switch (e->kind[i]) {
+            b = e->kind[i];
+            switch (b) {
                 case 0:
                     got[i] = game_flag_get(e->id[i]);
                     break;
@@ -143,7 +144,8 @@ void func_m043_00014(Object *obj, s32 updateRate) {
         func_8005F5AC(obj, updateRate);
     }
     if (dx * dx + dz * dz < e->radiusSq && e->minY < dy && dy < e->maxY) {
-        switch (e->kind[0]) {
+        b = e->kind[0];
+        switch (b) {
             case 0:
                 func_80047EFC(e->id[0], 1);
                 break;

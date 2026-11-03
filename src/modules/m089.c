@@ -74,6 +74,8 @@ extern void obj_tex_animate(Object *, M089Model *, M089Instance *, s32);
 
 #ifdef NON_MATCHING
 s32 D_m089_00460 = 89; /* the module's number */
+static s32 sUnused[3] = { 0, 0, 0 }; /* the ROM's .data has three zero words before the string */
+static char sLookupFormat[] = "GVP:%x, %s, %d\n";
 #else
 /* the module's number, followed by the format string of the vertex lookup's stubbed print */
 extern s32 D_m089_00460;
@@ -111,8 +113,7 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
             tri = &model->triangles[batch->firstTriangle];
             for (i = 0; i < batch[1].firstTriangle - batch->firstTriangle; i++, tri++) {
                 for (k = 0; k < 3; k++) {
-                    if ((raw = tri->vi[k]) + batch->firstVertex == index) {
-                        vi = raw + batch->firstVertex;
+                    if ((vi = (raw = tri->vi[k]) + batch->firstVertex) == index) {
                         v = &inst->vertices[vi];
                         if (raw < batch->limits[0]) {
                             bone = batch->bones[0];
@@ -129,7 +130,7 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
         }
         batch++;
     }
-    stubbed_printf("GVP:%x, %s, %d\n", obj, NULL, index); /* only its format string is in the ROM */
+    stubbed_printf(sLookupFormat, obj, NULL, index); /* only its format string is in the ROM (.data) */
     return 0;
 }
 #else

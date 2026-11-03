@@ -150,7 +150,78 @@ void func_m022_023FC(M022Helper *helper) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02410);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02430);
+/* A task goal: a count to reach, or flags to have */
+typedef struct M022Goal {
+    /* 0x0 */ u8 unk0;
+    /* 0x1 */ u8 kind; /* 0, 1: the counters; else the flags */
+    /* 0x2 */ u16 value;
+} M022Goal;
+
+/* The task's goals: two lists */
+typedef struct M022Goals {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 count1;
+    /* 0x03 */ u8 count2;
+    /* 0x04 */ M022Goal list1[3];
+    /* 0x10 */ M022Goal list2[1];
+} M022Goals;
+
+extern u8 D_800FD790;  /* counters the goals count */
+extern u8 D_800FD791;
+extern u16 D_800FD792; /* flags */
+extern M022Goals *rl_m022_03410;
+extern u8 rl_m022_03420; /* a bit per goal reached */
+
+/* Counts a thing done (kind 0 or 1) or sets flag `bit`, then sees which goals are reached */
+void func_m022_02430(s32 bit, s32 kind) {
+    M022Goals *g;
+    M022Goal *e;
+    s32 i;
+    s32 mask;
+
+    switch (kind) {
+        case 0:
+            D_800FD790++;
+            break;
+        case 1:
+            D_800FD791++;
+            break;
+    }
+    if (bit >= 0) {
+        D_800FD792 |= 1 << bit;
+    }
+    rl_m022_03420 = 0;
+    mask = 1;
+    g = rl_m022_03410;
+    bit = g->count1; /* the goals left in the list */
+    e = g->list1;
+    i = 2;
+    while (i--) {
+        while (bit--) {
+            switch (e->kind) {
+                case 0:
+                    if (D_800FD790 >= e->value) {
+                        rl_m022_03420 |= mask;
+                    }
+                    break;
+                case 1:
+                    if (D_800FD791 >= e->value) {
+                        rl_m022_03420 |= mask;
+                    }
+                    break;
+                default:
+                    if ((D_800FD792 & e->value) == e->value) {
+                        rl_m022_03420 |= mask;
+                    }
+                    break;
+            }
+            e++;
+            mask <<= 1;
+        }
+        bit = g->count2;
+        e = g->list2;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_025B8);
 
@@ -167,7 +238,60 @@ void func_m022_02990(void) {
     set_game_paused(1);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02A34);
+extern s32 func_80045DC0(void);
+extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern void func_80001248(s32 sound, s32 arg1);
+extern void transition_begin(void *transition);
+extern u8 D_800A4FC8; /* a second player plays */
+extern u8 rl_m022_033FC[];
+
+/* The task's pause screen: A/start leave it, B and Z move between its pages */
+void func_m022_02A34(void) {
+    Object *player;
+    s32 buttons;
+    u8 *data;
+
+    if (func_80045DC0()) {
+        return;
+    }
+    rl_m022_03430 = 1;
+    buttons = func_80043510(0);
+    if (D_800A4FC8) {
+        buttons |= func_80043510(1);
+    }
+    if (*(s8 *) &rl_m022_03438 == 2) {
+        if (buttons & 0x9000) {
+            func_80001248(0x16B, 0);
+            transition_begin(rl_m022_033FC);
+            func_80045B98(24, 30, 168, 138, 0, 0, 320, 240, -1);
+            rl_m022_03430 = 0;
+            rl_m022_0342C = 0;
+            set_game_paused(0);
+        } else if (buttons & 0x4000) {
+            func_80001248(0x16B, 0);
+            rl_m022_03438 = 5;
+            rl_m022_0343C = 2;
+            rl_m022_03440 = 0;
+        } else if (buttons & 0x2000) {
+            func_80001248(0x16C, 0);
+            if (++*(u8 *) &rl_m022_03434 >= 3) {
+                *(u8 *) &rl_m022_03434 = 0;
+            }
+        }
+    } else if (buttons & 0x9000) {
+        func_80001248(0x16B, 0);
+        player = func_8000E4D0(0);
+        if (player != NULL && (data = player->unk68) != NULL) {
+            data[0x10D] = 5;
+        }
+        set_game_paused(0);
+    } else if (buttons & 0x4000) {
+        func_80001248(0x16B, 0);
+        rl_m022_03438 = 2;
+        rl_m022_0343C = 3;
+        rl_m022_03440 = 0;
+    }
+}
 
 /* Places the plate camera above the plate, turned towards the camera (useAngle) or along `yaw` */
 void func_m022_02C0C(Object *obj, s32 yaw, s32 useAngle) {

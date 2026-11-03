@@ -232,6 +232,11 @@ extern s32 rl_m068_12600;
 extern s32 rl_m068_12614;
 extern s32 rl_m068_12618;
 
+/* The module's .rodata and .bss (still assembly) */
+extern f32 rl_m068_129F8;
+extern f32 rl_m068_129FC;
+extern u8 rl_m068_12A38[];
+
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_00000);
 
 void func_m068_00014(Object *obj, M068Setup *setup) {
@@ -239,7 +244,10 @@ void func_m068_00014(Object *obj, M068Setup *setup) {
     obj->trans.rotation.x_rotation = setup->xRotation;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0002C);
+/* The tilt list (in the module's .bss) */
+void *func_m068_0002C(s32 arg0) {
+    return rl_m068_12A38;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0003C);
 
@@ -665,8 +673,6 @@ void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0ED10);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0EF2C);
-
 /* A shock ring spreading from the boss's landing (obj->unk68) */
 typedef struct M068Ring {
     /* 0x00 */ s32 sound;
@@ -677,6 +683,24 @@ typedef struct M068Ring {
     /* 0x14 */ f32 scale;
     /* 0x18 */ s32 damage; /* 0 once it has hit */
 } M068Ring;
+
+/* What the ring's init gets */
+typedef struct M068RingSetup {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 damage;
+    /* 0x0C */ f32 fadeStart;
+    /* 0x10 */ f32 end;
+} M068RingSetup;
+
+void func_m068_0EF2C(Object *obj, M068RingSetup *setup) {
+    M068Ring *ring = obj->unk68;
+
+    ring->scale = rl_m068_129F8;
+    ring->damage = setup->damage;
+    ring->fadeStart = setup->fadeStart;
+    ring->end = setup->end;
+    ring->growth = rl_m068_129FC;
+}
 
 /* What the player keeps in obj->unk68, as far as used here */
 typedef struct M068Player {

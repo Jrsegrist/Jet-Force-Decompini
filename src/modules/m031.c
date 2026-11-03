@@ -8,12 +8,20 @@
 
 /* A checkpoint object's data (obj->unk68) */
 typedef struct M031Checkpoint {
-    /* 0x00 */ u8 pad0[0xC];
+    /* 0x00 */ u8 number;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 pad3[0x8 - 0x3];
+    /* 0x08 */ f32 unk8;
     /* 0x0C */ f32 radiusSq;
     /* 0x10 */ f32 nx; /* the plane through the checkpoint */
     /* 0x14 */ f32 ny;
     /* 0x18 */ f32 nz;
     /* 0x1C */ f32 d;
+    /* 0x20 */ struct {
+        f32 x;
+        f32 z;
+    } corners[4];
 } M031Checkpoint;
 
 /* A racer's record (size 0x28) */
@@ -90,7 +98,7 @@ extern s32 rl_m031_03F78, rl_m031_03F90, rl_m031_03FB4, rl_m031_03FCC, rl_m031_0
 static s32 sBss0;
 static s32 sCountdown;
 static Object *sCheckpoints[256];
-static u8 sBss408[0x498 - 0x408];
+static Object *sBss408[(0x498 - 0x408) / 4]; /* the objects 0x274 */
 static M031Racer sRacers[4];
 
 /* Whether racer n is computer-driven */
@@ -135,11 +143,138 @@ void func_m031_00044(s32 arg0, s32 x, s32 y, s32 arg3, s32 arg4, s32 r, s32 g, s
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00230);
+extern s32 rl_m031_040DC; /* checkpoints found */
+extern s32 rl_m031_040E0; /* objects 0x274 found */
+extern s32 rl_m031_040E4;
+extern s32 rl_m031_040E8;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00364);
+/* Collects the checkpoints (by their number) and the objects 0x274 from the object list */
+void func_m031_00230(void) {
+    Object **objs;
+    s32 first;
+    s32 count;
+    s32 i;
+    Object *obj;
 
+    i = 256;
+    while (i--) {
+        sCheckpoints[i] = NULL;
+    }
+    rl_m031_040DC = 0;
+    rl_m031_040E0 = 0;
+    rl_m031_040E4 = -1;
+    rl_m031_040E8 = 0;
+    objs = func_80005E98(&first, &count);
+    objs = first + objs;
+    i = count - first;
+    while (i--) {
+        obj = *objs++;
+        if (obj->behaviorId == 0x79) {
+            u8 *data = obj->unk68;
+            sCheckpoints[*data] = obj;
+            rl_m031_040DC++;
+        } else if (obj->objectID == 0x274) {
+            sBss408[rl_m031_040E0] = obj;
+            rl_m031_040E0++;
+        }
+    }
+}
+
+/* What a checkpoint's init gets */
+typedef struct M031CheckpointSetup {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ u8 number;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 yaw;
+    /* 0x0D */ u8 radius;
+    /* 0x0E */ s8 corners[4]; /* along the checkpoint, in 8ths */
+    /* 0x12 */ u8 unk12;
+    /* 0x13 */ u8 unk13;
+} M031CheckpointSetup;
+
+/* The module's .rodata (still assembly) */
+extern f32 rl_m031_04458;
+extern f32 rl_m031_0445C;
+extern f32 rl_m031_04460; /* farther than any checkpoint (squared) */
+
+void func_m031_00364(Object *obj, M031CheckpointSetup *setup) {
+    f32 s;
+    f32 co;
+    M031Checkpoint *c = obj->unk68;
+    f32 k;
+
+    obj->trans.scale = setup->radius * rl_m031_04458;
+    obj->trans.rotation.y_rotation = setup->yaw << 10;
+    obj->trans.rotation.x_rotation = 0;
+    obj->trans.rotation.z_rotation = 0;
+    c->number = setup->number;
+    c->unk1 = setup->unk12;
+    c->unk2 = setup->unk13;
+    c->unk8 = setup->unkB * rl_m031_0445C;
+    c->radiusSq = setup->radius * 4;
+    c->radiusSq = c->radiusSq * c->radiusSq;
+    s = func_80049C34(obj->trans.rotation.y_rotation);
+    co = func_80049C30(obj->trans.rotation.y_rotation);
+    c->nx = func_80049C34(obj->trans.rotation.y_rotation);
+    c->ny = 0.0f;
+    c->nz = func_80049C30(obj->trans.rotation.y_rotation);
+    c->d = -(c->nx * obj->trans.x_position + c->nz * obj->trans.z_position);
+    k = setup->corners[0] * 8;
+    c->corners[0].x = obj->trans.x_position + k * co;
+    c->corners[0].z = obj->trans.z_position - k * s;
+    k = setup->corners[1] * 8;
+    c->corners[1].x = obj->trans.x_position + k * co;
+    c->corners[1].z = obj->trans.z_position - k * s;
+    k = setup->corners[2] * 8;
+    c->corners[2].x = obj->trans.x_position + k * co;
+    c->corners[2].z = obj->trans.z_position - k * s;
+    k = setup->corners[3] * 8;
+    c->corners[3].x = obj->trans.x_position + k * co;
+    c->corners[3].z = obj->trans.z_position - k * s;
+}
+
+#ifdef NON_MATCHING
+/*
+ * The nearest checkpoint to (x, y, z) (flat: by x and z only; otherwise the height difference is
+ * added, unsquared). NON_MATCHING: the sum and the distance swap f16 and f18.
+ */
+Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
+    Object *best;
+    f32 bestDist;
+    Object **p;
+    s32 i;
+    Object *obj;
+    f32 dx;
+    f32 dz;
+    f32 sq;
+    f32 dist;
+
+    bestDist = rl_m031_04460;
+    p = sCheckpoints;
+    best = NULL;
+    i = 256;
+    while (i--) {
+        obj = *p++;
+        if (obj != NULL) {
+            dx = obj->trans.x_position - x;
+            dz = obj->trans.z_position - z;
+            sq = dx * dx + dz * dz;
+            dist = sq;
+            if (!flat) {
+                f32 dy = obj->trans.y_position - y;
+                dist = sq + dy;
+            }
+            if (best == NULL || dist < bestDist) {
+                best = obj;
+                bestDist = dist;
+            }
+        }
+    }
+    return best;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_005AC);
+#endif
 
 /* The checkpoint before `index` in the ring */
 Object *func_m031_0066C(s32 index) {
