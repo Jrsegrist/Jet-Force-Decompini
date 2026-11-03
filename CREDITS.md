@@ -192,5 +192,5 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 
 | DKR file | Functions |
 | --- | --- |
-| `src/tracks.c` | get_level_segment_waves, rewritten as JFG's func_8001B078 (the planes under a point in every segment there, sorted by height; DKR's pointer loop and sort kept); with it func_8001ACE0 (track_nearest_triangle, round 9) drops its NON_MATCHING |
+| `src/tracks.c` | get_level_segment_waves, rewritten as JFG's func_8001B078 (the planes under a point in every segment there, sorted by height; DKR's pointer loop and sort kept); with it track_nearest_triangle (round 9) drops its NON_MATCHING |
 | `src/screen_asset.c` | screenimage_load (screenLoad): its earlier NON_MATCHING body now matches (one word for the header and the compressed data, colour tag 0xFFFF) |
