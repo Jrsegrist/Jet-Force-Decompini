@@ -177,6 +177,25 @@ typedef struct M068Glow {
         _g->words.w1 = 0;                                                              \
     }
 
+/* A sprite with its colour */
+typedef struct M068Sprite {
+    /* 0x0 */ u8 pad0[8];
+    /* 0x8 */ u8 r;
+    /* 0x9 */ u8 g;
+    /* 0xA */ u8 b;
+    /* 0xB */ u8 a;
+    /* 0xC */ u8 unkC;
+    /* 0xD */ u8 unkD;
+} M068Sprite;
+
+extern u8 rl_m068_12630[];
+extern void func_8000A300(Gfx **dl, s32 arg1, void *model, void *data, f32 *pos, void *arg5, f32 arg6, s32 arg7,
+                          s32 colour, s32 arg9);
+extern void func_8005600C(s32 r, s32 g, s32 b, s32 a, s32 arg4, s32 arg5);
+extern void render_sprite_billboard_at(Gfx **dl, s32 arg1, s32 arg2, M068Sprite *sprite, s32 x, s32 y, s32 z, s32 arg7, f32 scale,
+                          f32 arg9, s32 arg10, s32 alpha);
+extern void func_80056064(void);
+
 extern void func_80049BA0(MtxF *mtx); /* identity */
 extern void func_80049F08(Object *obj, MtxF *out);
 extern void func_80055B80(Gfx **dl);
@@ -429,7 +448,33 @@ void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D05C);
 
+#ifdef NON_MATCHING
+/* Registers: every t-register after the model lookup is one lower than the ROM's */
+void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    s16 *state = obj->unk68;
+    M068Sprite *sprite;
+    M068Sprite *colour;
+
+    if (state[3] == 0) {
+        func_8000A300(dl, arg2, ((void **) obj->modelInstances)[obj->modelIndex], rl_m068_12630,
+                      &obj->trans.x_position, (u8 *) obj->interactObj + 0x18, 8.0f, -1, 0x8C0EF4FF, 0x200);
+        sprite = *(M068Sprite **) ((M068Header *) obj->header)->models;
+        func_8005600C(sprite->r, sprite->g, sprite->b, sprite->a, sprite->unkC, sprite->unkD);
+        render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
+                      2.0f, 0.0f, 12, 255);
+        func_80056064();
+    } else {
+        colour = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
+        sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[1];
+        func_8005600C(colour->r, colour->g, colour->b, colour->a, colour->unkC, colour->unkD);
+        render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
+                      2.0f, obj->unk28, 12, 100);
+        func_80056064();
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
+#endif
 
 #ifdef NON_MATCHING
 /* The vertex clear loop: IDO unrolls it twice here, the ROM's is not unrolled */

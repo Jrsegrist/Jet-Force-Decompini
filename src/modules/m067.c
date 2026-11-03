@@ -103,6 +103,18 @@ typedef struct M067DustEntry {
     /* 0x10 */ f32 scale;
 } M067DustEntry;
 
+/* What obj->interactObj points at here */
+typedef struct M067HitShape {
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ f32 radius;
+} M067HitShape;
+
+extern void spawn_object_from_list(s32 kind, s16 x, s16 y, s16 z, s32 arg4, s32 arg5); /* a burst */
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+
+/* The level's fog */
+extern void func_8001BC2C(s32 arg0, s16 *fogNear, s16 *fogFar, s16 *arg3, u8 *r, u8 *g, u8 *b, u8 *arg7);
+
 extern Object *rl_m067_04574[2]; /* the two enemies of a pair */
 extern s32 rl_m067_0456C;
 extern void rl_m067_0025C(void);
@@ -230,7 +242,37 @@ INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00D70);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00EF4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_02BF0);
+/* Sets the fog for drawing one of the enemy's parts: a flash colour, or the level's fog */
+void func_m067_02BF0(Gfx **dl, Object *obj, s32 part) {
+    s16 fogNear;
+    s16 fogFar;
+    s16 unused;
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 unused2;
+    s32 flags;
+    M067State *s;
+
+    if (part >= 0 && part < 6) {
+        s = obj->unk68;
+        flags = (&s->unk9)[part];
+        if (flags & 0x40) {
+            gDPSetFogColor((*dl)++, 255, 255, 255, 255);
+            gSPFogFactor((*dl)++, 0x500, 0x500);
+        } else if (flags & 0x10) {
+            gDPSetFogColor((*dl)++, 0x32, 0xFF, 0x32, 0xFF);
+            gSPFogFactor((*dl)++, 0x500, 0x500);
+        } else if (flags & 4) {
+            gDPSetFogColor((*dl)++, 0xFF, 0x32, 0x32, 0xFF);
+            gSPFogFactor((*dl)++, 0x500, 0x500);
+        } else {
+            func_8001BC2C(0, &fogNear, &fogFar, &unused, &r, &g, &b, &unused2);
+            gDPSetFogColor((*dl)++, r, g, b, 255);
+            gSPFogPosition((*dl)++, fogNear, fogFar);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_02E38);
 
@@ -271,7 +313,36 @@ void func_m067_038C0(Object *obj, M067ShotSetup *setup) {
     func_80079D1C(obj, s->strength << 8, 1, 4, 0, 0, 0, 80.0f, 80.0f, 100.0f, 1.0f, 0x11);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_0399C);
+/* A bolt: spins and flies until its time is up, and bursts when it hits something */
+void func_m067_0399C(Object *obj, s32 updateRate) {
+    f32 rate;
+    f32 radius;
+    Vec3f from;
+    HitResult hit;
+    M067Shot *s = obj->unk68;
+
+    rate = updateRate;
+    if (obj->interactObj->hitPoints <= 0 || s->unk7) {
+        spawn_object_from_list(3, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 100, 0);
+        func_800079B8(obj);
+        return;
+    }
+    s->timer -= updateRate;
+    if (s->timer < 0) {
+        func_800079B8(obj);
+        return;
+    }
+    obj->trans.rotation.z_rotation += updateRate << 12;
+    from.x = obj->trans.x_position;
+    from.y = obj->trans.y_position;
+    from.z = obj->trans.z_position;
+    func_80009A04(obj, obj->velocity.x * rate, obj->velocity.y * rate, obj->velocity.z * rate);
+    radius = ((M067HitShape *) obj->interactObj)->radius;
+    func_8001CE10(1, &from, (Vec3f *) &obj->trans.x_position, &radius, 0xCE002000, 0, 0);
+    if (func_80016208(obj, &from, (Vec3f *) &obj->trans.x_position, radius, 1, &hit)) {
+        s->unk7 = 1;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_03B7C);
 
