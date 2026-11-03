@@ -44,26 +44,15 @@ extern s32 func_80015714(s32 *segments, s16 minX, s16 minY, s16 minZ, s16 maxX, 
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M110Model *func_8001B650(void);
 
-#ifdef NON_MATCHING
 static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ);
-#define MARK_BOX func_m110_00054
-#else
-/* the static function below, still assembly: called by its module offset name */
-extern void rl_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ);
-#define MARK_BOX rl_m110_00054
-#endif
 
 void func_m110_00000(Object *obj, M110Setup *setup, s32 arg2) {
     if (obj->objectID == 0x1C8) {
-        MARK_BOX(setup->common.x, setup->common.y, setup->common.z, setup->sizeX, setup->sizeY, setup->sizeZ);
+        func_m110_00054(setup->common.x, setup->common.y, setup->common.z, setup->sizeX, setup->sizeY, setup->sizeZ);
     }
 }
 
-#ifdef NON_MATCHING
-/*
- * Equivalent. The original's frame is 8 bytes bigger (one more spill slot
- * below the named locals) and it numbers a few temporaries differently.
- */
+/* Marks the level vertices inside the box (centre, half sizes) as exceptions, saving their colours */
 static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ) {
     s32 n;
     M110Model *model;
@@ -77,6 +66,7 @@ static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ
     s32 maxZ;
     M110Vertex *v;
     s32 k;
+    M110Segment *seg;
 
     minX = x - sizeX;
     minY = y - sizeY;
@@ -100,8 +90,9 @@ static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ
         return;
     }
     for (i = 0; i < n && D_800A0D84 < 0x80; i++) {
-        k = model->segments[segments[i]].numVertices;
-        v = model->segments[segments[i]].vertices;
+        seg = &model->segments[segments[i]];
+        k = seg->numVertices;
+        v = seg->vertices;
         while (k--) {
             x = v->x;
             y = v->y;
@@ -118,10 +109,6 @@ static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ
         }
     }
 }
-
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m110", func_m110_00054);
-#endif
 
 /* Puts the saved colours back */
 void func_m110_00320(void) {

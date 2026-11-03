@@ -92,18 +92,16 @@ void func_m039_0009C(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* registers: the original keeps the keyframe values in f14/f16/f18, spills two to the stack (frame 0x40) */
 #define BLEND(field) (cur->field + (next->field - cur->field) * frac)
 
 void func_m039_000D0(s32 updateRate) {
     M039Key *cur;
     M039Key *next;
     f32 frac;
+    s32 i;
     s32 r;
     s32 g;
     s32 b;
-    s32 i;
 
     sTime += updateRate / 60.0f;
     cur = &sKeys[sKey];
@@ -117,10 +115,10 @@ void func_m039_000D0(s32 updateRate) {
         }
     }
     next = cur + 1;
-    frac = sTime / cur->duration;
     if (next->duration == 0.0f) {
         next = sKeys;
     }
+    frac = sTime / cur->duration;
     sTrackRed = BLEND(trackRed);
     sTrackGreen = BLEND(trackGreen);
     sTrackBlue = BLEND(trackBlue);
@@ -138,9 +136,6 @@ void func_m039_000D0(s32 updateRate) {
         light_intensity_set(sLight, i);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m039", func_m039_000D0);
-#endif
 
 void func_m039_004FC(s16 *near, s16 *far, u8 *r, u8 *g, u8 *b) {
     *near = sFogNear;
