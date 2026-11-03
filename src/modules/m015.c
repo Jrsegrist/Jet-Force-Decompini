@@ -2933,19 +2933,18 @@ static void func_m015_068BC(Object *obj, Racer *racer, f32 updateRate) {
     s32 rate;
     s32 v;
     f32 f;
-    u32 a;
 
     racer->unk4 = 0.0f;
     racer->unk10 = 0.0f;
     racer->unk8 = 0.0f;
     obj->velocity.x = 0.0f;
     obj->velocity.z = 0.0f;
-    rate = updateRate; a = rate; if (a) {}
+    rate = updateRate;
     if (racer->unk579 > 0) {
-        v = racer->unk579 - a;
+        v = racer->unk579 - rate;
         if (v >= 0) {
-            racer->unk579 -= rate;
             racer->unk11C -= racer->unk17C * rate;
+            racer->unk579 -= rate;
         } else if (v < 0) {
             racer->unk11C -= racer->unk17C * racer->unk579;
             racer->unk579 = 0;
@@ -2957,9 +2956,9 @@ static void func_m015_068BC(Object *obj, Racer *racer, f32 updateRate) {
             func_m015_05180(obj, racer, 0x23, 0);
         }
     } else if (racer->unk578 > 0 && racer->unk579 == 0) {
-        v = racer->unk578 - a;
+        v = racer->unk578 - rate;
         if (v >= 0) {
-            racer->unk578 -= a;
+            racer->unk578 -= rate;
             racer->unk4 = racer->unk170;
             racer->unk10 = racer->unk174;
         } else if (v < 0 && racer->unk578 > 0) {
