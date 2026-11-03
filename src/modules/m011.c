@@ -707,17 +707,22 @@ void func_m011_015FC(M011Cam *cam, M011Cam *cam2, M011Target *target, f32 *x, f3
 #ifdef NON_MATCHING
 /*
  * The next path node object (behaviour 0x12) of path `path` from objs[*index] on, or NULL.
- * NON_MATCHING: same code; IDO keeps *index in v0 and the object in a0 where the ROM has a0/t0/v0.
+ * NON_MATCHING: same code but for two registers: `out` and the node pointer are in v0/t1 where the
+ * ROM has t1/v0 (the `out` copy and the empty `if (objs)` came from the permuter: 18 diffs -> 4).
  */
 static Object *func_m011_01BD0(s32 path, s32 *index, s32 count, Object **objs, M011Node **node) {
+    M011Node **out;
     Object *obj;
     Object *found;
 
     found = NULL;
+    if (objs) {
+    }
+    out = node;
     while (*index < count) {
         obj = objs[*index];
         if (obj->behaviorId == 0x12 && path == ((M011Node *) obj->unk68)->path) {
-            *node = obj->unk68;
+            *out = obj->unk68;
             found = obj;
         }
         (*index)++;

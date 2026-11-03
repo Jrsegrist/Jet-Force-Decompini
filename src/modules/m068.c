@@ -239,7 +239,15 @@ extern f32 rl_m068_129F8;
 extern f32 rl_m068_129FC;
 extern u8 rl_m068_12A38[];
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_00000);
+/* A part's set-up: only its turn */
+typedef struct M068TurnSetup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ u8 turn; /* in 1/64 turns */
+} M068TurnSetup;
+
+void func_m068_00000(Object *obj, M068TurnSetup *setup) {
+    obj->trans.rotation.y_rotation = setup->turn << 2 << 8;
+}
 
 void func_m068_00014(Object *obj, M068Setup *setup) {
     obj->trans.rotation.y_rotation = setup->yRotation;
@@ -251,11 +259,272 @@ void *func_m068_0002C(s32 arg0) {
     return rl_m068_12A38;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0003C);
+/* A light source of the level (what func_800218A8 lists) */
+typedef struct M068Light {
+    /* 0x00 */ u8 type;   /* 0: directional, 2: a column, 3: a cone, else a sphere */
+    /* 0x01 */ u8 falloff;
+    /* 0x02 */ u8 pad2;
+    /* 0x03 */ u8 flags;  /* 1: on, 0x20: counts as the brightest */
+    /* 0x04 */ u8 pad4[0x18 - 0x4];
+    /* 0x18 */ f32 x;
+    /* 0x1C */ f32 y;
+    /* 0x20 */ f32 z;
+    /* 0x24 */ u8 pad24[0x30 - 0x24];
+    /* 0x30 */ f32 radiusSq;
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ f32 minY;
+    /* 0x3C */ f32 maxY;
+    /* 0x40 */ u8 pad40[0x43 - 0x40];
+    /* 0x43 */ u8 intensity;
+    /* 0x44 */ f32 unk44;
+    /* 0x48 */ u8 pad48[0x60 - 0x48];
+    /* 0x60 */ f32 dirX;
+    /* 0x64 */ f32 dirY;
+    /* 0x68 */ f32 dirZ;
+    /* 0x6C */ u8 pad6C[0x70 - 0x6C];
+    /* 0x70 */ s32 colour;
+} M068Light;
+
+/* One light shining on an object (size 0x20) */
+typedef struct M068ShadeLight {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ u8 unk14;
+    /* 0x15 */ u8 intensity;
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 unk17;
+    /* 0x18 */ s32 colour;
+    /* 0x1C */ u8 pad1C[4];
+} M068ShadeLight;
+
+/* The lights shining on an object; lights[0] is the ambient light (its unk14: a shift) */
+typedef struct M068Shade {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ u8 ambient;
+    /* 0x0D */ u8 ambientBase;
+    /* 0x0E */ s16 count;
+    /* 0x10 */ M068ShadeLight lights[4];
+} M068Shade;
+
+/* The ambient light the level sets (what func_8004470C returns), as used here */
+typedef struct M068Level {
+    /* 0x00 */ u8 pad0[0xDB];
+    /* 0xDB */ u8 ambient;
+    /* 0xDC */ u8 ambientBase;
+    /* 0xDD */ u8 padDD[2];
+    /* 0xDF */ u8 hasAmbient;
+} M068Level;
+
+extern M068Level *func_8004470C(void);
+extern M068Light **func_800218A8(s32 *count);
+extern f32 light_falloff_scale(f32 scale, f32 arg1, f32 arg2, s32 type);
+extern f32 func_8002215C(f32 dirX, f32 dirY, f32 dirZ, f32 dx, f32 dy, f32 dz, f32 dist);
+extern void rl_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *z);
+
+/* Picks the (up to four) lights that shine on the boss and sets its ambient light */
+void func_m068_0003C(Object *obj, M068Shade *sh) {
+    M068Light **lights;
+    M068Light *light;
+    M068ShadeLight *e;
+    M068Level *level;
+    s32 i;
+    s32 j;
+    s32 s;
+    s32 brightest;
+    f32 k;
+    f32 px;
+    f32 py;
+    f32 pz;
+    s32 min;
+    s32 b;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s32 count;
+    UNUSED s32 pad;
+
+    sh->count = 1;
+    brightest = 0;
+    level = func_8004470C();
+    lights = func_800218A8(&count);
+    for (i = 0; i < count; i++) {
+        light = lights[i];
+        if ((light->flags & 1) && light->intensity != 0) {
+            if (light->type != 0) {
+                rl_m068_004D8(obj, light, &px, &py, &pz);
+                s = 0;
+                dx = light->x - px;
+                dy = light->y - py;
+                dz = light->z - pz;
+                d = dx * dx + dz * dz;
+                switch (light->type) {
+                    case 2:
+                        if (d < light->radiusSq && light->minY < py && py <= light->maxY) {
+                            s = light_falloff_scale(light->unk44, func_80097140(d), light->unk34, light->falloff);
+                        }
+                        break;
+                    case 3:
+                        d += dy * dy;
+                        if (d < light->radiusSq) {
+                            d = func_80097140(d);
+                            k = func_8002215C(light->dirX, light->dirY, light->dirZ, dx, dy, dz, d);
+                            if (k > 0.0f) {
+                                s = light_falloff_scale(light->unk44, d, light->unk34, light->falloff) * k;
+                            }
+                        }
+                        break;
+                    default:
+                        d += dy * dy;
+                        if (d < light->radiusSq) {
+                            s = light_falloff_scale(light->unk44, func_80097140(d), light->unk34, light->falloff);
+                        }
+                        break;
+                }
+            } else {
+                dx = light->dirX;
+                dy = light->dirY;
+                dz = light->dirZ;
+                s = light->intensity;
+            }
+            if (s != 0) {
+                if ((light->flags & 0x20) && brightest < s) {
+                    brightest = s;
+                }
+                if (sh->count < 4) {
+                    e = &sh->lights[sh->count];
+                    sh->count++;
+                } else {
+                    e = &sh->lights[1];
+                    min = sh->lights[1].intensity;
+                    for (j = 2; j < 4; j++) {
+                        if (sh->lights[j].intensity < min) {
+                            e = &sh->lights[j];
+                            min = sh->lights[j].intensity;
+                        }
+                    }
+                    if (e->intensity >= s) {
+                        e = NULL;
+                    }
+                }
+                if (e != NULL) {
+                    e->x = dx;
+                    e->y = dy;
+                    e->z = dz;
+                    e->unk14 = 0;
+                    e->unkC = (1 << (8 - sh->lights[0].unk14)) << 6;
+                    e->intensity = s;
+                    e->unk17 = 0;
+                    e->unk16 = s;
+                    e->unk10 = s << sh->lights[0].unk14;
+                    e->colour = light->colour;
+                }
+            }
+        }
+    }
+    if (level->hasAmbient) {
+        b = level->ambientBase;
+        s = level->ambient - b;
+    } else {
+        b = sh->ambientBase;
+        s = sh->ambient - b;
+    }
+    if (brightest >= 64) {
+        b = ((319 - brightest) * b) >> 8;
+        s = ((319 - brightest) * s) >> 8;
+    }
+    sh->lights[0].intensity = b + s;
+    sh->lights[0].unk16 = s;
+    sh->lights[0].unk17 = b;
+    sh->lights[0].unk10 = s << sh->lights[0].unk14;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_004D8);
 
+/* The boss's state fields its effects use (obj->unk68) */
+typedef struct M068Effects {
+    /* 0x00 */ u8 pad0[0x80];
+    /* 0x80 */ s16 alpha;
+    /* 0x82 */ s8 glowing;
+    /* 0x83 */ s8 glowKind;
+    /* 0x84 */ u8 pad84[0x88 - 0x84];
+    /* 0x88 */ s16 trails;
+} M068Effects;
+
+/* The boss's model instance */
+typedef struct M068Instance {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s8 hidden;
+    /* 0x0B */ s8 frame;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ MtxF *frames[1];
+} M068Instance;
+
+extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
+extern u8 rl_m068_124CC[]; /* the two trails' parameters (.data) */
+extern u8 rl_m068_124DC[];
+extern void rl_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2);
+
+#ifdef NON_MATCHING
+/*
+ * Draws the boss's trails and, while it glows, two glow models at its joints.
+ * Length and frame match; the temporaries are numbered one higher from the first joint load.
+ */
+void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068Effects *s;
+    M068DrawLists *lists;
+    M068DrawModel *model;
+    M068Instance *inst;
+    MtxF *mtx;
+
+    s = obj->unk68;
+    if (s->trails != 0) {
+        rl_m068_00C70(obj, s, rl_m068_124CC, dl, arg1, arg2);
+        rl_m068_00C70(obj, s, rl_m068_124DC, dl, arg1, arg2);
+    }
+    inst = obj->modelInstances[obj->modelIndex];
+    if (inst->hidden == 0 && s->glowing != 0) {
+        if (s->glowKind != 0) {
+            model = ((M068Header *) obj->header)->models[1];
+        } else {
+            model = ((M068Header *) obj->header)->models[2];
+        }
+        lists = model->lists;
+        mtx = inst->frames[inst->frame] + rl_m068_12564[0];
+        (*mtx)[0][3] = 0.0f;
+        (*mtx)[1][3] = 0.0f;
+        (*mtx)[2][3] = 0.0f;
+        (*mtx)[3][3] = 1.0f;
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, s->alpha);
+        mtx_model_push(dl, arg1, mtx);
+        gSPModelFrameJFG((*dl)++, model->frames[model->frame], OS_K0_TO_PHYSICAL(model->vertices));
+        gSPDisplayList((*dl)++, OS_K0_TO_PHYSICAL(lists->dl74));
+        if (s->glowKind != 0) {
+            model = ((M068Header *) obj->header)->models[3];
+        } else {
+            model = ((M068Header *) obj->header)->models[4];
+        }
+        lists = model->lists;
+        mtx = inst->frames[inst->frame] + rl_m068_12564[6];
+        (*mtx)[0][3] = 0.0f;
+        (*mtx)[1][3] = 0.0f;
+        (*mtx)[2][3] = 0.0f;
+        (*mtx)[3][3] = 1.0f;
+        mtx_model_push(dl, arg1, mtx);
+        gSPModelFrameJFG((*dl)++, model->frames[model->frame], OS_K0_TO_PHYSICAL(model->vertices));
+        gSPDisplayList((*dl)++, OS_K0_TO_PHYSICAL(lists->dl74));
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+        gSPModelFrameEndJFG((*dl)++);
+        mtx_pop(dl);
+        func_80055B80(dl);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0092C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_00C70);
 
@@ -335,7 +604,118 @@ void func_m068_0104C(Object *obj, Object *shot, M068Hit *hit) {
     }
 }
 
+/* A joint of the boss's hit model (0x34 bytes) */
+typedef struct M068Joint {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x2C */ s16 damage;
+    /* 0x2E */ u8 pad2E[0x34 - 0x2E];
+} M068Joint;
+
+/* What the boss's obj->interactObj points at */
+typedef struct M068Hits {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 hitPoints;
+    /* 0x08 */ u8 pad8[0x40 - 0x8];
+    /* 0x40 */ M068Joint *joints;
+} M068Hits;
+
+/* A run of joints forming one part of the boss (.data, 11 of them) */
+typedef struct M068Section {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s16 first; /* < 0: none */
+    /* 0x6 */ s16 last;
+    /* 0x8 */ u8 pad8[0xC - 0x8];
+} M068Section;
+
+/* A part's state (.bss, 11 of them) */
+typedef struct M068PartState {
+    /* 0x00 */ u8 pad0[0x13];
+    /* 0x13 */ s8 alive;
+    /* 0x14 */ u8 pad14[0x20 - 0x14];
+} M068PartState;
+
+/* An explosion near the boss */
+typedef struct M068Blast {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ f32 radius;
+    /* 0x10 */ f32 falloff; /* angle units per unit of distance */
+} M068Blast;
+
+extern M068Section rl_m068_1254C[11];
+extern M068PartState rl_m068_12F88[11];
+extern f32 rl_m068_12748; /* a .rodata float: larger than any distance */
+extern f32 func_80049C30(s32 angle); /* cosine */
+
+/* An explosion: the joint nearest it in each live part takes damage falling off with distance */
+#ifdef NON_MATCHING
+/*
+ * Same code and frame; the saved registers are assigned in another order (the
+ * ROM has blast in s0, hits s1, the part s2) and the limit (a float literal in
+ * the ROM, kept in f30) swaps with damage (f28).
+ */
+void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
+    M068Hits *hits = (M068Hits *) obj->interactObj;
+    M068Section *sec;
+    M068Joint *joint;
+    s32 i;
+    s32 j;
+    s32 best;
+    f32 bestDist;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    f32 f;
+    f32 limit;
+
+    limit = rl_m068_12748;
+    for (i = 0; i < 11; i++) {
+        sec = &rl_m068_1254C[i];
+        if (sec->first >= 0) {
+            best = -1;
+            if (rl_m068_12F88[i].alive) {
+                bestDist = limit;
+                for (j = sec->first; j <= sec->last; j++) {
+                    joint = &hits->joints[j];
+                    dx = blast->x - joint->x;
+                    dy = blast->y - joint->y;
+                    dz = blast->z - joint->z;
+                    dist = dx * dx + dy * dy + dz * dz - joint->radius * joint->radius;
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        best = j;
+                    }
+                }
+                if (best >= 0) {
+                    if (bestDist < 0.0f) {
+                        dist = 0.0f;
+                    } else {
+                        dist = func_80097140(bestDist);
+                    }
+                    if (dist <= blast->radius) {
+                        f = func_80049C30(blast->falloff * dist) * damage;
+                        hits->hitPoints -= (s32) f;
+                        f /= (f32) (sec->last - sec->first + 1);
+                        for (j = sec->first; j <= sec->last; j++) {
+                            hits->joints[j].damage += f;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_01330);
+#endif
 
 extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
@@ -582,7 +962,122 @@ void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
     func_80079D1C(obj, 0x100, 1, 4, 0, 0, 0, 10.0f, 10.0f, -1.0f, 1.0f, 0x11);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D05C);
+/* A beam's state (obj->unk68) */
+typedef struct M068BeamState {
+    /* 0x0 */ s32 unk0;
+    /* 0x4 */ s16 mode; /* flying: 0 until it hits something (2: it was shot down) */
+    /* 0x6 */ s16 burst; /* 0 while flying, then 1 while the burst plays */
+} M068BeamState;
+
+/* The entry of the object a beam leaves where it hits */
+typedef struct M068MarkEntry {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+} M068MarkEntry;
+
+/* The object fields this module uses past the common ones */
+typedef struct M068ObjectLight {
+    /* 0x00 */ u8 pad0[0x78];
+    /* 0x78 */ s32 *light;
+} M068ObjectLight;
+
+typedef struct M068AnimModel {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s32 anim;
+} M068AnimModel;
+
+extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern f32 rl_m068_129F0; /* a .rodata float: the sparks' speed scale */
+extern void corona_free(s32 light);
+
+/* A beam: flies until it hits, then bursts into sparks (and leaves a mark where it hit), then plays out */
+void func_m068_0D05C(Object *obj, s32 updateRate) {
+    M068BeamState *s;
+    UNUSED s32 pad1;
+    SparkParams spark;
+    M068MarkEntry entry;
+    UNUSED s32 pad2;
+    HitResult hit;
+    Vec3f from;
+    f32 rate;
+    s32 i;
+    s32 flags;
+    s16 angle;
+
+    s = obj->unk68;
+    if (s->burst == 0) {
+        if (((ObjectInteraction *) obj->interactObj)->hitPoints <= 0) {
+            s->mode = 2;
+        }
+        if (s->mode == 0) {
+            from.x = obj->trans.x_position;
+            rate = updateRate;
+            from.y = obj->trans.y_position;
+            from.z = obj->trans.z_position;
+            func_80009A04(obj, obj->velocity.x * rate, obj->velocity.y * rate, obj->velocity.z * rate);
+            s->mode = func_80018808(obj, &from, (Vec3f *) &obj->trans.x_position, &hit, 0, 0);
+            if (s->mode != 0) {
+                func_80009A04(obj, hit.pos.x - obj->trans.x_position, hit.pos.y - obj->trans.y_position,
+                              hit.pos.z - obj->trans.z_position);
+            }
+            obj->particleEmittersEnabled = 1;
+            func_8005F5AC(obj, updateRate);
+            return;
+        }
+        spark.x_position = obj->trans.x_position;
+        spark.y_position = obj->trans.y_position;
+        spark.z_position = obj->trans.z_position;
+        spark.unk18 = 20;
+        spark.unk1A = 20;
+        spark.unk1B = 190;
+        spark.unk1C = -1;
+        spark.unk20 = 0x8C0EF4FF;
+        spark.x_rotation = 0x2000;
+        angle = obj->trans.rotation.y_rotation - 0x4000;
+        rate = rl_m068_129F0;
+        for (i = 0; i < 8; i++) {
+            spark.y_rotation = angle;
+            spark.speed = func_80048E2C(10, 50) * rate;
+            spark.unk14 = func_80048E2C(10, 50) * rate;
+            func_m010_0000C(&spark);
+            angle += 0x2000;
+        }
+        if (s->mode == 1) {
+            Object *mark;
+
+            entry.common.objectID = 0x327;
+            entry.common.x = obj->trans.x_position;
+            entry.common.y = obj->trans.y_position;
+            entry.common.z = obj->trans.z_position;
+            entry.unkA = 0;
+            entry.unk10 = 1.5f;
+            entry.unkC = 2.0f;
+            mark = func_80005F14(&entry, 1);
+            if (mark != NULL) {
+                mark->level_entry = NULL;
+            }
+        }
+        func_80003410(0x1D2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        corona_free(*((M068ObjectLight *) obj)->light);
+        s->mode = 0;
+        s->burst = 1;
+    } else if (s->mode == 0) {
+        obj->trans.rotation.z_rotation = 0;
+        obj->trans.scale = 1.0f;
+        flags = 1;
+        if (sprite_anim_advance((s32) ((M068Header *) obj->header)->models[1], &flags, 10, &obj->unk28,
+                          updateRate)) {
+            s->mode = 1;
+        }
+    } else {
+        func_800079B8(obj);
+    }
+}
 
 #ifdef NON_MATCHING
 /* Registers: every t-register after the model lookup is one lower than the ROM's */
@@ -681,7 +1176,77 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D65C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D828);
 
+/* The boss's electric effect (obj->unk68) */
+typedef struct M068Electro {
+    /* 0x000 */ Triangle tris[16];
+    /* 0x100 */ Vertex verts[2][72];
+    /* 0x6A0 */ u8 pad6A0[0x6AC - 0x6A0];
+    /* 0x6AC */ f32 scale; /* 0: not drawn */
+    /* 0x6B0 */ u8 pad6B0[0x6D4 - 0x6B0];
+    /* 0x6D4 */ f32 x;
+    /* 0x6D8 */ f32 y;
+    /* 0x6DC */ f32 z;
+    /* 0x6E0 */ s32 buffer;
+} M068Electro;
+
+extern Vertex rl_m068_12674[];   /* the effect's core (.data) */
+extern Triangle rl_m068_126C0[];
+extern u32 rl_m068_12720[2];     /* the effect's two colours */
+extern u8 rl_m068_13754[3];      /* the glow sprite's colour (.bss) */
+extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
+extern void func_80055C00(Gfx **dl, void *model, s32 flags, s32 arg3);
+extern void func_80041DC0(Gfx **dl);
+
+#ifdef NON_MATCHING
+/*
+ * Draws the boss's electric effect: a core model, the arcs in two colours and a glow sprite.
+ * Length and frame match; the effect, the colour table's end and 0xFB000000 rotate through
+ * s1..s3 (as in 0ED10).
+ */
+void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068Electro *e = obj->unk68;
+    s32 pad;
+    Vertex *v;
+    s32 i;
+    M068Sprite *sprite;
+
+    if (e->scale != 0) {
+        obj->trans.scale = e->scale;
+        func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
+        func_80055C00(dl, ((M068Header *) obj->header)->models[1], 0x16, 0);
+        gSPVertexJFG((*dl)++, OS_K0_TO_PHYSICAL(rl_m068_12674), 8, 0);
+        gSPPolygon((*dl)++, OS_K0_TO_PHYSICAL(rl_m068_126C0), 6, 1);
+        gDPPipeSync((*dl)++);
+        func_80041DC0(dl);
+        obj->trans.scale = 1.0f;
+        func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
+        v = e->verts[e->buffer];
+        func_80055C00(dl, *((M068Header *) obj->header)->models, 0x206, 0);
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 190);
+        for (i = 0; i < 2; i++) {
+            gDPSetColor((*dl)++, G_SETENVCOLOR, rl_m068_12720[i]);
+            gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
+            gSPPolygon((*dl)++, (u32) e + 0x80000000, 16, 1);
+            gDPPipeSync((*dl)++);
+            v += 18;
+            gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
+            gSPPolygon((*dl)++, (u32) e + 0x80000000, 16, 1);
+            gDPPipeSync((*dl)++);
+            v += 18;
+        }
+        sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[2];
+        func_8005600C(255, 255, 255, rl_m068_13754[0], rl_m068_13754[1], rl_m068_13754[2]);
+        render_sprite_billboard_at(dl, arg1, arg2, sprite, e->x, e->y, e->z, 0, e->scale * 3.0f, 0.0f, 12, 255);
+        func_80056064();
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+        func_80041DC0(dl);
+        func_80055B80(dl);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
+#endif
 
 #ifdef NON_MATCHING
 /* As 0D65C: the vertex clear loop is unrolled here */
@@ -756,11 +1321,6 @@ typedef struct M068Death {
     /* 0x6BA */ u8 visible;
     /* 0x6BB */ u8 buffer;
 } M068Death;
-
-extern u32 rl_m068_12720[2]; /* the effect's two colours */
-extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
-extern void func_80055C00(Gfx **dl, void *model, s32 flags, s32 arg3);
-extern void func_80041DC0(Gfx **dl);
 
 #ifdef NON_MATCHING
 /*

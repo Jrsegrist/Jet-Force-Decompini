@@ -110,7 +110,102 @@ void func_m101_009F8(Object *obj, M101Setup *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_009F8);
 #endif
 
+/* What obj->unk5C points at for the pane */
+typedef struct M101Hits {
+    /* 0x000 */ u8 pad0[0x12A];
+    /* 0x12A */ s8 hit;
+    /* 0x12B */ u8 pad12B[0x130 - 0x12B];
+    /* 0x130 */ s16 damage;
+} M101Hits;
+
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern u8 D_800A4FC4;
+extern void rl_m101_00000(Object *obj, M101Pane *pane);  /* breaks the pane */
+extern void rl_m101_0056C(Object *obj, M101Pane *pane, s32 updateRate); /* moves the shards */
+
+#ifdef NON_MATCHING
+/*
+ * Before it breaks: scrolls the quad's texture with the pane's and the camera's angles and takes
+ * damage. Once broken: moves the shards and, after three seconds, frees itself or stops drawing.
+ * Frame and length match; the texture, its width and height are in other registers (a1/a0/a2).
+ */
+void func_m101_00B64(Object *obj, s32 updateRate) {
+    s32 u;
+    s32 v;
+    s32 w;
+    s32 h;
+    ObjectTransform *cam;
+    M101Pane *pane;
+    M101Hits *hits;
+    M101Texture *tex;
+    Triangle *t;
+    s16 yaw;
+    s16 pitch;
+
+    runlink_unload_timer_set(D_m101_01130, 2, 2);
+    if (obj->trans.flags & 0x400) {
+        return;
+    }
+    pane = obj->unk68;
+    hits = (M101Hits *) obj->unk5C;
+    cam = func_80041DE0();
+    PANE_STATE(obj)->buffer = 1 - PANE_STATE(obj)->buffer;
+    if (PANE_STATE(obj)->strength <= 0) {
+        PANE_STATE(obj)->strength -= updateRate;
+        if (-PANE_STATE(obj)->strength >= 181) {
+            if (obj->level_entry != NULL && (((u8 *) obj->level_entry)[3] & 1)) {
+                obj->trans.flags |= 0x400;
+            } else {
+                func_800079B8(obj);
+            }
+        } else {
+            rl_m101_0056C(obj, pane, updateRate);
+        }
+        return;
+    }
+    t = pane->quadTris[PANE_STATE(obj)->buffer];
+    tex = pane->texture;
+    yaw = -obj->trans.rotation.y_rotation;
+    pitch = -obj->trans.rotation.x_rotation;
+    u = tex->width << 4;
+    w = u;
+    v = tex->height << 4;
+    h = v;
+    if (!D_800A4FC4) {
+        yaw += cam->rotation.y_rotation;
+        pitch -= cam->rotation.x_rotation;
+    }
+    u += (tex->width * yaw) >> 11;
+    v += (tex->height * pitch) >> 11;
+    t->uv[0][0] = u + w;
+    t->uv[0][1] = v - h;
+    t->uv[1][0] = u + w;
+    t->uv[1][1] = v + h;
+    t->uv[2][0] = u - w;
+    t->uv[2][1] = v + h;
+    t++;
+    t->uv[0][0] = u + w;
+    t->uv[0][1] = v - h;
+    t->uv[1][0] = u - w;
+    t->uv[1][1] = v + h;
+    t->uv[2][0] = u - w;
+    t->uv[2][1] = v - h;
+    if (hits->hit != 0) {
+        PANE_STATE(obj)->strength -= hits->damage;
+        if (PANE_STATE(obj)->strength <= 0) {
+            PANE_STATE(obj)->strength = 0;
+            obj->interactObj->flags &= ~1;
+            rl_m101_00000(obj, pane);
+            func_80003410(0xD3, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            if (pane->shards == NULL) {
+                func_800079B8(obj);
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_00B64);
+#endif
 
 void func_m101_00DCC(Gfx **dl, s32 arg1, Object *obj) {
     M101Pane *pane;
