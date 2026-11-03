@@ -33,12 +33,12 @@ typedef struct M031Racer {
     /* 0x10 */ f32 distance;     /* from the plane of the checkpoint behind */
     /* 0x14 */ u8 unk14;
     /* 0x15 */ u8 computer;
-    /* 0x16 */ s8 unk16;
-    /* 0x17 */ s8 unk17;
-    /* 0x18 */ s8 position;
+    /* 0x16 */ u8 unk16;  /* the computer's driving: 0, 1 */
+    /* 0x17 */ u8 unk17;  /* which corner of the checkpoint behind it to head for */
+    /* 0x18 */ u8 position;
     /* 0x19 */ u8 boosts;
     /* 0x1A */ u8 pickup; /* 1: oil, 2: bomb */
-    /* 0x1B */ u8 unk1B;
+    /* 0x1B */ s8 unk1B;  /* time to the next boost */
     /* 0x1C */ s16 unk1C;
     /* 0x1E */ u8 unk1E;
     /* 0x1F */ u8 pad1F[0x24 - 0x1F];
@@ -438,7 +438,103 @@ INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00A3C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_01150);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_017A0);
+extern u8 D_800A5040;
+extern f32 func_80097140(f32 x); /* square root */
+s32 func_m031_01EB0(void);
+
+/*
+ * A computer-driven racer's controller input: steers (*stickX, *stickY) at a corner of the checkpoint behind it
+ * and sometimes presses boost (0x8000) or drops its pick-up (0x2000). FALSE if racer n isn't one.
+ */
+s32 func_m031_017A0(s32 n, s32 *stickX, s32 *stickY, s32 *arg3, s32 *buttons) {
+    f32 dx;
+    f32 dz;
+    f32 speed;
+    Object *prev;
+    Object *player;
+    f32 f;
+    M031Checkpoint *cp;
+    M031Racer *r;
+
+    if (n >= 0 && n < 4) {
+        r = &sRacers[n];
+        if (r->computer) {
+            if (!func_m031_01EB0()) {
+                player = func_8000E4D0(n);
+                if (r->unk24 >= 21 && D_800A5040 == 2 && r->unkC >= 15 && r->unkC < 17) {
+                    r->previous = func_m031_006AC(0x27);
+                    r->next = func_m031_0066C(0x28);
+                    r->unkC = 0x27;
+                    r->unk14 = 1;
+                    r->unk24 = 0;
+                }
+                prev = r->previous;
+                cp = prev->unk68;
+                switch (r->unk17) {
+                    case 0:
+                        dx = cp->corners[0].x;
+                        dz = cp->corners[0].z;
+                        speed = 65.0f;
+                        break;
+                    case 2:
+                        dx = cp->corners[1].x;
+                        dz = cp->corners[1].z;
+                        speed = 60.0f;
+                        break;
+                    case 3:
+                        dx = cp->corners[3].x;
+                        dz = cp->corners[3].z;
+                        speed = 62.5f;
+                        break;
+                    default:
+                        speed = 62.5f;
+                        dx = cp->corners[2].x;
+                        dz = cp->corners[2].z;
+                        break;
+                }
+                dx = player->trans.x_position - dx;
+                dz = dz - player->trans.z_position;
+                f = func_80097140(dx * dx + dz * dz);
+                if (f > 0.0f) {
+                    f = (cp->unk8 * speed) / f;
+                }
+                *stickX = dx * f;
+                *stickY = dz * f;
+                *arg3 = 0;
+                *buttons = 0;
+                switch (r->unk16) {
+                    case 0:
+                        if (r->position != 0 && r->unk1B <= 0 && r->boosts > 0) {
+                            r->unk1B = 120;
+                            *buttons = 0x8000;
+                        }
+                        if (r->position != 3 && r->pickup != 0 && func_80048E2C(1, 1000) >= 0x3D0) {
+                            *buttons |= 0x2000;
+                            return TRUE;
+                        }
+                        break;
+                    case 1:
+                        if (r->position != 0 && r->unk1B <= 0 && r->boosts > 0 && func_80048E2C(1, 1000) >= 0x3DF) {
+                            r->unk1B = 120;
+                            *buttons = 0x8000;
+                        }
+                        if (r->position != 3 && r->pickup != 0 && func_80048E2C(1, 1000) >= 0x3E4) {
+                            *buttons |= 0x2000;
+                            return TRUE;
+                        }
+                        break;
+                }
+            } else {
+                *stickX = 0;
+                *stickY = 0;
+                *arg3 = 0;
+                *buttons = 0;
+            }
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
 
 void func_m031_01B7C(s32 n) {
     M031Racer *racer;
