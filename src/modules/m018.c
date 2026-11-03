@@ -335,7 +335,7 @@ typedef struct M018Pair {
 } M018Pair;
 
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
-extern void func_80022520(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
+extern void dir_light_setup(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
 extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 
 extern s32 rl_m018_06680;
@@ -387,7 +387,7 @@ void func_m018_020C0(void) {
     D_800FF780[26].unk8 = rl_m018_0675C[character];
     obj = D_800FF3F8[rl_m018_06CF8];
     if (obj->shading != NULL) {
-        func_80022520((u8 *) obj->shading + 0x10, ((M018LitHeader *) obj->header)->unk94 * 255.0f,
+        dir_light_setup((u8 *) obj->shading + 0x10, ((M018LitHeader *) obj->header)->unk94 * 255.0f,
                       ((M018LitHeader *) obj->header)->unk90 * 255.0f, ((M018LitHeader *) obj->header)->unk9C,
                       ((M018LitHeader *) obj->header)->unk9E, ((M018LitHeader *) obj->header)->unkA0);
         ((u8 *) obj)[0xA1] = 1;
