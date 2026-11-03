@@ -352,36 +352,28 @@ void func_m075_004FC(Object *obj, s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/modules/m075", func_m075_004FC);
 #endif
 
-/*
- * NON_MATCHING: the colour shift's unrolled loop walks a pointer at the
- * destination and orders its loads differently from the original (which
- * walks the source).
- */
-#ifdef NON_MATCHING
 /* Draws the lights round the screen, their colours moved on two places */
 static void draw_lights(Gfx **dl, s32 alpha) {
     s32 colour0;
     s32 colour1;
     s32 i;
 
-    for (i = 0; i < 20; i++) {
+    i = 0;
+    while (i < 20) {
         sLights[i].colour = (sLights[i].colour & ~0xFF) | (alpha & 0xFF);
+        i++;
     }
     colour0 = sLights[0].colour;
     colour1 = sLights[1].colour;
-    for (i = 0; i < 18; i++) {
-        sLights[i].colour = sLights[i + 2].colour;
+    i = 2;
+    while (i < 20) {
+        sLights[i - 2].colour = sLights[i].colour;
+        i++;
     }
     sLights[18].colour = colour0;
     sLights[19].colour = colour1;
     menu_fill_boxes(dl, 20, sLights, 0);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m075", func_m075_00830);
-/* C calls the assembly static by its module offset name */
-void rl_m075_00830(Gfx **dl, s32 alpha);
-#define draw_lights rl_m075_00830
-#endif
 
 static void draw_time(Gfx **dl, s32 x, s32 y, s32 time);
 static void draw_records(Gfx **dl, M075Record *records, s32 alpha);
