@@ -2724,10 +2724,10 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
 static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
     f32 dx;
     f32 dz;
-    f32 t;
+    s32 pad0;
     s32 pad1;
     Vec3f vec;
-    f32 inv;
+    f32 t; /* also 1 / updateRate */
     f32 sine;
     s32 pad2;
     s32 hit;
@@ -2805,13 +2805,13 @@ static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
         obj->velocity.y < 4.0f) {
         func_80009A04(obj, 0.0f, racer->unk5C - D_m015_089DC - obj->trans.y_position, 0.0f);
     }
-    inv = 1.0f / updateRate;
-    dx = (obj->trans.x_position - racer->unk3C) * inv;
-    dz = (obj->trans.z_position - racer->unk44) * inv;
+    t = 1.0f / updateRate;
+    dx = (obj->trans.x_position - racer->unk3C) * t;
+    dz = (obj->trans.z_position - racer->unk44) * t;
     hit = func_80034BB0(obj, racer, updateRate);
-    obj->velocity.x = (obj->trans.x_position - racer->unk3C) * inv;
-    obj->velocity.y = (obj->trans.y_position - racer->unk40) * inv;
-    obj->velocity.z = (obj->trans.z_position - racer->unk44) * inv;
+    obj->velocity.x = (obj->trans.x_position - racer->unk3C) * t;
+    obj->velocity.y = (obj->trans.y_position - racer->unk40) * t;
+    obj->velocity.z = (obj->trans.z_position - racer->unk44) * t;
     if (racer->unk534 != 0 && obj->velocity.y > 0.0f) {
         obj->velocity.y = 0.0f;
     } else if (racer->unk510 != NULL && racer->unk532 != 0) {
@@ -2825,7 +2825,7 @@ static void func_m015_05ED4(Object *obj, Racer *racer, f32 updateRate) {
     rot.y_rotation = -angle;
     rot.x_rotation = -obj->trans.rotation.x_rotation;
     rot.z_rotation = -obj->trans.rotation.z_rotation;
-    vec.z = dz; vec.y = 0.0f; vec.x = dx; func_80049394(&rot, &vec);
+    vec.x = dx; vec.y = 0.0f; vec.z = dz; func_80049394(&rot, &vec);
     dx = vec.x;
     if (racer->unk149 != 0) {
         racer->unk149 -= (s32) updateRate;
