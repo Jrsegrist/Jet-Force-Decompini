@@ -19,7 +19,7 @@ typedef struct M004Copy {
     /* 0x24 */ void *unk24;
     /* 0x28 */ void *unk28;
     /* 0x2C */ void *unk2C;
-    /* 0x30 */ u8 pad30[0x34 - 0x30];
+    /* 0x30 */ void *unk30;
     /* 0x34 */ void *unk34; /* optional */
     /* 0x38 */ void *buffers[10];
     /* 0x60 */ void **model;
@@ -29,7 +29,7 @@ typedef struct M004Copy {
     /* 0xAC */ f32 unkAC;
     /* 0xB0 */ u8 padB0[0xB8 - 0xB0];
     /* 0xB8 */ u8 numBuffers;
-    /* 0xB9 */ u8 padB9;
+    /* 0xB9 */ u8 pending; /* waiting for its task */
     /* 0xBA */ u8 unkBA;
 } M004Copy;
 
@@ -79,6 +79,12 @@ typedef struct M004Shadow {
 static s32 copy_alloc(Object *obj, M004Copy *copy);
 static void copy_models(Object *obj, M004Copy *copy, s32 arg2, s32 arg3);
 extern u8 rl_m004_01660[];
+extern s8 rl_m004_01728;             /* the number of copies waiting */
+extern M004Copy *rl_m004_01880[];     /* the copies waiting */
+extern void rl_m004_015A8(M004Copy *copy);
+extern void func_8004DA10(void *arg0, void *arg1, s32 arg2, void *arg3); /* starts a task */
+extern s32 func_80096910(OSMesgQueue *mq, OSMesg *msg, s32 flag);
+extern OSMesgQueue D_800FE8A8;
 
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data); /* DKR mempool_free */
@@ -142,7 +148,33 @@ s32 func_m004_00000(Object *obj) {
     return TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_001BC);
+/* Runs the waiting copies' tasks one at a time, finishing each one's predecessor */
+void func_m004_001BC(void) {
+    M004Copy *c;
+    M004Copy *prev;
+    OSMesg msg;
+    s32 i;
+
+    msg = NULL;
+    for (i = 0; i < rl_m004_01728; i++) {
+        c = rl_m004_01880[i];
+        if (i > 0) {
+            prev = rl_m004_01880[i - 1];
+        } else {
+            prev = NULL;
+        }
+        if (c->pending) {
+            func_8004DA10(c->unk28, c->unk30, 3, c->unk20);
+            c->pending = FALSE;
+            if (prev != NULL) {
+                rl_m004_015A8(prev);
+            }
+            func_80096910(&D_800FE8A8, &msg, OS_MESG_BLOCK);
+        }
+    }
+    rl_m004_015A8(c);
+    rl_m004_01728 = 0;
+}
 
 /* Frees a copy's buffers */
 void func_m004_002B8(M004Copy *copy) {

@@ -44,7 +44,38 @@ extern Object *func_m003_053C4(void); /* the closest player */
 extern f32 func_80097140(f32 x);     /* sqrtf */
 extern void func_800013FC(s32 sound, s32 handle, s32 volume);
 
+/* A follower's timer */
+typedef struct M143Timer {
+    /* 0x00 */ u16 time;
+    /* 0x02 */ u16 done;
+} M143Timer;
+
+/* What a follower's obj->unk68 points at */
+typedef struct M143Follower {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ u8 stop;
+    /* 0x19 */ u8 pad19[0x38 - 0x19];
+    /* 0x38 */ f32 x;
+    /* 0x3C */ f32 y;
+    /* 0x40 */ f32 z;
+    /* 0x44 */ u8 pad44[0x64 - 0x44];
+    /* 0x64 */ Object *leader;
+    /* 0x68 */ u8 pad68[0xA8 - 0x68];
+    /* 0xA8 */ M143Timer timer;
+} M143Follower;
+
+/* What the leader's interactObj points at, as far as the followers use it */
+typedef struct M143Interaction {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ f32 x;
+    /* 0x1C */ f32 y;
+    /* 0x20 */ f32 z;
+} M143Interaction;
+
+extern s32 D_800FE9F8;
+
 extern s32 rl_m143_02F74; /* a sound playing */
+extern s32 rl_m143_032C8;
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00000);
 
@@ -112,7 +143,27 @@ INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00C2C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_01940);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_02394);
+/* Follows its leader's position until its time is up or it is told to stop */
+void func_m143_02394(Object *obj) {
+    M143Follower *f = obj->unk68;
+    M143Timer *t = &f->timer;
+    Object *leader = f->leader;
+
+    if (rl_m143_032C8) {
+        obj->interactObj->hitPoints = -0x400;
+    }
+    t->time += D_800FE9F8;
+    if (t->time >= 0xB5) {
+        t->done = 1;
+    }
+    if (f->stop || t->done) {
+        obj->interactObj->hitPoints = -0x400;
+        return;
+    }
+    f->x = ((M143Interaction *) leader->interactObj)->x;
+    f->y = ((M143Interaction *) leader->interactObj)->y;
+    f->z = ((M143Interaction *) leader->interactObj)->z;
+}
 
 /* Now and then one living member of the group, picked at random, makes its sound */
 void func_m143_02450(M143Group *group) {
