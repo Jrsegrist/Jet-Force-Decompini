@@ -1099,8 +1099,6 @@ s32 weapon_has_ammo(u8 *racer, u8 *chr) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037550);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 6 words: register allocation of the loop constants (15 / owned mask) */
 /* JFG: switch to the next owned weapon (slots 0..15, wrapping). */
 void func_80038324(u8 *obj, Racer *racer) {
     s32 weapon;
@@ -1121,6 +1119,7 @@ void func_80038324(u8 *obj, Racer *racer) {
         } else {
             weapon++;
             bit <<= 1;
+            if (!chr) {}
         }
     } while (!(owned & bit));
     if (weapon != cur) {
@@ -1136,9 +1135,6 @@ void func_80038324(u8 *obj, Racer *racer) {
         player_items_unlink(racer);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80038324);
-#endif
 
 /* JFG: switch to `weapon` if owned and not already selected; returns 1 if switched (0x80038430). */
 s32 weapon_select(u8 *obj, Racer *racer, s32 weapon) {
