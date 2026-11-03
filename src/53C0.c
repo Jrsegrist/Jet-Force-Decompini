@@ -1698,9 +1698,8 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800110E4);
 
-#ifdef NON_MATCHING
-/* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there. Returns whether it passed an end.
-   NON_MATCHING: 7 words: the target shares one return block at the end (here it is duplicated). */
+/* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there.
+   Returns whether it passed an end. */
 s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
     ObjectAttachment *attachment;
     s32 result;
@@ -1718,10 +1717,8 @@ s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
         } else {
             obj->animFrame = 1.0f;
         }
-        return 1;
-    }
-    if (obj->animFrame < 0.0f) {
         result = 1;
+    } else if (obj->animFrame < 0.0f) {
         if (attachment->unk8) {
             while (obj->animFrame < 0.0f) {
                 obj->animFrame += 1.0f;
@@ -1729,12 +1726,10 @@ s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
         } else {
             obj->animFrame = 0.0f;
         }
+        result = 1;
     }
     return result;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8001138C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8001149C);
 
