@@ -597,9 +597,9 @@ s32 func_m154_01278(void) {
 /* Builds the way-point graph from the level entries */
 #ifdef NON_MATCHING
 /*
- * t-register choice in the link and part-numbering loops (180 diffs, first 142C; reusing `n` as the part-loop
- * counter and `off2` as the found flag gets fewer). The ROM keeps the outer setup pointer in a2 and the link
- * pointer in v1, and re-tests `unkA == id` after the `||` instead of jumping straight into the branch.
+ * 9 diffs, first 174C: only the link-walk loop of the part numbering differs (ROM j a0, link pointer a1,
+ * link value v0; IDO gives j a1, pointer v0, value a0). Variable sharing matters here: `j` is also the
+ * link scan's offset, `off2` both the link target and the found flag, `n` both counters.
  */
 void func_m154_013A8(M154Setup *setup, s32 size) {
     M154Setup *s;
@@ -616,8 +616,8 @@ void func_m154_013A8(M154Setup *setup, s32 size) {
     s32 found;
 
     D_800FEA98 = 1;
-    for (off = 0, l = setup; off < size; off += l->size, l = (M154Setup *) ((u8 *) l + l->size)) {
-        if (l->type == 0x61) {
+    for (off = 0, s = setup; off < size; off += s->size, s = (M154Setup *) ((u8 *) s + s->size)) {
+        if (s->type == 0x61) {
             D_800FEA98++;
         }
     }
@@ -633,74 +633,75 @@ void func_m154_013A8(M154Setup *setup, s32 size) {
     for (off = 0, s = setup; off < size; off += s->size, s = (M154Setup *) ((u8 *) s + s->size)) {
         if (s->type == 0x61) {
             node = &D_800FEA9C[s->unkF];
-            node->x = s->x;
-            node->y = s->y;
-            node->z = s->z;
-            node->id = s->unkF;
-            node->unk17 = s->unk15;
-            node->flags = s->unk10;
-            node->cmd = s->unkA;
-            node->cmdArg[0] = s->unkB;
-            node->cmdArg[1] = s->unkC;
-            node->cmdArg[2] = s->unkD;
-            node->part = 0;
-            node->cmdArg[3] = s->unkE;
-            node->unk10 = 0;
-            node->unk31 = s->unk14;
-            node->unk32 = s->unk11;
-            node->unk33 = s->unk12;
-            n = 0;
-            for (off2 = 0, l = setup; off2 < size; off2 += l->size, l = (M154Setup *) ((u8 *) l + l->size)) {
-                if (l->type == 0x60 && (l->unkA == node->id || l->unkB == node->id)) {
-                    if (l->unkA == node->id) {
+            other = node;
+            other->x = s->x;
+            other->y = s->y;
+            other->z = s->z;
+            other->id = s->unkF;
+            other->unk17 = s->unk15;
+            other->flags = s->unk10;
+            other->cmd = s->unkA;
+            other->cmdArg[0] = s->unkB;
+            other->cmdArg[1] = s->unkC;
+            other->cmdArg[2] = s->unkD;
+            other->cmdArg[3] = s->unkE;
+            other->part = 0;
+            other->unk31 = s->unk14;
+            other->unk10 = 0;
+            other->unk32 = s->unk11;
+            other->unk33 = s->unk12;
+            for (j = 0, n = 0, l = setup; j < size; j += l->size, l = (M154Setup *) ((u8 *) l + l->size)) {
+                if (l->type == 0x60 && (l->unkA == (found = other->id) || l->unkB == found)) {
+                    if (l->unkA == found) {
                         if (l->unkF & 0x40) {
-                            to = l->unkB;
+                            off2 = l->unkB;
                         } else {
-                            to = -1;
+                            off2 = -1;
                         }
                     } else {
-                        to = -1;
                         if (l->unkF & 0x80) {
-                            to = l->unkA;
+                            off2 = l->unkA;
+                        } else {
+                            off2 = -1;
                         }
                     }
-                    if (to != -1 && n < 6) {
-                        node->links[n] = to;
-                        node->linkInfo[n] = (l->unkC & 0x1F) | (l->unkF & ~0x1F);
-                        node->linkCost[n] = l->unkD;
+                    if (off2 != -1 && n < 6) {
+                        other->links[n] = off2;
+                        other->linkInfo[n] = (l->unkC & 0x1F) | (l->unkF & ~0x1F);
+                        other->linkCost[n] = l->unkD;
                         n++;
                     }
                 }
             }
             while (n < 6) {
-                node->links[n] = 0;
-                node->linkInfo[n] = 0;
-                node->linkCost[n] = 0;
+                other->links[n] = 0;
+                other->linkInfo[n] = 0;
+                other->linkCost[n] = 0;
                 n++;
             }
         }
     }
     part = 1;
     while (TRUE) {
-        found = FALSE;
+        off2 = FALSE;
         node = &D_800FEA9C[1];
-        i = D_800FEA98 - 1;
-        while (i--) {
+        n = D_800FEA98 - 1;
+        while (n--) {
             if (node->part == 0) {
                 node->part = part;
-                found = TRUE;
+                off2 = TRUE;
                 break;
             }
             node++;
         }
-        if (!found) {
+        if (!off2) {
             return;
         }
         do {
-            found = FALSE;
+            off2 = FALSE;
             node = &D_800FEA9C[1];
-            i = D_800FEA98 - 1;
-            while (i--) {
+            n = D_800FEA98 - 1;
+            while (n--) {
                 if (part == node->part) {
                     for (j = 0; j < 6; j++) {
                         if (node->links[j] == 0) {
@@ -709,13 +710,13 @@ void func_m154_013A8(M154Setup *setup, s32 size) {
                         other = &D_800FEA9C[node->links[j]];
                         if (other->part == 0) {
                             other->part = part;
-                            found = TRUE;
+                            off2 = TRUE;
                         }
                     }
                 }
                 node++;
             }
-        } while (found == TRUE);
+        } while (off2 == TRUE);
         part++;
     }
 }
