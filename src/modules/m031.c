@@ -45,7 +45,11 @@ typedef struct M031Player {
     /* 0x11E */ u8 pad11E[0x13C - 0x11E];
     /* 0x13C */ s16 unk13C;
     /* 0x13E */ u8 unk13E;
-    /* 0x13F */ u8 pad13F[0x576 - 0x13F];
+    /* 0x13F */ u8 pad13F[0x354 - 0x13F];
+    /* 0x354 */ f32 pushX; /* pushes from bumping into other racers */
+    /* 0x358 */ f32 pushY;
+    /* 0x35C */ f32 pushZ;
+    /* 0x360 */ u8 pad360[0x576 - 0x360];
     /* 0x576 */ s8 unk576;
     /* 0x577 */ u8 pad577[0x5E0 - 0x577];
     /* 0x5E0 */ s32 sound1;
@@ -487,7 +491,85 @@ void func_m031_03888(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_038E0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_03AF8);
+/* A sphere of an object's hit shape (size 0x34) */
+typedef struct M031Sphere {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0x34 - 0x28];
+} M031Sphere;
+
+/* What obj->interactObj points at here: the hit shape */
+typedef struct M031HitShape {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ s16 count;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ M031Sphere *spheres;
+} M031HitShape;
+
+extern f32 func_80097140(f32 x); /* square root */
+
+/* Pushes two racers apart where their hit shapes overlap, with a rumble when it is a hard bump */
+void func_m031_03AF8(Object *a, Object *b) {
+    M031HitShape *shapeA = (M031HitShape *) a->interactObj;
+    M031Player *pa = a->unk68;
+    s32 i = shapeA->count;
+    M031HitShape *shapeB = (M031HitShape *) b->interactObj;
+    M031Player *pb = b->unk68;
+    M031Sphere *sa = shapeA->spheres;
+    s32 bumped = FALSE;
+    M031Sphere *sb;
+    s32 j;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 r;
+    f32 d;
+    f32 depth;
+    f32 f;
+
+    while (i--) {
+        j = shapeB->count;
+        sb = shapeB->spheres;
+        while (j--) {
+            dx = (sa->pos.x + pa->pushX) - (sb->pos.x + pb->pushX);
+            dy = sa->pos.y - sb->pos.y;
+            dz = (sa->pos.z + pa->pushZ) - (sb->pos.z + pb->pushZ);
+            r = sa->radius + sb->radius;
+            d = func_80097140(dx * dx + dz * dz);
+            sb++;
+            if (-r < dy && dy < r && d < r) {
+                if (d != 0.0f) {
+                    depth = r - d;
+                    f = depth / (d + d);
+                    dx *= f;
+                    dz *= f;
+                } else {
+                    dx = 0.0f;
+                    dz = d * -0.5f;
+                    depth = r - d;
+                }
+                pa->pushX += dx;
+                pa->pushZ += dz;
+                pb->pushX -= dx;
+                pb->pushZ -= dz;
+                if (depth > 5.0f) {
+                    bumped = TRUE;
+                }
+            }
+        }
+        sa++;
+    }
+    if (bumped) {
+        if (!func_m031_00000(pa->player)) {
+            rumble_raise(pa->player, 50, 0.2f);
+        }
+        if (!func_m031_00000(pb->player)) {
+            rumble_raise(pa->player, 50, 0.2f);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", data);
 

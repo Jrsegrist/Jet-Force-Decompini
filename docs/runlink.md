@@ -333,8 +333,8 @@ for its siblings. (Kinds are named here from what the code does.)
 | object behaviours | 63, e.g. 20, 74, 78, 84, 88, 92, 93, 100, 103, 108, 123, 128, 134 | an init `(Object *, level entry)` and a control `(Object *, s32 updateRate)` per behaviour, often several pairs per module; state in the object at 0x88 or in `obj->unk68`; most call `func_80079D1C` (hit box) from init |
 | switches and targets | 93, 94, 118 | a behaviour pair whose control runs one of six actions on a game flag or a hit (the same six-way jump table: `func_80079BB8`, `func_80079BA8`, `func_800767EC`, `func_8007688C`, `func_80076928`, `sequence_start`) |
 | pickups | 43, 72, 104, 118, 132 | a behaviour pair that checks the player's distance and gives an item, a flag and a message |
-| enemy behaviours | 3, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148, m150); their attack decisions share one shape (`func_m003_0CAA4` then `func_m003_04260`: m141, m145, m148), and m141 and m145 share their up-and-down movement code |
-| bosses | 50, 51, 52 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions |
+| enemy behaviours | 3, 67, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148, m150); their attack decisions share one shape (`func_m003_0CAA4` then `func_m003_04260`: m141, m145, m148), and m141 and m145 share their up-and-down movement code; 67 is an enemy with its own missiles, landing and fog |
+| bosses | 50, 51, 52, 68 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions; 68 is a larger boss with its own shots, beams and flying pieces (each a behaviour pair) |
 | weapons | 15, 16, 17 | a large control function, a firing check and twenty-odd helpers of matching sizes |
 | menus and screens | 6, 9, 12, 13, 18, 37, 40, 42, 57-59, 61-63 | screens with init / per-frame / cleanup functions, and the HUD (6, 13, 14) |
 | effect libraries | 1, 2, 8, 10 | a pool of particles with add / update / draw / free functions that other modules call (module 10's spark is in `module.h`) |
@@ -352,14 +352,31 @@ such as m015, m091 and m149, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 4 of 5 | 15/16 |
-| enemy behaviours | 10 of 18 | 104/284 |
-| bosses | 3 of 3 | 28/28 |
+| enemy behaviours | 10 of 19 | 119/304 |
+| bosses | 3 of 4 | 40/124 |
 | weapons (character control) | 0 of 3 | 3/78 |
-| menus and screens | 4 of 14 | 48/136 |
-| effect libraries | 2 of 4 | 19/26 |
+| menus and screens | 4 of 14 | 53/136 |
+| effect libraries | 2 of 4 | 21/26 |
 | fog and lighting | 1 of 2 | 10/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 45 of 98 | 280/684 |
+| other object behaviours | 45 of 96 | 351/568 |
+
+Other modules placed by what their code does (all in "other object
+behaviours" above unless a family row lists them):
+
+- 8: an effect library (a pool of 64 drops that bounce off the level and leave
+  a mark, and 5 hit sprites).
+- 11: a camera that follows curved paths through up to 8 lists of path nodes.
+- 22: the control plate that hands the player a helper character, the helper's
+  task, and its pause screen and camera.
+- 24: the level's track set-up, JFG's form of DKR's init_track and
+  generate_track.
+- 41: the front end's character display (the selected character's model in a
+  frame, with counting numbers).
+- 47: the cutscene sequencer's helpers and the cutscene subtitles.
+- 69: a target-range minigame (targets, crosshairs, score lines).
+- 135: the multiplayer menu room's cameras and player selectors.
+- 155: the enemy AI shared by the soldier enemies (spotting, paths, states).
 
 (Modules 21 and 56 are empty: their C files are empty too.)
 

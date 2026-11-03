@@ -4,7 +4,31 @@
  */
 #include "module.h"
 
-extern void rl_m007_00578(s32 hint, s32 arg1);
+extern s32 rl_m007_00578(s32 hint, s32 arg1);
+extern s32 rl_m007_00390(s32 condition);
+extern void rl_m007_00DF0(void);
+extern void *func_8004D37C(s32 asset);
+extern s32 func_8005A7D0(void);
+
+/* A hint's entry: shown when its condition holds */
+typedef struct M007Choice {
+    /* 0x00 */ u8 cond1; /* bit 7: negated */
+    /* 0x01 */ u8 op;    /* 0: both, 1: either, else: the first */
+    /* 0x02 */ u8 cond2; /* bit 7: negated */
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 text;
+    /* 0x06 */ s16 unk6;
+} M007Choice;
+
+/* A hint in the hint table (one after another) */
+typedef struct M007Hint {
+    /* 0x00 */ s16 count;
+    /* 0x02 */ M007Choice choices[1]; /* count of them */
+} M007Hint;
+
+extern M007Hint *rl_m007_02A50; /* the hint table */
+extern void *rl_m007_02A54; /* the hint texts */
+extern s32 rl_m007_02A6C, rl_m007_02A70, rl_m007_02A74;
 
 /* The module's .data (still assembly), by each variable's module offset */
 extern s32 rl_m007_02A24, rl_m007_02A28, rl_m007_02A2C, rl_m007_02A30, rl_m007_02A34;
@@ -49,7 +73,73 @@ extern Object *func_80005F14(void *entry, s32 arg1);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00000);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00148);
+/* Starts hint `hint` (0 to 44) with the first of its entries whose condition holds */
+void func_m007_00148(s32 hint, s32 arg1) {
+    M007Hint *p;
+    s32 a;
+    M007Choice *c;
+    s32 n;
+    s32 b;
+    s32 asset;
+
+    func_m007_00000();
+    if (hint >= 0 && hint < 45) {
+        rl_m007_02A6C = arg1;
+        rl_m007_02A50 = func_8004D37C(8);
+        switch (func_8005A7D0()) {
+            case 1:
+                asset = 11;
+                break;
+            case 2:
+                asset = 13;
+                break;
+            case 3:
+                asset = 15;
+                break;
+            case 4:
+                asset = 17;
+                break;
+            default:
+                asset = 9;
+                break;
+        }
+        rl_m007_02A54 = func_8004D37C(asset);
+        p = rl_m007_02A50;
+        while (hint--) {
+            p = (M007Hint *) &p->choices[p->count];
+        }
+        n = p->count - 1;
+        c = p->choices;
+        while (n--) {
+            a = rl_m007_00390(c->cond1 & 0x7F);
+            if (c->cond1 & 0x80) {
+                a = !a;
+            }
+            b = rl_m007_00390(c->cond2 & 0x7F);
+            if (c->cond2 & 0x80) {
+                b = !b;
+            }
+            if (c->op == 0) {
+                if (a && b) {
+                    break;
+                }
+            } else if (c->op == 1) {
+                if (a || b) {
+                    break;
+                }
+            } else if (a) {
+                break;
+            }
+            c++;
+        }
+        rl_m007_02A70 = c->unk6;
+        rl_m007_02A74 = c->unk3;
+        if (rl_m007_00578(c->text, 3)) {
+            sHintActive = 1;
+        }
+        rl_m007_00DF0();
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_0032C);
 
