@@ -1474,8 +1474,6 @@ typedef struct Spawn39 {
 f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 15 words: temp registers in the float-to-s16 conversions are one off (target skips t8) */
 /* JFG: spawn object 0x39 at (x, y, z), moving at `speed` along (yaw, pitch). */
 void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed) {
     Spawn39 setup;
@@ -1483,11 +1481,11 @@ void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16
 
     setup.objectID = 0x39;
     setup.size = 0xA;
+    setup.owner = owner;
     setup.unk3 = 0;
     setup.x = x;
     setup.y = y;
     setup.z = z;
-    setup.owner = owner;
     obj = spawn_object(&setup, 1);
     if (obj != NULL) {
         *(f32 *) (obj + 0x1C) = -func_80049C34(yaw) * func_80049C30(pitch) * speed;
@@ -1499,9 +1497,6 @@ void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16
         stats_shot_add(9);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039A38);
-#endif
 
 typedef struct SpawnGrenade {
     /* 0x00 */ s16 objectID;
