@@ -239,7 +239,15 @@ extern f32 rl_m068_129F8;
 extern f32 rl_m068_129FC;
 extern u8 rl_m068_12A38[];
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_00000);
+/* A part's set-up: only its turn */
+typedef struct M068TurnSetup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ u8 turn; /* in 1/64 turns */
+} M068TurnSetup;
+
+void func_m068_00000(Object *obj, M068TurnSetup *setup) {
+    obj->trans.rotation.y_rotation = setup->turn << 2 << 8;
+}
 
 void func_m068_00014(Object *obj, M068Setup *setup) {
     obj->trans.rotation.y_rotation = setup->yRotation;
@@ -335,7 +343,118 @@ void func_m068_0104C(Object *obj, Object *shot, M068Hit *hit) {
     }
 }
 
+/* A joint of the boss's hit model (0x34 bytes) */
+typedef struct M068Joint {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x2C */ s16 damage;
+    /* 0x2E */ u8 pad2E[0x34 - 0x2E];
+} M068Joint;
+
+/* What the boss's obj->interactObj points at */
+typedef struct M068Hits {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 hitPoints;
+    /* 0x08 */ u8 pad8[0x40 - 0x8];
+    /* 0x40 */ M068Joint *joints;
+} M068Hits;
+
+/* A run of joints forming one part of the boss (.data, 11 of them) */
+typedef struct M068Section {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s16 first; /* < 0: none */
+    /* 0x6 */ s16 last;
+    /* 0x8 */ u8 pad8[0xC - 0x8];
+} M068Section;
+
+/* A part's state (.bss, 11 of them) */
+typedef struct M068PartState {
+    /* 0x00 */ u8 pad0[0x13];
+    /* 0x13 */ s8 alive;
+    /* 0x14 */ u8 pad14[0x20 - 0x14];
+} M068PartState;
+
+/* An explosion near the boss */
+typedef struct M068Blast {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ f32 radius;
+    /* 0x10 */ f32 falloff; /* angle units per unit of distance */
+} M068Blast;
+
+extern M068Section rl_m068_1254C[11];
+extern M068PartState rl_m068_12F88[11];
+extern f32 rl_m068_12748; /* a .rodata float: larger than any distance */
+extern f32 func_80049C30(s32 angle); /* cosine */
+
+/* An explosion: the joint nearest it in each live part takes damage falling off with distance */
+#ifdef NON_MATCHING
+/*
+ * Same code and frame; the saved registers are assigned in another order (the
+ * ROM has blast in s0, hits s1, the part s2) and the limit (a float literal in
+ * the ROM, kept in f30) swaps with damage (f28).
+ */
+void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
+    M068Hits *hits = (M068Hits *) obj->interactObj;
+    M068Section *sec;
+    M068Joint *joint;
+    s32 i;
+    s32 j;
+    s32 best;
+    f32 bestDist;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    f32 f;
+    f32 limit;
+
+    limit = rl_m068_12748;
+    for (i = 0; i < 11; i++) {
+        sec = &rl_m068_1254C[i];
+        if (sec->first >= 0) {
+            best = -1;
+            if (rl_m068_12F88[i].alive) {
+                bestDist = limit;
+                for (j = sec->first; j <= sec->last; j++) {
+                    joint = &hits->joints[j];
+                    dx = blast->x - joint->x;
+                    dy = blast->y - joint->y;
+                    dz = blast->z - joint->z;
+                    dist = dx * dx + dy * dy + dz * dz - joint->radius * joint->radius;
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        best = j;
+                    }
+                }
+                if (best >= 0) {
+                    if (bestDist < 0.0f) {
+                        dist = 0.0f;
+                    } else {
+                        dist = func_80097140(bestDist);
+                    }
+                    if (dist <= blast->radius) {
+                        f = func_80049C30(blast->falloff * dist) * damage;
+                        hits->hitPoints -= (s32) f;
+                        f /= (f32) (sec->last - sec->first + 1);
+                        for (j = sec->first; j <= sec->last; j++) {
+                            hits->joints[j].damage += f;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_01330);
+#endif
 
 extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
@@ -582,7 +701,122 @@ void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
     func_80079D1C(obj, 0x100, 1, 4, 0, 0, 0, 10.0f, 10.0f, -1.0f, 1.0f, 0x11);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D05C);
+/* A beam's state (obj->unk68) */
+typedef struct M068BeamState {
+    /* 0x0 */ s32 unk0;
+    /* 0x4 */ s16 mode; /* flying: 0 until it hits something (2: it was shot down) */
+    /* 0x6 */ s16 burst; /* 0 while flying, then 1 while the burst plays */
+} M068BeamState;
+
+/* The entry of the object a beam leaves where it hits */
+typedef struct M068MarkEntry {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+} M068MarkEntry;
+
+/* The object fields this module uses past the common ones */
+typedef struct M068ObjectLight {
+    /* 0x00 */ u8 pad0[0x78];
+    /* 0x78 */ s32 *light;
+} M068ObjectLight;
+
+typedef struct M068AnimModel {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s32 anim;
+} M068AnimModel;
+
+extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern f32 rl_m068_129F0; /* a .rodata float: the sparks' speed scale */
+extern void corona_free(s32 light);
+
+/* A beam: flies until it hits, then bursts into sparks (and leaves a mark where it hit), then plays out */
+void func_m068_0D05C(Object *obj, s32 updateRate) {
+    M068BeamState *s;
+    UNUSED s32 pad1;
+    SparkParams spark;
+    M068MarkEntry entry;
+    UNUSED s32 pad2;
+    HitResult hit;
+    Vec3f from;
+    f32 rate;
+    s32 i;
+    s32 flags;
+    s16 angle;
+
+    s = obj->unk68;
+    if (s->burst == 0) {
+        if (((ObjectInteraction *) obj->interactObj)->hitPoints <= 0) {
+            s->mode = 2;
+        }
+        if (s->mode == 0) {
+            from.x = obj->trans.x_position;
+            rate = updateRate;
+            from.y = obj->trans.y_position;
+            from.z = obj->trans.z_position;
+            func_80009A04(obj, obj->velocity.x * rate, obj->velocity.y * rate, obj->velocity.z * rate);
+            s->mode = func_80018808(obj, &from, (Vec3f *) &obj->trans.x_position, &hit, 0, 0);
+            if (s->mode != 0) {
+                func_80009A04(obj, hit.pos.x - obj->trans.x_position, hit.pos.y - obj->trans.y_position,
+                              hit.pos.z - obj->trans.z_position);
+            }
+            obj->particleEmittersEnabled = 1;
+            func_8005F5AC(obj, updateRate);
+            return;
+        }
+        spark.x_position = obj->trans.x_position;
+        spark.y_position = obj->trans.y_position;
+        spark.z_position = obj->trans.z_position;
+        spark.unk18 = 20;
+        spark.unk1A = 20;
+        spark.unk1B = 190;
+        spark.unk1C = -1;
+        spark.unk20 = 0x8C0EF4FF;
+        spark.x_rotation = 0x2000;
+        angle = obj->trans.rotation.y_rotation - 0x4000;
+        rate = rl_m068_129F0;
+        for (i = 0; i < 8; i++) {
+            spark.y_rotation = angle;
+            spark.speed = func_80048E2C(10, 50) * rate;
+            spark.unk14 = func_80048E2C(10, 50) * rate;
+            func_m010_0000C(&spark);
+            angle += 0x2000;
+        }
+        if (s->mode == 1) {
+            Object *mark;
+
+            entry.common.objectID = 0x327;
+            entry.common.x = obj->trans.x_position;
+            entry.common.y = obj->trans.y_position;
+            entry.common.z = obj->trans.z_position;
+            entry.unkA = 0;
+            entry.unk10 = 1.5f;
+            entry.unkC = 2.0f;
+            mark = func_80005F14(&entry, 1);
+            if (mark != NULL) {
+                mark->level_entry = NULL;
+            }
+        }
+        func_80003410(0x1D2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        corona_free(*((M068ObjectLight *) obj)->light);
+        s->mode = 0;
+        s->burst = 1;
+    } else if (s->mode == 0) {
+        obj->trans.rotation.z_rotation = 0;
+        obj->trans.scale = 1.0f;
+        flags = 1;
+        if (sprite_anim_advance((s32) ((M068Header *) obj->header)->models[1], &flags, 10, &obj->unk28,
+                          updateRate)) {
+            s->mode = 1;
+        }
+    } else {
+        func_800079B8(obj);
+    }
+}
 
 #ifdef NON_MATCHING
 /* Registers: every t-register after the model lookup is one lower than the ROM's */

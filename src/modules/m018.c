@@ -6,11 +6,13 @@
 
 /* The menu items (D_800FF780, size 0x20) */
 typedef struct M018MenuItem {
-    /* 0x00 */ u8 pad0[6];
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ u8 pad2[6 - 2];
     /* 0x06 */ s16 unk6;
-    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x08 */ f32 unk8;
     /* 0x0C */ f32 unkC;
-    /* 0x10 */ u8 pad10[0x20 - 0x10];
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ u8 pad14[0x20 - 0x14];
 } M018MenuItem;
 
 /* A character's record (func_80047C1C) */
@@ -32,10 +34,12 @@ extern void func_m009_00408(void);
 extern void func_m009_0066C(void);
 extern M018Character *func_80047C1C(s32 player, s32 character);
 extern s32 options_screen_mode_get(void);
-extern void rl_m018_01194(s32 weapon);
+extern void func_80054F90(void);
+extern s32 runlink_module_loaded(s32 module); /* a module's load address, 0 when not loaded */
 extern M018MenuItem D_800FF780[];
 extern Object *D_800FF3F8[];
 
+static void func_m018_01194(s32 weapon);
 static void func_m018_011E4(void);
 static s32 func_m018_0207C(s8 *state);
 
@@ -117,7 +121,83 @@ void func_m018_0015C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_00188);
 
+extern u8 *get_settings(void);
+
+/*
+ * Sets the d-pad's four images from the character's record: frees the old
+ * images that are no longer used and loads the new ones (each once).
+ */
+#ifdef NON_MATCHING
+/* Same code, frame and slots; the argument/temp registers of the inner loops are one off (ROM: image a3, j a1, found a2) */
+void func_m018_00AEC(void) {
+    s32 i;
+    s32 nOld;
+    s32 nNew;
+    s32 j;
+    s32 image;
+    s32 found;
+    s16 old[4];
+    s16 new[4];
+    u8 *record;
+
+    record = get_settings();
+    nOld = 0;
+    for (i = 0; i < 4; i++) {
+        image = rl_m018_06C98[i];
+        if (image != -1) {
+            found = 0;
+            for (j = 0; j < nOld; j++) {
+                if (image == old[j]) {
+                    found = 1;
+                }
+            }
+            if (!found) {
+                old[nOld++] = image;
+            }
+        }
+    }
+    nNew = 0;
+    for (i = 0; i < 4; i++) {
+        image = record[0x534 + i] + 10;
+        rl_m018_06C98[i] = image;
+        found = 0;
+        for (j = 0; j < nNew; j++) {
+            if (image == new[j]) {
+                found = 1;
+            }
+        }
+        if (!found) {
+            new[nNew++] = image;
+        }
+    }
+    for (i = 0; i < nOld; i++) {
+        image = old[i];
+        found = 0;
+        for (j = 0; j < nNew; j++) {
+            if (image == new[j]) {
+                found = 1;
+            }
+        }
+        if (!found) {
+            menu_item_free(image);
+        }
+    }
+    for (i = 0; i < nNew; i++) {
+        image = new[i];
+        found = 0;
+        for (j = 0; j < nOld; j++) {
+            if (image == old[j]) {
+                found = 1;
+            }
+        }
+        if (!found) {
+            menu_item_load(image);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_00AEC);
+#endif
 
 /* Frees the d-pad's images, each once */
 void func_m018_00EF0(void) {
@@ -149,7 +229,7 @@ void func_m018_01028(void) {
     menu_assetgroup_load(rl_m018_06694);
     menu_assetgroup_reset(rl_m018_066A0);
     character = func_80047C1C(state[0], func_m018_0207C(state));
-    rl_m018_01194(character->weapon);
+    func_m018_01194(character->weapon);
     rl_m018_06CA0 = 0.0f;
     rl_m018_06CA4 = rl_m018_066B4[character->weapon];
     rl_m018_06CA8 = 30;
@@ -181,7 +261,14 @@ void func_m018_01140(void) {
     func_m018_011E4();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_01194);
+/* Picks a weapon: loads its image and shows it */
+static void func_m018_01194(s32 weapon) {
+    rl_m018_066AC = weapon + 0x4A;
+    rl_m018_066B0 = weapon;
+    menu_item_load(rl_m018_066AC);
+    D_800FF780[24].unk6 = rl_m018_066AC;
+    func_80054F90();
+}
 
 /* Frees the weapon's image */
 static void func_m018_011E4(void) {
@@ -208,7 +295,136 @@ static s32 func_m018_0207C(s8 *state) {
     return character;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_020C0);
+/* A level entry for the objects this screen spawns */
+typedef struct M018Entry {
+    /* 0x0 */ s16 objectID;
+    /* 0x2 */ u8 size;
+    /* 0x3 */ u8 pad3;
+    /* 0x4 */ s16 x;
+    /* 0x6 */ s16 y;
+    /* 0x8 */ s16 z;
+} M018Entry;
+
+/* The light settings in the shown object's header */
+typedef struct M018LitHeader {
+    /* 0x00 */ u8 pad0[0x90];
+    /* 0x90 */ f32 unk90;
+    /* 0x94 */ f32 unk94;
+    /* 0x98 */ u8 pad98[0x9C - 0x98];
+    /* 0x9C */ s16 unk9C;
+    /* 0x9E */ s16 unk9E;
+    /* 0xA0 */ s16 unkA0;
+} M018LitHeader;
+
+/* The shown object's state in the object (at 0x88) */
+typedef struct M018ShownState {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s32 unk4;
+} M018ShownState;
+
+/* An entry of the list this screen allocates (40 of them) */
+typedef struct M018ListEntry {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ s16 unk10;
+    /* 0x12 */ u8 pad12[0x1C - 0x12];
+} M018ListEntry;
+
+typedef struct M018Pair {
+    /* 0x0 */ u8 pad0[6];
+    /* 0x6 */ s16 unk6;
+} M018Pair;
+
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+extern void func_80022520(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
+
+extern s32 rl_m018_06680;
+extern u8 rl_m018_06724[];
+extern f32 rl_m018_0675C[];
+extern M018Pair rl_m018_06774[8];
+extern f32 rl_m018_06B70;
+extern f32 rl_m018_06CD0[8];
+extern f32 rl_m018_06CF0;
+extern f32 rl_m018_06CF4;
+extern s32 rl_m018_06CFC;
+extern s32 rl_m018_06D00;
+extern u8 rl_m018_06D04;
+extern s8 rl_m018_06D05;
+extern s8 rl_m018_06D07;
+extern u8 rl_m018_06D08;
+extern u8 rl_m018_06D09;
+extern s16 rl_m018_06D0A;
+extern s16 rl_m018_06D0C;
+extern s16 rl_m018_06D0E;
+extern s16 rl_m018_06D14;
+extern s16 rl_m018_06D16;
+
+void func_m018_020C0(void) {
+    s8 *state;
+    s32 character;
+    Object *obj;
+    s32 i;
+    s32 loaded;
+    UNUSED s32 pad[2];
+    M018Entry entry;
+
+    loaded = runlink_module_loaded(0x14);
+    state = func_8000E4D0(0)->unk68;
+    character = func_m018_0207C(state);
+    if (state[1] & 4) {
+        rl_m018_06CF8 = character + 0x9A;
+    } else {
+        rl_m018_06CF8 = character + 0x5E;
+    }
+    rl_m018_06CFC = 0;
+    rl_m018_06D00 = 0;
+    menu_item_load(rl_m018_06CF8);
+    menu_assetgroup_load(rl_m018_06718);
+    menu_assetgroup_reset(rl_m018_06724);
+    obj = D_800FF3F8[0x65];
+    obj->modelIndex = 0;
+    D_800FF780[26].unk6 = rl_m018_06CF8;
+    D_800FF780[26].unk8 = rl_m018_0675C[character];
+    obj = D_800FF3F8[rl_m018_06CF8];
+    if (obj->shading != NULL) {
+        func_80022520((u8 *) obj->shading + 0x10, ((M018LitHeader *) obj->header)->unk94 * 255.0f,
+                      ((M018LitHeader *) obj->header)->unk90 * 255.0f, ((M018LitHeader *) obj->header)->unk9C,
+                      ((M018LitHeader *) obj->header)->unk9E, ((M018LitHeader *) obj->header)->unkA0);
+        ((u8 *) obj)[0xA1] = 1;
+    }
+    OBJ_STATE(obj, M018ShownState)->unk4 = 0;
+    entry.objectID = 0x1B0;
+    entry.size = 10;
+    entry.x = 0;
+    entry.y = 0;
+    entry.z = 0;
+    for (i = 0; i < 8; i++) {
+        rl_m018_06CB0[i] = func_80005F14(&entry, 0);
+        rl_m018_06CB0[i]->modelIndex = i & 1;
+        rl_m018_06CD0[i] = 0.0f;
+        rl_m018_06774[i].unk6 = 0;
+    }
+    if (loaded == 0) {
+        func_8005342C(0x14);
+    }
+    rl_m018_06D04 = 0;
+    rl_m018_06D05 = -1;
+    rl_m018_06CF0 = rl_m018_06B70;
+    rl_m018_06CF4 = 0.0f;
+    rl_m018_06D07 = -1;
+    rl_m018_06D0A = 0;
+    rl_m018_06D0C = 0xFF;
+    rl_m018_06D08 = 0;
+    rl_m018_06D09 = 0;
+    rl_m018_06D0E = D_800FF780[26].unk0;
+    rl_m018_06D10 = func_8004A57C(0x460, -1);
+    for (i = 0; i < 40; i++) {
+        ((M018ListEntry *) rl_m018_06D10)[i].unk10 = -1;
+    }
+    rl_m018_06D14 = 0;
+    rl_m018_06D16 = 0;
+    rl_m018_06680 = 0;
+}
 
 void func_m018_023E8(void) {
     s32 i;
@@ -281,7 +497,96 @@ void func_m018_043AC(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_04408);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_048E4);
+/* A part of the shown object's model (12 bytes) */
+typedef struct M018Part {
+    /* 0x0 */ u8 pad0[0xC];
+} M018Part;
+
+/* The shown object's model instance */
+typedef struct M018ShownModel {
+    /* 0x00 */ u8 pad0[0x68];
+    /* 0x68 */ M018Part *parts;
+} M018ShownModel;
+
+/* A highlighted part (three in the module's .bss) */
+typedef struct M018Glow {
+    /* 0x0 */ s8 active;
+    /* 0x1 */ u8 r;
+    /* 0x2 */ u8 g;
+    /* 0x3 */ u8 b;
+    /* 0x4 */ M018Part *part;
+} M018Glow;
+
+/* This screen's .data, .rodata and .bss (still assembly) */
+extern u8 rl_m018_0681C[];
+extern s16 rl_m018_0682C[];
+extern s8 rl_m018_06874[];
+extern s8 rl_m018_06898[][2];
+extern f32 rl_m018_068E0[];
+extern s8 rl_m018_06920[];
+extern f32 rl_m018_06B88;
+extern s8 rl_m018_06BD0;
+extern s8 rl_m018_06BD2;
+extern s8 rl_m018_06BD3;
+extern u8 rl_m018_06BD4;
+extern u8 rl_m018_06BD5;
+extern u8 rl_m018_06BD6;
+extern s16 rl_m018_06BD8;
+extern s16 rl_m018_06BE0;
+extern s16 rl_m018_06BE8;
+extern f32 rl_m018_06BEC;
+extern f32 rl_m018_06BF0;
+extern u8 rl_m018_06BF4;
+extern u8 rl_m018_06BF6;
+extern M018Glow rl_m018_06BF8[3];
+
+static void func_m018_057D8(void);
+static void func_m018_05800(M018Part *part);
+
+/* Sets up the screen that shows object 0x7B: its images, first part highlighted, its animation */
+void func_m018_048E4(void) {
+    s32 loaded;
+    M018ShownModel *model;
+    Object *obj;
+
+    loaded = runlink_module_loaded(0x14);
+    rl_m018_06BF5 = runlink_module_loaded(0x2B);
+    menu_assetgroup_load(rl_m018_06810);
+    menu_assetgroup_reset(rl_m018_0681C);
+    rl_m018_06BCC = 0;
+    if (loaded == 0) {
+        func_8005342C(0x14);
+    }
+    func_m018_057D8();
+    obj = D_800FF3F8[0x7B];
+    model = *(M018ShownModel **) obj->modelInstances;
+    rl_m018_06BD3 = 0;
+    rl_m018_06BD1 = rl_m018_06874[rl_m018_06BD3];
+    rl_m018_06BD0 = rl_m018_06BD1;
+    menu_item_load(0x6F);
+    D_800FF780[37].unk6 = 0x6F;
+    func_m018_05800(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+    D_800FF780[37].unkC = 0.0f;
+    D_800FF780[37].unk10 = 0.0f;
+    rl_m018_06BD8 = rl_m018_0682C[rl_m018_06BD1 * 3];
+    D_800FF780[38].unk0 = rl_m018_06BD8;
+    rl_m018_06BD2 = 0;
+    rl_m018_06BEC = rl_m018_06B88;
+    rl_m018_06BE0 = rl_m018_06898[rl_m018_06BD0][0];
+    if (rl_m018_06BE0 == -1) {
+        rl_m018_06BE0 = 0;
+        rl_m018_06BF0 = 0.0f;
+    } else {
+        rl_m018_06BF0 = rl_m018_068E0[rl_m018_06BE0];
+    }
+    func_8001149C(D_800FF3F8[0x7B], rl_m018_06BE0, 0.0f);
+    rl_m018_06BD4 = 0x78;
+    rl_m018_06BE8 = 0x100;
+    rl_m018_06BD5 = 0x1E;
+    rl_m018_06BD6 = 0;
+    rl_m018_06BF4 = 0;
+    rl_m018_06BF6 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_04AF0);
 
@@ -293,9 +598,34 @@ void func_m018_05788(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_057D8);
+/* Clears the highlights */
+static void func_m018_057D8(void) {
+    M018Glow *g = rl_m018_06BF8;
+    s32 i = 3;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05800);
+    while (i--) {
+        g->active = 0;
+        g++;
+    }
+}
+
+/* Highlights a part in the first free slot */
+static void func_m018_05800(M018Part *part) {
+    M018Glow *g = rl_m018_06BF8;
+    s32 i = 3;
+
+    while (i--) {
+        if (g->active == 0) {
+            g->active = 1;
+            g->r = 30;
+            g->g = 30;
+            g->b = 30;
+            g->part = part;
+            return;
+        }
+        g++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05850);
 
