@@ -829,9 +829,8 @@ void func_8005372C(s32 module) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005372C);
 #endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the target sets up &gRunlinkModules (s3) before i = 15 */
-/* JFG: unload every module (but 0), then free every used slot's buffer. */
+/* JFG: unload every module (but 0), then free every used slot's buffer.
+   (`i = 15; do {` on one line: IDO schedules by source line.) */
 void func_80053934(void) {
     s32 i;
     ModuleSlot *slot = D_800FEAD8;
@@ -839,8 +838,7 @@ void func_80053934(void) {
     for (i = gNumRunlinkModules - 1; i > 0; i--) {
         func_8005372C(i);
     }
-    i = 15;
-    do {
+    i = 15; do {
         if (slot->module != 0xFFB) {
             mempool_free((void *) (gRunlinkModules[slot->module].unk8 + slot->unk0));
             slot->module = 0xFFB;
@@ -848,9 +846,6 @@ void func_80053934(void) {
         slot++;
     } while (i--);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053934);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800539E0);
 
