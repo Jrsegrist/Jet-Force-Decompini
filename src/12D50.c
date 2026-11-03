@@ -737,12 +737,7 @@ void track_segment_data_free(void) {
 extern f32 D_800AB648; // a .rodata constant, not split out yet
 void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
-#ifdef NON_MATCHING
-/**
- * JFG: add a track light in the first free slot.
- * NON_MATCHING: 11 words: the stores in the found-slot block are scheduled differently and the
- * light's spill slot is off by one word.
- */
+/* JFG: add a track light in the first free slot. */
 TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue) {
     s32 i;
     TrackLight *light;
@@ -756,11 +751,11 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
         if (light->outerRadius == 0.0f) {
             light->x = x;
             light->y = y;
+            light->z = z;
             light->outerRadius = outerRadius;
             light->outerRadiusSquare = outerRadius * outerRadius;
             light->innerRadius = innerRadius;
             light->innerRadiusSquare = innerRadius * innerRadius;
-            light->z = z;
             light->falloff = D_800AB648 / (outerRadius - innerRadius);
             track_light_set_colour((u8 *) light, red, green, blue, 255);
             gNumTrackLights++;
@@ -770,9 +765,6 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
     }
     return NULL;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
-#endif
 
 extern s32 gNumTrackLights;
 
