@@ -1150,8 +1150,8 @@ GameStats *get_settings(void) {
     return gSettingsPtr;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target schedules `character & 3` into the first delay slot (mine: the lui of gSettingsPtr) */
+/* JFG: a player's character data: the player's own in multiplayer, else one of the save's four characters.
+   (`character &= 3;` as its own statement lets IDO hoist it into the first delay slot.) */
 u8 *func_80047C1C(s32 player, s32 character) {
     if (D_800A4FC4 != 0 && D_800A4FD0 >= 2) {
         if (player < 0 || player >= D_800A4FD0) {
@@ -1159,11 +1159,9 @@ u8 *func_80047C1C(s32 player, s32 character) {
         }
         return (u8 *) &D_800FED50[player].chr;
     }
-    return (u8 *) &gSettingsPtr->chars[character & 3];
+    character &= 3;
+    return (u8 *) &gSettingsPtr->chars[character];
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047C1C);
-#endif
 
 u8 *func_80047C1C(s32 player, s32 character);
 extern s32 gCharItemsChanged; // JFG: characters whose items changed (one bit each)
