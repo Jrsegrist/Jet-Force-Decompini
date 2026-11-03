@@ -1,8 +1,9 @@
 /*
  * Runlink module 95: a flame weapon. Init clears a user's weapon data and
- * keeps it in a list of up to four; the fire, update, limit and hit
- * functions are still in assembly; the draw function draws the flames as
- * sprites; the fini function removes the light of each player user and frees it.
+ * keeps it in a list of up to four; the fire, update and limit functions are
+ * still in assembly; the hit function hurts what a player's flames touch; the
+ * draw function draws the flames as sprites; the fini function removes the
+ * light of each player user and frees it.
  */
 #include "module.h"
 
@@ -46,12 +47,29 @@ typedef struct M095Light {
 typedef struct M095Player {
     /* 0x000 */ u8 pad0[0x564];
     /* 0x564 */ M095Light *flameLight;
+    /* 0x568 */ u8 pad568[0x56F - 0x568];
+    /* 0x56F */ u8 hurt;
+    /* 0x570 */ Object *hurtBy;
 } M095Player;
+
+/* What objects of behaviours 0xA6 and 0xA7 keep in unk68 */
+typedef struct M095Burnable {
+    /* 0x00 */ u8 pad0[0x9A];
+    /* 0x9A */ s16 burnt;
+} M095Burnable;
+
+/* What obj->interactObj points at here */
+typedef struct M095Interact {
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ f32 radius;
+} M095Interact;
 
 extern void func_80098360(void *data, s32 size); /* clears */
 extern void func_8002179C(s32 light);            /* DKR light_remove */
 extern void func_8004AA80(void *data);           /* DKR mempool_free */
 extern void func_80055B80(Gfx **dl);             /* resets the render settings */
+extern void func_m003_10548(Object *obj, Object *attacker);
+extern void func_m003_0CFA8(Object *obj);
 extern void render_sprite_billboard(Gfx **dl, Mtx **mtx, struct Vertex **vtx, Object *obj, void *texture, s32 flags, s32 alpha);
 
 static M095Data *sUsers[4];
@@ -69,7 +87,106 @@ INCLUDE_ASM("asm/nonmatchings/modules/m095", func_m095_0059C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m095", func_m095_00D38);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m095", func_m095_0110C);
+/* A player's flames: what they touch is hurt (enemies, other players, burnable objects) */
+void func_m095_0110C(M095Data *data) {
+    Object *owner = data->owner;
+    f32 reach = 0.0f;
+    M095Flame *far = NULL;
+    s32 first;
+    s32 last;
+    Object **list;
+    Object *o;
+    M095Burnable *burnable;
+    M095Player *player;
+    M095Flame *f;
+    s32 n;
+    s32 i;
+    s32 j;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 r;
+    M095Interact *interact;
+
+    if (owner->behaviorId != 1) {
+        return;
+    }
+    i = 1;
+    if (data->count == 0) {
+        return;
+    }
+    for (j = data->newest - 1; i < data->count; i++) {
+        if (j < 0) {
+            j += 30;
+        }
+        f = &data->flames[j];
+        dx = owner->trans.x_position - f->x;
+        dy = owner->trans.y_position - f->y;
+        dz = owner->trans.z_position - f->z;
+        d = dx * dx + dy * dy + dz * dz;
+        if (reach < d) {
+            reach = d;
+            far = f;
+        }
+        j--;
+    }
+    if (far == NULL) {
+        return;
+    }
+    r = far->size * 4.0f;
+    reach += r * r;
+    list = func_80005E98(&first, &last);
+    for (i = first; i < last; i++) {
+        o = list[i];
+        if (o->behaviorId != 0x18) {
+            if (o->behaviorId == 1 && o != owner) {
+                player = o->unk68;
+            } else if (o->behaviorId == 0xA6 || o->behaviorId == 0xA7) {
+                burnable = o->unk68;
+            } else {
+                o = NULL;
+            }
+        }
+        if (o != NULL) {
+            dx = owner->trans.x_position - o->trans.x_position;
+            dy = owner->trans.y_position - o->trans.y_position;
+            dz = owner->trans.z_position - o->trans.z_position;
+            if (dx * dx + dy * dy + dz * dz <= reach) {
+                for (n = 1, j = data->newest - 1; n < data->count; n++) {
+                    if (j < 0) {
+                        j += 30;
+                    }
+                    f = &data->flames[j];
+                    dx = o->trans.x_position - f->x;
+                    dy = o->trans.y_position - f->y;
+                    dz = o->trans.z_position - f->z;
+                    r = f->size * 4.0f;
+                    interact = (M095Interact *) o->interactObj;
+                    if (interact != NULL) {
+                        r += interact->radius;
+                    }
+                    r *= r;
+                    if (dx * dx + dy * dy + dz * dz <= r) {
+                        if (o->behaviorId == 0x18) {
+                            func_m003_10548(o, owner);
+                            func_m003_0CFA8(o);
+                        } else if (o->behaviorId == 1) {
+                            player->hurt = 6;
+                            if (data->owner != NULL && data->owner->behaviorId == 1) {
+                                player->hurtBy = data->owner;
+                            }
+                        } else {
+                            burnable->burnt = 1;
+                        }
+                        break;
+                    }
+                    j--;
+                }
+            }
+        }
+    }
+}
 
 /* Draws the flames as sprites, newest first, skipping ones that would overlap the last drawn */
 void func_m095_0148C(Object *obj, M095Data *data, Gfx **dlp, Mtx **mtxp, struct Vertex **vtxp) {
