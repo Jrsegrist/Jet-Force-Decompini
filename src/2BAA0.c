@@ -999,10 +999,12 @@ extern s32 D_800A2DF0[8];
 void rumble_raise(s32 arg0, u8 arg1, s32 arg2);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the unused third parameter gets a home store (sw a2) the target lacks; rest identical */
+/* NON_MATCHING: 2 words: the table byte is loaded into t7 (target t6, with t7 unused after it); the
+   `if (arg2) {}` stops the home store of the unused parameter and the no-op mask fixes the later temps */
 void func_8003733C(s32 arg0, s32 flags, UNUSED s32 arg2, s32 index, s32 level) {
+    if (arg2) {}
     if (index >= 0 && index < 8) {
-        flags |= D_800A2DD8[index];
+        flags |= D_800A2DD8[index] & 0xFF;
     }
     if (level >= 0x20) {
         if (level >= 0x80) {
