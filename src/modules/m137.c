@@ -47,8 +47,21 @@ typedef struct M137ObjState {
     /* 0xA */ u8 reflected;
 } M137ObjState;
 
+/* What obj->header points at here */
+typedef struct M137Header {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ s8 unk1E;
+} M137Header;
+
+/* An object's model instance */
+typedef struct M137Model {
+    /* 0x00 */ u8 pad0[0x94];
+    /* 0x94 */ s16 height;
+} M137Model;
+
 extern ObjectTransform *func_80041DE0(void); /* the camera */
-extern s32 rl_m137_01580(Object *obj, ObjectTransform *camera, f32 *value);
+extern s32 track_height_at(f32 x, f32 z, f32 *y, s32 flags);
+static s32 is_seen(Object *obj, ObjectTransform *camera, f32 *value);
 
 static u8 sDrawData[0x80];
 static s32 sSurfaceCount;
@@ -109,7 +122,7 @@ void func_m137_0016C(s32 count, Object **objs) {
     i = count - 1;
     while (i >= 0) {
         obj = objs[i--];
-        if (rl_m137_01580(obj, camera, &value)) {
+        if (is_seen(obj, camera, &value)) {
             OBJ_STATE(obj, M137ObjState)->reflected = TRUE;
             sReflected[sReflectedCount].obj = obj;
             sReflected[sReflectedCount].value = value;
@@ -125,6 +138,46 @@ void func_m137_0016C(s32 count, Object **objs) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m137", func_m137_0025C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m137", func_m137_01580);
+/*
+ * Whether obj should be drawn mirrored: it stands on one of the surfaces, or
+ * its mirror image under one of them can be seen from the camera
+ */
+static s32 is_seen(Object *obj, ObjectTransform *camera, f32 *value) {
+    UNUSED s32 pad[2];
+    HitResult hit;
+    Vec3f pos;
+    f32 height;
+    s32 seen;
+    s32 i;
+    f32 h;
+    M137Model *model;
+    f32 d;
+
+    if (((M137Header *) obj->header)->unk1E == 0) {
+        model = ((M137Model **) obj->modelInstances)[obj->modelIndex];
+        height = model->height * obj->trans.scale;
+    } else {
+        height = 0.0f;
+    }
+    seen = FALSE;
+    if ((track_height_at(obj->trans.x_position, obj->trans.z_position, value, 0x20000000) & 0x20000000) &&
+        *value - 5.0f < obj->trans.y_position) {
+        seen = TRUE;
+    } else {
+        pos.x = obj->trans.x_position;
+        pos.z = obj->trans.z_position;
+        for (i = 0; i < sSurfaceCount; i++) {
+            h = sSurfaceHeights[i];
+            d = obj->trans.y_position - h;
+            pos.y = h - d - height;
+            if (func_80018808(NULL, (Vec3f *) &camera->x_position, &pos, &hit, 0, 0x20000000)) {
+                seen = TRUE;
+                *value = hit.pos.y;
+                i = sSurfaceCount;
+            }
+        }
+    }
+    return seen;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m137", data);
