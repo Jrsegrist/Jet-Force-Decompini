@@ -449,9 +449,8 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
 
 INCLUDE_ASM("asm/nonmatchings/50300", func_80050154);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the not-yielded arm stores state after the flags move (two words swapped) */
-/* SP done: requeues a yielded task, or completes the task, then schedules the next ones. */
+/* SP done: requeues a yielded task, or completes the task, then schedules the next ones.
+   (The dead `state = 0;` in the not-yielded arm gives the ROM's scheduling.) */
 void __scHandleRSP(OSSched *sc) {
     SchedTask *t;
     SchedTask *sp = NULL;
@@ -472,6 +471,7 @@ void __scHandleRSP(OSSched *sc) {
             }
         } else {
             t->state &= ~SC_NEEDS_RSP;
+            state = 0;
         }
         if ((t->flags & SC_TYPE_MASK) != SC_TYPE_XBUS) {
         }
@@ -484,9 +484,6 @@ void __scHandleRSP(OSSched *sc) {
         __scExec(sc, sp, dp);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/50300", func_800507F8);
-#endif
 
 /* DP done: completes the task, then schedules the next ones. */
 void __scHandleRDP(OSSched *sc) {

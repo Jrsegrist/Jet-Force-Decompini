@@ -1326,11 +1326,9 @@ void func_8000C9E8(s32 arg0) {
 void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g, u8 *b, u8 *unk2);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
-#ifdef NON_MATCHING
 /* JFG: set the fog for drawing a type 0x18 object (its flash colour while its player's bit is set,
-   counting the flash down), or let a module do it for type 0x82.
-   NON_MATCHING: the frame is 8 bytes bigger (racer and bit take stack words; without them the
-   registers differ). */
+   counting the flash down), or let a module do it for type 0x82. The fog factor word (0x500, 0x500)
+   goes through the playerID parameter, which this branch no longer needs. */
 void func_8000C9F4(Object *obj, s32 playerID) {
     s16 near;
     s16 far;
@@ -1344,9 +1342,10 @@ void func_8000C9F4(Object *obj, s32 playerID) {
     if (obj->behaviorId == 0x18) {
         Object_Racer *racer = obj->racer;
         s32 bit = 1 << playerID;
+        playerID = (0x500 << 16) | 0x500;
         if (racer->fogFlags & bit) {
             gDPSetFogColor(gObjectCurrDisplayList++, D_800A0C5C, D_800A0C60, D_800A0C64, 255);
-            gSPFogFactor(gObjectCurrDisplayList++, 0x500, 0x500);
+            gMoveWd(gObjectCurrDisplayList++, G_MW_FOG, G_MWO_FOG, playerID);
             if (D_800A0C6C) {
                 racer->fogFlags &= ~bit;
                 if (D_800A0C68 != 0) {
@@ -1366,9 +1365,6 @@ void func_8000C9F4(Object *obj, s32 playerID) {
         func_80054530(&gObjectCurrDisplayList, obj, playerID);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C9F4);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000CC64);
 

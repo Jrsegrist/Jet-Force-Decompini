@@ -630,8 +630,6 @@ void func_80077060(void) {
 extern s32 D_800A74B4;
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: one temp register (the reloaded index is t3, target t2) */
 /* JFG: load entry index of asset 0x42 (offsets in D_801045B4) into a new buffer, unless it is already loaded. */
 void func_800770A4(s32 index) {
     s32 start;
@@ -642,16 +640,13 @@ void func_800770A4(s32 index) {
         start = D_801045B4[index];
         D_800A74B4 = D_801045B4[index + 1] - start;
         if (D_800A74B4 > 0) {
-            if ((D_800A74B0 = buffer = mempool_alloc_safe(D_800A74B4, 0x4080F0FF)) != NULL) {
+            if ((buffer = D_800A74B0 = mempool_alloc_safe(D_800A74B4, 0x4080F0FF)) != NULL) {
                 asset_load(0x42, (u32) buffer, start, D_800A74B4);
                 D_800A74B8 = index;
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/76C20", func_800770A4);
-#endif
 
 extern s32 D_800A74C0; // JFG: the current sequence id (-1 for none)
 extern s32 D_800A74C4; // JFG: set when the sequence data at D_800A74BC was allocated

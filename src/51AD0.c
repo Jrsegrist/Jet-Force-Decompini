@@ -567,14 +567,12 @@ typedef struct ModuleReloc {
 
 extern u32 *D_800FEAA8; // JFG: the symbol table (module << 20 | offset)
 
-#ifdef NON_MATCHING
 extern u8 gMusicPlayer[];
 extern u8 D_800B0B50[];
 extern u8 D_800FEAD4[];
 void sound_volume_change(s32 behaviour);
 void func_80054530();
 
-/* NON_MATCHING: same code; the symbol word, delta and module index sit in t1/v1/t0 (target t0/t1/v1) */
 /* JFG: the address a relocation refers to: a symbol (modules 0xFFD..0xFFF are the main segment's sections),
    an address in the module, or a jump target. Unloaded modules resolve to the trap (calls) or a dummy word. */
 u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
@@ -583,9 +581,9 @@ u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
     u32 v;
     u32 ret;
 
-    delta = 0;
     entry = &D_800FEAA8[symbol];
     v = *entry >> 20;
+    delta = 0;
     switch (reloc->type) {
         case 0:
             switch (v) {
@@ -621,9 +619,6 @@ u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
             return 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052874);
-#endif
 
 typedef union PatchWord {
     u32 word;
@@ -834,9 +829,8 @@ void func_8005372C(s32 module) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005372C);
 #endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the target sets up &gRunlinkModules (s3) before i = 15 */
-/* JFG: unload every module (but 0), then free every used slot's buffer. */
+/* JFG: unload every module (but 0), then free every used slot's buffer.
+   (`i = 15; do {` on one line: IDO schedules by source line.) */
 void func_80053934(void) {
     s32 i;
     ModuleSlot *slot = D_800FEAD8;
@@ -844,8 +838,7 @@ void func_80053934(void) {
     for (i = gNumRunlinkModules - 1; i > 0; i--) {
         func_8005372C(i);
     }
-    i = 15;
-    do {
+    i = 15; do {
         if (slot->module != 0xFFB) {
             mempool_free((void *) (gRunlinkModules[slot->module].unk8 + slot->unk0));
             slot->module = 0xFFB;
@@ -853,9 +846,6 @@ void func_80053934(void) {
         slot++;
     } while (i--);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053934);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800539E0);
 

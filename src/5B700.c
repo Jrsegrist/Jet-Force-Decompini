@@ -886,9 +886,220 @@ void free_particle_list(WeatherParticleList **listPtr) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D2E8);
+/* A sprite particle (kind 2) as func_8005D2E8 reads it */
+typedef struct SpriteParticle {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ s16 kind;
+    /* 0x2E */ u8 pad2E[0x4C - 0x2E];
+    /* 0x4C */ struct ParticleSprite *sprite;
+    /* 0x50 */ s32 flags;
+    /* 0x54 */ u8 pad54[0x64 - 0x54];
+    /* 0x64 */ s16 alpha; // 8.8 fixed point
+    /* 0x66 */ u8 pad66[0x6F - 0x66];
+    /* 0x6F */ u8 brightness;
+    /* 0x70 */ u8 colourMode; // 0: plain, else with an environment colour (2: swapped)
+    /* 0x71 */ u8 r, g, b;
+    /* 0x74 */ u8 envR, envG, envB;
+    /* 0x77 */ u8 pad77;
+} SpriteParticle;
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D660);
+typedef struct ParticleSprite {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ u8 primR, primG, primB;
+    /* 0x0B */ u8 envR, envG, envB;
+} ParticleSprite;
+
+void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
+void func_80056064(void);
+void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **vtx, SpriteParticle *particle, ParticleSprite *sprite, s32 flags,
+                   s32 alpha);
+
+/* JFG: draw a list's sprite particles (kind 2) with their colours (brightness-scaled, and with an environment
+   colour or the sprite's own colours), then reset the colours. The environment colours of a particle without
+   one carry over from the previous particle. */
+void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list) {
+    s32 i;
+    SpriteParticle *p;
+    ParticleSprite *sprite;
+    s32 alpha;
+    s32 envR;
+    s32 envG;
+    s32 envB;
+    UNUSED s32 pad1;
+    s32 flags;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 mode;
+    s32 f;
+    UNUSED s32 pad0;
+
+    if (list == NULL) {
+        return;
+    }
+    p = (SpriteParticle *) list->particles;
+    for (i = 0; i < list->count; i++, p++) {
+        if (p->kind == 2) {
+            mode = p->colourMode;
+            sprite = p->sprite;
+            r = p->r;
+            g = p->g;
+            b = p->b;
+            flags = 2;
+            if (mode) {
+                envR = p->envR;
+                envG = p->envG;
+                envB = p->envB;
+            }
+            alpha = (p->alpha >> 8) & 0xFF;
+            if (p->flags & 0x800) {
+                f = p->brightness;
+                r = (f * r) >> 8;
+                g = (f * g) >> 8;
+                b = (f * b) >> 8;
+                if (mode) {
+                    envR = (f * envR) >> 8;
+                    envG = (f * envG) >> 8;
+                    envB = (f * envB) >> 8;
+                }
+            }
+            if (sprite->flags & 0x200) {
+                if (!mode) {
+                    envR = (sprite->envR * r) >> 8;
+                    envG = (sprite->envG * g) >> 8;
+                    envB = (sprite->envB * b) >> 8;
+                    r = (sprite->primR * r) >> 8;
+                    g = (sprite->primG * g) >> 8;
+                    b = (sprite->primB * b) >> 8;
+                }
+                if (mode != 2) {
+                    func_8005600C(r, g, b, envR, envG, envB);
+                } else {
+                    func_8005600C(envR, envG, envB, r, g, b);
+                }
+            } else if (((r << 24) | (g << 16) | (b << 8) | alpha) != 0) {
+                gDPPipeSync((*dList)++);
+                gDPSetPrimColor((*dList)++, 0, 0, r, g, b, alpha);
+            }
+            if (alpha != 255) {
+                flags = 6;
+            }
+            render_sprite_billboard(dList, mtx, vtx, p, sprite, flags, alpha);
+            if (sprite->flags & 0x200) {
+                func_80056064();
+            }
+        }
+    }
+    gDPPipeSync((*dList)++);
+    gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+}
+
+typedef struct ObjectTransform {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ s16 z_rotation;
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+} ObjectTransform;
+
+typedef struct ParticleModelHeader {
+    /* 0x00 */ u8 pad0[0x74];
+    /* 0x74 */ u8 *dl;
+} ParticleModelHeader;
+
+typedef struct ParticleModel {
+    /* 0x00 */ ParticleModelHeader *header;
+    /* 0x04 */ u8 *vertices;
+    /* 0x08 */ u8 pad8[3];
+    /* 0x0B */ s8 frame;
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ u8 *frames[1];
+} ParticleModel;
+
+/* A model particle (kind 3) as func_8005D660 reads it */
+typedef struct ModelParticle {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ s16 z_rotation;
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x, y, z;
+    /* 0x18 */ u8 pad18[0x2C - 0x18];
+    /* 0x2C */ s16 kind;
+    /* 0x2E */ u8 pad2E[0x4C - 0x2E];
+    /* 0x4C */ ParticleModel *model;
+    /* 0x50 */ s32 flags;
+    /* 0x54 */ u8 pad54[0x6F - 0x54];
+    /* 0x6F */ u8 brightness;
+    /* 0x70 */ u8 pad70;
+    /* 0x71 */ u8 r, g, b;
+    /* 0x74 */ u8 pad74[4];
+} ModelParticle;
+
+/* A display list command written as its two words */
+#define fast3d_cmd(pkt, word0, word1) \
+    {                                 \
+        Gfx *_g = (Gfx *) (pkt);      \
+        _g->words.w0 = word0;         \
+        _g->words.w1 = word1;         \
+    }
+
+void mtx_cam_push(Gfx **dList, Mtx **mtx, void *trans, f32 scaleY, f32 offsetY);
+void mtx_pop(Gfx **dList);
+
+/* JFG: draw a list's model particles (kind 3): each one's matrix, its colour (brightness-scaled when flag 0x800
+   is set) and its model's current frame, then reset the colour and pop the matrix. */
+void func_8005D660(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list) {
+    s32 i;
+    ModelParticle *p;
+    ObjectTransform trans;
+    ParticleModel *model;
+    s32 f;
+    s32 r;
+    s32 g;
+    s32 b;
+
+    if (list == NULL) {
+        return;
+    }
+    p = (ModelParticle *) list->particles;
+    gDPPipeSync((*dList)++);
+    for (i = 0; i < list->count; i++, p++) {
+        if (p->kind == 3) {
+            model = p->model;
+            trans.z_rotation = p->z_rotation;
+            trans.x_rotation = p->x_rotation;
+            trans.y_rotation = p->y_rotation;
+            trans.x_position = p->x;
+            trans.y_position = p->y;
+            trans.z_position = p->z;
+            trans.scale = p->scale;
+            mtx_cam_push(dList, mtx, &trans, 1.0f, 0.0f);
+            gDPPipeSync((*dList)++);
+            if (p->flags & 0x800) {
+                f = p->brightness;
+                r = (p->r * f) >> 8;
+                g = (p->g * f) >> 8;
+                b = (p->b * f) >> 8;
+                gDPSetPrimColor((*dList)++, 0, 0, r, g, b, 255);
+            } else {
+                gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+            }
+            fast3d_cmd((*dList)++, ((u32) (model->frames[model->frame] + 0x80000000) & 0xFFFFFF) | 0xBF000000,
+                       (u32) (model->vertices + 0x80000000));
+            gSPDisplayList((*dList)++, model->header->dl + 0x80000000);
+            fast3d_cmd((*dList)++, 0xBF000000, 0);
+        }
+    }
+    gDPPipeSync((*dList)++);
+    gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+    mtx_pop(dList);
+}
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005D93C);
 

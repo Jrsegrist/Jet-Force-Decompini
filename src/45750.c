@@ -451,19 +451,14 @@ u16 options_music_volume_get(void);
 void options_music_volume_set(s32 volume);
 void func_80047608(s32 arg0, s32 level, s32 arg2);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: in the START loop the target puts the andi before i++ and ORs as (start, held) */
-/* JFG: the boot screen; START on any controller sets D_800A4FB0, after 10 frames the settings are applied. */
+/* JFG: the boot screen; START on any controller sets D_800A4FB0, after 10 frames the settings are applied.
+   (The one-line loop and if match: IDO schedules by source line.) */
 void func_80045E04(UNUSED s32 updateRate) {
     s32 i;
     s32 start;
 
-    for (i = 0, start = 0; i < 4; i++) {
-        start = start | (input_held(i) & START_BUTTON);
-    }
-    if (start) {
-        D_800A4FB0 = 1;
-    }
+    for (i = 0, start = 0; i < 4; i++) start |= input_held(i) & START_BUTTON;
+    if (start) D_800A4FB0 = 1;
     if (++sBootDelayTimer >= 10) {
         set_language(get_language());
         func_8005A834(options_screen_mode_get());
@@ -475,9 +470,6 @@ void func_80045E04(UNUSED s32 updateRate) {
         func_80047608(2, 0, 0);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045E04);
-#endif
 
 extern s32 D_800F6F54;
 extern s8 gIsPaused;
@@ -1121,8 +1113,6 @@ void func_80047A20(void) {
 
 u8 *weapon_info_get(s32 index);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target loads the item loop's bound (8) before zeroing the counter */
 /* JFG: reset a character's data for a level: the default weapon only, each weapon's values from its info, no
  * items. */
 void func_80047AE0(CharacterData *chr, s32 level) {
@@ -1149,18 +1139,11 @@ void func_80047AE0(CharacterData *chr, s32 level) {
     chr->unkC[1] = 0;
     chr->unkC[2] = 0;
     chr->unkC[3] = 0;
-    i = 0;
-    while (i < 8) {
-        chr->items[i] = 0;
-        i++;
-    }
+    for (i = 0; i < 8; i++) chr->items[i] = 0;
     chr->unk6 = 0;
     chr->unk8 = 0;
     chr->unk74_lo = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047AE0);
-#endif
 
 /* Returns the game settings (the save data being played) (0x80047C0C). */
 GameStats *get_settings(void) {

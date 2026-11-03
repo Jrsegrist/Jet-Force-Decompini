@@ -383,8 +383,6 @@ typedef struct PushObj {
     /* 0x68 */ void *data;
 } PushObj;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: float load scheduling of dx/dz only (13 words) */
 /* JFG: push the player (horizontally) out of every sphere of another object's set its spheres overlap. */
 void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *otherSet) {
     PushPlayer *player = obj->data;
@@ -414,8 +412,8 @@ void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *othe
         b = otherSet->spheres;
         for (j = 0; j < otherSet->count; j++, b++) {
             dx = (a->pos.x + player->pushX) - b->pos.x;
-            dz = (a->pos.z + player->pushZ) - b->pos.z;
             dy = a->pos.y - b->pos.y;
+            dz = (a->pos.z + player->pushZ) - b->pos.z;
             r = a->radius + b->radius;
             d = sqrtf(dx * dx + dz * dz);
             if (-r < dy && dy < r && d < r) {
@@ -431,9 +429,6 @@ void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *othe
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007CCF0);
-#endif
 
 /* JFG: push a sphere (position and radius) out of every sphere of the set it overlaps. */
 void spheres_push_out(f32 *x, f32 *y, f32 *z, f32 radius, SphereSet *set) {
@@ -464,8 +459,6 @@ void spheres_push_out(f32 *x, f32 *y, f32 *z, f32 radius, SphereSet *set) {
     *z = pz;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: float register allocation (r/dx/dy/dz in f16-f22 rotated against the target) */
 /* JFG: TRUE if the sphere overlaps any sphere of the set. */
 s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
     s32 i = set->count;
@@ -477,11 +470,11 @@ s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
     f32 dx, dy, dz, r;
 
     while (i--) {
-        r = other->radius + radius;
-        r *= r;
         dx = other->pos.x - x;
         dy = other->pos.y - y;
         dz = other->pos.z - z;
+        r = other->radius + radius;
+        r *= r;
         other++;
         if (dx * dx + dy * dy + dz * dz < r) {
             return TRUE;
@@ -489,9 +482,6 @@ s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
     }
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D0B4);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
 
@@ -865,8 +855,6 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800822D8);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80082D80);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 3 words: the target adds step + box[n] for the first cell end, IDO here emits box[n] + step */
 /* JFG: the C form of func_8001D464 for three axes: clamp the range to the box, split each axis of the box into
  * 8 cells and return a 24-bit mask of the cells the range overlaps (x in bits 0-7, z in 8-15, y in 16-23). */
 s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ) {
@@ -919,7 +907,8 @@ s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s3
     mask = 0;
     bit = 1;
     step = ((box[3] - box[0]) >> 3) + 1;
-    cellEnd = step + box[0];
+    cellEnd = box[0];
+    cellEnd = step + cellEnd;
     cellStart = box[0];
     for (i = 0; i < 8; i++) {
         if (cellEnd >= minX && maxX >= cellStart) {
@@ -930,7 +919,8 @@ s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s3
         bit <<= 1;
     }
     step = ((box[5] - box[2]) >> 3) + 1;
-    cellEnd = step + box[2];
+    cellEnd = box[2];
+    cellEnd = step + cellEnd;
     cellStart = box[2];
     for (i = 0; i < 8; i++) {
         if (cellEnd >= minZ && maxZ >= cellStart) {
@@ -941,7 +931,8 @@ s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s3
         bit <<= 1;
     }
     step = ((box[4] - box[1]) >> 3) + 1;
-    cellEnd = step + box[1];
+    cellEnd = box[1];
+    cellEnd = step + cellEnd;
     cellStart = box[1];
     for (i = 0; i < 8; i++) {
         if (cellEnd >= minY && maxY >= cellStart) {
@@ -953,9 +944,6 @@ s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s3
     }
     return mask;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800835E0);
-#endif
 
 typedef struct MassInfo {
     /* 0x00 */ u8 pad0[0x34];
