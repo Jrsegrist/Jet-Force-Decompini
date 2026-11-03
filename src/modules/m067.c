@@ -2,6 +2,7 @@
  * Runlink module 67: an enemy and its missiles (still mostly assembly).
  */
 #include "module.h"
+#include "gfx.h"
 
 /* A missile's state (obj->unk68), as far as used here */
 typedef struct M067Missile {
@@ -471,7 +472,76 @@ void func_m067_0399C(Object *obj, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_03B7C);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
+extern void func_80041DC0(Gfx **dl);
+extern Vertex rl_m067_04CC8[];   /* the bolt's vertices (.data) */
+extern Triangle rl_m067_04C88[]; /* its triangles (.data) */
+
+/* Draws a bolt: five copies along its path, growing and fading */
+void func_m067_03B7C(Gfx **dl, s32 arg1, Object *obj) {
+    M067Shot *s;
+    s32 kind;
+    s32 i;
+    f32 scale;
+    f32 savedScale;
+    s32 savedRot;
+    f32 savedX;
+    f32 savedY;
+    f32 savedZ;
+    s32 b;
+    s32 g;
+    s32 a;
+
+    s = obj->unk68;
+    if (s->strength == 2) {
+        kind = 0;
+    } else {
+        kind = 1;
+    }
+    savedRot = obj->trans.rotation.z_rotation;
+    savedX = obj->trans.x_position;
+    savedY = obj->trans.y_position;
+    savedZ = obj->trans.z_position;
+    savedScale = obj->trans.scale;
+    obj->trans.x_position -= 4.0f * obj->velocity.x;
+    obj->trans.y_position -= 4.0f * obj->velocity.y;
+    obj->trans.z_position -= 4.0f * obj->velocity.z;
+    scale = 0.5f;
+    b = 0xFF;
+    g = 0;
+    a = 0x33;
+    i = 5;
+    func_80055C00(dl, obj->modelInstances[kind], 0x207, 0);
+    while (i--) {
+        obj->trans.scale = scale * savedScale;
+        func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
+        if (kind == 0) {
+            gDPSetPrimColor((*dl)++, 0, 0, 255, 0, b, a);
+            gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+        } else {
+            gDPSetPrimColor((*dl)++, 0, 0, 0, b, g, a);
+            gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+        }
+        gSPVertexJFG((*dl)++, OS_K0_TO_PHYSICAL(rl_m067_04CC8), 6, 0);
+        gSPPolygon((*dl)++, OS_K0_TO_PHYSICAL(rl_m067_04C88), 4, 1);
+        gDPPipeSync((*dl)++);
+        func_80041DC0(dl);
+        obj->trans.x_position += obj->velocity.x;
+        obj->trans.y_position += obj->velocity.y;
+        obj->trans.z_position += obj->velocity.z;
+        obj->trans.rotation.z_rotation += 0x800;
+        scale += 0.125f;
+        b -= 0x3D;
+        g += 0x3D;
+        a += 0x33;
+    }
+    gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    obj->trans.rotation.z_rotation = savedRot;
+    obj->trans.x_position = savedX;
+    obj->trans.y_position = savedY;
+    obj->trans.z_position = savedZ;
+    obj->trans.scale = savedScale;
+}
 
 void func_m067_03F08(Object *obj, M067ShotSetup *setup) {
     M067Shot *s;
