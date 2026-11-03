@@ -6,7 +6,13 @@
 
 extern s32 rl_m007_00578(s32 hint, s32 arg1);
 extern s32 rl_m007_00390(s32 condition);
-extern void rl_m007_00DF0(void);
+static void func_m007_00DF0(void);
+extern void rl_m007_0070C(void);
+extern void rl_m007_007E4(s32 dir);
+extern void rl_m007_016B4(void);
+extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern s32 func_80043558(s32 player); /* the stick's x */
+extern s32 func_800435C8(s32 player); /* the stick's y */
 extern void *func_8004D37C(s32 asset);
 extern s32 func_8005A7D0(void);
 
@@ -40,7 +46,25 @@ extern Object *rl_m007_02A60;
 #define sHintPreviousArg rl_m007_02A34
 #define sHintObject rl_m007_02A60
 extern s32 rl_m007_02A20; /* the text's fade (0..256) */
-extern s32 rl_m007_02A44, rl_m007_02A58, rl_m007_02A5C;
+/* The pages of a long hint */
+typedef struct M007Pages {
+    /* 0x00 */ s16 count;
+    /* 0x02 */ s16 current;
+} M007Pages;
+
+extern s32 rl_m007_02A44, rl_m007_02A58;
+extern M007Pages *rl_m007_02A5C;
+
+/* The module's .bss (still assembly): the controller as the hint sees it */
+extern s32 rl_m007_02C30; /* A pressed */
+extern s32 rl_m007_02C34; /* B pressed */
+extern s32 rl_m007_02C38; /* Z pressed */
+extern s32 rl_m007_02C3C; /* stick pushed up */
+extern s32 rl_m007_02C40; /* stick pushed down */
+extern s32 rl_m007_02C44; /* stick pushed left */
+extern s32 rl_m007_02C48; /* stick pushed right */
+extern s32 rl_m007_02C4C; /* the stick's x repeat timer */
+extern s32 rl_m007_02C50; /* the stick's y repeat timer */
 extern s32 rl_m007_02A64; /* an object to load for the hint, or -1 */
 extern s32 rl_m007_02A68; /* a level's start hint, or -1 */
 
@@ -59,9 +83,16 @@ typedef struct M007Entry {
 
 void func_m007_00000(void);
 void func_m007_02824(void);
-extern void rl_m007_00E0C(s32 updateRate);
-extern void rl_m007_01018(s32 updateRate);
-extern void rl_m007_01214(s32 updateRate);
+static void func_m007_00E0C(s32 updateRate);
+static void func_m007_01018(s32 updateRate);
+extern s32 func_8007230C(s32 font); /* a font's line height */
+extern s32 runlink_module_loaded(s32 module);
+extern void func_m032_02540(void);
+extern s32 rl_m007_02A38; /* the lines left to scroll (negative: back) */
+extern s32 rl_m007_02A3C; /* the first line shown */
+extern s32 rl_m007_02A40; /* more lines below */
+extern s32 rl_m007_02A4C;
+static void func_m007_01214(s32 updateRate);
 extern void rl_m007_01F80(s32 arg0);
 extern void rl_m007_020D4(s32 arg0);
 extern void func_8006FC14(s32 arg0);
@@ -137,7 +168,7 @@ void func_m007_00148(s32 hint, s32 arg1) {
         if (rl_m007_00578(c->text, 3)) {
             sHintActive = 1;
         }
-        rl_m007_00DF0();
+        func_m007_00DF0();
     }
 }
 
@@ -183,13 +214,126 @@ s32 func_m007_00DE0(void) {
     return sHintTriedToEnd;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00DF0);
+/* Clears the stick's repeat timers */
+static void func_m007_00DF0(void) {
+    rl_m007_02C4C = 0;
+    rl_m007_02C50 = 0;
+    sHintTriedToEnd = 0;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00E0C);
+/* Reads the controller: the buttons, and the stick's directions with auto-repeat */
+static void func_m007_00E0C(s32 updateRate) {
+    s32 buttons;
+    s32 x;
+    s32 y;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01018);
+    buttons = func_80043510(0);
+    x = func_80043558(0);
+    y = func_800435C8(0);
+    rl_m007_02C30 = buttons & 0x8000;
+    rl_m007_02C34 = buttons & 0x4000;
+    rl_m007_02C38 = buttons & 0x1000;
+    rl_m007_02C3C = 0;
+    rl_m007_02C40 = 0;
+    rl_m007_02C44 = 0;
+    rl_m007_02C48 = 0;
+    if (y >= -30 && y < 31) {
+        rl_m007_02C50 = 0;
+    } else if (y >= 31) {
+        if (rl_m007_02C50 > 0) {
+            if ((rl_m007_02C50 -= updateRate) <= 0) {
+                rl_m007_02C50 = 10;
+                rl_m007_02C3C = 1;
+            }
+        } else {
+            rl_m007_02C50 = 20;
+            rl_m007_02C3C = 1;
+        }
+    } else if (y < -30) {
+        if (rl_m007_02C50 < 0) {
+            if ((rl_m007_02C50 += updateRate) >= 0) {
+                rl_m007_02C50 = -10;
+                rl_m007_02C40 = 1;
+            }
+        } else {
+            rl_m007_02C50 = -20;
+            rl_m007_02C40 = 1;
+        }
+    }
+    /* (the original's dead zone for x is empty) */
+    if (x > -30 && x < -30) {
+        rl_m007_02C4C = 0;
+    } else if (x >= 31) {
+        if (rl_m007_02C4C > 0) {
+            if ((rl_m007_02C4C -= updateRate) <= 0) {
+                rl_m007_02C4C = 10;
+                rl_m007_02C48 = 1;
+            }
+        } else {
+            rl_m007_02C4C = 20;
+            rl_m007_02C48 = 1;
+        }
+    } else if (x < -30) {
+        if (rl_m007_02C4C < 0) {
+            if ((rl_m007_02C4C += updateRate) <= 0) {
+                rl_m007_02C4C = -10;
+                rl_m007_02C44 = 1;
+            }
+        } else {
+            rl_m007_02C4C = -20;
+            rl_m007_02C44 = 1;
+        }
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01214);
+/* A scrolling hint's controls: A scrolls on or ends it, B scrolls back */
+static void func_m007_01018(s32 updateRate) {
+    s32 lines = 88 / func_8007230C(2) - 1;
+
+    if (rl_m007_02A38 != 0) {
+        if (rl_m007_02A38 < 0) {
+            rl_m007_02A38++;
+            rl_m007_02A3C--;
+        } else {
+            rl_m007_02A38--;
+            rl_m007_02A3C++;
+        }
+    } else if (rl_m007_02A40 && rl_m007_02C30) {
+        rl_m007_02A38 = lines;
+        if (runlink_module_loaded(0x20)) {
+            func_m032_02540();
+        }
+    } else if (rl_m007_02A3C >= lines && rl_m007_02C34) {
+        rl_m007_02A38 = -lines;
+        if (runlink_module_loaded(0x20)) {
+            func_m032_02540();
+        }
+    }
+    if (!rl_m007_02A40 && rl_m007_02C30) {
+        if (rl_m007_02A44 == 4 && rl_m007_02A4C >= 2) {
+            rl_m007_0070C();
+        } else if (rl_m007_02A44 == 3 && rl_m007_02A74 != 0) {
+            rl_m007_00578(rl_m007_02A70, rl_m007_02A74);
+        } else {
+            sHintTriedToEnd = 1;
+        }
+    } else if (rl_m007_02C34 && rl_m007_02A4C >= 2) {
+        rl_m007_0070C();
+    }
+}
+
+/* A long hint's controls: B ends it, A moves on, up and down turn the pages */
+static void func_m007_01214(s32 updateRate) {
+    if (rl_m007_02C34) {
+        rl_m007_0070C();
+    } else if (rl_m007_02C30) {
+        rl_m007_016B4();
+    } else if (rl_m007_02C3C && rl_m007_02A5C->current > 0) {
+        rl_m007_007E4(-1);
+    } else if (rl_m007_02C40 && rl_m007_02A5C->current < rl_m007_02A5C->count - 1) {
+        rl_m007_007E4(1);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_012E0);
 
@@ -201,12 +345,12 @@ INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_017E8);
 
 /* Every frame: the hint text's fade in and out, and its drawing */
 void func_m007_01CCC(s32 arg0, s32 updateRate) {
-    rl_m007_00E0C(updateRate);
+    func_m007_00E0C(updateRate);
     if (sHintActive && !sHintSpecial) {
         if (rl_m007_02A44 != 1 && rl_m007_02A58 != 0) {
-            rl_m007_01018(updateRate);
-        } else if (rl_m007_02A5C != 0) {
-            rl_m007_01214(updateRate);
+            func_m007_01018(updateRate);
+        } else if (rl_m007_02A5C != NULL) {
+            func_m007_01214(updateRate);
         }
         rl_m007_02A20 += updateRate * 16;
         if (rl_m007_02A20 > 256) {

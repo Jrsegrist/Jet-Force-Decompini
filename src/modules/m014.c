@@ -14,13 +14,16 @@ extern s32 func_m013_00000(void);
 extern void func_8004DDAC(s32 arg0, s32 arg1, s32 arg2);
 extern void func_m006_00C74(void);
 extern void func_m006_01134(void);
-extern void rl_m014_010D8(void);
+extern u8 D_800FF310;
+static void func_m014_010D8(void);
 
 /* The module's .data (still assembly) */
 extern u8 rl_m014_04440[]; /* images */
 extern u8 rl_m014_04460[];
 
 /* The module's .bss (still assembly) */
+extern s32 rl_m014_04890;
+extern s32 rl_m014_0489C;
 extern s16 rl_m014_04894;
 extern s16 rl_m014_04896;
 extern s16 rl_m014_04898;
@@ -30,7 +33,7 @@ void func_m014_00000(void) {
     func_8004DDAC(0, 0, 0);
     menu_assetgroup_load(rl_m014_04440);
     menu_assetgroup_reset(rl_m014_04460);
-    rl_m014_010D8();
+    func_m014_010D8();
     func_m006_00C74();
     func_m006_01134();
     rl_m014_04894 = 0;
@@ -44,7 +47,11 @@ INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00220);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00B30);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_010D8);
+static void func_m014_010D8(void) {
+    rl_m014_0489C = 0;
+    rl_m014_04890 = 0;
+    D_800FF310 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_010F4);
 
