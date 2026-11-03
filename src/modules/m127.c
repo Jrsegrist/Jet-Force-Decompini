@@ -26,7 +26,8 @@ typedef struct M127State {
 } M127State;
 
 /* The module's .data (floats, a debug string and the control's jump table), still assembly */
-extern f32 rl_m127_01150[];
+extern f32 rl_m127_011BC; /* the camera's rates */
+extern f32 rl_m127_011C0;
 
 #ifdef NON_MATCHING
 /* The camera that looks at the terminal (the module's .bss) */
@@ -54,7 +55,8 @@ static s32 sActive;
 #else
 /* The .bss is still assembly: each variable by its module offset */
 extern f32 rl_m127_011D0, rl_m127_011D4, rl_m127_011D8, rl_m127_011DC, rl_m127_011E0, rl_m127_011E4;
-extern s16 rl_m127_011F2, rl_m127_011F4, rl_m127_011F6, rl_m127_01200, rl_m127_0120C;
+extern f32 rl_m127_011E8, rl_m127_011EC;
+extern s16 rl_m127_011F0, rl_m127_011F2, rl_m127_011F4, rl_m127_011F6, rl_m127_01200, rl_m127_0120C;
 extern f32 rl_m127_011F8, rl_m127_011FC, rl_m127_01204, rl_m127_01208, rl_m127_01210, rl_m127_01214;
 extern s32 rl_m127_01218;
 #define sTargetX rl_m127_011D0
@@ -63,6 +65,9 @@ extern s32 rl_m127_01218;
 #define sPosX rl_m127_011DC
 #define sPosY rl_m127_011E0
 #define sPosZ rl_m127_011E4
+#define sDist rl_m127_011E8
+#define sHeight rl_m127_011EC
+#define sAngle rl_m127_011F0
 #define sCamYaw rl_m127_011F2
 #define sCamPitch rl_m127_011F4
 #define sCamRoll rl_m127_011F6
@@ -107,14 +112,7 @@ void func_m127_0003C(Object *obj, M127Setup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m127", func_m127_00104);
 
-/*
- * NON_MATCHING: the camera init. Everything matches except the two rates at
- * the end: the ROM loads each from .data with its own lui (literals of a
- * section that assembly still holds, with the control's jump table); one
- * extern array gives a shared base register. The .bss statics are C only in
- * this branch (IDO drops statics no C uses).
- */
-#ifdef NON_MATCHING
+/* Starts the camera: from where the game camera is, towards a view of the terminal */
 void func_m127_00B14(Object *obj) {
     f32 dx;
     f32 dy;
@@ -152,13 +150,10 @@ void func_m127_00B14(Object *obj) {
     sTargetDist = 200.0f;
     sTargetHeight = 100.0f;
     sTargetAngle = 0x2800 - obj->trans.rotation.y_rotation;
-    sRate = rl_m127_01150[27];
-    sRate2 = rl_m127_01150[28];
+    sRate = rl_m127_011BC;
+    sRate2 = rl_m127_011C0;
     sActive = TRUE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m127", func_m127_00B14);
-#endif
 
 /* Moves the camera round the terminal and turns it to look at it */
 void func_m127_00D44(Object *cam, s32 updateRate) {
