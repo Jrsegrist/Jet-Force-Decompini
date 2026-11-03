@@ -5,7 +5,8 @@
 
 extern void menu_assetgroup_free(void *images); /* frees a list of loaded images */
 extern void func_m006_00EFC();
-extern void rl_m014_01984(void);
+extern void *D_800FF3F8[]; /* the loaded menu images */
+extern void menu_item_free(s32 image);
 
 /* The module's .data (still assembly) */
 extern u8 rl_m014_04440[]; /* images */
@@ -24,7 +25,16 @@ INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_010F4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01328);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01984);
+/* Frees the images 10 to 25 */
+static void free_images(void) {
+    s32 i;
+
+    for (i = 0; i < 16; i++) {
+        if (D_800FF3F8[i + 10] != NULL) {
+            menu_item_free(i + 10);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_019E4);
 
@@ -36,7 +46,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_0292C);
 
 void func_m014_02CC0(void) {
     menu_assetgroup_free(rl_m014_04440);
-    rl_m014_01984();
+    free_images();
     func_m006_00EFC();
 }
 
