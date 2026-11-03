@@ -231,7 +231,7 @@ extern void mtx_model_push(Gfx **dl, s32 arg1, MtxF *mtx);
 /* The module's .data (still assembly): sounds playing */
 extern s32 rl_m068_124EC;
 extern s32 rl_m068_12600;
-extern s32 rl_m068_12614;
+extern s32 rl_m068_12614[2];
 extern s32 rl_m068_12618;
 
 /* The module's .rodata and .bss (still assembly) */
@@ -322,7 +322,12 @@ extern M068Level *func_8004470C(void);
 extern M068Light **func_800218A8(s32 *count);
 extern f32 light_falloff_scale(f32 scale, f32 arg1, f32 arg2, s32 type);
 extern f32 func_8002215C(f32 dirX, f32 dirY, f32 dirZ, f32 dx, f32 dy, f32 dz, f32 dist);
+#ifdef NON_MATCHING
+static void func_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *z);
+#define rl_m068_004D8 func_m068_004D8
+#else
 extern void rl_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *z);
+#endif
 
 /* Picks the (up to four) lights that shine on the boss and sets its ambient light */
 void func_m068_0003C(Object *obj, M068Shade *sh) {
@@ -442,7 +447,128 @@ void func_m068_0003C(Object *obj, M068Shade *sh) {
     sh->lights[0].unk10 = s << sh->lights[0].unk14;
 }
 
+/* A model as the boss's instance sees it: its box and joint count */
+typedef struct M068BoxModel {
+    /* 0x00 */ u8 pad0[0x3C];
+    /* 0x3C */ s16 min[3];
+    /* 0x42 */ s16 max[3];
+    /* 0x48 */ u8 pad48[0x4F - 0x48];
+    /* 0x4F */ s8 jointCount;
+} M068BoxModel;
+
+typedef struct M068BoxInstance {
+    /* 0x00 */ M068BoxModel *model;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 hidden;
+    /* 0x0B */ s8 frame;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ MtxF *frames[1];
+} M068BoxInstance;
+
+extern f32 rl_m068_12730;
+extern f32 rl_m068_12734;
+
+#ifdef NON_MATCHING
+/*
+ * The point of the boss nearest a light: its nearest joint, else the nearest corner of its box.
+ * The corner loop's registers differ: the ROM keeps the light's x/y in f28/f30 and the best corner on the stack.
+ */
+static void func_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *z) {
+    M068BoxInstance *inst;
+    M068BoxModel *model;
+    s32 i;
+    MtxF *best;
+    f32 corners[8][3];
+    f32 bx;
+    f32 by;
+    f32 bz;
+    MtxF *m;
+    f32 *c;
+    f32 min;
+    f32 d;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 x0;
+    f32 y0;
+    f32 z0;
+    f32 x1;
+    f32 y1;
+    f32 z1;
+
+    inst = (M068BoxInstance *) obj->modelInstances[obj->modelIndex];
+    model = inst->model;
+    if (model->jointCount != 0 && inst->hidden == 0) {
+        min = rl_m068_12730;
+        for (i = 0; i < model->jointCount; i++) {
+            m = inst->frames[inst->frame] + i;
+            dx = light->x - (*m)[3][0];
+            dy = light->y - (*m)[3][1];
+            dz = light->z - (*m)[3][2];
+            d = dx * dx + dy * dy + dz * dz;
+            if (d < min) {
+                best = m;
+                min = d;
+            }
+        }
+        *x = (*best)[3][0];
+        *y = (*best)[3][1];
+        *z = (*best)[3][2];
+        return;
+    }
+    x0 = obj->trans.x_position + model->min[0] * obj->trans.scale;
+    y0 = obj->trans.y_position + model->min[1] * obj->trans.scale;
+    z0 = obj->trans.z_position + model->min[2] * obj->trans.scale;
+    x1 = obj->trans.x_position + model->max[0] * obj->trans.scale;
+    y1 = obj->trans.y_position + model->max[1] * obj->trans.scale;
+    z1 = obj->trans.z_position + model->max[2] * obj->trans.scale;
+    corners[0][0] = x0;
+    corners[0][1] = y0;
+    corners[0][2] = z0;
+    corners[1][0] = x1;
+    corners[1][1] = y0;
+    corners[1][2] = z0;
+    corners[2][0] = x1;
+    corners[2][1] = y0;
+    corners[2][2] = z1;
+    corners[3][0] = x0;
+    corners[3][1] = y0;
+    corners[3][2] = z1;
+    corners[4][0] = x0;
+    corners[4][1] = y1;
+    corners[4][2] = z0;
+    corners[5][0] = x1;
+    corners[5][1] = y1;
+    corners[5][2] = z0;
+    corners[6][0] = x1;
+    corners[6][1] = y1;
+    corners[6][2] = z1;
+    corners[7][0] = x0;
+    corners[7][1] = y1;
+    corners[7][2] = z1;
+    bx = x0;
+    by = y0;
+    bz = z0;
+    min = rl_m068_12734;
+    c = corners[0];
+    for (i = 0; i < 8; i++, c += 3) {
+        dx = light->x - c[0];
+        dy = light->y - c[1];
+        dz = light->z - c[2];
+        if (dx * dx + dy * dy + dz * dz < min) {
+            bx = c[0];
+            by = c[1];
+            bz = c[2];
+            min = dx * dx + dy * dy + dz * dz;
+        }
+    }
+    *x = bx;
+    *y = by;
+    *z = bz;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_004D8);
+#endif
 
 /* The boss's state fields its effects use (obj->unk68) */
 typedef struct M068Effects {
@@ -776,8 +902,8 @@ void func_m068_0246C(void) {
     if (rl_m068_12600 != 0) {
         func_80003614(rl_m068_12600);
     }
-    if (rl_m068_12614 != 0) {
-        func_80003614(rl_m068_12614);
+    if (rl_m068_12614[0] != 0) {
+        func_80003614(rl_m068_12614[0]);
     }
     if (rl_m068_12618 != 0) {
         func_80003614(rl_m068_12618);
@@ -919,7 +1045,130 @@ void func_m068_0C874(Object *obj, M068ShotSetup *setup) {
     func_80079D1C(obj, 0x10, 1, 4, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x11);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0C944);
+/* A fire ball's state (obj->unk68) */
+typedef struct M068Ball {
+    /* 0x00 */ f32 speed;
+    /* 0x04 */ f32 radius;
+    /* 0x08 */ f32 time;
+    /* 0x0C */ f32 duration;
+    /* 0x10 */ u8 pad10[0x14 - 0x10];
+    /* 0x14 */ s16 spin;
+    /* 0x16 */ s8 fading;
+    /* 0x17 */ s8 state; /* 0: flying, 1: bursting, 2: done */
+} M068Ball;
+
+extern s32 rl_m068_12608; /* set: the fire balls fade out */
+extern s32 rl_m068_12628; /* which of the two burst sounds is next */
+extern s32 rl_m068_1262C; /* set while a burst plays */
+extern f32 rl_m068_129E8; /* a .rodata float: how fast a fading ball slows */
+extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+
+/* A fire ball: flies (growing) until it hits something or fades out, then bursts */
+void func_m068_0C944(Object *obj, s32 updateRate) {
+    M068Ball *b;
+    HitResult hit;
+    Vec3f to;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    s32 *sound;
+    f32 t; /* the frame time, then how far the ball has grown (0..1) */
+    u32 flags;
+
+    t = updateRate;
+    b = obj->unk68;
+    if (rl_m068_12608 != 0) {
+        b->fading = 1;
+    }
+    if (b->state == 0) {
+        if (((ObjectInteraction *) obj->interactObj)->hitPoints <= 0) {
+            if (rl_m068_1262C == 0) {
+                rl_m068_1262C = 1;
+                b->state = 1;
+                obj->unk28 = 0.0f;
+            } else {
+                b->state = 2;
+            }
+            sound = &rl_m068_12614[rl_m068_12628];
+            if (*sound == 0) {
+                func_80003410(0x214, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, sound);
+                rl_m068_12628 ^= 1;
+            }
+        } else {
+            dx = b->speed * obj->velocity.x * t;
+            dy = b->speed * obj->velocity.y * t;
+            dz = b->speed * obj->velocity.z * t;
+            to.x = obj->trans.x_position + dx;
+            to.y = obj->trans.y_position + dy;
+            to.z = obj->trans.z_position + dz;
+            func_8001CE10(1, (Vec3f *) &obj->trans.x_position, &to, &b->radius, 0, 0, 0);
+            if (func_80016208(obj, (Vec3f *) &obj->trans.x_position, &to, b->radius, 1, &hit)) {
+                obj->trans.x_position = 0.0f;
+                obj->trans.y_position = 0.0f;
+                obj->trans.z_position = 0.0f;
+                func_80009A04(obj, to.x, to.y, to.z);
+                if (rl_m068_1262C == 0) {
+                    rl_m068_1262C = 1;
+                    b->state = 1;
+                    obj->unk28 = 0.0f;
+                } else {
+                    b->state = 2;
+                }
+                sound = &rl_m068_12614[rl_m068_12628];
+                if (*sound == 0) {
+                    func_80003410(0x214, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4,
+                                  sound);
+                    rl_m068_12628 ^= 1;
+                }
+            } else {
+                func_80009A04(obj, dx, dy, dz);
+                b->time += t;
+                if (b->duration <= b->time) {
+                    t = 1.0f;
+                } else {
+                    t = b->time / b->duration;
+                }
+                if (b->fading) {
+                    s16 alpha;
+
+                    b->speed *= func_80049BEC(rl_m068_129E8, updateRate);
+                    alpha = obj->opacity - updateRate * 4;
+                    if (alpha <= 0) {
+                        obj->opacity = 0;
+                        b->state = 2;
+                    } else {
+                        obj->opacity = alpha;
+                    }
+                    obj->trans.scale = 5.0f * t + 1.0f;
+                } else {
+                    obj->trans.rotation.z_rotation += b->spin * updateRate;
+                    obj->trans.scale = 5.0f * t + 1.0f;
+                    obj->opacity = (s32) (200.0f * t) + 55;
+                    if (t == 1.0f) {
+                        b->state = 2;
+                    }
+                }
+                flags = 9;
+                sprite_anim_advance((s32) ((M068Header *) obj->header)->models[0], (s32 *) &flags, 20, &obj->unk28,
+                                    updateRate);
+            }
+        }
+    }
+    if (b->state == 1) {
+        obj->modelIndex = 1;
+        obj->trans.rotation.z_rotation = 0;
+        obj->opacity = 100;
+        flags = 1;
+        if (sprite_anim_advance((s32) ((M068Header *) obj->header)->models[1], (s32 *) &flags, 10, &obj->unk28,
+                                updateRate)) {
+            b->state = 2;
+            rl_m068_1262C = 0;
+        }
+    } else if (b->state == 2) {
+        func_800079B8(obj);
+    }
+}
 
 extern f32 rl_m068_129EC; /* a .rodata float: the scale of the later frames */
 
