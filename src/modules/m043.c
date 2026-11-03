@@ -37,7 +37,6 @@ extern void character_item_give(s32 player, s32 arg1, s32 id);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80001170(u8 sound);
 
-#ifdef NON_MATCHING
 static M043Collectable D_m043_00400[] = {
     { 0x18A, 0, { 3, 3 }, { 0x10, 0x11 }, -1, -1, 1024.0f, -45.0f, 45.0f, 40000.0f, 0, 0 },
     { 0x220, 0, { 0, 4 }, { 0x20, 0 }, 0x98, 0x11F5, 1024.0f, -45.0f, 45.0f, 40000.0f, 0, 0 },
@@ -63,19 +62,12 @@ static M043Collectable D_m043_00400[] = {
     { 0x2DD, 0, { 3, 2 }, { 0x19, 5 }, -1, 0xF, 1024.0f, -45.0f, 45.0f, 90000.0f, 1, 0x100 },
     { -1, 0, { 0xFF, 0xFF }, { 0, 0 }, -1, -1, 1024.0f, -45.0f, 45.0f, 40000.0f, 0, 0 },
 };
-#endif
 
 void func_m043_00000(Object *obj, LevelObjectEntryCommon *setup) {
     obj->modelIndex = 0;
     *OBJ_STATE(obj, s32) = 1; /* check the conditions on the first run */
 }
 
-#ifdef NON_MATCHING
-/*
- * Equivalent, and the frame matches; the original keeps the switch values
- * in v1 (here v0) and spills the second flag of the 0x265 sum to the stack
- * rather than keeping it in s1.
- */
 void func_m043_00014(Object *obj, s32 updateRate) {
     M043Collectable *e;
     s32 got[2];
@@ -102,7 +94,8 @@ void func_m043_00014(Object *obj, s32 updateRate) {
     }
     if (*OBJ_STATE(obj, s32) != 0) {
         i = 2;
-        while (i--) {
+        /* the old count goes through b (the ROM's dead copy shares b's register) */
+        while (b = i, i--, b) {
             b = e->kind[i];
             switch (b) {
                 case 0:
@@ -176,8 +169,3 @@ void func_m043_00014(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m043", func_m043_00014);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m043", data);
-#endif
