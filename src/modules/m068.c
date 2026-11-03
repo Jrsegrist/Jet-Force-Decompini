@@ -209,7 +209,8 @@ typedef struct M068BlockSetup {
 } M068BlockSetup;
 
 typedef struct M068Model {
-    /* 0x00 */ u8 pad0[0x94];
+    /* 0x00 */ u8 pad0[0x92];
+    /* 0x92 */ s16 unk92;
     /* 0x94 */ s16 radius;
 } M068Model;
 
@@ -666,7 +667,88 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0ED10);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0EF2C);
 
+/* A shock ring spreading from the boss's landing (obj->unk68) */
+typedef struct M068Ring {
+    /* 0x00 */ s32 sound;
+    /* 0x04 */ f32 time;
+    /* 0x08 */ f32 fadeStart;
+    /* 0x0C */ f32 end;
+    /* 0x10 */ f32 growth;
+    /* 0x14 */ f32 scale;
+    /* 0x18 */ s32 damage; /* 0 once it has hit */
+} M068Ring;
+
+/* What the player keeps in obj->unk68, as far as used here */
+typedef struct M068Player {
+    /* 0x000 */ u8 pad0[0x5C8];
+    /* 0x5C8 */ s16 unk5C8;
+} M068Player;
+
+extern void func_8005F5A0(f32 arg0);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
+extern void audspat_point_set_volume(s32 sound, s32 volume);
+
+#ifdef NON_MATCHING
+/*
+ * The ring grows and fades; it hurts the player once if they stand on its
+ * edge. Same operations, but the float registers are numbered differently
+ * (the rate is f0 in the ROM) and the frame is 0x18 bytes smaller.
+ */
+void func_m068_0EF70(Object *obj, s32 updateRate) {
+    f32 rate = updateRate;
+    M068Ring *r = obj->unk68;
+    M068Model *model = *((M068Header *) obj->header)->models;
+    f32 k;
+    s32 damage;
+    Object *player;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+
+    r->time += rate / 60.0f;
+    if (r->fadeStart < r->time) {
+        k = 1.0f - (r->time - r->fadeStart) / (r->end - r->fadeStart);
+    } else {
+        k = 1.0f;
+    }
+    obj->opacity = (s32) (255.0f * k);
+    r->scale += r->growth * k * rate;
+    obj->trans.rotation.y_rotation += (s32) (512.0f * rate * k);
+    if (k == 1.0f) {
+        obj->particleEmittersEnabled = 1;
+        func_8005F5AC(obj, updateRate);
+    }
+    if (r->end <= r->time) {
+        func_800079B8(obj);
+    }
+    if (r->damage != 0) {
+        damage = r->damage * k;
+        player = func_8000E4D0(0);
+        if (((M068Player *) player->unk68)->unk5C8 == 0) {
+            dx = player->trans.x_position - obj->trans.x_position;
+            dy = player->trans.y_position - obj->trans.y_position;
+            dz = player->trans.z_position - obj->trans.z_position;
+            d = func_80097140(dx * dx + dz * dz) - model->unk92 * r->scale;
+            if (d > -30.0f && d < 30.0f && dy < model->radius) {
+                ((s16 *) player->interactObj)[3] -= damage;
+                r->damage = 0;
+            }
+        }
+    }
+    ((M068Object *) obj)->radius = model->unk92 * r->scale;
+    if (r->sound == 0) {
+        func_80003410(0x1E6, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, &r->sound);
+    } else {
+        func_800035E8(r->sound, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+        audspat_point_set_volume(r->sound, (s32) (127.0f * k) & 0xFF);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0EF70);
+#endif
 
 void func_m068_0F2FC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068DrawModel *model;
@@ -754,10 +836,6 @@ void func_m068_10A28(Object *obj, M068PieceSetup *setup) {
         obj->trans.flags |= 0x400;
     }
 }
-
-extern void func_8005F5A0(f32 arg0);
-extern void func_8005F5AC(Object *obj, s32 updateRate);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
 
 #ifdef NON_MATCHING
 /*
