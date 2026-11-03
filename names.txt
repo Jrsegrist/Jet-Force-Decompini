@@ -795,3 +795,4 @@ func_800570D8 = tex_dlist_build
 func_800050A8 = obj_id_is_troop_spawned
 func_80050ED0 = obj_id_is_special
 func_80047DD8 = player_chars_have_item
+func_8006DF90 = frame_number_draw
