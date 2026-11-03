@@ -12,17 +12,27 @@ typedef struct M135Aim {
 
 /* The camera's behaviour data */
 typedef struct M135Camera {
-    /* 0x00 */ u8 pad0[0x28];
+    /* 0x00 */ s32 flags;
+    /* 0x04 */ Object *targets[9];
     /* 0x28 */ f32 unk28;
     /* 0x2C */ u8 pad2C[0x44 - 0x2C];
     /* 0x44 */ s32 sound; /* a playing sound's handle, or 0 */
     /* 0x48 */ u8 pad48[2];
     /* 0x4A */ s16 unk4A;
-    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x4C */ s16 yaw;
+    /* 0x4E */ s16 pitch;
     /* 0x50 */ u8 unk50;
-    /* 0x51 */ u8 pad51[3];
+    /* 0x51 */ s8 target; /* the one looked at */
+    /* 0x52 */ s8 lastTarget;
+    /* 0x53 */ u8 pad53;
     /* 0x54 */ u8 unk54;
 } M135Camera;
+
+extern void *get_settings(void);
+extern f32 func_80097140(f32 x);        /* sqrtf */
+extern s32 func_80049C84(f32 a, f32 b); /* the angle of (a, b) */
+extern s32 rl_m135_02A78[]; /* per target: the flag it needs, and one that hides it */
+extern s32 rl_m135_02A84[];
 
 /* The screen camera's behaviour data */
 typedef struct M135ScreenCam {
@@ -86,7 +96,52 @@ void func_m135_00298(Object *obj, LevelObjectEntryCommon *entry) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m135", func_m135_002BC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m135", func_m135_01754);
+/* Turns the camera to the next target that can be shown (dir 0: forwards); TRUE if it changed */
+s32 func_m135_01754(Object *obj, s32 dir) {
+    s32 prev;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    M135Camera *cam = obj->unk68;
+    Object *t;
+
+    get_settings();
+    prev = cam->target;
+    if (cam->lastTarget >= 0) {
+        if (dir == 0) {
+        do {
+            cam->target++;
+            if (cam->lastTarget < cam->target) {
+                cam->target = 0;
+            }
+        } while (cam->targets[cam->target] == NULL || !game_flag_get(rl_m135_02A78[cam->target]) ||
+                 game_flag_get(rl_m135_02A84[cam->target]));
+        } else {
+            do {
+                cam->target--;
+                if (cam->target < 0) {
+                    cam->target = cam->lastTarget;
+                }
+            } while (cam->targets[cam->target] == NULL || !game_flag_get(rl_m135_02A78[cam->target]) ||
+                     game_flag_get(rl_m135_02A84[cam->target]));
+        }
+    } else {
+        cam->target = 0;
+    }
+    t = cam->targets[cam->target];
+    if (t != NULL) {
+        dx = t->trans.x_position - obj->trans.x_position;
+        dy = t->trans.y_position - obj->trans.y_position;
+        dz = t->trans.z_position - obj->trans.z_position;
+        cam->yaw = func_80049C84(dx, dz);
+        cam->pitch = -func_80049C84(dy, func_80097140(dx * dx + dy * dy + dz * dz));
+        if (prev != cam->target) {
+            cam->flags &= ~1;
+            cam->flags |= dir;
+        }
+    }
+    return prev != cam->target;
+}
 
 void func_m135_019CC(Object *obj) {
     M135Camera *cam = obj->unk68;
