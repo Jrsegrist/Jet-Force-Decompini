@@ -705,7 +705,79 @@ void func_m068_10A28(Object *obj, M068PieceSetup *setup) {
     }
 }
 
+extern void func_8005F5A0(f32 arg0);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+
+#ifdef NON_MATCHING
+/*
+ * A piece flying off: it falls and spins until it lands or its time runs out,
+ * then goes. Frame and code match; the piece pointer gets v1 where the ROM
+ * has t0 (and the registers after it move along).
+ */
+void func_m068_10B58(Object *obj, s32 updateRate) {
+    UNUSED s32 pad;
+    HitResult hit;
+    M068Flyer *f;
+    Vec3f from;
+    f32 rate;
+    UNUSED s32 pad2;
+    s32 end;
+
+    f = obj->unk68;
+    if (f->unkE == 0) {
+        return;
+    }
+    rate = updateRate;
+    end = 0;
+    f->unk4 -= rate / 60.0f;
+    if (f->unk4 <= 0.0f) {
+        end = 1;
+    } else {
+        if (f->unk4 <= f->unk8) {
+            obj->trans.rotation.x_rotation += (f->timer * updateRate) << 7;
+            obj->particleEmittersEnabled = 1;
+            func_8005F5AC(obj, updateRate);
+        }
+        if (obj->unk7C == NULL) {
+            from.x = obj->trans.x_position;
+            from.y = obj->trans.y_position;
+            from.z = obj->trans.z_position;
+            func_80009A04(obj, obj->velocity.x * rate, obj->velocity.y * rate, obj->velocity.z * rate);
+            obj->velocity.y -= rate * f->unk0;
+            if (func_80018808(obj, &from, (Vec3f *) &obj->trans.x_position, &hit, 0, 0)) {
+                func_80009A04(obj, hit.pos.x - obj->trans.x_position, hit.pos.y - obj->trans.y_position,
+                              hit.pos.z - obj->trans.z_position);
+                obj->trans.rotation.z_rotation = obj->trans.rotation.x_rotation = obj->trans.rotation.y_rotation = 0;
+                end = 2;
+                f->unk4 = 0.0f;
+            }
+        }
+    }
+    if (end != 0) {
+        switch (end) {
+            case 1:
+                obj->particleEmittersEnabled = 2;
+                break;
+            case 2:
+                obj->particleEmittersEnabled = 2;
+                if (rl_m068_124EC == 0) {
+                    func_80003410(0x16, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4,
+                                  &rl_m068_124EC);
+                }
+                break;
+            default:
+                obj->particleEmittersEnabled = 1;
+                break;
+        }
+        func_8005F5A0(2.0f);
+        func_8005F5AC(obj, updateRate);
+        func_800079B8(obj);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10B58);
+#endif
 
 void func_m068_10DD4(Object *obj, M068PieceSetup *setup) {
     M068Flyer *f;
