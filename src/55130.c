@@ -176,7 +176,7 @@ extern u8 D_800FECA7;
 void set_screen_dialogue_box_size(s32 width, s32 height);
 void zbuffer_alloc(s32 width, s32 height);
 void zbuffer_free(s32 width, s32 height);
-void func_80055260(void *buffer, s32 size);
+void buffer_clear_words(void *buffer, s32 size);
 void video_delta_reset(void);
 void fb_swap(void);
 void fb_init_vi(void);
@@ -230,10 +230,10 @@ void func_8005483C(s32 mode) {
     }
     D_800FECA5 = D_800FECA6;
     if (D_800FECA7) {
-        func_80055260((void *) D_800A3910[0], size);
-        func_80055260((void *) D_800A3910[1], size);
+        buffer_clear_words((void *) D_800A3910[0], size);
+        buffer_clear_words((void *) D_800A3910[1], size);
         if (D_800FECA5) {
-            func_80055260((void *) D_800A3910[2], size);
+            buffer_clear_words((void *) D_800A3910[2], size);
         }
     }
     D_800FECA7 = 1;
@@ -499,12 +499,11 @@ s32 func_80055234(void) {
 
 extern u8 D_800A32A0;
 
-#ifdef NON_MATCHING
 /**
  * JFG: fill a buffer with zeros, or with -1 when D_800A32A0 is clear, and write the cache back.
- * NON_MATCHING: register numbering only (target keeps the pointer in a2, the counter in v1).
+ * (The empty `if (size) {}` gives the ROM's registers; found by the permuter.)
  */
-void func_80055260(void *buffer, s32 size) {
+void buffer_clear_words(void *buffer, s32 size) {
     s32 *ptr = buffer;
     s32 count;
 
@@ -516,6 +515,7 @@ void func_80055260(void *buffer, s32 size) {
         }
     } else {
         count = size >> 2;
+        if (size) {}
         while (count--) {
             *ptr = -1;
             ptr++;
@@ -523,9 +523,6 @@ void func_80055260(void *buffer, s32 size) {
     }
     osWritebackDCacheAll();
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/55130", func_80055260);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_800552DC);
 

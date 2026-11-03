@@ -152,7 +152,7 @@ s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loade
 s32 func_80054530();           // a module function (patched in by the runtime linker)
 
 /* JFG: run the track effects of the modules 1, 8 and 10 that are loaded. */
-void func_80012150(s32 arg0) {
+void track_module_effects_run(s32 arg0) {
     if (runlink_module_loaded(1)) {
         func_80054530(arg0);
     }
@@ -544,7 +544,7 @@ extern s32 D_800A0D8C;
 extern s32 D_800F3370[16];
 
 /* JFG: queue a texture scroll (up to 16 a frame). */
-void func_80013924(s32 arg0, s32 arg1, s32 arg2) {
+void tex_scroll_queue(s32 arg0, s32 arg1, s32 arg2) {
     if (D_800A0D8C < 16) {
         D_800F3370[D_800A0D8C] = (arg0 << 24) | ((arg1 & 0xFFF) << 12) | (arg2 & 0xFFF);
         D_800A0D8C++;
@@ -580,7 +580,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 void track_segment_data_free(void);
 
 #ifdef NON_MATCHING
-/* JFG: scroll the texture coordinates of the triangles using each queued texture (func_80013924).
+/* JFG: scroll the texture coordinates of the triangles using each queued texture (tex_scroll_queue).
    NON_MATCHING: the same code with other registers (target: outer values in t-registers, the
    per-triangle values in s3..fp, no $ra use). */
 void func_80013970(void) {
@@ -737,12 +737,7 @@ void track_segment_data_free(void) {
 extern f32 D_800AB648; // a .rodata constant, not split out yet
 void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
-#ifdef NON_MATCHING
-/**
- * JFG: add a track light in the first free slot.
- * NON_MATCHING: 11 words: the stores in the found-slot block are scheduled differently and the
- * light's spill slot is off by one word.
- */
+/* JFG: add a track light in the first free slot. */
 TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue) {
     s32 i;
     TrackLight *light;
@@ -756,11 +751,11 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
         if (light->outerRadius == 0.0f) {
             light->x = x;
             light->y = y;
+            light->z = z;
             light->outerRadius = outerRadius;
             light->outerRadiusSquare = outerRadius * outerRadius;
             light->innerRadius = innerRadius;
             light->innerRadiusSquare = innerRadius * innerRadius;
-            light->z = z;
             light->falloff = D_800AB648 / (outerRadius - innerRadius);
             track_light_set_colour((u8 *) light, red, green, blue, 255);
             gNumTrackLights++;
@@ -770,9 +765,6 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
     }
     return NULL;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013E0C);
-#endif
 
 extern s32 gNumTrackLights;
 
@@ -993,9 +985,6 @@ void racers_apply_module_values(s32 *arg0, s32 *arg1, s32 *arg2) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001448C);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: register choice only: the target keeps the batch pointer in $s3 and the texture in $s1 (mine
-   the other way round); 18 words */
 /* JFG's vertex and triangle commands here: length, command and parameter or'ed in that order */
 #define gSPVertexSeg(pkt, v, last)                                                                        \
     {                                                                                                     \
@@ -1020,6 +1009,7 @@ void func_8001C778(TextureHeader *tex, s32 texOffset, s32 flags);
  * others the batches whose flags match (4 and 0x20000000 the second group).
  * JFG: environment colour from the texture offset for some textures, flag 0x4000 for a special material.
  * DKR: render_level_segment
+ * (The empty `if (!texture) {}` keeps the batch pointer and texture in the ROM's saved registers; permuter.)
  */
 void func_80014EBC(s32 segmentId, s32 pass) {
     s32 i;
@@ -1084,6 +1074,7 @@ void func_80014EBC(s32 segmentId, s32 pass) {
             gDPSetEnvColor(D_800F2F70++, (u8) (texOffset >> 8), (u8) (texOffset >> 8), (u8) (texOffset >> 8),
                            (u8) (texOffset >> 8));
         } else {
+            if (!texture) {}
             gDPSetEnvColor(D_800F2F70++, 255, 255, 255, 0);
         }
         if (!(batchFlags & 0x180)) {
@@ -1106,9 +1097,6 @@ void func_80014EBC(s32 segmentId, s32 pass) {
         tex_enable_modes(2);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80014EBC);
-#endif
 
 /**
  * Parse through applicable segments in the level.
@@ -1827,13 +1815,14 @@ typedef struct Plane {
 } Plane;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: registers only: the plane's b is $f2 and the distance $f14 in the target (mine $f12 and $f2), and
-   some temporaries are numbered differently; 19 words */
+/* NON_MATCHING: the code matches (the probe agrees), but it ends at 0x8001B078: a C block there is padded to
+   16 bytes, which shifts the asm func_8001B078 after it. It can go in once func_8001B078 is C too. */
 u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
 
 /**
  * JFG: the level triangle nearest in height to (x, y, z) among those of the point's segment under it (batches
  * without any of flags): its height goes to *outY and its plane to *outPlane (each if not NULL); NULL if none.
+ * (`best = d` stored last and the no-op `& 0xFFFF` on the u16 plane index: permuter, two rounds.)
  */
 Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 flags) {
     s32 segmentIndex;
@@ -1882,7 +1871,7 @@ Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 fl
                 heightBits = *heightMasks++ & heightMask;
                 if ((bits & 0xFFFF) && (bits >> 16) && (heightBits & 0xFF)) {
                     if (func_800494AC(ix, iz, &verts[tri->vi0], &verts[tri->vi1], &verts[tri->vi2])) {
-                        plane = &segment->planes[segment->trianglePlanes[faceNum].plane];
+                        plane = &segment->planes[segment->trianglePlanes[faceNum].plane & 0xFFFF];
                         if (plane->b != 0.0f) {
                             h = -((plane->a * x + plane->c * z + plane->d) / plane->b);
                             d = y - h;
@@ -1890,13 +1879,13 @@ Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 fl
                                 d = -d;
                             }
                             if (d < best) {
-                                best = d;
                                 if (outY != NULL) {
                                     *outY = h;
                                 }
                                 if (outPlane != NULL) {
                                     *outPlane = plane;
                                 }
+                                best = d;
                                 result = tri;
                             }
                         }
@@ -1934,7 +1923,7 @@ extern s8 D_800A0CE0;
 void track_segment_data_free(void);
 void func_80038F04(void);
 void tex_free(void *tex);
-void func_8001D938(void);
+void shadow_buffers_free(void);
 void free_object(Object *obj);
 void gParticlePtrList_flush(void);
 void func_80077060(void);
@@ -1974,7 +1963,7 @@ void free_track(void) {
     if (func_80054530(osRomBase) != 0) {
         mempool_free(D_800F33B0);
     }
-    func_8001D938();
+    shadow_buffers_free();
     if (gSkydomeSegment != NULL) {
         free_object(gSkydomeSegment);
         gParticlePtrList_flush();

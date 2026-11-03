@@ -139,21 +139,23 @@ void func_m005_00434(f32 velX, f32 velY, f32 velZ, s32 updateRate) {
     }
 }
 
-#ifdef NON_MATCHING
-/* the frame size matches but width/height sit two words higher, and two constants swap registers */
+/* A point's shade: 255 up close, darker further away */
+#define M005_SHADE(z) (255 - (s32) (((z) - 8.0f) * 0.8732877f))
+
+/* Draws the points as one-pixel rectangles (IDO schedules by source line: the commands stay on one) */
 void func_m005_0050C(Gfx **dl, f32 focal) {
     s32 unused1;
     s32 unused2;
+    s32 unused3;
+    s32 unused4;
     u32 width;
     u32 height;
     Gfx *gfx;
     M005Point *pt;
     s32 i;
     f32 z;
-    f32 scale;
     s32 x;
     s32 y;
-    s32 shade;
 
     func_80054EA0(&width, &height);
     gfx = *dl;
@@ -163,16 +165,10 @@ void func_m005_0050C(Gfx **dl, f32 focal) {
     while (i--) {
         z = pt->z;
         if (z >= 8.0f && z < 300.0f) {
-            scale = focal / z;
-            x = (s32) (pt->x * scale) + (width >> 1);
-            y = (height >> 1) - (s32) (pt->y * scale);
+            x = (s32) (pt->x * (focal / z)) + (width >> 1);
+            y = (height >> 1) - (s32) (pt->y * (focal / z));
             if (x >= 0 && y >= 0 && x < (s32) width && y < (s32) height) {
-                gfx->words.w0 = 0xFA000000;
-                shade = 255 - (s32) ((z - 8.0f) * 0.8732877f);
-                gfx->words.w1 = (shade << 24) | (shade << 16) | (shade << 8) | 0xFF;
-                gfx++;
-                gfx->words.w0 = 0xF6000000 | ((x + 1) << 14) | ((y + 1) << 2);
-                gfx->words.w1 = (x << 14) | (y << 2);
+                gfx->words.w1 = (M005_SHADE(z) << 24) | (M005_SHADE(z) << 16) | (M005_SHADE(z) << 8) | 0xFF; gfx->words.w0 = 0xFA000000; gfx++; gfx->words.w0 = 0xF6000000 | ((x + 1) << 14) | ((y + 1) << 2); gfx->words.w1 = (x << 14) | (y << 2);
                 gfx++;
             }
         }
@@ -181,9 +177,6 @@ void func_m005_0050C(Gfx **dl, f32 focal) {
     *dl = gfx;
     func_80055B80(dl);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m005", func_m005_0050C);
-#endif
 
 void *func_m005_00708(void) {
     return sStreaks;
@@ -196,15 +189,28 @@ void func_m005_00718(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* the colour components are hoisted and spilled differently, and the frame is 0x30 bytes smaller */
+/* Sets up the streak field: `count` streaks spread through the box, each a random colour between the two */
 void func_m005_0074C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom, u32 colourTo, s32 fade) {
     M005Point *pt;
     u32 *colours;
     s32 i;
-    s32 v;
+    u32 v;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 a;
+    u32 dr;
+    u32 dg;
+    u32 db;
+    u32 da;
+    s32 unusedA;
+    s32 unusedB;
+    s32 unusedC;
+    s32 unusedD;
+    s32 unusedE;
 
-    pt = func_8004A57C(count << 4, -1);
+    sStreaks = func_8004A57C(count << 4, -1);
+    sStreakColours = (u32 *) ((u8 *) sStreaks + count * sizeof(M005Point));
     sStreakField.sizeX = sizeX;
     sStreakField.minX = sStreakField.sizeX * -0.5f;
     sStreakField.maxX = sStreakField.sizeX * 0.5f;
@@ -216,35 +222,29 @@ void func_m005_0074C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom,
     sStreakField.maxZ = sStreakField.sizeZ * 0.5f;
     sStreakField.fade = fade;
     sStreakField.fadeScale = 255.0f / sStreakField.fade;
-    colours = (u32 *) (pt + count);
-    sStreaks = pt;
-    sStreakColours = colours;
     sStreakCount = count;
     sStreakField.hasCamera = 0;
     sizeX <<= 7;
     sizeY <<= 7;
     sizeZ <<= 7;
-    for (i = 0; i < sStreakCount; i++) {
+    r = (colourFrom >> 24) & 0xFF;
+    g = (colourFrom >> 16) & 0xFF;
+    b = (colourFrom >> 8) & 0xFF;
+    a = colourFrom & 0xFF;
+    dr = ((colourTo >> 24) & 0xFF) - r;
+    dg = ((colourTo >> 16) & 0xFF) - g;
+    db = ((colourTo >> 8) & 0xFF) - b;
+    da = (colourTo & 0xFF) - a;
+    for (i = 0, pt = sStreaks, colours = sStreakColours; i < sStreakCount; i++) {
         pt->x = func_80048E2C(-sizeX, sizeX) * (1.0f / 256);
         pt->y = func_80048E2C(-sizeY, sizeY) * (1.0f / 256);
         pt->z = func_80048E2C(-sizeZ, sizeZ) * (1.0f / 256);
         v = func_80048E2C(0, 0xFF);
         pt++;
-        *colours++ = (((((s32) ((((colourTo >> 24) & 0xFF) - ((colourFrom >> 24) & 0xFF)) * v) >> 8) +
-                        ((colourFrom >> 24) & 0xFF))
-                       << 24) |
-                      ((((s32) ((((colourTo >> 16) & 0xFF) - ((colourFrom >> 16) & 0xFF)) * v) >> 8) +
-                        ((colourFrom >> 16) & 0xFF))
-                       << 16) |
-                      ((((s32) ((((colourTo >> 8) & 0xFF) - ((colourFrom >> 8) & 0xFF)) * v) >> 8) +
-                        ((colourFrom >> 8) & 0xFF))
-                       << 8) |
-                      (((s32) (((colourTo & 0xFF) - (colourFrom & 0xFF)) * v) >> 8) + (colourFrom & 0xFF)));
+        *colours++ = ((((s32) (dr * v) >> 8) + r) << 24) | ((((s32) (dg * v) >> 8) + g) << 16) |
+                     ((((s32) (db * v) >> 8) + b) << 8) | (((s32) (da * v) >> 8) + a);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m005", func_m005_0074C);
-#endif
 
 void func_m005_00A58(f32 velX, f32 velY, f32 velZ, s32 updateRate) {
     M005Field *f = &sStreakField;
@@ -304,7 +304,3 @@ void func_m005_00C10(s32 arg0, s32 arg1, s32 arg2, f32 arg3, f32 density) {
         }
     }
 }
-
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m005", rodata);
-#endif

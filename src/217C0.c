@@ -594,14 +594,15 @@ Object **objGetObjList(s32 *arg0, s32 *cnt);
 void func_80021B8C(Object *obj, void *arg1);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
-#ifdef NON_MATCHING
 /**
  * JFG: shade every 3D-model object that has shading (and unkA1 clear): func_80021B8C, or a module
- * function when the level header says so.
- * NON_MATCHING: i and count sit two words higher (target 0x24/0x20, with no temporaries below).
+ * function when the level header says so. (The shading read into a local per loop, as found by the
+ * permuter, gives the ROM's frame.)
  */
-void func_80021A30(void) {
+void objects_shade_all(void) {
     Object **objs;
+    struct ShadeProperties *shading2;
+    struct ShadeProperties *shading;
     Object *obj;
     s32 i;
     s32 count;
@@ -610,22 +611,21 @@ void func_80021A30(void) {
     if (level_header()->unk6B) {
         while (i < count) {
             obj = objs[i++];
+            shading2 = obj->shading;
             if (obj->shading != NULL && obj->header->unk1E == 0 && obj->unkA1 == 0) {
-                func_80054530(obj, obj->shading);
+                func_80054530(obj, shading2);
             }
         }
     } else {
         while (i < count) {
             obj = objs[i++];
+            shading = obj->shading;
             if (obj->shading != NULL && obj->header->unk1E == 0 && obj->unkA1 == 0) {
-                func_80021B8C(obj, obj->shading);
+                func_80021B8C(obj, shading);
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80021A30);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/217C0", func_80021B8C);
 

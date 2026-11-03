@@ -88,7 +88,8 @@ extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
 /*
  * All functions but update_beam_light match. That one differs in register
  * allocation and spills only (the ROM keeps x, y and the radius in stack
- * slots; frame 0x58 vs 0x48). As .rodata has to come from all C or all asm,
+ * slots; frame 0x58 vs 0x48; the `light` local gives the ROM's v0 test; an
+ * `if (&radius) {}` puts radius in its slot but costs more than it fixes). As .rodata has to come from all C or all asm,
  * the matching build keeps the whole module in asm for now.
  */
 #ifdef NON_MATCHING
@@ -105,8 +106,10 @@ static void update_beam_light(Object *obj, M124Light *l) {
     f32 radius;
     f32 len;
     f32 h;
+    s32 light;
 
-    if (l->objectLight != 0) {
+    light = l->objectLight;
+    if (light != 0) {
         sinY = func_80049C34(obj->trans.rotation.y_rotation);
         cosY = func_80049C30(obj->trans.rotation.y_rotation);
         sinX = func_80049C34(obj->trans.rotation.x_rotation);

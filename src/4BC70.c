@@ -304,18 +304,18 @@ void erase_save_file(s32 slot, UNUSED s32 arg1) {
     mempool_free(buf);
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: buf and i swap saved registers (target buf s3, i s4) and 0xFF goes to a0 */
-/* JFG: erase the first 8 flash sectors. */
-void func_8004BD78(void) {
+/* JFG: erase the first 8 flash sectors.
+   (`if (buf) {}` in the fill loop keeps buf in the ROM's saved register; found by the permuter.) */
+void flash_erase_sectors(void) {
     s32 i;
     u8 *buf = mempool_alloc_safe(0x80, -1);
-    u8 *p = buf;
+    u8 *p;
     s32 j;
     s32 page;
 
-    for (i = 0; i < 0x80; i++) {
+    for (i = 0, p = buf; i < 0x80; i++) {
         *p++ = 0xFF;
+        if (buf) {}
     }
     if (is_reset_pressed() == 0) {
         page = 0;
@@ -328,9 +328,6 @@ void func_8004BD78(void) {
     }
     mempool_free(buf);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BD78);
-#endif
 
 /* Returns the checksum of the settings block (0x8004BE44). */
 s32 calculate_eeprom_settings_checksum(u8 *data) {

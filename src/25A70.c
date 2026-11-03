@@ -163,7 +163,7 @@ void obj_init_torch_mist(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
 void sprite_anim_advance(void *sprite, s32 *arg1, void *arg2, void *arg3, s32 arg4); // JFG: animate a sprite
 
 /* JFG: animate the object's sprite (mode 9) by the update rate. */
-void func_80024EF4(u8 *obj, s32 updateRate) {
+void obj_sprite_animate(u8 *obj, s32 updateRate) {
     s32 flags = 9;
 
     sprite_anim_advance(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
@@ -595,7 +595,7 @@ void obj_loop_skycontrol(Object *obj, UNUSED s32 updateRate) {
     }
 }
 
-void func_80013924(s32 segmentId, s32 xSpeed, s32 ySpeed, s32 updateRate);
+void tex_scroll_queue(s32 segmentId, s32 xSpeed, s32 ySpeed, s32 updateRate);
 
 /* JFG: a texture animator loop (DKR obj_loop_animator, the update rate passed instead of the batch). */
 void obj_loop_texture_animator(Object *obj, s32 updateRate) {
@@ -612,7 +612,7 @@ void obj_loop_texture_animator(Object *obj, s32 updateRate) {
     t1 += animator->ySpeed;
     animator->ySpeed = t1 & 0x3;
     t1 >>= 2;
-    func_80013924(animator->segmentId, t0, t1, updateRate);
+    tex_scroll_queue(animator->segmentId, t0, t1, updateRate);
 }
 
 /**
@@ -839,7 +839,7 @@ typedef struct LevelObjectEntry_ZoneTrigger {
     /* 0x14 */ s16 soundID;
 } LevelObjectEntry_ZoneTrigger;
 
-s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 arg4);
+s32 zone_sphere_touches(f32 x, f32 y, f32 z, f32 radius, s32 arg4);
 void func_80076928(s32 id);
 void func_80079BB8(void);
 void anim_path_sound_stop(s32 id);
@@ -849,7 +849,7 @@ void func_80076A5C(s32 id, s32 arg1);
 void func_80079BA8(void);
 void sound_play(u16 soundID, s32 *handlePtr);
 
-/* JFG: loop: a trigger zone; entering (a racer within enterRadius, or func_8002A704 with flag 0x40) sets
+/* JFG: loop: a trigger zone; entering (a racer within enterRadius, or zone_sphere_touches with flag 0x40) sets
    off entry->id one way (flags 0x80/0x20) and a sound, leaving undoes it if asked; flag 1 calls
    func_80079BA8 while inside. */
 void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
@@ -859,7 +859,7 @@ void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
     entry = (LevelObjectEntry_ZoneTrigger *) obj->level_entry;
     if (entry->flags & 0x40) {
         if (obj->properties.common.unk0 == 0) {
-            if (func_8002A704(obj->x_position, obj->y_position, obj->z_position, entry->enterRadius, 1)) {
+            if (zone_sphere_touches(obj->x_position, obj->y_position, obj->z_position, entry->enterRadius, 1)) {
                 obj->properties.common.unk0 = 1;
             }
         }
@@ -1000,7 +1000,7 @@ typedef struct BufferState {
 void mempool_free(void *data);
 
 /* JFG: free the four buffers of the object's state. */
-void func_80027D08(Object *obj) {
+void obj_state_buffers_free(Object *obj) {
     BufferState *state = (BufferState *) obj->animator;
 
     if (state->buffers[0] != NULL) {

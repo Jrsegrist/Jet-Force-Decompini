@@ -982,15 +982,18 @@ s32 options_screen_mode_get(void) {
 extern u8 D_800A51A4;
 extern u8 D_800A51A8;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: registers only: the masked mode is v0 and the u8 copy a0 (target v1 and v0) */
-/* JFG: set the screen mode byte (0-3) and copy its two bits into the settings flags. */
+/* JFG: set the screen mode byte (0-3) and copy its two bits into the settings flags.
+   (The compare into a local and the copy of mode give the ROM's registers; found by the permuter.) */
 void func_8005A834(s32 mode) {
+    s32 changed;
     u8 m;
+    s32 bits;
 
-    if (D_800A51A8 != (mode & 3)) {
+    changed = (mode & 3) != D_800A51A8;
+    bits = mode;
+    if (changed) {
         D_800A51A8 = mode & 3;
-        m = mode & 3;
+        m = bits & 3;
         if (m & 1) {
             D_800FF318.unk6C_1 = 1;
         } else {
@@ -1003,9 +1006,6 @@ void func_8005A834(s32 mode) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/59060", func_8005A834);
-#endif
 
 /* JFG: remember the current screen mode byte (func_8005A8D8 returns it). */
 void func_8005A8C4(void) {

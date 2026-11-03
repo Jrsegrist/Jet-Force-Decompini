@@ -329,7 +329,7 @@ extern ObjectHeader **D_800F2C98; // DKR: gLoadedObjectHeaders
 void tex_free(void *tex);
 void sprite_free(void *sprite);
 void free_3d_model(void *model);
-void func_8003F0E4(void *arg0);
+void asset_cache2_release(void *arg0);
 
 /**
  * Remove this object from the loaded header's references.
@@ -355,7 +355,7 @@ void try_free_object_header(s32 index) {
                 }
             }
             if (header->unkD4 != NULL) {
-                func_8003F0E4(header->unkD4);
+                asset_cache2_release(header->unkD4);
             }
             mempool_free(header);
         }
@@ -589,7 +589,7 @@ extern s32 *D_800F2C74; // JFG: header offsets
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 /* JFG: load an object type's header and return one of its fields. */
-s16 func_80005EC0(s32 type) {
+s16 obj_header_field_get(s32 type) {
     UNUSED s32 pad;
     s32 offset;
     ObjectHeaderAsset header;
@@ -830,7 +830,7 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80007C68);
 extern void **D_800F2D18; // JFG: the animated objects
 
 /* JFG: take an object off the animated list (the last one takes its place). */
-void func_80008F70(void *obj) {
+void anim_obj_list_remove(void *obj) {
     s32 i;
 
     if (D_800F2D1C > 0) {
@@ -1284,7 +1284,7 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
 void func_8006D7F0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
 
 /* JFG: draw a line from the point in the object's block at 0x68 to the object. */
-void func_8000A9EC(Object *obj) {
+void obj_debug_line_draw(Object *obj) {
     f32 *from = (f32 *) obj->racer;
 
     func_8006D7F0(from[1], from[2], from[3], obj->trans.x_position, obj->trans.y_position,
@@ -1329,7 +1329,7 @@ void func_80054530(); // a module function (patched in by the runtime linker)
 /* JFG: set the fog for drawing a type 0x18 object (its flash colour while its player's bit is set,
    counting the flash down), or let a module do it for type 0x82. The fog factor word (0x500, 0x500)
    goes through the playerID parameter, which this branch no longer needs. */
-void func_8000C9F4(Object *obj, s32 playerID) {
+void obj_flash_fog_set(Object *obj, s32 playerID) {
     s16 near;
     s16 far;
     s16 unk;
@@ -1698,9 +1698,8 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800110E4);
 
-#ifdef NON_MATCHING
-/* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there. Returns whether it passed an end.
-   NON_MATCHING: 7 words: the target shares one return block at the end (here it is duplicated). */
+/* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there.
+   Returns whether it passed an end. */
 s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
     ObjectAttachment *attachment;
     s32 result;
@@ -1718,10 +1717,8 @@ s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
         } else {
             obj->animFrame = 1.0f;
         }
-        return 1;
-    }
-    if (obj->animFrame < 0.0f) {
         result = 1;
+    } else if (obj->animFrame < 0.0f) {
         if (attachment->unk8) {
             while (obj->animFrame < 0.0f) {
                 obj->animFrame += 1.0f;
@@ -1729,12 +1726,10 @@ s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
         } else {
             obj->animFrame = 0.0f;
         }
+        result = 1;
     }
     return result;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8001138C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8001149C);
 

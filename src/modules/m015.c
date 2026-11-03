@@ -699,7 +699,7 @@ extern void func_80034164(Object *obj, Racer *racer);
 extern void player_loop_sounds_update(Object *obj, Racer *racer, s32 a, s32 b, s32 updateRate);
 extern void func_800349AC(Racer *racer, f32 updateRate);
 extern void func_80035894(Object *obj, Racer *racer, f32 updateRate);
-extern void func_80035AEC(Object *obj, Racer *racer, f32 updateRate);
+extern void racer_angle_sync(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate, void *table);
 extern void func_800364D4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate, void *table);
 extern void func_80036A30(Object *obj, Racer *racer, s32 updateRate);
@@ -765,7 +765,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         racer->unk16C = NULL;
     }
     func_80035894(obj, racer, updateRate);
-    func_80035AEC(obj, racer, updateRate);
+    racer_angle_sync(obj, racer, updateRate);
     func_80036A30(obj, racer, updateRate);
     D_m015_089D4 = 0.0625f;
     if (D_800A4FC4 != 0) {

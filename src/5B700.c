@@ -1179,7 +1179,7 @@ ParticleEmitter *emitter_alloc_from_pool(s32 behaviourID, s32 particleID) {
 
 typedef struct ParticleDesc ParticleDesc;
 extern ParticleDesc **D_800A5D9C;
-u8 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter);
+s32 point_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter);
 s32 line_particle_set_alloc(); // JFG: takes (desc, behaviour); the caller below also passes the emitter
 
 /**
@@ -1213,7 +1213,7 @@ void obj_enable_emitter(ParticleObj *obj, s32 emitterIndex) {
         }
     }
     if (emitter->flags & PARTICLE_POINT) {
-        emitter->index = func_8005F048(desc, behaviour, emitter);
+        emitter->index = point_particle_set_alloc(desc, behaviour, emitter);
     }
     emitter->flags |= PARTICLE_ACTIVE;
     obj->activeEmitters++;
@@ -1233,11 +1233,9 @@ extern f32 D_800AD81C; // 0.01f
 extern f32 D_800AD820; // 0.01f
 extern f32 *D_800A5F78[]; // JFG: point shapes, (x, y) pairs
 
-#ifdef NON_MATCHING
 /* JFG: give an emitter a point particle set: reuse the one it let go of, or claim a free one (index, 0xFF if none).
-   NON_MATCHING: same code; the constant 2 for unkA4 is hoisted into the second loop's blez slot and the
-   return value is moved early (target: move v1,zero in the slot, li 2 in the beq slot). */
-u8 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter) {
+   (The two empty ifs before the second loop give the ROM's loop entry; found by the permuter.) */
+s32 point_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter) {
     s32 found;
     s32 i;
     s32 j;
@@ -1258,7 +1256,9 @@ u8 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitt
             return i;
         }
     }
+    if (set) {}
     set = D_800A5D88;
+    if (!i) {}
     for (i = 0; i < D_800A5D80; i++) {
         if (set->unkA4 == 0) {
             found = i;
@@ -1302,9 +1302,6 @@ u8 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitt
     }
     return found;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F048);
-#endif
 
 /* JFG: claim a free line particle set for a description; returns its index, 0xFF if none is free. */
 s32 line_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour) {

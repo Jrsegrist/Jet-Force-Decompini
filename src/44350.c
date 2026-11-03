@@ -328,7 +328,7 @@ void audspat_reset(void);
 void sound_volume_change(s32 behaviour);
 void weather_free(void);
 void tex_free(void *tex);
-void func_80053934(void);
+void runlink_unload_all(void);
 void effect_slots_free(void);
 extern s32 D_800A089C;
 
@@ -352,7 +352,7 @@ void level_free(void) {
     if (gCurrentLevelHeader->unk69 == -1) {
         tex_free(gCurrentLevelHeader->texture);
     }
-    func_80053934();
+    runlink_unload_all();
     effect_slots_free();
 }
 
