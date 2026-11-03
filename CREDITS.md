@@ -163,6 +163,14 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/textures_sprites.c` | sprite_init_frame (func_80056D24, NON_MATCHING body) |
 | `src/tracks.c` | init_track, generate_track, func_8002C954, func_8002C71C and LOCAL_OFFSET_TO_RAM_ADDRESS, in module 24 (`src/modules/m024.c`, JFG's forms) |
 
+### Round 9 (perm9), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/tracks.c` | render_level_segment (func_80014EBC) now matches; its round-7 NON_MATCHING body finished with the permuter |
+
 ## Tools and libraries
 
 | What | Licence | How it is used |
