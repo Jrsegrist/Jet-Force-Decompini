@@ -135,18 +135,17 @@ void music_volume_fade(f32 time, u8 volume) {
     }
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the product lands in $v1 in the target ($a1 here) */
-/* JFG: fade the music to volume, scaled by the current sequence's volume. */
+/* JFG: fade the music to volume, scaled by the current sequence's volume.
+   (The scaled volume goes through a local: that puts the product in $v1.) */
 void func_80000724(f32 time, u8 volume) {
+    s32 scaled;
+
     if (volume >= 0x80) {
         volume = 0x7F;
     }
-    music_volume_fade(time, (gSeqSoundTable[gCurrentSequenceID].volume * volume) / 127);
+    scaled = (gSeqSoundTable[gCurrentSequenceID].volume * volume) / 127;
+    music_volume_fade(time, scaled);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/audio", func_80000724);
-#endif
 
 /* Stops the music volume fade (0x80000798). */
 void music_volume_fade_stop(void) {
