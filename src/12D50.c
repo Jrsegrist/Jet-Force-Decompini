@@ -1815,13 +1815,14 @@ typedef struct Plane {
 } Plane;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: registers only: the plane's b is $f2 and the distance $f14 in the target (mine $f12 and $f2), and
-   some temporaries are numbered differently; 19 words */
+/* NON_MATCHING: the code matches (the probe agrees), but it ends at 0x8001B078: a C block there is padded to
+   16 bytes, which shifts the asm func_8001B078 after it. It can go in once func_8001B078 is C too. */
 u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
 
 /**
  * JFG: the level triangle nearest in height to (x, y, z) among those of the point's segment under it (batches
  * without any of flags): its height goes to *outY and its plane to *outPlane (each if not NULL); NULL if none.
+ * (`best = d` stored last and the no-op `& 0xFFFF` on the u16 plane index: permuter, two rounds.)
  */
 Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 flags) {
     s32 segmentIndex;
@@ -1870,7 +1871,7 @@ Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 fl
                 heightBits = *heightMasks++ & heightMask;
                 if ((bits & 0xFFFF) && (bits >> 16) && (heightBits & 0xFF)) {
                     if (func_800494AC(ix, iz, &verts[tri->vi0], &verts[tri->vi1], &verts[tri->vi2])) {
-                        plane = &segment->planes[segment->trianglePlanes[faceNum].plane];
+                        plane = &segment->planes[segment->trianglePlanes[faceNum].plane & 0xFFFF];
                         if (plane->b != 0.0f) {
                             h = -((plane->a * x + plane->c * z + plane->d) / plane->b);
                             d = y - h;
@@ -1878,13 +1879,13 @@ Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 fl
                                 d = -d;
                             }
                             if (d < best) {
-                                best = d;
                                 if (outY != NULL) {
                                     *outY = h;
                                 }
                                 if (outPlane != NULL) {
                                     *outPlane = plane;
                                 }
+                                best = d;
                                 result = tri;
                             }
                         }
