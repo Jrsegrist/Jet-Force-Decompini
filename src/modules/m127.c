@@ -51,7 +51,34 @@ static s16 sTargetAngle;
 static f32 sRate;
 static f32 sRate2;
 static s32 sActive;
+#else
+/* The .bss is still assembly: each variable by its module offset */
+extern f32 rl_m127_011D0, rl_m127_011D4, rl_m127_011D8, rl_m127_011DC, rl_m127_011E0, rl_m127_011E4;
+extern s16 rl_m127_011F2, rl_m127_011F4, rl_m127_011F6, rl_m127_01200, rl_m127_0120C;
+extern f32 rl_m127_011F8, rl_m127_011FC, rl_m127_01204, rl_m127_01208, rl_m127_01210, rl_m127_01214;
+extern s32 rl_m127_01218;
+#define sTargetX rl_m127_011D0
+#define sTargetY rl_m127_011D4
+#define sTargetZ rl_m127_011D8
+#define sPosX rl_m127_011DC
+#define sPosY rl_m127_011E0
+#define sPosZ rl_m127_011E4
+#define sCamYaw rl_m127_011F2
+#define sCamPitch rl_m127_011F4
+#define sCamRoll rl_m127_011F6
+#define sCurDist rl_m127_011F8
+#define sCurHeight rl_m127_011FC
+#define sCurAngle rl_m127_01200
+#define sTargetDist rl_m127_01204
+#define sTargetHeight rl_m127_01208
+#define sTargetAngle rl_m127_0120C
+#define sRate rl_m127_01210
+#define sRate2 rl_m127_01214
+#define sActive rl_m127_01218
 #endif
+
+extern f32 func_80049BEC(f32 rate, s32 updateRate);
+extern s16 angle_lerp(s16 from, s16 to, f32 t); /* moves an angle towards another */
 
 extern Object *func_80041DE0(void); /* the game camera */
 extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out); /* rotates by the object's transform */
@@ -133,7 +160,42 @@ void func_m127_00B14(Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m127", func_m127_00B14);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m127", func_m127_00D44);
+/* Moves the camera round the terminal and turns it to look at it */
+void func_m127_00D44(Object *cam, s32 updateRate) {
+    s16 roll;
+    s16 pitch;
+    s16 yaw;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 t;
+
+    t = 1.0f - func_80049BEC(sRate, updateRate);
+    sCurDist += (sTargetDist - sCurDist) * t;
+    sCurHeight += (sTargetHeight - sCurHeight) * t;
+    sCurAngle = angle_lerp(sCurAngle, sTargetAngle, t);
+    func_80049C34(sCurAngle);
+    func_80049C30(sCurAngle);
+    cam->trans.x_position = func_80049C34(sCurAngle) * sCurDist + sTargetX;
+    cam->trans.y_position = sTargetY + sCurHeight;
+    cam->trans.z_position = sTargetZ - func_80049C30(sCurAngle) * sCurDist;
+    if (sActive) {
+        dx = cam->trans.x_position - sPosX;
+        dy = cam->trans.y_position - sPosY;
+        dz = cam->trans.z_position - sPosZ;
+        yaw = 0x8000 - func_80049C84(dx, dz);
+        pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+        roll = 0;
+    } else {
+        yaw = sCamYaw;
+        pitch = sCamPitch;
+        roll = sCamRoll;
+    }
+    t = 1.0f - func_80049BEC(sRate2, updateRate);
+    cam->trans.rotation.y_rotation = angle_lerp(cam->trans.rotation.y_rotation, yaw, t);
+    cam->trans.rotation.x_rotation = angle_lerp(cam->trans.rotation.x_rotation, pitch, t);
+    cam->trans.rotation.z_rotation = angle_lerp(cam->trans.rotation.z_rotation, roll, t);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m127", func_m127_00FA0);
 
