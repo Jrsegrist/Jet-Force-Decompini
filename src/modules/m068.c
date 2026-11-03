@@ -927,7 +927,113 @@ void func_m068_0F2FC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     model->drawn = 0;
 }
 
+/* A falling boulder's state (obj->unk68) */
+typedef struct M068Boulder {
+    /* 0x00 */ u8 *colour; /* its light's colour, or NULL */
+    /* 0x04 */ Vec3f trail[5];
+    /* 0x40 */ Vec3f velocity;
+    /* 0x4C */ f32 speed;
+    /* 0x50 */ u8 pad50[0x5C - 0x50];
+    /* 0x5C */ f32 radius;
+    /* 0x60 */ u8 pad60[0x6C - 0x60];
+    /* 0x6C */ u8 r;
+    /* 0x6D */ u8 g;
+    /* 0x6E */ u8 b;
+    /* 0x6F */ u8 pad6F;
+    /* 0x70 */ s16 unk70;
+    /* 0x72 */ s16 unk72;
+    /* 0x74 */ s16 kind;
+} M068Boulder;
+
+/* A boulder's level entry */
+typedef struct M068BoulderSetup {
+    /* 0x0 */ u8 pad0[3];
+    /* 0x3 */ u8 kind;
+} M068BoulderSetup;
+
+extern void func_80049394(Vec3s *rotation, Vec3f *vec);
+extern s32 rl_m068_125E8;       /* how many trail points (.data) */
+extern s32 rl_m068_125FC;       /* the boulders made (.data) */
+extern Vec3f rl_m068_136F0[];   /* the trail's start (.bss) */
+
+#ifdef NON_MATCHING
+/*
+ * A boulder: starts 1000 units back along a random direction, with a trail, a
+ * speed and a size. The frame is 8 bytes bigger (rotation 4 higher) and the
+ * temporaries after the trail end are one lower than the ROM's.
+ */
+void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
+    M068Boulder *b;
+    s32 i;
+    f32 f;
+    ObjectHeaderUnk50 *hit;
+    Vec3f *t;
+    Vec3f *src;
+    Vec3f v;
+    Vec3s rot;
+
+    b = obj->unk68;
+    b->unk70 = 0;
+    b->kind = setup->kind;
+    rot.y_rotation = 0;
+    rot.x_rotation = 0x3000;
+    rot.z_rotation = func_80048E2C(-0x7FBC, 0x7FBC);
+    v.x = 0.0f;
+    v.y = 0.0f;
+    v.z = -1000.0f;
+    func_80049394(&rot, &v);
+    obj->trans.x_position += v.x;
+    obj->trans.y_position += v.y;
+    obj->trans.z_position += v.z;
+    for (i = 0, t = b->trail, src = rl_m068_136F0; i < rl_m068_125E8; i++, t++, src++) {
+        t->x = src->x;
+        t->y = src->y;
+        t->z = src->z;
+    }
+    if (rl_m068_125E8 > 0) {
+        rot.y_rotation = 0;
+        rot.x_rotation = 0x4000;
+        rot.z_rotation = func_80048E2C(-0x3000, 0x3000);
+        v.x = 0.0f;
+        v.y = 0.0f;
+        v.z = func_80048E2C(-400, -200);
+        func_80049394(&rot, &v);
+        t = &b->trail[rl_m068_125E8 - 1];
+        t->x += v.x;
+        t->y += v.y;
+        t->z += v.z;
+    }
+    f = func_80048E2C(100, 200) / 10.0f;
+    b->speed = f;
+    b->velocity.x = -v.x;
+    b->velocity.y = -v.y;
+    b->velocity.z = -v.z;
+    b->unk72 = f * 100.0f;
+    if (obj->light != NULL && *obj->light != 0) {
+        b->colour = (u8 *) *obj->light + 0x48;
+        b->r = b->colour[8];
+        b->g = b->colour[9];
+        b->b = b->colour[10];
+    } else {
+        b->colour = NULL;
+        b->r = 155;
+        b->g = 155;
+        b->b = 155;
+    }
+    obj->trans.scale = func_80048E2C(30, 100) / 100.0f;
+    hit = obj->header->unk50;
+    b->radius = hit->radius * obj->trans.scale;
+    func_80079D1C(obj, 0x100, 1, 5, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x10);
+    if (b->kind == 2 || b->kind == 1) {
+        ((u8 *) obj->interactObj)[0x2F] = 0;
+    } else {
+        ((u8 *) obj->interactObj)[0x2F] = 100;
+    }
+    rl_m068_125FC++;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F478);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F7C8);
 
