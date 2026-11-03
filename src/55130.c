@@ -1602,14 +1602,13 @@ void update_pulsating_light_data(PulsatingLightData *data, s32 timeDelta) {
 #define ASSET_SCREENS 0x13
 #define ASSET_SCREENS_TABLE 0x14
 
-#ifdef NON_MATCHING
 /**
  * Loads a 320x240 RGBA16 image to be displayed on the screen.
  * Returns the address of the screen asset, or 0x80100000 if no screen assets were found.
  * JFG: the screens are compressed, and are decompressed in place at the end of the buffer.
  * Official Name: screenLoad
- * NON_MATCHING: the code is identical, but the frame is 0x40 (target 0x38): IDO gives
- * these locals nine stack slots where the target has eight.
+ * (JFG: one word, header, holds both the header's address and then the compressed data's, which is why it is
+ * a u32; the colour tag is 0xFFFF.)
  */
 UNUSED u32 screenimage_load(s32 screenIndex) {
     u32 *screenTable;
@@ -1618,8 +1617,7 @@ UNUSED u32 screenimage_load(s32 screenIndex) {
     s32 screenTableCount;
     s32 imageSize;
     u8 *image;
-    u8 *header;
-    u32 compressed;
+    u32 header;
 
     screenTable = asset_table_load(ASSET_SCREENS_TABLE);
     screenTableCount = 0;
@@ -1641,25 +1639,22 @@ UNUSED u32 screenimage_load(s32 screenIndex) {
     start = screenTable[screenIndex];
     size = screenTable[screenIndex + 1] - start;
     image = NULL;
-    header = mempool_alloc_safe(16, COLOUR_TAG_WHITE);
-    if (header != NULL) {
-        asset_load(ASSET_SCREENS, (u32) header, start, 16);
-        imageSize = byteswap32(header) + 0x80;
-        mempool_free(header);
-        image = mempool_alloc_safe(imageSize, COLOUR_TAG_WHITE);
+    header = (u32) mempool_alloc_safe(16, 0xFFFF);
+    if (header != 0) {
+        asset_load(ASSET_SCREENS, header, start, 16);
+        imageSize = byteswap32((u8 *) header) + 0x80;
+        mempool_free((u8 *) header);
+        image = mempool_alloc_safe(imageSize, 0xFFFF);
         if (image != NULL) {
-            compressed = (u32) image + imageSize - size;
-            compressed -= compressed & 0xF;
-            asset_load(ASSET_SCREENS, compressed, start, size);
-            gzip_inflate((u8 *) compressed, image);
+            header = (u32) image + imageSize - size;
+            header -= header & 0xF;
+            asset_load(ASSET_SCREENS, header, start, size);
+            gzip_inflate((u8 *) header, image);
         }
     }
     mempool_free(screenTable);
     return (u32) image;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/55130", func_800580C0);
-#endif
 
 #ifdef NON_MATCHING
 /* The texture rectangle of the older GBI (as in printf.c). */

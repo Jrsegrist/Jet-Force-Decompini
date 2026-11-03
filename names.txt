@@ -782,3 +782,4 @@ func_8003C12C = asset_instance_new
 func_8003E35C = batch_slots_reset
 func_8006A6B0 = ripple_data_init
 func_80026FE0 = obj_init_model_swap
+func_800580C0 = screenimage_load
