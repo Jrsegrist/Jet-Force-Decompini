@@ -612,7 +612,57 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E520);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E668);
 
+/* What the boss's death effect keeps in obj->unk68 */
+typedef struct M068Death {
+    /* 0x000 */ Triangle tris[16];
+    /* 0x100 */ Vertex verts[2][72]; /* drawn from one while the other is filled */
+    /* 0x6A0 */ u8 pad6A0[0x6BA - 0x6A0];
+    /* 0x6BA */ u8 visible;
+    /* 0x6BB */ u8 buffer;
+} M068Death;
+
+extern u32 rl_m068_12720[2]; /* the effect's two colours */
+extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
+extern void func_80055C00(Gfx **dl, void *model, s32 flags, s32 arg3);
+extern void func_80041DC0(Gfx **dl);
+
+#ifdef NON_MATCHING
+/*
+ * Draws the boss's death effect: the same triangles over four runs of
+ * vertices, in two colours. The code matches but for registers: the ROM keeps
+ * the end of the colour table in s3 (one more saved register, frame 0x40).
+ */
+void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068Death *d = obj->unk68;
+    Vertex *v;
+    s32 i;
+
+    if (d->visible) {
+        obj->trans.scale = 1.0f;
+        func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
+        v = d->verts[d->buffer];
+        func_80055C00(dl, *((M068Header *) obj->header)->models, 0x206, 0);
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 190);
+        for (i = 0; i < 2; i++) {
+            gDPSetColor((*dl)++, G_SETENVCOLOR, rl_m068_12720[i]);
+            gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
+            gSPPolygon((*dl)++, (u32) d + 0x80000000, 16, 1);
+            gDPPipeSync((*dl)++);
+            v += 18;
+            gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
+            gSPPolygon((*dl)++, (u32) d + 0x80000000, 16, 1);
+            gDPPipeSync((*dl)++);
+            v += 18;
+        }
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+        func_80041DC0(dl);
+        func_80055B80(dl);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0ED10);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0EF2C);
 
