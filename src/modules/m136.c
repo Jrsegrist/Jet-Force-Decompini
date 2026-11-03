@@ -5,11 +5,6 @@
  * fixed cameras, doors and door switches, fog, sky, sound points and lines,
  * scrolling textures, lights, lens flares, spline camera nodes, static hit
  * objects, position overrides, AI points and junctions, and troops.
- *
- * NON_MATCHING: the troop init (scheduling) and the troop's leader search,
- * which matches but is only called from the troop init. The .rodata stays
- * assembly (the leader search uses its last float); C reads it as
- * rl_m136_01E90[].
  */
 #include "module.h"
 #include "gfx.h"
@@ -308,9 +303,6 @@ extern Object **func_80050F44(s32 *count);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 part);
 extern M136Area *D_800FEA9C;
-/* The .rodata floats (0.05, 0.01, 0.01, 5e9) stay assembly: the leader search that uses the last is only
-   called from assembly */
-extern f32 rl_m136_01E90[];
 
 s32 D_m136_01DB0 = 136;
 /* The door sounds (three) for each list of door objects */
@@ -337,9 +329,9 @@ void func_m136_00000(Object *obj, M136Entry *setup) {
     f32 sinYaw;
 
     if (ENTRY_U8(setup, 0x12) < 5) {
-        obj->trans.scale = rl_m136_01E90[0];
+        obj->trans.scale = 0.05f;
     } else {
-        obj->trans.scale = rl_m136_01E90[1] * ENTRY_U8(setup, 0x12);
+        obj->trans.scale = 0.01f * ENTRY_U8(setup, 0x12);
     }
     exit = obj->unk68;
     obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0x13) << 2 << 8;
@@ -421,7 +413,7 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
             }
             break;
         case 5:
-            unit = rl_m136_01E90[2];
+            unit = 0.01f;
             door->anim[0] = ENTRY_U8(setup, 0x1E);
             door->unk14 = ENTRY_U8(setup, 0x1A) * unit;
             if (ENTRY_U8(setup, 0x1E) == 0xFF) {
@@ -808,8 +800,6 @@ void func_m136_016D0(Object *obj, M136Entry *setup) {
     point->unkA = ENTRY_U8(setup, 0x12);
 }
 
-#ifdef NON_MATCHING
-/* matches, but IDO drops this static while its only caller (the troop init below) is assembly */
 /* The nearest other troop object that is not a leader */
 static Object *func_m136_01740(Object *obj) {
     s32 count;
@@ -820,7 +810,7 @@ static Object *func_m136_01740(Object *obj) {
     f32 best;
 
     objects = func_80050F44(&count);
-    best = rl_m136_01E90[3];
+    best = 5e9f;
     nearest = NULL;
     while (count--) {
         o = objects[count];
@@ -835,12 +825,7 @@ static Object *func_m136_01740(Object *obj) {
     }
     return nearest;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01740);
-#endif
 
-#ifdef NON_MATCHING
-/* scheduling of the constant stores near the end (91 diffs, first 1AAC: the ROM materialises -1 early) */
 void func_m136_01850(Object *obj, M136Entry *setup) {
     M136Area *area;
     M136Troop *troop = obj->unk68;
@@ -912,23 +897,23 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     troop->pos.x = obj->trans.x_position;
     troop->pos.y = obj->trans.y_position;
     troop->pos.z = obj->trans.z_position;
+    troop->unk7B = ENTRY_U8(setup, 0x3E);
     troop->unk66[0] = 0;
     troop->unk66[1] = 0;
     troop->unk66[2] = 0;
     troop->unk6C = 1.0f;
     troop->unk70 = 0.0f;
-    troop->unk7B = ENTRY_U8(setup, 0x3E);
-    troop->unk74 = 0;
     troop->unk62 = ENTRY_U8(setup, 0x2C);
+    troop->unk74 = 0;
+    troop->unk75 = ENTRY_U8(setup, 0x31);
     troop->unk77 = 0xFF;
     troop->unk36 = 0;
     troop->unk78 = -1;
-    troop->unk75 = ENTRY_U8(setup, 0x31);
     troop->unk7A = ENTRY_S8(setup, 0x3F);
     troop->home[0] = obj->trans.x_position;
     troop->home[1] = obj->trans.y_position;
-    troop->unk65 = 0;
     troop->home[2] = obj->trans.z_position;
+    troop->unk65 = 0;
     troop->unk92 = ENTRY_U16(setup, 0x40);
     if (troop->unk58 == 0) {
         troop->unk63 = 0;
@@ -942,9 +927,6 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01850);
-#endif
 
 void func_m136_01CA4(Object *obj, M136Entry *setup) {
     M136Junction *junction = obj->unk68;
@@ -983,5 +965,3 @@ void func_m136_01CA4(Object *obj, M136Entry *setup) {
         }
     }
 }
-
-INCLUDE_ASM("asm/nonmatchings/modules/m136", rodata);

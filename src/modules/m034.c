@@ -30,7 +30,7 @@ extern void *func_8004A458(s32 size, s32 count);     /* DKR mempool_new_sub */
 extern void *func_8004A57C(s32 size, u32 colour);    /* DKR mempool_alloc_safe */
 extern void *func_8004D37C(s32 asset);               /* DKR asset_table_load */
 extern s32 func_8004D5F8(s32 asset);                 /* DKR asset_table_size */
-extern void func_80079BD0(void);
+extern void collision_buffers_alloc(void);
 extern void clear_object_pointers(void);
 extern void func_m033_00000(void);
 extern void func_8005342C(s32 module);               /* unloads a runlink module */
@@ -44,7 +44,7 @@ void func_m034_00000(void) {
     func_800224D0(0xAA, 0x55, 0, -0x2000, 0);
     D_800F2CB0 = func_8004A458(0x19000, 0x200);
     gParticlePtrList = func_8004A57C(0x320, 0xFFFF);
-    func_80079BD0();
+    collision_buffers_alloc();
     gRacers = func_8004A57C(0x10, 0xFFFF);
     D_800F2D18 = func_8004A57C(0x40, 0xFFFF);
     D_800F2CF8 = func_8004D37C(0x30);

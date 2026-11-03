@@ -149,7 +149,7 @@ extern M058Level *func_8001B650(void);
 extern void set_active_camera(s32 camera); /* sets the active camera */
 extern ObjectTransform *func_80041DE0(void);
 extern void input_assign_players(void);
-extern s32 func_800580C0(s32 image); /* loads a full-screen image */
+extern s32 screenimage_load(s32 image); /* loads a full-screen image */
 extern void music_play(s32 seq);
 extern void func_8004797C(void);
 extern void func_8004AA80(s32 data); /* frees */
@@ -389,7 +389,7 @@ void func_m058_00900(void) {
 
     input_assign_players();
     D_800A4FCC = 1;
-    sImage = func_800580C0(0);
+    sImage = screenimage_load(0);
     music_play(0xE);
     for (i = 0; i < 4; i++) {
         if (D_800FF1B0[i]) {

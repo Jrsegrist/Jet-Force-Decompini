@@ -153,7 +153,7 @@ extern s32 D_800A74C8;
 extern s32 D_800A74CC;
 extern s32 D_800A74D0;
 
-void func_80076198(void) {
+void sequence_commands_reset(void) {
     if (D_800A74C8) {
         D_800A74C8 = 0;
         D_800A74CC = 0;
@@ -200,7 +200,7 @@ s32 command_list_length() { // JFG: no parameters (the caller passes &D_800A74C8
 extern s32 *D_800A74BC;
 
 /* JFG: start reading the data at D_800A74BC (its first word's low 24 bits are the offset to the start). */
-void func_800762A0(void) {
+void sequence_commands_begin(void) {
     s32 header = *D_800A74BC;
 
     D_800A74C8 = (s32) D_800A74BC + (header & 0xFFFFFF);
@@ -208,7 +208,7 @@ void func_800762A0(void) {
     D_800A74D0 = command_list_length(&D_800A74C8);
 }
 
-void func_800762F0(u8 index) {
+void anim_path_free(u8 index) {
     AnimPath *path = D_801045B0[index];
 
     if (path != NULL) {
@@ -238,7 +238,7 @@ s32 func_800485C8(s32 player);
 s32 game_flag_get(s32 flag);
 s16 func_800468CC(void);
 AnimObject *spawn_object(LevelObjectEntryCommon *entry, s32 arg1);
-void func_8000E480(AnimObject *obj);
+void obj_queue_add(AnimObject *obj);
 extern s16 D_800A7570[8];
 extern s16 D_800A7580[4];
 extern s16 D_800A7588[4];
@@ -286,7 +286,7 @@ void anim_path_spawn_object(u8 index) {
                 obj->flags |= 0x400;
                 obj->unk3C = 0;
                 if (obj->behaviorId == 0x33) {
-                    func_8000E480(path->obj);
+                    obj_queue_add(path->obj);
                 }
                 path->unk24 = 0xFF;
                 path->unk25 = 0xFF;
@@ -405,21 +405,21 @@ void func_80076928(u8 index) {
     }
 }
 
-void func_800769DC(u8 index) {
+void anim_path_lock(u8 index) {
     AnimPath *path = D_801045B0[index];
     if (path != NULL) {
         path->flags |= 8;
     }
 }
 
-void func_80076A1C(u8 index) {
+void anim_path_unlock(u8 index) {
     AnimPath *path = D_801045B0[index];
     if (path != NULL) {
         path->flags &= ~8;
     }
 }
 
-void func_80076A5C(u8 index, u16 soundId) {
+void anim_path_sound_play(u8 index, u16 soundId) {
     AnimPath *path = D_801045B0[index];
     AnimObject *obj;
 
@@ -603,7 +603,7 @@ void anim_system_init(void) {
 
 void sound_stop(s32 soundHandle);
 
-void func_80077004(void) {
+void sequence_sounds_stop_all(void) {
     s32 i;
     for (i = 0; i < 16; i++) {
         if (D_801045C8[i] != 0) {
@@ -618,7 +618,7 @@ extern s32 D_800A74B8;
 void mempool_free(void *data);
 void sequence_stop(void);
 
-void func_80077060(void) {
+void sequence_table_free(void) {
     if (D_800A74B0 != NULL) {
         mempool_free(D_800A74B0);
         D_800A74B0 = NULL;
@@ -631,12 +631,12 @@ extern s32 D_800A74B4;
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 /* JFG: load entry index of asset 0x42 (offsets in D_801045B4) into a new buffer, unless it is already loaded. */
-void func_800770A4(s32 index) {
+void sequence_table_load(s32 index) {
     s32 start;
     void *buffer;
 
     if (index != -1 && index != D_800A74B8) {
-        func_80077060();
+        sequence_table_free();
         start = D_801045B4[index];
         D_800A74B4 = D_801045B4[index + 1] - start;
         if (D_800A74B4 > 0) {
@@ -650,7 +650,7 @@ void func_800770A4(s32 index) {
 
 extern s32 D_800A74C0; // JFG: the current sequence id (-1 for none)
 extern s32 D_800A74C4; // JFG: set when the sequence data at D_800A74BC was allocated
-void func_800762F0(u8 index);
+void anim_path_free(u8 index);
 
 /* JFG: stop the current sequence: free its data if it owns it, free every path and clear the sequence state. */
 void sequence_stop(void) {
@@ -663,9 +663,9 @@ void sequence_stop(void) {
         }
         D_800A74BC = NULL;
         D_800A74C0 = -1;
-        func_80076198();
+        sequence_commands_reset();
         for (i = 0; i < 256; i++) {
-            func_800762F0(i);
+            anim_path_free(i);
         }
         for (i = 0; i < 4; i++) {
             D_801045B8[i] = NULL;
@@ -689,13 +689,13 @@ void sequence_stop(void) {
         D_80104702 = 0xFF;
         D_80104704 = D_80104702;
         D_801046FC = 0;
-        func_80077004();
+        sequence_sounds_stop_all();
         func_80054530();
     }
 }
 
 void func_80077468(void);
-void func_800773AC(void);
+void anim_paths_spawn_all(void);
 void func_800773EC(void);
 extern s32 D_800A74C0;
 extern f32 D_800A74E4;
@@ -723,7 +723,7 @@ void sequence_start(s32 id) {
                 D_800A74C0 = entryId;
                 D_800A74BC = (s32 *) ((u8 *) D_800A74B0 + offset);
                 func_80077468();
-                func_800773AC();
+                anim_paths_spawn_all();
                 func_800773EC();
                 D_800A74E4 = level_header()->unkAC;
                 D_800A74E8 = 0.0f;
@@ -736,7 +736,7 @@ void sequence_start(s32 id) {
 
 void anim_path_spawn_object(u8 index);
 
-void func_800773AC(void) {
+void anim_paths_spawn_all(void) {
     s32 i;
     for (i = 0; i < 256; i++) {
         anim_path_spawn_object(i);
@@ -758,7 +758,7 @@ void func_800773EC(void) {
         D_800A74CC = D_800A74C8;
         D_800A74D8 = 0;
         D_800A74DC = 0.0f;
-        func_80077004();
+        sequence_sounds_stop_all();
         func_80054530();
     }
 }
@@ -791,7 +791,7 @@ void func_80077468(void) {
     u8 flags;
     AnimPath *path;
 
-    func_800762A0();
+    sequence_commands_begin();
     count = numPaths;
     while (count > 0) {
         e = *entry++;

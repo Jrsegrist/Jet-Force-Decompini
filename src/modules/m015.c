@@ -3,7 +3,9 @@
  * called every frame, the firing check, and the movement states it runs).
  */
 #ifdef NON_MATCHING
-/* The whole module in C; func_m015_00000 does not match yet (see the notes), so the build uses the asm. */
+/* The whole module in C, but the build uses the asm: func_m015_00000 is 4 instructions off (the joint loop's
+   counter k and its copy take a1/a0, the ROM a0/a1), and 025FC, 03740, 04658, 05328, 05ED4, 0663C, 068BC and
+   07BC8 still differ (the C text is 0x20 bytes longer). */
 /* func_8001149C returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
 #define func_8001149C func_8001149C_void
 #include "module.h"
@@ -743,7 +745,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     s32 oldWeapon;
     s32 i;
     u8 *weapons;
-    s32 pad5;
+    s32 k;
 
     sAnimChanges = 0;
     racer = obj->unk68;
@@ -932,10 +934,10 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         racer->state = 4;
         racer->unk12A = 0;
         racer->unk12C = 0;
+        racer->unk128 = racer->unk11C;
         racer->flags.bits.unk31 = 0;
         racer->unk53D = 0;
         racer->unk538 = 0;
-        racer->unk128 = racer->unk11C;
         if (-0.5f < racer->unk4 && racer->unk4 < 0.5f) {
             func_m015_05180(obj, racer, 0x2C, 0);
         } else {
@@ -1037,7 +1039,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     if (character->unk6F >= 2) {
         oldWeapon = character->weapon;
         cur = racer->unk585;
-        if (character->weapon != cur && gPlayerInputLocked == 0) {
+        if (racer->unk585 != character->weapon && gPlayerInputLocked == 0) {
             weapon_select(obj, racer, cur);
         } else if (D_800A18B0->unk4 & gPlayerButtonsPressed) {
             func_80038324(obj, racer, cur);
@@ -1047,7 +1049,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             i = 0;
             weapons = get_settings();
             for (; i < 4; i++) {
-                if ((D_800A197C[i] & gPlayerButtonsPressed) && weapon_select(obj, racer, weapons[0x534 + i]) != 0) {
+                if ((D_800A197C[i] & gPlayerButtonsPressed) && weapon_select(obj, racer, (weapons + 0x534)[i]) != 0) {
                     break;
                 }
             }
@@ -1099,7 +1101,8 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         func_m015_0663C(obj, racer, updateRate);
     }
     if (racer->unk5BC != NULL) {
-        switch (racer->state) {
+        k = racer->state;
+        switch (k) {
             case 2:
                 func_m107_00D08(racer->unk5BC, 1.5f, 0.5f, 40);
                 break;
@@ -1134,21 +1137,16 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         u32 joints[6] = { 0, 6, 9, 10, 18, 23 };
         f32 amounts[6] = { 0.8f, 1.55f, 1.55f, 1.55f, 1.55f, 1.55f };
 
-        i = 5;
+        k = 5;
         do {
-            *D_m015_089C8 = (joints[i] * 6) | 0x4000;
-            D_m015_089C8++;
-            *D_m015_089C8 = (u16) (amounts[i] * 32768.0f);
-            D_m015_089C8++;
-            *D_m015_089C8 = (joints[i] * 6 + 2) | 0x4000;
-            D_m015_089C8++;
-            *D_m015_089C8 = (u16) (amounts[i] * 32768.0f);
-            D_m015_089C8++;
-            *D_m015_089C8 = (joints[i] * 6 + 4) | 0x4000;
-            D_m015_089C8++;
-            *D_m015_089C8 = (u16) (amounts[i] * 32768.0f);
-            D_m015_089C8++;
-        } while (i--);
+            if (k) {}
+            *D_m015_089C8 = (joints[k] * 6) | 0x4000; D_m015_089C8++;
+            *D_m015_089C8 = (u16) (amounts[k] * 32768.0f); D_m015_089C8++;
+            *D_m015_089C8 = (joints[k] * 6 + 2) | 0x4000; D_m015_089C8++;
+            *D_m015_089C8 = (u16) (amounts[k] * 32768.0f); D_m015_089C8++;
+            *D_m015_089C8 = (joints[k] * 6 + 4) | 0x4000; D_m015_089C8++;
+            *D_m015_089C8 = (u16) (amounts[k] * 32768.0f); D_m015_089C8++;
+        } while (k--);
     }
     *D_m015_089C8 = 0x1000;
     D_m015_089C8++;

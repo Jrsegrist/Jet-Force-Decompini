@@ -152,7 +152,7 @@ extern M024LevelHeader *func_8004470C(void);      /* DKR level_header */
 extern u8 func_80048548(void);                    /* the number of cameras */
 extern void cam_set_layout(s32 layout);
 extern void func_800053F8(s32 mapID, s32 index); /* DKR track_spawn_objects */
-extern void func_800770A4(s32 arg0);
+extern void sequence_table_load(s32 arg0);
 extern void func_8000561C(s32 arg0);
 extern void shadow_buffers_alloc(void *model, s32 waveBlocks, s32 arg2, s32 arg3, s32 arg4);
 extern void func_8001DA1C(s32 arg0, s32 arg1); /* DKR shadow_update */
@@ -176,7 +176,7 @@ void func_m024_00000(s32 geometry, s32 skybox, s32 arg2, s32 arg3, s32 arg4, s32
     cam_set_layout(func_80048548() - 1);
     func_800053F8(arg4, 0);
     func_800053F8(arg3, 1);
-    func_800770A4(arg5);
+    sequence_table_load(arg5);
     func_8000561C(arg2);
     D_800F2FA0 = 0;
     shadow_buffers_alloc(D_800A0D60, D_800F31DC, 500, 200, 100);

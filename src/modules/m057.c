@@ -44,7 +44,7 @@ typedef struct M055Logo {
     }
 
 extern Gfx *D_800FF398; /* the display list being built */
-extern s32 func_800580C0(s32 image);              /* loads a full-screen image */
+extern s32 screenimage_load(s32 image);              /* loads a full-screen image */
 extern void func_80058204(Gfx **dl, s32 image, s32 arg2); /* draws it */
 extern M057Texture *func_80055694(s32 id);         /* loads a texture */
 extern void func_80055A00(M057Texture *tex);       /* frees it */
@@ -87,8 +87,8 @@ static Gfx sLogoDrawMode[] = {
 };
 
 void func_m057_00000(void) {
-    sFirstImage = func_800580C0(0);
-    sSecondImage = func_800580C0(1);
+    sFirstImage = screenimage_load(0);
+    sSecondImage = screenimage_load(1);
     sLogoTop = func_80055694(0x28E);
     sLogoBottomLeft = func_80055694(0x28F);
     sLogoBottomRight = func_80055694(0x290);

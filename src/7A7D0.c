@@ -105,7 +105,7 @@ extern void *D_80104800;
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void mempool_free(void *data);
 
-void func_80079BD0(void) {
+void collision_buffers_alloc(void) {
     D_801047E4 = mempool_alloc_safe(0x140, 0xFFFF);
     D_801047E8 = mempool_alloc_safe(0x400, 0xFFFF);
     D_801047EC = mempool_alloc_safe(0x400, 0xFFFF);
@@ -119,7 +119,7 @@ typedef struct LevelHeader {
 } LevelHeader;
 LevelHeader *level_header(void);
 
-void func_80079C20(void) {
+void collision_level_buffers_alloc(void) {
     LevelHeader *header;
 
     D_801047E0 = 0;
@@ -130,7 +130,7 @@ void func_80079C20(void) {
     D_801047FC = mempool_alloc_safe(header->unkEE * 2, 0xFFFF);
 }
 
-void func_80079CC4(void) {
+void collision_level_buffers_free(void) {
     mempool_free(D_80104800);
     mempool_free(D_801047F4);
     mempool_free(D_801047F8);
@@ -610,7 +610,7 @@ s32 multiplayer_score_kill(PlayerObject *killer, PlayerObject *victim) {
     return FALSE;
 }
 
-Obj7E **func_8007E484(s32 *count) {
+Obj7E **collision_objects_get(s32 *count) {
     *count = D_801047E0;
     return D_801047E4;
 }
