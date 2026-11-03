@@ -789,3 +789,6 @@ func_80007420 = obj_sprite_init
 func_80013B74 = track_segment_data_alloc
 func_800339D8 = player_restart
 func_8003CDAC = model_instance_anim_reset
+func_8006F998 = effect_slot_start
+func_80022520 = dir_light_setup
+func_800570D8 = tex_dlist_build

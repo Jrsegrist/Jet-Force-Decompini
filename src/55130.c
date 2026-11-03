@@ -639,7 +639,7 @@ extern s32 gForcedColourTag; // JFG: the texture being loaded (-1 when none)
 extern u8 *D_800A4E7C; // JFG: load the next texture at this address
 void *mempool_alloc(s32 size, u32 colourTag);
 void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag);
-void func_800570D8(TextureHeader *tex, Gfx *dList);
+void tex_dlist_build(TextureHeader *tex, Gfx *dList);
 
 /**
  * Loads a texture into memory and initializes display lists for texture loading.
@@ -737,7 +737,7 @@ TextureHeader *load_texture(s32 id) {
     }
     gTextureCache[ASSETCACHE_ID(slotIndex)] = id;
     gTextureCache[ASSETCACHE_PTR(slotIndex)] = (s32) tex;
-    func_800570D8(tex, (Gfx *) align16((u8 *) ((s32) tex + assetSize)));
+    tex_dlist_build(tex, (Gfx *) align16((u8 *) ((s32) tex + assetSize)));
     if (gCiPalettesSize >= 0x280) {
         return NULL;
     }
@@ -1245,15 +1245,13 @@ INCLUDE_ASM("asm/nonmatchings/55130", func_80056D24);
 
 void func_8005719C(Gfx **dList, TextureHeader *tex, s32 arg2, s32 arg3);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: temp registers numbered one lower than the target's (t7.. vs t8..) all through */
 /* JFG: build a texture's display list at dList (a second load for some textures) and count its commands. */
-void func_800570D8(TextureHeader *tex, Gfx *dList) {
+void tex_dlist_build(TextureHeader *tex, Gfx *dList) {
     Gfx *dl = dList;
 
     tex->cmd = dList;
     func_8005719C(&dl, tex, 0, 0);
-    if (tex->unk1B < 2 && (tex->flags & 0x40)) {
+    if ((tex->unk1B & 0xFF) < 2 && (tex->flags & 0x40)) { // the no-op & 0xFF is needed to match
         if (!(tex->format & 0xF)) {
             func_8005719C(&dl, tex, 1, (0x1000 - tex->textureSize) >> 3);
         } else {
@@ -1262,9 +1260,6 @@ void func_800570D8(TextureHeader *tex, Gfx *dList) {
     }
     tex->numberOfCommands = dl - tex->cmd;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/55130", func_800570D8);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_8005719C);
 

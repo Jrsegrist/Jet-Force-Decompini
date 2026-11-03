@@ -827,19 +827,17 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_800221F0);
 #endif
 
 extern DirLight D_800F5B28; // JFG: the default object light
-void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift);
+void dir_light_setup(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift);
 
 /* JFG: set up the default object light. */
 void func_800224D0(s32 a, s32 b, s16 c, s16 d, s32 e) {
-    func_80022520(&D_800F5B28, a, b, c, d, e);
+    dir_light_setup(&D_800F5B28, a, b, c, d, e);
 }
 
 void func_800492DC(s16 *rotation, f32 *vec); // rotates a vector by three angles
 
-#ifdef NON_MATCHING
-/* JFG: set up a directional light: brightness range min(a, b)..b, a shift, and the direction from two angles.
-   NON_MATCHING: 20 words: the range/shift computation is scheduled differently (store order 17, 15, 16, 10, 14). */
-void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift) {
+/* JFG: set up a directional light: brightness range min(a, b)..b, a shift, and the direction from two angles. */
+void dir_light_setup(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift) {
     s16 rotation[3];
     f32 dir[3];
 
@@ -851,8 +849,8 @@ void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 sh
     }
     light->min = a;
     light->max = b;
-    light->range = b - a;
     light->shift = shift;
+    light->range = light->max - light->min;
     light->unk10 = light->range << light->shift;
     light->unkC = (1 << (8 - shift)) << 6;
     light->angle0 = angle0;
@@ -869,9 +867,6 @@ void func_80022520(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 sh
     light->dir[2] = dir[2];
     light->table = D_800F5B20;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80022520);
-#endif
 
 /**
  * Official Name: lightSetupLightSources
@@ -911,10 +906,10 @@ s32 init_object_shading(Object *obj, ShadeProperties *shadeData) {
         shadeData->unkE = 1;
         returnSize = sizeof(ShadeProperties);
         if (levelHeader->shadeOverride) {
-            func_80022520(&shadeData->light, levelHeader->shadeAmbient, levelHeader->shadeDiffuse,
+            dir_light_setup(&shadeData->light, levelHeader->shadeAmbient, levelHeader->shadeDiffuse,
                           levelHeader->shadeAngleX, levelHeader->shadeAngleY + 0x8000, 0);
         } else {
-            func_80022520(&shadeData->light, objHeader->shadeAmbient * 255.0f, objHeader->shadeDiffuse * 255.0f,
+            dir_light_setup(&shadeData->light, objHeader->shadeAmbient * 255.0f, objHeader->shadeDiffuse * 255.0f,
                           objHeader->shadeAngleX, objHeader->shadeAngleY, objHeader->shadeShift);
         }
         shadeData->unk4 = 255;

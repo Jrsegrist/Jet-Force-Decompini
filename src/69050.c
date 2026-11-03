@@ -1685,7 +1685,7 @@ extern void *D_80102D78[4];
 extern u8 D_80102D9C[4];
 extern ScreenEffectFunc D_800A6E1C[4];
 void func_80054530();
-void func_800531C8(void *addr);
+s32 func_800531C8(void *addr); /* returns a value (51AD0.c): that keeps IDO off v0 after the call */
 
 /* JFG: clear the four effect slots; a slot is flagged when its handler is the unloaded-module trap. */
 void effect_slots_init(void) {
@@ -1715,10 +1715,8 @@ void effect_slots_update(void) {
     D_80102D54 = 0;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: from the clear loop on, temps numbered one lower and the handler in v0 (target v1) */
 /* JFG: start effect slot (1-4) with a width x height byte pair: two cleared buffers of that size, then its handler. */
-void func_8006F998(s32 slot, u8 *dims) {
+void effect_slot_start(s32 slot, u8 *dims) {
     u8 *buf1;
     u8 *buf2;
     s32 count;
@@ -1729,7 +1727,7 @@ void func_8006F998(s32 slot, u8 *dims) {
     if (D_80102D60[slot] == NULL) {
         D_80102D60[slot] = buf1 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
         D_80102D78[slot] = buf2 = mempool_alloc_safe(dims[1] * dims[0], 0xFFFF);
-        if (D_80102D60[slot] == NULL || buf2 == NULL) {
+        if (D_80102D60[slot] == NULL || D_80102D78[slot] == NULL) {
             D_80102D60[slot] = NULL;
             D_80102D78[slot] = NULL;
             return;
@@ -1745,9 +1743,6 @@ void func_8006F998(s32 slot, u8 *dims) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006F998);
-#endif
 
 void mempool_free(void *data);
 
