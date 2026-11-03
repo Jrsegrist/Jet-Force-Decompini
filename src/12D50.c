@@ -99,7 +99,8 @@ typedef struct TextureHeader {
 
 typedef struct LevelModelTexture {
     /* 0x00 */ TextureHeader *texture;
-    /* 0x04 */ u8 pad4[4];
+    /* 0x04 */ u8 pad4[3];
+    /* 0x07 */ s8 surfaceType; // JFG: the batch's surface type (func_8001B078)
 } LevelModelTexture;
 
 typedef struct Vec3i {
@@ -1814,10 +1815,8 @@ typedef struct Plane {
     /* 0x00 */ f32 a, b, c, d;
 } Plane;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the code matches (the probe agrees), but it ends at 0x8001B078: a C block there is padded to
-   16 bytes, which shifts the asm func_8001B078 after it. It can go in once func_8001B078 is C too. */
 u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
+s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
 
 /**
  * JFG: the level triangle nearest in height to (x, y, z) among those of the point's segment under it (batches
@@ -1896,11 +1895,136 @@ Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 fl
     }
     return result;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001ACE0);
-#endif
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001B078);
+/* JFG: a level height under a point: the plane's height there, its a/b/c, the batch flags and surface type */
+typedef struct TrackHeight {
+    /* 0x00 */ f32 y;
+    /* 0x04 */ f32 a;
+    /* 0x08 */ f32 b;
+    /* 0x0C */ f32 c;
+    /* 0x10 */ union {
+        u32 flags;
+        struct {
+            u8 pad[3];
+            s8 surfaceType;
+        } s;
+    } info;
+} TrackHeight;
+
+extern TrackHeight D_800F2FE8[20];
+extern TrackHeight *D_800F3178[20];
+
+/**
+ * JFG: every level height under (x, z) (up to 20; batches with any of flags count as having no triangles),
+ * sorted from the highest down; *heights gets the sorted list, the count is returned.
+ * DKR: get_level_segment_waves (a JFG variant: no wave segment, the planes are kept, sorted the same way)
+ * (The plane index goes through `plane` before it is scaled, the entry is written through
+ * D_800F2FE8[count] with count++ after it, and the pointer loop is one line, as in DKR.)
+ */
+s32 func_8001B078(f32 x, f32 z, s32 flags, TrackHeight ***heights) {
+    LevelModelSegment *segment;
+    s32 batchNum;
+    s32 faceNum;
+    s32 count;
+    UNUSED s32 pad;
+    u32 bits;
+    s32 plane;
+    s32 surfaceType;
+    s32 verticesOffset;
+    TrackHeight **waves;
+    TrackHeight *wave;
+    s32 sorted;
+    s32 j;
+    s32 segmentCount;
+    s32 i;
+    s32 nextFace;
+    s32 planeIndex;
+    s32 start;
+    f32 A;
+    f32 C;
+    s16 segmentsInside[32];
+    s32 ix;
+    s32 iz;
+    f32 D;
+    Vertex *vert0;
+    Vertex *vert1;
+    Vertex *vert2;
+    u32 mask;
+    f32 B;
+
+    ix = x;
+    iz = z;
+    *heights = NULL;
+    segmentCount = get_inside_segment_count_xz(ix, iz, segmentsInside);
+    if (segmentCount == 0 || segmentCount >= 32) {
+        return 0;
+    }
+    count = 0;
+    for (i = 0; i < segmentCount; i++) {
+        segment = &gCurrentLevelModel->segments[segmentsInside[i]];
+        mask = func_8001D344(&gCurrentLevelModel->segmentsBoundingBoxes[segmentsInside[i]], ix, iz, ix, iz);
+        for (batchNum = 0; batchNum < segment->numberOfBatches; batchNum++) {
+            start = segment->batches[batchNum].facesOffset;
+            verticesOffset = segment->batches[batchNum].verticesOffset;
+            nextFace = segment->batches[batchNum + 1].facesOffset;
+            if (segment->batches[batchNum].flags & 0x2000) {
+                surfaceType = 2;
+            } else {
+                surfaceType = gCurrentLevelModel->textures[segment->batches[batchNum].textureIndex].surfaceType;
+            }
+            if (segment->batches[batchNum].flags & flags) {
+                start = nextFace;
+            }
+            for (faceNum = start; faceNum < nextFace; faceNum++) {
+                bits = segment->triangleMasks[faceNum] & mask;
+                plane = segment->trianglePlanes[faceNum].plane & 0xFFFF;
+                planeIndex = plane << 4;
+                B = ((Plane *) ((u8 *) segment->planes + planeIndex))->b;
+                if ((bits >> 16) && (bits & 0xFFFF) && (0.0f < B)) {
+                    vert0 = &segment->vertices[segment->triangles[faceNum].vi0 + verticesOffset];
+                    vert1 = &segment->vertices[segment->triangles[faceNum].vi1 + verticesOffset];
+                    vert2 = &segment->vertices[segment->triangles[faceNum].vi2 + verticesOffset];
+                    if (func_800494AC(ix, iz, vert0, vert1, vert2)) {
+                        A = ((Plane *) ((u8 *) segment->planes + planeIndex))->a;
+                        C = ((Plane *) ((u8 *) segment->planes + planeIndex))->c;
+                        D = ((Plane *) ((u8 *) segment->planes + planeIndex))->d;
+                        D_800F2FE8[count].y = -(((A * x) + (C * z) + D) / B);
+                        D_800F2FE8[count].info.flags = segment->batches[batchNum].flags;
+                        D_800F2FE8[count].b = B;
+                        D_800F2FE8[count].info.s.surfaceType = surfaceType;
+                        D_800F2FE8[count].a = A;
+                        D_800F2FE8[count].c = C;
+                        count++;
+                        if (count >= 20) {
+                            batchNum = segment->numberOfBatches;
+                            faceNum = nextFace;
+                            i = segmentCount;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    waves = D_800F3178;
+    wave = D_800F2FE8;
+    // clang-format off
+    for (j = 0; j < count; j++) { waves[j] = &wave[j]; }
+    // clang-format on
+    do {
+        j = 0;
+        sorted = TRUE;
+        for (; j < count - 1; j++) {
+            if (waves[j]->y < waves[j + 1]->y) {
+                wave = waves[j];
+                waves[j] = waves[j + 1];
+                waves[j + 1] = wave;
+                sorted = FALSE;
+            }
+        }
+    } while (!sorted);
+    *heights = D_800F3178;
+    return count;
+}
 
 /**
  * Returns the current loaded level geometry
