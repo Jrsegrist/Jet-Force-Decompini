@@ -50,6 +50,44 @@ typedef struct M112ObjState {
     /* 0x4 */ s32 alpha;
 } M112ObjState;
 
+/* The model of the blast's sprite */
+typedef struct M112BlastModel {
+    /* 0x00 */ u8 pad0[0x78];
+    /* 0x78 */ u32 dl;
+} M112BlastModel;
+
+/* obj->modelInstances[1]: the blast's sprite */
+typedef struct M112Blast {
+    /* 0x00 */ M112BlastModel *model;
+    /* 0x04 */ u32 matrices;
+    /* 0x08 */ u8 pad8[0x8C - 0x8];
+    /* 0x8C */ s16 size;
+} M112Blast;
+
+/* Loads a model's matrices (the game's own command 0xBF) */
+#define gSPPartMatrices(pkt, m)                    \
+    {                                              \
+        Gfx *_g = (Gfx *) (pkt);                   \
+        _g->words.w0 = 0xBF000000;                 \
+        _g->words.w1 = (u32) (m);                  \
+    }
+
+/* The game's own command 0x02 */
+#define gSPCommand02(pkt, a)                       \
+    {                                              \
+        Gfx *_g = (Gfx *) (pkt);                   \
+        _g->words.w0 = 0x02000050;                 \
+        _g->words.w1 = (u32) (a);                  \
+    }
+
+extern s32 D_m112_013E0; /* the module's number */
+extern u8 D_800A0838[];
+
+extern void runlink_unload_timer_set(s32, s32, s32);
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern void func_80041CA0(Gfx **dl, Mtx **mtx, ObjectTransform *trans, f32 scale, f32 arg4);
+extern void func_80055B80(Gfx **dl); /* resets the render settings */
+extern void mtx_pop(Gfx **dl);
 extern void func_80003614(s32 handle); /* stops a positioned sound */
 extern void func_80011D1C(Object *obj);
 extern void func_80049DC0(Object *obj, MtxF *out);
@@ -114,7 +152,62 @@ void func_m112_0005C(Object *obj, M112Setup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m112", func_m112_00220);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m112", func_m112_01004);
+/* Draws the blast: a sprite facing the camera, twice (crossed), growing and fading */
+void func_m112_01004(Gfx **dList, Mtx **mtx, Object *obj) {
+    s32 alpha;
+    ObjectTransform trans;
+    M112Blast *blast;
+    M112BlastModel *model;
+    M112State *s;
+    ObjectTransform *cam;
+
+    runlink_unload_timer_set(D_m112_013E0, 2, 2);
+    s = obj->unk68;
+    if (s->type == 0 && s->unk5 < 128) {
+        cam = func_80041DE0();
+        blast = ((M112Blast **) obj->modelInstances)[1];
+        if (blast != NULL) {
+            model = blast->model;
+            trans.scale = 1.0f - (u32) s->unk5 / 127.0f;
+            trans.scale = 1.0f - trans.scale * trans.scale;
+            trans.scale *= 80.0f / blast->size;
+            trans.x_position = obj->trans.x_position;
+            trans.y_position = obj->trans.y_position;
+            trans.z_position = obj->trans.z_position;
+            alpha = 128 - s->unk5;
+            if (alpha > 64) {
+                alpha = 64;
+            }
+            alpha = (OBJ_STATE(obj, M112ObjState)->alpha * alpha) >> 8;
+            gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+            if (s->mode != 2 && s->mode != 5) {
+                gDPSetPrimColor((*dList)++, 0, 0, 0, 255, 0, alpha);
+            } else {
+                gDPSetPrimColor((*dList)++, 0, 0, 255, 0, 0, alpha);
+            }
+            trans.rotation.y_rotation = -0x8000 - cam->rotation.y_rotation;
+            trans.rotation.x_rotation = 0;
+            trans.rotation.z_rotation = 0;
+            func_80041CA0(dList, mtx, &trans, 1.0f, 0.0f);
+            gSPPartMatrices((*dList)++, blast->matrices + 0x80000000);
+            gSPCommand02((*dList)++, D_800A0838 + 0x80000000);
+            gSPDisplayList((*dList)++, model->dl + 0x80000000);
+            func_80055B80(dList);
+            trans.rotation.y_rotation = -0x8000 - cam->rotation.y_rotation;
+            trans.rotation.x_rotation = 0x4000;
+            trans.rotation.z_rotation = 0;
+            func_80041CA0(dList, mtx, &trans, 1.0f, 0.0f);
+            gSPPartMatrices((*dList)++, blast->matrices + 0x80000000);
+            gSPCommand02((*dList)++, D_800A0838 + 0x80000000);
+            gSPDisplayList((*dList)++, model->dl + 0x80000000);
+            func_80055B80(dList);
+            gSPPartMatrices((*dList)++, 0);
+            mtx_pop(dList);
+            func_80055B80(dList);
+            gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+        }
+    }
+}
 
 void func_m112_013B4(Gfx **dList, Mtx **mtx, Object *obj) {
     M112State *s = obj->unk68;
