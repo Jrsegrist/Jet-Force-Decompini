@@ -215,6 +215,18 @@ typedef struct M136Junction {
 } M136Junction;
 
 /* A troop member (obj->unk68) */
+/* A troop's kind byte */
+typedef struct M136Kind {
+    u8 leader : 4; /* 4: a leader */
+    u8 sort : 4;
+} M136Kind;
+
+/* A troop's flags at 0x34 */
+typedef struct M136Flags34 {
+    u8 rest : 6;
+    u8 lo : 2;
+} M136Flags34;
+
 typedef struct M136Troop {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 unk1;
@@ -225,7 +237,7 @@ typedef struct M136Troop {
     /* 0x13 */ u8 unk13[2];
     /* 0x15 */ s8 unk15[3];
     /* 0x18 */ u8 unk18[2];
-    /* 0x1A */ u8 kind; /* bits 4-7: leader 4; bits 0-3 */
+    /* 0x1A */ M136Kind kind;
     /* 0x1B */ s8 unk1B[3];
     /* 0x1E */ u8 unk1E;
     /* 0x1F */ u8 unk1F[3];
@@ -238,7 +250,7 @@ typedef struct M136Troop {
     /* 0x2E */ s16 unk2E;
     /* 0x30 */ u8 pad30[3];
     /* 0x33 */ u8 unk33;
-    /* 0x34 */ u8 unk34;
+    /* 0x34 */ M136Flags34 unk34;
     /* 0x35 */ u8 unk35;
     /* 0x36 */ u8 unk36;
     /* 0x37 */ u8 unk37;
@@ -828,7 +840,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m136", func_m136_01740);
 #endif
 
 #ifdef NON_MATCHING
-/* scheduling: the ROM loads the old kind byte later in the copy sequence, and register numbers follow (169 diffs) */
+/* scheduling of the constant stores near the end (91 diffs, first 1AAC: the ROM materialises -1 early) */
 void func_m136_01850(Object *obj, M136Entry *setup) {
     M136Area *area;
     M136Troop *troop = obj->unk68;
@@ -866,8 +878,8 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     troop->unk15[2] = ENTRY_S8(setup, 0x21);
     troop->unk18[0] = ENTRY_U8(setup, 0x22);
     troop->unk18[1] = ENTRY_U8(setup, 0x23);
-    troop->kind = (ENTRY_U8(setup, 0x29) << 4) | (troop->kind & 0xFF0F);
-    troop->kind = (ENTRY_U8(setup, 0x24) & 0xF) | (troop->kind & 0xF0);
+    troop->kind.leader = ENTRY_U8(setup, 0x29);
+    troop->kind.sort = ENTRY_U8(setup, 0x24);
     troop->unk1B[0] = ENTRY_S8(setup, 0x25);
     troop->unk1B[1] = ENTRY_S8(setup, 0x26);
     troop->unk1B[2] = ENTRY_S8(setup, 0x27);
@@ -884,10 +896,11 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     troop->unk28 = ENTRY_U16(setup, 0x3A) & 0xFFF7;
     troop->unk26[0] = ENTRY_U8(setup, 0x3C);
     troop->unk26[1] = ENTRY_U8(setup, 0x3D);
-    troop->unk34 = (ENTRY_U8(setup, 0xA) & 3) | (troop->unk34 & 0xFFFC);
+    troop->unk34.lo = ENTRY_U8(setup, 0xA);
     troop->unk60 = ENTRY_U8(setup, 0x2A);
+    troop->unk61 = ENTRY_U8(setup, 0x2B);
     troop->unk33 = 0;
-    troop->unk34 &= 3;
+    troop->unk34.rest = 0;
     troop->unk35 = 0;
     troop->unk2E = 1;
     troop->unk37 = 0;
@@ -896,7 +909,6 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     troop->unk3A = 0;
     troop->unk3C = 0;
     troop->unk54 = 0;
-    troop->unk61 = ENTRY_U8(setup, 0x2B);
     troop->pos.x = obj->trans.x_position;
     troop->pos.y = obj->trans.y_position;
     troop->pos.z = obj->trans.z_position;
@@ -923,7 +935,7 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
         troop->unk0 = 0;
     }
     obj->trans.rotation.y_rotation = 0xC000 - (troop->unk1B[0] << 8);
-    if ((troop->kind & 0xF) == 6) {
+    if (troop->kind.sort == 6) {
         area = &D_800FEA9C[func_m154_00130(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0)];
         if (area != NULL && ((u32) area->flags >> 6) != 0) {
             troop->unk33 = 0x1F;

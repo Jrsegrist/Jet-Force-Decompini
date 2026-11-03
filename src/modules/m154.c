@@ -597,8 +597,9 @@ s32 func_m154_01278(void) {
 /* Builds the way-point graph from the level entries */
 #ifdef NON_MATCHING
 /*
- * t-register choice in the link and part-numbering loops (183 diffs; reusing `n` as the part-loop counter
- * and `off2` as the found flag gets 160)
+ * t-register choice in the link and part-numbering loops (180 diffs, first 142C; reusing `n` as the part-loop
+ * counter and `off2` as the found flag gets fewer). The ROM keeps the outer setup pointer in a2 and the link
+ * pointer in v1, and re-tests `unkA == id` after the `||` instead of jumping straight into the branch.
  */
 void func_m154_013A8(M154Setup *setup, s32 size) {
     M154Setup *s;
@@ -615,8 +616,8 @@ void func_m154_013A8(M154Setup *setup, s32 size) {
     s32 found;
 
     D_800FEA98 = 1;
-    for (off = 0, s = setup; off < size; off += s->size, s = (M154Setup *) ((u8 *) s + s->size)) {
-        if (s->type == 0x61) {
+    for (off = 0, l = setup; off < size; off += l->size, l = (M154Setup *) ((u8 *) l + l->size)) {
+        if (l->type == 0x61) {
             D_800FEA98++;
         }
     }

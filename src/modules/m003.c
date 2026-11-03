@@ -805,30 +805,22 @@ void func_m003_04398(s32 mission, s32 arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_043FC);
 
-#ifdef NON_MATCHING
 /* A member's animation entries (by its troop's body), or the first ones */
-/* (the ROM keeps home in a1 across the call, the result in v0 and materialises the table twice) */
 M003Anim *func_m003_04428(Object *obj) {
     M003Member *m = obj->unk68;
-    M003Anim *anim;
     Object *home;
     M003Home *h;
 
     if (m == NULL) {
-        anim = NULL;
-    } else {
-        home = m->home;
-        anim = rl_m003_17DB8;
-        if (home != NULL) {
-            h = home->unk68;
-            anim = &rl_m003_17DB8[rl_m003_19278[troop_slot_get(h->kind) * 2]] + m->animSet;
-        }
+        return NULL;
     }
-    return anim;
+    home = m->home;
+    if (home != NULL) {
+        h = home->unk68;
+        return &rl_m003_17DB8[rl_m003_19278[troop_slot_get(h->kind) * 2]] + m->animSet;
+    }
+    return rl_m003_17DB8;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04428);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044B4);
 
@@ -1071,9 +1063,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09840);
 
 extern Object *rl_m003_07B38(Object *home);
 
-#ifdef NON_MATCHING
 /* Takes a member out of its troop's list */
-/* (the ROM numbers the t-registers of the first test one higher; `count - arrived == 0` fixes everything after it) */
 void func_m003_098A0(Object *obj) {
     M003Member *m = obj->unk68;
     M003Member *om;
@@ -1084,43 +1074,42 @@ void func_m003_098A0(Object *obj) {
     M003Home *h;
     s32 i;
 
-    if (!m->unlinked) {
-        home = m->home;
-        if (home != NULL) {
-            h = home->unk68;
-            if (--h->unk0 == 0 && h->count - h->arrived == 0) {
-                if ((h->flags & 4) || h->unk30 == 9) {
-                    h->unk30 = 5;
-                    h->unk2E = 60;
-                    h->arrived = 0;
-                } else {
-                    rl_m003_09840(h, 0x10);
-                }
-            }
-            if (h->flags & 1) {
-                ((M003Member *) rl_m003_07B38(home)->unk68)->unk15 = ((M003Member *) obj->unk68)->unk15;
-            }
-            o = h->first;
+    if (m->unlinked) {
+        return;
+    }
+    home = m->home;
+    if (home == NULL) {
+        return;
+    }
+    h = home->unk68;
+    if (--h->unk0 == 0 && h->arrived == h->count) {
+        if ((h->flags & 4) || h->unk30 == 9) {
+            h->unk30 = 5;
+            h->unk2E = 60;
+            h->arrived = 0;
+        } else {
+            rl_m003_09840(h, 0x10);
+        }
+    }
+    if (h->flags & 1) {
+        ((M003Member *) rl_m003_07B38(home)->unk68)->unk15 = ((M003Member *) obj->unk68)->unk15;
+    }
+    o = h->first;
+    if (o == obj) {
+        h->first = ((M003Member *) o->unk68)->next;
+    } else {
+        i = h->unk0;
+        while (i--) {
+            om = o->unk68;
+            o = om->next;
             if (o == obj) {
-                h->first = ((M003Member *) o->unk68)->next;
-            } else {
-                i = h->unk0;
-                while (i--) {
-                    om = o->unk68;
-                    o = om->next;
-                    if (o == obj) {
-                        m = o->unk68;
-                        om->next = m->next;
-                        break;
-                    }
-                }
+                m = o->unk68;
+                om->next = m->next;
+                break;
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_098A0);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09A14);
 
