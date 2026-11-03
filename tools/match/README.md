@@ -85,3 +85,16 @@ common.py; `-I include/modules` for `src/modules/*.c`):
   condition). Read every candidate, check it means the same as before, write
   it back into the real file in the project's style, and confirm with
   `probe.py`/`modprobe.py` and the full build (`make`, `make check`).
+
+Notes from using it (round 8):
+
+- The default score ignores stack offsets and the frame size: a 0 can still
+  differ in the frame. Use `--stack-diffs` for frame/slot problems, and
+  always check with the probe.
+- Its candidates are written in the permuter's own style (`new_var`,
+  statements joined onto one line, `if (x) {}`). Read what changed and find
+  the plain spelling that keeps the match: IDO schedules by source line, so
+  a joined line can be a real lever (a one-line `for (...) a[i] = 0;`).
+- `perm.py diff` with a candidate shows what is left; small hand sweeps
+  (statement order, declaration order, pads) finished several of its near
+  misses.
