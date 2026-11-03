@@ -137,7 +137,7 @@ void music_volume_fade(f32 time, u8 volume) {
 
 /* JFG: fade the music to volume, scaled by the current sequence's volume.
    (The scaled volume goes through a local: that puts the product in $v1.) */
-void func_80000724(f32 time, u8 volume) {
+void music_volume_fade_scaled(f32 time, u8 volume) {
     s32 scaled;
 
     if (volume >= 0x80) {

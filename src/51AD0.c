@@ -437,7 +437,7 @@ void func_800118F4(s32 *a, s32 *b, s32 index);
 LeaderObject **objGetObjList(s32 *arg0, s32 *cnt);
 s32 objflags_reserve_ids(u8 arg0);
 void obj_group_flag_first(u8 arg0, s32 arg1);
-s16 func_80005EC0(s32 type);
+s16 obj_header_field_get(s32 type);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target strength-reduces the object loop to i * 4 (compared with last * 4 each time) and its frame is 8 bytes bigger */
@@ -470,7 +470,7 @@ void func_80051CCC(void) {
                 for (j = 0; j < 2; j++) {
                     entry = lists[j];
                     for (offset = 0; offset < sizes[j]; offset += entry->size, entry = (TroopEntry *) ((u8 *) entry + entry->size)) {
-                        if (func_80005EC0(entry->objectID) == 0x18 && state->unk64 == entry->troopId) {
+                        if (obj_header_field_get(entry->objectID) == 0x18 && state->unk64 == entry->troopId) {
                             entry->memberIndex = state->unk8C;
                             state->unk8C++;
                         }
@@ -575,7 +575,7 @@ void func_80054530();
 
 /* JFG: the address a relocation refers to: a symbol (modules 0xFFD..0xFFF are the main segment's sections),
    an address in the module, or a jump target. Unloaded modules resolve to the trap (calls) or a dummy word. */
-u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
+u32 runlink_reloc_target(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
     u32 *entry;
     s32 delta;
     u32 v;
@@ -831,7 +831,7 @@ INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005372C);
 
 /* JFG: unload every module (but 0), then free every used slot's buffer.
    (`i = 15; do {` on one line: IDO schedules by source line.) */
-void func_80053934(void) {
+void runlink_unload_all(void) {
     s32 i;
     ModuleSlot *slot = D_800FEAD8;
 

@@ -136,7 +136,7 @@ typedef struct Model3C7 {
     /* 0x4C */ s16 references;
     /* 0x4E */ s8 numAssets;
     /* 0x4F */ u8 pad4F;
-    /* 0x50 */ s8 **assets; // released with func_8003D150
+    /* 0x50 */ s8 **assets; // released with asset_cache_release
     /* 0x54 */ u8 pad54[4];
     /* 0x58 */ void *unk58;
     /* 0x5C */ void *unk5C;
@@ -175,12 +175,12 @@ typedef struct ModelInstance3C {
     /* 0x60 */ u8 *anim;
     /* 0x64 */ u8 *prevAnim;
     /* 0x68 */ u8 pad68[0x80 - 0x68];
-    /* 0x80 */ s8 *assets[2]; // released with func_8003D150
+    /* 0x80 */ s8 *assets[2]; // released with asset_cache_release
     /* 0x88 */ s16 assetIds[2];
 } ModelInstance3C;
 
 void free_model_data(Model3C7 *model);
-void func_8003D150(s8 *asset);
+void asset_cache_release(s8 *asset);
 void mempool_free(void *data);
 
 /* JFG: free a model instance; free the model itself when it has no references left (DKR free_3d_model). */
@@ -197,7 +197,7 @@ void free_3d_model(ModelInstance3C *modInst) {
         if (model->unk64 != 0) {
             for (i = 0; i < 2; i++) {
                 if (modInst->assets[i] != NULL) {
-                    func_8003D150(modInst->assets[i]);
+                    asset_cache_release(modInst->assets[i]);
                 }
             }
         }
@@ -258,7 +258,7 @@ void free_model_data(Model3C7 *mdl) {
             i = 0;
             j = 0;
             do {
-                func_8003D150(mdl->assets[j]);
+                asset_cache_release(mdl->assets[j]);
                 i++;
                 j++;
             } while (i < mdl->numAssets);
@@ -326,7 +326,7 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
             model->assets[i] = asset_cache_get(((s16 *) D_800F6F28)[offset]);
             if (model->assets[i] == NULL) {
                 for (j = 0; j < i; j++) {
-                    func_8003D150(model->assets[j]);
+                    asset_cache_release(model->assets[j]);
                 }
                 mempool_free(model->assets);
                 mempool_free(model->unk58);
@@ -475,7 +475,7 @@ extern s32 D_800F6F40;  // JFG: its length
 void mempool_free(void *data);
 
 /* JFG: release a cached asset (its count is the first byte); free it when unused. */
-void func_8003D150(s8 *asset) {
+void asset_cache_release(s8 *asset) {
     s32 i;
     s32 index;
 
@@ -662,8 +662,8 @@ s16 *asset_cache2_get(s16 id) {
 extern s32 *D_800F6F3C; // JFG: the second cache of (id, asset) pairs
 extern s32 D_800F6F44;
 
-/* JFG: func_8003D150 for the second cache (the count is the first short). */
-void func_8003F0E4(s16 *asset) {
+/* JFG: asset_cache_release for the second cache (the count is the first short). */
+void asset_cache2_release(s16 *asset) {
     s32 i;
     s32 index;
 

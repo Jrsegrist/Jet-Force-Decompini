@@ -453,7 +453,7 @@ void func_80047608(s32 arg0, s32 level, s32 arg2);
 
 /* JFG: the boot screen; START on any controller sets D_800A4FB0, after 10 frames the settings are applied.
    (The one-line loop and if match: IDO schedules by source line.) */
-void func_80045E04(UNUSED s32 updateRate) {
+void boot_screen_update(UNUSED s32 updateRate) {
     s32 i;
     s32 start;
 
@@ -502,7 +502,7 @@ void func_80008FF0(s32 updateRate);
 void func_80063358(s32 updateRate);
 void *cam_get_active_camera(void);
 void func_80079890(s32 arg0, void *camera);
-void func_80012150(s32 updateRate);
+void track_module_effects_run(s32 updateRate);
 void rumble_stop_all(s32 arg0);
 void objects_update_special(s32 updateRate);
 void func_80008FE8(void);
@@ -562,7 +562,7 @@ void func_80045F00(s32 updateRate) {
         func_80008FF0(updateRate);
         func_80063358(updateRate);
         func_80079890(0, cam_get_active_camera());
-        func_80012150(updateRate);
+        track_module_effects_run(updateRate);
         if ((s8) header[0x6C] != 1 && (s8) header[0x6C] != 2 && (pressed & START_BUTTON) && D_800A32BC == 0 &&
             D_800A3294 == 0 && D_800FD7C4 == 0) {
             rumble_stop_all(1);
@@ -695,7 +695,7 @@ extern s8 D_800A3288;
 extern GameStats *gSettingsPtr;
 extern s8 D_800A32A0;
 extern u8 D_800A3304[];
-s32 func_80046550(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4);
+s32 level_redirect_get(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4);
 void transition_begin(void *arg0);
 
 /* JFG: once (until D_800A3294 is cleared): pick the next level: a fixed one for some levels, the current
@@ -703,7 +703,7 @@ void transition_begin(void *arg0);
  * character and the module hooks. */
 void level_next_select(void) {
     if (D_800A3294 == 0) {
-        if (!func_80046550(gPlayableMapId, &D_800A3250, &D_800A3254, &D_800A3258, &D_800A3268)) {
+        if (!level_redirect_get(gPlayableMapId, &D_800A3250, &D_800A3254, &D_800A3258, &D_800A3268)) {
             if (D_800FD7A4 == 0 || D_800FD7A4 == 0xFF || D_800A3280 > 0) {
                 if (D_800FD7A4 != 0 && D_800FD7A4 != 0xFF) {
                     D_800A3280--;
@@ -737,7 +737,7 @@ void level_next_select(void) {
 }
 
 /* JFG: where some levels send the player (level, two zeros and D_800FD7A4); FALSE for the others. */
-s32 func_80046550(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4) {
+s32 level_redirect_get(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4) {
     switch (level) {
         case 0xD2:
             *newLevel = 0xF9;

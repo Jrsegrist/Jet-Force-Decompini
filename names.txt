@@ -727,3 +727,26 @@ func_800191D8 = line_clip_box
 func_80024F94 = sprite_anim_once_update
 func_8007BB00 = line_count_solid_hits
 func_8007E150 = obj_dist_racer
+
+# perm9 (round 9): descriptive names from what the code does
+func_8005F048 = point_particle_set_alloc
+func_80000724 = music_volume_fade_scaled
+func_80012150 = track_module_effects_run
+func_80013924 = tex_scroll_queue
+func_8001D938 = shadow_buffers_free
+func_80024EF4 = obj_sprite_animate
+func_8002A704 = zone_sphere_touches
+func_8002B064 = obj_play_move_sound
+func_80035AEC = racer_angle_sync
+func_800370D0 = racer_ease_to_target
+func_8003B16C = players_unlink_object
+func_8003D150 = asset_cache_release
+func_8003F0E4 = asset_cache2_release
+func_80045E04 = boot_screen_update
+func_80046550 = level_redirect_get
+func_80052874 = runlink_reloc_target
+func_80053934 = runlink_unload_all
+func_80005EC0 = obj_header_field_get
+func_80008F70 = anim_obj_list_remove
+func_8000A9EC = obj_debug_line_draw
+func_8000C9F4 = obj_flash_fog_set

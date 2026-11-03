@@ -113,7 +113,7 @@ void player_voice_play(s32 owner, u8 index) {
 }
 
 /* JFG: play a random sound of set `index` (per character) at obj if it is moving fast enough. */
-void func_8002B064(u8 *obj, u8 index) {
+void obj_play_move_sound(u8 *obj, u8 index) {
     Racer *racer;
     s16 *sounds;
     s16 sound;
@@ -887,7 +887,7 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035894);
 
 /* JFG: in some racer states (6, 7, 8 and 12), copy the racer's angle at 0x17E to 0x120 and to the object. */
-void func_80035AEC(u8 *obj, u8 *racer, UNUSED s32 arg2) {
+void racer_angle_sync(u8 *obj, u8 *racer, UNUSED s32 arg2) {
     u8 state = racer[0x568];
 
     if (state == 8 || state == 6 || state == 7 || state == 0xC) {
@@ -912,7 +912,7 @@ extern f32 D_800ABF78;
 
 /* JFG: ease the value at 0x48 towards the target at 0x4C; on arrival the target becomes 1.0.
    (The (f32) casts set the add.s operand order.) */
-void func_800370D0(u8 *obj, f32 rate) {
+void racer_ease_to_target(u8 *obj, f32 rate) {
     f32 cur = *(f32 *) (obj + 0x48);
     f32 target = *(f32 *) (obj + 0x4C);
 
@@ -1671,7 +1671,7 @@ s32 weapon_usable_by_character(s8 *ids) {
 }
 
 /* JFG: clear every player's link at 0x1A4 that points to obj. */
-void func_8003B16C(s32 obj) {
+void players_unlink_object(s32 obj) {
     u8 **racers;
     s32 numRacers;
     s32 i;

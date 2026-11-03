@@ -577,7 +577,7 @@ INCLUDE_ASM("asm/nonmatchings/291B0", func_80029BA4);
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029CFC);
 
 /* JFG: TRUE if a sphere of the given radius at the point touches a zone in use (the zone's own size is left out with ignoreSize). */
-s32 func_8002A704(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
+s32 zone_sphere_touches(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
     Zone *zone;
     s32 i;
     s32 hit = FALSE;

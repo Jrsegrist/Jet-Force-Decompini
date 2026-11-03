@@ -152,7 +152,7 @@ s32 runlink_module_loaded(s32 module); // JFG: whether a runlink module is loade
 s32 func_80054530();           // a module function (patched in by the runtime linker)
 
 /* JFG: run the track effects of the modules 1, 8 and 10 that are loaded. */
-void func_80012150(s32 arg0) {
+void track_module_effects_run(s32 arg0) {
     if (runlink_module_loaded(1)) {
         func_80054530(arg0);
     }
@@ -544,7 +544,7 @@ extern s32 D_800A0D8C;
 extern s32 D_800F3370[16];
 
 /* JFG: queue a texture scroll (up to 16 a frame). */
-void func_80013924(s32 arg0, s32 arg1, s32 arg2) {
+void tex_scroll_queue(s32 arg0, s32 arg1, s32 arg2) {
     if (D_800A0D8C < 16) {
         D_800F3370[D_800A0D8C] = (arg0 << 24) | ((arg1 & 0xFFF) << 12) | (arg2 & 0xFFF);
         D_800A0D8C++;
@@ -580,7 +580,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 void track_segment_data_free(void);
 
 #ifdef NON_MATCHING
-/* JFG: scroll the texture coordinates of the triangles using each queued texture (func_80013924).
+/* JFG: scroll the texture coordinates of the triangles using each queued texture (tex_scroll_queue).
    NON_MATCHING: the same code with other registers (target: outer values in t-registers, the
    per-triangle values in s3..fp, no $ra use). */
 void func_80013970(void) {
@@ -1934,7 +1934,7 @@ extern s8 D_800A0CE0;
 void track_segment_data_free(void);
 void func_80038F04(void);
 void tex_free(void *tex);
-void func_8001D938(void);
+void shadow_buffers_free(void);
 void free_object(Object *obj);
 void gParticlePtrList_flush(void);
 void func_80077060(void);
@@ -1974,7 +1974,7 @@ void free_track(void) {
     if (func_80054530(osRomBase) != 0) {
         mempool_free(D_800F33B0);
     }
-    func_8001D938();
+    shadow_buffers_free();
     if (gSkydomeSegment != NULL) {
         free_object(gSkydomeSegment);
         gParticlePtrList_flush();

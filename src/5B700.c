@@ -1179,7 +1179,7 @@ ParticleEmitter *emitter_alloc_from_pool(s32 behaviourID, s32 particleID) {
 
 typedef struct ParticleDesc ParticleDesc;
 extern ParticleDesc **D_800A5D9C;
-s32 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter);
+s32 point_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter);
 s32 line_particle_set_alloc(); // JFG: takes (desc, behaviour); the caller below also passes the emitter
 
 /**
@@ -1213,7 +1213,7 @@ void obj_enable_emitter(ParticleObj *obj, s32 emitterIndex) {
         }
     }
     if (emitter->flags & PARTICLE_POINT) {
-        emitter->index = func_8005F048(desc, behaviour, emitter);
+        emitter->index = point_particle_set_alloc(desc, behaviour, emitter);
     }
     emitter->flags |= PARTICLE_ACTIVE;
     obj->activeEmitters++;
@@ -1235,7 +1235,7 @@ extern f32 *D_800A5F78[]; // JFG: point shapes, (x, y) pairs
 
 /* JFG: give an emitter a point particle set: reuse the one it let go of, or claim a free one (index, 0xFF if none).
    (The two empty ifs before the second loop give the ROM's loop entry; found by the permuter.) */
-s32 func_8005F048(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter) {
+s32 point_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour, ParticleEmitter *emitter) {
     s32 found;
     s32 i;
     s32 j;

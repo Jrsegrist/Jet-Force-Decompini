@@ -47,7 +47,7 @@ void shadow_buffers_alloc(s32 arg0, s32 arg1, s32 count0, s32 count1, s32 count2
 }
 
 /* JFG: free the three shadow buffers. */
-void func_8001D938(void) {
+void shadow_buffers_free(void) {
     if (((void **) D_800A0E80)[0] != NULL) {
         mempool_free(((void **) D_800A0E80)[0]);
         ((void **) D_800A0E80)[0] = NULL;
