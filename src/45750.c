@@ -1201,23 +1201,11 @@ s32 character_has_item(s32 player, s32 character, s32 item) {
     return has;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target computes each `!= 0` into a fresh t-register and copies it to v0 (mine: a0) */
+/* returns int, not s32 (long): with int IDO computes each compare straight into v0, as the ROM does */
 /* JFG: whether any of player 0's first three characters has an item. */
-s32 func_80047DD8(s32 item) {
-    s32 ret;
-    ret = character_has_item(0, 0, item) != 0;
-    if (!ret) {
-        ret = character_has_item(0, 1, item) != 0;
-        if (!ret) {
-            ret = character_has_item(0, 2, item) != 0;
-        }
-    }
-    return ret;
+int player_chars_have_item(s32 item) {
+    return character_has_item(0, 0, item) || character_has_item(0, 1, item) || character_has_item(0, 2, item);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_80047DD8);
-#endif
 
 /* JFG: whether a player's character has a weapon (a bit mask at 0xA) (0x80047E44). */
 s32 character_has_weapon(s32 player, s32 character, s32 weapon) {

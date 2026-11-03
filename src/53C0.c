@@ -376,28 +376,21 @@ s32 normalise_time(s32 timer) {
     }
 }
 
-#ifdef NON_MATCHING
-/* JFG: whether an object type is spawned by troop_buffer_push rather than spawn_object.
-   NON_MATCHING: the result goes through v1 and the branch delay slots are filled (target: v0, nops). */
-#define IS_TYPE(x) (ret = (objectID == (x)))
-s32 func_800050A8(s32 objectID) {
-    s32 ret;
-
-    IS_TYPE(0x29) || IS_TYPE(0x2A) || IS_TYPE(0x2B) || IS_TYPE(0x2D) || IS_TYPE(0x54) || IS_TYPE(0x149) ||
-        IS_TYPE(0x150) || IS_TYPE(0x151) || IS_TYPE(0x152) || IS_TYPE(0x153) || IS_TYPE(0x166) || IS_TYPE(0x5F) ||
-        IS_TYPE(0x67) || IS_TYPE(0xDF) || IS_TYPE(0xE0) || IS_TYPE(0xE1) || IS_TYPE(0x78) || IS_TYPE(0x8C) ||
-        IS_TYPE(0x83) || IS_TYPE(0x66) || IS_TYPE(0x11C) || IS_TYPE(0x11D) || IS_TYPE(0x11E) || IS_TYPE(0x11F) ||
-        IS_TYPE(0x120) || IS_TYPE(0x70) || IS_TYPE(0x90) || IS_TYPE(0xA5) || IS_TYPE(0x97) || IS_TYPE(0x157) ||
-        IS_TYPE(0x68) || IS_TYPE(0x6D) || IS_TYPE(0xBE) || IS_TYPE(0xBD) || IS_TYPE(0x269) || IS_TYPE(0xEE) ||
-        IS_TYPE(0xEF) || IS_TYPE(0x8D) || IS_TYPE(0x99) || IS_TYPE(0x9C) || IS_TYPE(0x12F) || IS_TYPE(0xE6) ||
-        IS_TYPE(0xF2) || IS_TYPE(0xF3) || IS_TYPE(0x121) || IS_TYPE(0xF1) || IS_TYPE(0xF5) || IS_TYPE(0xF6) ||
-        IS_TYPE(0x122) || IS_TYPE(0x143) || IS_TYPE(0x144) || IS_TYPE(0x112) || IS_TYPE(0x1E5);
-    return ret;
+/* returns int, not s32 (long): with int IDO computes each compare straight into v0, as the ROM does */
+/* JFG: whether an object type is spawned by troop_buffer_push rather than spawn_object. */
+int obj_id_is_troop_spawned(s32 objectID) {
+    return objectID == 0x29 || objectID == 0x2A || objectID == 0x2B || objectID == 0x2D || objectID == 0x54 ||
+           objectID == 0x149 || objectID == 0x150 || objectID == 0x151 || objectID == 0x152 || objectID == 0x153 ||
+           objectID == 0x166 || objectID == 0x5F || objectID == 0x67 || objectID == 0xDF || objectID == 0xE0 ||
+           objectID == 0xE1 || objectID == 0x78 || objectID == 0x8C || objectID == 0x83 || objectID == 0x66 ||
+           objectID == 0x11C || objectID == 0x11D || objectID == 0x11E || objectID == 0x11F || objectID == 0x120 ||
+           objectID == 0x70 || objectID == 0x90 || objectID == 0xA5 || objectID == 0x97 || objectID == 0x157 ||
+           objectID == 0x68 || objectID == 0x6D || objectID == 0xBE || objectID == 0xBD || objectID == 0x269 ||
+           objectID == 0xEE || objectID == 0xEF || objectID == 0x8D || objectID == 0x99 || objectID == 0x9C ||
+           objectID == 0x12F || objectID == 0xE6 || objectID == 0xF2 || objectID == 0xF3 || objectID == 0x121 ||
+           objectID == 0xF1 || objectID == 0xF5 || objectID == 0xF6 || objectID == 0x122 || objectID == 0x143 ||
+           objectID == 0x144 || objectID == 0x112 || objectID == 0x1E5;
 }
-#undef IS_TYPE
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800050A8);
-#endif
 
 /* JFG: a level object entry, reduced */
 typedef struct LevelObjectEntry53 {
@@ -414,7 +407,7 @@ extern s32 D_800F2D00;   // DKR: gObjectMapIndex
 extern s32 D_800F2C8C;
 void level_entry_remove(LevelObjectEntry53 *entry);
 s32 *asset_table_load(s32 tableID);
-s32 func_800050A8(s32 objectID);
+int obj_id_is_troop_spawned(s32 objectID);
 void troop_buffer_push(LevelObjectEntry53 *entry);
 void spawn_level_replacement(LevelObjectEntry53 *entry);
 void level_records_scan(s32 list, s32 size);
@@ -460,7 +453,7 @@ void track_spawn_objects(s32 mapID, s32 index) {
             level_records_scan(D_800F2CD8[index], D_800F2CE0[index]);
         }
         for (var_s0 = 0; var_s0 < D_800F2CE0[index]; var_s0 += temp_t3) {
-            if (func_800050A8(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
+            if (obj_id_is_troop_spawned(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
                 troop_buffer_push((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else if (((LevelObjectEntry53 *) D_800F2CD8[index])->objectID == 0x12E) {
                 spawn_level_replacement((LevelObjectEntry53 *) D_800F2CD8[index]);

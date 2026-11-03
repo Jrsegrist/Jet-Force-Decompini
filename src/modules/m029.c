@@ -47,7 +47,7 @@ extern Object *func_80041E0C(void); /* the camera object */
 extern void *D_800F6DC0;            /* the camera's transform */
 extern Object **func_80005E98(s32 *first, s32 *count);
 extern Object *func_80005F14(M029Entry *entry, s32 count); /* spawns an object from a level entry */
-extern s32 func_80050ED0(s32 id);
+extern s32 obj_id_is_special(s32 id);
 extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights); /* floor heights at x, z */
 extern s32 func_80082D80(f32 x, f32 z, s32 arg2, f32 ***heights);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
@@ -154,7 +154,7 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
             while (first < count) {
                 sTarget = objects[first++];
                 if (sTarget->behaviorId == 0x18 && sTarget->interactObj != NULL &&
-                    sTarget->interactObj->hitPoints > 0 && func_80050ED0(sTarget->objectID) == 0) {
+                    sTarget->interactObj->hitPoints > 0 && obj_id_is_special(sTarget->objectID) == 0) {
                     dx = obj->trans.x_position - sTarget->trans.x_position;
                     dy = obj->trans.y_position - sTarget->trans.y_position;
                     dz = obj->trans.z_position - sTarget->trans.z_position;
