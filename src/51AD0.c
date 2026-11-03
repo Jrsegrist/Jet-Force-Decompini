@@ -567,14 +567,12 @@ typedef struct ModuleReloc {
 
 extern u32 *D_800FEAA8; // JFG: the symbol table (module << 20 | offset)
 
-#ifdef NON_MATCHING
 extern u8 gMusicPlayer[];
 extern u8 D_800B0B50[];
 extern u8 D_800FEAD4[];
 void sound_volume_change(s32 behaviour);
 void func_80054530();
 
-/* NON_MATCHING: same code; the symbol word, delta and module index sit in t1/v1/t0 (target t0/t1/v1) */
 /* JFG: the address a relocation refers to: a symbol (modules 0xFFD..0xFFF are the main segment's sections),
    an address in the module, or a jump target. Unloaded modules resolve to the trap (calls) or a dummy word. */
 u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
@@ -583,9 +581,9 @@ u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
     u32 v;
     u32 ret;
 
-    delta = 0;
     entry = &D_800FEAA8[symbol];
     v = *entry >> 20;
+    delta = 0;
     switch (reloc->type) {
         case 0:
             switch (v) {
@@ -621,9 +619,6 @@ u32 func_80052874(s32 symbol, s32 module, ModuleReloc *reloc, u32 *insn) {
             return 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052874);
-#endif
 
 typedef union PatchWord {
     u32 word;
