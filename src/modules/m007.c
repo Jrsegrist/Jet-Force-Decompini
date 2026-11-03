@@ -14,8 +14,19 @@ static s32 func_m007_007E4(s32 dir);
 s32 rl_m007_007E4(s32 dir);
 #define func_m007_007E4 rl_m007_007E4
 #endif
-extern void rl_m007_016B4(void);
-extern void *rl_m007_00988(s32 hint, s32 arg1);
+static void func_m007_016B4(void);
+#ifdef NON_MATCHING
+static void *func_m007_00988(s32 id, s32 kind);
+static void *func_m007_00C90(s32 id, s32 asset);
+#else
+void *rl_m007_00988(s32 id, s32 kind);
+#define func_m007_00988 rl_m007_00988
+#endif
+extern void *rl_m007_00B00(s32 id, s32 asset);
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
+extern u8 rl_m007_02A04[]; /* the texts of pages without one */
+extern u8 rl_m007_02A14[];
 extern s32 rl_m007_012E0(s32 condition);
 extern void func_8004AA80(void *data); /* frees */
 extern s32 func_80043510(s32 player); /* the buttons pressed */
@@ -54,13 +65,22 @@ extern Object *rl_m007_02A60;
 #define sHintPreviousArg rl_m007_02A34
 #define sHintObject rl_m007_02A60
 extern s32 rl_m007_02A20; /* the text's fade (0..256) */
-/* A page of a long hint (size 0x10); the first page also holds the count and the page shown */
+/* A page of a long hint (size 0x10) */
+typedef struct M007PageRec {
+    /* 0x00 */ u8 *text;      /* an offset in the file until loaded */
+    /* 0x04 */ s16 condition; /* shown when it holds */
+    /* 0x06 */ s16 cond2;     /* A does the action when it holds */
+    /* 0x08 */ s16 action;    /* the kind in the top 4 bits */
+    /* 0x0A */ s16 elseHint;  /* shown when cond2 does not hold, or -1 */
+    /* 0x0C */ s16 thenHint;  /* shown after the action, or -1 */
+    /* 0x0E */ s16 padE;
+} M007PageRec;
+
+/* The pages of a long hint */
 typedef struct M007Pages {
     /* 0x00 */ s16 count;
     /* 0x02 */ s16 current;
-    /* 0x04 */ u8 pad4[4];
-    /* 0x08 */ s16 condition; /* shown when it holds */
-    /* 0x0A */ u8 padA[0x10 - 0xA];
+    /* 0x04 */ M007PageRec recs[1]; /* count of them */
 } M007Pages;
 
 /* A hint on the stack of hints shown (size 8) */
@@ -121,8 +141,29 @@ extern s32 rl_m007_02A3C; /* the first line shown */
 extern s32 rl_m007_02A40; /* more lines below */
 extern s32 rl_m007_02A4C; /* the hints on the stack */
 static void func_m007_01214(s32 updateRate);
-extern void rl_m007_01F80(s32 arg0);
-extern void rl_m007_020D4(s32 arg0);
+static void func_m007_01F80(Gfx **dl);
+extern void rl_m007_020D4(Gfx **dl);
+static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha);
+extern s32 rl_m007_023D4(Gfx **dl, void *text, s32 line);
+extern s32 rl_m007_01504(s32 condition);
+extern void rl_m007_017E8(s32 action);
+
+/* A box to fill (as m075's) */
+typedef struct M007Box {
+    s16 x1, y1, x2, y2;
+    s32 colour;
+} M007Box;
+
+extern void menu_fill_boxes(Gfx **dl, s32 count, M007Box *boxes, s32 arg3);
+extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
+extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
+extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
+
+/* The module's .data: the hint box's outline, 9 bytes a box (still assembly) */
+extern s8 rl_m007_02960[];
+/* The module's .rodata (still assembly): the "more" marks */
+extern char rl_m007_02ADC[];
+extern char rl_m007_02AE0[];
 extern void func_8006FC14(s32 arg0);
 extern void func_8003B620(s16 x, s16 y, s16 z, s16 angle);
 extern s32 func_800468CC(void);
@@ -259,13 +300,13 @@ static void *func_m007_00578(s32 hint, s32 kind) {
             rl_m007_02A68 = hint;
             sHintSpecial = 2;
         } else if (kind == 1) {
-            rl_m007_02A5C = rl_m007_00988(hint, 1);
+            rl_m007_02A5C = func_m007_00988(hint, 1);
             if (func_m007_007E4(0)) {
                 data = rl_m007_02A5C;
                 rl_m007_02A44 = 1;
             }
         } else {
-            rl_m007_02A58 = rl_m007_00988(hint, 4);
+            rl_m007_02A58 = func_m007_00988(hint, 4);
             rl_m007_02A38 = 0;
             rl_m007_02A3C = 0;
             rl_m007_02A40 = 0;
@@ -314,18 +355,18 @@ static void func_m007_0070C(void) {
 /*
  * Counts the pages whose condition holds, and turns to the next one that holds in direction `dir`
  * (0: the current one if it holds, else the one before or after).
- * The first loop's two increments come after the call here (before it in the original), and the
- * pointer for dir 0 is computed into v0 and moved.
+ * NON_MATCHING: the original walks the pages from the start of the block (4 bytes before the
+ * first) and schedules the first loop's increments before the call.
  */
 static s32 func_m007_007E4(s32 dir) {
     M007Pages *p = rl_m007_02A5C;
     s32 i;
-    M007Pages *page;
+    M007PageRec *rec;
     s32 count = 0;
 
     if (p != NULL) {
-        for (i = 0, page = p; i < p->count; i++, page++) {
-            if (rl_m007_012E0(page->condition)) {
+        for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
+            if (rl_m007_012E0(rec->condition)) {
                 count++;
             }
         }
@@ -334,23 +375,23 @@ static s32 func_m007_007E4(s32 dir) {
             if (dir > 0) {
                 do {
                     i++;
-                } while (i < p->count && !rl_m007_012E0(p[i].condition));
+                } while (i < p->count && !rl_m007_012E0(p->recs[i].condition));
             } else {
-                page = &p[i];
+                rec = &p->recs[i];
                 if (dir < 0) {
                     do {
                         i--;
-                    } while (i >= 0 && !rl_m007_012E0(p[i].condition));
-                } else if (!rl_m007_012E0(page->condition)) {
+                    } while (i >= 0 && !rl_m007_012E0(p->recs[i].condition));
+                } else if (!rl_m007_012E0(rec->condition)) {
                     do {
                         i--;
-                        page--;
-                    } while (i >= 0 && !rl_m007_012E0(page->condition));
+                        rec--;
+                    } while (i >= 0 && !rl_m007_012E0(rec->condition));
                     if (i < 0) {
                         i = p->current;
                         do {
                             i++;
-                        } while (i < p->count && !rl_m007_012E0(p[i].condition));
+                        } while (i < p->count && !rl_m007_012E0(p->recs[i].condition));
                     }
                 }
             }
@@ -365,11 +406,93 @@ static s32 func_m007_007E4(s32 dir) {
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_007E4);
 #endif
 
+#ifdef NON_MATCHING
+/*
+ * Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet.
+ * NON_MATCHING: the frame is two words bigger and the registers differ; func_m007_00C90 (close:
+ * its loop's pointer starts 4 bytes later than the original's) is only called from here, so it
+ * stays assembly with it.
+ */
+static void *func_m007_00988(s32 id, s32 kind) {
+    M007Text *t;
+    s32 i;
+    s32 asset;
+
+    for (t = rl_m007_02C58; t < &rl_m007_02C58[32]; t++) {
+        if (t->data != NULL && id == t->id) {
+            return t->data;
+        }
+    }
+    for (i = 0; i < 32 && rl_m007_02C58[i].data != NULL; i++) {
+    }
+    if (i >= 32) {
+        return NULL;
+    }
+    t = &rl_m007_02C58[i];
+    switch (func_8005A7D0()) {
+        case 1:
+            asset = 12;
+            break;
+        case 2:
+            asset = 14;
+            break;
+        case 4:
+            asset = 18;
+            break;
+        default:
+            asset = 10;
+            break;
+    }
+    if (kind != 1) {
+        t->data = rl_m007_00B00(id, asset);
+    } else {
+        t->data = func_m007_00C90(id, asset);
+    }
+    if (t->data != NULL) {
+        t->id = id;
+        rl_m007_02A48++;
+    }
+    return t->data;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00988);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00B00);
 
+#ifdef NON_MATCHING
+
+/* Loads text `id` from asset `asset` as pages, turning their text offsets into pointers */
+static void *func_m007_00C90(s32 id, s32 asset) {
+    UNUSED s32 *offsets;
+    s32 start;
+    s32 size;
+    M007Pages *p;
+    s32 i;
+    M007PageRec *rec;
+
+    start = ((s32 *) rl_m007_02A54)[id];
+    size = ((s32 *) rl_m007_02A54)[id + 1] - start;
+    p = func_8004A57C(size, 0xFF00FF);
+    if (p != NULL) {
+        func_8004D530(asset, p, start, size);
+        for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
+            if (rec->text == NULL) {
+                if (rec->action == 0x4000) {
+                    rec->text = rl_m007_02A04;
+                } else {
+                    rec->text = rl_m007_02A14;
+                }
+            } else {
+                rec->text = rec->text + (s32) p;
+            }
+        }
+    }
+    return p;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00C90);
+#endif
 
 /* Stops the hint text */
 void func_m007_00D6C(void) {
@@ -510,7 +633,7 @@ static void func_m007_01214(s32 updateRate) {
     if (rl_m007_02C34) {
         func_m007_0070C();
     } else if (rl_m007_02C30) {
-        rl_m007_016B4();
+        func_m007_016B4();
     } else if (rl_m007_02C3C && rl_m007_02A5C->current > 0) {
         func_m007_007E4(-1);
     } else if (rl_m007_02C40 && rl_m007_02A5C->current < rl_m007_02A5C->count - 1) {
@@ -522,12 +645,48 @@ INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_012E0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01504);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_016B4);
+/* A paged hint's A button: does the page's action if its condition holds, then shows its next hint */
+static void func_m007_016B4(void) {
+    M007PageRec *rec;
+    M007Pages *p = rl_m007_02A5C;
+
+    if (p != NULL) {
+        rec = &p->recs[p->current];
+        if (rl_m007_01504(rec->cond2)) {
+            switch (rec->action & 0xF000) {
+                case 0:
+                    rl_m007_017E8(rec->action);
+                    break;
+                case 0x1000:
+                    func_m007_00578(rec->action & 0xFFF, 4);
+                    break;
+                case 0x2000:
+                    func_m007_00578(rec->action & 0xFFF, 1);
+                    break;
+                case 0x3000:
+                    rl_m007_02A68 = rec->action & 0xFFF;
+                    sHintSpecial = 2;
+                    break;
+                case 0x4000:
+                    func_m007_0070C();
+                    break;
+                default:
+                    sHintActive = 0;
+                    break;
+            }
+            if (rec->thenHint != -1) {
+                func_m007_00578(rec->thenHint, 4);
+            }
+        } else if (rec->elseHint != -1) {
+            func_m007_00578(rec->elseHint, 4);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_017E8);
 
 /* Every frame: the hint text's fade in and out, and its drawing */
-void func_m007_01CCC(s32 arg0, s32 updateRate) {
+void func_m007_01CCC(Gfx **dl, s32 updateRate) {
     func_m007_00E0C(updateRate);
     if (sHintActive && !sHintSpecial) {
         if (rl_m007_02A44 != 1 && rl_m007_02A58 != 0) {
@@ -552,17 +711,60 @@ void func_m007_01CCC(s32 arg0, s32 updateRate) {
     func_8006FC14(1);
     if (rl_m007_02A20 != 0) {
         if (rl_m007_02A44 != 1) {
-            rl_m007_01F80(arg0);
+            func_m007_01F80(dl);
         } else {
-            rl_m007_020D4(arg0);
+            rl_m007_020D4(dl);
         }
     }
     func_8006FC14(0);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01E34);
+/* Fills the boxes of an outline (9 bytes a box) at (x, y), stretched by (w, h), at `alpha` (0..128) */
+static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha) {
+    s32 n;
+    M007Box boxes[24];
+    M007Box *b = boxes;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01F80);
+    n = 0;
+
+    while (src[0] >= 0 && n != 24) {
+        b->x1 = src[1] + x;
+        if (src[0]) {
+            b->x1 += w;
+        }
+        b->y1 = src[3] + y;
+        if (src[2]) {
+            b->y1 += h;
+        }
+        b->x2 = src[5] + x;
+        if (src[4]) {
+            b->x2 += w;
+        }
+        b->y2 = src[7] + y;
+        if (src[6]) {
+            b->y2 += h;
+        }
+        n++;
+        b->colour = (src[8] * alpha) >> 7;
+        src += 9;
+        b++;
+    }
+    menu_fill_boxes(dl, n, boxes, 0);
+}
+
+/* Draws a scrolling hint: its box, its text, and the marks for more text above and below */
+static void func_m007_01F80(Gfx **dl) {
+    func_m007_01E34(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
+    rl_m007_02A40 = rl_m007_023D4(dl, rl_m007_02A58, rl_m007_02A3C);
+    func_8006FC8C(0, 0, 0, 0);
+    func_8006FC68(0xFF, 0xC0, 0, 0xFF, (rl_m007_02A20 * 255) >> 8);
+    if (rl_m007_02A3C) {
+        func_8006FCA8(dl, 0xC4, 0x14, rl_m007_02ADC, 0xC);
+    }
+    if (rl_m007_02A40 || (rl_m007_02A44 == 4 && rl_m007_02A4C >= 2) || (rl_m007_02A44 == 3 && rl_m007_02A74)) {
+        func_8006FCA8(dl, 0xC4, 0x6C, rl_m007_02AE0, 0xC);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_020D4);
 
