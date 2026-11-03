@@ -985,9 +985,6 @@ void racers_apply_module_values(s32 *arg0, s32 *arg1, s32 *arg2) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001448C);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: register choice only: the target keeps the batch pointer in $s3 and the texture in $s1 (mine
-   the other way round); 18 words */
 /* JFG's vertex and triangle commands here: length, command and parameter or'ed in that order */
 #define gSPVertexSeg(pkt, v, last)                                                                        \
     {                                                                                                     \
@@ -1012,6 +1009,7 @@ void func_8001C778(TextureHeader *tex, s32 texOffset, s32 flags);
  * others the batches whose flags match (4 and 0x20000000 the second group).
  * JFG: environment colour from the texture offset for some textures, flag 0x4000 for a special material.
  * DKR: render_level_segment
+ * (The empty `if (!texture) {}` keeps the batch pointer and texture in the ROM's saved registers; permuter.)
  */
 void func_80014EBC(s32 segmentId, s32 pass) {
     s32 i;
@@ -1076,6 +1074,7 @@ void func_80014EBC(s32 segmentId, s32 pass) {
             gDPSetEnvColor(D_800F2F70++, (u8) (texOffset >> 8), (u8) (texOffset >> 8), (u8) (texOffset >> 8),
                            (u8) (texOffset >> 8));
         } else {
+            if (!texture) {}
             gDPSetEnvColor(D_800F2F70++, 255, 255, 255, 0);
         }
         if (!(batchFlags & 0x180)) {
@@ -1098,9 +1097,6 @@ void func_80014EBC(s32 segmentId, s32 pass) {
         tex_enable_modes(2);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80014EBC);
-#endif
 
 /**
  * Parse through applicable segments in the level.
