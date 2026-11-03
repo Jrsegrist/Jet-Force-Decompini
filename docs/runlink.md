@@ -352,18 +352,20 @@ such as m015, m091 and m149, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 4 of 5 | 15/16 |
-| enemy behaviours | 10 of 19 | 119/304 |
-| bosses | 3 of 4 | 40/124 |
+| enemy behaviours | 10 of 19 | 134/304 |
+| bosses | 3 of 4 | 42/124 |
 | weapons (character control) | 0 of 3 | 3/78 |
-| menus and screens | 4 of 14 | 53/136 |
+| menus and screens | 4 of 14 | 66/136 |
 | effect libraries | 2 of 4 | 21/26 |
-| fog and lighting | 1 of 2 | 10/11 |
+| fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 45 of 96 | 351/568 |
+| other object behaviours | 46 of 96 | 372/568 |
 
 Other modules placed by what their code does (all in "other object
 behaviours" above unless a family row lists them):
 
+- 7: the hint text (a stack of hints shown, a cache of 32 loaded texts,
+  scrolling and paged hints, the stick's auto-repeat).
 - 8: an effect library (a pool of 64 drops that bounce off the level and leave
   a mark, and 5 hit sprites).
 - 11: a camera that follows curved paths through up to 8 lists of path nodes.
@@ -371,10 +373,14 @@ behaviours" above unless a family row lists them):
   task, and its pause screen and camera.
 - 24: the level's track set-up, JFG's form of DKR's init_track and
   generate_track.
+- 31: races (a ring of up to 256 checkpoints, the racers' records).
 - 41: the front end's character display (the selected character's model in a
   frame, with counting numbers).
 - 47: the cutscene sequencer's helpers and the cutscene subtitles.
+- 53: a vehicle the players ride (control, camera, hit sounds per hit kind).
 - 69: a target-range minigame (targets, crosshairs, score lines).
+- 82: an object that opens when the player comes to it, with a camera that
+  swings round to it (m075's cabinet camera is the same code).
 - 135: the multiplayer menu room's cameras and player selectors.
 - 155: the enemy AI shared by the soldier enemies (spotting, paths, states).
 
