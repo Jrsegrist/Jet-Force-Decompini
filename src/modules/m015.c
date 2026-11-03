@@ -2395,9 +2395,10 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
     if (vy < 0.0f) {
         ay = -ay;
     }
-    big = ax;
     if (ax < az) {
         big = az;
+    } else {
+        big = ax;
     }
     anim = obj->animationID;
     frame = obj->unk28;

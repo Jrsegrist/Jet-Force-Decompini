@@ -86,10 +86,11 @@ extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
 extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
 
 /*
- * All functions but update_beam_light match. That one differs in register
- * allocation and spills only (the ROM keeps x, y and the radius in stack
- * slots; frame 0x58 vs 0x48; the `light` local gives the ROM's v0 test; an
- * `if (&radius) {}` puts radius in its slot but costs more than it fixes). As .rodata has to come from all C or all asm,
+ * All functions but update_beam_light match. That one has the ROM's length now
+ * (x and y kept in their stack words) but differs in register allocation and
+ * spills (frame 0x60 vs 0x58; the ROM keeps the radius in a stack slot and
+ * computes radius * 0.4f right after loading it; the `light` local gives the
+ * ROM's v0 test; an `if (&radius) {}` costs more than it fixes). As .rodata has to come from all C or all asm,
  * the matching build keeps the whole module in asm for now.
  */
 #ifdef NON_MATCHING
@@ -104,21 +105,22 @@ static void update_beam_light(Object *obj, M124Light *l) {
     f32 sinX;
     f32 cosX;
     f32 radius;
-    f32 len;
     f32 h;
     s32 light;
 
     light = l->objectLight;
+    /* x and y go to both integer- and float-register arguments: the ROM keeps them in their stack words */
+    if (&x) {}
+    if (&y) {}
     if (light != 0) {
         sinY = func_80049C34(obj->trans.rotation.y_rotation);
         cosY = func_80049C30(obj->trans.rotation.y_rotation);
         sinX = func_80049C34(obj->trans.rotation.x_rotation);
         cosX = func_80049C30(obj->trans.rotation.x_rotation);
         radius = l->beamRadius;
-        len = l->beamLength;
-        h = len * cosX;
+        h = l->beamLength * cosX;
         x = obj->trans.x_position - h * sinY;
-        y = obj->trans.y_position + len * sinX;
+        y = obj->trans.y_position + l->beamLength * sinX;
         z = obj->trans.z_position - h * cosY;
         if (l->beamLight != 0) {
             track_light_set_position(l->beamLight, x, y, z);
