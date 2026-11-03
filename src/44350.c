@@ -323,7 +323,7 @@ void music_jingle_stop(void);
 void lights_free(void);
 void coronas_free_all(void);
 void free_track(void);
-void func_80079CC4(void);
+void collision_level_buffers_free(void);
 void audspat_reset(void);
 void sound_volume_change(s32 behaviour);
 void weather_free(void);
@@ -342,7 +342,7 @@ void level_free(void) {
     lights_free();
     coronas_free_all();
     free_track();
-    func_80079CC4();
+    collision_level_buffers_free();
     audspat_reset();
     D_800A089C = 0;
     sound_volume_change(0);

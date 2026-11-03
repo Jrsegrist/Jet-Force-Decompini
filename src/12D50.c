@@ -1926,7 +1926,7 @@ void tex_free(void *tex);
 void shadow_buffers_free(void);
 void free_object(Object *obj);
 void gParticlePtrList_flush(void);
-void func_80077060(void);
+void sequence_table_free(void);
 void free_all_objects(void);
 
 /**
@@ -1968,7 +1968,7 @@ void free_track(void) {
         free_object(gSkydomeSegment);
         gParticlePtrList_flush();
     }
-    func_80077060();
+    sequence_table_free();
     free_all_objects();
     gCurrentLevelModel = NULL;
     if (D_800F2FB0 != NULL) {

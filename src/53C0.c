@@ -1434,7 +1434,7 @@ void object_undo_player_tumble(Object *obj) {
 
 extern f32 D_800F2E98;
 
-void func_8000DD78(Object *obj) {
+void obj_render_scale_set(Object *obj) {
     f32 scale = 1.0f;
     if (obj->behaviorId == BHV_RACER) {
         Object_Racer *racer = obj->racer;
@@ -1458,7 +1458,7 @@ void func_80054530(); // a module function (patched in by the runtime linker)
 void render_object_parts(Object *obj) {
     f32 y;
 
-    func_8000DD78(obj);
+    obj_render_scale_set(obj);
     if (obj->behaviorId == 0x72) {
         func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
     } else if (obj->behaviorId == 0x4E) {
@@ -1623,7 +1623,7 @@ Object **get_racer_objects(s32 *numRacers) {
 extern s32 D_800F2D1C;
 extern void **D_800F2D18;
 
-void func_8000E480(void *obj) {
+void obj_queue_add(void *obj) {
     D_800F2D18[D_800F2D1C] = obj;
     D_800F2D1C++;
 }
@@ -1631,7 +1631,7 @@ void func_8000E480(void *obj) {
 extern s32 D_800F2D1C;
 extern void **D_800F2D18;
 
-void **func_8000E4B4(s32 *count) {
+void **obj_queue_get(s32 *count) {
     *count = D_800F2D1C;
     return D_800F2D18;
 }
@@ -1858,7 +1858,7 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_80011D1C);
 #endif
 
 /* JFG: remove an entry from the D_800F2D20 list (the later ones move down). */
-void func_80011DEC(s32 entry) {
+void entry_list_remove(s32 entry) {
     s32 i;
 
     for (i = 0; i < D_800F2D40; i++) {

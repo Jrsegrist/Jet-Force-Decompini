@@ -845,7 +845,7 @@ void func_80079BB8(void);
 void anim_path_sound_stop(s32 id);
 void func_800767EC(s32 id);
 void sequence_start(s32 id);
-void func_80076A5C(s32 id, s32 arg1);
+void anim_path_sound_play(s32 id, s32 arg1);
 void func_80079BA8(void);
 void sound_play(u16 soundID, s32 *handlePtr);
 
@@ -884,7 +884,7 @@ void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
             sequence_start(entry->id);
         }
         if (entry->unk12) {
-            func_80076A5C(entry->id, entry->unk12);
+            anim_path_sound_play(entry->id, entry->unk12);
         }
         if (entry->soundID) {
             sound_play(entry->soundID, NULL);
