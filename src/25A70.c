@@ -729,17 +729,13 @@ typedef struct ModelSwapState {
     /* 0x4E */ s16 list[1];
 } ModelSwapState;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: registers: the target keeps the id in v1 and the list pointer in a1 */
 /* JFG: init: keep the entry's id; some ids clear unk4, the others set it to 8; three ids get a list of three
- * (value, 0x20) pairs; the list ends with 0x1000. */
-void func_80026FE0(Object *obj, s16 *entry) {
+ * (value, 0x20) pairs; the list ends with 0x1000. (No `list` local: p is set from state->list where it starts.) */
+void obj_init_model_swap(Object *obj, s16 *entry) {
     ModelSwapState *state = (ModelSwapState *) obj->animator;
-    s16 *list;
     s16 *p;
 
     state->objectId = entry[0];
-    list = state->list;
     if (state->objectId == 0x204 || state->objectId == 0x1F5 || state->objectId == 0x1F6 ||
         state->objectId == 0x1D2 || state->objectId == 0x2B9 || state->objectId == 0x2BA ||
         state->objectId == 0x320 || state->objectId == 0x31E || state->objectId == 0x31F ||
@@ -749,7 +745,7 @@ void func_80026FE0(Object *obj, s16 *entry) {
     } else {
         obj->properties.common.unk4 = 8;
     }
-    p = list;
+    p = state->list;
     if (state->objectId == 0xC4 || state->objectId == 0x1B6 || state->objectId == 0x11A) {
         *p++ = 0x405A;
         *p++ = 0x20;
@@ -760,9 +756,6 @@ void func_80026FE0(Object *obj, s16 *entry) {
     }
     *p = 0x1000;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80026FE0);
-#endif
 
 void func_800270C8(s32 arg0, s32 arg1) {
 }
