@@ -432,7 +432,25 @@ void func_m068_0C874(Object *obj, M068ShotSetup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0C944);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0CDD8);
+extern f32 rl_m068_129EC; /* a .rodata float: the scale of the later frames */
+
+/* Draws a shot as a sprite: its first frame opaque, the later ones see-through and scaled */
+void func_m068_0CDD8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
+    M068Sprite *sprite;
+    f32 scale;
+
+    sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[obj->modelIndex];
+    if (obj->modelIndex == 0) {
+        func_8005600C(255, 255, 255, 0, 255, 40);
+        scale = obj->trans.scale;
+    } else {
+        func_8005600C(255, 255, 255, 150, 255, 150);
+        scale = obj->trans.scale * rl_m068_129EC;
+    }
+    render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position,
+                               obj->trans.z_position, 0, scale, obj->unk28, 12, obj->opacity);
+    func_80056064();
+}
 
 void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
     f32 len;

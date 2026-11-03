@@ -16,7 +16,7 @@ typedef struct M022Plate {
     /* 0x15 */ u8 unk15;
     /* 0x16 */ u8 unk16;
     /* 0x17 */ u8 unk17;
-    /* 0x18 */ u8 pad18;
+    /* 0x18 */ u8 bob; /* the angle of the bobbing seen by the player it carries */
     /* 0x19 */ u8 unk19;
     /* 0x1A */ s8 unk1A;
     /* 0x1B */ u8 unk1B;
@@ -317,9 +317,114 @@ void func_m022_02C0C(Object *obj, s32 yaw, s32 useAngle) {
     sPlateCamUnk18 = useAngle;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02D14);
+extern f32 func_80049BEC(f32 base, s32 exponent);
+extern s16 angle_lerp(s16 from, s16 to, f32 t);
+extern f32 rl_m022_03594; /* a .rodata float: how slowly the camera settles */
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02F38);
+/* The plate camera: circles the plate, settling at 200 units out and 75 up */
+void func_m022_02D14(Object *obj, s32 updateRate) {
+    s16 pitch;
+    s16 yaw;
+    f32 x;
+    f32 z;
+    f32 f;
+
+    if (sPlateCamUnk18) {
+        f = 1.0f - func_80049BEC(rl_m022_03594, updateRate);
+    } else {
+        f = 1.0f;
+    }
+    sPlateCamUnk16 += updateRate * 12;
+    sPlateCamDist += (200.0f - sPlateCamDist) * f;
+    sPlateCamDy += (75.0f - sPlateCamDy) * f;
+    if (sPlateCamUnk16 > 192) {
+        sPlateCamUnk16 = 192;
+    }
+    sPlateCamYaw += sPlateCamUnk16 * updateRate;
+    x = func_80049C34(sPlateCamYaw) * sPlateCamDist;
+    z = -func_80049C30(sPlateCamYaw) * sPlateCamDist;
+    obj->trans.x_position = sPlateCamX + x;
+    obj->trans.y_position = sPlateCamY + sPlateCamDy;
+    obj->trans.z_position = sPlateCamZ + z;
+    yaw = 0x8000 - func_80049C84(x, z);
+    pitch = func_80049C84(sPlateCamDy, sPlateCamDist);
+    if (sPlateCamUnk18) {
+        f = 1.0f - func_80049BEC(0.875f, updateRate);
+    } else {
+        f = 1.0f;
+    }
+    obj->trans.rotation.y_rotation = angle_lerp(obj->trans.rotation.y_rotation, yaw, f);
+    obj->trans.rotation.x_rotation = angle_lerp(obj->trans.rotation.x_rotation, pitch, f);
+    sPlateCamUnk18 = 1;
+}
+
+/* What the player object's unk68 points at, as used here */
+typedef struct M022PlayerData {
+    /* 0x000 */ u8 pad0;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x594 - 0x2];
+    /* 0x594 */ f32 unk594;
+} M022PlayerData;
+
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+extern f32 rl_m022_03598; /* .rodata floats */
+extern f32 rl_m022_0359C;
+extern f32 rl_m022_035A0;
+
+/* Moves the player onto the plate (behaviour 0x5D), at a height that depends on the character */
+void func_m022_02F38(Object *obj, M022PlayerData *player, s32 updateRate) {
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    Object **objs;
+    M022Plate *data;
+    s32 first;
+    s32 count;
+    Object *plate;
+    f32 f;
+    f32 max;
+
+    objs = func_80005E98(&first, &count);
+    plate = NULL;
+    while (first < count) {
+        if (objs[first++]->behaviorId == 0x5D) {
+            plate = objs[first - 1];
+        }
+    }
+    if (plate != NULL) {
+        data = plate->unk68;
+        data->bob += updateRate;
+        dx = plate->trans.x_position;
+        dy = func_80049C34(data->bob << 8) * 8.0f + plate->trans.y_position;
+        dz = plate->trans.z_position;
+        switch (player->character) {
+            default:
+                dy += 47.5f;
+                break;
+            case 1:
+                dy += 45.0f;
+                break;
+            case 2:
+                dy += 55.0f;
+                break;
+        }
+        dx -= obj->trans.x_position;
+        dy -= obj->trans.y_position;
+        dz -= obj->trans.z_position;
+        f = func_80049BEC(rl_m022_03598, updateRate);
+        obj->velocity.y *= f;
+        player->unk594 += (1.0f - player->unk594) * (1.0f - f);
+        f = 1.0f - func_80049BEC(rl_m022_0359C, updateRate);
+        dx *= f;
+        dy *= f;
+        dz *= f;
+        max = updateRate * rl_m022_035A0;
+        if (max < dy) {
+            dy = max;
+        }
+        func_80009A04(obj, dx, dy, dz);
+    }
+}
 
 /* Ends the task: frees the plate object and takes the letterbox out */
 void func_m022_03150(void) {

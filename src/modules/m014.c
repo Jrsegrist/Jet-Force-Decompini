@@ -90,7 +90,40 @@ INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_03418);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_037F4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_03AD4);
+extern char **gMenuText; /* the game's texts */
+extern s32 func_800706D4(char *text, s32 x, s32 font); /* DKR get_text_width */
+extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern void func_m157_00000(Gfx **dl, u8 shape, s32 x, s32 y, s32 width, s32 height, u32 colour);
+extern void func_8006FC54(s32 font);
+extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
+extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
+extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
+extern char *get_world_name(s32 world);
+extern char rl_m014_0487C[]; /* "%d %s\n" */
+
+/* Draws a box with the region's name, its world's name and a numbered line under it */
+void func_m014_03AD4(Gfx **dl, s32 region, s32 world, s32 number, s32 alpha) {
+    char buf[32];
+    char *name;
+    s32 width;
+    s32 width2;
+
+    name = gMenuText[region + 407];
+    width = func_800706D4(name, 2, 1) + 40;
+    func_800639E8(buf, rl_m014_0487C, number, gMenuText[458]);
+    width2 = func_800706D4(buf, 2, 1) + 40;
+    if (width < width2) {
+        width = width2;
+    }
+    func_m157_00000(dl, 0, 160 - (width >> 1), 51, width, 46, (alpha * 164) >> 8);
+    func_8006FC54(2);
+    func_8006FC8C(0, 0, 0, 0);
+    func_8006FC68(0, 192, 192, 255, alpha);
+    func_8006FCA8(dl, 159, 61, name, 12);
+    func_8006FCA8(dl, 159, 74, get_world_name(world), 12);
+    func_8006FC68(192, 192, 192, 255, alpha);
+    func_8006FCA8(dl, 159, 87, buf, 12);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_03C68);
 
