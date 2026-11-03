@@ -352,14 +352,14 @@ such as m015, m091 and m149, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 4 of 5 | 15/16 |
-| enemy behaviours | 10 of 19 | 134/304 |
+| enemy behaviours | 10 of 19 | 136/304 |
 | bosses | 3 of 4 | 42/124 |
 | weapons (character control) | 0 of 3 | 3/78 |
 | menus and screens | 4 of 14 | 66/136 |
 | effect libraries | 2 of 4 | 21/26 |
 | fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 46 of 96 | 372/568 |
+| other object behaviours | 47 of 96 | 378/568 |
 
 Other modules placed by what their code does (all in "other object
 behaviours" above unless a family row lists them):
