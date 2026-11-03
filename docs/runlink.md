@@ -359,7 +359,7 @@ such as m015 and m091, count as assembly here):
 | effect libraries | 2 of 4 | 21/26 |
 | fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 49 of 96 | 386/568 |
+| other object behaviours | 50 of 96 | 388/568 |
 
 Other modules placed by what their code does (all in "other object
 behaviours" above unless a family row lists them):
