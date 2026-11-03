@@ -147,7 +147,121 @@ void func_m047_01798(u8 *target, s32 r, s32 g, s32 b, s32 a, f32 time, s32 isLig
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_018AC);
+/* The level entry of the shot spawned (object 0x50, size 0x24) */
+typedef struct M047ShotEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 unk12;
+    /* 0x13 */ s8 unk13;
+    /* 0x14 */ f32 speed;
+    /* 0x18 */ Object *owner;
+    /* 0x1C */ s32 unk1C;
+    /* 0x20 */ s32 unk20;
+} M047ShotEntry;
+
+/* The level entry of the flash spawned with it (object 0xAC, size 0xC) */
+typedef struct M047FlashEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 joint;
+    /* 0x0B */ u8 unkB;
+} M047FlashEntry;
+
+typedef struct M047ModelHeader {
+    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x2D */ u8 jointCount;
+} M047ModelHeader;
+
+typedef struct M047Model {
+    /* 0x00 */ M047ModelHeader *header;
+    /* 0x04 */ u8 pad4[0x68 - 0x4];
+    /* 0x68 */ Vec3f *joints;
+} M047Model;
+
+typedef struct M047Shooter {
+    /* 0x00 */ u8 pad0[0x40];
+    /* 0x40 */ Vec3f muzzle;
+} M047Shooter;
+
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+
+/* Fires a shot from joint `joint` of the object's model (or from the object) */
+void func_m047_018AC(Object *obj, s32 joint, s32 arg2, s32 speed, s32 arg4, s32 arg5, s32 arg6) {
+    M047ShotEntry shot;
+    M047FlashEntry flash;
+    M047Model *model;
+    Object *o;
+    UNUSED s32 pad[2];
+
+    model = ((M047Model **) obj->modelInstances)[obj->modelIndex];
+    if (model == NULL) {
+        return;
+    }
+    shot.objectID = 0x50;
+    shot.size = 0x24;
+    shot.unk3 = 0;
+    if (obj->behaviorId == 0x33) {
+        M047Shooter *s = obj->unk68;
+        shot.x = s->muzzle.x;
+        shot.y = s->muzzle.y;
+        shot.z = s->muzzle.z;
+    } else if (joint < model->header->jointCount) {
+        shot.x = model->joints[joint].x;
+        shot.y = model->joints[joint].y;
+        shot.z = model->joints[joint].z;
+    } else {
+        shot.x = obj->trans.x_position;
+        shot.y = obj->trans.y_position;
+        shot.z = obj->trans.z_position;
+    }
+    shot.unk10 = 0;
+    shot.unk11 = 0;
+    shot.speed = speed;
+    shot.owner = obj;
+    shot.unk1C = 0;
+    shot.unk20 = 0;
+    shot.unk12 = 0;
+    shot.unkA = arg2;
+    shot.unkB = arg6;
+    shot.unkC = arg4;
+    shot.unkE = arg5;
+    shot.unk13 = -1;
+    o = func_80005F14(&shot, 1);
+    if (o != NULL) {
+        o->level_entry = NULL;
+    }
+    flash.objectID = 0xAC;
+    flash.size = 0xC;
+    flash.x = shot.x;
+    flash.y = shot.y;
+    flash.z = shot.z;
+    flash.joint = joint;
+    if (obj->behaviorId != 0x33 || arg2 == 1) {
+        flash.unkB = 0;
+    } else {
+        flash.unkB = 2;
+    }
+    o = func_80005F14(&flash, 1);
+    if (o != NULL) {
+        o->level_entry = NULL;
+        OBJ_STATE(o, Object *)[0] = obj;
+        OBJ_STATE(o, s32)[1] = 1;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01BAC);
 
