@@ -69,7 +69,7 @@ typedef struct LevelModelSegment {
     /* 0x08 */ u8 pad8[0xC - 0x8];
     /* 0x0C */ TriangleBatchInfo *batches;
     /* 0x10 */ u32 *triangleMasks; // JFG: per triangle, the bounding box cells it covers (see func_8001D344)
-    /* 0x14 */ u8 *triangleHeightMasks; // JFG: per triangle, the height cells it covers (see func_8001ACE0)
+    /* 0x14 */ u8 *triangleHeightMasks; // JFG: per triangle, the height cells it covers (see track_nearest_triangle)
     /* 0x18 */ struct TrianglePlaneRef *trianglePlanes;
     /* 0x1C */ struct Plane *planes;
     /* 0x20 */ u8 *edgeFlags; // JFG: per triangle, which of its edges go into the edge list (track_edges_build)
@@ -1823,7 +1823,7 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
  * without any of flags): its height goes to *outY and its plane to *outPlane (each if not NULL); NULL if none.
  * (`best = d` stored last and the no-op `& 0xFFFF` on the u16 plane index: permuter, two rounds.)
  */
-Triangle *func_8001ACE0(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 flags) {
+Triangle *track_nearest_triangle(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlane, s32 flags) {
     s32 segmentIndex;
     s32 ix;
     Triangle *result;

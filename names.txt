@@ -777,3 +777,6 @@ func_80079BD0 = collision_buffers_alloc
 func_80079C20 = collision_level_buffers_alloc
 func_80079CC4 = collision_level_buffers_free
 func_8007E484 = collision_objects_get
+func_8001ACE0 = track_nearest_triangle
+func_8003C12C = asset_instance_new
+func_8003E35C = batch_slots_reset

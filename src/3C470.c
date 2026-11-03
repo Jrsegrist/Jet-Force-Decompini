@@ -100,7 +100,7 @@ typedef struct Instance3C {
 void *mempool_alloc(s32 size, u32 colourTag);
 
 /* JFG: make an instance of the asset (the table follows the header). */
-Instance3C *func_8003C12C(Asset3C *asset) {
+Instance3C *asset_instance_new(Asset3C *asset) {
     u16 *entries;
     Instance3C *inst;
 
@@ -516,7 +516,7 @@ INCLUDE_ASM("asm/nonmatchings/3C470", func_8003DDD8);
 extern s8 D_800F6F48[3];
 extern s16 D_800F6F4C[3];
 
-void func_8003E35C(void) {
+void batch_slots_reset(void) {
     s32 i;
     for (i = 0; i < 3; i++) {
         D_800F6F48[i] = -1;
