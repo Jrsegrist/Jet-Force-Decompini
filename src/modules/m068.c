@@ -3,6 +3,7 @@
  * assembly).
  */
 #include "module.h"
+#include "gfx.h"
 
 typedef struct M068Setup {
     LevelObjectEntryCommon common;
@@ -85,6 +86,48 @@ typedef struct M068Flyer {
     /* 0xE */ s16 unkE;
     /* 0x10 */ MtxF *mtx;
 } M068Flyer;
+
+/* A strip of triangles drawn between points (two kinds share the start) */
+typedef struct M068Strip {
+    /* 0x000 */ Triangle tris[16];
+    /* 0x100 */ Vertex verts[2][72];
+    /* 0x6A0 */ s16 a[2];
+    /* 0x6A4 */ s16 b[2];
+    /* 0x6A8 */ s16 c[2];
+    /* 0x6AC */ u8 pad6AC[0x6B0 - 0x6AC];
+    /* 0x6B0 */ Vec3f pos;
+    /* 0x6BC */ u8 pad6BC[0x6C0 - 0x6BC];
+    /* 0x6C0 */ s32 unk6C0;
+    /* 0x6C4 */ s32 unk6C4;
+} M068Strip;
+
+typedef struct M068Strip2 {
+    /* 0x000 */ u8 pad0[0x6B8];
+    /* 0x6B8 */ s16 unk6B8;
+    /* 0x6BA */ u8 pad6BA[0x6BC - 0x6BA];
+    /* 0x6BC */ s32 unk6BC;
+} M068Strip2;
+
+typedef struct M068StripSetup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ u8 padA[0xC - 0xA];
+    /* 0x0C */ s16 a[2];
+    /* 0x10 */ s16 b[2];
+    /* 0x14 */ s16 c[2];
+    /* 0x18 */ Vec3f pos;
+    /* 0x24 */ s32 unk24;
+    /* 0x28 */ s32 unk28;
+} M068StripSetup;
+
+typedef struct M068StripSetup2 {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ u8 padA[0xC - 0xA];
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s16 a[2];
+    /* 0x14 */ s16 b[2];
+    /* 0x18 */ s16 c[2];
+    /* 0x1C */ s32 unk1C;
+} M068StripSetup2;
 
 /* A model drawn from a display list (*obj->header->unkAC) */
 typedef struct M068DrawModel {
@@ -388,13 +431,139 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D05C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 
+#ifdef NON_MATCHING
+/* The vertex clear loop: IDO unrolls it twice here, the ROM's is not unrolled */
+void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
+    M068Strip *m = obj->unk68;
+    Triangle *tri;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 v;
+    s32 prev;
+
+    m->unk6C0 = setup->unk24;
+    m->unk6C4 = setup->unk28;
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < 72; j++) {
+            m->verts[i][j].x = 0;
+            m->verts[i][j].y = 0;
+            m->verts[i][j].z = 0;
+            m->verts[i][j].r = 255;
+            m->verts[i][j].g = 255;
+            m->verts[i][j].b = 255;
+            m->verts[i][j].a = 255;
+        }
+    }
+    tri = m->tris;
+    prev = 0;
+    k = 0;
+    for (i = 64; i < 576; i += 64) {
+        v = (i / 8 - 1) << 5;
+        tri[0].flags = 0x40;
+        tri[0].vi0 = k;
+        tri[0].vi1 = k + 1;
+        tri[0].vi2 = k + 2;
+        tri[0].uv[0][0] = 480;
+        tri[0].uv[0][1] = prev;
+        tri[0].uv[1][0] = 0;
+        tri[0].uv[1][1] = prev;
+        tri[0].uv[2][0] = 480;
+        tri[0].uv[2][1] = v;
+        tri[1].flags = 0x40;
+        tri[1].vi0 = k + 1;
+        tri[1].vi1 = k + 3;
+        tri[1].vi2 = k + 2;
+        tri[1].uv[0][0] = 0;
+        tri[1].uv[0][1] = prev;
+        tri[1].uv[1][0] = 0;
+        tri[1].uv[1][1] = v;
+        tri[1].uv[2][0] = 480;
+        tri[1].uv[2][1] = v;
+        tri += 2;
+        prev = v;
+        k += 2;
+    }
+    for (i = 0; i < 2; i++) {
+        m->a[i] = setup->a[i];
+        m->b[i] = setup->b[i];
+        m->c[i] = setup->c[i];
+    }
+    m->pos.x = setup->pos.x;
+    m->pos.y = setup->pos.y;
+    m->pos.z = setup->pos.z;
+    func_80079D1C(obj, 0x100, 1, 4, 0, 0, 0, 5.0f, 5.0f, -1.0f, 1.0f, 0x11);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D65C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D828);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
 
+#ifdef NON_MATCHING
+/* As 0D65C: the vertex clear loop is unrolled here */
+void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
+    M068Strip *m = obj->unk68;
+    Triangle *tri;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 v;
+    s32 prev;
+
+    ((M068Strip2 *) m)->unk6B8 = setup->unk1C;
+    ((M068Strip2 *) m)->unk6BC = setup->unkC;
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < 72; j++) {
+            m->verts[i][j].x = 0;
+            m->verts[i][j].y = 0;
+            m->verts[i][j].z = 0;
+            m->verts[i][j].r = 255;
+            m->verts[i][j].g = 255;
+            m->verts[i][j].b = 255;
+            m->verts[i][j].a = 255;
+        }
+    }
+    tri = m->tris;
+    prev = 0;
+    k = 0;
+    for (i = 64; i < 576; i += 64) {
+        v = (i / 8 - 1) << 5;
+        tri[0].flags = 0x40;
+        tri[0].vi0 = k;
+        tri[0].vi1 = k + 1;
+        tri[0].vi2 = k + 2;
+        tri[0].uv[0][0] = 480;
+        tri[0].uv[0][1] = prev;
+        tri[0].uv[1][0] = 0;
+        tri[0].uv[1][1] = prev;
+        tri[0].uv[2][0] = 480;
+        tri[0].uv[2][1] = v;
+        tri[1].flags = 0x40;
+        tri[1].vi0 = k + 1;
+        tri[1].vi1 = k + 3;
+        tri[1].vi2 = k + 2;
+        tri[1].uv[0][0] = 0;
+        tri[1].uv[0][1] = prev;
+        tri[1].uv[1][0] = 0;
+        tri[1].uv[1][1] = v;
+        tri[1].uv[2][0] = 480;
+        tri[1].uv[2][1] = v;
+        tri += 2;
+        prev = v;
+        k += 2;
+    }
+    for (i = 0; i < 2; i++) {
+        m->a[i] = setup->a[i];
+        m->b[i] = setup->b[i];
+        m->c[i] = setup->c[i];
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E520);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E668);
 
