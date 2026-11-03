@@ -219,7 +219,6 @@ void log_show(s32 start) {
     } while (i < 20 && !done);
 }
 
-#ifdef NON_MATCHING
 /* JFG: a fault thread record (0x230 bytes, the size bcopied in func_80066D28). */
 typedef struct FaultThread {
     OSThread thread;
@@ -227,24 +226,21 @@ typedef struct FaultThread {
 } FaultThread;
 void func_80067994(FaultThread *fault);
 
-/* NON_MATCHING: same stores, but the loads/temp registers are scheduled differently (24 store orders tried) */
-/* JFG: show the crash screen for a fake thread (pc, a0, a1) and hang. */
+/* JFG: show the crash screen for a fake thread (pc, a0, a1) and hang.
+   (The (u64) cast on pc, a no-op for the u32 field, gives the ROM's load order; found by the permuter.) */
 void func_800678C4(u32 pc, s32 a0, u32 a1) {
     FaultThread fault;
 
     bzero(&fault, sizeof(fault));
-    fault.thread.context.pc = pc;
+    fault.thread.context.pc = (u64) pc;
     fault.thread.context.a0 = a0;
-    fault.thread.context.cause = -1;
     fault.thread.context.a1 = a1;
+    fault.thread.context.cause = -1;
     func_80067994(&fault);
     osWritebackDCacheAll();
     while (1) {
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/67780", func_800678C4);
-#endif
 
 /* Returns whether a crash record is waiting (always FALSE in JFG) (0x80067950). */
 s32 get_lockup_status(void) {
