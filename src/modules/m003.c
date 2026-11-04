@@ -60,15 +60,19 @@ typedef struct M003Member {
     /* 0x52 */ u8 unk52;
     /* 0x53 */ u8 pad53[0x55 - 0x53];
     /* 0x55 */ u8 unk55;
-    /* 0x56 */ u8 unk56;
+    /* 0x56 */ s8 unk56;
     /* 0x57 */ u8 pad57[0x5A - 0x57];
     /* 0x5A */ u16 lostParts; /* bit per body part */
-    /* 0x5C */ u8 pad5C[0x64 - 0x5C];
+    /* 0x5C */ u8 pad5C[0x60 - 0x5C];
+    /* 0x60 */ f32 unk60; /* the body's animation frame */
     /* 0x64 */ s32 shotBy;
     /* 0x68 */ u8 pad68[0xA0 - 0x68];
     /* 0xA0 */ u16 unkA0; /* body parts hit (kind 15) */
     /* 0xA2 */ u16 unkA2; /* body parts hit (other kinds) */
-    /* 0xA4 */ u8 padA4[0xBC - 0xA4];
+    /* 0xA4 */ u8 padA4[0xA6 - 0xA4];
+    /* 0xA6 */ s16 unkA6;
+    /* 0xA8 */ Object *unkA8;
+    /* 0xAC */ u8 padAC[0xBC - 0xAC];
     /* 0xBC */ s32 sound; /* the burning sound's handle */
     /* 0xC0 */ u8 padC0[0xC8 - 0xC0];
     /* 0xC8 */ Object *spark; /* the electric spark on the member */
@@ -281,7 +285,6 @@ extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s32 arg2);
 extern void func_m003_09A14(Object *obj);
-extern void rl_m003_0556C(s32 arg0);
 extern s32 rl_m003_04968(s32 index, s32 anim, s32 arg2);
 extern s32 rl_m003_04614(s32 anim, s32 arg1);
 
@@ -315,7 +318,8 @@ static u8 sBss8[0x2];
 static u8 sBssA; /* 10 or more: memory is low */
 static u8 sAlertKind;
 static u8 sAlert;
-static u8 sBss10[0xAC - 0x10]; /* (IDO aligns arrays to 4) */
+static u8 sBss10[0xA8 - 0x10]; /* (IDO aligns arrays to 4) */
+static f32 sUpdateRate;        /* this frame's, as a float */
 static Object *sObj;            /* the member being processed */
 static M003Member *sMember;     /* its data */
 static Object *sHome;           /* its troop's home object */
@@ -990,7 +994,46 @@ s32 func_m003_04EC4(s32 arg0, s32 index) {
     return result;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04F88);
+extern f32 rl_m003_044B4(void);
+
+/* Moves the member's animation of kind `kind` on; returns what the animation step returns, or 0 */
+s32 func_m003_04F88(s32 kind, f32 speed) {
+    s32 result = 0;
+    M003Anim *anims;
+    Object **flash;
+
+    if (kind == sMember->unk4B) {
+        anims = func_m003_04428(sObj);
+        sMember->unk60 = sObj->unk28;
+        result = func_8001138C(sObj, rl_m003_044B4() * speed, sUpdateRate);
+        if (result) {
+            if (sHomeData->kind == 0xBD) {
+                flash = &sMember->unkA8;
+                sObj->particleEmittersEnabled = 0;
+                if (*flash != NULL) {
+                    func_800079B8(*flash);
+                    *flash = NULL;
+                }
+            }
+            if (sMember->unkA6 > 0) {
+                if (anims->unk4_11 && sMember->unk56 != 0) {
+                    if (sMember->unk56 != 15) {
+                        sMember->unk56--;
+                    }
+                    return 0;
+                }
+                if (anims[1].anim == 0x35 && sMember->unk4B != 9) {
+                    sMember->animSet++;
+                    rl_m003_04968(sMember->animSet, 0x35, 1);
+                    return 0;
+                }
+            } else if (sMember->unk55 == 0) {
+                sMember->unk55 = 1;
+            }
+        }
+    }
+    return result;
+}
 
 extern s32 rl_m003_19434; /* an animation entry forced on every member, or -1 */
 
@@ -1076,7 +1119,22 @@ s32 func_m003_05450(Object *obj) {
     return func_m003_0D2C0(sObj) != 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0556C);
+/* Makes a troop's home (and its first member, if any) the one being processed */
+static void func_m003_0556C(Object *home) {
+    sHome = home;
+    sHomeData = home->unk68;
+    if ((sObj = sHomeData->first) != NULL) {
+        sMember = sObj->unk68;
+        sShotBy = sMember->shotBy;
+        sClosestPlayer = rl_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
+    } else {
+        sMember = NULL;
+        sShotBy = 0;
+        sClosestPlayer = rl_m003_0527C(sHome->trans.x_position, sHome->trans.y_position, sHome->trans.z_position);
+    }
+    troop_spawn_context_set(sObj, sHome);
+    func_m154_017E8(sHome);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_05650);
 
@@ -1668,7 +1726,7 @@ void func_m003_1477C(void) {
 
 /* A member of the current troop is set up from its level entry (or spawned when that fails) */
 void func_m003_147B8(LevelObjectEntryCommon *entry) {
-    rl_m003_0556C(troop_find_by_tag(((u8 *) entry)[0x11]));
+    func_m003_0556C((Object *) troop_find_by_tag(((u8 *) entry)[0x11]));
     if (objflag_get(((u8 *) entry)[0x18])) {
         sHomeData->arrived++;
         if (sHomeData->arrived >= sHomeData->count) {
