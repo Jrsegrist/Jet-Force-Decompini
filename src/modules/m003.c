@@ -67,7 +67,8 @@ typedef struct M003Member {
     /* 0x5C */ u8 pad5C[0x60 - 0x5C];
     /* 0x60 */ f32 unk60; /* the body's animation frame */
     /* 0x64 */ s32 shotBy;
-    /* 0x68 */ u8 pad68[0xA0 - 0x68];
+    /* 0x68 */ f32 earPos[3]; /* where it hears events from */
+    /* 0x74 */ u8 pad74[0xA0 - 0x74];
     /* 0xA0 */ u16 unkA0; /* body parts hit (kind 15) */
     /* 0xA2 */ u16 unkA2; /* body parts hit (other kinds) */
     /* 0xA4 */ u8 padA4[0xA6 - 0xA4];
@@ -111,7 +112,9 @@ typedef struct M003Home {
     /* 0x13 */ u8 pad13[0x1A - 0x13];
     /* 0x1A */ u16 kind2 : 4;
     /* 0x1A */ u16 unk1A : 12;
-    /* 0x1C */ u8 pad1C[0x28 - 0x1C];
+    /* 0x1C */ u8 pad1C[0x21 - 0x1C];
+    /* 0x21 */ u8 unk21; /* how loud an event its members notice must be */
+    /* 0x22 */ u8 pad22[0x28 - 0x22];
     /* 0x28 */ u16 flags; /* 0x2000: its members may touch */
     /* 0x2A */ u8 pad2A[0x2C - 0x2A];
     /* 0x2C */ u16 kind;
@@ -167,9 +170,15 @@ typedef struct M003Node {
     /* 0x33 */ u8 unk33;
 } M003Node;
 
+/* A corner of a region */
+typedef struct M003Point {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 z;
+} M003Point;
+
 /* A region of the level (size 0x2C) */
 typedef struct M003Region {
-    /* 0x00 */ u8 pad0[0x4];
+    /* 0x00 */ M003Point *points;
     /* 0x04 */ u32 numEdges;
     /* 0x08 */ u8 pad8[0x14 - 0x8];
     /* 0x14 */ u32 flags;
@@ -259,7 +268,19 @@ extern void func_m003_16530(void);
 extern void *func_80050F44(s32 *count);
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 extern s32 func_m003_16F44(f32 x, f32 z, M003Region *region);
-extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, s32 arg5, s32 arg6, s32 arg7);
+/* Where a segment leaves a region */
+typedef struct M003Crossing {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 z;
+    /* 0x04 */ u8 point;  /* 0xFF: none */
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 region;
+    /* 0x08 */ u8 atPoint; /* it crosses at the point itself */
+} M003Crossing;
+
+extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Crossing *out, s32 point,
+                           u8 regionIndex);
 extern s32 func_m003_04260(s32 mission, s32 kind, u8 arg2, u8 arg3, u8 arg4);
 extern Object **func_80005E98(s32 *first, s32 *count);
 extern void *D_800FE9A4;
@@ -344,7 +365,25 @@ static s32 sChangePending;
 static s32 sBss1E4;
 static Object *sTargets[32];
 static s32 sTargetCount;
-static u8 sBss270[0xE00 - 0x270]; /* (from 0x26C, IDO aligning it to 8) */
+static u8 sBss270[0xDB0 - 0x270]; /* (from 0x26C, IDO aligning it to 8) */
+/* The segment-against-region test's state (func_m003_175E8 and the asm 17174) */
+static void *sCrossData;   /* the region's tree */
+static void *sCrossEdges;  /* and its edges */
+static s32 sCrossX1;       /* the segment, in whole units */
+static s32 sCrossZ1;
+static s32 sCrossX2;
+static s32 sCrossZ2;
+static u8 sBssDC8[0xDE0 - 0xDC8];
+static struct M003Crossing *sCrossOut;
+static s32 sCrossX;        /* where it leaves the region */
+static s32 sCrossZ;
+static s32 sCrossEdge;     /* the edge it crosses, -1: none */
+static u8 sCrossPoint;     /* the region point it crosses near */
+static u8 sCrossRegion;    /* the region on the other side */
+static s16 sBssDF2;
+static s32 sBssDF4;
+static s32 sBssDF8;
+static s32 sBssDFC;
 
 s32 func_m003_0D2C0(Object *obj);
 void func_m003_10548(Object *obj, s32 shotBy);
@@ -1294,7 +1333,51 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_061FC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_062A0);
 
+extern s32 audspat_volume_at_distance(s32 kind, f32 *from, f32 *to); /* how loud a sound of a kind is from `from` at `to` */
+
+#ifdef NON_MATCHING
+/* IDO puts the loop counter's dead copy in the branch delay slots the ROM leaves empty (one word short) */
+/* The nearest event the member hears loudly enough (its loudness in *loudness), or NULL */
+M003Event *func_m003_06754(Object *obj, f32 *loudness) {
+    M003Member *m = obj->unk68;
+    M003Event *e = sEvents;
+    u32 best = -1;
+    s32 i = 15;
+    s32 loud;
+    u32 dist;
+    M003Event *found = NULL;
+    f32 from[3];
+    f32 to[3];
+
+    *loudness = 0.0f;
+    do {
+        if (e->active == 0) {
+        } else if ((e->id & ~3) != 0 && ((Object *) (e->id & ~3))->freed) {
+            e->active = 0;
+        } else if (e->unk6 & 1) {
+            from[0] = e->x;
+            from[1] = e->y;
+            from[2] = e->z;
+            to[0] = m->earPos[0];
+            to[1] = m->earPos[1];
+            to[2] = m->earPos[2];
+            loud = audspat_volume_at_distance(e->unk9, from, to);
+            if (loud >= sHomeData->unk21) {
+                dist = func_m003_03E68(m->earPos[0], m->earPos[2], e->x, e->z);
+                if (dist <= best) {
+                    found = e;
+                    best = dist;
+                    *loudness = loud;
+                }
+            }
+        }
+        e++;
+    } while (i--);
+    return found;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06754);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_069B0);
 
@@ -2263,14 +2346,78 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_170D0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
 
+extern void rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, void *node);
+extern void rl_m003_05650(M003Region *region, s32 point, u8 *a, u8 *b);
+
+#ifdef NON_MATCHING
+/* 2 words: the ROM computes `point & 0xFF` one store earlier */
+/*
+ * Where the segment (x1, z1)-(x2, z2) leaves a region (into *out if out is not NULL); 0 if it doesn't. `point`
+ * (not -1) is a point of region `regionIndex` the segment starts at, used if the crossing is next to it.
+ */
+s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Crossing *out, s32 point,
+                    u8 regionIndex) {
+    M003Region *to;
+    M003Region *from = func_m003_0569C(regionIndex);
+    M003Point *p;
+
+    if (region < sRegions || sRegionCount < region - sRegions || region->numEdges < 3) {
+        return FALSE;
+    }
+    sCrossData = region->data;
+    sCrossEdges = region->edges;
+    sCrossX1 = x1;
+    sCrossZ1 = z1;
+    sCrossX2 = x2;
+    sCrossZ2 = z2;
+    sCrossEdge = -1;
+    sCrossOut = out;
+    rl_m003_17174(x1, z1, x2, z2, sCrossData);
+    if (sCrossEdge == -1) {
+        return FALSE;
+    }
+    if (out != NULL) {
+        out->x = sCrossX;
+        out->z = sCrossZ;
+        out->point = sCrossPoint;
+        out->region = sCrossRegion;
+        to = func_m003_0569C(sCrossRegion);
+        rl_m003_05650(to, out->point, &out->unk5, &out->unk6);
+        if (point != -1) {
+            p = &from->points[point];
+            if (sCrossX1 == p->x && sCrossZ1 == p->z &&
+                !func_m003_16F44(((sCrossX - sCrossX1) >> 1) + sCrossX1, ((sCrossZ - sCrossZ1) >> 1) + sCrossZ1,
+                                 region)) {
+                out->x = p->x;
+                out->point = point;
+                out->z = p->z;
+                out->region = regionIndex;
+                rl_m003_05650(from, point & 0xFF, &out->unk5, &out->unk6);
+                out->atPoint = FALSE;
+                return TRUE;
+            }
+        }
+        p = &to->points[out->point];
+        if (sCrossX == p->x && sCrossZ == p->z) {
+            out->atPoint = TRUE;
+        } else {
+            out->unk5 = out->point;
+            out->point = 0xFF;
+            out->atPoint = FALSE;
+        }
+    }
+    return TRUE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_175E8);
+#endif
 
 s32 func_m003_17910(f32 x, f32 z, s32 index) {
     return func_m003_16F44(x, z, index + sRegions);
 }
 
 s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 index, s32 arg5, s32 arg6, u8 arg7) {
-    return func_m003_175E8(x1, z1, x2, z2, index + sRegions, arg5, arg6, arg7);
+    return func_m003_175E8(x1, z1, x2, z2, index + sRegions, (M003Crossing *) arg5, arg6, arg7);
 }
 
 /* Asks for a level change (once) */
