@@ -346,7 +346,15 @@ typedef struct M022Goals {
     /* 0x03 */ u8 count2;
     /* 0x04 */ M022Goal list1[3];
     /* 0x10 */ M022Goal list2[1];
+    /* 0x14 */ u8 pad14[0x1C - 0x14];
+    /* 0x1C */ struct M022Rank {
+        u16 time; /* in seconds: to beat */
+        u8 count1; /* the counters to reach */
+        u8 count2;
+        u16 flags; /* to have */
+    } ranks[5];
 } M022Goals;
+typedef struct M022Rank M022Rank;
 
 extern u8 D_800FD790;  /* counters the goals count */
 extern u8 D_800FD791;
@@ -405,7 +413,82 @@ void func_m022_02430(s32 bit, s32 kind) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_025B8);
+/* The game's save data, as used here */
+typedef struct M022Save {
+    /* 0x00 */ u8 pad0[0x64];
+    /* 0x64 */ u32 unk64; /* flags */
+    /* 0x68 */ u8 pad68[0x6B - 0x68];
+    /* 0x6B */ u8 unk6B;
+} M022Save;
+
+/* The game's settings (what get_settings returns), as used here */
+typedef struct M022Record {
+    /* 0x00 */ u8 pad0[0x28];
+    /* 0x28 */ u8 rank[4]; /* the best rank of each task */
+} M022Record;
+
+extern M022Save D_800FF318;
+extern M022Record *get_settings(void);
+extern void character_item_give(s32 player, s32 character, s32 item);
+extern s32 player_chars_have_item(s32 item);
+extern s32 game_flag_get(s32 flag);
+extern void func_80047EFC(s32 flag, s32 set);
+extern u8 rl_m022_0341C; /* .bss (still assembly): 2 a new best rank, 1 a rank, 0 none */
+extern s16 rl_m022_033C0[]; /* .data (still assembly): the object shown for each rank, or -1 */
+
+/*
+ * The end of the task: its rank (the ranks it meets in turn), the record, the rewards, and the
+ * object that shows the rank
+ */
+void func_m022_025B8(s8 *player) {
+    LevelObjectEntryCommon entry;
+    M022Rank *r;
+    M022Record *rec;
+
+    rl_m022_03414 = 0;
+    r = rl_m022_03410->ranks;
+    while (rl_m022_03414 < 5 && D_800A3204 < r->time * 60 && D_800FD790 >= r->count1 &&
+           D_800FD791 >= r->count2 && (D_800FD792 & r->flags) == r->flags) {
+        rl_m022_03414++;
+        r++;
+    }
+    rec = get_settings();
+    if (rec->rank[rl_m022_0340C] < rl_m022_03414) {
+        rec->rank[rl_m022_0340C] = rl_m022_03414;
+        rl_m022_0341C = 2;
+    } else if (rl_m022_03414 > 0) {
+        rl_m022_0341C = 1;
+    } else {
+        rl_m022_0341C = 0;
+    }
+    if (rl_m022_0340C == 0 && rl_m022_03414 >= 4 && !(D_800FF318.unk6B & 1)) {
+        rl_m022_03414 = 6;
+        func_80047EFC(0x49, 1);
+    } else if (rl_m022_0340C == 1 && rl_m022_03414 >= 4 && !player_chars_have_item(0x1A) && !game_flag_get(0x20)) {
+        character_item_give(player[0], player[1], 0x1A);
+        rl_m022_03414 = 7;
+    } else if (rl_m022_0340C == 2 && rl_m022_03414 >= 4 && !player_chars_have_item(0x1B)) {
+        character_item_give(0, 0, 0x1B);
+        character_item_give(0, 1, 0x1B);
+        character_item_give(0, 2, 0x1B);
+        rl_m022_03414 = 8;
+    } else if (rl_m022_0340C == 3 && rl_m022_03414 >= 4 && !(D_800FF318.unk6B & 4)) {
+        rl_m022_03414 = 9;
+        func_80047EFC(0x4B, 1);
+    } else if (rec->rank[0] == 5 && rec->rank[1] == 5 && rec->rank[2] == 5 && rec->rank[3] == 5 &&
+               !(D_800FF318.unk64 & 0x20000)) {
+        func_80047EFC(0x11, 1);
+        rl_m022_03414 = 10;
+    }
+    entry.objectID = rl_m022_033C0[rl_m022_03414];
+    rl_m022_03418 = NULL;
+    if (entry.objectID >= 0) {
+        entry.x = 0;
+        entry.y = 0;
+        entry.z = 0;
+        rl_m022_03418 = func_80005F14(&entry, 0);
+    }
+}
 
 /* Pauses the task: brings the letterbox in */
 void func_m022_02990(void) {
