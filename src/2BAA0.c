@@ -803,7 +803,59 @@ s32 func_80031A80(u8 *obj, f32 *start, f32 *end, f32 *dist, s32 updateRate) {
     return count;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031D00);
+extern f32 D_800A2D74[5][3];
+void func_800496B0(s32, s16 *, void *, u8 *);
+void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
+
+/* JFG: the camera position around the player: five points around the target object (state 0x24) at heights
+ * scaled by D_800A2D40; keeps the last one (0x88, from 1) that the level doesn't block from the first, skipping 1 */
+/* (the unused fifth parameter is reused for the collision flags: it gives the target's frame) */
+void func_80031D00(u8 *obj, f32 *x, f32 *y, f32 *z, s32 flags) {
+    u8 *state;
+    u8 hit[0x30];
+    f32 radius[3];
+    f32 out[5][3];
+    s32 i;
+    u8 *target;
+
+    flags = *(u8 *) (*(u8 **) (*(u8 **) (obj + 0x40) + 0x50) + 0x10);
+    state = *(u8 **) (obj + 0x68);
+    target = *(u8 **) (state + 0x24);
+    i = 5;
+    while (i--) {
+        D_800A2D74[i][1] = 48.0f * D_800A2D40;
+    }
+    func_800496B0(5, (s16 *) target, D_800A2D74, (u8 *) out);
+    i = 4;
+    do {
+        out[i][0] += *(f32 *) (target + 0xC);
+        out[i][1] += *(f32 *) (target + 0x10);
+        out[i][2] += *(f32 *) (target + 0x14);
+    } while (i--);
+    radius[0] = 10.0f;
+    radius[1] = 10.0f;
+    radius[2] = 10.0f;
+    func_8001CE10(3, out[0], out[2], radius, 0x2000, 0, 0);
+    if (func_80016208(obj, out[0], out[1], 10.0f, flags, hit)) {
+        i = *(s32 *) (obj + 0x88);
+        do {
+            if (i == 1) {
+                i++;
+            }
+            if (!func_80016208(obj, out[0], out[i], 10.0f, flags, hit)) {
+                *(s32 *) (obj + 0x88) = i;
+            } else {
+                i = (i & 3) + 1;
+            }
+        } while (i != *(s32 *) (obj + 0x88));
+    } else {
+        *(s32 *) (obj + 0x88) = 1;
+    }
+    *x = out[*(s32 *) (obj + 0x88)][0];
+    *y = out[*(s32 *) (obj + 0x88)][1];
+    *z = out[*(s32 *) (obj + 0x88)][2];
+}
 
 /* JFG: clear the six item links of a player (each item's flag for this player at 0x93) (0x80031F44). */
 void player_items_unlink(Racer *racer) {
