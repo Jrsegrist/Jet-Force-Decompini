@@ -21,7 +21,94 @@ INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_00038);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_00EA0);
 
+/* The part of the vehicle's state that 014F4 uses */
+typedef struct M053Steer {
+    /* 0x000 */ u8 pad0[0x4];
+    /* 0x004 */ f32 unk4;
+    /* 0x008 */ u8 pad8[0x104 - 0x8];
+    /* 0x104 */ s16 unk104;
+    /* 0x106 */ u8 pad106[0x1C6 - 0x106];
+    /* 0x1C6 */ s16 unk1C6;
+    /* 0x1C8 */ s16 unk1C8;
+    /* 0x1CA */ s16 unk1CA;
+    /* 0x1CC */ s16 unk1CC;
+    /* 0x1CE */ s16 unk1CE;
+    /* 0x1D0 */ s16 unk1D0;
+    /* 0x1D2 */ u8 pad1D2[0x1DC - 0x1D2];
+    /* 0x1DC */ s16 unk1DC;
+    /* 0x1DE */ s16 unk1DE;
+    /* 0x1E0 */ s16 unk1E0;
+    /* 0x1E2 */ s16 unk1E2;
+    /* 0x1E4 */ u8 pad1E4[0x1F6 - 0x1E4];
+    /* 0x1F6 */ s8 unk1F6;
+    /* 0x1F7 */ s8 unk1F7;
+    /* 0x1F8 */ u8 pad1F8[0x568 - 0x1F8];
+    /* 0x568 */ u8 unk568;
+} M053Steer;
+
+extern s32 gPlayerButtonsHeld;
+extern void func_8003AABC(s16 *angles, M053Steer *s, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s16 *yaw, s16 *pitch,
+                          f32 updateRate);
+extern s16 angle_lerp(s16 from, s16 to, f32 t);
+extern f32 func_80049BEC(f32 rate, s32 updateRate);
+extern s32 func_8004966C(s16 angle); /* sine */
+extern s16 *rl_m053_03820;          /* .bss (still assembly): the camera commands */
+extern f32 rl_m053_037A0;           /* .rodata (still assembly) */
+extern f32 rl_m053_037A4;
+extern f32 rl_m053_037A8;
+extern f32 rl_m053_037AC;
+
+/* Steering the vehicle and its camera while the button is held (called from 00038) */
+#ifdef NON_MATCHING
+/* Registers and operand order of the 1C6..1CC stores (t-registers one apart) */
+void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED s32 arg2, UNUSED s32 arg3, f32 updateRateF) {
+    s16 yaw;
+    s16 pitch;
+    f32 k;
+
+    if (!(gPlayerButtonsHeld & 0x10)) {
+        s->unk568 = 0;
+        s->unk104 = 0x8000 - angles[0];
+        return;
+    }
+    s->unk4 *= func_80049BEC(rl_m053_037A0, (s32) updateRateF);
+    if (rl_m053_037A4 < s->unk4 && s->unk4 < rl_m053_037A8) {
+        s->unk4 = 0.0f;
+    }
+    func_8003AABC(angles, s, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &yaw, &pitch, updateRateF);
+    k = 1.0f - func_80049BEC(rl_m053_037AC, (s32) updateRateF);
+    s->unk1E0 = angle_lerp(s->unk1E0, pitch, k);
+    pitch += s->unk1E2;
+    s->unk1DC = angle_lerp(s->unk1DC, yaw, k);
+    s->unk1DE = angle_lerp(s->unk1DE, pitch, k);
+    s->unk1CE = angle_lerp(s->unk1CE, yaw, k);
+    s->unk1D0 = angle_lerp(s->unk1D0, pitch, k);
+    s->unk1C6 = s->unk1CE + angles[0];
+    s->unk1C8 = s->unk1D0 + angles[1];
+    s->unk1CA = s->unk1C6;
+    s->unk1CC = s->unk1C8;
+    yaw = s->unk1CE;
+    pitch = s->unk1D0;
+    if (s->unk1F6) {
+        pitch += (s->unk1F7 * func_8004966C(s->unk1F6 << 12)) >> 8;
+    }
+    *rl_m053_03820 = 0x24;
+    *++rl_m053_03820 = s->unk1DE;
+    *++rl_m053_03820 = 0x26;
+    *++rl_m053_03820 = s->unk1DC;
+    *++rl_m053_03820 = 0x18;
+    *++rl_m053_03820 = pitch;
+    *++rl_m053_03820 = 0x1A;
+    *++rl_m053_03820 = yaw;
+    *++rl_m053_03820 = 0x12;
+    *++rl_m053_03820 = pitch;
+    *++rl_m053_03820 = 0x14;
+    *++rl_m053_03820 = yaw;
+    rl_m053_03820++;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_014F4);
+#endif
 
 /* The part of the vehicle's state that 01850 uses */
 typedef struct M053Slow {
@@ -271,7 +358,100 @@ void func_m053_0230C(Object *obj, M053Water *w, s32 updateRate) {
     func_8006B090(obj, updateRate);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_023D0);
+/* The part of the vehicle's state that 023D0 uses: the camera's offsets */
+typedef struct M053Cam {
+    /* 0x000 */ u8 pad0[0x1C6];
+    /* 0x1C6 */ s16 unk1C6;
+    /* 0x1C8 */ s16 unk1C8;
+    /* 0x1CA */ u8 pad1CA[0x1CE - 0x1CA];
+    /* 0x1CE */ s16 unk1CE;
+    /* 0x1D0 */ s16 unk1D0;
+    /* 0x1D2 */ u8 pad1D2[0x1D8 - 0x1D2];
+    /* 0x1D8 */ s16 unk1D8;
+    /* 0x1DA */ s16 unk1DA;
+    /* 0x1DC */ s16 unk1DC;
+    /* 0x1DE */ s16 unk1DE;
+    /* 0x1E0 */ u8 pad1E0[0x1F4 - 0x1E0];
+    /* 0x1F4 */ s8 unk1F4;
+    /* 0x1F5 */ s8 unk1F5;
+    /* 0x1F6 */ s8 unk1F6;
+    /* 0x1F7 */ s8 unk1F7;
+} M053Cam;
+
+extern s32 func_8004966C(s16 angle); /* sine */
+extern s16 *rl_m053_03820;          /* .bss (still assembly): the camera commands */
+extern f32 rl_m053_037D8;           /* .rodata (still assembly) */
+extern f32 rl_m053_037DC;
+extern f32 rl_m053_037E0;
+extern f32 rl_m053_037E4;
+
+/* Eases the camera's offsets towards the vehicle's angles and writes them as camera commands (called from
+   00038) */
+void func_m053_023D0(s16 *angles, M053Cam *s, s32 updateRate) {
+    s16 i;
+    s16 a;
+    s16 b;
+
+    a = s->unk1C8 - angles[1];
+    if (a < -0x1800) {
+        a = -0x1800;
+    }
+    if (a > 0x3000) {
+        a = 0x3000;
+    }
+    b = s->unk1C6 - angles[0];
+    if (b < -0x1000) {
+        b = -0x1000;
+    }
+    if (b > 0x1000) {
+        b = 0x1000;
+    }
+    for (i = 0; i < updateRate; i++) {
+        s->unk1D0 += (a - s->unk1D0) >> 2;
+        s->unk1CE += (b - s->unk1CE) >> 2;
+    }
+    if (s->unk1F5 > 0) {
+        a = s->unk1DA;
+        b = s->unk1D8;
+        s->unk1F5 -= updateRate;
+    } else {
+        a = 0;
+        b = 0;
+    }
+    /* (one line: IDO schedules by line) */
+    if (a < rl_m053_037D8) { a = -0x38E3; } if (rl_m053_037DC < a) {
+        a = 0x38E3;
+    }
+    if (b < rl_m053_037E0) {
+        b = -0xE38;
+    }
+    if (rl_m053_037E4 < b) {
+        b = 0xE38;
+    }
+    for (i = 0; i < updateRate; i++) {
+        s->unk1DE += (a - s->unk1DE) >> 4;
+        s->unk1DC += (b - s->unk1DC) >> 4;
+    }
+    if (s->unk1F4) {
+        a = s->unk1D0;
+        if (s->unk1F6) {
+            a += (s->unk1F7 * func_8004966C(s->unk1F6 << 12)) >> 8;
+        }
+        *rl_m053_03820 = 0x24;
+        *++rl_m053_03820 = s->unk1DE;
+        *++rl_m053_03820 = 0x26;
+        *++rl_m053_03820 = s->unk1DC;
+        *++rl_m053_03820 = 0x18;
+        *++rl_m053_03820 = a;
+        *++rl_m053_03820 = 0x1A;
+        *++rl_m053_03820 = b;
+        *++rl_m053_03820 = 0x12;
+        *++rl_m053_03820 = a;
+        *++rl_m053_03820 = 0x14;
+        *++rl_m053_03820 = b;
+        rl_m053_03820++;
+    }
+}
 
 /* Does nothing (called from 00038) */
 void func_m053_02708(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2, UNUSED s32 arg3) {
