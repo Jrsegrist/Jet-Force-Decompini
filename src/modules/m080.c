@@ -124,7 +124,38 @@ INCLUDE_ASM("asm/nonmatchings/modules/m080", func_m080_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m080", func_m080_002A0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m080", func_m080_01324);
+extern f32 func_80097140(f32 x); /* sqrtf */
+
+/* The first object of behaviour 0x32 within `range` of the point (ignoring height if `flat`), or NULL */
+Object *func_m080_01324(f32 x, f32 y, f32 z, f32 range, s32 flat) {
+    s32 i;
+    s32 count;
+    Object **objs;
+    Object *obj;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+
+    objs = func_80005E98(&i, &count);
+    while (i < count) {
+        obj = objs[i++];
+        if (obj->behaviorId == 0x32) {
+            dx = obj->trans.x_position - x;
+            dz = obj->trans.z_position - z;
+            if (!flat) {
+                dy = obj->trans.y_position - y;
+                dist = func_80097140(dx * dx + dy * dy + dz * dz);
+            } else {
+                dist = func_80097140(dx * dx + dz * dz);
+            }
+            if (dist < range) {
+                return obj;
+            }
+        }
+    }
+    return NULL;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m080", data);
 

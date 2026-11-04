@@ -69,7 +69,35 @@ static M087Entry *func_m087_00000(s32 id) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_000D4);
+/* Moves `count` points from the object's space into the world (its yaw, scale and position) */
+void func_m087_000D4(Object *obj, s32 count, Vec3f *in, Vec3f *out) {
+    f32 ix;
+    f32 iy;
+    f32 iz;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 scale;
+    f32 sine;
+    f32 cosine;
+
+    scale = obj->trans.scale;
+    x = obj->trans.x_position;
+    y = obj->trans.y_position;
+    z = obj->trans.z_position;
+    sine = func_80049C34(obj->trans.rotation.y_rotation) * scale;
+    cosine = func_80049C30(obj->trans.rotation.y_rotation) * scale;
+    while (count--) {
+        ix = in->x;
+        iz = in->z;
+        iy = in->y;
+        out->x = ix * cosine + iz * sine + x;
+        out->y = iy * scale + y;
+        out->z = iz * cosine - ix * sine + z;
+        in++;
+        out++;
+    }
+}
 
 /* What the breakable object's init gets */
 typedef struct M087Setup {
