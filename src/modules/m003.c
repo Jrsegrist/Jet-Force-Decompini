@@ -348,7 +348,7 @@ extern void func_80011708(f32 x, f32 y, f32 z, s32 arg3);
 extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
-extern void func_m003_07E88(s32 arg0, s32 arg1, s32 arg2);
+extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
 extern s32 rl_m003_04968(s32 index, s32 anim, s32 arg2);
 extern s32 rl_m003_04614(s32 anim, s32 arg1);
@@ -359,7 +359,8 @@ typedef struct M003Anim {
     /* 0x00 */ s16 unk0; /* the first entry's: the animation speed, in some unit (044B4) */
     /* 0x02 */ u8 anim;
     /* 0x03 */ u8 unk3;
-    /* 0x04 */ u32 pad4_0 : 17;
+    /* 0x04 */ u32 pad4_0 : 10;
+    /* 0x04 */ u32 parts : 7; /* its row of rl_m003_17A10, 0x7F: none (09680) */
     /* 0x04 */ u32 unk4_11 : 4;
     /* 0x04 */ u32 pad4_1 : 11;
 } M003Anim;
@@ -1673,11 +1674,116 @@ s32 func_m003_07BAC(f32 x, f32 y, f32 z, s32 kind, u8 arg4, u8 arg5) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07C18);
+/*
+ * The elevation to throw at `speed` under gravity `g` from (x, y, z) to 50 below (tx, ty, tz): of the two
+ * solutions the higher if `high`, else the lower; 0x2000 if the target is out of reach
+ */
+s16 func_m003_07C18(f32 x, f32 y, f32 z, f32 tx, f32 ty, f32 tz, f32 speed, f32 g, s32 high) {
+    f32 dist;
+    f32 dy;
+    f32 b;
+    f32 dy2;
+    f32 root;
+    f32 disc;
+    f32 denom;
+    f32 s;
+    s32 i;
+    s32 n;
+    s16 angles[2];
+
+    n = 0;
+    i = 2;
+    dist = func_80097140((x - tx) * (x - tx) + (z - tz) * (z - tz));
+    dy = ty - y - 50.0f;
+    b = dy * g + speed * speed;
+    dy2 = dy * dy;
+    disc = b * b - g * g * (dist * dist + dy2);
+    if (g * g * (dist * dist + dy2) <= b * b) {
+        root = func_80097140(disc);
+        denom = dy2 / (dist * dist) + 1.0f;
+        denom += denom;
+        while (i--) {
+            /* x: the square of the horizontal speed */
+            if ((x = ((i ? root : -root) + b) / denom) >= 0.0f) {
+                s = func_80097140(x);
+                if (dist < 0.0f) {
+                    s = -s;
+                }
+                angles[n++] = func_80049C84(dy / dist * s - g * dist / (s + s), s);
+            }
+        }
+    }
+    switch (n) {
+        case 2:
+            if (angles[0] < angles[1]) {
+                return high ? angles[1] : angles[0];
+            }
+            return high ? angles[0] : angles[1];
+        case 1:
+            return angles[0];
+    }
+    return 0x2000;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07E88);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09680);
+/* The member's word at 0x4 as four 3-bit part numbers (7: none) */
+typedef struct M003Parts {
+    u32 part0 : 3;
+    u32 part1 : 3;
+    u32 part2 : 3;
+    u32 part3 : 3;
+    u32 rest : 20;
+} M003Parts;
+
+/* A row of rl_m003_17A10 (0x18 bytes) */
+typedef struct M003PartRow {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 a[4];
+    /* 0x14 */ u8 b[4];
+} M003PartRow;
+
+/*
+ * Runs 07E88 for each of the member's four parts, from its animation's row of rl_m003_17A10; the
+ * first time the troop has flag 0x80, with 40 and the member marked (called from 10600)
+ */
+void func_m003_09680(void) {
+    M003Anim *anim;
+    s32 i;
+    s32 arg;
+    s32 part;
+
+    anim = func_m003_04428(sObj);
+    arg = 0;
+    i = 4;
+    if (!sMember->unk0_20 && (sHomeData->flags & 0x80)) {
+        arg = 40;
+        sMember->unk0_20 = 1;
+    }
+    if (anim->parts != 0x7F) {
+        M003PartRow *row = &((M003PartRow *) rl_m003_17A10)[anim->parts];
+
+        while (i--) {
+            switch (i) {
+                case 0:
+                    part = ((M003Parts *) &sMember->unk4)->part0;
+                    break;
+                case 1:
+                    part = ((M003Parts *) &sMember->unk4)->part1;
+                    break;
+                case 2:
+                    part = ((M003Parts *) &sMember->unk4)->part2;
+                    break;
+                case 3:
+                    part = ((M003Parts *) &sMember->unk4)->part3;
+                    break;
+            }
+            if (part != 7) {
+                func_m003_07E88(row->a[part], row->b[part], arg);
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09840);
 
