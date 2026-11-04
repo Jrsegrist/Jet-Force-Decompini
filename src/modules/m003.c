@@ -21,7 +21,8 @@ typedef struct M003Member {
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
     /* 0x00 */ u32 pad0_5 : 1;
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
-    /* 0x00 */ u32 pad0_4 : 2;
+    /* 0x00 */ u32 pad0_4 : 1;
+    /* 0x00 */ u32 partsSet : 1; /* set when 10160 or 10354 picked a part (bit 10) */
     /* 0x00 */ u32 unk0_9 : 1; /* cleared when its troop's leader goes */
     /* 0x00 */ u32 pad0_6 : 4;
     /* 0x00 */ u32 unk0_4 : 1;
@@ -149,7 +150,8 @@ typedef struct M003Home {
     /* 0x2C */ u16 kind;
     /* 0x2E */ s16 unk2E; /* a countdown */
     /* 0x30 */ u8 unk30;
-    /* 0x31 */ u8 pad31[0x33 - 0x31];
+    /* 0x31 */ u8 pad31;
+    /* 0x32 */ u8 unk32; /* its state (0B50C) */
     /* 0x33 */ u8 unk33;
     /* 0x34 */ u8 pad34;
     /* 0x35 */ u8 unk35; /* set while a way-point command runs (01C58) */
@@ -2084,7 +2086,57 @@ void func_m003_0B468(void) {
     sObj->velocity.y += rl_m003_07980(sObj->trans.y_position, sBss18, sObj->velocity.y, max);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B50C);
+/*
+ * The height the member walks at: in states 2, 0x13 and 0xC, between the troop's way point and the one
+ * before, by how far along the member is; else the troop's height (called from 0B70C)
+ */
+f32 func_m003_0B50C(void) {
+    M003Node *b;
+    M003Node *a;
+    s32 i;
+    f32 dx;
+    f32 dz;
+    f32 ox;
+    f32 oz;
+    f32 dist;
+    f32 c;
+    f32 t;
+    s32 angle;
+    s16 n;
+
+    if (sHomeData->unk32 == 2 || sHomeData->unk32 == 0x13 || sHomeData->unk32 == 0xC) {
+        n = sHomeData->unk3C;
+        if (n & 0xFF) {
+            i = n & 0xFF;
+            if (D_800FEA9C[i].cmd == 8 || (sMember->unk1A == 0x13 && sMember->unk1B == 4)) {
+                return D_800FEA9C[i].y;
+            }
+            if ((n & 0xFFFF) >> 8) {
+                b = &D_800FEA9C[(n & 0xFFFF) >> 8];
+            } else {
+                b = NULL;
+            }
+            a = &D_800FEA9C[i];
+            if (b == NULL) {
+                return a->y;
+            }
+            if (b->y == a->y) {
+                return a->y;
+            }
+            dx = b->x - a->x;
+            dz = b->z - a->z;
+            ox = sObj->trans.x_position - b->x;
+            oz = sObj->trans.z_position - b->z;
+            dist = func_80097140(dx * dx + dz * dz);
+            angle = func_80049C84(ox, oz);
+            c = func_80049C30(angle - func_80049C84(dx, dz));
+            t = func_80097140(ox * ox + oz * oz) * c;
+            return -(t / ((t + dist) - t)) * (a->y - b->y) + b->y;
+        }
+        return sHomeData->y;
+    }
+    return sHomeData->y;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B70C);
 
@@ -2464,7 +2516,51 @@ void func_m003_100E0(Object *obj, Object *by) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_10160);
+/*
+ * Picks the member's parts for its animation: those of its animation's row whose frame lies between the
+ * object's frame and the same distance past it (or 0 at frame 0), in order, the rest 7 (none). Called
+ * from 10600.
+ */
+void func_m003_10160(void) {
+    M003Anim *anim;
+    f32 frame;
+    f32 end;
+    s32 n;
+    s32 i;
+    f32 *row;
+
+    anim = func_m003_04428(sObj);
+    frame = sObj->unk28;
+    end = sObj->unk28 + (frame - sMember->unk60);
+    ((M003Parts *) &sMember->unk4)->part0 = 7;
+    ((M003Parts *) &sMember->unk4)->part1 = 7;
+    n = 0;
+    ((M003Parts *) &sMember->unk4)->part2 = 7;
+    ((M003Parts *) &sMember->unk4)->part3 = 7;
+    if (anim->parts != 0x7F) {
+        row = (f32 *) &((M003PartRow *) rl_m003_17A10)[anim->parts];
+        i = 3;
+        do {
+            if ((sObj->unk28 <= row[i] && row[i] <= end) || (sMember->unk60 == 0.0f && row[i] == 0.0f)) {
+                sMember->partsSet = TRUE;
+                switch (n++) {
+                    case 0:
+                        ((M003Parts *) &sMember->unk4)->part0 = i;
+                        break;
+                    case 1:
+                        ((M003Parts *) &sMember->unk4)->part1 = i;
+                        break;
+                    case 2:
+                        ((M003Parts *) &sMember->unk4)->part2 = i;
+                        break;
+                    case 3:
+                        ((M003Parts *) &sMember->unk4)->part3 = i;
+                        break;
+                }
+            }
+        } while (i--);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_10354);
 
