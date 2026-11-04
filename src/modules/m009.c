@@ -257,7 +257,79 @@ INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_030E8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_0343C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_037E4);
+/* A texture of a model, as 037E4 uses it (m135's 02834 is the same function) */
+typedef struct M009Texture {
+    /* 0x00 */ u8 pad0[0x12];
+    /* 0x12 */ u16 frames; /* times 256 */
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ s16 frameSize;
+} M009Texture;
+
+/* A model's texture table entry (8 bytes) */
+typedef struct M009ModelTexture {
+    /* 0x0 */ M009Texture *texture;
+    /* 0x4 */ u8 pad4[4];
+} M009ModelTexture;
+
+typedef struct M009Model3D {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ M009ModelTexture *textures;
+    /* 0x1C */ u8 pad1C[0x2C - 0x1C];
+    /* 0x2C */ u8 batchCount;
+} M009Model3D;
+
+/* A batch's texture animation (8 bytes) */
+typedef struct M009TexAnim {
+    /* 0x0 */ s16 frame;
+    /* 0x2 */ s16 frame2; /* < 0: none */
+    /* 0x4 */ u32 flags;  /* the low byte: the texture; 0x10000: set by 037E4 */
+} M009TexAnim;
+
+typedef struct M009Instance {
+    /* 0x00 */ M009Model3D *model;
+    /* 0x04 */ u8 pad4[0xB - 0x4];
+    /* 0x0B */ s8 buffer;
+    /* 0x0C */ u8 padC[0x74 - 0xC];
+    /* 0x74 */ M009TexAnim *texAnims;
+    /* 0x78 */ s16 *texOffsets[2];
+} M009Instance;
+
+/* Sets the frames of the object's animated textures `frames` long to `frame` (the second one to the
+   next frame), and writes each batch's texture offsets */
+void func_m009_037E4(Object *obj, s32 frame, s32 frames) {
+    M009Instance *inst = obj->modelInstances[obj->modelIndex];
+    M009Model3D *model = inst->model;
+    M009TexAnim *a = inst->texAnims;
+    M009Texture *tex;
+    s16 *out;
+    s32 i;
+    s32 idx;
+
+    frames <<= 8;
+    if (a == NULL) {
+        return;
+    }
+    out = inst->texOffsets[inst->buffer];
+    for (i = 0; i < model->batchCount; i++) {
+        idx = a->flags & 0xFF;
+        tex = model->textures[idx].texture;
+        if ((a->flags & 0x10000) && frames == tex->frames) {
+            a->frame = frame;
+            if (a->frame2 >= 0) {
+                frame += 0x100;
+                if (frame >= tex->frames) {
+                    frame -= 0x100;
+                }
+                a->frame2 = frame;
+            }
+        }
+        if (a->frame2 >= 0) {
+            *out++ = (a->frame2 >> 8) * tex->frameSize;
+        }
+        *out++ = (a->frame >> 8) * tex->frameSize;
+        a++;
+    }
+}
 
 extern Object *D_800FF3F8[]; /* the menu's objects */
 extern void *D_800FF3A0;
