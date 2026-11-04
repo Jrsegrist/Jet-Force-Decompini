@@ -29,6 +29,17 @@ typedef struct M012Frame {
     /* 0x30 */ Vertex *vertices;
 } M012Frame;
 
+/* The level model's textures (func_8001B650; DKR's LevelModel, reduced) */
+typedef struct LevelModelTexture {
+    /* 0x0 */ void *texture;
+    /* 0x4 */ u8 pad4[4];
+} LevelModelTexture;
+typedef struct LevelModelTextures {
+    /* 0x00 */ LevelModelTexture *textures;
+    /* 0x04 */ u8 pad4[0x18 - 0x4];
+    /* 0x18 */ s16 count; /* DKR numberOfTextures */
+} LevelModelTextures;
+
 /* A texture the frame keeps loaded while it is open */
 typedef struct M012Texture {
     /* 0x0 */ s32 unk0;
@@ -173,7 +184,34 @@ void func_m012_00158(s32 enabled) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_00164);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_008A8);
+extern LevelModelTextures *func_8001B650(void); /* the level model */
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern s32 tex_find_id(void *texture);
+extern void func_80055A00(void *texture);        /* frees a texture */
+extern void model_cache_textures_release(s16 *keep);
+static void func_m012_01880(void);
+
+/* Keeps the level's textures (their ids) while the frame is open, and frees what the models no longer
+   need (called from 00164) */
+void func_m012_008A8(void) {
+    LevelModelTextures *model = func_8001B650();
+    M012Texture *t;
+    s32 i;
+
+    sTextureCount = model->count;
+    sTextures = func_8004A57C(sTextureCount * sizeof(M012Texture), -1);
+    t = sTextures;
+    for (i = 0; i < model->count; i++) {
+        t->unk4 = (s32) model->textures[i].texture;
+        t->unk0 = tex_find_id(model->textures[i].texture);
+        func_80055A00(model->textures[i].texture);
+        t++;
+    }
+    model_cache_textures_release(sTextureList);
+    sFrame.texturesFreed = FALSE;
+    func_m012_01880();
+    func_80004C64(1);
+}
 
 static void free_textures(void) {
     s32 i;
@@ -212,15 +250,14 @@ u8 func_m012_01870(void) {
     return sFrame.texturesFreed;
 }
 
-extern u8 rl_m012_01B8C[]; /* .data (still assembly): runlink modules, 0xFF-terminated */
 extern s32 runlink_module_loaded(s32 module);
 extern void runlink_module_move_to_slot(s32 module);
 
-/* Moves each of the listed modules that is loaded to its slot (called from 008A8) */
-void func_m012_01880(void) {
+/* Moves each of sModules that is loaded to its slot */
+static void func_m012_01880(void) {
     u8 *module;
 
-    for (module = rl_m012_01B8C; *module != 0xFF; module++) {
+    for (module = sModules; *module != 0xFF; module++) {
         if (runlink_module_loaded(*module)) {
             runlink_module_move_to_slot(*module);
         }
