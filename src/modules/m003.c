@@ -286,7 +286,8 @@ typedef struct M003Interact {
     /* 0x0C */ f32 centre[3];
     /* 0x18 */ f32 pos[3]; /* where it was hit */
     /* 0x24 */ f32 radius;
-    /* 0x28 */ u8 pad28[0x31 - 0x28];
+    /* 0x28 */ f32 height;
+    /* 0x2C */ u8 pad2C[0x31 - 0x2C];
     /* 0x31 */ u8 part;
     /* 0x32 */ u8 pad32[0x3C - 0x32];
     /* 0x3C */ Object *hitBy;
@@ -2501,7 +2502,65 @@ int func_m003_0CAA4(f32 dist, f32 arg1, s16 maxAngle) {
     return sHomeData->unk30 == 3 || D_800FE9EE == 7 || D_800FE9EE == 12 || D_800FE9EE == 9;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CD34);
+extern f32 rl_m003_19D70; /* .rodata (still assembly) */
+/* .data (still assembly; relocated against the .data start): the animation 0512C fires with, -1: none */
+#define sFireAnim (*(s32 *) (rl_m003_17A10 + 0x1A24))
+
+/*
+ * A member's standard attack: aims at whoever shot it (or the closest player), and fires animation 5's
+ * shot when 0CAA4 allows it (from farther away when one of the animation's parts fires)
+ */
+void func_m003_0CD34(Object *obj) {
+    s32 anim;
+    s32 i;
+    f32 dist;
+    f32 arg1;
+    s32 found;
+    UNUSED s32 pad[2];
+    s32 shotBy;
+
+    anim = rl_m003_04614(5, 1);
+    found = FALSE;
+    i = 4;
+    if (!(sMember->unk4 & 1)) {
+        shotBy = sMember->shotBy;
+        sMember->shotBy = sClosestPlayer;
+        func_m003_0C324(obj);
+        if (sMember->shotBy == 0 ||
+            (((Object *) sMember->shotBy)->behaviorId == 1 && !(sHomeData->unk91 & 1))) {
+            sMember->shotBy = shotBy;
+        }
+    }
+    if (anim != -1) {
+        M003Anim *a = &rl_m003_17DB8[rl_m003_19278[sBodyIndex * 2] + anim];
+        M003PartRow *row = &((M003PartRow *) rl_m003_17A10)[a->parts];
+
+        while (i--) {
+            if (row->b[i] == 1) {
+                found = TRUE;
+                break;
+            }
+        }
+    }
+    if (found) {
+        dist = rl_m003_19D70;
+        arg1 = 1200.0f;
+    } else {
+        dist = 0.0f;
+        arg1 = dist;
+    }
+    if (func_m003_0CAA4(dist, arg1, 0x2000)) {
+        if (anim == -1) {
+            func_m003_04260(4, 0x11, 0, 0, 0);
+            return;
+        }
+        if (sMember->unk1A != 5 && func_m003_04260(4, 5, 0, 0, 0)) {
+            sFireAnim = anim;
+            func_m003_0512C(6, 1.0f, 5);
+            sFireAnim = -1;
+        }
+    }
+}
 
 void func_m003_0CF40(void) {
     s32 shotBy = sMember->shotBy;
@@ -2702,7 +2761,42 @@ void func_m003_10160(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_10354);
+extern void obj_spawn_particle(Object *obj, s32 updateRate);
+
+/*
+ * The member's particles: while it burns (or in state 0x33) from a random point of its hit shape
+ * instead of its position (called from 10600)
+ */
+void func_m003_10354(void) {
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 r;
+    s16 angle;
+    f32 dy;
+
+    if (sMember->onFire || sMember->unkA == 0x33) {
+        x = sObj->trans.x_position;
+        y = sObj->trans.y_position;
+        z = sObj->trans.z_position;
+        r = func_80048E2C(0, ((M003Interact *) sObj->interactObj)->radius);
+        angle = func_80048E2C(-0x8000, 0x7FFF);
+        sObj->trans.x_position += func_80049C34(angle) * r;
+        if (sMember->unkA == 0x33) {
+            dy = 0.0f;
+        } else {
+            dy = func_80048E2C(0, 2.0f * ((M003Interact *) sObj->interactObj)->height);
+        }
+        sObj->trans.y_position += dy;
+        sObj->trans.z_position += func_80049C30(angle) * r;
+        obj_spawn_particle(sObj, D_800FE9F8);
+        sObj->trans.x_position = x;
+        sObj->trans.y_position = y;
+        sObj->trans.z_position = z;
+    } else {
+        obj_spawn_particle(sObj, D_800FE9F8);
+    }
+}
 
 /* A player shoots a member */
 void func_m003_10548(Object *obj, s32 shotBy) {

@@ -221,7 +221,42 @@ void func_m067_0025C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00300);
 
+extern void rl_m067_00300(Object *obj, M067State *s, s32 step);
+
+/*
+ * Runs the next step of the enemy's step list (s->unk4): -1 goes back to the
+ * start and on to the first -19, a -19 and a step equal to the target are
+ * skipped
+ */
+#ifdef NON_MATCHING
+/* The first block's addu and beq operand order and one store's slot */
+void func_m067_0064C(Object *obj, M067State *s) {
+    s8 step;
+    s8 *seq;
+
+    step = (seq = (s8 *) s->unk4)[s->unk8];
+    if (step == -1) {
+        s->unk8 = 0;
+        step = seq[s->unk8];
+        while (step != -19) {
+            s->unk8++;
+            step = seq[s->unk8];
+        }
+    }
+    if (step == -19) {
+        s->unk8++;
+        step = ((s8 *) s->unk4)[s->unk8];
+    }
+    if (step == s->target) {
+        s->unk8++;
+        step = ((s8 *) s->unk4)[s->unk8];
+    }
+    rl_m067_00300(obj, s, step);
+    s->unk8++;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_0064C);
+#endif
 
 /* Landing: shakes the camera by how near it is, plays the thud and raises dust */
 void func_m067_00728(Object *obj, s32 updateRate) {
