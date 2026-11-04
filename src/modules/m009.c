@@ -149,7 +149,90 @@ INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02978);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02FB0);
 
+extern void func_80042134(MtxF *mtx);                          /* identity */
+extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx);     /* scale */
+extern void func_800498E8(f32 x, f32 y, f32 z, MtxF *mtx);     /* translation */
+extern void func_80048D84(MtxF *mtx, void *out);               /* to a fixed-point Mtx */
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a texture */
+
+#ifdef NON_MATCHING
+/* Only the triangle commands' stores are scheduled differently (16 words) */
+/*
+ * Draws a world model on the map: its body and, if it has one, its glowing layer, shrunk as its timer runs.
+ * (Commands: the matrix, 25 vertices, 16 + 7 triangles; then pipe sync and the glow's prim colour.)
+ */
+static void func_m009_030E8(M009Model *model) {
+    u32 *glow = *(u32 **) ((u8 *) model + 0x4C8);
+    MtxF mtx;
+    f32 scale = 1.0f - (*(s16 *) ((u8 *) model + 0x4D0) * 0.5f) / 60.0f;
+    Gfx *g;
+
+    func_80042134(&mtx);
+    func_80049874(scale, scale, scale, &mtx);
+    func_800498E8(model->x - rl_m009_09790, 120.0f - (model->y - rl_m009_09794), 0.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    g = D_800FF398++;
+    g->words.w0 = 0x01000040;
+    g->words.w1 = (u32) D_800FF39C + 0x80000000;
+    D_800FF39C = (u8 *) D_800FF39C + 0x40;
+    {
+        Gfx *_g = D_800FF398++;
+        u32 v = (u32) model + 0x80000170;
+
+        _g->words.w0 = ((((v & 6) | 0xC0) & 0xFF) << 16) | 0x04000000 | 0xF8;
+        _g->words.w1 = v;
+    }
+    func_80055C00(&D_800FF398, *(void **) ((u8 *) model + 0x4C0), 1, 0);
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x05F10100;
+        _g->words.w1 = (u32) model + 0x80000000;
+    }
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x05610070;
+        _g->words.w1 = (u32) model + 0x80000100;
+    }
+    if (*(void **) ((u8 *) model + 0x4C4) != NULL) {
+        func_80042134(&mtx);
+        func_80049874(scale, scale, scale, &mtx);
+        func_800498E8(model->x - rl_m009_09790, 120.0f - (model->y - rl_m009_09794), 0.0f, &mtx);
+        func_80048D84(&mtx, D_800FF39C);
+        g = D_800FF398++;
+        g->words.w0 = 0x01000040;
+        g->words.w1 = (u32) D_800FF39C + 0x80000000;
+        D_800FF39C = (u8 *) D_800FF39C + 0x40;
+        {
+            Gfx *_g = D_800FF398++;
+            u32 v = (u32) model + 0x800003D0;
+
+            _g->words.w0 = ((((v & 6) | 0xC0) & 0xFF) << 16) | 0x04000000 | 0xF8;
+            _g->words.w1 = v;
+        }
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0xE7000000;
+            _g->words.w1 = 0;
+        }
+        func_80055C00(&D_800FF398, *(void **) ((u8 *) model + 0x4C4), 5, 0);
+        g = D_800FF398++;
+        g->words.w0 = 0xFA000000;
+        g->words.w1 = glow[5];
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0x05F10100;
+            _g->words.w1 = (u32) model + 0x80000260;
+        }
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0x05610070;
+            _g->words.w1 = (u32) model + 0x80000360;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_030E8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_0343C);
 
