@@ -133,7 +133,64 @@ void func_m082_00478(Object *obj, M082Setup *setup) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_005D4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_00E6C);
+/* 00E6C's view of a model: its batches (kind in the low byte of unk4) and its textures */
+typedef struct M082Tex {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 unk16;
+} M082Tex;
+typedef struct M082TexEntry {
+    /* 0x0 */ M082Tex *tex;
+    /* 0x4 */ u8 pad4[4];
+} M082TexEntry;
+typedef struct M082Model {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ M082TexEntry *textures;
+    /* 0x1C */ u8 pad1C[0x2C - 0x1C];
+    /* 0x2C */ u8 count;
+} M082Model;
+typedef struct M082Anim {
+    /* 0x0 */ s16 unk0;
+    /* 0x2 */ s16 unk2;
+    /* 0x4 */ s32 unk4;
+} M082Anim;
+typedef struct M082Inst {
+    /* 0x00 */ u8 pad0[0xB];
+    /* 0x0B */ s8 buffer;
+    /* 0x0C */ u8 padC[0x74 - 0xC];
+    /* 0x74 */ M082Anim *anims;
+    /* 0x78 */ s16 *out[2];
+} M082Inst;
+typedef struct M082Flags {
+    /* 0x0 */ u32 flags;
+    /* 0x4 */ u8 kind;
+} M082Flags;
+
+/* Writes each batch's scaled values into the instance's current buffer (kinds 3, 4 and 8 open or shut by c) */
+void func_m082_00E6C(M082Model *model, M082Inst *inst, M082Flags *c, UNUSED s32 arg3) {
+    M082Anim *a;
+    s16 *out;
+    s32 i;
+    s32 kind;
+    M082Tex *tex;
+
+    a = inst->anims;
+    out = inst->out[inst->buffer];
+    for (i = 0; i < model->count; i++, a++) {
+        kind = a->unk4 & 0xFF;
+        tex = model->textures[kind].tex;
+        if (kind == 3 || kind == 4 || kind == 8) {
+            if (c->kind == 4 || c->kind == 5 || (c->flags & 0x20)) {
+                a->unk0 = 0;
+            } else {
+                a->unk0 = 0x100;
+            }
+        }
+        *out++ = (a->unk0 >> 8) * tex->unk16;
+        if (a->unk2 >= 0) {
+            *out++ = (a->unk2 >> 8) * tex->unk16;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_00F8C);
 

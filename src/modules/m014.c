@@ -2,6 +2,7 @@
  * Runlink module 14: part of the HUD (still mostly assembly).
  */
 #include "module.h"
+#include "gfx.h"
 
 extern void menu_assetgroup_free(void *images); /* frees a list of loaded images */
 extern void func_m006_00EFC();
@@ -41,7 +42,45 @@ void func_m014_00000(void) {
     rl_m014_04898 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00074);
+/* The part of the player's state that 00074 reads */
+typedef struct M014Player {
+    /* 0x000 */ u8 pad0[0x1CA];
+    /* 0x1CA */ s16 yaw;
+    /* 0x1CC */ u8 pad1CC[0x540 - 0x1CC];
+    /* 0x540 */ u16 unk540;
+} M014Player;
+
+extern Gfx *D_800FF398;
+extern void func_80055B80(Gfx **dl);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* sets a texture */
+extern s32 rl_m014_04528;     /* .data (still assembly): the arrow's blink timer */
+extern u8 rl_m014_044D8[];    /* its triangle */
+extern u8 rl_m014_044E8[];    /* its vertices, pointing left */
+extern u8 rl_m014_04508[];    /* and right */
+
+/* Blinks an arrow to the left or right when `angle` is more than 0xA00 off the player's yaw (called from
+   00B30) */
+void func_m014_00074(s16 *angle, M014Player *p, s32 updateRate) {
+    rl_m014_04528 += updateRate;
+    if ((p->unk540 & 0xF) && (rl_m014_04528 & 0x10)) {
+        s16 d = *angle - p->yaw;
+
+        if (d < -0xA00 || d > 0xA00) {
+            func_80055B80(&D_800FF398);
+            func_80055C00(&D_800FF398, NULL, 7, 0);
+            gDPSetEnvColor(D_800FF398++, 0xFF, 0xFF, 0xFF, 0x00);
+            gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0x80);
+            if (d < -0x800) {
+                gSPVertexJFG(D_800FF398++, rl_m014_044E8 + 0x80000000, 4, 0);
+            } else {
+                gSPVertexJFG(D_800FF398++, rl_m014_04508 + 0x80000000, 4, 0);
+            }
+            gSPPolygon(D_800FF398++, rl_m014_044D8 + 0x80000000, 1, 0);
+            gDPPipeSync(D_800FF398++);
+            gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00220);
 

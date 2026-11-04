@@ -168,7 +168,40 @@ void func_m009_02880(s32 index) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02978);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02FB0);
+/* Fills the rectangle between two corners (in any order), clipped to the 320x240 screen (called from 00690) */
+void func_m009_02FB0(s16 x1, s16 y1, s16 x2, s16 y2) {
+    s32 t;
+
+    if (x2 < x1) {
+        t = x1;
+        x1 = x2;
+        x2 = t;
+    }
+    if (y2 < y1) {
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+    if (x2 == x1) {
+        x2++;
+    }
+    y2++;
+    if (x1 < 0) {
+        x1 = 0;
+    }
+    if (x2 >= 320) {
+        x2 = 319;
+    }
+    if (y1 < 0) {
+        y1 = 0;
+    }
+    if (y2 >= 240) {
+        y2 = 239;
+    }
+    if (x2 > 0 && x1 < 319 && y2 > 0 && y1 < 239) {
+        gDPFillRectangle(D_800FF398++, x1, y1, x2, y2);
+    }
+}
 
 extern void func_80042134(MtxF *mtx);                          /* identity */
 extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx);     /* scale */

@@ -29,7 +29,76 @@ INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_019B0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_01BB4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_021E4);
+/* A hit record (0x34 bytes) of the vehicle's interaction */
+typedef struct M053Hit {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 flags;
+    /* 0x0C */ u8 padC[0x34 - 0xC];
+} M053Hit;
+
+/* The vehicle's interaction (obj->interactObj), as far as 021E4 uses it */
+typedef struct M053Interact {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 hitPoints;
+    /* 0x08 */ u8 pad8[0x32 - 0x8];
+    /* 0x32 */ s16 hitCount;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ M053Hit *hits;
+} M053Interact;
+
+/* The part of the vehicle's state that 021E4 uses */
+typedef struct M053HitState {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ u8 pad1[0x148 - 0x1];
+    /* 0x148 */ s8 flash;
+    /* 0x149 */ u8 pad149[0x190 - 0x149];
+    /* 0x190 */ u8 hitTimer; /* 0x80: just hit */
+} M053HitState;
+
+extern void player_voice_play(Object *obj, s32 index);
+extern void menu_draw_layout_box(s32 arg0, s32 index, s32 colour);
+
+/* The vehicle being hit: the voice, a hit point less and the player's screen flashing red (called from
+   00038) */
+void func_m053_021E4(Object *obj, M053HitState *s, s32 updateRate) {
+    M053Hit *hit;
+    s16 n;
+    s32 wasHit;
+
+    n = ((M053Interact *) obj->interactObj)->hitCount;
+    hit = ((M053Interact *) obj->interactObj)->hits;
+    wasHit = FALSE;
+    while (n--) {
+        if (hit->flags & 0x40) {
+            wasHit = TRUE;
+        }
+        hit++;
+    }
+    if (s->hitTimer == 0x80) {
+        s->hitTimer = 60;
+        wasHit = TRUE;
+        ((M053Interact *) obj->interactObj)->hitPoints -= 0x100;
+    } else {
+        s->hitTimer &= 0x7F;
+        if (updateRate < s->hitTimer) {
+            s->hitTimer -= updateRate;
+        } else {
+            s->hitTimer = 0;
+        }
+    }
+    if (wasHit) {
+        player_voice_play(obj, 3);
+        s->flash = 8;
+    } else {
+        s->flash -= updateRate;
+        if (s->flash < 0) {
+            s->flash = 0;
+        }
+    }
+    if (s->flash != 0) {
+        menu_draw_layout_box(0, s->player, 0xFF0000FF);
+    }
+}
 
 /* The object's ripple data (69050.c's RippleInit), as far as 0230C uses it */
 typedef struct M053Ripple {
