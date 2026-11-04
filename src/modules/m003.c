@@ -29,7 +29,8 @@ typedef struct M003Member {
     /* 0x06 */ u8 turning : 1; /* unk10 holds a turn */
     /* 0x06 */ u8 unk6_5 : 1;
     /* 0x06 */ u8 unk6_4 : 1;
-    /* 0x06 */ u8 unk6_0 : 4;
+    /* 0x06 */ u8 partLost : 1; /* it has lost a body part */
+    /* 0x06 */ u8 unk6_0 : 3;
     /* 0x07 */ s8 group; /* < 0: not active */
     /* 0x08 */ u8 flags8; /* bit flags, read as the word M003Flags8 */
     /* 0x09 */ u8 unk9;
@@ -199,7 +200,9 @@ typedef struct M003BodyPart {
     /* 0x00 */ u8 bit;
     /* 0x01 */ u8 part; /* the hit part it stands for */
     /* 0x02 */ u8 kind; /* 2: hitting it kills */
-    /* 0x03 */ u8 pad3[0x6 - 0x3];
+    /* 0x03 */ u8 pad3;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 unk5;
     /* 0x06 */ u8 unk6;
     /* 0x07 */ u8 pad7;
 } M003BodyPart;
@@ -214,7 +217,9 @@ typedef struct M003Body {
     /* 0x2B */ u8 unk2B; /* 5: does not burn */
     /* 0x2C */ u8 pad2C;
     /* 0x2D */ u8 headPart; /* 0x1F: none */
-    /* 0x2E */ u8 pad2E[0x40 - 0x2E];
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 hitPart; /* the body part the last hit took off, 7: none */
+    /* 0x30 */ u8 pad30[0x40 - 0x30];
     /* 0x40 */ M003BodyPart parts[8];
 } M003Body;
 
@@ -287,6 +292,7 @@ extern void func_m003_07E88(s32 arg0, s32 arg1, s32 arg2);
 extern void func_m003_09A14(Object *obj);
 extern s32 rl_m003_04968(s32 index, s32 anim, s32 arg2);
 extern s32 rl_m003_04614(s32 anim, s32 arg1);
+extern void rl_m003_044F4(Object *obj);
 
 /* An animation entry (8 bytes) */
 typedef struct M003Anim {
@@ -968,7 +974,68 @@ M003Anim *func_m003_04428(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044B4);
 
+/* The level entry of a lost body part (size 0x14) */
+typedef struct M003PartEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0xC - 0xA];
+    /* 0x0C */ Object *owner;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 kind;
+} M003PartEntry;
+
+extern s32 gMainPoolFreeBytes;
+extern void func_m003_058A4(Object *obj);
+
+#ifdef NON_MATCHING
+/* IDO folds the `+ 0.0f`s the ROM keeps, and sBody/index swap registers */
+/* The member loses the body part the last hit took off: a flying piece of it is spawned if there's memory */
+static void func_m003_044F4(Object *obj) {
+    u8 index = sBody->hitPart;
+    M003BodyPart *part = &sBody->parts[index];
+    M003Member *m = obj->unk68;
+    M003PartEntry entry;
+    u16 bit = 1 << part->bit;
+    f32 zero;
+    Object *piece;
+
+    if (index == 7) {
+        return;
+    }
+    if ((m->lostParts & bit) || m->unk55 != 0) {
+        return;
+    }
+    m->lostParts |= bit;
+    m->partLost = TRUE;
+    func_m003_058A4(obj);
+    if (gMainPoolFreeBytes > 0xC000) {
+        entry.objectID = 0x89;
+        entry.size = 0x14;
+        entry.unk3 = 0;
+        entry.x = 0;
+        entry.y = 0;
+        entry.z = 0;
+        entry.unk10 = part->unk4;
+        entry.unk11 = part->unk5;
+        entry.owner = sObj;
+        entry.kind = part->kind;
+        piece = func_80005F14(&entry, 1);
+        if (piece != NULL) {
+            zero = 0.0f;
+            piece->velocity.x += zero;
+            piece->velocity.y += zero;
+            piece->velocity.z += zero;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044F4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04614);
 
@@ -1564,7 +1631,6 @@ void func_m003_0CF40(void) {
 }
 
 extern void func_80003614(s32 handle);
-extern void rl_m003_044F4(Object *obj);
 
 /* A member is set on fire (or dies at once if its body cannot burn) */
 void func_m003_0CFA8(Object *obj) {
@@ -1964,7 +2030,84 @@ void func_m003_168D8(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16990);
+extern u8 rl_m003_19448[4];  /* cleared every frame */
+extern s32 rl_m003_1944C;    /* flips every frame */
+extern u8 rl_m003_19430;     /* a countdown */
+extern s32 D_800FEA98;       /* the number of way points */
+extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void func_m154_00000(void);
+extern void func_m139_00030(void);
+extern void rl_m003_13FE4(s32 updateRate);
+
+/* The troops' per-frame update */
+void func_m003_16990(s32 updateRate) {
+    M003Event *e = sEvents;
+    s32 i;
+    M003Node *node;
+    Object *player;
+    u8 *p;
+
+    player = func_8000E4D0(0);
+    for (p = rl_m003_19448; p < rl_m003_19448 + 4; p++) {
+        *p = 0;
+    }
+    if (sChangePending) {
+        if (D_800FE9F8 >= sChangeArg1) {
+            func_8004665C(sChangeArg0, ((s8 *) ((Object *) sClosestPlayer)->unk68)[1], 0, 0x10, 1, 0);
+            sChangePending = 0;
+        } else {
+            sChangeArg1 -= D_800FE9F8;
+        }
+    }
+    rl_m003_1944C ^= 1;
+    if (sAlertKind != 0) {
+        if (--sAlertKind == 0) {
+            sAlert = 0;
+        }
+    }
+    if (player != NULL) {
+        s8 *data = player->unk68;
+
+        if (D_800FE9FC != data[0x189]) {
+            D_800FE9FC = data[0x189];
+        }
+    }
+    i = 15;
+    do {
+        if (e->active != 0) {
+            e->active--;
+        }
+        e++;
+    } while (i--);
+    if (sBssA < 10) {
+        sBssA++;
+    }
+    if (rl_m003_19430 != 0) {
+        rl_m003_19430--;
+    }
+    if (D_800FEA98 != 0) {
+        func_m154_00000();
+    }
+    if (D_800FEA98 != 0) {
+        i = D_800FEA98 - 1;
+        node = &D_800FEA9C[1];
+        while (i--) {
+            if (node != NULL && node->obj != NULL) {
+                node->x = node->obj->trans.x_position;
+                node->y = node->obj->trans.y_position;
+                node->z = node->obj->trans.z_position;
+            }
+            node++;
+        }
+    }
+    if (D_800FE9B0 & 4) {
+        func_m139_00030();
+    }
+    if (D_800FE9B0 & 0x10) {
+        func_m003_168D8();
+    }
+    rl_m003_13FE4(updateRate);
+}
 
 void func_m003_16C10(Object *obj) {
     Object *saved = sObj;
