@@ -80,7 +80,53 @@ void func_m155_00070(void) {
 }
 #pragma weak __rl_fini = func_m155_00070
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_000C8);
+/* A path node */
+typedef struct M155Node {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 z;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ u32 unk8;
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 stamp; /* the search that last visited it, or 0 */
+} M155Node;
+
+extern s32 rl_m155_03C70;       /* .data (still assembly): how many nodes there are */
+extern M155Node *rl_m155_04D50; /* .bss (still assembly): the nodes */
+
+/*
+ * Adds a path node: a new one while there are fewer than 64, else it replaces the one with the
+ * largest unk8. (As in the original, if every unk8 is 0 the node written is never set.) Called from
+ * 00268 and 00644.
+ */
+void func_m155_000C8(s16 x, s16 z, s16 arg2, s16 arg3, s32 arg4, u32 arg5) {
+    M155Node *node;
+    M155Node *n;
+    u32 most;
+    s32 i;
+
+    i = 64;
+    n = rl_m155_04D50;
+    most = 0;
+    if (rl_m155_03C70 < 64) {
+        node = &rl_m155_04D50[rl_m155_03C70++];
+    } else {
+        while (i--) {
+            if (most < n->unk8) {
+                most = n->unk8;
+                node = n;
+            }
+            n++;
+        }
+    }
+    node->x = x;
+    node->z = z;
+    node->unk4 = arg2;
+    node->unk6 = arg3;
+    node->unk8 = arg5;
+    node->unkC = arg4;
+    node->stamp = 0;
+}
 
 /* A region of the level, as 001B4 uses it (module 3's) */
 typedef struct M155Region {
@@ -115,17 +161,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00FC4);
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01274);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01584);
-
-/* A path node, as 018C4 and 026D8 use it */
-typedef struct M155Node {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 z;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ u32 unk8;
-    /* 0x0C */ s32 unkC;
-    /* 0x10 */ s32 stamp; /* the search that last visited it, or 0 */
-} M155Node;
 
 extern s32 rl_m155_04F88; /* the current search's stamp (.bss, still assembly) */
 

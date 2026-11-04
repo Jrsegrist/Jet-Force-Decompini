@@ -177,7 +177,8 @@ typedef struct M003Home {
     /* 0x75 */ u8 unk75;
     /* 0x76 */ u8 pad76;
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
-    /* 0x78 */ u8 pad78[0x7B - 0x78];
+    /* 0x78 */ s8 group; /* its path group, 0 to 31 (061FC) */
+    /* 0x79 */ u8 pad79[0x7B - 0x79];
     /* 0x7B */ u8 unk7B;
     /* 0x7C */ u8 pad7C[0x8C - 0x7C];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
@@ -1498,7 +1499,27 @@ centre:
     *z = ((M003Interact *) sObj->interactObj)->centre[2];
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_061FC);
+/*
+ * The first path group no troop home uses, or -1. (The search starts from the count left by the loop,
+ * -1, as the original does.) Called from 01EB8.
+ */
+s32 func_m003_061FC(void) {
+    s32 count;
+    Object **homes;
+    s32 used;
+
+    homes = func_80050F44(&count);
+    used = 0;
+    while (count--) {
+        used |= 1 << ((M003Home *) homes[count]->unk68)->group;
+    }
+    for (; count < 32; count++) {
+        if (!((1 << count) & used)) {
+            return count;
+        }
+    }
+    return -1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_062A0);
 

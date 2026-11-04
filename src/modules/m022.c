@@ -195,10 +195,62 @@ INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_0114C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_018AC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_020EC);
-
 struct M022Goals;
 extern struct M022Goals *rl_m022_03410;
+extern u8 D_800FD790; /* counters the goals count */
+extern u8 D_800FD791;
+extern u16 D_800FD792; /* flags */
+extern s32 D_800A3204;
+extern u8 rl_m022_03420; /* a bit per goal reached */
+extern s32 rl_m022_0340C; /* the task */
+extern u8 rl_m022_03240[][0x40]; /* .data (still assembly): the goals of each task */
+extern s8 rl_m022_03414;
+extern void func_m118_0007C(Object *obj, LevelObjectEntryCommon *entry);
+extern void func_m118_003DC(Object *obj, LevelObjectEntryCommon *entry);
+extern void func_m074_00000(Object *obj, LevelObjectEntryCommon *entry);
+extern void func_m101_009F8(Object *obj, LevelObjectEntryCommon *entry);
+
+/* Starts task `task`: clears the goal counters and sets up again the objects of kinds 0x66, 0x67, 0x60
+   and 0x4E (called from 002A4) */
+void func_m022_020EC(s32 task) {
+    s32 first;
+    s32 count;
+    Object **objs;
+    Object *obj;
+
+    D_800FD790 = 0;
+    D_800FD791 = 0;
+    D_800FD792 = 0;
+    D_800A3204 = 0;
+    rl_m022_03420 = 0;
+    rl_m022_03424 = 0;
+    rl_m022_03434 = 0;
+    rl_m022_0340C = task;
+    rl_m022_03410 = (struct M022Goals *) rl_m022_03240[task];
+    rl_m022_03414 = -1;
+    objs = func_80005E98(&first, &count);
+    while (first < count) {
+        obj = objs[first++];
+        if (obj->behaviorId == 0x66) {
+            if (obj->level_entry != NULL) {
+                func_m118_0007C(obj, obj->level_entry);
+            }
+        } else if (obj->behaviorId == 0x67) {
+            if (obj->level_entry != NULL) {
+                func_m118_003DC(obj, obj->level_entry);
+            }
+        } else if (obj->behaviorId == 0x60) {
+            if (obj->level_entry != NULL) {
+                func_m074_00000(obj, obj->level_entry);
+            }
+        } else if (obj->behaviorId == 0x4E && *(s32 *) obj->state <= 0) {
+            if (obj->level_entry != NULL) {
+                func_m101_009F8(obj, obj->level_entry);
+                obj->trans.flags &= ~0x400;
+            }
+        }
+    }
+}
 extern void rl_m022_02310(M022HelperState *s);
 
 /* Puts the helper in state 1 and starts its task (called from 002A4) */

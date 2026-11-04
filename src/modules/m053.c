@@ -25,7 +25,77 @@ INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_014F4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_01850);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_019B0);
+/* The part of the vehicle's state that 019B0 uses */
+typedef struct M053Turn {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ u8 pad1[0x13C - 0x1];
+    /* 0x13C */ s16 turnYaw;  /* the yaw when the turn started */
+    /* 0x13E */ u8 turning;   /* 0: no, 1: turning, 2: turning hard */
+    /* 0x13F */ u8 unk13F;
+    /* 0x140 */ u8 pad140[0x568 - 0x140];
+    /* 0x568 */ u8 unk568;
+    /* 0x569 */ u8 pad569[0x576 - 0x569];
+    /* 0x576 */ s8 turnTimer;
+} M053Turn;
+
+extern u8 D_800A4FC4; /* a multiplayer game */
+extern u8 D_800A4FB4;
+extern s32 func_m031_00000(s32 n); /* whether racer n is computer-driven */
+extern void rumble_raise(s32 player, s32 strength, f32 time);
+
+/*
+ * Turning round: starts a turn when the wanted yaw is about half a turn from the vehicle's, rumbles
+ * while it turns and ends it near the target; returns the speed (0 while turning). Called from 00038.
+ */
+f32 func_m053_019B0(s16 *yaw, M053Turn *s, f32 speed, s16 target) {
+    s16 d;
+
+    if (s->unk568 != 0 && s->unk568 != 3) {
+        s->turning = 0;
+        s->unk13F = 8;
+        s->turnTimer = 0;
+    } else if (s->turning == 0) {
+        d = *yaw - target;
+        if (d < -0x7000 || d > 0x7000) {
+            s->turnYaw = target;
+            if (s->unk13F == 0 || s->unk13F == 16) {
+                s->turnTimer = 60;
+                s->turning = 2;
+            } else {
+                s->turnTimer = 0;
+                s->turning = 1;
+            }
+        }
+    } else {
+        if ((!D_800A4FC4 && !D_800A4FB4) || !func_m031_00000(s->player)) {
+            rumble_raise(s->player, 40, 0.2f);
+        }
+        if (s->turnTimer == 0) {
+            if (s->turning >= 2) {
+                d = s->turnYaw - *yaw;
+                if (d >= -0x38D && d < 0x38E) {
+                    s->turning = 0;
+                }
+            } else {
+                d = s->turnYaw - target;
+                if (d >= -0x6FFF && d < 0x7000) {
+                    s->turning = 0;
+                }
+                d = target - *yaw;
+                if (d >= -0x38D && d < 0x38E) {
+                    s->turning = 0;
+                }
+            }
+        }
+        if (s->turning == 0) {
+            s->unk13F = 8;
+            s->turnTimer = 0;
+        } else {
+            speed = 0.0f;
+        }
+    }
+    return speed;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_01BB4);
 
