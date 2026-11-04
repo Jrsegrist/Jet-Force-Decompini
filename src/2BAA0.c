@@ -38,7 +38,11 @@ typedef struct Racer {
     /* 0x0C0 */ s32 sound;
     /* 0x0C4 */ u8 padC4[0x11C - 0xC4];
     /* 0x11C */ s16 unk11C;
-    /* 0x11E */ u8 pad11E[0x12E - 0x11E];
+    /* 0x11E */ u8 pad11E[0x122 - 0x11E];
+    /* 0x122 */ s16 unk122;
+    /* 0x124 */ u8 pad124[2];
+    /* 0x126 */ s16 unk126;
+    /* 0x128 */ u8 pad128[0x12E - 0x128];
     /* 0x12E */ s8 breathTimer;
     /* 0x12F */ u8 breathNow;
     /* 0x130 */ f32 breathPhase;
@@ -46,7 +50,15 @@ typedef struct Racer {
     /* 0x138 */ u8 pad138[0x13C - 0x138];
     /* 0x13C */ s16 unk13C;
     /* 0x13E */ u8 unk13E;
-    /* 0x13F */ u8 pad13F[0x182 - 0x13F];
+    /* 0x13F */ u8 pad13F[0x14C - 0x13F];
+    /* 0x14C */ f32 segStart[3]; // a segment in the platform's local space, and the position along it
+    /* 0x158 */ f32 segEnd[3];
+    /* 0x164 */ f32 segT;
+    /* 0x168 */ u8 pad168[0x178 - 0x168];
+    /* 0x178 */ f32 unk178;
+    /* 0x17C */ u8 pad17C[2];
+    /* 0x17E */ s16 unk17E;
+    /* 0x180 */ u8 pad180[2];
     /* 0x182 */ s16 unk182;
     /* 0x184 */ u8 pad184[0x198 - 0x184];
     /* 0x198 */ u8 unk198;
@@ -77,7 +89,11 @@ typedef struct Racer {
     /* 0x564 */ u8 pad564[0x568 - 0x564];
     /* 0x568 */ u8 unk568;
     /* 0x569 */ u8 unk569;
-    /* 0x56A */ u8 pad56A[0x5CC - 0x56A];
+    /* 0x56A */ u8 pad56A[0x574 - 0x56A];
+    /* 0x574 */ u8 unk574;
+    /* 0x575 */ u8 pad575;
+    /* 0x576 */ u8 unk576;
+    /* 0x577 */ u8 pad577[0x5CC - 0x577];
     /* 0x5CC */ u8 *held;
 } Racer;
 
@@ -250,6 +266,16 @@ typedef struct Transform2BAA0 {
     /* 0x06 */ s16 flags;
     /* 0x08 */ f32 scale;
     /* 0x0C */ f32 position[3];
+    /* 0x18 */ f32 prevPosition[3];
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ u8 pad2C[0x3D - 0x2C];
+    /* 0x3D */ u8 unk3D;
+    /* 0x3E */ u8 pad3E[2];
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ u8 colour[4];
+    /* 0x48 */ u8 pad48;
+    /* 0x49 */ u8 unk49;
 } Transform2BAA0;
 
 s32 cam_get_active_camera_id(void);
@@ -281,6 +307,9 @@ typedef struct ViewPoint {
     /* 0x00 */ s16 rotation[3];
     /* 0x06 */ s16 unk6;
     /* 0x08 */ f32 position[3];
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ f32 unk1C;
 } ViewPoint;
 
 extern ViewPoint D_800F6DC8;
@@ -297,7 +326,68 @@ void func_8002C908(u8 *obj, u8 *racer, f32 arg2) {
     func_80042A74(&D_800F6DC8, D_800F6DC0, arg2, racer[0x574]);
 }
 
+extern s32 gPlayerButtonsPressed;
+s16 angle_lerp(s16 from, s16 to, f32 t);
+f32 func_80049BEC(f32 rate, s32 updateRate);
+/* The module trap called with floats in a2/a3; needs `func_80054530_ppfff = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_ppfff(u8 *arg0, u8 *arg1, f32 x, f32 y, f32 z);
+void func_80054530();
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: s0/s1 swapped (the target keeps obj then racer in s0, the view address in s1) and the target stores
+   the free-view angles through %lo(D_800F6DC8) rather than the address register; frame and order match */
+/* JFG: player camera update: C buttons toggle the free view (0x3D); the camera module (racer 0x1FC/0x21C) is
+ * given the object's position (and angles in the free view), and the camera eases to the result */
+void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 t;
+    s16 rx;
+    s16 ry;
+    s16 rz;
+    ViewPoint *view;
+    UNUSED s32 pad;
+
+    if (gPlayerButtonsPressed & 0xF00) {
+        ((Transform2BAA0 *) D_800F6DC0)->unk3D = (((Transform2BAA0 *) D_800F6DC0)->unk3D + 1) & 1;
+    }
+    view = &D_800F6DC8;
+    view->position[0] = *(f32 *) (obj + 0xC);
+    view->position[1] = *(f32 *) (obj + 0x10);
+    view->unk14 = 0.0f;
+    view->unk18 = 0.0f;
+    view->position[2] = *(f32 *) (obj + 0x14);
+    view->unk1C = -48.0f;
+    if (((Transform2BAA0 *) D_800F6DC0)->unk3D) {
+        D_800F6DC8.rotation[0] = *(s16 *) (obj + 0);
+        D_800F6DC8.rotation[1] = *(s16 *) (obj + 2);
+        D_800F6DC8.unk6 = 0;
+        D_800F6DC8.rotation[2] = *(s16 *) (obj + 4);
+    } else {
+        D_800F6DC8.unk6 = 2;
+    }
+    func_80054530_ppfff(racer + 0x1FC, racer + 0x21C, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10),
+                        *(f32 *) (obj + 0x14));
+    func_80054530(racer + 0x1FC, racer + 0x21C, view, &x, &y, &z, &rx, &ry, &rz);
+    t = 1.0f;
+    if (racer[0x574]) {
+        t = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[0] = angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[0], rx, t);
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[1] = angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[1], ry, t);
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[2] = angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[2], rz, t);
+    t = 1.0f;
+    if (racer[0x574]) {
+        t = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    ((Transform2BAA0 *) D_800F6DC0)->position[0] += (x - ((Transform2BAA0 *) D_800F6DC0)->position[0]) * t;
+    ((Transform2BAA0 *) D_800F6DC0)->position[1] += (y - ((Transform2BAA0 *) D_800F6DC0)->position[1]) * t;
+    ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * t;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002C9A0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CC70);
 
@@ -305,7 +395,75 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CF6C);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002EB6C);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002ED94);
+/* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
+ * range that applies when the flag is set */
+typedef struct TrackZone {
+    /* 0x00 */ f32 enterRadius;
+    /* 0x04 */ f32 enterTop;
+    /* 0x08 */ f32 enterBottom;
+    /* 0x0C */ f32 exitRadius;
+    /* 0x10 */ f32 exitTop;
+    /* 0x14 */ f32 exitBottom;
+    /* 0x18 */ s32 flags; // 0x4000: enter height range, 0x8000: exit height range
+    /* 0x1C */ f32 offsetX;
+    /* 0x20 */ f32 offsetZ;
+    /* 0x24 */ f32 pos[3];
+} TrackZone;
+
+/* Size: 0x2C bytes */
+typedef struct ZoneTrack {
+    /* 0x00 */ u8 *obj;
+    /* 0x04 */ TrackZone *zone;
+    /* 0x08 */ f32 offsetX;
+    /* 0x0C */ f32 offsetZ;
+    /* 0x10 */ f32 unk10[7];
+} ZoneTrack;
+extern ZoneTrack D_800F6E58[4];
+
+void *cam_get_active_camera(void);
+void func_8002B418(u8 *obj, Racer *racer, f32 rate);
+
+/* JFG: set up the player camera behind obj: angles 0, distances 48/150/40, height obj + 80, white, then clear the
+ * player's zone track and run the camera update eight times to settle it */
+void func_8002ED94(u8 *obj, Racer *racer) {
+    s32 i;
+
+    D_800F6DC0 = cam_get_active_camera();
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[2] = 0;
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[1] = 0;
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[0] = 0;
+    ((Transform2BAA0 *) D_800F6DC0)->unk28 = 48.0f;
+    ((Transform2BAA0 *) D_800F6DC0)->unk3D = 0;
+    ((Transform2BAA0 *) D_800F6DC0)->colour[0] = 0xFF;
+    ((Transform2BAA0 *) D_800F6DC0)->colour[1] = 0xFF;
+    ((Transform2BAA0 *) D_800F6DC0)->colour[2] = 0xFF;
+    ((Transform2BAA0 *) D_800F6DC0)->colour[3] = 0xFF;
+    ((Transform2BAA0 *) D_800F6DC0)->unk40 = 0.0f;
+    ((Transform2BAA0 *) D_800F6DC0)->unk24 = 150.0f;
+    ((Transform2BAA0 *) D_800F6DC0)->unk28 = 40.0f;
+    ((Transform2BAA0 *) D_800F6DC0)->position[1] = *(f32 *) (obj + 0x10) + 80.0f;
+    ((Transform2BAA0 *) D_800F6DC0)->prevPosition[0] = ((Transform2BAA0 *) D_800F6DC0)->position[0];
+    ((Transform2BAA0 *) D_800F6DC0)->prevPosition[1] = ((Transform2BAA0 *) D_800F6DC0)->position[1];
+    ((Transform2BAA0 *) D_800F6DC0)->prevPosition[2] = ((Transform2BAA0 *) D_800F6DC0)->position[2];
+    ((Transform2BAA0 *) D_800F6DC0)->unk49 = 1;
+    if (racer->player >= 0 && racer->player < 4) {
+        D_800F6E58[racer->player].obj = NULL;
+        D_800F6E58[racer->player].offsetX = 0.0f;
+        D_800F6E58[racer->player].offsetZ = 0.0f;
+        D_800F6E58[racer->player].unk10[0] = 1.0f;
+        D_800F6E58[racer->player].unk10[1] = 1.0f;
+        D_800F6E58[racer->player].unk10[2] = 0.0f;
+        D_800F6E58[racer->player].unk10[3] = 0.0f;
+        D_800F6E58[racer->player].unk10[4] = 0.0f;
+        D_800F6E58[racer->player].unk10[5] = 1.0f;
+        D_800F6E58[racer->player].unk10[6] = 0.0f;
+    }
+    racer->unk574 = 0;
+    for (i = 0; i < 8; i++) {
+        func_8002B418(obj, racer, 1.0f);
+    }
+    racer->unk574 = 1;
+}
 
 void func_8002F014(s32 obj) {
     if (D_800A2D38 < 24) {
@@ -332,31 +490,6 @@ void func_8002F04C(s32 obj) {
         D_800A2D38--;
     }
 }
-
-/* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
- * range that applies when the flag is set */
-typedef struct TrackZone {
-    /* 0x00 */ f32 enterRadius;
-    /* 0x04 */ f32 enterTop;
-    /* 0x08 */ f32 enterBottom;
-    /* 0x0C */ f32 exitRadius;
-    /* 0x10 */ f32 exitTop;
-    /* 0x14 */ f32 exitBottom;
-    /* 0x18 */ s32 flags; // 0x4000: enter height range, 0x8000: exit height range
-    /* 0x1C */ f32 offsetX;
-    /* 0x20 */ f32 offsetZ;
-    /* 0x24 */ f32 pos[3];
-} TrackZone;
-
-/* Size: 0x2C bytes */
-typedef struct ZoneTrack {
-    /* 0x00 */ u8 *obj;
-    /* 0x04 */ TrackZone *zone;
-    /* 0x08 */ f32 offsetX;
-    /* 0x0C */ f32 offsetZ;
-    /* 0x10 */ u8 pad10[0x1C];
-} ZoneTrack;
-extern ZoneTrack D_800F6E58[4];
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: float registers: the target keeps z and y in $f20/$f22 (dz in $f14), mine z stays in $f14 and
@@ -575,7 +708,100 @@ void func_800319C0(u8 *obj, u8 *arg1, u8 *racer, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031A80);
+/* JFG: object line query (as 7A7D0's CollQuery, 0x54 bytes) */
+typedef struct LineQuery {
+    /* 0x00 */ f32 unk0[3];
+    /* 0x0C */ f32 end[3];
+    /* 0x18 */ f32 start[3];
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ u8 pad2C[0x54 - 0x2C];
+} LineQuery;
+
+/* JFG: the aim lock of an object's state block (0x68) */
+typedef struct AimLock {
+    /* 0x00 */ u8 pad0[0x50];
+    /* 0x50 */ s32 target[3];
+    /* 0x5C */ u8 charge;
+    /* 0x5D */ s8 lockTimer;
+    /* 0x5E */ s16 holdTimer;
+} AimLock;
+
+u8 **objGetObjList(s32 *start, s32 *end);
+s32 func_8007C2E8(s32 arg0, void *query, s32 count, u8 **objs, u8 **hitObj, u8 *self);
+f32 sqrtf(f32 x);
+
+/* JFG: how many solid objects (interaction kind 1 or 2, not types 1 or 0x98) the line from start to end hits;
+ * keeps the aim lock on the hit object (locks after 20 frames on the same one, holds 90 after losing it), *dist
+ * gets a distance to it */
+s32 func_80031A80(u8 *obj, f32 *start, f32 *end, f32 *dist, s32 updateRate) {
+    s32 count;
+    s32 first;
+    s32 last;
+    LineQuery query;
+    u8 **objs;
+    u8 *hitObj;
+    AimLock *state;
+    s32 n;
+    u8 *o;
+    u8 *list[256];
+
+    state = *(AimLock **) (obj + 0x68);
+    query.start[0] = start[0];
+    query.start[1] = start[1];
+    query.start[2] = start[2];
+    count = 0;
+    query.end[0] = end[0];
+    query.end[1] = end[1];
+    query.end[2] = end[2];
+    query.unk24 = 1.0f;
+    query.unk28 = 1.0f;
+    objs = objGetObjList(&first, &last);
+    n = last - first;
+    objs = first + objs;
+    while (n--) {
+        o = *objs++;
+        if (*(u8 **) (o + 0x4C) != NULL && (*(u16 *) (*(u8 **) (o + 0x40) + 0x14) & 0x40) &&
+            ((*(u8 **) (o + 0x4C))[0x30] == 1 || (*(u8 **) (o + 0x4C))[0x30] == 2) && *(s16 *) (o + 0x48) != 1 &&
+            *(s16 *) (o + 0x48) != 0x98) {
+            list[count++] = o;
+        }
+    }
+    if (count > 0) {
+        count = func_8007C2E8(0, &query, count, list, &hitObj, obj);
+    }
+    state->charge += updateRate;
+    if (state->charge > 32) {
+        state->charge = 32;
+    }
+    if (count > 0) {
+        if (state->target[0] == ((s32 *) hitObj)[0]) {
+            state->lockTimer -= updateRate;
+            if (state->lockTimer <= 0) {
+                state->lockTimer = 0;
+                state->holdTimer = 90;
+            }
+        } else {
+            state->lockTimer = 20;
+            state->holdTimer = 0;
+            state->charge = 0;
+        }
+        state->target[0] = ((s32 *) hitObj)[0];
+        state->target[1] = ((s32 *) hitObj)[1];
+        state->target[2] = ((s32 *) hitObj)[2];
+        /* (sic: the same term three times) */
+        *dist = sqrtf((query.start[0] - *(f32 *) (hitObj + 0x10)) * (query.start[0] - *(f32 *) (hitObj + 0x10)) +
+                      ((query.start[0] - *(f32 *) (hitObj + 0x10)) * (query.start[0] - *(f32 *) (hitObj + 0x10)) +
+                       (query.start[0] - *(f32 *) (hitObj + 0x10)) * (query.start[0] - *(f32 *) (hitObj + 0x10))));
+    } else {
+        state->holdTimer -= updateRate;
+        if (state->holdTimer <= 0) {
+            state->target[0] = 0;
+            state->lockTimer = 20;
+        }
+    }
+    return count;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031D00);
 
@@ -990,15 +1216,23 @@ typedef struct PoseTarget {
 
 /* JFG: the pose fields of the racer data (the struct fields let IDO load numPoints before the stores) */
 typedef struct PoseRacer {
-    /* 0x000 */ u8 pad0[0x360];
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x12A - 0x2];
+    /* 0x12A */ s16 unk12A;
+    /* 0x12C */ s16 unk12C;
+    /* 0x12E */ u8 pad12E[0x360 - 0x12E];
     /* 0x360 */ PoseTarget *pose;
-    /* 0x364 */ f32 points[16][3];
+    /* 0x364 */ f32 points[8][3];
+    /* 0x3C4 */ f32 world[8][3];
     /* 0x424 */ f32 steps[16][3];
     /* 0x4E4 */ u8 pad4E4[0x4C];
     /* 0x530 */ s8 numPoints;
     /* 0x531 */ u8 unk531;
     /* 0x532 */ u8 pad532[3];
     /* 0x535 */ s8 numSteps;
+    /* 0x536 */ u8 pad536[0x568 - 0x536];
+    /* 0x568 */ u8 unk568;
 } PoseRacer;
 
 /* JFG: start moving towards the points of a new pose: per-step deltas (0x424) from the current points (0x364). */
@@ -1025,7 +1259,71 @@ void racer_pose_begin(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 i
     }
 }
 
+void func_800492DC(s16 *rotation, f32 *vec);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 4 words: the target keeps the new step count in a0 with a copy in v1 for the `< 0` test */
+/* JFG: step the pose points towards their target by `updateRate` steps (fewer when the pose ends), then place
+ * them in the world: rotated by the object's angles (the racer's own pitch/roll in state 4) where the target
+ * point asks for it (byte 0x11), plus the object's position */
+void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
+    f32 *from;
+    f32 *to;
+    f32 *step;
+    f32 t;
+    s32 i;
+    s32 n;
+    UNUSED s32 pad;
+    s16 angles[3];
+    UNUSED s32 pad2;
+    UNUSED s32 pad3;
+
+    angles[0] = *(s16 *) obj;
+    if (racer->unk568 == 4 && (racer->character & 3) != 2) {
+        angles[1] = racer->unk12A;
+        angles[2] = racer->unk12C;
+    } else {
+        angles[1] = *(s16 *) (obj + 2);
+        angles[2] = *(s16 *) (obj + 4);
+    }
+    from = racer->points[0];
+    to = racer->world[0];
+    if (racer->numSteps > 0) {
+        n = racer->numSteps - (s32) updateRate;
+        if (n >= 0) {
+            racer->numSteps = n;
+            t = updateRate;
+        } else if (n < 0) {
+            t = racer->numSteps;
+            racer->numSteps = 0;
+        }
+    } else {
+        t = 0.0f;
+    }
+    step = racer->steps[0];
+    for (i = 0; i < racer->numPoints; i++) {
+        if (t > 0.0f) {
+            from[0] += step[0] * t;
+            from[1] += step[1] * t;
+            from[2] += step[2] * t;
+        }
+        to[0] = from[0];
+        to[1] = from[1];
+        to[2] = from[2];
+        if (((u8 *) racer->pose->points[i])[0x11]) {
+            func_800492DC(angles, to);
+        }
+        to[0] += *(f32 *) (obj + 0xC);
+        to[1] += *(f32 *) (obj + 0x10);
+        to[2] += *(f32 *) (obj + 0x14);
+        from += 3;
+        to += 3;
+        step += 3;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
+#endif
 
 void func_80035B30(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
@@ -1105,6 +1403,10 @@ void racer_angle_sync(u8 *obj, u8 *racer, UNUSED s32 arg2) {
         *(s16 *) (obj + 4) = angle;
     }
 }
+
+s32 func_80049C84(f32 x, f32 z);
+void func_80049394(s16 *rotation, f32 *vec);
+f32 sqrtf(f32 x);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035B30);
 
