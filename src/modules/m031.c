@@ -24,6 +24,14 @@ typedef struct M031Checkpoint {
     } corners[4];
 } M031Checkpoint;
 
+/* A best time: the time and three 6-bit letters */
+typedef struct M031Record {
+    u32 time : 14;
+    u32 c0 : 6;
+    u32 c1 : 6;
+    u32 c2 : 6;
+} M031Record;
+
 /* A racer's record (size 0x28) */
 typedef struct M031Racer {
     /* 0x00 */ Object *next;     /* the checkpoint ahead */
@@ -41,7 +49,8 @@ typedef struct M031Racer {
     /* 0x1B */ s8 unk1B;  /* time to the next boost */
     /* 0x1C */ s16 unk1C;
     /* 0x1E */ u8 unk1E;
-    /* 0x1F */ u8 pad1F[0x24 - 0x1F];
+    /* 0x1F */ s8 place;          /* in the race's best times */
+    /* 0x20 */ M031Record *record; /* its best time, or NULL */
     /* 0x24 */ s32 unk24;
 } M031Racer;
 
@@ -83,7 +92,9 @@ typedef struct M031Slot {
     /* 0x13 */ u8 pad13[0x1B - 0x13];
     /* 0x1B */ u8 pad1B_5 : 3;
     /* 0x1B */ u8 index : 5;
-    /* 0x1C */ u8 pad1C[0xA0 - 0x1C];
+    /* 0x1C */ u8 pad1C[0x90 - 0x1C];
+    /* 0x90 */ s32 time; /* the race time, in frames */
+    /* 0x94 */ u8 pad94[0xA0 - 0x94];
 } M031Slot;
 
 extern M031Slot D_800FED50[4];
@@ -736,7 +747,64 @@ void func_m031_02388(void) {
     rl_m031_04044 = func_80055694(0x26E);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_0242C);
+/* The game's save data, as used here */
+typedef struct M031Save {
+    /* 0x00 */ M031Record records[5][5]; /* the best times of each race */
+    /* 0x64 */ u8 pad64[0x6A - 0x64];
+    /* 0x6A */ u8 unk6A; /* the race-reward flags given */
+} M031Save;
+
+extern M031Save D_800FF318;
+extern void func_80047EFC(s32 flag, s32 set);
+extern M031Record *rl_m031_038E0(u32 time, s8 *place);
+
+/*
+ * The finish of racer n: once, its time goes into the best times (with the reward flags for a
+ * first place), then the result fades in by `step` and the four bars of sBss488 fill one by one
+ */
+void func_m031_0242C(s32 n, s32 step) {
+    if (n >= 0 && n < D_800A4FD0) {
+        if (rl_m031_040EC == 0) {
+            sRacers[n].record = rl_m031_038E0(D_800FED50[n].time * 100 / 60, &sRacers[n].place);
+            if (sRacers[n].record != NULL) {
+                if (D_800A5040 == 0) {
+                    if (sRacers[n].unk1E == 4 && !(D_800FF318.unk6A & 1)) {
+                        func_80047EFC(0x42, 1);
+                        rl_m031_040F8 = 1;
+                    }
+                } else if (D_800A5040 == 1) {
+                    if (sRacers[n].unk1E == 4 && !(D_800FF318.unk6A & 2)) {
+                        func_80047EFC(0x43, 1);
+                        rl_m031_040F8 = 1;
+                    }
+                } else if (D_800A5040 == 2) {
+                    if (sRacers[n].unk1E == 4 && !(D_800FF318.unk6A & 4)) {
+                        func_80047EFC(0x44, 1);
+                        rl_m031_040F8 = 1;
+                    }
+                }
+                if (!(D_800FF318.unk6A & 0x10) && D_800FF318.records[1][0].time < 3000 &&
+                    D_800FF318.records[2][0].time < 4000) {
+                    func_80047EFC(0x46, 1);
+                    rl_m031_040F8 = 1;
+                }
+                rl_m031_040F4 = 1;
+            }
+        }
+        if (rl_m031_040EC < 0x100) {
+            rl_m031_040EC += step * 4;
+            if (rl_m031_040EC >= 0x100) {
+                rl_m031_040EC = 0x100;
+                rl_m031_040F0 = 0;
+            }
+        } else if (rl_m031_040F0 >= 0 && rl_m031_040F0 < 4) {
+            sBss488[rl_m031_040F0] += step * 8;
+            if (sBss488[rl_m031_040F0] > 0x100) {
+                sBss488[rl_m031_040F0++] = 0x100;
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_026B8);
 
