@@ -45,8 +45,9 @@ typedef struct M003Member {
     /* 0x19 */ u8 animSet;
     /* 0x1A */ u8 unk1A;
     /* 0x1B */ u8 unk1B; /* < 5: heading for a way point */
-    /* 0x1C */ s16 unk1C;
-    /* 0x1E */ u8 pad1E[0x24 - 0x1E];
+    /* 0x1C */ s16 unk1C; /* the way it moves (03CAC) */
+    /* 0x1E */ s16 unk1E; /* and how steeply */
+    /* 0x20 */ f32 unk20; /* and how fast */
     /* 0x24 */ Object *home;
     /* 0x28 */ Object *next; /* the next member of the troop */
     /* 0x2C */ u8 pad2C[0x38 - 0x2C];
@@ -131,7 +132,9 @@ typedef struct M003Home {
     /* 0x1A */ u16 unk1A : 12;
     /* 0x1C */ u8 pad1C[0x21 - 0x1C];
     /* 0x21 */ u8 unk21; /* how loud an event its members notice must be */
-    /* 0x22 */ u8 pad22[0x28 - 0x22];
+    /* 0x22 */ u8 pad22[0x26 - 0x22];
+    /* 0x26 */ u8 speed; /* its members' walking speed (0BA20, 0BAD4) */
+    /* 0x27 */ u8 pad27;
     /* 0x28 */ u16 flags; /* 0x2000: its members may touch */
     /* 0x2A */ u8 pad2A[0x2C - 0x2A];
     /* 0x2C */ u16 kind;
@@ -236,7 +239,9 @@ typedef struct M003BodyPart {
 
 /* A member's body description (D_800A38E0, 0x80 bytes each) */
 typedef struct M003Body {
-    /* 0x00 */ u8 pad0[0x24];
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ f32 unk10; /* a distance (0AF34, 0AFC4) */
+    /* 0x14 */ u8 pad14[0x24 - 0x14];
     /* 0x24 */ s16 unk24; /* a height */
     /* 0x26 */ u8 pad26[0x29 - 0x26];
     /* 0x29 */ u8 numParts;
@@ -364,7 +369,9 @@ static u8 sBss8[0x2];
 static u8 sBssA; /* 10 or more: memory is low */
 static u8 sAlertKind;
 static u8 sAlert;
-static u8 sBss10[0xA8 - 0x10]; /* (IDO aligns arrays to 4) */
+static f32 sBss10;              /* the speed for the member's next step (0BA20, 0BAD4) */
+static s32 sBss14;
+static u8 sBss18[0xA8 - 0x18]; /* (IDO aligns arrays to 8) */
 static f32 sUpdateRate;        /* this frame's, as a float */
 static Object *sObj;            /* the member being processed */
 static M003Member *sMember;     /* its data */
@@ -374,9 +381,10 @@ static s16 sBodyIndex;
 static M003Body *sBody;
 static s32 sShotBy;
 static s32 sClosestPlayer;
-static s32 sBssCC;
+static f32 sBssCC; /* how near the member must get (0AF34, 0AFC4) */
 static f32 sBssD0; /* how near a member must be to fire */
-static s32 sBssD4;
+static s16 sBssD4; /* the way it should face when there (0AFC4) */
+static s16 sBssD6; /* the way it turns towards (0A564) */
 static M003Event sEvents[16];
 static s32 sChangeArg1;
 static s32 sChangeArg0;
@@ -912,7 +920,16 @@ void func_m003_03C84(void) {
     func_m155_02BB0(sHome);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03CAC);
+/* Keeps the member's heading, climb and speed from its velocity */
+void func_m003_03CAC(Object *obj) {
+    M003Member *m = obj->unk68;
+    f32 flat;
+
+    flat = obj->velocity.x * obj->velocity.x + obj->velocity.z * obj->velocity.z;
+    m->unk1C = func_80049C84(obj->velocity.x, obj->velocity.z);
+    m->unk1E = func_80049C84(obj->velocity.y, func_80097140(flat));
+    m->unk20 = func_80097140(obj->velocity.y * obj->velocity.y + flat);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03D44);
 
@@ -1704,13 +1721,29 @@ void func_m003_09FF0(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A110);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A564);
+/* Turns the member towards sBssD6, at most 1000 a step */
+void func_m003_0A564(void) {
+    s16 turn = func_80049D80(sObj->trans.rotation.y_rotation, sBssD6);
+
+    if (turn < -1000) {
+        turn = -1000;
+    } else if (turn > 1000) {
+        turn = 1000;
+    }
+    sObj->trans.rotation.y_rotation += turn;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A5EC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A850);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A948);
+extern f32 rl_m003_19D48; /* .rodata (still assembly): 0A948's scale */
+f32 func_m003_079D8(s32 dist, f32 speed, f32 accel);
+
+/* The member's next speed: 079D8's change for stopping sBssCC away, accelerating by the troop's speed */
+void func_m003_0A948(void) {
+    sBss10 = func_m003_079D8(sBssCC * 10.0f, sMember->unk20 * 10.0f, sHomeData->speed) * rl_m003_19D48;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A9E8);
 
@@ -1722,9 +1755,26 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0AD38);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0AE80);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0AF34);
+extern void rl_m003_03D44(s16 angle, f32 speed); /* still assembly */
+extern void rl_m003_0AE80(f32 rate);             /* still assembly */
+extern f32 rl_m003_19D54;                        /* .rodata (still assembly): 0AF34's rate */
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0AFC4);
+/* A member step: 0AE80 while the body's distance (0 for the troop's first member) is over sBssCC, else 03D44
+   the way the member faces at sBss10 */
+void func_m003_0AF34(void) {
+    if (sBssCC < ((sObj == sHomeData->first) ? 0.0f : sBody->unk10)) {
+        rl_m003_0AE80(rl_m003_19D54);
+    } else {
+        rl_m003_03D44(sObj->trans.rotation.y_rotation, sBss10);
+    }
+}
+
+/* A member step: 03D44 the way sBssD4 at sBss10 while the body's distance is under sBssCC */
+void func_m003_0AFC4(void) {
+    if (((sObj == sHomeData->first) ? 0.0f : sBody->unk10) < sBssCC) {
+        rl_m003_03D44(sBssD4, sBss10);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B040);
 
@@ -1762,7 +1812,20 @@ void func_m003_0B9E0(void) {
     rl_m003_0AD38();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BA20);
+extern void rl_m003_0AABC(f32 a, f32 b); /* still assembly */
+extern void rl_m003_0AF34(void);
+extern f32 rl_m003_19D60;                /* .rodata (still assembly): 0BB50's factor */
+extern f32 rl_m003_19D68;                /* .rodata (still assembly): 0BFC4's factor */
+
+/* Another member update: walking at five times the troop's speed */
+void func_m003_0BA20(void) {
+    rl_m003_0A564();
+    sBss10 = sHomeData->speed * 5;
+    rl_m003_0AF34();
+    rl_m003_0B468();
+    rl_m003_0AABC(0.0f, 1.0f);
+    rl_m003_0AD38();
+}
 
 /* Another of the member updates that 10600 picks from */
 void func_m003_0BA94(void) {
@@ -1773,13 +1836,41 @@ void func_m003_0BA94(void) {
     rl_m003_0AD38();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BAD4);
+/* Another member update: walking at the troop's speed */
+void func_m003_0BAD4(void) {
+    rl_m003_0A5EC();
+    sBss10 = sHomeData->speed;
+    rl_m003_0AF34();
+    rl_m003_0A9E8(0);
+    rl_m003_0AABC(0.0f, 1.0f);
+    rl_m003_0AD38();
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BB50);
+/* Another member update; a falling member's fall is scaled */
+void func_m003_0BB50(void) {
+    rl_m003_0A5EC();
+    rl_m003_0A948();
+    rl_m003_0AFC4();
+    rl_m003_0A9E8(0);
+    if (sObj->velocity.y < 0.0f) {
+        sObj->velocity.y *= rl_m003_19D60;
+    }
+    rl_m003_0AD38();
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BBC4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BFC4);
+/* As 0BB50, with another factor */
+void func_m003_0BFC4(void) {
+    rl_m003_0A5EC();
+    rl_m003_0A948();
+    rl_m003_0AFC4();
+    rl_m003_0A9E8(0);
+    if (sObj->velocity.y < 0.0f) {
+        sObj->velocity.y *= rl_m003_19D68;
+    }
+    rl_m003_0AD38();
+}
 
 /* A member dies */
 void func_m003_0C038(Object *obj) {

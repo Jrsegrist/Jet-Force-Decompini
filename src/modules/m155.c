@@ -116,9 +116,44 @@ s32 func_m155_018C4(M155Node *node) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01900);
+/* An entry of the path search's ring (a path, then the search's bookkeeping); size 0x84 */
+typedef struct M155Entry {
+    /* 0x00 */ u8 pad0[0x78];
+    /* 0x78 */ u16 count : 8;
+    /* 0x79 */ u16 search : 6; /* the search it belongs to */
+    /* 0x79 */ u16 state : 2;  /* bit 0: in use; 3: done */
+    /* 0x7A */ u8 pad7A[0x80 - 0x7A];
+    /* 0x80 */ u32 cost;
+} M155Entry;
 
-extern s32 *rl_m155_01900(void); /* the next free entry of the search's ring (0x84 bytes), or NULL */
+extern u8 rl_m155_03CD0[0x1080]; /* the path search's work areas: the ring of 32 entries */
+extern u8 *rl_m155_04D58;        /* the ring's next entry */
+extern s32 rl_m155_04D5C;        /* the current search */
+extern s32 rl_m155_04F60;        /* set when the ring is full */
+
+/* Takes the ring's next entry for the current search, moving on past the entries the search still uses;
+   NULL (and the full flag set) if there is none */
+M155Entry *func_m155_01900(void) {
+    M155Entry *entry;
+    M155Entry *e = (M155Entry *) rl_m155_04D58;
+
+    entry = e;
+    do {
+        e = (M155Entry *) (rl_m155_04D58 = (u8 *) (e + 1));
+        if (!(e < (M155Entry *) &rl_m155_03CD0[0x1080])) {
+            rl_m155_04D58 = rl_m155_03CD0;
+            e = (M155Entry *) rl_m155_03CD0;
+        }
+        if (entry == e) {
+            rl_m155_04F60 = 1;
+            return NULL;
+        }
+    } while (e->search == rl_m155_04D5C && !(e->state & 1));
+    entry->search = rl_m155_04D5C;
+    return entry;
+}
+
+extern s32 *rl_m155_01900(void); /* 01900 by its offset, as 33 words */
 
 #ifdef NON_MATCHING
 /* 7 diffs: the copy's destination and counter take a1/v1 the other way round */
@@ -153,7 +188,24 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01D9C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01F9C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02248);
+/* The current search's entry to go on from: one with no cost yet, else the cheapest done one; or NULL */
+M155Entry *func_m155_02248(void) {
+    M155Entry *e = (M155Entry *) rl_m155_03CD0;
+    u32 best = -1;
+    M155Entry *found = NULL;
+    s32 n = 32;
+
+    while (n--) {
+        if (rl_m155_04D5C == e->search) {
+            if (e->cost == 0 || (e->state == 3 && e->cost < best)) {
+                best = e->cost;
+                found = e;
+            }
+        }
+        e++;
+    }
+    return found;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_022C8);
 
@@ -173,11 +225,7 @@ typedef struct M155Crossing {
     /* 0x04 */ u8 pad4[0xA - 0x4];
 } M155Crossing;
 
-extern u8 rl_m155_03CD0[0x1080]; /* the path search's work areas */
 extern u8 rl_m155_04D60[0x200];
-extern u8 *rl_m155_04D58;
-extern s32 rl_m155_04D5C;
-extern s32 rl_m155_04F60;
 extern void *rl_m155_04F80; /* the enemy's region */
 extern M155Path *rl_m155_022C8(s16 x, s16 z, s16 toX, s16 toZ);
 extern void rl_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to);
