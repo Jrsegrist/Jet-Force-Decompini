@@ -17,9 +17,13 @@ typedef struct M003Member {
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
     /* 0x00 */ u32 pad0_5 : 1;
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
-    /* 0x00 */ u32 pad0_4 : 8;
+    /* 0x00 */ u32 pad0_4 : 2;
+    /* 0x00 */ u32 unk0_9 : 1; /* cleared when its troop's leader goes */
+    /* 0x00 */ u32 pad0_6 : 5;
     /* 0x00 */ u32 headless : 1;
-    /* 0x00 */ u32 pad0_1 : 3;
+    /* 0x00 */ u32 pad0_1 : 1;
+    /* 0x00 */ u32 unk0_1 : 1;
+    /* 0x00 */ u32 unk0_0 : 1;
     /* 0x04 */ u16 unk4;
     /* 0x06 */ u8 unk6_7 : 1;
     /* 0x06 */ u8 turning : 1; /* unk10 holds a turn */
@@ -79,6 +83,12 @@ typedef struct M003Flags8 {
 } M003Flags8;
 #define FLAGS8(m) ((M003Flags8 *) &(m)->flags8)
 
+/* The member's group byte as bit fields */
+typedef struct M003Group {
+    u8 inactive : 1; /* the sign bit of `group` */
+    u8 rest : 7;
+} M003Group;
+
 /* The body's word at 0x24 as bit fields */
 typedef struct M003BodyFlags {
     u32 pad26 : 26;
@@ -126,7 +136,9 @@ typedef struct M003Home {
     /* 0x6C */ f32 unk6C;
     /* 0x70 */ u8 pad70[0x75 - 0x70];
     /* 0x75 */ u8 unk75;
-    /* 0x76 */ u8 pad76[0x7B - 0x76];
+    /* 0x76 */ u8 pad76;
+    /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
+    /* 0x78 */ u8 pad78[0x7B - 0x78];
     /* 0x7B */ u8 unk7B;
     /* 0x7C */ u8 pad7C[0x91 - 0x7C];
     /* 0x91 */ u8 unk91; /* bit 0: members blame the closest player */
@@ -299,7 +311,8 @@ extern M003Region *rl_m003_1942C;
 /* The module's .bss (the assembly functions reach it by offset) */
 static u8 sBss0[0x4];
 static s32 sRegionCount;
-static u8 sBss8[0x3];
+static u8 sBss8[0x2];
+static u8 sBssA; /* 10 or more: memory is low */
 static u8 sAlertKind;
 static u8 sAlert;
 static u8 sBss10[0xAC - 0x10]; /* (IDO aligns arrays to 4) */
@@ -845,7 +858,45 @@ f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2) {
     return dx * dx + dz * dz;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03E90);
+/*
+ * Whether the segments (x1, y1)-(x2, y2) and (x3, y3)-(x4, y4) cross: 0 no, 2 collinear, 1 yes (the
+ * crossing point, rounded, in *x and *y if x is not NULL). The usual integer test: each segment's line
+ * equation must give the other segment's ends opposite signs.
+ */
+s32 func_m003_03E90(s32 x1, s32 y1, s32 x2, s32 y2, s32 x3, s32 y3, s32 x4, s32 y4, s16 *x, s16 *y) {
+    s32 a1, a2, b1, b2, c1, c2;
+    s32 r1, r2, r3, r4;
+    s32 denom, offset, num;
+
+    a1 = y2 - y1;
+    b1 = x1 - x2;
+    c1 = x2 * y1 - x1 * y2;
+    r3 = a1 * x3 + b1 * y3 + c1;
+    r4 = a1 * x4 + b1 * y4 + c1;
+    if (r3 != 0 && r4 != 0 && (r3 ^ r4) >= 0) {
+        return 0;
+    }
+    a2 = y4 - y3;
+    b2 = x3 - x4;
+    c2 = x4 * y3 - x3 * y4;
+    r1 = a2 * x1 + b2 * y1 + c2;
+    r2 = a2 * x2 + b2 * y2 + c2;
+    if (r1 != 0 && r2 != 0 && (r1 ^ r2) >= 0) {
+        return 0;
+    }
+    denom = a1 * b2 - a2 * b1;
+    if (denom == 0) {
+        return 2;
+    }
+    if (x != NULL) {
+        offset = denom < 0 ? -denom / 2 : denom / 2;
+        num = b1 * c2 - b2 * c1;
+        *x = (num < 0 ? num - offset : num + offset) / denom;
+        num = a2 * c1 - a1 * c2;
+        *y = (num < 0 ? num - offset : num + offset) / denom;
+    }
+    return 1;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_040FC);
 
@@ -1269,7 +1320,65 @@ void func_m003_098A0(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09A14);
+extern void func_80003680(s32 sound);
+
+/* Removes a member from the game: its troop's slot, its sound, every reference to it, then the object */
+void func_m003_09A14(Object *obj) {
+    s32 first;
+    s32 count;
+    s32 i;
+    Object **objs;
+    s32 numHomes;
+    Object **homes;
+    M003Member *m;
+    Object *home;
+    M003Home *h;
+    Object *o;
+    UNUSED s32 pad0;
+    UNUSED s32 pad1;
+
+    objs = func_80005E98(&first, &count);
+    homes = func_80050F44(&numHomes);
+    m = obj->unk68;
+    ((M003Group *) &m->group)->inactive = TRUE;
+    home = m->home;
+    if (home != NULL) {
+        h = home->unk68;
+        if (h->unk0 == 1 && h->arrived == h->count) {
+            if (h->unk77 != 0xFF) {
+                func_8004AA80(D_800FEA18[h->unk77]);
+                D_800FEA18[h->unk77] = NULL;
+            }
+            h->unk77 = 0xFF;
+        }
+    }
+    if (m->sound != 0) {
+        func_80003680(m->sound);
+    }
+    for (i = first; i < count; i++) {
+        o = objs[i];
+        if (o->behaviorId == 0x18) {
+            m = o->unk68;
+            if (m->shotBy == (s32) obj) {
+                m->shotBy = 0;
+            }
+        }
+    }
+    i = numHomes;
+    while (i--) {
+        home = homes[i];
+        h = home->unk68;
+        if (h->leader == obj) {
+            h->leader = NULL;
+            h->unk33 = 0;
+            for (o = h->first; o != NULL; o = m->next) {
+                m = o->unk68;
+                m->unk0_9 = FALSE;
+            }
+        }
+    }
+    func_800079B8(obj);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09CE4);
 
@@ -1582,7 +1691,41 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_148C0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_14D4C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15BE8);
+extern f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* the distance between two points */
+
+/* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
+s32 func_m003_15BE8(f32 x, f32 y, f32 z) {
+    Object *obj;
+    s32 first;
+    s32 count;
+    Object **objs;
+    Object *nearest;
+    u32 best;
+    u32 dist;
+    s32 i;
+
+    best = -1;
+    objs = func_80005E98(&first, &count);
+    nearest = NULL;
+    for (i = first; i < count; i++) {
+        obj = objs[i];
+        if (obj->freed) {
+            continue;
+        }
+        if (obj->objectID == 0xA8 || obj->objectID == 0x87 || obj->objectID == 0x4A || obj->objectID == 0xAE ||
+            obj->objectID == 0x2C3 || obj->objectID == 0x168 || obj->objectID == 0x135 ||
+            obj->objectID == 0x171 || obj->objectID == 0x23A || obj->objectID == 0x1E3 ||
+            obj->objectID == 0x1E4 || obj->objectID == 0x85 || obj->objectID == 0x86 ||
+            obj->objectID == 0x1A8 || obj->objectID == 0x16F) {
+            dist = func_80011CE0(x, y, z, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+            if (dist < best) {
+                best = dist;
+                nearest = obj;
+            }
+        }
+    }
+    return (s32) nearest;
+}
 
 /* Finds what each region's point lies in */
 void func_m003_15E34(void) {
@@ -1806,7 +1949,43 @@ void func_m003_16CB4(Object *obj, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_16D78);
+extern u8 D_800F31E0[];
+extern s32 rl_m003_148C0(Object *home, s32 arg1);
+
+/* When memory is low, sends the waiting troops none of whose members can be seen or is busy away */
+void func_m003_16D78(void) {
+    Object **homes;
+    Object *home;
+    M003Home *h;
+    Object *obj;
+    M003Member *m;
+    s32 count;
+    s32 ok;
+
+    homes = func_80050F44(&count);
+    if (sBssA < 10) {
+        return;
+    }
+    while (count--) {
+        home = homes[count];
+        h = home->unk68;
+        if (h->unk30 >= 2 && h->unk30 < 5) {
+            ok = TRUE;
+            for (obj = h->first; obj != NULL; obj = m->next) {
+                m = obj->unk68;
+                if (!obj->freed &&
+                    (h->unk75 || D_800F31E0[obj->segmentID + 1] || (m->unk0_1 && m->unk0_0) || m->headless)) {
+                    ok = FALSE;
+                    break;
+                }
+            }
+            if (ok && !(rl_m003_148C0(home, 0) & 1)) {
+                h->unk30 = 9;
+                h->unk2E = 10;
+            }
+        }
+    }
+}
 
 /* Sets the current member and home directly */
 void func_m003_16EEC(Object *obj, Object *home) {
