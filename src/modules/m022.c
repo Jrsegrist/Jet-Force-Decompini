@@ -189,7 +189,36 @@ void func_m022_00EA0(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_00F18);
+extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
+extern void func_80045DD0(s32 *x1, s32 *y1, s32 *x2, s32 *y2); /* the viewport */
+extern void func_800408C0(Gfx **dl);                 /* sets the viewport's scissor */
+extern Gfx rl_m022_034C0[]; /* .data (still assembly): a display list */
+
+/* The pause screen's frame: the whole screen's scissor, then black right of and below the viewport (called
+   from 018AC) */
+void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+    u32 width;
+    u32 height;
+
+    func_80054EA0(&width, &height);
+    func_80045DD0(&x1, &y1, &x2, &y2);
+    gSPDisplayList((*dl)++, rl_m022_034C0);
+    gDPSetScissor((*dl)++, G_SC_NON_INTERLACE, 0, 0, width - 1, height - 1);
+    if (x2 < (s32) width) {
+        gDPFillRectangle((*dl)++, x2, 0, width, y2);
+    }
+    if (y2 < (s32) height) {
+        gDPFillRectangle((*dl)++, 0, y2, width, height);
+    }
+    gDPPipeSync((*dl)++);
+    gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+    func_800408C0(dl);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_0114C);
 

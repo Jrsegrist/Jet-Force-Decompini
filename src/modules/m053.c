@@ -23,7 +23,60 @@ INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_00EA0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_014F4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_01850);
+/* The part of the vehicle's state that 01850 uses */
+typedef struct M053Slow {
+    /* 0x000 */ u8 pad0[0x2];
+    /* 0x002 */ u8 unk2;
+    /* 0x003 */ u8 pad3[0x4 - 0x3];
+    /* 0x004 */ f32 unk4;
+    /* 0x008 */ u8 pad8[0x10 - 0x8];
+    /* 0x010 */ f32 unk10;
+    /* 0x014 */ u8 pad14[0x60 - 0x14];
+    /* 0x060 */ f32 unk60;
+    /* 0x064 */ u8 pad64[0x193 - 0x64];
+    /* 0x193 */ u8 unk193;
+    /* 0x194 */ u8 pad194[0x19C - 0x194];
+    /* 0x19C */ s8 unk19C;
+    /* 0x19D */ u8 pad19D[0x541 - 0x19D];
+    /* 0x541 */ u8 unk541;
+    /* 0x542 */ u8 pad542[0x594 - 0x542];
+    /* 0x594 */ f32 unk594;
+} M053Slow;
+
+extern f32 func_80049BEC(f32 rate, s32 updateRate);
+extern f32 rl_m053_037B0; /* .rodata (still assembly) */
+extern f32 rl_m053_037B4;
+extern f32 rl_m053_037B8;
+
+/* Slows the vehicle down by the frame's rate (called from 00038) */
+void func_m053_01850(Object *obj, M053Slow *s, UNUSED s32 arg2, UNUSED s32 arg3, f32 updateRateF) {
+    s32 updateRate;
+    f32 f;
+
+    obj->interactObj->hitPoints = 0;
+    updateRate = updateRateF;
+    f = func_80049BEC(rl_m053_037B0, updateRate);
+    s->unk4 *= f;
+    s->unk541 &= ~0xF;
+    s->unk10 *= f;
+    if (s->unk2 == 0) {
+        s->unk594 *= f;
+    } else {
+        s->unk594 = s->unk60 * 0.03125f;
+        if (s->unk594 > 1.5f) {
+            s->unk594 = 1.5f;
+        }
+        obj->velocity.y *= func_80049BEC(rl_m053_037B4, updateRate);
+    }
+    if (rl_m053_037B8 < obj->unk28) {
+        if (s->unk19C + updateRate >= 0x80) {
+            obj->trans.flags |= 0x400;
+            s->unk193 = 1;
+        } else {
+            s->unk19C += updateRate;
+        }
+    }
+}
 
 /* The part of the vehicle's state that 019B0 uses */
 typedef struct M053Turn {
@@ -224,7 +277,48 @@ INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_023D0);
 void func_m053_02708(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2, UNUSED s32 arg3) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_0271C);
+/* The part of the vehicle's state that 0271C uses */
+typedef struct M053Anim {
+    /* 0x000 */ u8 pad0[0x4];
+    /* 0x004 */ f32 unk4;
+    /* 0x008 */ u8 pad8[0x14 - 0x8];
+    /* 0x014 */ f32 unk14;
+    /* 0x018 */ u8 pad18[0x58C - 0x18];
+    /* 0x58C */ s16 unk58C;
+} M053Anim;
+
+extern f32 rl_m053_037E8; /* .rodata (still assembly) */
+extern f32 rl_m053_037EC;
+extern f32 rl_m053_037F0;
+extern f32 rl_m053_037F4;
+extern f32 rl_m053_037F8;
+
+/* Plays the vehicle's two animations and eases unk14 towards 0, 1 or 2 (called from 00038) */
+void func_m053_0271C(Object *obj, M053Anim *s, UNUSED s32 arg2, f32 updateRateF) {
+    f32 k;
+
+    k = 1.0f - func_80049BEC(rl_m053_037E8, updateRateF);
+    switch (obj->animationID) {
+        case 0:
+            func_8001138C(obj, 0.005f, updateRateF);
+            if (s->unk4 < rl_m053_037EC || rl_m053_037F0 < s->unk4) {
+                func_8001149C(obj, 1, obj->unk28);
+            }
+            s->unk14 += (0.0f - s->unk14) * k;
+            break;
+        case 1:
+            func_8001138C(obj, 0.01f, updateRateF);
+            if (rl_m053_037F4 < s->unk4 && s->unk4 < rl_m053_037F8) {
+                func_8001149C(obj, 0, obj->unk28);
+            }
+            if (s->unk58C > 300) {
+                s->unk14 += (2.0f - s->unk14) * k;
+            } else {
+                s->unk14 += (1.0f - s->unk14) * k;
+            }
+            break;
+    }
+}
 
 /* The part of the vehicle's state that 028CC clears */
 typedef struct M053State {
