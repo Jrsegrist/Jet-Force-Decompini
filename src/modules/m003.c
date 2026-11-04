@@ -1320,7 +1320,7 @@ void func_m003_098A0(Object *obj) {
     }
 }
 
-extern void func_80003680(s32 sound);
+extern void audspat_point_handle_clear(s32 sound);
 
 /* Removes a member from the game: its troop's slot, its sound, every reference to it, then the object */
 void func_m003_09A14(Object *obj) {
@@ -1353,7 +1353,7 @@ void func_m003_09A14(Object *obj) {
         }
     }
     if (m->sound != 0) {
-        func_80003680(m->sound);
+        audspat_point_handle_clear(m->sound);
     }
     for (i = first; i < count; i++) {
         o = objs[i];
@@ -1691,7 +1691,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_148C0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_14D4C);
 
-extern f32 func_80011CE0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* the distance between two points */
+extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
 /* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
 s32 func_m003_15BE8(f32 x, f32 y, f32 z) {
@@ -1717,7 +1717,7 @@ s32 func_m003_15BE8(f32 x, f32 y, f32 z) {
             obj->objectID == 0x171 || obj->objectID == 0x23A || obj->objectID == 0x1E3 ||
             obj->objectID == 0x1E4 || obj->objectID == 0x85 || obj->objectID == 0x86 ||
             obj->objectID == 0x1A8 || obj->objectID == 0x16F) {
-            dist = func_80011CE0(x, y, z, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+            dist = point_distance_squared(x, y, z, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
             if (dist < best) {
                 best = dist;
                 nearest = obj;

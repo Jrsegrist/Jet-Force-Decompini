@@ -66,9 +66,8 @@ typedef struct M106Setup {
 } M106Setup;
 
 extern f32 rl_m106_01D30; /* 0.05 (the module's data, still assembly) */
-extern s32 func_80047ED0(s32 arg0);
-extern void *func_80068E58(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
-                           s32 arg9); /* a flare (freed with effect_texture_pair_free) */
+extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
+                                s32 arg9); /* a flare (freed with effect_texture_pair_free) */
 
 void func_m106_00000(Object *obj, M106Setup *setup) {
     f32 zero = 0.0f;
@@ -80,7 +79,7 @@ void func_m106_00000(Object *obj, M106Setup *setup) {
     obj->velocity.z = zero;
     t = obj->unk68;
     obj->trans.scale = setup->scale * rl_m106_01D30;
-    if (func_80047ED0(0x59)) {
+    if (game_flag_get(0x59)) {
         t->unk0 = 5;
     } else {
         t->unk0 = 0;
@@ -101,9 +100,9 @@ void func_m106_00000(Object *obj, M106Setup *setup) {
     t->u38.word = 0;
     t->unk3A = func_80048E2C(-0x80, 0x7F);
     x = zero;
-    t->flare1 = func_80068E58(x, x, obj->trans.scale * -68.0f, 0, -0x4000, 18.0f, 75.0f, 0, 0x11, 0x12);
+    t->flare1 = effect_mesh_create(x, x, obj->trans.scale * -68.0f, 0, -0x4000, 18.0f, 75.0f, 0, 0x11, 0x12);
     t->unk3B = func_80048E2C(-0x80, 0x7F);
-    t->flare2 = func_80068E58(x, x, obj->trans.scale * 70.0f, 0, -0x4000, 24.0f, 100.0f, 0, 0x11, 0x12);
+    t->flare2 = effect_mesh_create(x, x, obj->trans.scale * 70.0f, 0, -0x4000, 24.0f, 100.0f, 0, 0x11, 0x12);
     t->sound1 = 0;
     t->sound2 = 0;
     t->sound3 = 0;
