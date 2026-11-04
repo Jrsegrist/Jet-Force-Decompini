@@ -1476,6 +1476,7 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
     f32 dy;
     f32 dz;
     M068ElectroState *s;
+    M068LightData *light;
     SparkParams spark;
     Vec3f vec;
     f32 saved[18];
@@ -1497,8 +1498,7 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
     s32 n;
     Triangle *t;
     s16 dzStep;
-    M068LightData *light;
-    f32 rate;
+    f32 k;
 
     s = obj->unk68;
     obj->trans.x_position = s->from->x;
@@ -1527,14 +1527,14 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
         spark.unk1C = -1;
         spark.unk20 = 0xFF64FF;
         spark.x_rotation = obj->trans.rotation.x_rotation;
-        angle = obj->trans.rotation.y_rotation - 0x4000;
-        rate = rl_m068_129F4;
+        a = obj->trans.rotation.y_rotation - 0x4000;
+        r = rl_m068_129F4;
         for (i = 0; i < 6; i++) {
-            spark.y_rotation = angle;
-            spark.speed = func_80048E2C(80, 100) * rate;
-            spark.unk14 = func_80048E2C(80, 100) * rate;
+            spark.y_rotation = a;
+            spark.speed = func_80048E2C(80, 100) * r;
+            spark.unk14 = func_80048E2C(80, 100) * r;
             func_m010_0000C(&spark);
-            angle += 0x1554;
+            a += 0x1554;
         }
     }
     s->time += updateRate / 60.0f;
@@ -1550,7 +1550,8 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
     } else if (s->t < 0.0f) {
         s->t = 0.0f;
     }
-    radius = func_80097140(dx * dx + dy * dy + dz * dz) * s->t;
+    k = s->t;
+    radius = func_80097140(dx * dx + dy * dy + dz * dz) * k;
     n = 0;
     dzStep = -(radius / (f32) 8);
     for (j = 0; j < 2; j++) {
@@ -1562,7 +1563,7 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
         w = v + 18;
         q = saved;
         for (width = rl_m068_12650; width < &rl_m068_12650[9]; width++) {
-            r = func_80049C34(a) * 20.0f * s->t;
+            r = func_80049C34(a) * 20.0f * k;
             a += 0x1000;
             pos[0] = func_80049C34(angle) * r;
             pos[1] = func_80049C30(angle) * r;
@@ -1573,7 +1574,7 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
                 pos[0] = 0.0f;
                 pos[1] = 0.0f;
             }
-            sx = *width * s->t;
+            sx = *width * k;
             hw = 18.0f * sx;
             sx = q[0];
             sy = q[1];
@@ -2299,12 +2300,10 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         switch (b->state) {
             case 1:
                 flags = 0x11;
-                lo = -0x8000;
-                hi = 0x7FFF;
+                yaw[0] = lo = -0x8000;
+                yaw[1] = hi = 0x7FFF;
                 pitch[0] = -0x3000;
                 pitch[1] = 0x3000;
-                yaw[0] = lo;
-                yaw[1] = hi;
                 break;
             case 2:
                 flags = 0x23;
@@ -2441,7 +2440,8 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         ty = obj->trans.y_position + obj->velocity.y * rate;
         tz = obj->trans.z_position + obj->velocity.z * rate;
     }
-    dx = tx - obj->trans.x_position;
+    dx = obj->trans.x_position;
+    dx = tx - dx;
     dy = ty - obj->trans.y_position;
     dz = tz - obj->trans.z_position;
     d = func_80097140(dx * dx + dy * dy + dz * dz);
@@ -2484,7 +2484,8 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             dz = to.z - from.z;
             obj->trans.rotation.x_rotation += b->unk72 * updateRate;
             func_80009A04(obj, dx, dy, dz);
-            k = ((tx - from.x) * dx + (ty - from.y) * dy + (tz - from.z) * dz) / (dx * dx + dy * dy + dz * dz);
+            k = dx * dx + dy * dy + dz * dz;
+            k = ((tx - from.x) * dx + (ty - from.y) * dy + (tz - from.z) * dz) / k;
             if (b->unk70 != -1 && k >= 0.0f && k <= 1.0f) {
                 b->unk70++;
                 if (rl_m068_125E8 == b->unk70) {
