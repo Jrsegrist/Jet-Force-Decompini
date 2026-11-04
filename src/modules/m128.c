@@ -30,10 +30,10 @@ void func_m128_00000(Object *obj, M128Setup *setup) {
     obj->trans.rotation.y_rotation = setup->angle << 8;
     pole->flag = setup->flag;
     if (game_flag_get(setup->flag) != 0) {
-        func_8001149C(obj, 0, 1.0f);
+        obj_anim_set(obj, 0, 1.0f);
         pole->state = 1;
     } else {
-        func_8001149C(obj, 0, 0.0f);
+        obj_anim_set(obj, 0, 0.0f);
         pole->state = 0;
     }
     pole->radius = setup->radius;

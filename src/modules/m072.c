@@ -68,7 +68,7 @@ void func_m072_00000(Object *obj, M072Setup *setup) {
     p->timer = 0;
     p->fade = 0xFF;
     obj->trans.rotation.y_rotation = setup->y_rotation << 8;
-    func_8001149C(obj, 0, 0.0f);
+    obj_anim_set(obj, 0, 0.0f);
 }
 
 void func_m072_00064(Object *obj, s32 updateRate) {

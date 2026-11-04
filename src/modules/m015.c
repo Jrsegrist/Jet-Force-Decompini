@@ -7,11 +7,11 @@
    counter k and its copy take a1/a0, the ROM a0/a1); 03740 (float temps one register off from the 400.0f
    compare on), 05328 (ax spilled, the ROM keeps it in a register; 0x18 bytes longer), 05ED4 (inv in f2, the
    ROM f0) and 068BC (rate copies' registers) still differ. */
-/* func_8001149C returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
-#define func_8001149C func_8001149C_void
+/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
+#define obj_anim_set func_8001149C_void
 #include "module.h"
-#undef func_8001149C
-extern s32 func_8001149C(Object *obj, s32 anim, f32 frame);
+#undef obj_anim_set
+extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 
 /* What racer->unk360 points at */
 typedef struct RacerPose {
@@ -633,7 +633,7 @@ extern void func_m129_00CF8(Object *obj, Racer *racer, s32 updateRate);
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 extern s32 func_80034BB0(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80049394(Vec3s *rotation, Vec3f *vec);
-extern void func_8002B1D4(Object *obj, f32 frame, f32 speed);
+extern void anim_sound_events_play(Object *obj, f32 frame, f32 speed);
 static void func_m015_022C4(Object *obj, Racer *racer, f32 frame, f32 speed);
 
 static void func_m015_01C80(M015Model *model, M015ModelInst *inst, Racer *racer, s32 updateRate);
@@ -701,11 +701,11 @@ extern s32 func_80033F4C(s32 arg0);
 extern void func_80034164(Object *obj, Racer *racer);
 extern void player_loop_sounds_update(Object *obj, Racer *racer, s32 a, s32 b, s32 updateRate);
 extern void func_800349AC(Racer *racer, f32 updateRate);
-extern void func_80035894(Object *obj, Racer *racer, f32 updateRate);
+extern void player_platform_ride(Object *obj, Racer *racer, f32 updateRate);
 extern void racer_angle_sync(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate, void *table);
 extern void func_800364D4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate, void *table);
-extern void func_80036A30(Object *obj, Racer *racer, s32 updateRate);
+extern void player_squash_precheck(Object *obj, Racer *racer, s32 updateRate);
 extern void func_80036DBC(Object *obj, Racer *racer, s32 updateRate);
 extern void player_input_lock_set(s32 arg0);
 extern void player_input_latch(s32 player);
@@ -767,9 +767,9 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     } else {
         racer->unk16C = NULL;
     }
-    func_80035894(obj, racer, updateRate);
+    player_platform_ride(obj, racer, updateRate);
     racer_angle_sync(obj, racer, updateRate);
-    func_80036A30(obj, racer, updateRate);
+    player_squash_precheck(obj, racer, updateRate);
     D_m015_089D4 = 0.0625f;
     if (D_800A4FC4 != 0) {
         if (racer->unk189 == 2) {
@@ -1086,7 +1086,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             racer->unk57C = obj->trans.y_position;
             D_m015_089C0 |= 1;
             D_m015_089C4 |= 1;
-            func_8001149C(obj, 6, 0);
+            obj_anim_set(obj, 6, 0);
         } else {
             interact->hitPoints = 0;
             if (D_800A4FC4 != 0) {
@@ -2347,7 +2347,7 @@ static void func_m015_05180(Object *obj, Racer *racer, s32 anim, f32 frame) {
         pose = D_m015_08130[anim].pose;
     }
     if (anim != obj->animationID) {
-        func_8001149C(obj, anim, frame);
+        obj_anim_set(obj, anim, frame);
         sAnimChanges++;
     }
     racer_pose_begin(obj, racer, D_m015_0807C, pose);
@@ -2716,7 +2716,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
             break;
     }
     func_8001138C(obj, animSpeed, updateRate);
-    func_8002B1D4(obj, frame, animSpeed);
+    anim_sound_events_play(obj, frame, animSpeed);
     func_m015_022C4(obj, racer, frame, animSpeed);
     func_m015_05180(obj, racer, anim, newFrame);
 }

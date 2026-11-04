@@ -806,3 +806,26 @@ func_80068494 = level_effect_add
 func_800539E0 = module_system_init
 func_8007DE98 = obj_move_with_points
 func_8007A018 = obj_hit_set_fit
+
+# round 13 (main13): main-segment functions matched by main13 and helper ma13h1
+func_8002F2B0 = player_zone_offset_update
+func_8002B1D4 = anim_sound_events_play
+func_80035894 = player_platform_ride
+func_80039308 = weapon_fire_triple_shot
+func_80039098 = weapon_fire_standard
+func_8002ED94 = player_camera_setup
+func_80031A80 = line_aim_lock_test
+func_8001FFE0 = obj_shading_from_ground
+func_80031D00 = camera_point_around_player
+func_8002B960 = player_camera_eye_place
+func_80036A30 = player_squash_precheck
+func_8000B300 = obj_draw_twin
+func_80004954 = obj_find_nearest_of_type
+func_80004AF4 = obj_find_nearest_in_category
+func_8000E278 = sort_objects_by_dist
+func_80011708 = obj_spawn_bonus
+func_8001149C = obj_anim_set
+func_800110E4 = obj_anim_triggers_fire
+func_800119B8 = obj_unlink_dependants
+func_80011E74 = sound_nearest_emitter_update
+func_8000774C = obj_spawn_attachment

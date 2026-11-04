@@ -178,7 +178,7 @@ s32 func_m067_00130(Object *obj, M067Jump *j, s32 target) {
     if (kind != -1) {
         j->kind = kind;
         j->target = target;
-        func_8001149C(obj, rl_m067_04430[j->kind].anim, 0.0f);
+        obj_anim_set(obj, rl_m067_04430[j->kind].anim, 0.0f);
         j->start.x = obj->trans.x_position;
         j->dest.x -= obj->trans.x_position;
         j->start.y = obj->trans.y_position;
@@ -279,7 +279,7 @@ void func_m067_00D70(Object *obj, M067Setup *setup) {
     s->unkC = 0;
     s->unkD = 0;
     s->unkE = 0;
-    func_8001149C(obj, rl_m067_04430[s->kind].anim, 0.0f);
+    obj_anim_set(obj, rl_m067_04430[s->kind].anim, 0.0f);
     s->unk34 = 0;
     s->unk38 = 0;
     s->unk3C[0] = 255;

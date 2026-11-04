@@ -220,7 +220,7 @@ extern s16 D_800A2674[];
 
 /* JFG: plays the sound events of the object's current animation (0x3B) whose frames lie between `from` and the
  * object's frame (0x28), both mirrored when playing backwards, wrapping past 1. Sets 4/5 (footsteps) follow 0x60. */
-void func_8002B1D4(u8 *obj, f32 from, f32 speed) {
+void anim_sound_events_play(u8 *obj, f32 from, f32 speed) {
     Racer *racer = *(Racer **) (obj + 0x68);
     AnimSoundList *list;
     AnimSoundEvent *event;
@@ -313,7 +313,7 @@ void func_800496B0(s32, s16 *, void *, u8 *);
 
 /* JFG: the over-the-shoulder camera: pitched with the player's aim (0x1E2, less for weapon 7), pulled in as the aim
  * leaves +-0x38E, 60 units up; the camera eases to it */
-void func_8002B960(s16 *obj, Racer *racer, f32 updateRate) {
+void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     UNUSED s32 pad;
     s16 angles[3];
     f32 x;
@@ -530,7 +530,7 @@ void func_8002B418(u8 *obj, Racer *racer, f32 rate);
 
 /* JFG: set up the player camera behind obj: angles 0, distances 48/150/40, height obj + 80, white, then clear the
  * player's zone track and run the camera update eight times to settle it */
-void func_8002ED94(u8 *obj, Racer *racer) {
+void player_camera_setup(u8 *obj, Racer *racer) {
     s32 i;
 
     D_800F6DC0 = cam_get_active_camera();
@@ -654,7 +654,7 @@ f32 func_80049BEC(f32 rate, s32 updateRate);
 
 /* JFG: eases the player's zone offset towards its current zone's (x/z offsets by flags 1/2), adds it to *x and
  * *z; flag 4 gives a fixed position, flag 8 clear clears *keep */
-void func_8002F2B0(s32 player, f32 *z, f32 *x, s32 *hasPos, f32 *pos, s32 *keep, s32 ease, s32 updateRate) {
+void player_zone_offset_update(s32 player, f32 *z, f32 *x, s32 *hasPos, f32 *pos, s32 *keep, s32 ease, s32 updateRate) {
     UNUSED s32 pad;
     f32 offsetX;
     f32 offsetZ;
@@ -751,7 +751,7 @@ typedef struct Flags94 {
 } Flags94;
 
 extern u8 D_800A4FC8;
-void func_80031D00(u8 *obj, f32 *x, f32 *y, f32 *z, s32 arg4);
+void camera_point_around_player(u8 *obj, f32 *x, f32 *y, f32 *z, s32 arg4);
 void ignore_bounds_check(void);
 s32 move_object(u8 *obj, f32 xPos, f32 yPos, f32 zPos);
 void func_80079D1C(u8 *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
@@ -762,7 +762,7 @@ void func_8002F5F0(u8 *obj, u8 *arg1) {
 
     *(s32 *) (state + 9) = *(s32 *) (arg1 + 0xC);
     D_800A2D40 = 1.0f;
-    func_80031D00(obj, &state[0], &state[1], &state[2], 0);
+    camera_point_around_player(obj, &state[0], &state[1], &state[2], 0);
     ignore_bounds_check();
     move_object(obj, state[0] - *(f32 *) (obj + 0xC), state[1] - *(f32 *) (obj + 0x10),
                 state[2] - *(f32 *) (obj + 0x14));
@@ -839,7 +839,7 @@ f32 sqrtf(f32 x);
 /* JFG: how many solid objects (interaction kind 1 or 2, not types 1 or 0x98) the line from start to end hits;
  * keeps the aim lock on the hit object (locks after 20 frames on the same one, holds 90 after losing it), *dist
  * gets a distance to it */
-s32 func_80031A80(u8 *obj, f32 *start, f32 *end, f32 *dist, s32 updateRate) {
+s32 line_aim_lock_test(u8 *obj, f32 *start, f32 *end, f32 *dist, s32 updateRate) {
     s32 count;
     s32 first;
     s32 last;
@@ -916,7 +916,7 @@ s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit
 /* JFG: the camera position around the player: five points around the target object (state 0x24) at heights
  * scaled by D_800A2D40; keeps the last one (0x88, from 1) that the level doesn't block from the first, skipping 1 */
 /* (the unused fifth parameter is reused for the collision flags: it gives the target's frame) */
-void func_80031D00(u8 *obj, f32 *x, f32 *y, f32 *z, s32 flags) {
+void camera_point_around_player(u8 *obj, f32 *x, f32 *y, f32 *z, s32 flags) {
     u8 *state;
     u8 hit[0x30];
     f32 radius[3];
@@ -1507,7 +1507,7 @@ typedef struct PlatformData {
 
 /* JFG: ride the platform object the player stands on: turn with it and move by the platform's motion since the
  * last frame (its previous and current matrices, or func_80035B30 in states 6, 7, 8 and 12) */
-void func_80035894(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
+void player_platform_ride(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
     s16 *platform;
     PlatformData *data;
     f32 dx;
@@ -1591,7 +1591,7 @@ s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 a
 /* JFG: squash check before moving (in states 6, 7, 8 and 12): the pose points placed in the world; the lowest
  * object over a free point (down to the pose height) squashes the player, or the platform stood on does when
  * it is moving and the player's cylinder hits the track; a squash pushes the player off (or leaves the platform) */
-void func_80036A30(u8 *obj, Racer *racer, UNUSED s32 updateRate) {
+void player_squash_precheck(u8 *obj, Racer *racer, UNUSED s32 updateRate) {
     s32 i;
     f32 *out;
     f32 *src;
@@ -2061,7 +2061,7 @@ extern u8 D_800A1850[][6];
 
 /* JFG: fire object 0x50 for the character's current weapon (its two weapon table entries), with the weapon's
  * sound: 8 for weapon 2 (kept if already playing), 3 for weapon 7 in state 11 or when arg8 is set, else 0xE */
-void func_80039098(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+void weapon_fire_standard(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
                    s32 arg10) {
     Spawn50 setup;
     u8 *obj;
@@ -2140,7 +2140,7 @@ typedef struct SpawnA4 {
 
 /* JFG: fire three 0xA4 shots without a chain: two at random spins (the second turned by 0x8000), then a straight
  * one, each one weaker (unkB - 1) */
-void func_80039308(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9) {
+void weapon_fire_triple_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9) {
     SpawnA4 setup;
     u8 *obj;
 

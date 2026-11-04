@@ -292,7 +292,7 @@ extern s32 D_800FE9FC;
 extern s32 D_800FE9B0;
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern s16 troop_slot_get(u16 kind);
-extern s32 func_80004AF4(f32 x, f32 y, f32 z, s32 arg3);
+extern s32 obj_find_nearest_in_category(f32 x, f32 y, f32 z, s32 arg3);
 extern void func_800492DC(Object *obj, Vec3f *v); /* turns v by the object's rotation */
 extern s32 troop_find_member(s16 arg0, u8 arg1);
 extern void stats_kill_add(s32 sound);
@@ -343,7 +343,7 @@ extern s32 troop_find_by_tag(s32 arg0);
 extern s32 objflag_get(s32 arg0);
 extern Object *func_80005F14(void *entry, s32 arg1);
 extern void func_80048130(s32 arg0, s32 arg1);
-extern void func_80011708(f32 x, f32 y, f32 z, s32 arg3);
+extern void obj_spawn_bonus(f32 x, f32 y, f32 z, s32 arg3);
 extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
@@ -1645,7 +1645,7 @@ s32 func_m003_07BAC(f32 x, f32 y, f32 z, s32 kind, u8 arg4, u8 arg5) {
     if (&z) {} /* keeps z in its home slot (reloaded into a2) */
     switch (kind) {
         case 1:
-            return func_80004AF4(x, y, z, 8);
+            return obj_find_nearest_in_category(x, y, z, 8);
         case 2:
             return troop_find_member(arg4 + 1, arg5);
     }
@@ -1777,7 +1777,7 @@ void func_m003_09FF0(Object *obj) {
     M003Interact *interact;
 
     if (sHomeData->unk0 == 1 && sHomeData->arrived == sHomeData->count) {
-        func_80011708(obj->trans.x_position, obj->trans.y_position + 10.0f, obj->trans.z_position, sHomeData->unk7B);
+        obj_spawn_bonus(obj->trans.x_position, obj->trans.y_position + 10.0f, obj->trans.z_position, sHomeData->unk7B);
     }
     if (sHomeData->kind == 0x2CE) {
         interact = (M003Interact *) sObj->interactObj;

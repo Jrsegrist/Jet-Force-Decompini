@@ -134,7 +134,7 @@ s32 func_800494AC(s32 x, s32 z, ShadowVertex *v0, ShadowVertex *v1, ShadowVertex
 
 /* DKR func_8002DE30 (tracks.c): ease the object's shading (0x54) towards the brightness of the first triangle
  * under it (within its height range, header 0x6C/0x6E); JFG: 16-bit cell masks, a variable rate. */
-void func_8001FFE0(u8 *obj) {
+void obj_shading_from_ground(u8 *obj) {
     s32 sp94;
     s32 sp90;
     s32 blockId;

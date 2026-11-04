@@ -113,8 +113,8 @@ void func_m127_0003C(Object *obj, M127Setup *setup) {
     s->unk1C = 0;
     s->unk18 = 0.0f;
     s->unk14 = 0.0f;
-    func_8001149C(obj, 0, 0.0f);
-    func_8001149C(obj, 0, 0.0f);
+    obj_anim_set(obj, 0, 0.0f);
+    obj_anim_set(obj, 0, 0.0f);
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 1);
 }
 

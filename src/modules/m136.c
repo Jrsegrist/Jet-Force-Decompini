@@ -435,10 +435,10 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
             door->anim[3] = ENTRY_U8(setup, 0x21);
             door->unk20 = ENTRY_U8(setup, 0x1D) * unit;
             if (door->anim[3] == 0xFF) {
-                func_8001149C(obj, door->anim[1], zero);
+                obj_anim_set(obj, door->anim[1], zero);
                 door->unk24 = door->unk18;
             } else {
-                func_8001149C(obj, door->anim[3], zero);
+                obj_anim_set(obj, door->anim[3], zero);
                 door->unk24 = door->unk20;
             }
             if (door->anim[2] != 0xFF) {

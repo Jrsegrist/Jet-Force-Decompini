@@ -812,8 +812,8 @@ void func_m018_042D4(void) {
     menu_assetgroup_load(rl_m018_067E0);
     menu_assetgroup_reset(rl_m018_067E8);
     rl_m018_06BCC = 0;
-    func_8001149C(D_800FF3F8[0x87], 0, 0.0f);
-    func_8001149C(D_800FF3F8[0x88], 0, 0.0f);
+    obj_anim_set(D_800FF3F8[0x87], 0, 0.0f);
+    obj_anim_set(D_800FF3F8[0x88], 0, 0.0f);
     player = func_8000E4D0(0);
     state = player->unk68;
     i = func_m018_0207C(state);
@@ -1045,7 +1045,7 @@ void func_m018_048E4(void) {
     } else {
         rl_m018_06BF0 = rl_m018_068E0[rl_m018_06BE0];
     }
-    func_8001149C(D_800FF3F8[0x7B], rl_m018_06BE0, 0.0f);
+    obj_anim_set(D_800FF3F8[0x7B], rl_m018_06BE0, 0.0f);
     rl_m018_06BD4 = 0x78;
     rl_m018_06BE8 = 0x100;
     rl_m018_06BD5 = 0x1E;

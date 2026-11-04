@@ -227,7 +227,7 @@ extern s32 func_8004966C(s16 angle);
 extern void func_80048518(s32 arg0);
 extern void func_80033920(Object *obj, M050Player *p);
 extern s32 weapon_usable_by_character(M050Player *p);
-extern void func_8002B1D4(Object *obj, f32 frame, f32 speed);
+extern void anim_sound_events_play(Object *obj, f32 frame, f32 speed);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 extern f32 func_80097140(f32 x); /* square root */
 extern s32 func_80082D80(f32 x, f32 z, s32 flags, f32 ***heights);
@@ -710,7 +710,7 @@ static void func_m050_013D4(Object *obj, M050Player *p, s32 move, f32 frame) {
             move = sMoves[move].anim;
         }
         if (move != obj->animationID) {
-            func_8001149C(obj, move, frame);
+            obj_anim_set(obj, move, frame);
         }
     }
 }
@@ -777,7 +777,7 @@ static void func_m050_01468(Object *obj, M050Player *p, f32 updateRate) {
             break;
     }
     func_8001138C(obj, speed, updateRate);
-    func_8002B1D4(obj, startFrame, speed);
+    anim_sound_events_play(obj, startFrame, speed);
     func_m050_013D4(obj, p, move, frame);
 }
 

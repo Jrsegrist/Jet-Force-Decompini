@@ -32,7 +32,7 @@ extern void obj_spawn_particle(Object *obj, s32 updateRate); /* DKR */
 /* advances the object's animation */
 extern s32 func_8001138C(Object *obj, f32 speed, f32 updateRate);
 /* sets the object's animation and its position in it */
-extern void func_8001149C(Object *obj, s32 anim, f32 frame);
+extern void obj_anim_set(Object *obj, s32 anim, f32 frame);
 /* sets the object's hit box / collision */
 extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);

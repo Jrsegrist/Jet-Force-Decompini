@@ -61,7 +61,7 @@ typedef struct ObjectHeader {
     /* 0x04 */ u8 pad4[0x14 - 0x4];
     /* 0x14 */ u16 flags;
     /* 0x16 */ u8 pad16[0x1B - 0x16];
-    /* 0x1B */ u8 category; // JFG: func_80004AF4 searches by it
+    /* 0x1B */ u8 category; // JFG: obj_find_nearest_in_category searches by it
     /* 0x1C */ s16 unk1C;
     /* 0x1E */ s8 unk1E;
     /* 0x1F */ s8 numAttachments;
@@ -295,7 +295,7 @@ typedef struct ObjectFlags53 {
 
 /* JFG: the nearest live object of the type (type 0x18 ones with bit 0x08000000 of their block's first
    word set are skipped). */
-Object *func_80004954(f32 x, f32 y, f32 z, u8 type) {
+Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, u8 type) {
     Object *obj;
     Object *nearest;
     s32 start;
@@ -329,7 +329,7 @@ Object *func_80004954(f32 x, f32 y, f32 z, u8 type) {
 }
 
 /* JFG: the nearest live object whose header has the category (header byte 0x1B). */
-Object *func_80004AF4(f32 x, f32 y, f32 z, u8 category) {
+Object *obj_find_nearest_in_category(f32 x, f32 y, f32 z, u8 category) {
     Object *obj;
     Object *nearest;
     s32 start;
@@ -766,7 +766,7 @@ typedef struct ObjectSpriteSlot {
     /* 0x10 */ f32 frame;
 } ObjectSpriteSlot;
 
-Object *func_8000774C(s32 type);
+Object *obj_spawn_attachment(s32 type);
 void try_free_object_header(s32 index);
 s32 rand_range(s32 min, s32 max);
 
@@ -797,7 +797,7 @@ s32 func_80006F2C(Object *obj) {
         children = obj->unk60;
         children->count = header->numChildren;
         for (; i < children->count; i++) {
-            child = func_8000774C(((s32 *) obj->header->unk34)[i]);
+            child = obj_spawn_attachment(((s32 *) obj->header->unk34)[i]);
             if (child != NULL) {
                 child->trans.scale *= obj->trans.scale;
             }
@@ -1158,7 +1158,7 @@ void *mempool_alloc(s32 size, u32 colourTag);
  * rounded up to 16; the models get flags from func_8000F978.
  * DKR: obj_spawn_attachment
  */
-Object *func_8000774C(s32 objID) {
+Object *obj_spawn_attachment(s32 objID) {
     ObjectHeader *header;
     Object *obj;
     s32 modelFlags;
@@ -1750,7 +1750,7 @@ extern f32 D_800F2E98;
 
 /* JFG: draw a type 7 object: kind 3 draws attachments 1 and 2 either side of it along its facing,
    kind 5 draws it at its block's scale. */
-void func_8000B300(Object *obj) {
+void obj_draw_twin(Object *obj) {
     ObjectTwinDraw *block;
     f32 dx;
     f32 dz;
@@ -2069,7 +2069,7 @@ void obj_render_scale_set(Object *obj) {
     D_800F2E98 = scale;
 }
 
-void func_8000B300(Object *obj);
+void obj_draw_twin(Object *obj);
 void func_8000B46C(Object *obj);
 void func_8000CC64(Object *obj);
 void func_8000AA34(Object *obj);
@@ -2091,7 +2091,7 @@ void render_object_parts(Object *obj) {
     } else if (obj->behaviorId == 0x81) {
         func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
     } else if (obj->behaviorId == 7) {
-        func_8000B300(obj);
+        obj_draw_twin(obj);
     } else if (obj->behaviorId == 0x7A) {
         y = obj->trans.y_position;
         obj->trans.y_position += 40.0f;
@@ -2241,7 +2241,7 @@ f32 get_distance_to_camera(f32 x, f32 y, f32 z);
  * JFG: every object's distance is the view depth, walked by pointer; each pass is one shorter.
  * DKR: sort_objects_by_dist
  */
-void func_8000E278(s32 startIndex, s32 lastIndex) {
+void sort_objects_by_dist(s32 startIndex, s32 lastIndex) {
     s32 n;
     s32 i;
     s32 sorted;
@@ -2396,7 +2396,7 @@ void func_80027220(Object *obj, s32 event);
 /* JFG: send the object the events of its current animation whose frames it passed since the last
    frame (in either direction, wrapping), to a module (types 0x5A, 0x18) or one of three handlers
    picked by a type 0x33 object's kind. */
-void func_800110E4(Object *obj) {
+void obj_anim_triggers_fire(Object *obj) {
     AnimTriggerList *list;
     f32 frame;
     f32 prevFrame;
@@ -2503,7 +2503,7 @@ void asset_cache_release(void *arg0);
 
 /* JFG: start animation anim (clamped to the model's) of the object's current attachment at frame
    0..1, keeping the previous animation's state. */
-s32 func_8001149C(Object *obj, s32 anim, f32 frame) {
+s32 obj_anim_set(Object *obj, s32 anim, f32 frame) {
     ObjectAttachment *att;
     ObjectModel53 *model;
     s8 *data;
@@ -2600,7 +2600,7 @@ extern s16 D_800A0CB0[16]; // JFG: the object type of each pickup kind 1..16
 
 /* JFG: spawn a bonus item at the point: kinds 1..16 are pickups (D_800A0CB0), 20..39 are type 0xA9
    with a sub-kind (23 is type 0xE9), 40 and above nothing. */
-void func_80011708(f32 x, f32 y, f32 z, u8 kind) {
+void obj_spawn_bonus(f32 x, f32 y, f32 z, u8 kind) {
     LevelObjectEntryBonus entry;
 
     if (kind >= 40) {
@@ -2713,7 +2713,7 @@ void troop_member_clear_link(Object *obj);
 
 /* JFG: take the object out of its list, and out of the list following it every object that points
    at it (each type dropping its pointer; a type 0x99 then joins the list of the nearest type 0x18). */
-void func_800119B8(Object *obj) {
+void obj_unlink_dependants(Object *obj) {
     ObjectLinks53 *links;
     s32 wasFirst;
     Object *prev;
@@ -2800,7 +2800,7 @@ void func_800119B8(Object *obj) {
             if (cur->behaviorId == 0x99) {
                 links = (ObjectLinks53 *) cur->racer;
                 D_800A0834 = obj;
-                links->target = func_80004954(cur->trans.x_position, cur->trans.y_position, cur->trans.z_position, 0x18);
+                links->target = obj_find_nearest_of_type(cur->trans.x_position, cur->trans.y_position, cur->trans.z_position, 0x18);
                 D_800A0834 = NULL;
                 if (links->target != NULL) {
                     obj_list_insert_after(cur, links->target);
@@ -2908,7 +2908,7 @@ void audspat_point_stop(void *handle);
 
 /* JFG: keep sound 0xFB playing at the active type 0xA7 object nearest to any camera (stop it when
    there is none). */
-void func_80011E74(void) {
+void sound_nearest_emitter_update(void) {
     ObjectCamera53 *cams;
     s32 numCams;
     Object **list;
