@@ -19,13 +19,20 @@ typedef struct M155Flags {
     u32 pad : 13;
     u32 alerted : 1;
     u32 pad2 : 2;
+    /* 0x04 */ u8 pad4[0x14 - 0x4];
+    /* 0x14 */ s16 nextX; /* the next point of its path */
+    /* 0x16 */ s16 nextZ;
 } M155Flags;
 
 /* The current enemy's state */
 typedef struct M155Enemy {
     /* 0x00 */ u8 pad0[0x1A];
     /* 0x1A */ u8 state;
-    /* 0x1B */ u8 pad1B[0x64 - 0x1B];
+    /* 0x1B */ u8 pad1B[0x38 - 0x1B];
+    /* 0x38 */ f32 goalX;
+    /* 0x3C */ f32 goalY;
+    /* 0x40 */ f32 goalZ;
+    /* 0x44 */ u8 pad44[0x64 - 0x44];
     /* 0x64 */ Object *target;
 } M155Enemy;
 
@@ -104,7 +111,73 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02248);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_022C8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02458);
+/* A path through the level's regions (points 1.. are the crossings) */
+typedef struct M155Path {
+    /* 0x00 */ s16 x[20];
+    /* 0x28 */ s16 z[20];
+    /* 0x50 */ u8 from[20]; /* the regions each crossing is between */
+    /* 0x64 */ u8 to[20];
+    /* 0x78 */ u8 count;
+} M155Path;
+
+/* Where a segment leaves a region (module 3's) */
+typedef struct M155Crossing {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 z;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+} M155Crossing;
+
+extern u8 rl_m155_03CD0[0x1080]; /* the path search's work areas */
+extern u8 rl_m155_04D60[0x200];
+extern u8 *rl_m155_04D58;
+extern s32 rl_m155_04D5C;
+extern s32 rl_m155_04F60;
+extern void *rl_m155_04F80; /* the enemy's region */
+extern M155Path *rl_m155_022C8(s16 x, s16 z, s16 toX, s16 toZ);
+extern void rl_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to);
+extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, void *region, M155Crossing *out, s32 point, u8 index);
+
+/* Finds the enemy's path from (x, z) to (toX, toZ) and sets the first point to head for */
+void func_m155_02458(Object *obj, s16 x, s16 z, s16 toX, s16 toZ) {
+    M155Path *path;
+    s32 i;
+    M155Crossing cross;
+    s32 d;
+    s16 *p;
+
+    bzero(rl_m155_03CD0, sizeof(rl_m155_03CD0));
+    bzero(rl_m155_04D60, sizeof(rl_m155_04D60));
+    rl_m155_04D58 = rl_m155_03CD0;
+    rl_m155_04D5C = 0x3F;
+    rl_m155_04F60 = 0;
+    path = rl_m155_022C8(x, z, toX, toZ);
+    if (path == NULL) {
+        sEnemy->goalX = x;
+        sEnemy->goalY = obj->trans.y_position;
+        sEnemy->goalZ = z;
+        return;
+    }
+    rl_m155_04D5C--;
+    if (path->count >= 2) {
+        for (i = 2; i < path->count; i++) {
+            if (func_m003_175E8(x, z, path->x[i], path->z[i], rl_m155_04F80, &cross, -1, 0xFF)) {
+                /* (twice the product, as the ROM computes it) */
+                d = (cross.x - path->x[i]) * (cross.x - path->z[i]) + (cross.x - path->x[i]) * (cross.x - path->z[i]);
+                if ((u32) d > 16) {
+                    break;
+                }
+            }
+        }
+    } else {
+        i = 2;
+    }
+    p = &path->x[i];
+    if (path->from[i - 1] != 0xFF) {
+        rl_m155_01D9C(p - 1, p + 19, path->from[i - 1], path->to[i - 1]);
+    }
+    sFlags->nextX = p[-1];
+    sFlags->nextZ = p[19];
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_026D8);
 
