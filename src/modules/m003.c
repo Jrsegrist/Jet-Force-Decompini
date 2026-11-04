@@ -313,7 +313,7 @@ extern void func_m155_02BB0(Object *home);
 extern void func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
 extern s32 func_m003_04F88(s32 arg0, f32 arg1);
 extern void func_m003_06D28(Object *home, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
-extern void func_m003_0C324(void);
+extern s32 func_m003_0C324(); /* (Object *obj); 0CF40 calls it with no argument */
 extern s32 func_m003_15BE8(f32 x, f32 y, f32 z);
 extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 arg3); /* the way point nearest a point */
 extern void anim_paths_find_near(f32 x, f32 y, f32 z, s16 *a, s16 *b);
@@ -1756,7 +1756,40 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0C1A0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0C324);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CAA4);
+extern u8 D_800FE9EE;
+extern s32 obj_id_is_special(s16 id);
+
+/* Whether the current member wants to fire at its target, `dist` away (and turned at most `maxAngle` off) */
+int func_m003_0CAA4(f32 dist, f32 arg1, s16 maxAngle) {
+    Object *target = (Object *) sMember->shotBy;
+    s16 angle;
+
+    if (target == NULL) {
+        return FALSE;
+    }
+    angle = func_80049D80(sObj->trans.rotation.y_rotation,
+                          func_80049C84(sObj->trans.x_position - target->trans.x_position,
+                                        sObj->trans.z_position - target->trans.z_position));
+    if (angle < 0) {
+        angle = -angle;
+    }
+    if (((M003BodyFlags *) &sBody->unk24)->unk11 && FLAGS4(sMember)->unk2 && !FLAGS8(sMember)->unk27) {
+        if (!FLAGS4(sMember)->unk6 && !FLAGS4(sMember)->unk5) {
+            return FALSE;
+        }
+    } else if (maxAngle < angle) {
+        return FALSE;
+    }
+    if (!func_m003_0C324(sObj) || sHomeData->unk30 == 2 || sBssD0 <= dist ||
+        (arg1 > 0.0f && arg1 < sBssD0) || sMember->unk4A || (sHomeData->flags & 0x1000) || sMember->onFire ||
+        sMember->unk0_21 ||
+        (sMember->unkB0 != NULL && !sMember->unkB0->unk2 &&
+         !obj_id_is_special(((Object *) sMember->shotBy)->objectID)) ||
+        sMember->unk0_29) {
+        return FALSE;
+    }
+    return sHomeData->unk30 == 3 || D_800FE9EE == 7 || D_800FE9EE == 12 || D_800FE9EE == 9;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0CD34);
 

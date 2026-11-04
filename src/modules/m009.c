@@ -58,10 +58,14 @@ void func_m009_00408(void) {
 typedef struct M009MenuItem {
     /* 0x00 */ s16 x;
     /* 0x02 */ s16 y;
-    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x04 */ s16 z;
+    /* 0x06 */ s16 object; /* its D_800FF3F8 object */
+    /* 0x08 */ f32 scale;
     /* 0x0C */ f32 posX;
     /* 0x10 */ f32 posY;
-    /* 0x14 */ u8 pad14[0x20 - 0x14];
+    /* 0x14 */ u8 pad14[0x1C - 0x14];
+    /* 0x1C */ s8 model;
+    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
 } M009MenuItem;
 
 /* A place on the map (size 0xC; a kind of 0xFF ends the list) */
@@ -86,7 +90,7 @@ extern void *D_800FF39C;
 extern void func_80040D64(Gfx **dl, void *mtx);
 extern void rl_m009_02978(M009Model *model, s32 updateRate);
 extern void rl_m009_030E8(M009Model *model);
-extern void rl_m009_03908(s32 index);
+static void func_m009_03908(s32 index);
 extern M009Place rl_m009_0469C[]; /* (.data) */
 extern M009Model rl_m009_04990[]; /* (.bss) */
 extern f32 rl_m009_09790;
@@ -125,7 +129,7 @@ void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
                     D_800FF780[43].x += updateRate << 8;
                     D_800FF780[43].y += updateRate << 5;
                     D_800FF780[15].x += updateRate << 8;
-                    rl_m009_03908(p->index);
+                    func_m009_03908(p->index);
                 }
             }
             p++;
@@ -151,7 +155,28 @@ INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_0343C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_037E4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_03908);
+extern Object *D_800FF3F8[]; /* the menu's objects */
+extern void *D_800FF3A0;
+extern void func_800221F0(Object *obj, void *model, void *shading, s32 arg3);
+extern void func_8000DB94(Gfx **dl, void *mtx, void *vtx, Object *obj);
+
+/* Draws menu item `index`'s object at the item's place on the map */
+static void func_m009_03908(s32 index) {
+    M009MenuItem *item = &D_800FF780[index];
+    Object *obj = D_800FF3F8[item->object];
+
+    if (item->object == 0x7F) {
+        func_800221F0(obj, obj->modelInstances[0], obj->shading, 0);
+    }
+    obj->trans.x_position = item->posX - rl_m009_09790;
+    obj->trans.y_position = 120.0f - (item->posY - rl_m009_09794);
+    obj->trans.rotation.y_rotation = item->x;
+    obj->trans.rotation.x_rotation = item->y;
+    obj->trans.rotation.z_rotation = item->z;
+    obj->modelIndex = item->model;
+    obj->trans.scale = item->scale;
+    func_8000DB94(&D_800FF398, &D_800FF39C, &D_800FF3A0, obj);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_039F0);
 
