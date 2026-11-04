@@ -156,9 +156,16 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00268);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00644);
 
+/* A region's crossing point (module 3's) */
+typedef struct M155Point {
+    /* 0x0 */ s16 x;
+    /* 0x2 */ s16 z;
+} M155Point;
+
 /* A region as 00FC4 walks them (module 3's) */
 typedef struct M155Area {
-    /* 0x00 */ u8 pad0[0x10];
+    /* 0x00 */ M155Point *points; /* its crossing points */
+    /* 0x04 */ u8 pad4[0x10 - 0x4];
     /* 0x10 */ struct M155Area *next;
     /* 0x14 */ u32 flags; /* 1: in use, 4: skip, 8: has its own nodes */
     /* 0x18 */ u8 pad18[0x20 - 0x18];
@@ -403,7 +410,72 @@ void func_m155_01BE0(M155Entry *e, s16 x, s16 z, u8 from, u8 to) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01D9C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01F9C);
+/* Where a segment leaves a region, and where it can go on from (module 3's) */
+typedef struct M155Exit {
+    /* 0x0 */ s16 x;
+    /* 0x2 */ s16 z;
+    /* 0x4 */ u8 point;  /* the crossing it is */
+    /* 0x5 */ u8 other1; /* the region's other ways on */
+    /* 0x6 */ u8 other2;
+    /* 0x7 */ u8 region; /* the region it leads into */
+    /* 0x8 */ u8 unk8;
+    /* 0x9 */ u8 pad9;
+} M155Exit;
+
+extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, void *region, void *out, s32 point, u8 index);
+extern M155Entry *rl_m155_019A4(M155Entry *e);
+extern void rl_m155_01BE0(M155Entry *e, s16 x, s16 z, u8 from, u8 to);
+
+/*
+ * Takes the search one step from e: straight to the goal if nothing is in the way, else to where it
+ * leaves the region, with copies of the entry for the region's other ways on; FALSE when the ring is
+ * full or the path is too long
+ */
+s32 func_m155_01F9C(M155Entry *e) {
+    s16 x;
+    s16 z;
+    M155Area *zone;
+    M155Exit exit;
+    M155Entry *copy;
+    u8 n = e->count;
+    UNUSED s32 pad[2];
+
+    x = e->x[n];
+    z = e->z[n];
+    e->state &= 1;
+    if (rl_m155_04F60 != 0 || n >= 20) {
+        return FALSE;
+    }
+    if (!func_m003_175E8(x, z, rl_m155_04D54, rl_m155_04D56, rl_m155_04F80, &exit, e->from[n], e->to[n]) ||
+        (exit.x == rl_m155_04D54 && exit.z == rl_m155_04D56)) {
+        rl_m155_01BE0(e, rl_m155_04D54, rl_m155_04D56, 0xFF, 0);
+        return TRUE;
+    }
+    zone = func_m003_0569C(exit.region);
+    if (x != exit.x || z != exit.z) {
+        rl_m155_01BE0(e, exit.x, exit.z, exit.point, exit.region);
+        if (exit.unk8) {
+            e->state |= 2;
+        }
+    }
+    if (exit.point != exit.other1 && rl_m155_04F60 == 0) {
+        copy = rl_m155_019A4(e);
+        if (copy != NULL) {
+            rl_m155_01BE0(copy, zone->points[exit.other1].x, zone->points[exit.other1].z, exit.other1,
+                          exit.region);
+            copy->state |= 2;
+        }
+    }
+    if (exit.point != exit.other2 && rl_m155_04F60 == 0) {
+        copy = rl_m155_019A4(e);
+        if (copy != NULL) {
+            rl_m155_01BE0(copy, zone->points[exit.other2].x, zone->points[exit.other2].z, exit.other2,
+                          exit.region);
+            copy->state |= 2;
+        }
+    }
+    return TRUE;
+}
 
 /* The current search's entry to go on from: one with no cost yet, else the cheapest done one; or NULL */
 M155Entry *func_m155_02248(void) {
@@ -480,7 +552,6 @@ typedef struct M155Crossing {
 extern M155Area *rl_m155_04F80; /* the enemy's region */
 extern M155Path *rl_m155_022C8(s16 x, s16 z, s16 toX, s16 toZ);
 extern void rl_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to);
-extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, void *region, M155Crossing *out, s32 point, u8 index);
 
 /* Finds the enemy's path from (x, z) to (toX, toZ) and sets the first point to head for */
 void func_m155_02458(Object *obj, s16 x, s16 z, s16 toX, s16 toZ) {
@@ -568,7 +639,64 @@ void func_m155_02748(s16 x, s16 z, s16 *outX, s16 *outZ) {
     rl_m155_026D8(best, x, z, outX, outZ);
 }
 
+extern s16 rl_m155_04F68;        /* .bss (still assembly): the enemy's home point */
+extern s16 rl_m155_04F6A;
+extern M155Node *rl_m155_04F84;  /* .bss (still assembly): the node it is heading for, or NULL */
+extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
+
+#ifdef NON_MATCHING
+/* 7 diffs: bestDist and limit take s6/s7 the other way round */
+/*
+ * The node nearest the target, short of the current node's unk8, that 018C4 accepts; it is
+ * marked and its point (or (x, z)) goes to outX/outZ. (As in the original, with no current node
+ * the unk8 limit is never set, and the angle test always passes.)
+ */
+M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
+    UNUSED s32 pad[2];
+    M155Node *best = NULL;
+    M155Node *node = rl_m155_04D50;
+    u32 unset;
+    s32 tx;
+    s32 tz;
+    s32 n = rl_m155_03C70;
+    u32 limit;
+    u32 bestDist = -1;
+    u32 dx;
+    u32 dz;
+    u32 dist;
+    s16 a;
+    s16 d;
+
+    tx = rl_m155_04F6C->trans.x_position;
+    tz = rl_m155_04F6C->trans.z_position;
+    if (rl_m155_04F84 != NULL) {
+        limit = rl_m155_04F84->unk8;
+    } else {
+        limit = unset;
+    }
+    while (n-- > 0) {
+        if (node != rl_m155_04F84 && node->unk8 < limit) {
+            dx = tx - node->x;
+            dz = tz - node->z;
+            dist = dx * dx + dz * dz;
+            if (dist < bestDist && rl_m155_018C4(node)) {
+                a = func_80049C84(tz - rl_m155_04F6A, tx - rl_m155_04F68);
+                d = func_80049D80(a, (s16) func_80049C84(node->z - rl_m155_04F6A, node->x - rl_m155_04F68));
+                if (d < 20000 || d > -20000) {
+                    limit = node->unk8;
+                    bestDist = dist;
+                    best = node;
+                }
+            }
+        }
+        node++;
+    }
+    rl_m155_026D8(best, x, z, outX, outZ);
+    return best;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_0289C);
+#endif
 
 /* The node with the highest unk8 that 018C4 accepts; its point (or (x, z)) goes to outX/outZ */
 M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
