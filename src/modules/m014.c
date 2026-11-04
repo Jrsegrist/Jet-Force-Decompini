@@ -315,7 +315,70 @@ void func_m014_03AD4(Gfx **dl, s32 region, s32 world, s32 number, s32 alpha) {
     func_8006FCA8(dl, 159, 87, buf, 12);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_03C68);
+/* A colour cycle (55130.c's) */
+typedef struct M014ColourCycle {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ u8 colour[4];
+    /* 0x0C */ void *source;
+} M014ColourCycle;
+
+/* A filled box (59060.c's MenuBox) */
+typedef struct M014Box {
+    s16 x1, y1, x2, y2;
+    s32 colour;
+} M014Box;
+
+extern void func_m006_0107C(s32 *x, s32 *y);
+extern void colour_cycle_init(M014ColourCycle *cycle, s32 assetID);
+extern void update_colour_cycle(M014ColourCycle *cycle, s32 updateRate);
+extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
+
+/*
+ * A bar from (x1, y1) to (x2, y2) in 4-pixel steps, coloured along colour cycle 0x3B, bright up to
+ * value / max of its length and dim after (called from 00B30)
+ */
+void func_m014_03C68(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alpha) {
+    M014Box *b;
+    s32 x;
+    s32 width;
+    s32 split;
+    s32 n;
+    s32 left;
+    s32 range;
+    M014ColourCycle cycle;
+    M014Box boxes[64];
+    UNUSED s32 padB[3];
+
+    n = 0;
+    if (max != 0) {
+        func_m006_0107C(&x1, &y1);
+        func_m006_0107C(&x2, &y2);
+        b = boxes;
+        width = x2 - x1;
+        split = (((x2 - x1) * ((value << 16) / max)) >> 16) + x1;
+        /* (one line: IDO schedules by line) */
+        range = width; for (x = x1 + 4; x < x2; x += 4) {
+            left = x - 2;
+            if (x < split) {
+                max = 0xFF;
+            } else {
+                max = 0x30;
+            }
+            max = (max * alpha) >> 8;
+            colour_cycle_init(&cycle, 0x3B);
+            update_colour_cycle(&cycle, (func_80005064(60) * (left - x1)) / range);
+            b->x1 = left;
+            b->y1 = y1;
+            b->x2 = x;
+            b->y2 = y2;
+            b->colour = ((cycle.colour[2] << 8) | ((cycle.colour[1] << 16) | (cycle.colour[0] << 24))) | max;
+            b++;
+            n++;
+        }
+        menu_fill_boxes(&D_800FF398, n, boxes, 0);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", data);
 

@@ -11,7 +11,9 @@ typedef struct M003Member {
     /* 0x00 */ u32 pad0_0 : 1;
     /* 0x00 */ u32 onFire : 1;
     /* 0x00 */ u32 unk0_29 : 1;
-    /* 0x00 */ u32 pad0_3 : 7;
+    /* 0x00 */ u32 pad0_3 : 2;
+    /* 0x00 */ u32 unk0_26 : 1; /* (0B70C) */
+    /* 0x00 */ u32 pad0_8 : 4;
     /* 0x00 */ u32 unk0_21 : 1;
     /* 0x00 */ u32 unk0_20 : 1;
     /* 0x00 */ u32 pad0_2 : 1;
@@ -21,7 +23,7 @@ typedef struct M003Member {
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
     /* 0x00 */ u32 pad0_5 : 1;
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
-    /* 0x00 */ u32 pad0_4 : 1;
+    /* 0x00 */ u32 unk0_11 : 1; /* (0B70C) */
     /* 0x00 */ u32 partsSet : 1; /* set when 10160 or 10354 picked a part (bit 10) */
     /* 0x00 */ u32 unk0_9 : 1; /* cleared when its troop's leader goes */
     /* 0x00 */ u32 pad0_6 : 4;
@@ -123,7 +125,8 @@ typedef struct M003Group {
 typedef struct M003BodyFlags {
     u32 pad20 : 20;
     u32 unk11 : 1;
-    u32 pad6 : 5;
+    u32 unk10 : 1; /* (0B70C) */
+    u32 pad6 : 4;
     u32 unk5 : 1; /* animations 0x16-0x1F may not replace each other */
     u32 fireproof : 1;
     u32 rest : 4;
@@ -1899,7 +1902,100 @@ void func_m003_09A14(Object *obj) {
     func_800079B8(obj);
 }
 
+/* The level entry of a lost body part (object 0x89) */
+typedef struct M003PartEntry2 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ s8 unk2;
+    /* 0x03 */ s8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ Object *owner;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 kind;
+} M003PartEntry2;
+
+extern void velocity_mass_weighted(Object *a, Object *b, f32 *x, f32 *y, f32 *z);
+extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32 arg7, f32 scale);
+extern f32 rl_m003_19D3C; /* .rodata (still assembly) */
+
+/*
+ * The member coming apart: 32 drops around it, then every body part it has not lost yet flies off (while
+ * the main pool has over 48 KiB free) with the hit's velocity (called from 10600)
+ */
+#ifdef NON_MATCHING
+/* Two instructions: k is a .rodata literal in the ROM (hoisted after the loop's 1.0f); needs .rodata in C */
+void func_m003_09CE4(Object *obj) {
+    M003Member *m;
+    s32 alpha;
+    s32 i;
+    s32 dx;
+    s32 dy;
+    M003PartEntry2 entry;
+    UNUSED s32 pad;
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 dz;
+    s32 vx;
+    s32 vy;
+    f32 k;
+    Object *o;
+    M003BodyPart *p;
+    u16 bit;
+
+    m = obj->unk68;
+    velocity_mass_weighted(obj, ((M003Interact *) obj->interactObj)->hitBy, &x, &y, &z);
+    if (m->unk55 == 0) {
+        if (obj->shading != NULL) {
+            alpha = obj->shading->unk0 * 255.0f;
+        } else {
+            alpha = 0xFF;
+        }
+        k = rl_m003_19D3C;
+        i = 31;
+        do {
+            dx = func_80048E2C(-20, 20);
+            dy = func_80048E2C(-20, 20);
+            dz = func_80048E2C(-20, 20);
+            vx = func_80048E2C(-500, 500);
+            vy = func_80048E2C(0, 500);
+            func_m008_001CC(dx + obj->trans.x_position, dy + obj->trans.y_position, dz + obj->trans.z_position,
+                            vx * k, vy * k, func_80048E2C(-500, 500) * k, alpha, ((u8 *) obj->header)[0x2F],
+                            1.0f);
+        } while (i--);
+        for (i = 0; i < sBody->numParts; i++) {
+            p = &sBody->parts[i];
+            bit = 1 << p->bit;
+            if (!(m->lostParts & bit)) {
+                m->lostParts |= bit;
+                if (gMainPoolFreeBytes > 0xC000) {
+                    entry.objectID = 0x89;
+                    entry.unk2 = 20;
+                    entry.unk3 = 0;
+                    entry.x = 0;
+                    entry.y = 0;
+                    entry.z = 0;
+                    entry.unk10 = p->unk4;
+                    entry.unk11 = p->unk5;
+                    entry.owner = sObj;
+                    entry.kind = p->kind;
+                    o = func_80005F14(&entry, 1);
+                    if (o != NULL) {
+                        o->velocity.x += x;
+                        o->velocity.y += y;
+                        o->velocity.z += z;
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09CE4);
+#endif
 
 /* A member is killed */
 void func_m003_09FF0(Object *obj) {
@@ -2090,7 +2186,7 @@ void func_m003_0B468(void) {
  * The height the member walks at: in states 2, 0x13 and 0xC, between the troop's way point and the one
  * before, by how far along the member is; else the troop's height (called from 0B70C)
  */
-f32 func_m003_0B50C(void) {
+static f32 func_m003_0B50C(void) {
     M003Node *b;
     M003Node *a;
     s32 i;
@@ -2138,7 +2234,51 @@ f32 func_m003_0B50C(void) {
     return sHomeData->y;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B70C);
+extern f32 rl_m003_19D5C; /* .rodata (still assembly) */
+
+/*
+ * The member's fall: towards the walking height 0B50C gives (while it rises, only slowing), landing on it
+ * (called from 0BBC4 and 10600)
+ */
+void func_m003_0B70C(void) {
+    f32 h;
+
+    if (!(sHomeData->flags & 0x30) && !sMember->unk0_18 && ((M003BodyFlags *) &sBody->unk24)->unk10) {
+        h = func_m003_0B50C();
+        if (sMember->unk0_11 && sObj->velocity.y > 0.0f) {
+            sObj->velocity.y -= 1.0f;
+            return;
+        }
+        if (h < sObj->trans.y_position) {
+            sObj->velocity.y -= 1.0f;
+            sMember->unk0_26 = 1;
+        } else {
+            sObj->velocity.y = 0.0f;
+            sMember->unk1E = 0;
+            sMember->unk0_26 = 0;
+            sMember->unk0_11 = 0;
+            if (sMember->unk1A == 0x13 && sMember->unk1B == 4) {
+                sMember->unk4B = 0;
+                func_m003_04398(2, 0);
+            }
+        }
+        if (sObj->trans.y_position + sObj->velocity.y < h) {
+            if (h - 12.0f < sObj->trans.y_position + sObj->velocity.y) {
+                sObj->velocity.y = 0.0f;
+                sMember->unk1E = 0;
+            } else {
+                sObj->velocity.y *= rl_m003_19D5C;
+            }
+            sObj->trans.y_position = h;
+            sMember->unk0_26 = 0;
+            sMember->unk0_11 = 0;
+            if (sMember->unk1A == 0x13 && sMember->unk1B == 4) {
+                sMember->unk4B = 0;
+                func_m003_04398(2, 0);
+            }
+        }
+    }
+}
 
 /* The member steps of 0B9A0 and its kin (still assembly) */
 extern void rl_m003_0A564(void);
