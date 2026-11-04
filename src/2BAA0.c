@@ -29,14 +29,21 @@ typedef struct Racer {
     /* 0x010 */ f32 velZ;
     /* 0x014 */ u8 pad14[0x3C - 0x14];
     /* 0x03C */ f32 pos[3];
-    /* 0x048 */ u8 pad48[0x60 - 0x48];
+    /* 0x048 */ u8 pad48[0x4C - 0x48];
+    /* 0x04C */ f32 unk4C;
+    /* 0x050 */ u8 pad50[0x60 - 0x50];
     /* 0x060 */ f32 unk60;
-    /* 0x064 */ u8 pad64[0xB8 - 0x64];
+    /* 0x064 */ u8 pad64[0x6C - 0x64];
+    /* 0x06C */ f32 pushX;
+    /* 0x070 */ f32 pushZ;
+    /* 0x074 */ u8 pad74[0xB8 - 0x74];
     /* 0x0B8 */ u16 lastVoice;
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
     /* 0x0C0 */ s32 sound;
-    /* 0x0C4 */ u8 padC4[0x11C - 0xC4];
+    /* 0x0C4 */ u8 padC4[0x10A - 0xC4];
+    /* 0x10A */ s16 unk10A;
+    /* 0x10C */ u8 pad10C[0x11C - 0x10C];
     /* 0x11C */ s16 unk11C;
     /* 0x11E */ u8 pad11E[0x122 - 0x11E];
     /* 0x122 */ s16 unk122;
@@ -50,7 +57,10 @@ typedef struct Racer {
     /* 0x138 */ u8 pad138[0x13C - 0x138];
     /* 0x13C */ s16 unk13C;
     /* 0x13E */ u8 unk13E;
-    /* 0x13F */ u8 pad13F[0x14C - 0x13F];
+    /* 0x13F */ u8 unk13F;
+    /* 0x140 */ u8 pad140[0x149 - 0x140];
+    /* 0x149 */ u8 unk149;
+    /* 0x14A */ u8 pad14A[0x14C - 0x14A];
     /* 0x14C */ f32 segStart[3]; // a segment in the platform's local space, and the position along it
     /* 0x158 */ f32 segEnd[3];
     /* 0x164 */ f32 segT;
@@ -60,7 +70,11 @@ typedef struct Racer {
     /* 0x17E */ s16 unk17E;
     /* 0x180 */ u8 pad180[2];
     /* 0x182 */ s16 unk182;
-    /* 0x184 */ u8 pad184[0x198 - 0x184];
+    /* 0x184 */ u8 pad184[0x186 - 0x184];
+    /* 0x186 */ s8 squashTimer;
+    /* 0x187 */ u8 squashEvent;
+    /* 0x188 */ u8 squashCheck;
+    /* 0x189 */ u8 pad189[0x198 - 0x189];
     /* 0x198 */ u8 unk198;
     /* 0x199 */ u8 pad199[0x19C - 0x199];
     /* 0x19C */ s8 unk19C;
@@ -70,14 +84,25 @@ typedef struct Racer {
     /* 0x1A8 */ u8 *items[6];
     /* 0x1C0 */ u8 pad1C0[0x1D4 - 0x1C0];
     /* 0x1D4 */ s32 unk1D4;
-    /* 0x1D8 */ u8 pad1D8[0x1F9 - 0x1D8];
+    /* 0x1D8 */ u8 pad1D8[0x1E2 - 0x1D8];
+    /* 0x1E2 */ s16 unk1E2;
+    /* 0x1E4 */ u8 pad1E4[0x1F4 - 0x1E4];
+    /* 0x1F4 */ s8 unk1F4;
+    /* 0x1F5 */ u8 pad1F5[0x1F9 - 0x1F5];
     /* 0x1F9 */ u8 unk1F9;
     /* 0x1FA */ u8 unk1FA;
-    /* 0x1FB */ u8 pad1FB[0x510 - 0x1FB];
+    /* 0x1FB */ u8 pad1FB[0x360 - 0x1FB];
+    /* 0x360 */ u8 *pose;
+    /* 0x364 */ u8 pad364[0x484 - 0x364];
+    /* 0x484 */ f32 posePoints[8][3];
+    /* 0x4E4 */ u8 pad4E4[0x510 - 0x4E4];
     /* 0x510 */ s16 *platform; // the platform object stood on
-    /* 0x514 */ u8 pad514[0x524 - 0x514];
+    /* 0x514 */ void *squashObj;
+    /* 0x518 */ u8 pad518[0x524 - 0x518];
     /* 0x524 */ f32 prevPos[3];
-    /* 0x530 */ u8 pad530[0x53A - 0x530];
+    /* 0x530 */ s8 numPoints;
+    /* 0x531 */ u8 pointMask;
+    /* 0x532 */ u8 pad532[0x53A - 0x532];
     /* 0x53A */ u16 soundId;
     /* 0x53C */ u8 pad53C[0x540 - 0x53C];
     /* 0x540 */ RacerFlags flags;
@@ -93,7 +118,9 @@ typedef struct Racer {
     /* 0x574 */ u8 unk574;
     /* 0x575 */ u8 pad575;
     /* 0x576 */ u8 unk576;
-    /* 0x577 */ u8 pad577[0x5CC - 0x577];
+    /* 0x577 */ u8 pad577[0x57A - 0x577];
+    /* 0x57A */ u8 unk57A;
+    /* 0x57B */ u8 pad57B[0x5CC - 0x57B];
     /* 0x5CC */ u8 *held;
 } Racer;
 
@@ -257,10 +284,6 @@ f32 func_8002B3F0(s32 index) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B418);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B960);
-
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002BD04);
-
 typedef struct Transform2BAA0 {
     /* 0x00 */ s16 rotation[3];
     /* 0x06 */ s16 flags;
@@ -277,6 +300,85 @@ typedef struct Transform2BAA0 {
     /* 0x48 */ u8 pad48;
     /* 0x49 */ u8 unk49;
 } Transform2BAA0;
+
+extern f32 D_800ABDB0;
+extern f32 D_800ABDB4;
+void *cam_get_active_camera(void);
+s16 angle_lerp(s16 from, s16 to, f32 t);
+f32 func_80049BEC(f32 rate, s32 updateRate);
+void func_800496B0(s32, s16 *, void *, u8 *);
+
+/* JFG: the over-the-shoulder camera: pitched with the player's aim (0x1E2, less for weapon 7), pulled in as the aim
+ * leaves +-0x38E, 60 units up; the camera eases to it */
+void func_8002B960(s16 *obj, Racer *racer, f32 updateRate) {
+    UNUSED s32 pad;
+    s16 angles[3];
+    f32 x;
+    f32 y;
+    f32 z;
+    UNUSED s32 pad2[2];
+    f32 off[3];
+    f32 eye[3];
+    u8 *chr;
+    f32 tilt;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    racer->unk10A = 0;
+    *(f32 *) ((u8 *) cam_get_active_camera() + 0x2C) = 60.0f;
+    angles[0] = obj[0];
+    angles[1] = -obj[1];
+    angles[2] = 0;
+    if (chr[0x70] != 7) {
+        if (racer->unk1E2 > 0) {
+            angles[1] -= (racer->unk1E2 * 0xDC) >> 8;
+        } else {
+            angles[1] -= (racer->unk1E2 * 0xA0) >> 8;
+        }
+    } else {
+        angles[1] -= racer->unk1E2;
+    }
+    tilt = 0.0f;
+    if (racer->unk1E2 > 0x38E) {
+        tilt = (racer->unk1E2 - 0x38E) / D_800ABDB0;
+    }
+    if (racer->unk1E2 < -0x38E) {
+        tilt = (-0x38E - racer->unk1E2) / D_800ABDB4;
+    }
+    if (tilt > 1.0f) {
+        tilt = 1.0f;
+    }
+    off[0] = 0.0f;
+    off[1] = 0.0f;
+    off[2] = -105.0f * tilt + 150.0f;
+    angles[1] = -angles[1];
+    tilt = 1.0f;
+    func_800496B0(1, angles, off, (u8 *) off);
+    eye[0] = 0.0f;
+    eye[2] = 0.0f;
+    eye[1] = 60.0f;
+    func_800496B0(1, obj, eye, (u8 *) eye);
+    x = (*(f32 *) (obj + 6) + off[0]) + eye[0];
+    y = (*(f32 *) (obj + 8) + off[1]) + eye[1];
+    z = (*(f32 *) (obj + 10) + off[2]) + eye[2];
+    if (racer->unk574) {
+        tilt = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[0] =
+        angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[0], 0x8000 - angles[0], tilt);
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[1] =
+        angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[1], -angles[1], tilt);
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[2] = angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[2], angles[2], tilt);
+    tilt = 1.0f;
+    if (racer->unk574) {
+        tilt = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    ((Transform2BAA0 *) D_800F6DC0)->position[0] += (x - ((Transform2BAA0 *) D_800F6DC0)->position[0]) * tilt;
+    ((Transform2BAA0 *) D_800F6DC0)->position[1] += (y - ((Transform2BAA0 *) D_800F6DC0)->position[1]) * tilt;
+    ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * tilt;
+}
+
+INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002BD04);
+
 
 s32 cam_get_active_camera_id(void);
 void func_8003FC60(s32 index, s32 value);
@@ -1252,6 +1354,15 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800344B4);
 
+extern u8 *D_800A18B0;
+extern s32 gPlayerStickX;
+extern s32 gPlayerStickY;
+f32 func_80049C34(s32 angle);
+f32 func_80049C30(s32 angle);
+
+/* JFG: the quick turn: when the stick points more than `wide` away from the player's facing (*angle), start a turn
+ * towards the object's angle (moving backwards fast: a reverse turn, *out = 1); while turning, *speed follows the
+ * stick in the turn's frame, and the turn ends within `wide` of the start or `narrow` of the object's angle */
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800346C4);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800349AC);
@@ -1460,6 +1571,10 @@ s32 func_80049C84(f32 x, f32 z);
 void func_80049394(s16 *rotation, f32 *vec);
 f32 sqrtf(f32 x);
 
+s32 func_80049C84(f32 x, f32 z);
+void func_80049394(s16 *rotation, f32 *vec);
+f32 sqrtf(f32 x);
+
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035B30);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
@@ -1468,6 +1583,11 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80036A30);
 
+void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
+
+/* JFG: squash checks: the timer (0x186) clears the squashing object; event 1 starts checking, event 2 pushes the
+ * player off the platform; while checking, the lowest object over a free pose point (down to the pose height)
+ * squashes the player: it pushes off (by the object's direction 0x8C, or away from it) unless on a platform */
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80036DBC);
 
 extern f32 D_800ABF74;
