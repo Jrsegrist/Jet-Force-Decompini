@@ -19,7 +19,8 @@ typedef struct M155Flags {
     u32 pad : 13;
     u32 alerted : 1;
     u32 pad2 : 2;
-    /* 0x04 */ u8 pad4[0x14 - 0x4];
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ u8 pad8[0x14 - 0x8];
     /* 0x14 */ s16 nextX; /* the next point of its path */
     /* 0x16 */ s16 nextZ;
 } M155Flags;
@@ -93,11 +94,56 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01274);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01584);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_018C4);
+/* A path node, as 018C4 and 026D8 use it */
+typedef struct M155Node {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 z;
+    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 stamp; /* the search that last visited it, or 0 */
+} M155Node;
+
+extern s32 rl_m155_04F88; /* the current search's stamp (.bss, still assembly) */
+
+/* 2 if the current search has visited the node, 1 if no search has, else 0 */
+s32 func_m155_018C4(M155Node *node) {
+    if (rl_m155_04F88 == node->stamp) {
+        return 2;
+    }
+    if (node->stamp == 0) {
+        return 1;
+    }
+    return 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01900);
 
+extern s32 *rl_m155_01900(void); /* the next free entry of the search's ring (0x84 bytes), or NULL */
+
+#ifdef NON_MATCHING
+/* 7 diffs: the copy's destination and counter take a1/v1 the other way round */
+/* Copies an entry (33 words) into the next free one of the ring; that one, or NULL */
+s32 *func_m155_019A4(s32 *src) {
+    s32 *entry;
+    s32 *dst;
+    s32 *s;
+    s32 n;
+
+    entry = rl_m155_01900();
+    if (entry == NULL) {
+        return NULL;
+    }
+    dst = entry;
+    s = src;
+    n = 33;
+    while (n--) {
+        *dst++ = *s++;
+    }
+    return entry;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_019A4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01A00);
 
@@ -179,7 +225,18 @@ void func_m155_02458(Object *obj, s16 x, s16 z, s16 toX, s16 toZ) {
     sFlags->nextZ = p[19];
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_026D8);
+/* Marks the node visited and gives its point, or (x, z) when there is no node */
+void func_m155_026D8(M155Node *node, s16 x, s16 z, s16 *outX, s16 *outZ) {
+    if (node != NULL) {
+        node->stamp = rl_m155_04F88;
+        sFlags->unk4 = node->unkC;
+        *outX = node->x;
+        *outZ = node->z;
+    } else {
+        *outX = x;
+        *outZ = z;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02748);
 

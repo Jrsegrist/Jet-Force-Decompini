@@ -143,7 +143,16 @@ void func_m047_00130(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_002C4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_007DC);
+/* Turns angle `from` part `t` of the shorter way towards `to` (called from 0084C) */
+s16 func_m047_007DC(f32 t, s16 from, s16 to) {
+    s32 d = (u16) (to - from);
+    s32 back = (u16) (from - to);
+
+    if (back < d) {
+        d = -back;
+    }
+    return from + (s32) (d * t);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_0084C);
 

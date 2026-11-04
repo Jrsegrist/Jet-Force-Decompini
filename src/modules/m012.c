@@ -212,7 +212,20 @@ u8 func_m012_01870(void) {
     return sFrame.texturesFreed;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01880);
+extern u8 rl_m012_01B8C[]; /* .data (still assembly): runlink modules, 0xFF-terminated */
+extern s32 runlink_module_loaded(s32 module);
+extern void runlink_module_move_to_slot(s32 module);
+
+/* Moves each of the listed modules that is loaded to its slot (called from 008A8) */
+void func_m012_01880(void) {
+    u8 *module;
+
+    for (module = rl_m012_01B8C; *module != 0xFF; module++) {
+        if (runlink_module_loaded(*module)) {
+            runlink_module_move_to_slot(*module);
+        }
+    }
+}
 
 void func_m012_018F4(s32 level, s32 arg1, s32 arg2, s32 arg3) {
     sNewLevel = level;

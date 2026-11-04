@@ -35,11 +35,22 @@ INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_0230C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_023D0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_02708);
+/* Does nothing (called from 00038) */
+void func_m053_02708(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2, UNUSED s32 arg3) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_0271C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_028CC);
+/* The part of the vehicle's state that 028CC clears */
+typedef struct M053State {
+    /* 0x000 */ u8 pad0[0x538];
+    /* 0x538 */ u8 unk538;
+} M053State;
+
+/* Clears the state's byte at 0x538 (called from 00038) */
+void func_m053_028CC(UNUSED s32 arg0, M053State *state, UNUSED s32 arg2) {
+    state->unk538 = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_028DC);
 

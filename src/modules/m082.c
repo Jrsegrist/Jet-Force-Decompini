@@ -141,7 +141,21 @@ INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_013C0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_0165C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_01778);
+/* What the module's first .data word points at, as far as 01778 uses it */
+typedef struct M082Linked {
+    /* 0x00 */ u8 pad0[0x88];
+    /* 0x88 */ s32 unk88;
+} M082Linked;
+
+extern M082Linked *rl_m082_017A0; /* .data (still assembly) */
+
+/* Sets the linked thing's flag at 0x88 and forgets it (called from 005D4) */
+void func_m082_01778(void) {
+    if (rl_m082_017A0 != NULL) {
+        rl_m082_017A0->unk88 = 1;
+        rl_m082_017A0 = NULL;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m082", data);
 

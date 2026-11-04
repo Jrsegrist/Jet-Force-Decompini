@@ -78,9 +78,32 @@ INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_002E8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01D2C);
+/* The byte of the object at 0x32: its bit in the settings' flags from 8 on */
+typedef struct M032FlagObj {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ u8 flag;
+} M032FlagObj;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01D84);
+extern u8 *get_settings(void);
+
+/* Whether the object's settings flag is still clear (called from 00000 and 002E8) */
+s32 func_m032_01D2C(Object *obj) {
+    s32 byte = ((M032FlagObj *) obj)->flag >> 3;
+    s32 bit = 0x80 >> (((M032FlagObj *) obj)->flag & 7);
+
+    if (get_settings()[byte + 8] & bit) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Sets the object's settings flag (called from 002E8) */
+void func_m032_01D84(Object *obj) {
+    s32 byte = ((M032FlagObj *) obj)->flag >> 3;
+    s32 bit = 0x80 >> (((M032FlagObj *) obj)->flag & 7);
+
+    get_settings()[byte + 8] |= bit;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01DD8);
 

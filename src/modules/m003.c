@@ -182,7 +182,8 @@ typedef struct M003Node {
     /* 0x17 */ u8 unk17 : 6;
     /* 0x18 */ u8 pad18[0x1C - 0x18];
     /* 0x1C */ u8 unk1C;
-    /* 0x1D */ u8 pad1D[0x32 - 0x1D];
+    /* 0x1D */ u8 pad1D[0x31 - 0x1D];
+    /* 0x31 */ u8 radius; /* how near counts as there (02760) */
     /* 0x32 */ u8 unk32;
     /* 0x33 */ u8 unk33;
 } M003Node;
@@ -335,7 +336,7 @@ extern void rl_m003_044F4(Object *obj);
 
 /* An animation entry (8 bytes) */
 typedef struct M003Anim {
-    /* 0x00 */ u8 unk0[2];
+    /* 0x00 */ s16 unk0; /* the first entry's: the animation speed, in some unit (044B4) */
     /* 0x02 */ u8 anim;
     /* 0x03 */ u8 unk3;
     /* 0x04 */ u32 pad4_0 : 17;
@@ -721,7 +722,13 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_021C8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0237C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02760);
+/* How near the member must get to way point `node`: farther when its troop's unk6C is 1 */
+s32 func_m003_02760(M003Node *node) {
+    if (sHomeData->unk6C == 1.0f) {
+        return node->radius + 40;
+    }
+    return node->radius;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_027A4);
 
@@ -1029,7 +1036,12 @@ M003Anim *func_m003_04428(Object *obj) {
     return rl_m003_17DB8;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044B4);
+extern f32 rl_m003_19A00; /* .rodata (still assembly): the unit of 044B4's speed */
+
+/* The current member's animation speed: its first animation entry's unk0, scaled */
+static f32 func_m003_044B4(void) {
+    return func_m003_04428(sObj)->unk0 * rl_m003_19A00;
+}
 
 /* The level entry of a lost body part (size 0x14) */
 typedef struct M003PartEntry {
@@ -1118,8 +1130,6 @@ s32 func_m003_04EC4(s32 arg0, s32 index) {
     return result;
 }
 
-extern f32 rl_m003_044B4(void);
-
 /* Moves the member's animation of kind `kind` on; returns what the animation step returns, or 0 */
 s32 func_m003_04F88(s32 kind, f32 speed) {
     s32 result = 0;
@@ -1129,7 +1139,7 @@ s32 func_m003_04F88(s32 kind, f32 speed) {
     if (kind == sMember->unk4B) {
         anims = func_m003_04428(sObj);
         sMember->unk60 = sObj->unk28;
-        result = func_8001138C(sObj, rl_m003_044B4() * speed, sUpdateRate);
+        result = func_8001138C(sObj, func_m003_044B4() * speed, sUpdateRate);
         if (result) {
             if (sHomeData->kind == 0xBD) {
                 flash = &sMember->unkA8;
@@ -1301,7 +1311,23 @@ static void func_m003_0556C(Object *home) {
     func_m154_017E8(sHome);
 }
 
+#ifdef NON_MATCHING
+/* 11 diffs, registers only: the ROM keeps `point` in v0 and computes `point + 1` again for the test */
+/* The points before and after `point` round the region's edge */
+void func_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next) {
+    *prev = point - 1;
+    *next = point + 1;
+    if (point == 0) {
+        *prev = region->numEdges - 1;
+        return;
+    }
+    if (region->numEdges == point + 1) {
+        *next = 0;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_05650);
+#endif
 
 /* Region `index`, or NULL before the regions are loaded */
 M003Region *func_m003_0569C(s32 index) {
@@ -1442,7 +1468,20 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_069B0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06D28);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07980);
+extern f32 rl_m003_19AAC; /* .rodata (still assembly): 07980's rate */
+
+/* The change from `speed` towards a speed for going from `from` to `to`, at most `max` either way */
+f32 func_m003_07980(f32 from, f32 to, f32 speed, f32 max) {
+    f32 d = (to - from) * rl_m003_19AAC - speed;
+
+    if (max < d) {
+        d = max;
+    }
+    if (d < -max) {
+        d = -max;
+    }
+    return d;
+}
 
 #ifdef NON_MATCHING
 /* The speed change that brings a mover to a stop `dist` away, accelerating by `accel` */
@@ -1695,13 +1734,44 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B50C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B70C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B9A0);
+/* The member steps of 0B9A0 and its kin (still assembly) */
+extern void rl_m003_0A564(void);
+extern void rl_m003_0A5EC(void);
+extern void rl_m003_0A850(void);
+extern void rl_m003_0A948(void);
+extern void rl_m003_0A9E8(s32 arg0);
+extern void rl_m003_0AD38(void);
+extern void rl_m003_0AFC4(void);
+extern void rl_m003_0B468(void);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B9E0);
+/* One of the member updates that 10600 picks from */
+void func_m003_0B9A0(void) {
+    rl_m003_0A564();
+    rl_m003_0A850();
+    rl_m003_0AFC4();
+    rl_m003_0B468();
+    rl_m003_0AD38();
+}
+
+/* As 0B9A0, but starting with 0A5EC */
+void func_m003_0B9E0(void) {
+    rl_m003_0A5EC();
+    rl_m003_0A850();
+    rl_m003_0AFC4();
+    rl_m003_0B468();
+    rl_m003_0AD38();
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BA20);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BA94);
+/* Another of the member updates that 10600 picks from */
+void func_m003_0BA94(void) {
+    rl_m003_0A564();
+    rl_m003_0A948();
+    rl_m003_0AFC4();
+    rl_m003_0A9E8(0);
+    rl_m003_0AD38();
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BAD4);
 
@@ -2438,7 +2508,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_170D0);
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
 
 extern void rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, void *node);
-extern void rl_m003_05650(M003Region *region, s32 point, u8 *a, u8 *b);
 
 #ifdef NON_MATCHING
 /* 2 words: the ROM computes `point & 0xFF` one store earlier */
@@ -2473,7 +2542,7 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
         out->point = sCrossPoint;
         out->region = sCrossRegion;
         to = func_m003_0569C(sCrossRegion);
-        rl_m003_05650(to, out->point, &out->unk5, &out->unk6);
+        func_m003_05650(to, out->point, &out->unk5, &out->unk6);
         if (point != -1) {
             p = &from->points[point];
             if (sCrossX1 == p->x && sCrossZ1 == p->z &&
@@ -2483,7 +2552,7 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
                 out->point = point;
                 out->z = p->z;
                 out->region = regionIndex;
-                rl_m003_05650(from, point & 0xFF, &out->unk5, &out->unk6);
+                func_m003_05650(from, point, &out->unk5, &out->unk6);
                 out->atPoint = FALSE;
                 return TRUE;
             }

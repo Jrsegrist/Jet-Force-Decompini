@@ -42,7 +42,18 @@ typedef struct M022Header {
 typedef struct M022Helper {
     /* 0x000 */ u8 pad0[0x10D];
     /* 0x10D */ u8 state;
+    /* 0x10E */ u8 pad10E[0x50C - 0x10E];
+    /* 0x50C */ Object *obj;
 } M022Helper;
+
+/* The helper object's behaviour data, as far as the task uses it */
+typedef struct M022HelperState {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ u16 unk1C;
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ u8 pad20[0x90 - 0x20];
+    /* 0x90 */ s16 unk90;
+} M022HelperState;
 
 extern void func_80003614(s32 handle);             /* stops a positioned sound */
 extern ObjectTransform *func_80041DE0(void);       /* the camera */
@@ -139,7 +150,21 @@ INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_018AC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_020EC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_022C4);
+struct M022Goals;
+extern struct M022Goals *rl_m022_03410;
+extern void rl_m022_02310(M022HelperState *s);
+
+/* Puts the helper in state 1 and starts its task (called from 002A4) */
+void func_m022_022C4(M022Helper *helper) {
+    M022HelperState *s;
+
+    D_800A3208 = 1;
+    helper->state = 1;
+    s = helper->obj->unk68;
+    s->unk1C = *(u16 *) rl_m022_03410;
+    s->unk1E = 6;
+    rl_m022_02310(s);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02310);
 
@@ -148,7 +173,15 @@ void func_m022_023FC(M022Helper *helper) {
     rl_m022_03424 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02410);
+/* Puts the helper in state 4 (called from 002A4) */
+void func_m022_02410(M022Helper *helper) {
+    M022HelperState *s;
+
+    D_800A3208 = 0;
+    helper->state = 4;
+    s = helper->obj->unk68;
+    s->unk90 = 0;
+}
 
 /* A task goal: a count to reach, or flags to have */
 typedef struct M022Goal {
