@@ -20,7 +20,7 @@ typedef struct M022Plate {
     /* 0x19 */ u8 unk19;
     /* 0x1A */ s8 unk1A;
     /* 0x1B */ u8 unk1B;
-    /* 0x1C */ s32 unk1C;
+    /* 0x1C */ Object *marker; /* the marker shown over the plate (00000) */
 } M022Plate;
 
 /* The plate's level entry */
@@ -110,7 +110,41 @@ extern s16 rl_m022_035C8;
 #define sPlateCamUnk16 rl_m022_035C6
 #define sPlateCamUnk18 rl_m022_035C8
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_00000);
+extern LevelObjectEntryCommon rl_m022_03444; /* .data (still assembly): the marker's level entry */
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+
+/* The marker's data, as 00000 uses it */
+typedef struct M022Marker {
+    /* 0x0 */ s16 unk0;
+    /* 0x2 */ s16 alpha;
+} M022Marker;
+
+/* Spawns the plate's marker when it is due, and fades it in while unk17 is set, out otherwise */
+void func_m022_00000(Object *obj, M022Plate *plate, s32 updateRate) {
+    M022Marker *m;
+
+    if (plate->unk1B) {
+        rl_m022_03444.x = obj->trans.x_position;
+        rl_m022_03444.y = obj->trans.y_position + 70.0f;
+        rl_m022_03444.z = obj->trans.z_position;
+        plate->unk1B = 0;
+        plate->marker = func_80005F14(&rl_m022_03444, 1);
+    }
+    if (plate->marker != NULL) {
+        m = plate->marker->unk68;
+        if (plate->unk17) {
+            m->alpha += updateRate * 4;
+            if (m->alpha >= 256) {
+                m->alpha = 255;
+            }
+        } else {
+            m->alpha -= updateRate * 16;
+            if (m->alpha < 0) {
+                m->alpha = 0;
+            }
+        }
+    }
+}
 
 void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     M022Plate *plate = obj->unk68;
@@ -127,7 +161,7 @@ void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     plate->unk19 = 0;
     plate->unk1A = -1;
     plate->unk1B = 1;
-    plate->unk1C = 0;
+    plate->marker = NULL;
     D_800A320C = ((M022Header *) obj->header)->unkAC[0];
     D_800A3210[0] = ((M022Header *) obj->header)->unkAC[1];
     D_800A3210[1] = ((M022Header *) obj->header)->unkAC[2];

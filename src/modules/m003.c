@@ -14,7 +14,8 @@ typedef struct M003Member {
     /* 0x00 */ u32 pad0_3 : 7;
     /* 0x00 */ u32 unk0_21 : 1;
     /* 0x00 */ u32 unk0_20 : 1;
-    /* 0x00 */ u32 pad0_2 : 2;
+    /* 0x00 */ u32 pad0_2 : 1;
+    /* 0x00 */ u32 unk0_18 : 1; /* (0E9F0: moved by 0E3CC) */
     /* 0x00 */ u32 unk0_17 : 1; /* (0A850: the member moves five times as fast) */
     /* 0x00 */ u32 pad0_7 : 2;
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
@@ -22,7 +23,8 @@ typedef struct M003Member {
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
     /* 0x00 */ u32 pad0_4 : 2;
     /* 0x00 */ u32 unk0_9 : 1; /* cleared when its troop's leader goes */
-    /* 0x00 */ u32 pad0_6 : 5;
+    /* 0x00 */ u32 pad0_6 : 4;
+    /* 0x00 */ u32 unk0_4 : 1;
     /* 0x00 */ u32 headless : 1;
     /* 0x00 */ u32 pad0_1 : 1;
     /* 0x00 */ u32 unk0_1 : 1;
@@ -52,7 +54,9 @@ typedef struct M003Member {
     /* 0x20 */ f32 unk20; /* and how fast */
     /* 0x24 */ Object *home;
     /* 0x28 */ Object *next; /* the next member of the troop */
-    /* 0x2C */ u8 pad2C[0x38 - 0x2C];
+    /* 0x2C */ f32 lastX; /* where it was before its last move (0E9F0) */
+    /* 0x30 */ f32 lastY;
+    /* 0x34 */ f32 lastZ;
     /* 0x38 */ f32 unk38;
     /* 0x3C */ f32 unk3C;
     /* 0x40 */ f32 unk40;
@@ -80,7 +84,8 @@ typedef struct M003Member {
     /* 0xA8 */ Object *unkA8;
     /* 0xAC */ u8 padAC[0xB0 - 0xAC];
     /* 0xB0 */ struct M003Flags4 *unkB0;
-    /* 0xB4 */ u8 padB4[0xBC - 0xB4];
+    /* 0xB4 */ Object *follower; /* an object kept at the member's place (0E9F0) */
+    /* 0xB8 */ u8 padB8[0xBC - 0xB8];
     /* 0xBC */ s32 sound; /* the burning sound's handle */
     /* 0xC0 */ u8 padC0[0xC8 - 0xC0];
     /* 0xC8 */ Object *spark; /* the electric spark on the member */
@@ -1036,7 +1041,22 @@ s32 func_m003_03E90(s32 x1, s32 y1, s32 x2, s32 y2, s32 x3, s32 y3, s32 x4, s32 
     return 1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_040FC);
+/* Stretches the vector (x, y, z) to length `len` if it is shorter (and not zero) */
+void func_m003_040FC(s16 *x, s16 *y, s16 *z, f32 len) {
+    f32 cur = func_80097140(*x * *x + *y * *y + *z * *z);
+    f32 nx;
+    f32 ny;
+    f32 nz;
+
+    if (cur != 0.0f && cur < len) {
+        nx = *x / cur * len;
+        ny = *y / cur * len;
+        nz = *z / cur * len;
+        *x = nx;
+        *y = ny;
+        *z = nz;
+    }
+}
 
 extern s32 rl_m003_1976C[]; /* per mission kind: a bit per kind it may replace */
 extern s32 func_m146_00CD8(s32 kind);
@@ -1843,7 +1863,34 @@ void func_m003_0AABC(f32 x, f32 z) {
     sObj->velocity.z = func_80049C30(sMember->unk1C) * sMember->unk20;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0ABF4);
+/* Slows the member the more it faces away from sBssD4 (full speed within 0x1000, none past 0x3000) and
+   sets its velocity from its heading */
+void func_m003_0ABF4(void) {
+    s16 turn = func_80049D80(sObj->trans.rotation.y_rotation, sBssD4);
+    s32 away;
+    s16 over;
+    f32 f;
+
+    if (turn < 0) {
+        away = -turn;
+    } else {
+        away = turn;
+    }
+    over = away - 0x1000;
+    if (over < 0) {
+        over = 0;
+    }
+    f = (0x2000 - over) * (1.0f / 8192);
+    if (f > 1.0f) {
+        f = 1.0f;
+    }
+    if (f < 0.0f) {
+        f = 0.0f;
+    }
+    sMember->unk20 *= f;
+    sObj->velocity.x = func_80049C34(sMember->unk1C) * sMember->unk20;
+    sObj->velocity.z = func_80049C30(sMember->unk1C) * sMember->unk20;
+}
 
 extern f32 rl_m003_19D50; /* .rodata (still assembly): 0AD38's slowing */
 
@@ -2187,7 +2234,39 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0DF84);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0E3CC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0E9F0);
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+extern void func_m149_01D20(Object *obj, f32 updateRate);
+extern void rl_m003_0E3CC(void); /* still assembly */
+extern void rl_m003_03CAC(Object *obj);
+
+/* Moves the member by its velocity (module 149 moves troop 0x67's; 0E3CC those that walk on the level),
+   and the object that follows it with it */
+void func_m003_0E9F0(Object *obj) {
+    M003Member *m = sMember;
+
+    if (m->unk0_9 && !m->unk0_4) {
+        return;
+    }
+    if (sHomeData->kind == 0x67) {
+        func_m149_01D20(obj, sUpdateRate);
+        return;
+    }
+    if ((sHomeData->flags & 0x30) || m->unk0_18) {
+        rl_m003_0E3CC();
+        rl_m003_03CAC(obj);
+    } else {
+        m->lastX = obj->trans.x_position;
+        sMember->lastY = obj->trans.y_position;
+        sMember->lastZ = obj->trans.z_position;
+        func_80009A04(obj, obj->velocity.x, obj->velocity.y, obj->velocity.z);
+    }
+    if (sMember->follower != NULL) {
+        sMember->follower->trans.x_position = obj->trans.x_position;
+        sMember->follower->trans.y_position = obj->trans.y_position;
+        sMember->follower->trans.z_position = obj->trans.z_position;
+        sMember->follower->segmentID = obj->segmentID;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0EB40);
 

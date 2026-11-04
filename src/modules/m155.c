@@ -310,14 +310,38 @@ void func_m155_026D8(M155Node *node, s16 x, s16 z, s16 *outX, s16 *outZ) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02748);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_0289C);
-
 extern s32 rl_m155_03C70;        /* .data (still assembly): how many nodes there are */
 extern M155Node *rl_m155_04D50;  /* .bss (still assembly): the nodes */
+extern Object *rl_m155_04F6C;    /* .bss (still assembly): the enemy's target */
 extern s32 rl_m155_018C4(M155Node *node);
 extern void rl_m155_026D8(M155Node *node, s16 x, s16 z, s16 *outX, s16 *outZ);
+
+/* Heads for the node nearest the target that 018C4 accepts (or (x, z) when there is none) */
+void func_m155_02748(s16 x, s16 z, s16 *outX, s16 *outZ) {
+    M155Node *node = rl_m155_04D50;
+    M155Node *best = NULL;
+    u32 bestDist = -1;
+    s32 n = rl_m155_03C70;
+    s16 tx = rl_m155_04F6C->trans.x_position;
+    s16 tz = rl_m155_04F6C->trans.z_position;
+    s32 dx;
+    s32 dz;
+    u32 dist;
+
+    while (n-- > 0) {
+        dx = tx - node->x;
+        dz = tz - node->z;
+        dist = dx * dx + dz * dz;
+        if (dist < bestDist && rl_m155_018C4(node)) {
+            bestDist = dist;
+            best = node;
+        }
+        node++;
+    }
+    rl_m155_026D8(best, x, z, outX, outZ);
+}
+
+INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_0289C);
 
 /* The node with the highest unk8 that 018C4 accepts; its point (or (x, z)) goes to outX/outZ */
 M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
