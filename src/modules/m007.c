@@ -142,7 +142,7 @@ extern s32 rl_m007_02A40; /* more lines below */
 extern s32 rl_m007_02A4C; /* the hints on the stack */
 static void func_m007_01214(s32 updateRate);
 static void func_m007_01F80(Gfx **dl);
-extern void rl_m007_020D4(Gfx **dl);
+static void func_m007_020D4(Gfx **dl);
 static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha);
 extern s32 rl_m007_023D4(Gfx **dl, void *text, s32 line);
 extern s32 rl_m007_01504(s32 condition);
@@ -713,7 +713,7 @@ void func_m007_01CCC(Gfx **dl, s32 updateRate) {
         if (rl_m007_02A44 != 1) {
             func_m007_01F80(dl);
         } else {
-            rl_m007_020D4(dl);
+            func_m007_020D4(dl);
         }
     }
     func_8006FC14(0);
@@ -766,7 +766,65 @@ static void func_m007_01F80(Gfx **dl) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_020D4);
+extern void func_8006FC54(s32 font);
+extern u8 *func_8007216C(s32 font, u8 *text, s32 width, u8 **line); /* the next line of a text */
+extern char rl_m007_02AE4[]; /* (.rodata) the "more" mark for the pages */
+
+/* Draws a long hint's pages (the current one in white) and the "more" mark if they don't all fit */
+static void func_m007_020D4(Gfx **dl) {
+    s32 height;
+    s32 i;
+    s32 lines;
+    s32 x;
+    s32 y;
+    s32 first;
+    s32 alpha;
+    u8 *text;
+    u8 *line;
+    u8 c;
+
+    func_m007_01E34(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
+    i = 0;
+    height = func_8007230C(2);
+    lines = 88 / height - 1;
+    func_8006FC54(2);
+    func_8006FC8C(0, 0, 0, 0);
+    y = ((88 - lines * height) >> 1) + 20;
+    alpha = (rl_m007_02A20 * 255) >> 8;
+    for (; i < rl_m007_02A5C->count && lines > 0; i++) {
+        first = TRUE;
+        x = 0x60;
+        if (i == rl_m007_02A5C->current) {
+            func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, alpha);
+        } else {
+            func_8006FC68(0, 0xC0, 0xC0, 0xFF, alpha);
+        }
+        text = rl_m007_02A5C->recs[i].text;
+        if (!rl_m007_012E0(rl_m007_02A5C->recs[i].condition)) {
+            text = NULL;
+        }
+        while (text != NULL && lines > 0) {
+            text = func_8007216C(2, text, 200, &line);
+            if (text != NULL) {
+                c = *text;
+                *text = 0;
+                func_8006FCA8(dl, x, y, (char *) line, 0);
+                *text = c;
+                y += height;
+                if (first) {
+                    x += 8;
+                    first = FALSE;
+                }
+                lines--;
+            }
+        }
+    }
+    func_8006FC8C(0, 0, 0, 0);
+    func_8006FC68(0xFF, 0xC0, 0, 0xFF, alpha);
+    if (i < rl_m007_02A5C->count || text != NULL) {
+        func_8006FCA8(dl, 0xC4, 0x6C, rl_m007_02AE4, 0xC);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_023D4);
 
