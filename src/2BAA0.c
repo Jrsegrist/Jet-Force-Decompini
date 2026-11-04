@@ -23,14 +23,32 @@ typedef struct RacerFlags {
 typedef struct Racer {
     /* 0x000 */ s8 player;
     /* 0x001 */ s8 character;
-    /* 0x002 */ u8 pad2[0xB8 - 0x2];
+    /* 0x002 */ u8 pad2[0x4 - 0x2];
+    /* 0x004 */ f32 velX;
+    /* 0x008 */ u8 pad8[0x10 - 0x8];
+    /* 0x010 */ f32 velZ;
+    /* 0x014 */ u8 pad14[0x3C - 0x14];
+    /* 0x03C */ f32 pos[3];
+    /* 0x048 */ u8 pad48[0x60 - 0x48];
+    /* 0x060 */ f32 unk60;
+    /* 0x064 */ u8 pad64[0xB8 - 0x64];
     /* 0x0B8 */ u16 lastVoice;
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
     /* 0x0C0 */ s32 sound;
     /* 0x0C4 */ u8 padC4[0x11C - 0xC4];
     /* 0x11C */ s16 unk11C;
-    /* 0x11E */ u8 pad11E[0x198 - 0x11E];
+    /* 0x11E */ u8 pad11E[0x12E - 0x11E];
+    /* 0x12E */ s8 breathTimer;
+    /* 0x12F */ u8 breathNow;
+    /* 0x130 */ f32 breathPhase;
+    /* 0x134 */ f32 breathLevel;
+    /* 0x138 */ u8 pad138[0x13C - 0x138];
+    /* 0x13C */ s16 unk13C;
+    /* 0x13E */ u8 unk13E;
+    /* 0x13F */ u8 pad13F[0x182 - 0x13F];
+    /* 0x182 */ s16 unk182;
+    /* 0x184 */ u8 pad184[0x198 - 0x184];
     /* 0x198 */ u8 unk198;
     /* 0x199 */ u8 pad199[0x19C - 0x199];
     /* 0x19C */ s8 unk19C;
@@ -43,7 +61,11 @@ typedef struct Racer {
     /* 0x1D8 */ u8 pad1D8[0x1F9 - 0x1D8];
     /* 0x1F9 */ u8 unk1F9;
     /* 0x1FA */ u8 unk1FA;
-    /* 0x1FB */ u8 pad1FB[0x53A - 0x1FB];
+    /* 0x1FB */ u8 pad1FB[0x510 - 0x1FB];
+    /* 0x510 */ s16 *platform; // the platform object stood on
+    /* 0x514 */ u8 pad514[0x524 - 0x514];
+    /* 0x524 */ f32 prevPos[3];
+    /* 0x530 */ u8 pad530[0x53A - 0x530];
     /* 0x53A */ u16 soundId;
     /* 0x53C */ u8 pad53C[0x540 - 0x53C];
     /* 0x540 */ RacerFlags flags;
@@ -129,7 +151,82 @@ void obj_play_move_sound(u8 *obj, u8 index) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B1D4);
+/* JFG: a sound event of an animation: at `frame` (0..1) play voice set `id` (kind 0) or move sound set `id`
+ * (kind 1) */
+typedef struct AnimSoundEvent {
+    /* 0x00 */ f32 frame;
+    /* 0x04 */ u8 kind;
+    /* 0x05 */ u8 id;
+} AnimSoundEvent;
+
+/* JFG: the sound events of one animation of a character; lists end with anim -1 */
+typedef struct AnimSoundList {
+    /* 0x00 */ s8 anim;
+    /* 0x04 */ AnimSoundEvent *events;
+    /* 0x08 */ u8 count;
+} AnimSoundList;
+
+extern AnimSoundList *D_800A2BC0[];
+extern s16 D_800A265C[];
+extern s16 D_800A2664[];
+extern s16 D_800A266C[];
+extern s16 D_800A2674[];
+
+/* JFG: plays the sound events of the object's current animation (0x3B) whose frames lie between `from` and the
+ * object's frame (0x28), both mirrored when playing backwards, wrapping past 1. Sets 4/5 (footsteps) follow 0x60. */
+void func_8002B1D4(u8 *obj, f32 from, f32 speed) {
+    Racer *racer = *(Racer **) (obj + 0x68);
+    AnimSoundList *list;
+    AnimSoundEvent *event;
+    s32 i;
+    s32 wrap;
+    f32 to;
+    f32 frame;
+
+    if (racer->unk60 > 0.0f) {
+        D_800A26C4[4].sounds = D_800A266C;
+        D_800A26C4[5].sounds = D_800A2674;
+    } else {
+        D_800A26C4[4].sounds = D_800A265C;
+        D_800A26C4[5].sounds = D_800A2664;
+    }
+    list = D_800A2BC0[racer->character];
+    if (list != NULL) {
+        to = *(f32 *) (obj + 0x28);
+        if (speed < 0.0f) {
+            to = 1.0f - to;
+            from = 1.0f - from;
+        }
+        if (to < from) {
+            to += 1.0f;
+            wrap = TRUE;
+        } else {
+            wrap = FALSE;
+        }
+        while (list->anim != -1) {
+            if (list->anim == *(s8 *) (obj + 0x3B)) {
+                event = list->events;
+                for (i = 0; i < list->count; i++, event++) {
+                    frame = event->frame;
+                    if (wrap && frame <= from) {
+                        frame += 1.0f;
+                    }
+                    if (from <= frame && frame <= to) {
+                        switch (event->kind) {
+                            case 0:
+                                player_voice_play((s32) obj, event->id);
+                                break;
+                            case 1:
+                                obj_play_move_sound(obj, event->id);
+                                break;
+                        }
+                    }
+                }
+            }
+            list++;
+        }
+    }
+}
 
 /* Size: 0x2C bytes */
 typedef struct CameraBlend {
@@ -246,13 +343,18 @@ typedef struct TrackZone {
     /* 0x10 */ f32 exitTop;
     /* 0x14 */ f32 exitBottom;
     /* 0x18 */ s32 flags; // 0x4000: enter height range, 0x8000: exit height range
+    /* 0x1C */ f32 offsetX;
+    /* 0x20 */ f32 offsetZ;
+    /* 0x24 */ f32 pos[3];
 } TrackZone;
 
 /* Size: 0x2C bytes */
 typedef struct ZoneTrack {
     /* 0x00 */ u8 *obj;
     /* 0x04 */ TrackZone *zone;
-    /* 0x08 */ u8 pad8[0x24];
+    /* 0x08 */ f32 offsetX;
+    /* 0x0C */ f32 offsetZ;
+    /* 0x10 */ u8 pad10[0x1C];
 } ZoneTrack;
 extern ZoneTrack D_800F6E58[4];
 
@@ -309,7 +411,52 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F0DC);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F2B0);
+extern f32 D_800ABE3C;
+f32 func_80049BEC(f32 rate, s32 updateRate);
+
+/* JFG: eases the player's zone offset towards its current zone's (x/z offsets by flags 1/2), adds it to *x and
+ * *z; flag 4 gives a fixed position, flag 8 clear clears *keep */
+void func_8002F2B0(s32 player, f32 *z, f32 *x, s32 *hasPos, f32 *pos, s32 *keep, s32 ease, s32 updateRate) {
+    UNUSED s32 pad;
+    f32 offsetX;
+    f32 offsetZ;
+    ZoneTrack *track;
+    TrackZone *zone;
+    f32 t;
+
+    *hasPos = 0;
+    *keep = 1;
+    if (player >= 0 && player < 4) {
+        track = &D_800F6E58[player];
+        offsetX = 0.0f;
+        offsetZ = 0.0f;
+        if (track->obj != NULL && (zone = track->zone) != NULL) {
+            if (zone->flags & 1) {
+                offsetX += zone->offsetX;
+            }
+            if (zone->flags & 2) {
+                offsetZ += zone->offsetZ;
+            }
+            if (zone->flags & 4) {
+                *hasPos = 1;
+                pos[0] = zone->pos[0];
+                pos[1] = zone->pos[1];
+                pos[2] = zone->pos[2];
+            }
+            if (!(zone->flags & 8)) {
+                *keep = 0;
+            }
+        }
+        t = 1.0f;
+        if (ease) {
+            t = 1.0f - func_80049BEC(D_800ABE3C, updateRate);
+        }
+        track->offsetX += (offsetX - track->offsetX) * t;
+        track->offsetZ += (offsetZ - track->offsetZ) * t;
+        *x += track->offsetX;
+        *z += track->offsetZ;
+    }
+}
 
 extern f32 D_800A2BE0[4];
 extern f32 D_800A2BF0[4];
@@ -880,7 +1027,73 @@ void racer_pose_begin(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 i
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035894);
+void func_80035B30(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
+
+/* JFG: a platform object's motion block (its 0x5C): world-to-local and local-to-world matrices, double buffered */
+typedef struct PlatformData {
+    /* 0x000 */ MtxF toLocal[2];
+    /* 0x080 */ MtxF toWorld[2];
+    /* 0x100 */ u8 pad100[0x28];
+    /* 0x128 */ s16 prevYaw;
+    /* 0x12A */ u8 pad12A;
+    /* 0x12B */ u8 cur;
+    /* 0x12C */ s16 active;
+} PlatformData;
+
+/* JFG: ride the platform object the player stands on: turn with it and move by the platform's motion since the
+ * last frame (its previous and current matrices, or func_80035B30 in states 6, 7, 8 and 12) */
+void func_80035894(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
+    s16 *platform;
+    PlatformData *data;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 x;
+    f32 y;
+    f32 z;
+    s16 turn;
+    u8 cur;
+
+    racer->prevPos[0] = racer->pos[0];
+    racer->prevPos[1] = racer->pos[1];
+    racer->prevPos[2] = racer->pos[2];
+    platform = racer->platform;
+    if (platform != NULL) {
+        data = *(PlatformData **) ((u8 *) platform + 0x5C);
+    } else {
+        data = NULL;
+    }
+    if (data != NULL && data->active != 0) {
+        turn = platform[0] - data->prevYaw;
+        if (racer->unk13E) {
+            racer->unk13C += turn;
+        }
+        if (racer->unk568 == 8 || racer->unk568 == 6 || racer->unk568 == 7 || racer->unk568 == 12) {
+            func_80035B30(obj, racer, &x, &y, &z);
+            dx = x - *(f32 *) (obj + 0xC);
+            dy = y - *(f32 *) (obj + 0x10);
+            dz = z - *(f32 *) (obj + 0x14);
+        } else {
+            cur = data->cur;
+            func_80048B60(&data->toLocal[cur ^ 1], *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10),
+                          *(f32 *) (obj + 0x14), &dx, &dy, &dz);
+            func_80048B60(&data->toWorld[cur], dx, dy, dz, &x, &y, &z);
+            dx = x - *(f32 *) (obj + 0xC);
+            dy = y - *(f32 *) (obj + 0x10);
+            dz = z - *(f32 *) (obj + 0x14);
+        }
+        if (racer->unk568 == 8 || racer->unk568 == 7) {
+            racer->unk11C = racer->unk182;
+        } else {
+            racer->unk11C += turn;
+        }
+        move_object(obj, dx, dy, dz);
+        racer->pos[0] += dx;
+        racer->pos[1] += dy;
+        racer->pos[2] += dz;
+    }
+}
 
 /* JFG: in some racer states (6, 7, 8 and 12), copy the racer's angle at 0x17E to 0x120 and to the object. */
 void racer_angle_sync(u8 *obj, u8 *racer, UNUSED s32 arg2) {
@@ -1259,9 +1472,85 @@ void func_80038F7C(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 a
     racer->soundId = 0xE1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039098);
+typedef struct Spawn50 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 weapon;
+    /* 0x13 */ s8 unk13;
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ s32 owner;
+    /* 0x1C */ u8 *unk1C;
+    /* 0x20 */ u8 *unk20;
+} Spawn50;
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039308);
+extern u8 D_800A1790[][12];
+extern u8 D_800A1850[][6];
+
+/* JFG: fire object 0x50 for the character's current weapon (its two weapon table entries), with the weapon's
+ * sound: 8 for weapon 2 (kept if already playing), 3 for weapon 7 in state 11 or when arg8 is set, else 0xE */
+void func_80039098(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+                   s32 arg10) {
+    Spawn50 setup;
+    u8 *obj;
+    u8 *chr;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    setup.objectID = 0x50;
+    setup.size = sizeof(Spawn50);
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.unkA = arg8;
+    setup.unkB = arg9;
+    setup.unkC = arg5;
+    setup.unkE = arg6;
+    setup.unk10 = arg10;
+    setup.unk14 = arg7;
+    setup.owner = owner;
+    setup.unk3 = 0;
+    setup.unk11 = 0;
+    setup.unk1C = D_800A1790[chr[0x70]];
+    setup.unk20 = D_800A1850[chr[0x70]];
+    setup.weapon = chr[0x70];
+    setup.unk13 = -1;
+    stats_shot_add(chr[0x70]);
+    if (chr[0x70] == 2) {
+        if (racer->sound == 0 || racer->soundId != 8) {
+            if (racer->sound != 0) {
+                sound_stop(racer->sound);
+            }
+            sound_play(8, &racer->sound);
+            racer->soundId = 8;
+        }
+    } else {
+        if (racer->sound != 0) {
+            sound_stop(racer->sound);
+        }
+        if (chr[0x70] == 7 && racer->unk568 == 11) {
+            racer->soundId = 3;
+            sound_play(3, &racer->sound);
+        } else if (arg8) {
+            racer->soundId = 3;
+            sound_play(3, &racer->sound);
+            racer->flags.unk25 = 1;
+        } else {
+            racer->soundId = 0xE;
+            sound_play(0xE, &racer->sound);
+        }
+    }
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+    }
+}
 
 typedef struct SpawnA4 {
     /* 0x00 */ s16 objectID;
@@ -1273,14 +1562,76 @@ typedef struct SpawnA4 {
     /* 0x0C */ f32 unkC;
     /* 0x10 */ s32 owner;
     /* 0x14 */ void *chain;
-    /* 0x18 */ u8 pad18[6];
+    /* 0x18 */ s16 unk18;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
     /* 0x1E */ s16 unk1E;
     /* 0x20 */ s16 unk20;
-    /* 0x22 */ u8 pad22[2];
+    /* 0x22 */ s16 unk22;
     /* 0x24 */ u8 unk24;
     /* 0x25 */ u8 chainId;
     /* 0x26 */ u8 unk26;
 } SpawnA4;
+
+/* JFG: fire three 0xA4 shots without a chain: two at random spins (the second turned by 0x8000), then a straight
+ * one, each one weaker (unkB - 1) */
+void func_80039308(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9) {
+    SpawnA4 setup;
+    u8 *obj;
+
+    stats_shot_add(5);
+    setup.objectID = 0xA4;
+    setup.size = sizeof(SpawnA4);
+    setup.x = x;
+    setup.y = y;
+    setup.z = z;
+    setup.unk1E = arg5;
+    setup.unk20 = arg6;
+    setup.unkC = arg7;
+    setup.unkA = arg8;
+    setup.unkB = arg9;
+    setup.owner = owner;
+    setup.unk3 = 0;
+    setup.unk24 = 0;
+    setup.unk26 = 5;
+    if (racer->sound != 0) {
+        sound_stop(racer->sound);
+    }
+    setup.unk18 = 0;
+    setup.unk1A = rand_range(0x40, 0x300);
+    if (rand_range(0, 1) == 1) {
+        setup.unk1A = -setup.unk1A;
+    }
+    setup.unk1C = rand_range(0, 10);
+    setup.unk22 = rand_range(1, 5);
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+    }
+    setup.unkB--;
+    setup.unk18 = -0x8000;
+    setup.unk1A = rand_range(0x40, 0x300);
+    setup.unk1C = rand_range(0, 10);
+    setup.unk22 = rand_range(1, 5);
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+    }
+    setup.unkB--;
+    setup.unk18 = -0x8000;
+    setup.unk1A = 0;
+    setup.unk1C = 0;
+    setup.unk22 = 0;
+    obj = spawn_object(&setup, 1);
+    if (obj != NULL) {
+        *(s32 *) (obj + 0x3C) = 0;
+    }
+    if (racer->sound != 0) {
+        sound_stop(racer->sound);
+    }
+    sound_play(0x95, &racer->sound);
+    racer->soundId = 0x95;
+}
 
 void *chain_slot_find_shortest(s32 obj, u8 *id);
 
