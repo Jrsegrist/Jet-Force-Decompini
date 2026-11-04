@@ -145,7 +145,7 @@ void gzip_init(void);
 void video_init(OSSched *sc);
 void pi_init(void);
 void gfxtask_init(OSSched *sc);
-void func_800539E0(void);
+void module_system_init(void);
 void func_8005342C(s32 module);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void func_80054530();
@@ -177,7 +177,7 @@ void init_game(void) {
     check_reset_and_halt();
     gfxtask_init(&D_800FB440);
     check_reset_and_halt();
-    func_800539E0();
+    module_system_init();
     check_reset_and_halt();
     D_800A3290 = 1;
     func_80054530();

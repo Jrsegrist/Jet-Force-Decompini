@@ -50,7 +50,50 @@ extern char **gMenuText; /* the game's texts */
 
 static M047Subtitle sSubtitles[5];
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_00000);
+/* A scrolling texture (size 0x14) */
+typedef struct M047Scroller {
+    /* 0x00 */ u8 tex;  /* 0xFF: not in use */
+    /* 0x01 */ u8 frac; /* the eighths of a texel left over: u in the low nibble, v in the high one */
+    /* 0x02 */ s16 timer; /* frames left of the speed change, 0: none */
+    /* 0x04 */ u32 du;  /* the speed in u and v (8 fractional bits) */
+    /* 0x08 */ u32 ddu; /* and how it changes per frame */
+    /* 0x0C */ u32 dv;
+    /* 0x10 */ u32 ddv;
+} M047Scroller;
+
+extern M047Scroller D_80104608[8];
+extern void tex_scroll_queue(s32 tex, s32 u, s32 v); /* scrolls a texture by (u, v) texels */
+
+/* Scrolls the textures on by `updateRate` frames */
+void func_m047_00000(s32 updateRate) {
+    s32 i;
+    s32 step;
+    s32 u;
+    s32 v;
+    M047Scroller *s;
+
+    s = D_80104608;
+    i = 7;
+    do {
+        if (s->tex != 0xFF) {
+            step = s->timer;
+            if (step != 0) {
+                if (updateRate < step) {
+                    step = updateRate;
+                }
+                s->du += s->ddu * step;
+                s->dv += s->ddv * step;
+                s->timer -= step;
+            }
+            u = ((s32) (s->du * updateRate) >> 8) + (s->frac & 0xF);
+            v = ((s32) (s->dv * updateRate) >> 8) + (s->frac >> 4);
+            tex_scroll_queue(s->tex, u >> 3, v >> 3);
+            s->frac = u & 7;
+            s->frac |= (v & 7) << 4;
+        }
+        s++;
+    } while (i--);
+}
 
 /* Moves the colour fades on by `updateRate` frames */
 void func_m047_00130(s32 updateRate) {
@@ -100,11 +143,70 @@ void func_m047_00130(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_002C4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_007DC);
+/* Turns angle `from` part `t` of the shorter way towards `to` (called from 0084C) */
+s16 func_m047_007DC(f32 t, s16 from, s16 to) {
+    s32 d = (u16) (to - from);
+    s32 back = (u16) (from - to);
+
+    if (back < d) {
+        d = -back;
+    }
+    return from + (s32) (d * t);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_0084C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_013D0);
+/* A cutscene actor's step, as 013D0 uses it */
+typedef struct M047Actor {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 animSpeed;
+    /* 0x10 */ u8 pad10[0x14 - 0x10];
+    /* 0x14 */ u8 backwards; /* play the animation backwards */
+    /* 0x15 */ u8 pad15;
+    /* 0x16 */ u8 flags;     /* 2: the actor to follow */
+    /* 0x17 */ u8 pad17[0x24 - 0x17];
+    /* 0x24 */ u8 alphaFrom;
+    /* 0x25 */ u8 alphaTo;
+    /* 0x26 */ u8 fadeLength;
+    /* 0x27 */ u8 fadeTimer;
+} M047Actor;
+
+/* The parts of an object header 013D0 reads */
+typedef struct M047Header {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; /* 4: always drawn translucent */
+    /* 0x16 */ u8 pad16[0x1E - 0x16];
+    /* 0x1E */ s8 noAnim;
+} M047Header;
+
+extern Object *D_801045B8;
+
+/* Animates the actor's object, fades its opacity from alphaFrom to alphaTo over fadeLength, and makes it the
+   one to follow if flagged (called from 0084C) */
+void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
+    if (!((M047Header *) obj->header)->noAnim) {
+        if (a->backwards) {
+            func_8001138C(obj, -a->animSpeed, updateRate);
+        } else {
+            func_8001138C(obj, a->animSpeed, updateRate);
+        }
+    }
+    if (a->fadeTimer < a->fadeLength) {
+        a->fadeTimer += updateRate;
+        if (a->fadeTimer >= a->fadeLength) {
+            a->fadeTimer = a->fadeLength;
+        }
+        obj->opacity = a->alphaFrom + (a->alphaTo - a->alphaFrom) * a->fadeTimer / a->fadeLength;
+        if (obj->opacity < 255) {
+            obj->trans.flags |= 4;
+        } else if (!(((M047Header *) obj->header)->flags & 4)) {
+            obj->trans.flags &= ~4;
+        }
+    }
+    if (a->flags & 2) {
+        D_801045B8 = obj;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01560);
 

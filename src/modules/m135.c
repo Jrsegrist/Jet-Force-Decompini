@@ -225,7 +225,79 @@ void func_m135_0270C(Object *obj, s32 mode, s32 arg2, s32 turn, s32 arg4) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m135", func_m135_02834);
+/* A texture of a model, as 02834 uses it */
+typedef struct M135Texture {
+    /* 0x00 */ u8 pad0[0x12];
+    /* 0x12 */ u16 frames; /* times 256 */
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ s16 frameSize;
+} M135Texture;
+
+/* A model's texture table entry (8 bytes) */
+typedef struct M135ModelTexture {
+    /* 0x0 */ M135Texture *texture;
+    /* 0x4 */ u8 pad4[4];
+} M135ModelTexture;
+
+typedef struct M135Model {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ M135ModelTexture *textures;
+    /* 0x1C */ u8 pad1C[0x2C - 0x1C];
+    /* 0x2C */ u8 batchCount;
+} M135Model;
+
+/* A batch's texture animation (8 bytes) */
+typedef struct M135TexAnim {
+    /* 0x0 */ s16 frame;
+    /* 0x2 */ s16 frame2; /* < 0: none */
+    /* 0x4 */ u32 flags;  /* the low byte: the texture; 0x10000: set by 02834 */
+} M135TexAnim;
+
+typedef struct M135Instance {
+    /* 0x00 */ M135Model *model;
+    /* 0x04 */ u8 pad4[0xB - 0x4];
+    /* 0x0B */ s8 buffer;
+    /* 0x0C */ u8 padC[0x74 - 0xC];
+    /* 0x74 */ M135TexAnim *texAnims;
+    /* 0x78 */ s16 *texOffsets[2];
+} M135Instance;
+
+/* Sets the frames of the object's animated textures `texture` frames long to `frame` (the second one to
+   the next frame), and writes each batch's texture offsets (called from 021F8) */
+void func_m135_02834(Object *obj, s32 frame, s32 frames) {
+    M135Instance *inst = obj->modelInstances[obj->modelIndex];
+    M135Model *model = inst->model;
+    M135TexAnim *a = inst->texAnims;
+    M135Texture *tex;
+    s16 *out;
+    s32 i;
+    s32 idx;
+
+    frames <<= 8;
+    if (a == NULL) {
+        return;
+    }
+    out = inst->texOffsets[inst->buffer];
+    for (i = 0; i < model->batchCount; i++) {
+        idx = a->flags & 0xFF;
+        tex = model->textures[idx].texture;
+        if ((a->flags & 0x10000) && frames == tex->frames) {
+            a->frame = frame;
+            if (a->frame2 >= 0) {
+                frame += 0x100;
+                if (frame >= tex->frames) {
+                    frame -= 0x100;
+                }
+                a->frame2 = frame;
+            }
+        }
+        if (a->frame2 >= 0) {
+            *out++ = (a->frame2 >> 8) * tex->frameSize;
+        }
+        *out++ = (a->frame >> 8) * tex->frameSize;
+        a++;
+    }
+}
 
 s16 *func_m135_02958(Object *obj) {
     M135Selector *sel = obj->unk68;

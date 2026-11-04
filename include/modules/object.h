@@ -70,6 +70,7 @@ typedef struct ObjectHeader {
     /* 0x22 */ s8 particleCount;
     /* 0x23 */ u8 pad23[0x50 - 0x23];
     /* 0x50 */ ObjectHeaderUnk50 *unk50;
+    /* 0x54 */ f32 shadowScale; /* (m087 scales it with the object) */
 } ObjectHeader;
 
 /* What object->shading points at (DKR's ShadeProperties starts the same way) */

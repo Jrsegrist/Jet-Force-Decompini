@@ -78,13 +78,64 @@ INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_002E8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01D2C);
+/* The byte of the object at 0x32: its bit in the settings' flags from 8 on */
+typedef struct M032FlagObj {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ u8 flag;
+} M032FlagObj;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01D84);
+extern u8 *get_settings(void);
+
+/* Whether the object's settings flag is still clear (called from 00000 and 002E8) */
+s32 func_m032_01D2C(Object *obj) {
+    s32 byte = ((M032FlagObj *) obj)->flag >> 3;
+    s32 bit = 0x80 >> (((M032FlagObj *) obj)->flag & 7);
+
+    if (get_settings()[byte + 8] & bit) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+/* Sets the object's settings flag (called from 002E8) */
+void func_m032_01D84(Object *obj) {
+    s32 byte = ((M032FlagObj *) obj)->flag >> 3;
+    s32 bit = 0x80 >> (((M032FlagObj *) obj)->flag & 7);
+
+    get_settings()[byte + 8] |= bit;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01DD8);
 
+#ifdef NON_MATCHING
+/* 14 diffs, registers only: the ROM has the two differences in v0/a3 and the step in v1 */
+/* Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps` */
+s16 func_m032_02068(s16 angle, s16 target, s16 steps) {
+    s32 d;
+    s32 back;
+    s32 step;
+
+    while (steps--) {
+        d = (u16) (target - angle);
+        back = (u16) (angle - target);
+        if (back < d) {
+            step = -back >> 3;
+            if (step < -364) {
+                step = -364;
+            }
+        } else {
+            step = d >> 3;
+            if (step > 364) {
+                step = 364;
+            }
+        }
+        angle += step;
+    }
+    return angle;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_02068);
+#endif
 
 void func_m032_02110(Object *obj, M032BobSetup *setup) {
     M032Bob *b = obj->unk68;
@@ -206,7 +257,38 @@ void func_m032_02540(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_025F0);
+/* Where a character walks to, as 025F0 uses it */
+typedef struct M032Walk {
+    /* 0x00 */ u8 state;
+    /* 0x01 */ u8 pad1;
+    /* 0x02 */ s16 yaw;
+    /* 0x04 */ f32 x;
+    /* 0x08 */ f32 y;
+    /* 0x0C */ f32 z;
+    /* 0x10 */ u8 pad10[0x28 - 0x10];
+    /* 0x28 */ f32 speed;
+    /* 0x2C */ u8 pad2C[0x33 - 0x2C];
+    /* 0x33 */ u8 unk33;
+} M032Walk;
+
+/* An animation and its speed */
+typedef struct M032Anim {
+    /* 0x00 */ u8 pad0[0xE];
+    /* 0x0E */ s16 anim;
+    /* 0x10 */ u8 pad10[0x14 - 0x10];
+    /* 0x14 */ f32 speed;
+} M032Anim;
+
+extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
+
+/* Starts walking to the walk's point with animation `anim` (called from 002E8) */
+void func_m032_025F0(Object *obj, M032Walk *walk, M032Anim *anim) {
+    walk->state = 1;
+    walk->unk33 = 0;
+    walk->yaw = func_80049C84(walk->x - obj->trans.x_position, walk->z - obj->trans.z_position);
+    walk->speed = anim->speed;
+    func_8001149C(obj, anim->anim, obj->unk28);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", data);
 

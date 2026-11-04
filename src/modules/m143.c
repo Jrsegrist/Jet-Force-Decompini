@@ -81,7 +81,38 @@ extern s32 D_800FE9F8;
 extern s32 rl_m143_02F74; /* a sound playing */
 extern s32 rl_m143_032C8;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00000);
+/* A point of the trail the group follows, and the distance from the one before */
+typedef struct M143TrailPoint {
+    /* 0x0 */ f32 x;
+    /* 0x4 */ f32 y;
+    /* 0x8 */ f32 z;
+    /* 0xC */ u8 dist;
+    /* 0xD */ u8 padD[3];
+} M143TrailPoint;
+
+/* .bss (still assembly): the trail, a ring of 41 points, and its newest point */
+extern M143TrailPoint rl_m143_02FE0[41];
+extern s32 rl_m143_03270;
+
+/* The trail point about `dist` back from the newest one (or the oldest) (called from 0007C) */
+void func_m143_00000(s32 dist, f32 *x, f32 *y, f32 *z) {
+    s32 i = rl_m143_03270;
+    M143TrailPoint *p;
+
+    while (dist > 0) {
+        if (--i < 0) {
+            i = 40;
+        }
+        if (i == rl_m143_03270) {
+            break;
+        }
+        dist -= rl_m143_02FE0[i].dist;
+    }
+    p = &rl_m143_02FE0[i];
+    *x = p->x;
+    *y = p->y;
+    *z = p->z;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_0007C);
 

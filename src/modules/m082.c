@@ -139,9 +139,59 @@ INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_00F8C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_013C0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_0165C);
+/* The level entry 0165C spawns (size 0x10) */
+typedef struct M082Entry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 unkB;
+    /* 0x0C */ f32 unkC;
+} M082Entry;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m082", func_m082_01778);
+struct M082Linked;
+extern struct M082Linked *rl_m082_017A0; /* .data (still assembly): the thing spawned last */
+extern void func_m007_02824(void);
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+
+/* Spawns object `id` at (x, y, z) and keeps it (called from 00F8C) */
+void func_m082_0165C(s16 id, f32 x, f32 y, f32 z, f32 a, f32 b, f32 c) {
+    M082Entry entry;
+
+    func_m007_02824();
+    entry.objectID = id;
+    entry.size = sizeof(M082Entry);
+    entry.unk3 = 0;
+    entry.x = x;
+    entry.y = y;
+    entry.z = z;
+    entry.unkA = a;
+    entry.unkB = b;
+    entry.unkC = c;
+    rl_m082_017A0 = (struct M082Linked *) func_80005F14(&entry, 1);
+    if (rl_m082_017A0 != NULL) {
+        ((Object *) rl_m082_017A0)->level_entry = NULL;
+    }
+}
+
+/* What the module's first .data word points at, as far as 01778 uses it */
+typedef struct M082Linked {
+    /* 0x00 */ u8 pad0[0x88];
+    /* 0x88 */ s32 unk88;
+} M082Linked;
+
+extern M082Linked *rl_m082_017A0; /* .data (still assembly) */
+
+/* Sets the linked thing's flag at 0x88 and forgets it (called from 005D4) */
+void func_m082_01778(void) {
+    if (rl_m082_017A0 != NULL) {
+        rl_m082_017A0->unk88 = 1;
+        rl_m082_017A0 = NULL;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m082", data);
 

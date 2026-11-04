@@ -90,7 +90,15 @@ extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out); /* rota
 extern f32 func_80097140(f32 x);             /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);      /* atan2 */
 
-INCLUDE_ASM("asm/nonmatchings/modules/m127", func_m127_00000);
+extern f32 rl_m127_01174; /* the distance (squared) the player must be within, in .data */
+
+/* The point the player must be near to use the terminal, and how near (the second argument is unused) */
+void func_m127_00000(Object *obj, UNUSED void *arg1, f32 *x, f32 *y, f32 *z, f32 *range) {
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    *range = rl_m127_01174;
+}
 
 void func_m127_0003C(Object *obj, M127Setup *setup) {
     M127State *s = obj->unk68;

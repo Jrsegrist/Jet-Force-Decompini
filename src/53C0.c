@@ -1262,13 +1262,13 @@ void render_misc_model(Object *obj, Vertex *verts, u32 numVertices, Triangle *tr
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
 
-void func_8006D7F0(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
+void screen_line_add_3d(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
 
 /* JFG: draw a line from the point in the object's block at 0x68 to the object. */
 void obj_debug_line_draw(Object *obj) {
     f32 *from = (f32 *) obj->racer;
 
-    func_8006D7F0(from[1], from[2], from[3], obj->trans.x_position, obj->trans.y_position,
+    screen_line_add_3d(from[1], from[2], from[3], obj->trans.x_position, obj->trans.y_position,
                   obj->trans.z_position, 0x13);
 }
 

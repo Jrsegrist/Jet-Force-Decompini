@@ -20,7 +20,7 @@ typedef struct M022Plate {
     /* 0x19 */ u8 unk19;
     /* 0x1A */ s8 unk1A;
     /* 0x1B */ u8 unk1B;
-    /* 0x1C */ s32 unk1C;
+    /* 0x1C */ Object *marker; /* the marker shown over the plate (00000) */
 } M022Plate;
 
 /* The plate's level entry */
@@ -42,7 +42,31 @@ typedef struct M022Header {
 typedef struct M022Helper {
     /* 0x000 */ u8 pad0[0x10D];
     /* 0x10D */ u8 state;
+    /* 0x10E */ u8 pad10E[0x50C - 0x10E];
+    /* 0x50C */ Object *obj;
 } M022Helper;
+
+/* The helper object's behaviour data, as far as the task uses it */
+typedef struct M022HelperState {
+    /* 0x00 */ f32 x; /* where its task starts */
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ u8 padC[0x1C - 0xC];
+    /* 0x1C */ u16 unk1C;
+    /* 0x1E */ s16 unk1E;
+    /* 0x20 */ u8 pad20[0x60 - 0x20];
+    /* 0x60 */ s16 yaw;
+    /* 0x62 */ s16 pitch;
+    /* 0x64 */ s16 roll;
+    /* 0x66 */ u8 pad66[0x90 - 0x66];
+    /* 0x90 */ s16 unk90;
+} M022HelperState;
+
+/* A level object of behaviour 0x68's data, as 02310 uses it */
+typedef struct M022Start {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 unk16;
+} M022Start;
 
 extern void func_80003614(s32 handle);             /* stops a positioned sound */
 extern ObjectTransform *func_80041DE0(void);       /* the camera */
@@ -86,7 +110,41 @@ extern s16 rl_m022_035C8;
 #define sPlateCamUnk16 rl_m022_035C6
 #define sPlateCamUnk18 rl_m022_035C8
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_00000);
+extern LevelObjectEntryCommon rl_m022_03444; /* .data (still assembly): the marker's level entry */
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+
+/* The marker's data, as 00000 uses it */
+typedef struct M022Marker {
+    /* 0x0 */ s16 unk0;
+    /* 0x2 */ s16 alpha;
+} M022Marker;
+
+/* Spawns the plate's marker when it is due, and fades it in while unk17 is set, out otherwise */
+void func_m022_00000(Object *obj, M022Plate *plate, s32 updateRate) {
+    M022Marker *m;
+
+    if (plate->unk1B) {
+        rl_m022_03444.x = obj->trans.x_position;
+        rl_m022_03444.y = obj->trans.y_position + 70.0f;
+        rl_m022_03444.z = obj->trans.z_position;
+        plate->unk1B = 0;
+        plate->marker = func_80005F14(&rl_m022_03444, 1);
+    }
+    if (plate->marker != NULL) {
+        m = plate->marker->unk68;
+        if (plate->unk17) {
+            m->alpha += updateRate * 4;
+            if (m->alpha >= 256) {
+                m->alpha = 255;
+            }
+        } else {
+            m->alpha -= updateRate * 16;
+            if (m->alpha < 0) {
+                m->alpha = 0;
+            }
+        }
+    }
+}
 
 void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     M022Plate *plate = obj->unk68;
@@ -103,7 +161,7 @@ void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     plate->unk19 = 0;
     plate->unk1A = -1;
     plate->unk1B = 1;
-    plate->unk1C = 0;
+    plate->marker = NULL;
     D_800A320C = ((M022Header *) obj->header)->unkAC[0];
     D_800A3210[0] = ((M022Header *) obj->header)->unkAC[1];
     D_800A3210[1] = ((M022Header *) obj->header)->unkAC[2];
@@ -139,16 +197,59 @@ INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_018AC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_020EC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_022C4);
+struct M022Goals;
+extern struct M022Goals *rl_m022_03410;
+extern void rl_m022_02310(M022HelperState *s);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02310);
+/* Puts the helper in state 1 and starts its task (called from 002A4) */
+void func_m022_022C4(M022Helper *helper) {
+    M022HelperState *s;
+
+    D_800A3208 = 1;
+    helper->state = 1;
+    s = helper->obj->unk68;
+    s->unk1C = *(u16 *) rl_m022_03410;
+    s->unk1E = 6;
+    rl_m022_02310(s);
+}
+
+/* Puts the helper's start where the (last) behaviour-0x68 object with unk16 0 is, facing away */
+void func_m022_02310(M022HelperState *s) {
+    s32 first;
+    s32 count;
+    Object **objs;
+    Object *obj;
+    M022Start *start;
+
+    objs = func_80005E98(&first, &count);
+    while (first < count) {
+        obj = objs[first++];
+        if (obj->behaviorId == 0x68 && (start = obj->unk68)->unk16 == 0) {
+            s->x = obj->trans.x_position;
+            s->y = obj->trans.y_position;
+            s->z = obj->trans.z_position;
+            s->yaw = obj->trans.rotation.y_rotation + 0x8000;
+            s->pitch = -obj->trans.rotation.x_rotation;
+            s->roll = 0;
+        }
+    }
+    s->unk90 = 0;
+}
 
 void func_m022_023FC(M022Helper *helper) {
     helper->state = 3;
     rl_m022_03424 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02410);
+/* Puts the helper in state 4 (called from 002A4) */
+void func_m022_02410(M022Helper *helper) {
+    M022HelperState *s;
+
+    D_800A3208 = 0;
+    helper->state = 4;
+    s = helper->obj->unk68;
+    s->unk90 = 0;
+}
 
 /* A task goal: a count to reach, or flags to have */
 typedef struct M022Goal {

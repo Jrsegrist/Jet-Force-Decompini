@@ -548,7 +548,8 @@ typedef struct ModuleEntry {
     /* 0x0C */ s32 unkC;
     /* 0x10 */ s32 unk10;
     /* 0x14 */ u16 unk14;
-    /* 0x16 */ u8 pad16[0x1C - 0x16];
+    /* 0x16 */ u16 unk16;
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
     /* 0x1C */ s32 unk1C; // an entry point offset (-1 for none)
 } ModuleEntry;
 extern ModuleEntry *gRunlinkModules;
@@ -843,7 +844,59 @@ void runlink_unload_all(void) {
     } while (i--);
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_800539E0);
+extern u8 runlink_main_imports_ROM_START[], runlink_main_imports_ROM_END[];
+extern u8 runlink_symtab_ROM_START[], runlink_symtab_ROM_END[];
+extern u8 runlink_modtab_ROM_START[], runlink_modtab_ROM_END[];
+extern u8 runlink_modules_ROM_START[];
+extern u8 runlink_nameoffs_ROM_START[], runlink_nameoffs_ROM_END[];
+extern s32 D_800A38F4;
+extern s32 D_800A38F8;
+extern u8 main_TEXT_END[], main_DATA_START[], main_RODATA_END[], main_BSS_START[], main_BSS_END[];
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes);
+
+#define MODTAB_SIZE ((u32) (runlink_modtab_ROM_END - runlink_modtab_ROM_START))
+#define SYMTAB_SIZE ((u32) (runlink_symtab_ROM_END - runlink_symtab_ROM_START))
+#define IMPORTS_SIZE ((u32) (runlink_main_imports_ROM_END - runlink_main_imports_ROM_START))
+
+/* JFG: set up the runlink: load the module table (entry 0 is the main segment), the symbol table and the main
+   segment's relocations from ROM, empty the slots and the unload timers, and make the module ROM offsets
+   absolute. */
+void module_system_init(void) {
+    ModuleEntry *entry;
+    s32 i;
+
+    D_800A38F8 = runlink_nameoffs_ROM_END - runlink_nameoffs_ROM_START;
+    gRunlinkModules = mempool_alloc_safe(MODTAB_SIZE + sizeof(ModuleEntry), -1);
+    dmacopy((u32) runlink_modtab_ROM_START, (u32) &gRunlinkModules[1], MODTAB_SIZE);
+    D_800FEAA8 = mempool_alloc_safe(SYMTAB_SIZE, -1);
+    dmacopy((u32) runlink_symtab_ROM_START, (u32) D_800FEAA8, SYMTAB_SIZE);
+    D_800FEAA4 = mempool_alloc_safe(IMPORTS_SIZE, -1);
+    dmacopy((u32) runlink_main_imports_ROM_START, (u32) D_800FEAA4, IMPORTS_SIZE);
+    D_800FEAB0 = *(u32 *) D_800FEAA4;
+    D_800FEAA4 = (ModuleReloc *) ((u32 *) D_800FEAA4 + 1);
+    gNumRunlinkModules = (MODTAB_SIZE >> 5) + 1;
+    i = 16;
+    while (i--) {
+        D_800FEAD8[i].module = 0xFFB;
+    }
+    D_800FEB58 = mempool_alloc_safe(gNumRunlinkModules * 2, -1);
+    bzero(D_800FEB58, gNumRunlinkModules * 2);
+    gRunlinkModules->unk0 = (s32) sound_volume_change;
+    gRunlinkModules->unk4 = 0;
+    gRunlinkModules->unk8 = (u32) main_TEXT_END - (u32) sound_volume_change;
+    gRunlinkModules->unkC = main_RODATA_END - main_DATA_START;
+    gRunlinkModules->unk10 = main_BSS_END - main_BSS_START;
+    gRunlinkModules->unk14 = D_800FEAB0 * 8;
+    gRunlinkModules->unk16 = 0;
+    i = gNumRunlinkModules - 1;
+    entry = &gRunlinkModules[1];
+    while (i--) {
+        entry->unk4 = (u32) runlink_modules_ROM_START + entry->unk4;
+        entry++;
+    }
+    D_800A38F4 = 0;
+}
 
 s32 mempool_free_timer_get();
 void func_8005342C(s32 module);

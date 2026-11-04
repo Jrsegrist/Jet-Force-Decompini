@@ -33,18 +33,173 @@ typedef struct M087PieceState {
 extern s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos); /* DKR */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
-/*
- * 00000 returns the settings entry for an object ID (a switch over 9 IDs
- * returning addresses in .data). It stays asm while 001DC and 00510 (asm)
- * call it: as a C static it has no rl_m087_00000 label for them.
- */
-extern M087Entry *rl_m087_00000(s32 id);
+/* The settings entries in the module's .data (still assembly), by module offset */
+extern M087Entry rl_m087_01224;
+extern M087Entry rl_m087_01264;
+extern M087Entry rl_m087_012A4;
+extern M087Entry rl_m087_01324;
+extern M087Entry rl_m087_01364; /* the default */
+extern M087Entry rl_m087_01390;
+extern M087Entry rl_m087_013F0;
+extern M087Entry rl_m087_01450;
+extern M087Entry rl_m087_01470;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_00000);
+/* The settings entry for an object ID */
+static M087Entry *func_m087_00000(s32 id) {
+    switch (id) {
+        case 0x135:
+            return &rl_m087_01224;
+        case 0x168:
+            return &rl_m087_01264;
+        case 0x171:
+            return &rl_m087_012A4;
+        case 0x1A8:
+            return &rl_m087_01324;
+        case 0x1C3:
+            return &rl_m087_01390;
+        case 0x2DE:
+        case 0x2DF:
+            return &rl_m087_013F0;
+        case 0x2CC:
+            return &rl_m087_01450;
+        case 0x58:
+            return &rl_m087_01470;
+        default:
+            return &rl_m087_01364;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_000D4);
+/* Moves `count` points from the object's space into the world (its yaw, scale and position) */
+void func_m087_000D4(Object *obj, s32 count, Vec3f *in, Vec3f *out) {
+    f32 ix;
+    f32 iy;
+    f32 iz;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 scale;
+    f32 sine;
+    f32 cosine;
 
+    scale = obj->trans.scale;
+    x = obj->trans.x_position;
+    y = obj->trans.y_position;
+    z = obj->trans.z_position;
+    sine = func_80049C34(obj->trans.rotation.y_rotation) * scale;
+    cosine = func_80049C30(obj->trans.rotation.y_rotation) * scale;
+    while (count--) {
+        ix = in->x;
+        iz = in->z;
+        iy = in->y;
+        out->x = ix * cosine + iz * sine + x;
+        out->y = iy * scale + y;
+        out->z = iz * cosine - ix * sine + z;
+        in++;
+        out++;
+    }
+}
+
+/* What the breakable object's init gets */
+typedef struct M087Setup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 scale; /* in 64ths */
+    /* 0x0C */ u8 yaw;
+} M087Setup;
+
+/* What the breakable object keeps in obj->unk68 */
+typedef struct M087State {
+    /* 0x00 */ s16 unk0; /* from its settings entry */
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u8 pad4[0x9 - 0x4];
+    /* 0x09 */ s8 unk9;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ f32 floorY;
+    /* 0x10 */ f32 shadowScale;
+    /* 0x14 */ s32 unk14;
+    /* 0x18 */ s32 flag; /* its object flag (set once broken) */
+} M087State;
+
+extern f32 rl_m087_014B0; /* .rodata (still assembly): the smallest scale, 0.1 */
+extern s32 objflags_reserve_ids(s32 count);
+extern s32 objflag_get(s32 flag);
+extern s32 func_8001B078(f32 x, f32 z, s32 flags, f32 ***heights);
+
+#ifdef NON_MATCHING
+/* The 0.1 limit is an extern while the .rodata is asm, so IDO loads it late; heights is one word high */
+void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
+    f32 scale;
+    s32 count;
+    s32 i;
+    s32 found;
+    M087State *state = obj->unk68;
+    f32 **heights;
+
+    scale = setup->scale * (1.0f / 64);
+    if (scale < rl_m087_014B0) {
+        scale = rl_m087_014B0;
+    }
+    obj->trans.scale = obj->header->scale * scale;
+    state->shadowScale = obj->header->shadowScale * scale;
+    if (obj->shadow != NULL) {
+        *obj->shadow = 0.0f;
+    }
+    obj->trans.rotation.y_rotation = setup->yaw << 8;
+    if (!arg2) {
+        state->flag = objflags_reserve_ids(1);
+    }
+    obj->modelIndex = 0;
+    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    state->unk0 = func_m087_00000(setup->common.objectID)->unk1C;
+    state->unk2 = 0x20;
+    state->unk3 = 0;
+    state->floorY = obj->trans.y_position;
+    count = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0x800, &heights);
+    if (count == 0 || state->floorY < *heights[count - 1]) {
+        state->unk9 = 1;
+        state->unkA = 0;
+    } else {
+        found = -1;
+        for (i = 0; i < count; i++) {
+            if (state->floorY - 5.0f <= *heights[i] && *heights[i] <= state->floorY + 5.0f) {
+                found = i;
+                i = count;
+            }
+        }
+        if (found == -1) {
+            state->unk9 = 0;
+            state->unkA = 2;
+        } else {
+            state->floorY = *heights[found] + 1.0f;
+            state->unk9 = -15;
+            state->unkA = 0;
+        }
+    }
+    obj->velocity.y = 0.0f;
+    state->unk14 = 0;
+    state->unkB = 0;
+    OBJ_STATE(obj, s32)[0] = 0;
+    if (objflag_get(state->flag)) {
+        switch (setup->common.objectID) {
+            case 0x2CC:
+            case 0x2DE:
+            case 0x2DF:
+                break;
+            default:
+                obj->modelIndex = obj->header->numberOfModelIds - 1;
+                obj->interactObj->flags &= ~1;
+                if ((state->unk9 & 0xF0) && obj->shadow != NULL) {
+                    *obj->shadow = state->shadowScale;
+                }
+                break;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_001DC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_00510);
 
@@ -81,13 +236,13 @@ void func_m087_010DC(Object *obj, s32 updateRate) {
 }
 
 void func_m087_011B0(s32 id, s16 value) {
-    rl_m087_00000(id)->unk1E = value;
+    func_m087_00000(id)->unk1E = value;
 }
 
 void func_m087_011DC(Object *obj) {
     s16 *state = obj->unk68;
 
-    *state = rl_m087_00000(*(s16 *) obj->pad2C)->unk1C;
+    *state = func_m087_00000(*(s16 *) obj->pad2C)->unk1C;
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m087", data);

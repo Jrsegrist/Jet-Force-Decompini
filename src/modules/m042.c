@@ -122,6 +122,8 @@ s32 *func_m042_02C80(void) {
     return sList;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m042", func_m042_02C8C);
+/* Does nothing (called from 00178) */
+void func_m042_02C8C(UNUSED s32 arg0) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m042", rodata);

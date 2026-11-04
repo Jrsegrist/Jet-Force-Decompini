@@ -72,7 +72,35 @@ void func_m014_019E4(void) {
     rl_m014_04894 = 0xF0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_019F4);
+/* A menu item (D_800FF780, size 0x20; the main segment's MenuItem), as used here */
+typedef struct M014MenuItem {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 posX;
+    /* 0x10 */ u8 pad10[0x20 - 0x10];
+} M014MenuItem;
+
+extern M014MenuItem D_800FF780[];
+
+/* Slides menu item 6 in while 019E4's timer runs, and out again after */
+void func_m014_019F4(s32 updateRate) {
+    if (rl_m014_04894 != 0) {
+        if (D_800FF780[6].posX < 69.0f) {
+            D_800FF780[6].posX += updateRate * 8;
+            if (D_800FF780[6].posX > 69.0f) {
+                D_800FF780[6].posX = 69.0f;
+            }
+        }
+        rl_m014_04894 -= updateRate;
+        if (rl_m014_04894 < 0) {
+            rl_m014_04894 = 0;
+        }
+    } else if (D_800FF780[6].posX > -91.0f) {
+        D_800FF780[6].posX -= updateRate * 8;
+        if (D_800FF780[6].posX < -91.0f) {
+            D_800FF780[6].posX = -91.0f;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01AD8);
 

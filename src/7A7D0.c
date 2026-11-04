@@ -38,7 +38,9 @@ typedef struct Obj7E {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x2E */ s16 segmentID;
+    /* 0x30 */ u8 pad30[0x3A - 0x30];
     /* 0x3A */ s8 unk3A;
     /* 0x3B */ u8 pad3B[0x40 - 0x3B];
     /* 0x40 */ Obj7EHeader *header;
@@ -60,11 +62,36 @@ typedef struct ModelSphereDef {
     /* 0x08 */ f32 radius;
 } ModelSphereDef;
 
+/* JFG: a model triangle (0x10 bytes, as DKR's Triangle) */
+typedef struct Triangle7E {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi[3];
+    /* 0x04 */ s16 uv[3][2];
+} Triangle7E;
+
+/* JFG: a model's triangle batch (0x10 bytes; only the field used here) */
+typedef struct ModelBatch7E {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 verticesOffset;
+    /* 0x08 */ u8 pad8[8];
+} ModelBatch7E;
+
+/* JFG: a model's collision edge info (only the field used here) */
+typedef struct ModelEdges7E {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ u8 *edgeFlags; // JFG: per triangle, bit n = edge n is a collision edge
+} ModelEdges7E;
+
 typedef struct ModelHeader7E {
-    /* 0x00 */ u8 pad0[0x38];
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ Triangle7E *triangles;
+    /* 0x24 */ ModelBatch7E *batches;
+    /* 0x28 */ u8 pad28[0x38 - 0x28];
     /* 0x38 */ ModelSphereDef *spheres;
     /* 0x3C */ u8 pad3C[0x4E - 0x3C];
     /* 0x4E */ s8 animated; // JFG: sphere positions come from the animated vertex list
+    /* 0x4F */ u8 pad4F[0x60 - 0x4F];
+    /* 0x60 */ ModelEdges7E *edges;
 } ModelHeader7E;
 
 /* JFG: a vertex (0xA bytes) */
@@ -76,7 +103,9 @@ typedef struct Vertex7E {
 typedef struct Obj7EModel {
     /* 0x00 */ ModelHeader7E *header;
     /* 0x04 */ Vertex7E *vertices;
-    /* 0x08 */ u8 pad8[0x70 - 0x8];
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ ModelEdges7E *edges; // JFG: this instance's own edge info (else the header's)
+    /* 0x10 */ u8 pad10[0x70 - 0x10];
     /* 0x70 */ f32 *animVerts; // JFG: x, y, z per sphere
     /* 0x74 */ u8 pad74[0x8C - 0x74];
     /* 0x8C */ s16 bboxMin[3];
@@ -98,10 +127,10 @@ extern s32 D_801047E0;
 extern Obj7E **D_801047E4;
 extern void *D_801047E8;
 extern void *D_801047EC;
-extern void *D_801047F4;
-extern void *D_801047F8;
-extern void *D_801047FC;
-extern void *D_80104800;
+extern s32 *D_801047F4; // JFG: per entry, an object address (> 0) or 0 for a triangle
+extern s16 *D_801047F8; // JFG: per entry, the batch of the triangle
+extern s16 *D_801047FC; // JFG: per entry, the triangle
+extern struct ObjEdge *D_80104800; // JFG: the object edge list
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void mempool_free(void *data);
 
@@ -137,8 +166,6 @@ void collision_level_buffers_free(void) {
     mempool_free(D_801047FC);
 }
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80079D1C);
-
 /* Size: 0x34 bytes */
 typedef struct CollisionSphere {
     /* 0x00 */ u8 pad0[0xA];
@@ -153,16 +180,206 @@ typedef struct CollisionSphere {
 } CollisionSphere;
 
 typedef struct SphereSet {
-    /* 0x00 */ u8 pad0[0x32];
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ u8 active : 1;
+    /* 0x08 */ u8 unk8_6 : 1;
+    /* 0x08 */ u8 unk8_rest : 6;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ u16 unkA;
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ Vec3f prevPos;
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ f32 radius2;
+    /* 0x2C */ s16 unk2C;
+    /* 0x2E */ u8 unk2E;
+    /* 0x2F */ u8 unk2F;
+    /* 0x30 */ u8 unk30;
+    /* 0x31 */ u8 unk31;
     /* 0x32 */ s16 count;
-    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ f32 unk38;
+    /* 0x3C */ u8 pad3C[0x40 - 0x3C];
     /* 0x40 */ CollisionSphere *spheres;
 } SphereSet;
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007A018);
-
 void func_800492DC(Obj7E *obj, Vec3f *v);
-void func_8007A018(Obj7E *obj, SphereSet *set);
+
+/* JFG: set up an object's hit set (at obj+0x4C): its centre offset by the rotated (rx, ry, rz) times the
+   scale, the scaled radii and the other values, then place its collision spheres on the model as
+   obj_update_collision_spheres does, with fresh radii. */
+void func_80079D1C(Obj7E *obj, s32 arg1, s32 arg2, s32 arg3, s16 rx, s16 ry, s16 rz, f32 radius, f32 radius2,
+                   f32 arg9, f32 arg10, u16 argB) {
+    f32 pos[3];
+    SphereSet *set;
+    s32 i;
+    CollisionSphere *sphere;
+    Obj7EModel *model;
+    ModelHeader7E *header;
+    f32 *anim;
+    ModelSphereDef *def;
+    Vertex7E *vert;
+
+    set = (SphereSet *) obj->flags;
+    if (set == NULL) {
+        return;
+    }
+    set->unk6 = arg1;
+    set->unk30 = arg2;
+    set->unk31 = 0;
+    set->unk9 = arg3;
+    set->rotation[0] = rx;
+    set->rotation[1] = ry;
+    set->rotation[2] = rz;
+    set->prevPos.x = obj->x;
+    set->prevPos.y = obj->y;
+    set->prevPos.z = obj->z;
+    if (rx | ry | rz) {
+        pos[0] = rx;
+        pos[1] = ry;
+        pos[2] = rz;
+        func_800492DC(obj, (Vec3f *) pos);
+        set->prevPos.x += pos[0] * obj->scale;
+        set->prevPos.y += pos[1] * obj->scale;
+        set->prevPos.z += pos[2] * obj->scale;
+    }
+    set->pos.x = set->prevPos.x;
+    set->pos.y = set->prevPos.y;
+    set->pos.z = set->prevPos.z;
+    set->radius = obj->scale * radius;
+    set->radius2 = obj->scale * radius2;
+    set->unk34 = arg9;
+    set->unk38 = arg10;
+    set->unk2E = 100;
+    set->unk2F = 100;
+    set->active = TRUE;
+    set->unk2C = 0;
+    set->unk8_6 = FALSE;
+    set->unkA = argB;
+    if (set->count == 0) {
+        return;
+    }
+    if (obj->unk4A == 0xE6) {
+        return;
+    }
+    i = set->count;
+    sphere = set->spheres;
+    model = obj->modelInstances[0];
+    header = model->header;
+    anim = model->animVerts;
+    def = header->spheres;
+    do {
+        if (header->animated) {
+            sphere->prevPos.x = *anim++;
+            sphere->prevPos.y = *anim++;
+            sphere->prevPos.z = *anim++;
+        } else {
+            vert = &model->vertices[def->vertex];
+            pos[0] = vert->x;
+            pos[1] = vert->y;
+            pos[2] = vert->z;
+            func_800492DC(obj, (Vec3f *) pos);
+            sphere->prevPos.x = pos[0] + obj->x;
+            sphere->prevPos.y = pos[1] + obj->y;
+            sphere->prevPos.z = pos[2] + obj->z;
+        }
+        i--;
+        sphere->radius2 = sphere->radius = def->radius * obj->scale;
+        sphere++;
+        def++;
+    } while (i > 0);
+}
+
+f32 sqrtf(f32 x);
+
+/* JFG: fit the hit set around its collision spheres (at the model's animated positions): the centre of their
+   bounding box, a radius reaching its corner (in 3D when unk30 is 1, else on XZ with the half height in
+   radius2), and the centre's offset from the object. */
+void obj_hit_set_fit(Obj7E *obj, SphereSet *set) {
+    s32 i;
+    f32 minX;
+    f32 minY;
+    f32 minZ;
+    f32 maxX;
+    f32 maxY;
+    f32 maxZ;
+    f32 x0;
+    f32 y0;
+    f32 z0;
+    f32 x1;
+    f32 y1;
+    f32 z1;
+    f32 cx;
+    f32 cy;
+    f32 cz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 *anim;
+    CollisionSphere *sphere;
+
+    anim = obj->modelInstances[obj->unk3A]->animVerts;
+    sphere = set->spheres;
+    minX = anim[0] - sphere->radius;
+    minY = anim[1] - sphere->radius2;
+    minZ = anim[2] - sphere->radius;
+    maxX = anim[0] + sphere->radius;
+    maxY = anim[1] + sphere->radius2;
+    maxZ = anim[2] + sphere->radius;
+    anim += 3;
+    sphere++;
+    for (i = 1; i < set->count; i++) {
+        x0 = anim[0] - sphere->radius;
+        y0 = anim[1] - sphere->radius2;
+        z0 = anim[2] - sphere->radius;
+        x1 = anim[0] + sphere->radius;
+        y1 = anim[1] + sphere->radius2;
+        z1 = anim[2] + sphere->radius;
+        if (x0 < minX) {
+            minX = x0;
+        }
+        if (y0 < minY) {
+            minY = y0;
+        }
+        if (z0 < minZ) {
+            minZ = z0;
+        }
+        if (maxX < x1) {
+            maxX = x1;
+        }
+        if (maxY < y1) {
+            maxY = y1;
+        }
+        if (maxZ < z1) {
+            maxZ = z1;
+        }
+        anim += 3;
+        sphere++;
+    }
+    cx = (minX + maxX) * 0.5f;
+    cz = (minZ + maxZ) * 0.5f;
+    dx = maxX - cx;
+    dz = maxZ - cz;
+    d = dx * dx + dz * dz;
+    if (set->unk30 == 1) {
+        cy = (minY + maxY) * 0.5f;
+        dy = maxY - cy;
+        set->radius = set->radius2 = sqrtf(dy * dy + d);
+    } else {
+        set->radius = sqrtf(d);
+        cy = (minY + maxY) * 0.5f;
+        set->radius2 = maxY - cy;
+    }
+    set->pos.x = cx;
+    set->pos.y = cy;
+    set->pos.z = cz;
+    set->rotation[0] = cx - obj->x;
+    set->rotation[1] = cy - obj->y;
+    set->rotation[2] = cz - obj->z;
+}
+
+void obj_hit_set_fit(Obj7E *obj, SphereSet *set);
 
 /* JFG: move an object's collision spheres to its current model vertices (keeping the previous positions). */
 void obj_update_collision_spheres(Obj7E *obj, SphereSet *set) {
@@ -218,7 +435,7 @@ void obj_update_collision_spheres(Obj7E *obj, SphereSet *set) {
         def++;
     } while (i > 0);
     if (obj->type == 1) {
-        func_8007A018(obj, set);
+        obj_hit_set_fit(obj, set);
     }
 }
 
@@ -485,7 +702,77 @@ s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007DE98);
+/* JFG: a pair of points moved together with an object (only the fields used here) */
+typedef struct PointPair {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ f32 x2;
+    /* 0x1C */ f32 y2;
+    /* 0x20 */ f32 z2;
+} PointPair;
+
+typedef struct SegmentBox {
+    /* 0x00 */ s16 x1, y1, z1;
+    /* 0x06 */ s16 x2, y2, z2;
+} SegmentBox;
+
+SegmentBox *block_boundbox(s32 segmentID);
+s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
+
+/* JFG: move the pair's points to (x2, y2, z2) and (x, y, z), the object's state points with them (type 2) and
+   the object by the first point's x offset on all three axes, then update its level segment. */
+void obj_move_with_points(Obj7E *obj, PointPair *pair, f32 x2, f32 y2, f32 z2, f32 x, f32 y, f32 z) {
+    s32 ix;
+    s32 iy;
+    s32 iz;
+    f32 dx2;
+    f32 dy2;
+    f32 dz2;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    SegmentBox *box;
+    f32 *pts;
+
+    dx2 = x2 - pair->x2;
+    dy2 = y2 - pair->y2;
+    dz2 = z2 - pair->z2;
+    dx = x - pair->x;
+    dy = y - pair->y;
+    dz = z - pair->z;
+    pair->x2 += dx2;
+    pair->y2 += dy2;
+    pair->z2 += dz2;
+    pair->x += dx;
+    pair->y += dy;
+    pair->z += dz;
+    if (obj->type == 2) {
+        pts = (f32 *) obj->state;
+        pts[0] += dx;
+        pts[1] += dy;
+        pts[2] += dz;
+        pts[3] += dx2;
+        pts[4] += dy2;
+        pts[5] += dz2;
+    }
+    /* (the game's own quirk: dx on all three axes) */
+    obj->x += dx;
+    obj->y += dx;
+    obj->z += dx;
+    if (obj->segmentID == -1) {
+        obj->segmentID = get_level_segment_index_from_position(obj->x, obj->y, obj->z);
+    } else {
+        ix = obj->x;
+        iy = obj->y;
+        iz = obj->z;
+        box = block_boundbox(obj->segmentID);
+        if (box->x2 < ix || ix < box->x1 || box->y2 < iy || iy < box->y1 || box->z2 < iz || iz < box->z1) {
+            obj->segmentID = get_level_segment_index_from_position(obj->x, obj->y, obj->z);
+        }
+    }
+}
 
 typedef struct RacerInfo {
     /* 0x00 */ s8 playerIndex;
@@ -805,7 +1092,108 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007F280);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007FC0C);
 
+/* JFG: a collision edge of an object's model (0x30 bytes, as 12D50's TrackEdge) */
+typedef struct ObjEdge {
+    /* 0x00 */ f32 x0, y0, z0;
+    /* 0x0C */ f32 x1, y1, z1;
+    /* 0x18 */ f32 dirX, dirY, dirZ; // the unit vector from the first end to the second
+    /* 0x24 */ f32 length;
+    /* 0x28 */ Obj7E *obj;
+    /* 0x2C */ s16 batch;
+    /* 0x2E */ s16 unk2E; // JFG: set from the triangle's flag bit (edge << 2)
+} ObjEdge;
+
+extern s32 D_801047F0; // JFG: the number of entries
+extern s32 D_80104804; // JFG: the number of object edges
+void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
+
+#ifdef NON_MATCHING
+/**
+ * NON_MATCHING: i lives on the stack for the whole loop (the target keeps it in a3 and spills it only around the
+ * triangle loop), which renumbers the temporaries; frame 0xA8 vs 0xB0.
+ * JFG: build the object edge list from the entries, as track_edges_build does for the level: an object entry
+ * selects the object (its current model and transform), a triangle entry adds the model triangle's marked
+ * edges, transformed to world space (zero-length edges are skipped), up to the level header's limit.
+ */
+void func_800805F4(void) {
+    Obj7E *obj;
+    UNUSED s32 pad[3];
+    Obj7EModel *model;
+    ModelHeader7E *header;
+    ModelEdges7E *edges;
+    UNUSED s32 pad2[3];
+    LevelHeader *level;
+    f32 *mtx;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 bit;
+    s32 tri;
+    Triangle7E *triangle;
+    Vertex7E *verts;
+    Vertex7E *va;
+    Vertex7E *vb;
+    ObjEdge *edge;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    level = level_header();
+    D_80104804 = 0;
+    for (i = 0; i < D_801047F0; i++) {
+        if (D_801047F4[i] > 0) {
+            obj = (Obj7E *) (D_801047F4[i] | 0x80000000);
+            model = obj->modelInstances[obj->data->unk133];
+            header = model->header;
+            if (model->edges != NULL) {
+                edges = model->edges;
+            } else {
+                edges = header->edges;
+            }
+            mtx = obj->data->mtx2[obj->data->mtxIndex][0];
+        } else {
+            tri = D_801047FC[i];
+            triangle = &header->triangles[tri];
+            verts = &model->vertices[header->batches[D_801047F8[i]].verticesOffset];
+            for (j = 0; j < 3; j++) {
+                bit = 1 << j;
+                if (edges->edgeFlags[tri] & bit) {
+                    edge = &D_80104800[D_80104804];
+                    k = j + 1;
+                    if (k >= 3) {
+                        k = 0;
+                    }
+                    va = &verts[triangle->vi[j]];
+                    vb = &verts[triangle->vi[k]];
+                    func_80048B60(mtx, va->x, va->y, va->z, &edge->x0, &edge->y0, &edge->z0);
+                    func_80048B60(mtx, vb->x, vb->y, vb->z, &edge->x1, &edge->y1, &edge->z1);
+                    dx = edge->x1 - edge->x0;
+                    dy = edge->y1 - edge->y0;
+                    dz = edge->z1 - edge->z0;
+                    edge->length = sqrtf(dx * dx + dy * dy + dz * dz);
+                    if (edge->length > 0.0f) {
+                        edge->dirX = dx / edge->length;
+                        edge->dirY = dy / edge->length;
+                        edge->dirZ = dz / edge->length;
+                        edge->obj = obj;
+                        edge->unk2E = 0;
+                        edge->batch = D_801047F8[i];
+                        if (header->triangles[tri].flags & (bit << 2)) {
+                            edge->unk2E = 1;
+                        }
+                        if (++D_80104804 >= level->unkF0) {
+                            i = D_801047F0;
+                            j = 3;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800805F4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800809F4);
 
