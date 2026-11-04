@@ -82,7 +82,29 @@ void func_m155_00070(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_000C8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_001B4);
+/* A region of the level, as 001B4 uses it (module 3's) */
+typedef struct M155Region {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ struct M155Region *next; /* the regions inside it */
+    /* 0x14 */ u32 flags; /* 0x10: a hole in the one it is in */
+} M155Region;
+
+extern s32 func_m003_16F44(f32 x, f32 z, M155Region *region);
+
+/* Whether (x, z) is in the region and in none of its holes */
+s32 func_m155_001B4(f32 x, f32 z, M155Region *region) {
+    M155Region *r = region;
+
+    if (!func_m003_16F44(x, z, r)) {
+        return FALSE;
+    }
+    for (r = r->next; r != NULL; r = r->next) {
+        if ((r->flags & 0x10) && func_m003_16F44(x, z, r)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00268);
 
@@ -98,7 +120,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01584);
 typedef struct M155Node {
     /* 0x00 */ s16 x;
     /* 0x02 */ s16 z;
-    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ u32 unk8;
     /* 0x0C */ s32 unkC;
     /* 0x10 */ s32 stamp; /* the search that last visited it, or 0 */
 } M155Node;
@@ -290,7 +314,28 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02748);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_0289C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02AEC);
+extern s32 rl_m155_03C70;        /* .data (still assembly): how many nodes there are */
+extern M155Node *rl_m155_04D50;  /* .bss (still assembly): the nodes */
+extern s32 rl_m155_018C4(M155Node *node);
+extern void rl_m155_026D8(M155Node *node, s16 x, s16 z, s16 *outX, s16 *outZ);
+
+/* The node with the highest unk8 that 018C4 accepts; its point (or (x, z)) goes to outX/outZ */
+M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
+    M155Node *node = rl_m155_04D50;
+    M155Node *best = NULL;
+    u32 bestValue = 0;
+    s32 n = rl_m155_03C70;
+
+    while (n-- > 0) {
+        if (bestValue < node->unk8 && rl_m155_018C4(node)) {
+            bestValue = node->unk8;
+            best = node;
+        }
+        node++;
+    }
+    rl_m155_026D8(best, x, z, outX, outZ);
+    return best;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02BB0);
 
