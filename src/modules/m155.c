@@ -149,7 +149,8 @@ typedef struct M155Entry {
     /* 0x78 */ u16 count : 8;
     /* 0x79 */ u16 search : 6; /* the search it belongs to */
     /* 0x79 */ u16 state : 2;  /* bit 0: in use; 3: done */
-    /* 0x7A */ u8 pad7A[0x80 - 0x7A];
+    /* 0x7A */ u8 pad7A[0x7C - 0x7A];
+    /* 0x7C */ f32 length; /* of the path so far */
     /* 0x80 */ u32 cost;
 } M155Entry;
 
@@ -207,9 +208,74 @@ s32 *func_m155_019A4(s32 *src) {
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_019A4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01A00);
+/* A point a search has reached, and the shortest path length to it so far (8 bytes) */
+typedef struct M155Visit {
+    /* 0x0 */ s16 x;
+    /* 0x2 */ s16 z;
+    /* 0x4 */ u32 length; /* 0: a free slot */
+} M155Visit;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01BE0);
+extern M155Visit rl_m155_04D60[64]; /* .bss (still assembly): the points the search has reached */
+extern s32 rl_m155_01A00(s16 x, s16 z, f32 length);
+extern f32 func_80097140(f32 x); /* sqrtf */
+extern s16 rl_m155_04D54;           /* .bss (still assembly): where the search is going */
+extern s16 rl_m155_04D56;
+
+/* Notes that the search reached (x, z) after `length`: FALSE if it got there no longer before (or there is
+   no room) */
+s32 func_m155_01A00(s16 x, s16 z, f32 length) {
+    M155Visit *v = rl_m155_04D60;
+    s32 n = 64;
+
+    while (n--) {
+        if (v->length != 0 && x == v->x && z == v->z) {
+            if (length < v->length) {
+                v->length = length;
+                return TRUE;
+            }
+            return FALSE;
+        }
+        v++;
+    }
+    v = rl_m155_04D60;
+    n = 64;
+    while (n--) {
+        if (v->length == 0) {
+            v->x = x;
+            v->z = z;
+            v->length = length;
+            return TRUE;
+        }
+        v++;
+    }
+    return FALSE;
+}
+
+/* Adds the point (x, z) (crossing from region `from` to `to`) to the entry's path; it stays in use if that
+   is the shortest way there so far, and its cost becomes the distance (squared) still to go */
+void func_m155_01BE0(M155Entry *e, s16 x, s16 z, u8 from, u8 to) {
+    s16 dx = x - e->x[e->count];
+    s16 dz = z - e->z[e->count];
+
+    e->count++;
+    e->x[e->count] = x;
+    e->z[e->count] = z;
+    e->from[e->count] = from;
+    e->to[e->count] = to;
+    e->length += func_80097140(dx * dx + dz * dz);
+    e->state = 1;
+    if (e->count >= 2 && !rl_m155_01A00(x, z, e->length)) {
+        e->state = 0;
+        return;
+    }
+    if (x == rl_m155_04D54 && z == rl_m155_04D56) {
+        e->cost = 0;
+        return;
+    }
+    dx = x - rl_m155_04D54;
+    dz = z - rl_m155_04D56;
+    e->cost = dx * dx + dz * dz;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01D9C);
 
@@ -287,7 +353,6 @@ typedef struct M155Crossing {
     /* 0x04 */ u8 pad4[0xA - 0x4];
 } M155Crossing;
 
-extern u8 rl_m155_04D60[0x200];
 extern void *rl_m155_04F80; /* the enemy's region */
 extern M155Path *rl_m155_022C8(s16 x, s16 z, s16 toX, s16 toZ);
 extern void rl_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to);
