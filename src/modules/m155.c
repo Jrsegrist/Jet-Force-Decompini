@@ -156,7 +156,96 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00268);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00644);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_00FC4);
+/* A region as 00FC4 walks them (module 3's) */
+typedef struct M155Area {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ struct M155Area *next;
+    /* 0x14 */ u32 flags; /* 1: in use, 4: skip, 8: has its own nodes */
+    /* 0x18 */ u8 pad18[0x20 - 0x18];
+    /* 0x20 */ Object *obj;
+} M155Area;
+
+/* A troop home's data and a member's, as far as 00FC4 uses them (module 3's) */
+typedef struct M155Home {
+    /* 0x00 */ u8 pad0[0x58];
+    /* 0x58 */ Object *first;
+    /* 0x5C */ u8 pad5C[0x64 - 0x5C];
+    /* 0x64 */ u8 unk64;
+} M155Home;
+typedef struct M155MemberPath {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s32 unk4;
+} M155MemberPath;
+typedef struct M155Member {
+    /* 0x00 */ u8 pad0[0x15];
+    /* 0x15 */ u8 unk15;
+    /* 0x16 */ u8 pad16[0x28 - 0x16];
+    /* 0x28 */ Object *next;
+    /* 0x2C */ u8 pad2C[0x64 - 0x2C];
+    /* 0x64 */ s32 unk64;
+    /* 0x68 */ u8 pad68[0xB0 - 0x68];
+    /* 0xB0 */ M155MemberPath *path;
+} M155Member;
+
+extern s8 *rl_m155_04F78;     /* .bss (still assembly): its byte at 0x7A is the region id */
+extern M155Area *rl_m155_04F80;
+extern M155Area *func_m003_0569C(s32 id);
+extern s32 func_m003_056D4(M155Area *area);
+extern void *func_80050F44(s32 *count);
+extern void rl_m155_00268(f32 x, f32 z, Object *obj, s32 arg3);
+extern void rl_m155_00644(s16 x, s16 z, M155Area *area);
+
+/*
+ * Builds the path nodes from (x, z): the enemy's region and those inside it, then marks the nodes that
+ * the members of troop `troop` have reached (called from 01274)
+ */
+void func_m155_00FC4(s16 x, s16 z, s32 troop) {
+    M155Area *a;
+    s32 count;
+    Object **homes;
+    M155Home *home;
+    Object *h;
+    Object *o;
+    M155Member *m;
+    M155Node *node;
+    s32 n;
+
+    rl_m155_03C70 = 0;
+    a = rl_m155_04F80 = func_m003_0569C(rl_m155_04F78[0x7A]);
+    rl_m155_00644(x, z, a);
+    for (a = a->next; a != NULL; a = a->next) {
+        if ((a->flags & 1) && !(a->flags & 4)) {
+            if (a->obj == NULL) {
+                rl_m155_00644(x, z, a);
+            } else if (a->obj->behaviorId != 0x5B || a->obj->modelIndex < 2) {
+                if (a->flags & 8) {
+                    rl_m155_00268(x, z, a->obj, func_m003_056D4(a));
+                } else {
+                    rl_m155_00644(x, z, a);
+                }
+            }
+        }
+    }
+    homes = func_80050F44(&count);
+    while (count--) {
+        h = homes[count];
+        home = h->unk68;
+        for (o = home->first; o != NULL; o = m->next) {
+            m = o->unk68;
+            if (!o->freed && troop == m->unk64) {
+                n = rl_m155_03C70;
+                node = rl_m155_04D50;
+                while (n-- > 0) {
+                    if (m->path != NULL && m->path->unk4 == node->unkC) {
+                        node->stamp = (home->unk64 << 16) + m->unk15 + 1;
+                        break;
+                    }
+                    node++;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01274);
 
@@ -388,7 +477,7 @@ typedef struct M155Crossing {
     /* 0x04 */ u8 pad4[0xA - 0x4];
 } M155Crossing;
 
-extern void *rl_m155_04F80; /* the enemy's region */
+extern M155Area *rl_m155_04F80; /* the enemy's region */
 extern M155Path *rl_m155_022C8(s16 x, s16 z, s16 toX, s16 toZ);
 extern void rl_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to);
 extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, void *region, M155Crossing *out, s32 point, u8 index);

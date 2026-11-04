@@ -203,7 +203,54 @@ INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_0036C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_00CB8);
 
+/* A matrix with two words after it */
+typedef struct M004Mtx {
+    /* 0x00 */ f32 m[4][4];
+    /* 0x40 */ s32 unk40;
+    /* 0x44 */ s32 unk44;
+} M004Mtx;
+
+extern void func_80049BA0(M004Mtx *mtx); /* identity */
+extern f32 rl_m004_01754;                /* .rodata (still assembly) */
+
+/*
+ * Halves the rotation's tilt towards straight down and builds a matrix that shears along the direction it
+ * then points in (called from 0036C)
+ */
+#ifdef NON_MATCHING
+/* f0/f2 swapped (y and the constant): the ROM's k is a .rodata literal; needs .rodata in C */
+void func_m004_012BC(Vec3s *rot, s32 arg1, M004Mtx *mtx) {
+    f32 k;
+    Vec3f dir;
+    f32 x;
+    f32 y;
+    f32 z;
+
+    if (rot->x_rotation < 0) {
+        rot->x_rotation = 0;
+    }
+    rot->x_rotation -= 0x4000;
+    rot->x_rotation >>= 1;
+    rot->x_rotation += 0x4000;
+    dir.x = 0.0f;
+    dir.y = 0.0f;
+    dir.z = -1.0f;
+    func_8004944C(rot, &dir);
+    x = dir.x;
+    z = dir.z;
+    y = dir.y;
+    mtx->unk44 = arg1;
+    func_80049BA0(mtx);
+    k = rl_m004_01754;
+    mtx->m[0][0] = k;
+    mtx->m[1][0] = -(x / y);
+    mtx->m[1][1] = 0.0f;
+    mtx->m[1][2] = -(z / y);
+    mtx->m[2][2] = k;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_012BC);
+#endif
 
 /* Allocates a copy's buffers; FALSE (with nothing kept) when one cannot be had */
 static s32 copy_alloc(Object *obj, M004Copy *copy) {
