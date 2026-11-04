@@ -829,3 +829,4 @@ func_800110E4 = obj_anim_triggers_fire
 func_800119B8 = obj_unlink_dependants
 func_80011E74 = sound_nearest_emitter_update
 func_8000774C = obj_spawn_attachment
+func_80036DBC = player_squash_update

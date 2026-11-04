@@ -706,7 +706,7 @@ extern void racer_angle_sync(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate, void *table);
 extern void func_800364D4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate, void *table);
 extern void player_squash_precheck(Object *obj, Racer *racer, s32 updateRate);
-extern void func_80036DBC(Object *obj, Racer *racer, s32 updateRate);
+extern void player_squash_update(Object *obj, Racer *racer, s32 updateRate);
 extern void player_input_lock_set(s32 arg0);
 extern void player_input_latch(s32 player);
 extern void func_8003733C(s32 player, s32 a, s32 b, s32 c, s32 d);
@@ -1063,7 +1063,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     }
     func_m015_05328(obj, racer, speed, updateRate);
     func_m015_05ED4(obj, racer, updateRate);
-    func_80036DBC(obj, racer, updateRate);
+    player_squash_update(obj, racer, updateRate);
     if (racer->unk189 < 4) {
         if (racer->state == 0 || racer->state == 5 || racer->state == 11) {
             func_80035E14(obj, racer, speed, angle, updateRate, &D_m015_08310);

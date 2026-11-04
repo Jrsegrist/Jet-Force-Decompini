@@ -1679,7 +1679,90 @@ void player_squash_precheck(u8 *obj, Racer *racer, UNUSED s32 updateRate) {
 /* JFG: squash checks: the timer (0x186) clears the squashing object; event 1 starts checking, event 2 pushes the
  * player off the platform; while checking, the lowest object over a free pose point (down to the pose height)
  * squashes the player: it pushes off (by the object's direction 0x8C, or away from it) unless on a platform */
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80036DBC);
+void player_squash_update(u8 *obj, Racer *racer, s32 updateRate) {
+    s32 i;
+    f32 *point;
+    u32 mask;
+    void *squash;
+    f32 y;
+    f32 lowest;
+    void *hit;
+    f32 push;
+    s16 angle;
+    f32 pushZ;
+    f32 dx;
+    f32 dz;
+
+    if (racer->squashTimer != 0) {
+        racer->squashTimer -= updateRate;
+        if (racer->squashTimer <= 0) {
+            racer->squashObj = NULL;
+            racer->squashTimer = 0;
+        }
+    }
+    if (racer->squashEvent == 1) {
+        racer->squashCheck = 1;
+    } else if (racer->squashEvent == 2) {
+        racer->squashTimer = 30;
+        racer->squashObj = racer->platform;
+        racer->platform = NULL;
+        dx = *(f32 *) (obj + 0xC) - *(f32 *) ((u8 *) racer->squashObj + 0xC);
+        dz = *(f32 *) (obj + 0x14) - *(f32 *) ((u8 *) racer->squashObj + 0x14);
+        angle = func_80049C84(dx, dz);
+        racer->unk149 = 10;
+        racer->pushX = func_80049C34(angle) * 10.0f;
+        racer->pushZ = func_80049C30(angle) * 10.0f;
+    }
+    squash = NULL;
+    if (racer->squashCheck) {
+        mask = racer->pointMask;
+        point = racer->posePoints[0];
+        lowest = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
+        for (i = 0; i < racer->numPoints; i++) {
+            if (!(mask & 1)) {
+                hit = func_800822D8(point, *(s32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
+                if (hit != NULL && y <= lowest) {
+                    lowest = y;
+                    squash = hit;
+                }
+            }
+            point += 3;
+            mask >>= 1;
+        }
+        if (squash != NULL) {
+            if (racer->platform != NULL) {
+                racer->squashTimer = updateRate;
+                racer->squashObj = squash;
+                racer->unk4C = (lowest - *(f32 *) (obj + 0x10)) / *(f32 *) (racer->pose + 0xC);
+                racer->unk57A = 0;
+                if (*(f32 *) (obj + 0x20) > 0.0f) {
+                    *(f32 *) (obj + 0x20) = 0.0f;
+                }
+            } else {
+                racer->squashTimer = updateRate;
+                racer->squashObj = squash;
+                if (*(s32 *) ((u8 *) squash + 0x8C) == 0) {
+                    angle = func_80049C84(*(f32 *) (obj + 0xC) - *(f32 *) ((u8 *) squash + 0xC),
+                                          *(f32 *) (obj + 0x14) - *(f32 *) ((u8 *) squash + 0x14));
+                } else {
+                    angle = *(s32 *) ((u8 *) squash + 0x8C) * 0xB6 + 0x8000;
+                }
+                push = func_80049C34(angle) * 5.0f;
+                pushZ = func_80049C30(angle) * 5.0f;
+                racer->unk149 = 10;
+                racer->pushX = push;
+                racer->pushZ = pushZ;
+                racer->unk4C = (lowest - *(f32 *) (obj + 0x10)) / *(f32 *) (racer->pose + 0xC);
+                racer->unk57A = 0;
+                if (*(f32 *) (obj + 0x20) > 0.0f) {
+                    *(f32 *) (obj + 0x20) = 0.0f;
+                }
+            }
+        } else {
+            racer->squashCheck = 0;
+        }
+    }
+}
 
 extern f32 D_800ABF74;
 extern f32 D_800ABF78;
