@@ -61,7 +61,7 @@ extern s32 D_800A3290;
 void audioStopThread(void);
 void fb_clear_and_unblank(void);
 void rumble_stop_all(s32 arg0);
-void func_8004B56C(s32 updateRate);
+void rumble_motors_run(s32 updateRate);
 s32 is_reset_pressed(void);
 void __osSpSetStatus(u32 data);
 
@@ -78,9 +78,9 @@ void check_reset_and_halt(void) {
         osDpSetStatus(0x1D6);
         fb_clear_and_unblank();
         rumble_stop_all(1);
-        func_8004B56C(2);
-        func_8004B56C(2);
-        func_8004B56C(2);
+        rumble_motors_run(2);
+        rumble_motors_run(2);
+        rumble_motors_run(2);
         while (1) {
         }
     }

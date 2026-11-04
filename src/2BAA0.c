@@ -41,7 +41,9 @@ typedef struct Racer {
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
     /* 0x0C0 */ s32 sound;
-    /* 0x0C4 */ u8 padC4[0x10A - 0xC4];
+    /* 0x0C4 */ u8 padC4[0x104 - 0xC4];
+    /* 0x104 */ s16 unk104; // the chase camera's yaw
+    /* 0x106 */ u8 pad106[0x10A - 0x106];
     /* 0x10A */ s16 unk10A;
     /* 0x10C */ u8 pad10C[0x11C - 0x10C];
     /* 0x11C */ s16 unk11C;
@@ -380,7 +382,68 @@ void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * tilt;
 }
 
+extern f32 D_800ABDB8;
+extern f32 D_800ABDBC;
+extern f32 D_800ABDC0;
+extern f32 D_800ABDC4;
+f32 sqrtf(f32 x);
+f32 func_80049C34(s32 angle);
+f32 func_80049C30(s32 angle);
+s32 func_80049C84(f32 x, f32 z);
+
+#define CHASECAM ((Transform2BAA0 *) D_800F6DC0)
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 6 words: the target loads D_800ABDBC before reloading racer and puts the racer->unk104 store in
+ * the next call's delay slot; mine stores it first */
+/* JFG: the chase camera: its yaw (racer 0x104) eases to behind the player, its distance to 120 and height to 50;
+ * the camera eases to that point, then turns to look at a point 45 up and 80 ahead of the player */
+void func_8002BD04(s16 *obj, Racer *racer, f32 updateRate) {
+    f32 dist;
+    s16 angle;
+    f32 dx;
+    f32 dz;
+    f32 y;
+    f32 dy;
+    s32 rate;
+    f32 t;
+    s16 pitch;
+    f32 look[3];
+
+    dx = CHASECAM->position[0] - *(f32 *) (obj + 6);
+    dz = CHASECAM->position[2] - *(f32 *) (obj + 10);
+    dy = CHASECAM->position[1] - *(f32 *) (obj + 8);
+    dist = sqrtf(dx * dx + dz * dz);
+    rate = updateRate;
+    angle = 0x6000 - obj[0];
+    racer->unk104 = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(D_800ABDB8, rate));
+    dz = D_800ABDBC;
+    dist = (1.0f - func_80049BEC(dz, rate)) * (120.0f - dist) + dist;
+    dy = (1.0f - func_80049BEC(dz, rate)) * (50.0f - dy) + dy;
+    dx = *(f32 *) (obj + 6) + func_80049C34(racer->unk104) * dist;
+    y = *(f32 *) (obj + 8) + dy;
+    dz = *(f32 *) (obj + 10) - func_80049C30(racer->unk104) * dist;
+    t = 1.0f - func_80049BEC(D_800ABDC0, rate);
+    CHASECAM->position[0] += (dx - CHASECAM->position[0]) * t;
+    CHASECAM->position[1] += (y - CHASECAM->position[1]) * t;
+    CHASECAM->position[2] += (dz - CHASECAM->position[2]) * t;
+    look[0] = 0.0f;
+    look[1] = 45.0f;
+    look[2] = -80.0f;
+    func_800496B0(1, obj, look, (u8 *) look);
+    dx = CHASECAM->position[0] - (*(f32 *) (obj + 6) + look[0]);
+    y = CHASECAM->position[1] - (*(f32 *) (obj + 8) + look[1]);
+    dz = CHASECAM->position[2] - (*(f32 *) (obj + 10) + look[2]);
+    angle = 0x8000 - func_80049C84(dx, dz);
+    pitch = func_80049C84(y, sqrtf(dx * dx + dz * dz));
+    t = 1.0f - func_80049BEC(D_800ABDC4, rate);
+    CHASECAM->rotation[0] = angle_lerp(CHASECAM->rotation[0], angle, t);
+    CHASECAM->rotation[1] = angle_lerp(CHASECAM->rotation[1], pitch, t);
+    CHASECAM->rotation[2] = angle_lerp(CHASECAM->rotation[2], 0, t);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002BD04);
+#endif
 
 
 s32 cam_get_active_camera_id(void);

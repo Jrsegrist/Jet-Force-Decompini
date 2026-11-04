@@ -71,7 +71,7 @@ typedef struct RumbleData {
     /* 0x00 */ u16 unk3 : 1;
     /* 0x00 */ u16 unk2 : 1; // set when a rumble pak was found
     /* 0x00 */ u16 unk0 : 2;
-    /* 0x01 */ u16 unk1 : 8;
+    /* 0x01 */ s16 unk1 : 8; // stops still to send
     /* 0x02 */ s16 strength;
     /* 0x04 */ s16 strength2;
     /* 0x06 */ s16 time;
@@ -179,7 +179,120 @@ void func_8004B55C(void) {
     D_800A3464 = 0x1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004B56C);
+extern f32 D_800AC94C;
+
+/* JFG: the rumble tick: after a (re)scan, every plugged-in rumble pak is initialised; then each present pak
+ * runs its state: 1 = rumbling (the motor pulses by the strength, on above 490, off below D_800AC94C, until the
+ * time runs out or 120 frames have passed), 2 = cooling down, 3 = stopping. A failed motor call drops the pak. */
+void rumble_motors_run(s32 updateRate) {
+    s32 i;
+    s32 bit;
+    RumbleData *rumble;
+    u8 plugged;
+    s32 err;
+
+    if (D_800A346C) {
+        if (D_800A3464) {
+            osPfsIsPlug(sControllerMesgQueue, &plugged);
+            i = 0;
+            bit = 1;
+            rumble = gRumble;
+            for (; i != 4; bit <<= 1, i++, rumble++) {
+                rumble->strength = 0;
+                rumble->unk2 = 0;
+                rumble->strength2 = 0;
+                rumble->time = 0;
+                rumble->unk8 = 0;
+                gRumblePresent &= ~bit;
+                if ((plugged & bit) && osMotorInit(sControllerMesgQueue, &pfs[i], i) == 0) {
+                    rumble->unk2 = 1;
+                    gRumblePresent |= bit;
+                }
+            }
+            D_800A3464 = 0;
+        }
+        i = 0;
+        bit = 1;
+        rumble = gRumble;
+        for (; i != 4; bit <<= 1, i++, rumble++) {
+            if (rumble->unk2) {
+                err = 0;
+                switch (rumble->state) {
+                    case 1:
+                        rumble->time -= updateRate;
+                        rumble->unk8 += updateRate;
+                        if (rumble_is_allowed() == 0) {
+                            rumble->time = 0;
+                        }
+                        if (rumble->time <= 0) {
+                            rumble->unk1 = 1;
+                            rumble->state = 3;
+                        } else if (rumble->unk8 >= 120) {
+                            rumble->state = 2;
+                            rumble->unk8 = 120;
+                            rumble->unk1 = 1;
+                        } else if (rumble->strength > 490.0f) {
+                            if (!rumble->unk3) {
+                                err = osMotorStart(&pfs[i]);
+                                rumble->unk3 = 1;
+                            }
+                        } else if (rumble->strength < D_800AC94C) {
+                            if (rumble->unk3) {
+                                err = osMotorStop(&pfs[i]);
+                                rumble->unk3 = 0;
+                            }
+                        } else if (rumble->strength2 >= 0x100) {
+                            if (!rumble->unk3) {
+                                err = osMotorStart(&pfs[i]);
+                                rumble->unk3 = 1;
+                            }
+                            rumble->strength2 -= 0x100;
+                        } else {
+                            if (rumble->unk3) {
+                                err = osMotorStop(&pfs[i]);
+                                rumble->unk3 = 0;
+                            }
+                            rumble->strength2 += rumble->strength + 4;
+                        }
+                        break;
+                    case 2:
+                        if (rumble->unk1) {
+                            osMotorInit(sControllerMesgQueue, &pfs[i], i);
+                            osMotorStop(&pfs[i]);
+                            osMotorStop(&pfs[i]);
+                            osMotorStop(&pfs[i]);
+                            rumble->time = 0;
+                            rumble->unk3 = 0;
+                            rumble->unk1--;
+                        }
+                        rumble->unk8 -= updateRate;
+                        if (rumble->unk8 <= 0) {
+                            rumble->unk8 = 0;
+                            rumble->state = 0;
+                        }
+                        break;
+                    case 3:
+                        osMotorInit(sControllerMesgQueue, &pfs[i], i);
+                        osMotorStop(&pfs[i]);
+                        osMotorStop(&pfs[i]);
+                        osMotorStop(&pfs[i]);
+                        rumble->time = 0;
+                        rumble->unk8 = 0;
+                        rumble->unk3 = 0;
+                        rumble->unk1--;
+                        if (rumble->unk1 == 0) {
+                            rumble->state = 0;
+                        }
+                        break;
+                }
+                if (err) {
+                    rumble->unk2 = 0;
+                    gRumblePresent &= ~bit;
+                }
+            }
+        }
+    }
+}
 
 typedef struct RumbleState {
     s32 unk0;
