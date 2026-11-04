@@ -48,12 +48,25 @@ typedef struct M022Helper {
 
 /* The helper object's behaviour data, as far as the task uses it */
 typedef struct M022HelperState {
-    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x00 */ f32 x; /* where its task starts */
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ u8 padC[0x1C - 0xC];
     /* 0x1C */ u16 unk1C;
     /* 0x1E */ s16 unk1E;
-    /* 0x20 */ u8 pad20[0x90 - 0x20];
+    /* 0x20 */ u8 pad20[0x60 - 0x20];
+    /* 0x60 */ s16 yaw;
+    /* 0x62 */ s16 pitch;
+    /* 0x64 */ s16 roll;
+    /* 0x66 */ u8 pad66[0x90 - 0x66];
     /* 0x90 */ s16 unk90;
 } M022HelperState;
+
+/* A level object of behaviour 0x68's data, as 02310 uses it */
+typedef struct M022Start {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 unk16;
+} M022Start;
 
 extern void func_80003614(s32 handle);             /* stops a positioned sound */
 extern ObjectTransform *func_80041DE0(void);       /* the camera */
@@ -166,7 +179,28 @@ void func_m022_022C4(M022Helper *helper) {
     rl_m022_02310(s);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_02310);
+/* Puts the helper's start where the (last) behaviour-0x68 object with unk16 0 is, facing away */
+void func_m022_02310(M022HelperState *s) {
+    s32 first;
+    s32 count;
+    Object **objs;
+    Object *obj;
+    M022Start *start;
+
+    objs = func_80005E98(&first, &count);
+    while (first < count) {
+        obj = objs[first++];
+        if (obj->behaviorId == 0x68 && (start = obj->unk68)->unk16 == 0) {
+            s->x = obj->trans.x_position;
+            s->y = obj->trans.y_position;
+            s->z = obj->trans.z_position;
+            s->yaw = obj->trans.rotation.y_rotation + 0x8000;
+            s->pitch = -obj->trans.rotation.x_rotation;
+            s->roll = 0;
+        }
+    }
+    s->unk90 = 0;
+}
 
 void func_m022_023FC(M022Helper *helper) {
     helper->state = 3;

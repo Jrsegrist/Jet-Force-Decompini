@@ -146,7 +146,9 @@ typedef struct M003Home {
     /* 0x30 */ u8 unk30;
     /* 0x31 */ u8 pad31[0x33 - 0x31];
     /* 0x33 */ u8 unk33;
-    /* 0x34 */ u8 pad34[0x3C - 0x34];
+    /* 0x34 */ u8 pad34;
+    /* 0x35 */ u8 unk35; /* set while a way-point command runs (01C58) */
+    /* 0x36 */ u8 pad36[0x3C - 0x36];
     /* 0x3C */ s16 unk3C;
     /* 0x3E */ s16 unk3E;
     /* 0x40 */ s16 unk40;
@@ -172,7 +174,9 @@ typedef struct M003Home {
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
     /* 0x78 */ u8 pad78[0x7B - 0x78];
     /* 0x7B */ u8 unk7B;
-    /* 0x7C */ u8 pad7C[0x91 - 0x7C];
+    /* 0x7C */ u8 pad7C[0x8C - 0x7C];
+    /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
+    /* 0x90 */ u8 pad90;
     /* 0x91 */ u8 unk91; /* bit 0: members blame the closest player */
 } M003Home;
 
@@ -187,7 +191,8 @@ typedef struct M003Node {
     /* 0x16 */ u8 unk16;
     /* 0x17 */ u8 kind : 2; /* the kind of object spawned for it */
     /* 0x17 */ u8 unk17 : 6;
-    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x18 */ u8 cmd; /* what a member does there (module 154) */
+    /* 0x19 */ u8 pad19[0x1C - 0x19];
     /* 0x1C */ u8 unk1C;
     /* 0x1D */ u8 pad1D[0x31 - 0x1D];
     /* 0x31 */ u8 radius; /* how near counts as there (02760) */
@@ -290,7 +295,7 @@ extern void troop_spawn_context_set(Object *obj, Object *home);
 extern void func_m154_017E8(Object *home);
 static s32 func_m003_0527C(f32 x, f32 y, f32 z);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
-extern void func_m003_0DF84(void);
+extern void func_m003_0DF84(); /* (Object *obj, void *entry); one C caller passes nothing */
 extern void func_m003_15ED8(s32 arg0, s32 arg1);
 extern void func_m003_16530(void);
 extern void *func_80050F44(s32 *count);
@@ -406,7 +411,9 @@ static s32 sCrossX1;       /* the segment, in whole units */
 static s32 sCrossZ1;
 static s32 sCrossX2;
 static s32 sCrossZ2;
-static u8 sBssDC8[0xDE0 - 0xDC8];
+static u8 sBssDC8[0xDD8 - 0xDC8];
+static f32 sCrossSlope;    /* the line 170D0 meets: z = slope * x + offset */
+static f32 sCrossOffset;
 static struct M003Crossing *sCrossOut;
 static s32 sCrossX;        /* where it leaves the region */
 static s32 sCrossZ;
@@ -726,7 +733,35 @@ s32 func_m003_01B44(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
     return TRUE;
 }
 
+extern void func_m154_01110(Object *home, M003Node *node); /* starts the way point's command */
+
+#ifdef NON_MATCHING
+/* 22 diffs: the ROM computes the final && straight into v0 (the cmd reload in v1), one instruction shorter */
+/* Whether the member goes on past way point `node`: its command (not kinds 3/9 and 1) is started on
+   reaching it; `arrive` tells which of the two calls this is */
+s32 func_m003_01C58(M003Node *node, s32 arrive) {
+    u8 cmd = node->cmd;
+
+    if ((1 << cmd) & 0x208) {
+        if (arrive) {
+            return FALSE;
+        }
+    } else if (!arrive) {
+        return FALSE;
+    }
+    if (cmd != 1 && sHomeData->unk35 == 0) {
+        sHomeData->unk33 = 0x17;
+        sHomeData->unk35 = 1;
+        sHomeData->unk2E = node->unk1C;
+        func_m154_01110(sHome, node);
+        return node->cmd != 3 && node->cmd != 9;
+    }
+    sHomeData->unk35 = 0;
+    return FALSE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01D3C);
 
@@ -2213,7 +2248,36 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_13FE4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_142F0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_14694);
+/* What troop_ring_take gives, as far as 14694 uses it */
+typedef struct M003RingEntry {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ u8 flag; /* a game flag: set means the member is not spawned */
+} M003RingEntry;
+
+extern M003RingEntry *troop_ring_take(s32 id);
+extern Object *rl_m003_0D810(void); /* still assembly */
+
+/* Spawns the troop's next member from the ring (or 0D810's way); counts the ones whose flag is set */
+Object *func_m003_14694(void) {
+    M003RingEntry *entry = troop_ring_take(sHomeData->unk64);
+    Object *obj;
+
+    if (entry != NULL) {
+        if (objflag_get(entry->flag)) {
+            sHomeData->arrived++;
+            return NULL;
+        }
+        obj = func_80005F14(entry, 1);
+        func_m003_0DF84(obj, entry);
+        return obj;
+    }
+    if (objflag_get(sHomeData->unk8C)) {
+        sHomeData->arrived++;
+        sHomeData->unk8C++;
+        return NULL;
+    }
+    return rl_m003_0D810();
+}
 
 void func_m003_1477C(void) {
     if (!(D_800FE9B0 & 1) && !(D_800FE9B0 & 8)) {
@@ -2689,7 +2753,21 @@ s32 func_m003_16F44(f32 x, f32 z, M003Region *region) {
     return TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_170D0);
+/* Where the line through (x1, z1) and (x2, z2) meets the line sCrossSlope/sCrossOffset */
+void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
+    f32 slope;
+    f32 offset;
+
+    if (x1 == x2) {
+        *x = x1;
+        *z = sCrossSlope * x1 + sCrossOffset;
+        return;
+    }
+    slope = (z2 - z1) / (x2 - x1);
+    offset = z1 - slope * x1;
+    *x = (sCrossOffset - offset) / (slope - sCrossSlope);
+    *z = *x * slope + offset;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
 

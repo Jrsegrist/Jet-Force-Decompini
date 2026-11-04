@@ -66,14 +66,15 @@ typedef struct M067State {
     /* 0x01 */ s8 kind;
     /* 0x02 */ s8 target;
     /* 0x03 */ u8 unk3;
-    /* 0x04 */ u8 pad4[0x9 - 0x4];
+    /* 0x04 */ s32 unk4; /* from the pair's table (0025C) */
+    /* 0x08 */ u8 unk8;
     /* 0x09 */ u8 unk9;
     /* 0x0A */ u8 unkA;
     /* 0x0B */ u8 unkB;
     /* 0x0C */ u8 unkC;
     /* 0x0D */ u8 unkD;
     /* 0x0E */ u8 unkE;
-    /* 0x0F */ u8 unkF;
+    /* 0x0F */ s8 unkF; /* a countdown; -1: stopped */
     /* 0x10 */ u8 pad10[0x34 - 0x10];
     /* 0x34 */ s32 unk34;
     /* 0x38 */ s32 unk38;
@@ -193,7 +194,30 @@ s32 func_m067_00130(Object *obj, M067Jump *j, s32 target) {
     return FALSE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_0025C);
+extern s32 rl_m067_046C0[]; /* .data (still assembly): the pair's values, two per step */
+
+/* Gives both enemies of the pair their next values from the table and moves the table on */
+void func_m067_0025C(void) {
+    M067State *s;
+
+    if (rl_m067_04574[0] != NULL) {
+        s = rl_m067_04574[0]->unk68;
+        s->unk4 = rl_m067_046C0[rl_m067_0456C];
+        s->unk8 = 0;
+        if (s->unkF == -1) {
+            s->unkF = 12;
+        }
+    }
+    if (rl_m067_04574[1] != NULL) {
+        s = rl_m067_04574[1]->unk68;
+        s->unk4 = rl_m067_046C0[rl_m067_0456C + 1];
+        s->unk8 = 0;
+        if (s->unkF == -1) {
+            s->unkF = 12;
+        }
+    }
+    rl_m067_0456C += 2;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00300);
 

@@ -143,7 +143,28 @@ void func_m009_0066C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_00690);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02880);
+extern s32 rl_m009_0490C; /* .data (still assembly): the place picked */
+extern f32 rl_m009_097A0; /* .bss (still assembly): where the map heads for */
+extern f32 rl_m009_097A4;
+extern s32 rl_m009_097A8; /* the time it takes */
+
+/* Picks map place `index`: the map heads for its world model or menu item */
+void func_m009_02880(s32 index) {
+    M009Place *p;
+
+    rl_m009_0490C = index;
+    p = &rl_m009_0469C[index];
+    if (p->kind == 0) {
+        rl_m009_097A0 = rl_m009_04990[p->index].x;
+        rl_m009_097A4 = rl_m009_04990[p->index].y;
+    } else {
+        rl_m009_097A0 = D_800FF780[p->index].posX;
+        rl_m009_097A4 = D_800FF780[p->index].posY;
+    }
+    if (rl_m009_097A8 == 0) {
+        rl_m009_097A8 = 15;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02978);
 
