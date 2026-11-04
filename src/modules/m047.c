@@ -156,7 +156,57 @@ s16 func_m047_007DC(f32 t, s16 from, s16 to) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_0084C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_013D0);
+/* A cutscene actor's step, as 013D0 uses it */
+typedef struct M047Actor {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 animSpeed;
+    /* 0x10 */ u8 pad10[0x14 - 0x10];
+    /* 0x14 */ u8 backwards; /* play the animation backwards */
+    /* 0x15 */ u8 pad15;
+    /* 0x16 */ u8 flags;     /* 2: the actor to follow */
+    /* 0x17 */ u8 pad17[0x24 - 0x17];
+    /* 0x24 */ u8 alphaFrom;
+    /* 0x25 */ u8 alphaTo;
+    /* 0x26 */ u8 fadeLength;
+    /* 0x27 */ u8 fadeTimer;
+} M047Actor;
+
+/* The parts of an object header 013D0 reads */
+typedef struct M047Header {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; /* 4: always drawn translucent */
+    /* 0x16 */ u8 pad16[0x1E - 0x16];
+    /* 0x1E */ s8 noAnim;
+} M047Header;
+
+extern Object *D_801045B8;
+
+/* Animates the actor's object, fades its opacity from alphaFrom to alphaTo over fadeLength, and makes it the
+   one to follow if flagged (called from 0084C) */
+void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
+    if (!((M047Header *) obj->header)->noAnim) {
+        if (a->backwards) {
+            func_8001138C(obj, -a->animSpeed, updateRate);
+        } else {
+            func_8001138C(obj, a->animSpeed, updateRate);
+        }
+    }
+    if (a->fadeTimer < a->fadeLength) {
+        a->fadeTimer += updateRate;
+        if (a->fadeTimer >= a->fadeLength) {
+            a->fadeTimer = a->fadeLength;
+        }
+        obj->opacity = a->alphaFrom + (a->alphaTo - a->alphaFrom) * a->fadeTimer / a->fadeLength;
+        if (obj->opacity < 255) {
+            obj->trans.flags |= 4;
+        } else if (!(((M047Header *) obj->header)->flags & 4)) {
+            obj->trans.flags &= ~4;
+        }
+    }
+    if (a->flags & 2) {
+        D_801045B8 = obj;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01560);
 

@@ -142,7 +142,10 @@ s32 func_m155_018C4(M155Node *node) {
 
 /* An entry of the path search's ring (a path, then the search's bookkeeping); size 0x84 */
 typedef struct M155Entry {
-    /* 0x00 */ u8 pad0[0x78];
+    /* 0x00 */ s16 x[20];
+    /* 0x28 */ s16 z[20];
+    /* 0x50 */ u8 from[20];
+    /* 0x64 */ u8 to[20];
     /* 0x78 */ u16 count : 8;
     /* 0x79 */ u16 search : 6; /* the search it belongs to */
     /* 0x79 */ u16 state : 2;  /* bit 0: in use; 3: done */
@@ -231,7 +234,42 @@ M155Entry *func_m155_02248(void) {
     return found;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_022C8);
+extern f32 func_80097140(f32 x); /* sqrtf */
+extern M155Entry *rl_m155_02248(void);
+extern s32 rl_m155_01F9C(M155Entry *e); /* still assembly: takes the search one step from e */
+extern s16 rl_m155_04D54;               /* .bss (still assembly): where the search is going */
+extern s16 rl_m155_04D56;
+
+/* Searches a path from (x, z) to (toX, toZ): the entry it ends with, or NULL */
+M155Entry *func_m155_022C8(s16 x, s16 z, s16 toX, s16 toZ) {
+    M155Entry *e = (M155Entry *) rl_m155_01900();
+    s32 dx;
+    s32 dz;
+
+    if (e == NULL) {
+        return rl_m155_02248();
+    }
+    e->x[0] = x;
+    e->z[0] = z;
+    e->from[0] = 0xFF;
+    e->to[0] = 0;
+    dx = toX - x;
+    dz = toZ - z;
+    e->cost = func_80097140(dx * dx + dz * dz);
+    e->state = 3;
+    rl_m155_04D54 = toX;
+    rl_m155_04D56 = toZ;
+    while (rl_m155_01F9C(e)) {
+        e = rl_m155_02248();
+        if (e == NULL) {
+            return NULL;
+        }
+        if (e->cost == 0) {
+            break;
+        }
+    }
+    return e;
+}
 
 /* A path through the level's regions (points 1.. are the crossings) */
 typedef struct M155Path {

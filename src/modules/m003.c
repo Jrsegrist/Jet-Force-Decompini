@@ -2090,7 +2090,60 @@ void func_m003_0C0A0(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0C1A0);
+/* An object header, as 0C1A0 uses it */
+typedef struct M003TargetHeader {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ s8 useOrigin; /* aim at the object itself, not its interaction centre */
+} M003TargetHeader;
+
+extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
+
+/* Where the member hears/aims at `target` from: the way to it, its distance and its point (each output
+   is optional); FALSE with no target */
+s32 func_m003_0C1A0(Object *obj, Object *target, s16 *yaw, s16 *pitch, f32 *dist, f32 *tx, f32 *ty,
+                    f32 *tz) {
+    M003Member *m = obj->unk68;
+    f32 ex = m->earPos[0];
+    f32 ey = m->earPos[1];
+    f32 ez = m->earPos[2];
+    f32 x;
+    f32 y;
+    f32 z;
+
+    if (yaw != NULL) {
+        *yaw = obj->trans.rotation.y_rotation;
+    }
+    if (pitch != NULL) {
+        *pitch = 0;
+    }
+    if (dist != NULL) {
+        *dist = 0.0f;
+    }
+    if (target == NULL) {
+        return FALSE;
+    }
+    if (((M003TargetHeader *) target->header)->useOrigin) {
+        x = target->trans.x_position;
+        y = target->trans.y_position;
+        z = target->trans.z_position;
+    } else {
+        x = ((M003Interact *) target->interactObj)->centre[0];
+        y = ((M003Interact *) target->interactObj)->centre[1];
+        z = ((M003Interact *) target->interactObj)->centre[2];
+    }
+    if (yaw != NULL) {
+        *yaw = func_80049C84(ex - x, ez - z);
+    }
+    if (dist != NULL) {
+        *dist = point_distance(ex, ey, ez, x, y, z);
+    }
+    if (tx != NULL) {
+        *tx = x;
+        *ty = y;
+        *tz = z;
+    }
+    return TRUE;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0C324);
 
