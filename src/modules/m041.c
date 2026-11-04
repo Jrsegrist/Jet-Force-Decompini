@@ -59,7 +59,6 @@ extern void *D_800FF3F8[]; /* the menu items' loaded assets */
 extern M041MenuItem D_800FF780[];
 
 extern s32 fb_mode(void);
-extern void func_8001138C(Object *obj, f32 speed, f32 updateRate); /* advances the object's animation */
 extern s32 func_80048E2C(s32 min, s32 max);                     /* DKR get_random_number */
 extern void func_80001248(s32 sound, s32 *handle);               /* DKR amSndPlay */
 extern void func_8003D21C(M041Instance *inst, void *model, Object *obj, f32 arg3, f32 arg4);

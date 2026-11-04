@@ -373,7 +373,6 @@ extern s32 D_800A51CC; /* the text opacity */
 extern s8 D_800FF3D8[]; /* the stick moves this frame, per player */
 extern s32 func_800434E4(s32 player); /* the buttons held */
 extern s32 func_80048E2C(s32 min, s32 max); /* a random number */
-extern void func_8001138C(Object *obj, f32 speed, f32 updateRate); /* advances the object's animation */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
