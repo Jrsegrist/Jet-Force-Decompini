@@ -64,7 +64,9 @@ typedef struct Racer {
     /* 0x14C */ f32 segStart[3]; // a segment in the platform's local space, and the position along it
     /* 0x158 */ f32 segEnd[3];
     /* 0x164 */ f32 segT;
-    /* 0x168 */ u8 pad168[0x178 - 0x168];
+    /* 0x168 */ u8 pad168[0x16C - 0x168];
+    /* 0x16C */ s32 unk16C;
+    /* 0x170 */ u8 pad170[0x178 - 0x170];
     /* 0x178 */ f32 unk178;
     /* 0x17C */ u8 pad17C[2];
     /* 0x17E */ s16 unk17E;
@@ -93,7 +95,8 @@ typedef struct Racer {
     /* 0x1FA */ u8 unk1FA;
     /* 0x1FB */ u8 pad1FB[0x360 - 0x1FB];
     /* 0x360 */ u8 *pose;
-    /* 0x364 */ u8 pad364[0x484 - 0x364];
+    /* 0x364 */ f32 points[8][3]; // the pose points (relative to the object)
+    /* 0x3C4 */ u8 pad3C4[0x484 - 0x3C4];
     /* 0x484 */ f32 posePoints[8][3];
     /* 0x4E4 */ u8 pad4E4[0x510 - 0x4E4];
     /* 0x510 */ s16 *platform; // the platform object stood on
@@ -1581,9 +1584,97 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80036A30);
-
 void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
+void falling_objects_hit_box(f32 *min, f32 *max, void *ignore);
+s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, s32 arg7);
+
+/* JFG: squash check before moving (in states 6, 7, 8 and 12): the pose points placed in the world; the lowest
+ * object over a free point (down to the pose height) squashes the player, or the platform stood on does when
+ * it is moving and the player's cylinder hits the track; a squash pushes the player off (or leaves the platform) */
+void func_80036A30(u8 *obj, Racer *racer, UNUSED s32 updateRate) {
+    s32 i;
+    f32 *out;
+    f32 *src;
+    u32 mask;
+    void *squash;
+    f32 lowest;
+    f32 points[8][3];
+    f32 min[3];
+    f32 max[3];
+    void *hit;
+    f32 y;
+    u8 *motion;
+    UNUSED s32 pad;
+    s16 angles[3];
+
+    min[0] = *(f32 *) (obj + 0xC) - *(f32 *) (racer->pose + 0x10);
+    min[1] = *(f32 *) (obj + 0x10);
+    min[2] = *(f32 *) (obj + 0x14) - *(f32 *) (racer->pose + 0x10);
+    max[0] = *(f32 *) (racer->pose + 0x10) + *(f32 *) (obj + 0xC);
+    max[1] = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
+    max[2] = *(f32 *) (racer->pose + 0x10) + *(f32 *) (obj + 0x14);
+    falling_objects_hit_box(min, max, racer->platform);
+    if (racer->unk568 == 6 || racer->unk568 == 8 || racer->unk568 == 7 || racer->unk568 == 12) {
+        src = racer->points[0];
+        angles[0] = ((s16 *) obj)[0];
+        out = points[0];
+        angles[1] = ((s16 *) obj)[1];
+        angles[2] = ((s16 *) obj)[2];
+        for (i = 0; i < racer->numPoints; i++) {
+            out[0] = src[0];
+            out[1] = src[1];
+            out[2] = src[2];
+            if ((*(u8 ***) racer->pose)[i][0x11]) {
+                func_800492DC(angles, out);
+            }
+            out[0] += *(f32 *) (obj + 0xC);
+            out[1] += *(f32 *) (obj + 0x10);
+            out[2] += *(f32 *) (obj + 0x14);
+            src += 3;
+            out += 3;
+        }
+        mask = racer->pointMask;
+        squash = NULL;
+        src = points[0];
+        lowest = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
+        for (i = 0; i < racer->numPoints; i++) {
+            if (!(mask & 1)) {
+                hit = func_800822D8(src, *(s32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
+                if (hit != NULL && y <= lowest) {
+                    lowest = y;
+                    squash = hit;
+                }
+            }
+            src += 3;
+            mask >>= 1;
+        }
+        if (squash != NULL) {
+            if (racer->platform != NULL) {
+                racer->squashTimer = 30;
+                racer->squashObj = racer->platform;
+                racer->platform = NULL;
+                racer->unk16C = 0;
+            } else {
+                racer->squashTimer = 30;
+                racer->squashObj = squash;
+                racer->unk149 = 10;
+                racer->pushX = func_80049C34(racer->unk11C) * 5.0f;
+                racer->pushZ = func_80049C30(racer->unk11C) * 5.0f;
+            }
+        } else if (racer->platform != NULL) {
+            motion = *(u8 **) ((u8 *) racer->platform + 0x5C);
+            if (*(s16 *) (motion + 0x12C) != 0 &&
+                func_8001A218(*(f32 *) (obj + 0xC), *(f32 *) (obj + 0x14), *(f32 *) (obj + 0x10),
+                              *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10) + 20.0f,
+                              *(f32 *) (racer->pose + 0x10), 0, 0, 0)) {
+                racer->squashTimer = 30;
+                racer->squashObj = racer->platform;
+                racer->platform = NULL;
+                racer->unk16C = 0;
+            }
+        }
+    }
+}
 
 /* JFG: squash checks: the timer (0x186) clears the squashing object; event 1 starts checking, event 2 pushes the
  * player off the platform; while checking, the lowest object over a free pose point (down to the pose height)
