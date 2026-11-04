@@ -202,3 +202,11 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | DKR file | Functions |
 | --- | --- |
 | `src/objects.c` | track_spawn_objects: its JFG form (NON_MATCHING until now) matches (DKR's locals without the settings pad, the map pointer re-read after the store, `index == 1` for the list test) |
+
+### Round 13 (main13), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/tracks.c` | func_8002DE30, as JFG's func_8001FFE0 (object shading from the triangle under it; 16-bit cell masks, the rate a variable; DKR's `if (blockId) {}` fakematch kept) |
