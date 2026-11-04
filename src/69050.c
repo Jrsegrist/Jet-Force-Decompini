@@ -53,16 +53,19 @@ extern u8 gCurFadeRed;
 
 /* Size: 0x2C bytes */
 typedef struct LevelEffect {
-    /* 0x00 */ u8 pad0[6];
+    /* 0x00 */ s16 rotation[3];
     /* 0x06 */ u8 type;
     /* 0x07 */ u8 loaded;
-    /* 0x08 */ u8 pad8[0x18 - 8];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
     /* 0x18 */ s16 timer;
     /* 0x1A */ s16 age;
     /* 0x1C */ s16 id;
     /* 0x1E */ u8 pad1E[0x24 - 0x1E];
     /* 0x24 */ void *sprite;
-    /* 0x28 */ s32 unk28;
+    /* 0x28 */ f32 unk28; // JFG: the sprite's animation frame
 } LevelEffect;
 extern LevelEffect D_80102760[32];
 void tex_free(void *tex);
@@ -79,9 +82,62 @@ void level_effects_clear(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068494);
-
 void level_effect_unload(LevelEffect *effect);
+void level_effect_load(LevelEffect *effect);
+void func_800689B4(LevelEffect *effect);
+s32 level_id(void);
+
+/* JFG: start a level effect in a free slot, else in place of the oldest unloaded one (the oldest of all if every
+   one is loaded). */
+void level_effect_add(s32 type, f32 x, f32 y, f32 z, s16 rx, s16 ry, s16 rz, f32 scale, s32 timer) {
+    UNUSED s32 pad[2];
+    LevelEffect *best;
+    LevelEffect *effect;
+    s32 i;
+    u8 loaded;
+
+    effect = D_80102760;
+    best = NULL;
+    i = 0;
+    do {
+        i++;
+        if (effect->type == 0) {
+            best = effect;
+        }
+        effect++;
+    } while (i < 32 && best == NULL);
+    if (best == NULL) {
+        best = D_80102760;
+        loaded = best->loaded;
+        for (i = 1, effect = &D_80102760[1]; i < 32; i++, effect++) {
+            if (!effect->loaded) {
+                if (loaded || best->age < effect->age) {
+                    loaded = FALSE;
+                    best = effect;
+                }
+            } else if (loaded && best->age < effect->age) {
+                best = effect;
+            }
+        }
+    }
+    if (best->loaded) {
+        level_effect_unload(best);
+    }
+    best->rotation[0] = rx;
+    best->rotation[1] = ry;
+    best->rotation[2] = rz;
+    best->type = type;
+    best->scale = scale;
+    best->x = x;
+    best->y = y;
+    best->z = z;
+    best->timer = timer;
+    best->age = 0;
+    best->id = level_id();
+    best->unk28 = 0.0f;
+    func_800689B4(best);
+    level_effect_load(best);
+}
 
 /* JFG: free the loaded level effects and clear their types. */
 void level_effects_reset(void) {
@@ -124,7 +180,7 @@ void level_effects_release_id(s32 id) {
     }
 }
 
-void func_800689B4(s32 arg0) {
+void func_800689B4(LevelEffect *effect) {
 }
 
 void *func_80056798(s32 assetID, s32 flags);
@@ -169,7 +225,7 @@ void level_effects_update(s32 updateRate) {
                 effect->type = 0;
             } else if (effect->type == 4) {
                 arg = 1;
-                if (sprite_anim_advance(effect->sprite, &arg, 0xF, &effect->unk28, updateRate)) {
+                if (sprite_anim_advance(effect->sprite, &arg, 0xF, (s32 *) &effect->unk28, updateRate)) {
                     effect->timer = 0;
                 }
             }
@@ -177,7 +233,73 @@ void level_effects_update(s32 updateRate) {
     }
 }
 
+/* JFG: the camera's position (the transform's, as in DKR) */
+typedef struct EffectCamera {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+} EffectCamera;
+EffectCamera *cam_get_active_camera(void);
+void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, LevelEffect *trans, void *sprite, s32 flags,
+                             s32 arg6);
+
+/* JFG: draw the loaded sprite level effects (type 4), farthest from the camera first.
+   (dx doubles as the swap temporary.) */
+#ifdef NON_MATCHING
+/* Registers differ from +0x1C; only an `if (effect) {}` read of the unset local (undefined behaviour) matched */
+void func_80068B54(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 arg3) {
+    s32 i;
+    s32 count;
+    EffectCamera *cam;
+    LevelEffect *effect;
+    s32 sorted;
+    UNUSED f32 pad;
+    f32 dx;
+    f32 dist[32];
+    f32 dy;
+    LevelEffect *effects[32];
+    f32 dz;
+
+    cam = cam_get_active_camera();
+    effect = D_80102760;
+    i = 0;
+    count = 0;
+    for (; i < 32; i++, effect++) {
+        if (effect->type && effect->loaded) {
+            dx = cam->x - effect->x;
+            dy = cam->y - effect->y;
+            dz = cam->z - effect->z;
+            effects[count] = effect;
+            dist[count] = dx * dx + dy * dy + dz * dz;
+            count++;
+        }
+    }
+    if (count > 0) {
+        do {
+            sorted = TRUE;
+            for (i = 0; i < count - 1; i++) {
+                if (dist[i] < dist[i + 1]) {
+                    effect = effects[i];
+                    effects[i] = effects[i + 1];
+                    effects[i + 1] = effect;
+                    dx = dist[i];
+                    dist[i] = dist[i + 1];
+                    dist[i + 1] = dx;
+                    sorted = FALSE;
+                }
+            }
+        } while (!sorted);
+        for (i = 0; i < count; i++) {
+            if (effects[i]->type == 4) {
+                render_sprite_billboard(dList, mtx, vtx, effects[i], effects[i]->sprite, 2, 0xFF);
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_80068B54);
+#endif
 
 void effect_texture_pair_free(void **cone) {
     if (cone[0] != NULL) {
@@ -208,8 +330,8 @@ typedef struct EffectMesh {
 } EffectMesh;
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void *load_texture(s32 assetIndex);
-void func_800691F0(EffectMesh *mesh, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
-void func_80069000(EffectMesh *mesh, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
+void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
+void effect_mesh_build_cone(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
 void func_800694CC(EffectMesh *mesh, s32 arg1);
 
 /* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
@@ -253,18 +375,126 @@ EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5
         mesh->y = y;
         mesh->z = z;
         if (segments + 1 == 1) {
-            func_800691F0(mesh, x, y, z, arg3, arg4, arg5, arg6);
+            effect_mesh_build_fan(mesh, x, y, z, arg3, arg4, arg5, arg6);
         } else {
-            func_80069000(mesh, x, y, z, arg3, arg4, arg5, arg6);
+            effect_mesh_build_cone(mesh, x, y, z, arg3, arg4, arg5, arg6);
         }
         func_800694CC(mesh, 0);
     }
     return mesh;
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_80069000);
+f32 func_80049C30(s32 angle);
+f32 func_80049C34(s32 angle);
+void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 *src, Vertex *dst);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800691F0);
+/* JFG: build a cone mesh: the tip at depth below the centre, a ring of segments points of the given radius,
+   both vertex buffers placed at (x, y, z) with the rotation, and one triangle from the tip per segment. */
+void effect_mesh_build_cone(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth) {
+    f32 *p;
+    s32 angle;
+    s32 step;
+    s32 i;
+    Triangle *tri;
+    s32 n;
+    UNUSED s32 pad[2];
+    f32 pts[16][3];
+
+    pts[0][2] = -depth;
+    pts[0][0] = 0.0f;
+    pts[0][1] = 0.0f;
+    n = mesh->segments;
+    p = pts[1];
+    angle = 0;
+    step = 0x10000 / n;
+    while (n--) {
+        p[0] = func_80049C34(angle) * radius;
+        p[1] = func_80049C30(angle) * radius;
+        p[2] = 0.0f;
+        p += 3;
+        angle += step;
+    }
+    for (i = 0; i < 2; i++) {
+        vertices_rotate_translate(mesh->numPoints, x, y, z, rotX, rotY, pts[0], (Vertex *) mesh->verts[i]);
+    }
+    tri = (Triangle *) mesh->tris;
+    for (i = 1; i <= mesh->segments; i++) {
+        tri->flags = 0;
+        tri->vi0 = i;
+        tri->vi1 = i + 1;
+        tri->vi2 = 0;
+        tri++;
+    }
+    tri[-1].vi1 = 1;
+}
+
+/* JFG: build a fan mesh: the tip at depth below the centre, an inner ring of 8 points of the given radius and an
+   outer ring four times as wide a third of the way down, both vertex buffers placed at (x, y, z) with the
+   rotation, then the triangles: two between the rings and one from the tip per segment. */
+void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth) {
+    f32 *p;
+    s32 i;
+    UNUSED s32 pad;
+    f32 outerRadius;
+    f32 outerDepth;
+    Triangle *tri;
+    f32 pts[17][3];
+
+    outerRadius = radius * 4.0f;
+    outerDepth = depth * 0.33f;
+    pts[0][2] = -depth;
+    p = pts[1];
+    outerDepth = -outerDepth;
+    pts[0][0] = 0.0f;
+    pts[0][1] = 0.0f;
+    for (i = 0; i < 8; i++) {
+        f32 s;
+        f32 c;
+
+        s = func_80049C34(i << 13);
+        c = func_80049C30(i << 13);
+        p[0] = radius * s;
+        p[1] = radius * c;
+        p[2] = 0.0f;
+        p[24] = outerRadius * s;
+        p[25] = outerRadius * c;
+        p[26] = outerDepth;
+        p += 3;
+    }
+    for (i = 0; i < 2; i++) {
+        vertices_rotate_translate(17, x, y, z, rotX, rotY, pts[0], (Vertex *) mesh->verts[i]);
+    }
+    tri = (Triangle *) mesh->tris;
+    for (i = 1; i < 9; i++) {
+        tri[0].flags = 0;
+        tri[0].vi0 = i;
+        tri[0].vi1 = i + 8;
+        tri[0].vi2 = (i & 7) + 9;
+        tri[1].flags = 0;
+        tri[1].vi0 = i;
+        tri[1].vi1 = (i & 7) + 9;
+        tri[1].vi2 = (i & 7) + 1;
+        tri += 2;
+    }
+    for (i = 1; i < 9; i++) {
+        tri[0].flags = 0;
+        tri[0].vi0 = i;
+        tri[0].vi1 = (i & 7) + 9;
+        tri[0].vi2 = i + 8;
+        tri[1].flags = 0;
+        tri[1].vi0 = i;
+        tri[1].vi1 = (i & 7) + 1;
+        tri[1].vi2 = (i & 7) + 9;
+        tri += 2;
+    }
+    for (i = 1; i < 9; i++) {
+        tri->flags = 0;
+        tri->vi0 = i;
+        tri->vi1 = (i & 7) + 1;
+        tri->vi2 = 0;
+        tri++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_800694CC);
 
@@ -413,7 +643,11 @@ typedef struct RippleObj {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x40 - 0x18];
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ f32 vx;
+    /* 0x20 */ f32 vy;
+    /* 0x24 */ f32 vz;
+    /* 0x28 */ u8 pad28[0x40 - 0x28];
     /* 0x40 */ RippleHeader *header;
     /* 0x44 */ u8 pad44[0x58 - 0x44];
     /* 0x58 */ void *data;
@@ -443,7 +677,7 @@ typedef struct RippleInit {
     /* 0x78 */ s16 texFrame;
     /* 0x7A */ s16 unk7A;
     /* 0x7C */ f32 unk7C;
-    /* 0x80 */ u8 unk80[4];
+    /* 0x80 */ f32 unk80; // JFG: the level height under it
     /* 0x84 */ void *child;
 } RippleInit;
 
@@ -526,7 +760,7 @@ s32 ripple_data_init(RippleObj *obj, RippleInit *r) {
     r->texFrame = 0;
     r->unk7A = hdr->unk7E;
     r->unk7C = hdr->unk78;
-    track_height_at(obj->x, obj->z, (f32 *) r->unk80, 0x2000);
+    track_height_at(obj->x, obj->z, &r->unk80, 0x2000);
     r->child = 0;
     if (hdr->childType != -1) {
         r->child = func_8006A0C0(hdr->childType, hdr->unk88, hdr->unk80, hdr->unk84, hdr->unk8C, hdr->unk8E);
@@ -556,15 +790,75 @@ void ripple_quad_free(u8 *ripple) {
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A924);
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B090);
-
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
-
 /* JFG: a textured two-triangle quad with two vertex frames (ripple_quad_draw) */
 typedef struct RippleTexture {
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ s16 flags;
+    /* 0x08 */ u8 pad8[0x12 - 0x8];
+    /* 0x12 */ u16 numFrames; // JFG: in 1/256 frame units, as texFrame
 } RippleTexture;
+
+s16 func_80049C84(f32 x, f32 z);
+void func_8006A924(void *child, f32 x, f32 y, f32 z, s32 angle, s32 updateRate);
+
+/* JFG: update a ripple: fade it in or out, animate its texture, flip its vertex frame and lay the new one as a
+   square of half-size unk7C around the object at the level height, then update its child along the heading. */
+void func_8006B090(RippleObj *obj, s32 updateRate) {
+    UNUSED s32 pad[2];
+    RippleInit *r;
+    RippleVtx *v;
+    s32 y;
+    s16 angle;
+
+    r = obj->data;
+    if (r == NULL) {
+        return;
+    }
+    if (r->unk75) {
+        r->alpha += 32;
+        if (r->alpha >= 256) {
+            r->alpha = 255;
+        }
+    } else {
+        r->alpha -= 32;
+        if (r->alpha < 0) {
+            r->alpha = 0;
+        }
+    }
+    if (r->unk7A != 0 && r->tex != NULL) {
+        r->texFrame += r->unk7A * updateRate;
+        while (r->texFrame >= r->tex->numFrames) {
+            r->texFrame -= r->tex->numFrames;
+        }
+    }
+    if (r->alpha != 0) {
+        r->frame = 1 - r->frame;
+        y = r->unk80;
+        v = r->vtx[r->frame];
+        v->x = obj->x + r->unk7C;
+        v->y = y;
+        v->z = obj->z - r->unk7C;
+        v++;
+        v->x = obj->x - r->unk7C;
+        v->y = y;
+        v->z = obj->z - r->unk7C;
+        v++;
+        v->x = obj->x + r->unk7C;
+        v->y = y;
+        v->z = obj->z + r->unk7C;
+        v++;
+        v->x = obj->x - r->unk7C;
+        v->y = y;
+        v->z = obj->z + r->unk7C;
+    }
+    angle = func_80049C84(obj->vx, obj->vz);
+    if (r->child != NULL) {
+        func_8006A924(r->child, obj->x, r->unk80, obj->z, angle, updateRate);
+    }
+}
+
+
+INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
 
 typedef struct RippleQuad {
     /* 0x00 */ u8 tris[0x20];     // two Triangles
@@ -1269,7 +1563,43 @@ void s32_to_decimal_string(char *buf, s32 value, s32 decimal) {
     *buf = '\0';
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006D7F0);
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
+
+/* JFG: queue the screen line between two projected world points (clipped to the screen, dropped when either
+   point is behind the camera or the line has no length). */
+void screen_line_add_3d(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u8 colour) {
+    ScreenLine *entry;
+    f32 screenX;
+    f32 screenY;
+    s16 sx1;
+    s16 sy1;
+    s16 sx2;
+    s16 sy2;
+    u32 width;
+    u32 height;
+
+    if (D_80103B80[D_80103B90] < 0x94) {
+        if (func_80041E58(x1, y1, z1, &screenX, &screenY, 1)) {
+            sx1 = screenX;
+            sy1 = screenY;
+            if (func_80041E58(x2, y2, z2, &screenX, &screenY, 1)) {
+                sx2 = screenX;
+                sy2 = screenY;
+                fb_size(&width, &height);
+                if (line_clip_rect(&sx1, &sy1, &sx2, &sy2, 1, 1, width - 2, height - 2)) {
+                    if (sx1 != sx2 || sy1 != sy2) {
+                        entry = &D_80102DC0[D_80103B90][D_80103B80[D_80103B90]++];
+                        entry->x = sx1;
+                        entry->u = sy1;
+                        entry->y = sx2;
+                        entry->v = sy2;
+                        entry->flags = colour;
+                    }
+                }
+            }
+        }
+    }
+}
 
 /* JFG: add (signed) amounts to the channels of an RGBA5551 colour, clamped to 0..31 (0x8006DA1C). */
 void rgba5551_add_clamped(u16 *colour, s8 addRed, s8 addGreen, s8 addBlue) {
@@ -1390,7 +1720,62 @@ void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DB6C);
 #endif
 
+extern s32 D_800A6B64[17]; // JFG: the digit font, one row of nine 3-bit pixels per word
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: x and y live in s1/s2 across fb_size (target reloads them from their homes, so its row pointers
+   use t5/ra) and the frame is 0x70 (target 0x58) */
+/* JFG: brighten a 9x17 glyph into an RGBA5551 framebuffer at (x, y): each font pixel holds the bit of `glyph`
+   that lights it (more when the bit is set), added to the green (or, with `red`, the red) channel, clamped. */
+void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 red) {
+    u32 width;
+    u32 height;
+    u16 *fb;
+    s32 i;
+    s32 j;
+    s32 bits;
+    s32 v;
+    s32 amount;
+    s32 mask;
+    s32 shift;
+    u16 px;
+    s32 c;
+    s32 n;
+
+    fb_size(&width, &height);
+    fb = framebuffer + (y * width + x);
+    mask = 0x7C0;
+    shift = 6;
+    if (red) {
+        mask = 0xF800;
+        shift = 11;
+    }
+    for (i = 0; i < 17; i++) {
+        bits = D_800A6B64[i];
+        for (j = 0; j < 9; j++) {
+            v = bits & 7;
+            bits >>= 3;
+            if (v) {
+                amount = 4;
+                if (glyph & (1 << v)) {
+                    amount = 16;
+                }
+                px = *fb;
+                c = px & mask;
+                n = c + (amount << shift);
+                if (n & ~mask) {
+                    n = mask;
+                }
+                *fb = (px ^ c) | n;
+            }
+            fb++;
+        }
+        fb += width - 9;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006DD20);
+#endif
 
 int sprintf(char *s, const char *fmt, ...);
 void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 arg4);

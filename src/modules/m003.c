@@ -11,7 +11,8 @@ typedef struct M003Member {
     /* 0x00 */ u32 pad0_0 : 1;
     /* 0x00 */ u32 onFire : 1;
     /* 0x00 */ u32 unk0_29 : 1;
-    /* 0x00 */ u32 pad0_3 : 8;
+    /* 0x00 */ u32 pad0_3 : 7;
+    /* 0x00 */ u32 unk0_21 : 1;
     /* 0x00 */ u32 unk0_20 : 1;
     /* 0x00 */ u32 pad0_2 : 5;
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
@@ -74,7 +75,9 @@ typedef struct M003Member {
     /* 0xA4 */ u8 padA4[0xA6 - 0xA4];
     /* 0xA6 */ s16 unkA6;
     /* 0xA8 */ Object *unkA8;
-    /* 0xAC */ u8 padAC[0xBC - 0xAC];
+    /* 0xAC */ u8 padAC[0xB0 - 0xAC];
+    /* 0xB0 */ struct M003Flags4 *unkB0;
+    /* 0xB4 */ u8 padB4[0xBC - 0xB4];
     /* 0xBC */ s32 sound; /* the burning sound's handle */
     /* 0xC0 */ u8 padC0[0xC8 - 0xC0];
     /* 0xC8 */ Object *spark; /* the electric spark on the member */
@@ -82,12 +85,24 @@ typedef struct M003Member {
 
 /* The member's word at 0x8 as bit fields */
 typedef struct M003Flags8 {
-    u32 pad5 : 5;
+    u32 pad4 : 4;
+    u32 unk27 : 1;
     u32 shocked : 1;
     u32 unk24 : 2;
     u32 rest : 24;
 } M003Flags8;
 #define FLAGS8(m) ((M003Flags8 *) &(m)->flags8)
+
+/* The member's word at 0x4 as bit fields (also the word at its unkB0) */
+typedef struct M003Flags4 {
+    u32 pad25 : 25;
+    u32 unk6 : 1;
+    u32 unk5 : 1;
+    u32 pad3 : 2;
+    u32 unk2 : 1;
+    u32 pad0 : 2;
+} M003Flags4;
+#define FLAGS4(m) ((M003Flags4 *) &(m)->unk4)
 
 /* The member's group byte as bit fields */
 typedef struct M003Group {
@@ -97,7 +112,9 @@ typedef struct M003Group {
 
 /* The body's word at 0x24 as bit fields */
 typedef struct M003BodyFlags {
-    u32 pad26 : 26;
+    u32 pad20 : 20;
+    u32 unk11 : 1;
+    u32 pad6 : 5;
     u32 unk5 : 1; /* animations 0x16-0x1F may not replace each other */
     u32 fireproof : 1;
     u32 rest : 4;
@@ -261,7 +278,8 @@ extern s32 troop_find_member(s16 arg0, u8 arg1);
 extern void stats_kill_add(s32 sound);
 extern void troop_spawn_context_set(Object *obj, Object *home);
 extern void func_m154_017E8(Object *home);
-extern s32 rl_m003_0527C(f32 x, f32 y, f32 z);
+static s32 func_m003_0527C(f32 x, f32 y, f32 z);
+extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern void func_m003_0DF84(void);
 extern void func_m003_15ED8(s32 arg0, s32 arg1);
 extern void func_m003_16530(void);
@@ -356,7 +374,7 @@ static M003Body *sBody;
 static s32 sShotBy;
 static s32 sClosestPlayer;
 static s32 sBssCC;
-static s32 sBssD0;
+static f32 sBssD0; /* how near a member must be to fire */
 static s32 sBssD4;
 static M003Event sEvents[16];
 static s32 sChangeArg1;
@@ -1176,7 +1194,48 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
     return 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0527C);
+/* What a player keeps in obj->unk68 (only what is used here) */
+typedef struct M003Player {
+    /* 0x000 */ u8 pad0[0x10D];
+    /* 0x10D */ u8 riding;
+    /* 0x10E */ u8 pad10E[0x50C - 0x10E];
+    /* 0x50C */ Object *vehicle;
+} M003Player;
+
+extern Object **func_8000E464(s32 *count); /* the players */
+extern f32 rl_m003_19A04;                  /* .rodata (still assembly): the starting distance */
+
+/* The player (or the player's vehicle) nearest (x, y, z) */
+static s32 func_m003_0527C(f32 x, f32 y, f32 z) {
+    f32 best = rl_m003_19A04;
+    Object *nearest = NULL;
+    Object **players;
+    s32 count;
+    Object *obj;
+    M003Player *data;
+    f32 d;
+
+    players = func_8000E464(&count);
+    while (count--) {
+        obj = *players++;
+        data = obj->unk68;
+        d = point_distance_squared(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, x, y, z);
+        if (d < best) {
+            best = d;
+            nearest = obj;
+        }
+        if (data->riding) {
+            obj = data->vehicle;
+            d = point_distance_squared(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, x, y,
+                                       z);
+            if (d < best) {
+                best = d;
+                nearest = obj;
+            }
+        }
+    }
+    return (s32) nearest;
+}
 
 s32 func_m003_053C4(void) {
     return sClosestPlayer;
@@ -1217,7 +1276,7 @@ s32 func_m003_05450(Object *obj) {
         return FALSE;
     }
     sHomeData = sHome->unk68;
-    sClosestPlayer = rl_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
+    sClosestPlayer = func_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
     func_m003_053D4(sObj);
     sShotBy = sMember->shotBy;
     troop_spawn_context_set(sObj, sHome);
@@ -1232,11 +1291,11 @@ static void func_m003_0556C(Object *home) {
     if ((sObj = sHomeData->first) != NULL) {
         sMember = sObj->unk68;
         sShotBy = sMember->shotBy;
-        sClosestPlayer = rl_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
+        sClosestPlayer = func_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
     } else {
         sMember = NULL;
         sShotBy = 0;
-        sClosestPlayer = rl_m003_0527C(sHome->trans.x_position, sHome->trans.y_position, sHome->trans.z_position);
+        sClosestPlayer = func_m003_0527C(sHome->trans.x_position, sHome->trans.y_position, sHome->trans.z_position);
     }
     troop_spawn_context_set(sObj, sHome);
     func_m154_017E8(sHome);
@@ -1898,7 +1957,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_148C0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_14D4C);
 
-extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
 /* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
 s32 func_m003_15BE8(f32 x, f32 y, f32 z) {

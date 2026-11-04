@@ -796,3 +796,13 @@ func_800050A8 = obj_id_is_troop_spawned
 func_80050ED0 = obj_id_is_special
 func_80047DD8 = player_chars_have_item
 func_8006DF90 = frame_number_draw
+
+# round 12 (fresh12): main-segment functions matched by helper f12h1
+func_80019E0C = track_edge_find_next
+func_80069000 = effect_mesh_build_cone
+func_800691F0 = effect_mesh_build_fan
+func_8006D7F0 = screen_line_add_3d
+func_80068494 = level_effect_add
+func_800539E0 = module_system_init
+func_8007DE98 = obj_move_with_points
+func_8007A018 = obj_hit_set_fit

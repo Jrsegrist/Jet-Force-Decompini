@@ -1525,9 +1525,69 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80017094);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80017794);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80018024);
-
 f32 sqrtf(f32 x);
+
+#ifdef NON_MATCHING
+/**
+ * NON_MATCHING: same instructions and stack, the FPR temporaries rotated (f10/f8/f6 where the target has
+ * f8/f6/f10) from the first statement on.
+ * JFG: intersect a ray (start, unit direction dir) with an infinite cylinder (a point on its axis, unit axis
+ * direction, radius): TRUE if it hits, with the ray distances where it enters and leaves in *in and *out (the
+ * classic Graphics Gems IV method: Cychosz and Waggenspack). A ray parallel to the axis never hits.
+ */
+s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *in, f32 *out) {
+    s32 hit;
+    f32 rc[3];
+    f32 n[3];
+    f32 o[3];
+    f32 d;
+    f32 t;
+    f32 s;
+    f32 ln;
+
+    rc[0] = start[0] - base[0];
+    rc[1] = start[1] - base[1];
+    rc[2] = start[2] - base[2];
+    n[0] = dir[1] * axis[2] - axis[1] * dir[2];
+    n[1] = dir[2] * axis[0] - axis[2] * dir[0];
+    n[2] = dir[0] * axis[1] - axis[0] * dir[1];
+    ln = n[0] * n[0] + n[1] * n[1] + n[2] * n[2];
+    if (ln == 0.0f) {
+        return FALSE;
+    }
+    ln = sqrtf(ln);
+    n[0] /= ln;
+    n[1] /= ln;
+    n[2] /= ln;
+    d = rc[0] * n[0] + rc[1] * n[1] + rc[2] * n[2];
+    if (d < 0.0f) {
+        d = -d;
+    }
+    hit = d <= radius;
+    if (hit) {
+        o[0] = rc[1] * axis[2] - axis[1] * rc[2];
+        o[1] = rc[2] * axis[0] - axis[2] * rc[0];
+        o[2] = rc[0] * axis[1] - axis[0] * rc[1];
+        t = -(o[0] * n[0] + o[1] * n[1] + o[2] * n[2]) / ln;
+        o[0] = n[1] * axis[2] - axis[1] * n[2];
+        o[1] = n[2] * axis[0] - axis[2] * n[0];
+        o[2] = n[0] * axis[1] - axis[0] * n[1];
+        ln = sqrtf(o[0] * o[0] + o[1] * o[1] + o[2] * o[2]);
+        o[0] /= ln;
+        o[1] /= ln;
+        o[2] /= ln;
+        s = sqrtf(radius * radius - d * d) / (dir[0] * o[0] + dir[1] * o[1] + dir[2] * o[2]);
+        if (s < 0.0f) {
+            s = -s;
+        }
+        *in = t - s;
+        *out = t + s;
+    }
+    return hit;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/12D50", func_80018024);
+#endif
 
 /**
  * JFG: where a ray (origin, unit direction) meets a sphere; FALSE if it misses.
@@ -1794,7 +1854,91 @@ s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80019888);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80019E0C);
+/**
+ * JFG: find the level edge (among the entries' triangle edges, as track_edges_build walks them) that continues
+ * edge: with dirX below 0.5 the one ending where edge starts, else the one starting where it ends (whole-unit
+ * positions); its ends go to out. TRUE if found.
+ * (The ends are copied to scalars per edge before the comparisons; the first copy came from the permuter.)
+ */
+s32 track_edge_find_next(TrackEdge *edge, TrackEdge *out) {
+    LevelModelSegment *segment;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 found;
+    s32 start[3];
+    s32 end[3];
+    s32 tri;
+    s32 batch;
+    Triangle *triangle;
+    Vertex *verts;
+    Vertex *va;
+    Vertex *vb;
+    u8 flags;
+    s32 sx;
+    s32 sy;
+    s32 sz;
+    s32 ex;
+    s32 ey;
+    s32 ez;
+
+    start[0] = edge->x0;
+    start[1] = edge->y0;
+    start[2] = edge->z0;
+    end[0] = edge->x1;
+    end[1] = edge->y1;
+    end[2] = edge->z1;
+    found = FALSE;
+    for (i = 0; i < D_800F33C4 && !found; i++) {
+        if (D_800F33B8[i] > 0) {
+            segment = (LevelModelSegment *) (D_800F33B8[i] | 0x80000000);
+        } else {
+            batch = D_800F33BC[i];
+            tri = D_800F33C0[i];
+            triangle = &segment->triangles[tri];
+            verts = &segment->vertices[segment->batches[batch].verticesOffset];
+            flags = (u32) segment->edgeFlags[tri] >> 3;
+            if (flags & 7) {
+                for (j = 0; j < 3; j++) {
+                    if (flags & (1 << j)) {
+                        k = j + 1;
+                        if (k >= 3) {
+                            k = 0;
+                        }
+                        va = &verts[(&triangle->vi0)[j]];
+                        sx = start[0];
+                        sy = start[1];
+                        sz = start[2];
+                        ex = end[0];
+                        ey = end[1];
+                        ez = end[2];
+                        vb = &verts[(&triangle->vi0)[k]];
+                        if (edge->dirX < 0.5f) {
+                            if (sx == vb->x && sy == vb->y && sz == vb->z) {
+                                found = TRUE;
+                                out->x0 = va->x;
+                                out->y0 = va->y;
+                                out->z0 = va->z;
+                                out->x1 = vb->x;
+                                out->y1 = vb->y;
+                                out->z1 = vb->z;
+                            }
+                        } else if (ex == va->x && ey == va->y && ez == va->z) {
+                            found = TRUE;
+                            out->x0 = va->x;
+                            out->y0 = va->y;
+                            out->z0 = va->z;
+                            out->x1 = vb->x;
+                            out->y1 = vb->y;
+                            out->z1 = vb->z;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return found;
+}
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001A218);
 
