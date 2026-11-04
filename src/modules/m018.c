@@ -112,7 +112,7 @@ extern void func_80055B80(Gfx **dl);                     /* resets the render se
 extern void set_active_camera(s32 camera);                   /* sets the active camera */
 extern void cam_fov_scale_set(f32 x, f32 y);                 /* scales the field of view */
 extern void func_8003F7F4(f32 fov, s32 arg1);            /* sets the field of view */
-extern void func_8004046C(Gfx **dl, s32 arg1);
+extern void viewport_apply(Gfx **dl, s32 arg1);
 extern void func_80040E64(Gfx **dl, Mtx **mtx);
 extern void func_8003F1C8(void *model, s32 id, s32 value); /* sets a texture's frame */
 extern void func_8005A0D0(s32 item);                     /* draws a menu item */
@@ -134,7 +134,7 @@ static void func_m018_00000(void) {
     gDPPipeSync(D_800FF398++);
     set_active_camera(0);
     func_8003F7F4(52.0f, 1);
-    func_8004046C(&D_800FF398, 0);
+    viewport_apply(&D_800FF398, 0);
     func_80040E64(&D_800FF398, &D_800FF39C);
 }
 

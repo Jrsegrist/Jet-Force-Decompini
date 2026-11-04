@@ -1069,7 +1069,7 @@ void transition_render_barndoor_hor(Gfx **dList, Mtx **matrix, Vertex **vtx);
 void transition_render_barndoor_vert(Gfx **dList, Mtx **matrix, Vertex **vtx);
 void transition_render_barndoor_diag(Gfx **dList, Mtx **matrix, Vertex **vtx);
 void transition_render_blank(Gfx **dList, Mtx **matrix, Vertex **vtx);
-void func_8004046C(Gfx **dList, Mtx **mtx);
+void viewport_apply(Gfx **dList, Mtx **mtx);
 
 /* DKR: transition_render. */
 void transition_render(Gfx **dList, Mtx **mtx, Vertex **vtx) {
@@ -1100,7 +1100,7 @@ void transition_render(Gfx **dList, Mtx **mtx, Vertex **vtx) {
                 transition_render_blank(dList, mtx, vtx);
                 break;
         }
-        func_8004046C(dList, mtx);
+        viewport_apply(dList, mtx);
     }
 }
 

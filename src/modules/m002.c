@@ -29,7 +29,7 @@ extern void rdp_set_default_modes(Gfx **dl);
 extern void func_80055B80(Gfx **dl);
 extern void func_80056000();
 extern void set_active_camera(s32 arg0);
-extern void func_8004046C(Gfx **dl, Mtx **mtx);
+extern void viewport_apply(Gfx **dl, Mtx **mtx);
 extern void func_8001BC2C(s32 player, s16 *near, s16 *far, s16 *arg3, u8 *r, u8 *g, u8 *b, u8 *arg7);
 extern void func_8000DB94(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj); /* DKR render_object */
 extern void func_8004DA10(Gfx *start, Gfx *end, s32 arg2, u16 *frameBuffer);
@@ -146,7 +146,7 @@ void func_m002_0019C(void) {
     gDPSetEnvColor(dl++, 255, 255, 255, 0);
     gDPPipeSync(dl++);
     set_active_camera(0);
-    func_8004046C(&dl, &mtx);
+    viewport_apply(&dl, &mtx);
     gDPPipeSync(dl++);
     func_8001BC2C(0, &fogNear, &fogFar, &fogUnk, &r, &g, &b, &fogUnk2);
     gDPSetFogColor(dl++, r, g, b, 255);

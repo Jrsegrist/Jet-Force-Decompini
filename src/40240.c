@@ -553,9 +553,50 @@ void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u3
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/40240", func_8004046C);
-
 void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u32 *uly, u32 *lrx, u32 *lry);
+void viewport_rsp_set(Gfx **dList, s32 width, s32 height, s32 posX, s32 posY);
+void func_80040AA4(Gfx **dList, Mtx **mtx);
+
+/* JFG: set up the active viewport: the scissor from the window limits, the RSP viewport (half size 160x120,
+ * 224x168 in the high-res modes, halved again for three or four players; scaled up by the camera's zoom, with
+ * the clip ratio reset), then the projection matrix if a matrix list is given */
+void viewport_apply(Gfx **dList, Mtx **mtx) {
+    s32 mode;
+    f32 extra;
+    u32 ulx;
+    u32 uly;
+    u32 lrx;
+    u32 lry;
+    u32 width;
+    u32 height;
+    f32 zoom;
+
+    copy_framebuffer_size_to_coords(gActiveCameraID, D_800FA634, &ulx, &uly, &lrx, &lry);
+    mode = fb_mode();
+    if (mode == 2 || mode == 3) {
+        width = 224;
+        height = 168;
+    } else {
+        width = 160;
+        height = 120;
+    }
+    if (gActiveCameraID >= 2) {
+        width >>= 1;
+        height >>= 1;
+    }
+    if (gCamZoomSet[D_800FA634]) {
+        extra = gCamZoom[D_800FA634] - 1.0f;
+        zoom = 0.25f * extra + 1.0f;
+        width = width * zoom;
+        height = height * zoom;
+        gSPClipRatio((*dList)++, FRUSTRATIO_1);
+    }
+    gDPSetScissor((*dList)++, G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
+    viewport_rsp_set(dList, width, height, (lrx + ulx) >> 1, (lry + uly) >> 1);
+    if (mtx != NULL) {
+        func_80040AA4(dList, mtx);
+    }
+}
 
 /**
  * Takes the size of the screen as depicted by the active viewport, then sets the RDP scissor to match it.

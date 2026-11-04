@@ -388,7 +388,7 @@ extern u8 D_A0DA8[];       // the background's two triangles
 void mtx_ortho(Gfx **dList, Mtx **mtx);
 void rendermode_reset(Gfx **dList);
 void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
-void func_8004046C(Gfx **dList, Mtx **mtx);
+void viewport_apply(Gfx **dList, Mtx **mtx);
 void fb_size(u32 *width, u32 *height);
 s32 get_current_viewport(void);
 s32 cam_get_active_camera_id();
@@ -419,7 +419,7 @@ void func_80013454(void) {
     func_80055C00(&D_800F2F70, NULL, 8, 0);
     gSPVertexLast(D_800F2F70++, OS_K0_TO_PHYSICAL(verts), 4, 0);
     gSPPolygon(D_800F2F70++, D_A0DA8, 2, 0);
-    func_8004046C(&D_800F2F70, &D_800F2F74);
+    viewport_apply(&D_800F2F70, &D_800F2F74);
     topR = D_800A0D64->bgTopR;
     topG = D_800A0D64->bgTopG;
     topB = D_800A0D64->bgTopB;

@@ -29,7 +29,7 @@ extern void func_80050E90(Gfx **dl, s32 segment, s32 address);
 extern void func_8004E40C(Gfx **dl);
 extern void rdp_set_default_modes(Gfx **dl);
 extern void set_active_camera(s32 arg0);
-extern void func_8004046C(Gfx **dl, s32 arg1);
+extern void viewport_apply(Gfx **dl, s32 arg1);
 extern void func_8004DA10(Gfx *start, Gfx *end, s32 arg2, s32 arg3);
 
 extern s32 D_800A3338;
@@ -106,7 +106,7 @@ void func_m048_000F4(s32 arg0) {
         gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor(dl++, 255, 255, 255, sEnvAlpha);
         set_active_camera(0);
-        func_8004046C(&dl, 0);
+        viewport_apply(&dl, 0);
         gDPPipeSync(dl++);
         gSPClearGeometryMode(dl++, G_ZBUFFER | G_FOG);
         gSPSetGeometryMode(dl++, G_SHADE | G_SHADING_SMOOTH);

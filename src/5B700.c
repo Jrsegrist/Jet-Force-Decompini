@@ -2034,7 +2034,7 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_80063358);
 extern WeatherParticleList *D_801008E0[5];
 extern s32 D_800A5DD8;
 void set_active_camera(s32 arg0);
-void func_8004046C(Gfx **dList, Mtx **matrix);
+void viewport_apply(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
 void line_particles_render(Gfx **dList, Vertex **vtx);
 void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
@@ -2046,7 +2046,7 @@ void render_all_particles(Gfx **dList, Mtx **matrix) {
 
     gDPPipeSync((*dList)++);
     set_active_camera(0);
-    func_8004046C(dList, matrix);
+    viewport_apply(dList, matrix);
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);
     line_particles_render(dList, &vtx);
