@@ -753,7 +753,8 @@ typedef struct M068Hits {
 
 /* A run of joints forming one part of the boss (.data, 11 of them) */
 typedef struct M068Section {
-    /* 0x0 */ u8 pad0[4];
+    /* 0x0 */ s16 joint;
+    /* 0x2 */ u8 pad2[4 - 2];
     /* 0x4 */ s16 first; /* < 0: none */
     /* 0x6 */ s16 last;
     /* 0x8 */ u8 pad8[0xC - 0x8];
@@ -1423,7 +1424,232 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D65C);
 #endif
 
+/* The electric strip's state (obj->unk68): the 0D65C set-up's fields, as its control uses them */
+typedef struct M068ElectroState {
+    /* 0x000 */ Triangle tris[16];
+    /* 0x100 */ Vertex verts[2][72];
+    /* 0x6A0 */ s16 phase[2];
+    /* 0x6A4 */ s16 speed[2];
+    /* 0x6A8 */ s16 step[2];
+    /* 0x6AC */ f32 t;        /* how far it reaches, 0..1 */
+    /* 0x6B0 */ f32 growEnd;  /* seconds */
+    /* 0x6B4 */ f32 holdEnd;
+    /* 0x6B8 */ f32 end;
+    /* 0x6BC */ f32 time;
+    /* 0x6C0 */ Vec3f *from;
+    /* 0x6C4 */ u8 pad6C4[0x6C8 - 0x6C4];
+    /* 0x6C8 */ Vec3f target;
+    /* 0x6D4 */ Vec3f tip;
+    /* 0x6E0 */ s32 buffer;
+} M068ElectroState;
+
+/* The light an object carries (*obj->light) */
+typedef struct M068LightData {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ f32 x;
+    /* 0x0C */ f32 y;
+    /* 0x10 */ f32 z;
+    /* 0x14 */ u8 pad14[0x40 - 0x14];
+    /* 0x40 */ u8 r;
+    /* 0x41 */ u8 g;
+    /* 0x42 */ u8 b;
+} M068LightData;
+
+typedef struct M068LightHandle {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ M068LightData *data;
+} M068LightHandle;
+
+extern Vec3f rl_m068_13730;  /* where the electric strips reach to (.bss) */
+extern u8 rl_m068_13754[3];  /* their light's colour (.bss) */
+extern f32 rl_m068_129F4;    /* a .rodata float: the sparks' speed scale */
+extern f32 rl_m068_12650[9]; /* the strips' widths along them (.data) */
+extern void func_800492DC(Object *obj, Vec3f *vec);
+
+#ifdef NON_MATCHING
+/*
+ * An electric strip: grows from its source towards a point, holds, shrinks; sparks when it starts.
+ * Draft: the frame is 8 bytes small and the float registers differ (the ROM keeps dx*dx in f28).
+ */
+void func_m068_0D828(Object *obj, s32 updateRate) {
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    M068ElectroState *s;
+    SparkParams spark;
+    Vec3f vec;
+    f32 saved[18];
+    f32 r;
+    f32 hw;
+    f32 sx;
+    f32 radius;
+    f32 sy;
+    f32 *width;
+    f32 pos[3];
+    f32 *q;
+    s32 angle;
+    Vertex *v;
+    s16 a;
+    Vertex *w;
+    s16 z;
+    s32 i;
+    s32 j;
+    s32 n;
+    Triangle *t;
+    s16 dzStep;
+    M068LightData *light;
+    f32 rate;
+
+    s = obj->unk68;
+    obj->trans.x_position = s->from->x;
+    obj->trans.y_position = s->from->y;
+    obj->trans.z_position = s->from->z;
+    s->buffer ^= 1;
+    if (((ObjectInteraction *) obj->interactObj)->hitPoints <= 0) {
+        ((ObjectInteraction *) obj->interactObj)->hitPoints = 0x100;
+        dx = s->target.x - obj->trans.x_position;
+        dy = s->target.y - obj->trans.y_position;
+        dz = s->target.z - obj->trans.z_position;
+    } else {
+        dx = rl_m068_13730.x - obj->trans.x_position;
+        dy = rl_m068_13730.y - obj->trans.y_position;
+        dz = rl_m068_13730.z - obj->trans.z_position;
+    }
+    obj->trans.rotation.y_rotation = func_80049C84(dx, dz) + 0x8000;
+    obj->trans.rotation.x_rotation = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+    if (s->t == 0.0f) {
+        spark.x_position = obj->trans.x_position;
+        spark.y_position = obj->trans.y_position;
+        spark.z_position = obj->trans.z_position;
+        spark.unk18 = 20;
+        spark.unk1A = 20;
+        spark.unk1B = 190;
+        spark.unk1C = -1;
+        spark.unk20 = 0xFF64FF;
+        spark.x_rotation = obj->trans.rotation.x_rotation;
+        angle = obj->trans.rotation.y_rotation - 0x4000;
+        rate = rl_m068_129F4;
+        for (i = 0; i < 6; i++) {
+            spark.y_rotation = angle;
+            spark.speed = func_80048E2C(80, 100) * rate;
+            spark.unk14 = func_80048E2C(80, 100) * rate;
+            func_m010_0000C(&spark);
+            angle += 0x1554;
+        }
+    }
+    s->time += updateRate / 60.0f;
+    if (s->time < s->growEnd) {
+        s->t = s->time / s->growEnd;
+    } else if (s->growEnd <= s->time && s->time <= s->holdEnd) {
+        s->t = 1.0f;
+    } else if (s->holdEnd < s->time) {
+        s->t = 1.0f - (s->time - s->holdEnd) / (s->end - s->holdEnd);
+    }
+    if (s->t > 1.0f) {
+        s->t = 1.0f;
+    } else if (s->t < 0.0f) {
+        s->t = 0.0f;
+    }
+    radius = func_80097140(dx * dx + dy * dy + dz * dz) * s->t;
+    n = 0;
+    dzStep = -(radius / (f32) 8);
+    for (j = 0; j < 2; j++) {
+        angle = s->phase[j];
+        s->phase[j] = angle + updateRate * s->speed[j];
+        a = 0;
+        z = 0;
+        v = &s->verts[s->buffer][j * 36];
+        w = v + 18;
+        q = saved;
+        for (width = rl_m068_12650; width < &rl_m068_12650[9]; width++) {
+            r = func_80049C34(a) * 20.0f * s->t;
+            a += 0x1000;
+            pos[0] = func_80049C34(angle) * r;
+            pos[1] = func_80049C30(angle) * r;
+            pos[2] = 0.0f;
+            if (j == 0) {
+                saved[n++] = pos[0];
+                saved[n++] = pos[1];
+                pos[0] = 0.0f;
+                pos[1] = 0.0f;
+            }
+            sx = *width * s->t;
+            hw = 18.0f * sx;
+            sx = q[0];
+            sy = q[1];
+            q += 2;
+            v[0].x = pos[0] - hw + sx;
+            v[0].y = pos[1] + sy;
+            v[0].z = z;
+            v[1].x = pos[0] + hw + sx;
+            v[1].y = pos[1] + sy;
+            v[1].z = z;
+            w[0].x = pos[0] + sx;
+            w[0].y = pos[1] - hw + sy;
+            w[0].z = z;
+            w[1].x = pos[0] + sx;
+            w[1].y = pos[1] + hw + sy;
+            w[1].z = z;
+            if (width == &rl_m068_12650[8]) {
+                s->tip.x = pos[0] + sx;
+                s->tip.y = pos[1] + sy;
+                s->tip.z = z;
+            }
+            v += 2;
+            w += 2;
+            z += dzStep;
+            angle += s->step[j];
+        }
+    }
+    t = s->tris;
+    for (i = 0; i < 16; i++) {
+        t->uv[0][1] -= updateRate << 5;
+        t->uv[1][1] -= updateRate << 5;
+        t->uv[2][1] -= updateRate << 5;
+        t++;
+        if (t->uv[0][1] < -0x800) {
+            t->uv[0][1] += 0x1000;
+            t->uv[1][1] += 0x1000;
+            t->uv[2][1] += 0x1000;
+        }
+    }
+    if (obj->light != NULL) {
+        light = ((M068LightHandle *) obj->light)->data;
+        light->x = 0.0f;
+        light->y = 0.0f;
+        light->z = -radius;
+        rl_m068_13754[0] = light->r;
+        rl_m068_13754[1] = light->g;
+        rl_m068_13754[2] = light->b;
+    }
+    s->target.x = obj->trans.x_position + (rl_m068_13730.x - obj->trans.x_position) * s->t;
+    s->target.y = obj->trans.y_position + (rl_m068_13730.y - obj->trans.y_position) * s->t;
+    s->target.z = obj->trans.z_position + (rl_m068_13730.z - obj->trans.z_position) * s->t;
+    if (s->t == 1.0f) {
+        dx = obj->trans.x_position;
+        dy = obj->trans.y_position;
+        dz = obj->trans.z_position;
+        vec.x = s->tip.x;
+        vec.y = s->tip.y;
+        vec.z = s->tip.z;
+        func_800492DC(obj, &vec);
+        obj->trans.x_position += vec.x;
+        obj->trans.y_position += vec.y;
+        obj->trans.z_position += vec.z;
+        obj->particleEmittersEnabled = 1;
+        func_8005F5AC(obj, updateRate);
+        obj->trans.x_position = dx;
+        obj->trans.y_position = dy;
+        obj->trans.z_position = dz;
+    }
+    ((M068Object *) obj)->radius = radius;
+    if (s->end <= s->time) {
+        func_800079B8(obj);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D828);
+#endif
 
 /* The boss's electric effect (obj->unk68) */
 typedef struct M068Electro {
@@ -1560,7 +1786,147 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E520);
 #endif
 
+/* The second kind of strip's state (obj->unk68): a bolt from a random joint of a part to another part */
+typedef struct M068Bolt {
+    /* 0x000 */ Triangle tris[16];
+    /* 0x100 */ Vertex verts[2][72];
+    /* 0x6A0 */ s16 phase[2];
+    /* 0x6A4 */ s16 speed[2];
+    /* 0x6A8 */ s16 step[2];
+    /* 0x6AC */ Vec3f target;
+    /* 0x6B8 */ s16 section;
+    /* 0x6BA */ u8 active;
+    /* 0x6BB */ u8 buffer;
+    /* 0x6BC */ Object *owner;
+} M068Bolt;
+
+/* The model whose vertices a bolt starts at */
+typedef struct M068BoltModel {
+    /* 0x00 */ u8 pad0[0x70];
+    /* 0x70 */ Vec3f *points;
+} M068BoltModel;
+
+extern f32 rl_m068_13318[]; /* the joints' positions, x y z each (.bss) */
+
+#ifdef NON_MATCHING
+/*
+ * A bolt: from a random point of the owner's section to section 4's joint, a zig-zag strip of two crossed
+ * ribbons. Same length; the ROM keeps the saved-corner pointer in s3 (count s4, angle s5) and has its
+ * two loop temporaries 16 bytes higher.
+ */
+void func_m068_0E668(Object *obj, s32 updateRate) {
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    M068Bolt *s;
+    M068Section *sec;
+    M068BoltModel *model;
+    f32 *to;
+    Vec3f *from;
+    f32 saved[18];
+    f32 r;
+    f32 hw;
+    f32 sx;
+    f32 len;
+    f32 sy;
+    f32 scale;
+    f32 *width;
+    f32 pos[3];
+    f32 *q;
+    s32 angle;
+    Vertex *v;
+    s16 a;
+    Vertex *w;
+    s16 z;
+    s32 i;
+    s32 j;
+    s32 n;
+    Triangle *t;
+    s16 dzStep;
+    UNUSED s32 pad[4];
+
+    s = obj->unk68;
+    model = *(M068BoltModel **) s->owner->modelInstances;
+    sec = &rl_m068_1254C[s->section];
+    to = &rl_m068_13318[rl_m068_1254C[4].joint * 3];
+    from = &model->points[func_80048E2C(sec->first, sec->last)];
+    obj->trans.x_position = from->x;
+    obj->trans.y_position = from->y;
+    obj->trans.z_position = from->z;
+    s->target.x = to[0];
+    s->target.y = to[1];
+    s->target.z = to[2];
+    s->buffer ^= 1;
+    dx = s->target.x - obj->trans.x_position;
+    dy = s->target.y - obj->trans.y_position;
+    dz = s->target.z - obj->trans.z_position;
+    obj->trans.rotation.y_rotation = func_80049C84(dx, dz) + 0x8000;
+    obj->trans.rotation.x_rotation = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+    s->active = 1;
+    len = func_80097140(dx * dx + dy * dy + dz * dz);
+    n = 0;
+    dzStep = -(len / (f32) 8);
+    scale = 1.0f;
+    for (j = 0; j < 2; j++) {
+        angle = s->phase[j];
+        s->phase[j] = angle + updateRate * s->speed[j];
+        a = 0;
+        z = 0;
+        v = &s->verts[s->buffer][j * 36];
+        w = v + 18;
+        q = saved;
+        for (width = rl_m068_12650; width < &rl_m068_12650[9]; width++) {
+            r = func_80049C34(a) * 70.0f * scale;
+            a += 0x1000;
+            pos[0] = func_80049C34(angle) * r;
+            pos[1] = func_80049C30(angle) * r;
+            pos[2] = 0.0f;
+            if (j == 0) {
+                saved[n++] = pos[0];
+                saved[n++] = pos[1];
+                pos[0] = 0.0f;
+                pos[1] = 0.0f;
+            }
+            sx = *width * scale;
+            hw = 18.0f * sx;
+            sx = q[0];
+            sy = q[1];
+            q += 2;
+            v[0].x = pos[0] - hw + sx;
+            v[0].y = pos[1] + sy;
+            v[0].z = z;
+            v[1].x = pos[0] + hw + sx;
+            v[1].y = pos[1] + sy;
+            v[1].z = z;
+            w[0].x = pos[0] + sx;
+            w[0].y = pos[1] - hw + sy;
+            w[0].z = z;
+            w[1].x = pos[0] + sx;
+            w[1].y = pos[1] + hw + sy;
+            w[1].z = z;
+            v += 2;
+            w += 2;
+            z += dzStep;
+            angle += s->step[j];
+        }
+    }
+    t = s->tris;
+    for (i = 0; i < 16; i++) {
+        t->uv[0][1] -= updateRate << 5;
+        t->uv[1][1] -= updateRate << 5;
+        t->uv[2][1] -= updateRate << 5;
+        t++;
+        if (t->uv[0][1] < -0x800) {
+            t->uv[0][1] += 0x1000;
+            t->uv[1][1] += 0x1000;
+            t->uv[2][1] += 0x1000;
+        }
+    }
+    ((M068Object *) obj)->radius = len;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E668);
+#endif
 
 /* What the boss's death effect keeps in obj->unk68 */
 typedef struct M068Death {
@@ -1742,16 +2108,19 @@ typedef struct M068Boulder {
     /* 0x04 */ Vec3f trail[5];
     /* 0x40 */ Vec3f velocity;
     /* 0x4C */ f32 speed;
-    /* 0x50 */ u8 pad50[0x5C - 0x50];
+    /* 0x50 */ Vec3f hit; /* where it hit */
     /* 0x5C */ f32 radius;
-    /* 0x60 */ u8 pad60[0x6C - 0x60];
+    /* 0x60 */ f32 timer; /* seconds since it left the trail */
+    /* 0x64 */ f32 lastDist; /* from the camera, for its sound's pitch */
+    /* 0x68 */ f32 pitch;
     /* 0x6C */ u8 r;
     /* 0x6D */ u8 g;
     /* 0x6E */ u8 b;
     /* 0x6F */ u8 pad6F;
-    /* 0x70 */ s16 unk70;
-    /* 0x72 */ s16 unk72;
+    /* 0x70 */ s16 unk70; /* the trail point it heads for; -1: past the trail */
+    /* 0x72 */ s16 unk72; /* its spin */
     /* 0x74 */ s16 kind;
+    /* 0x76 */ s16 state; /* 0: flying, 1/2/3: breaking up (shot, spent, hit something) */
 } M068Boulder;
 
 /* A boulder's level entry */
@@ -1844,7 +2213,315 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F478);
 #endif
 
+/* The debris a boulder breaks into (an object entry) */
+typedef struct M068DebrisEntry {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 yaw;
+    /* 0x0C */ s16 pitch;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 scale;
+    /* 0x14 */ f32 speed;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ u8 unk1C;
+    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
+    /* 0x20 */ s32 unk20;
+} M068DebrisEntry;
+
+/* The dust a boulder leaves where it hits (an object entry) */
+typedef struct M068DustEntry {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 yaw;
+    /* 0x0C */ f32 speed;
+    /* 0x10 */ f32 scale;
+} M068DustEntry;
+
+extern s32 rl_m068_12600;        /* the boulders' rumble (a positioned sound) (.data) */
+extern Object *rl_m068_12604;    /* the boulder it follows (.data) */
+extern f32 rl_m068_12A00;        /* .rodata floats */
+extern f32 rl_m068_12A04;
+extern f32 rl_m068_12A08;
+extern f32 rl_m068_12A0C;
+extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 strength);
+extern void audspat_point_set_pitch(s32 sound, s32 pitch);
+
+#ifdef NON_MATCHING
+static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate);
+
+/*
+ * A boulder: follows its trail (then flies on), breaks up when shot, spent or when it hits something.
+ * Same length and frame; registers differ in the flying part (the ROM keeps its turn factor on the stack).
+ */
+void func_m068_0F7C8(Object *obj, s32 updateRate) {
+    Object *o;
+    s32 i;
+    s32 lo;
+    s32 hi;
+    M068Boulder *b;
+    HitResult hit;
+    SparkParams spark;
+    M068DebrisEntry debris;
+    M068DustEntry dust;
+    Vec3f from;
+    Vec3f to;
+    f32 tx;
+    f32 ty;
+    f32 tz;
+    f32 rate;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 k;
+    f32 soundPitch;
+    s32 yaw[2]; /* the sparks' angle ranges */
+    s32 pitch[2];
+    s32 debrisYaw[2];
+    s32 debrisPitch[2];
+    s16 a;
+    s32 flags;
+
+    b = obj->unk68;
+    rate = updateRate;
+    if (b->state == 0 && ((ObjectInteraction *) obj->interactObj)->hitPoints <= 0) {
+        b->state = 2;
+    }
+    if (rl_m068_12600 == 0) {
+        func_80003410(0x1C5, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, &rl_m068_12600);
+        rl_m068_12604 = obj;
+    }
+    if (b->colour != NULL) {
+        k = b->colour[11] / 255.0f;
+        b->r = b->colour[8] * k;
+        b->g = b->colour[9] * k;
+        b->b = b->colour[10] * k;
+    }
+    if (b->state != 0) {
+        switch (b->state) {
+            case 1:
+                flags = 0x11;
+                lo = -0x8000;
+                hi = 0x7FFF;
+                pitch[0] = -0x3000;
+                pitch[1] = 0x3000;
+                yaw[0] = lo;
+                yaw[1] = hi;
+                break;
+            case 2:
+                flags = 0x23;
+                yaw[0] = -0x8000;
+                yaw[1] = 0x7FFF;
+                pitch[0] = -0x3000;
+                pitch[1] = 0x3000;
+                a = func_80049C84(obj->velocity.x, obj->velocity.z) + 0x8000;
+                debrisYaw[0] = a - 0x1000;
+                debrisYaw[1] = a + 0x1000;
+                a = func_80049C84(obj->velocity.y, func_80097140(obj->velocity.x * obj->velocity.x +
+                                                                 obj->velocity.z * obj->velocity.z));
+                debrisPitch[0] = a - 0x1000;
+                debrisPitch[1] = a + 0x1000;
+                break;
+            case 3:
+                flags = 0x13;
+                if (b->unk70 == -1 || rl_m068_125E8 == b->unk70) {
+                    flags = 0x1B;
+                }
+                if (rl_m068_12A00 <= b->hit.y) {
+                    flags |= 4;
+                }
+                a = func_80049C84(b->hit.x, b->hit.z) + 0x8000;
+                lo = a - 0x1000;
+                hi = a + 0x1000;
+                yaw[0] = lo;
+                yaw[1] = hi;
+                debrisYaw[0] = lo;
+                debrisYaw[1] = hi;
+                a = func_80049C84(b->hit.y, func_80097140(b->hit.z * b->hit.z + b->hit.x * b->hit.x));
+                lo = a - 0x1000;
+                hi = a + 0x1000;
+                pitch[0] = lo;
+                pitch[1] = hi;
+                debrisPitch[0] = lo;
+                debrisPitch[1] = hi;
+                break;
+            default:
+                flags = 0;
+                break;
+        }
+        if (flags & 1) {
+            spark.x_position = obj->trans.x_position;
+            spark.y_position = obj->trans.y_position;
+            spark.z_position = obj->trans.z_position;
+            spark.unk18 = 20;
+            spark.unk1A = 10;
+            spark.unk1B = 255;
+            if (b->kind == 0) {
+                spark.unk1C = 0xFFFF80FF;
+                spark.unk20 = 0xFFFF;
+            } else if (b->kind == 1) {
+                spark.unk1C = 0xFFFF80FF;
+                spark.unk20 = 0xFF0000FF;
+            } else if (b->kind == 2) {
+                spark.unk1C = 0xFFFF80FF;
+                spark.unk20 = 0xFF00FF;
+            }
+            for (i = 0; i < 6; i++) {
+                spark.y_rotation = func_80048E2C(yaw[0], yaw[1]);
+                spark.x_rotation = func_80048E2C(pitch[0], pitch[1]);
+                spark.speed = b->speed;
+                spark.unk14 = func_80048E2C(25, 50) * rl_m068_12A04;
+                func_m010_0000C(&spark);
+            }
+        }
+        if (flags & 2) {
+            debris.common.objectID = 0x2EE;
+            debris.unkE = 60;
+            debris.unk1C = 100;
+            debris.unk20 = 0;
+            debris.unk18 = rl_m068_12A08;
+            for (i = 0; i < 4; i++) {
+                debris.common.x = func_80048E2C(-15, 15) + (s32) obj->trans.x_position;
+                debris.common.y = func_80048E2C(-15, 15) + (s32) obj->trans.y_position;
+                debris.common.z = func_80048E2C(-15, 15) + (s32) obj->trans.z_position;
+                debris.yaw = func_80048E2C(debrisYaw[0], debrisYaw[1]);
+                debris.pitch = func_80048E2C(debrisPitch[0], debrisPitch[1]);
+                debris.speed = b->speed;
+                debris.scale = obj->trans.scale * 0.75f;
+                o = func_80005F14(&debris, 1);
+                if (o != NULL) {
+                    o->level_entry = NULL;
+                }
+            }
+        }
+        if (flags & 4) {
+            dust.common.objectID = 0x1CF;
+            dust.common.x = obj->trans.x_position;
+            dust.common.y = obj->trans.y_position;
+            dust.common.z = obj->trans.z_position;
+            dust.yaw = func_80049C84(obj->velocity.x, obj->velocity.z);
+            dust.scale = obj->trans.scale;
+            dust.speed = b->speed / 10.0f;
+            o = func_80005F14(&dust, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+        }
+        if (flags & 8) {
+            cam_shake_start(0, 0.0f, 0.0f, 2.0f, b->speed * obj->trans.scale);
+        }
+        if (flags & 0x10) {
+            func_80003410(0x22, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        }
+        if (flags & 0x20) {
+            func_80003410(0x1C6, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        }
+        if (obj == rl_m068_12604 && rl_m068_12600 != 0) {
+            func_80003614(rl_m068_12600);
+            rl_m068_12604 = NULL;
+        }
+        obj->particleEmittersEnabled = 2;
+        func_8005F5A0(obj->trans.scale);
+        func_8005F5AC(obj, updateRate);
+        rl_m068_125FC--;
+        func_800079B8(obj);
+        return;
+    }
+    if (b->unk70 >= 0 && b->unk70 < rl_m068_125E8) {
+        Vec3f *p = &b->trail[b->unk70];
+
+        tx = p->x;
+        ty = p->y;
+        tz = p->z;
+    } else if (rl_m068_125E8 == b->unk70) {
+        o = func_8000E4D0(0);
+        tx = o->trans.x_position;
+        ty = o->trans.y_position + 40.0f;
+        tz = o->trans.z_position;
+    } else {
+        tx = obj->trans.x_position + obj->velocity.x * rate;
+        ty = obj->trans.y_position + obj->velocity.y * rate;
+        tz = obj->trans.z_position + obj->velocity.z * rate;
+    }
+    dx = tx - obj->trans.x_position;
+    dy = ty - obj->trans.y_position;
+    dz = tz - obj->trans.z_position;
+    d = func_80097140(dx * dx + dy * dy + dz * dz);
+    if (d > 0.0f) {
+        dx /= d;
+        dy /= d;
+        dz /= d;
+        k = 1.0f - func_80049BEC(rl_m068_12A0C, updateRate);
+        b->velocity.x += (dx - b->velocity.x) * k;
+        b->velocity.y += (dy - b->velocity.y) * k;
+        b->velocity.z += (dz - b->velocity.z) * k;
+        d = func_80097140(b->velocity.x * b->velocity.x + b->velocity.y * b->velocity.y +
+                          b->velocity.z * b->velocity.z);
+        b->velocity.x /= d;
+        b->velocity.y /= d;
+        b->velocity.z /= d;
+        obj->velocity.x = b->velocity.x * b->speed;
+        obj->velocity.y = b->velocity.y * b->speed;
+        obj->velocity.z = b->velocity.z * b->speed;
+        from.x = obj->trans.x_position;
+        from.y = obj->trans.y_position;
+        from.z = obj->trans.z_position;
+        to.x = obj->trans.x_position + obj->velocity.x * rate;
+        to.y = obj->trans.y_position + obj->velocity.y * rate;
+        to.z = obj->trans.z_position + obj->velocity.z * rate;
+        func_8001CE10(1, &from, &to, &b->radius, 0xCE000000, 0, 0);
+        if (func_80016208(obj, &from, &to, b->radius, 1, &hit)) {
+            b->state = 3;
+            b->hit.x = hit.pos.x;
+            b->hit.y = hit.pos.y;
+            b->hit.z = hit.pos.z;
+            obj->trans.x_position = 0.0f;
+            obj->trans.y_position = 0.0f;
+            obj->trans.z_position = 0.0f;
+            obj->trans.rotation.x_rotation += b->unk72 * updateRate;
+            func_80009A04(obj, to.x, to.y, to.z);
+        } else {
+            dx = to.x - from.x;
+            dy = to.y - from.y;
+            dz = to.z - from.z;
+            obj->trans.rotation.x_rotation += b->unk72 * updateRate;
+            func_80009A04(obj, dx, dy, dz);
+            k = ((tx - from.x) * dx + (ty - from.y) * dy + (tz - from.z) * dz) / (dx * dx + dy * dy + dz * dz);
+            if (b->unk70 != -1 && k >= 0.0f && k <= 1.0f) {
+                b->unk70++;
+                if (rl_m068_125E8 == b->unk70) {
+                    ((ObjectInteraction *) obj->interactObj)->flags |= 1;
+                } else if (rl_m068_125E8 < b->unk70) {
+                    b->unk70 = -1;
+                }
+            }
+            if (b->kind != 0 && rl_m068_125E8 == b->unk70) {
+                func_8005F5A0(obj->trans.scale);
+                obj->particleEmittersEnabled = 1;
+                func_8005F5AC(obj, updateRate);
+            }
+        }
+    } else {
+        b->unk70++;
+        if (rl_m068_125E8 == b->unk70) {
+            ((ObjectInteraction *) obj->interactObj)->flags |= 1;
+        } else if (rl_m068_125E8 < b->unk70) {
+            b->unk70 = -1;
+        }
+    }
+    if (obj == rl_m068_12604 && rl_m068_12600 != 0) {
+        soundPitch = func_m068_10758(obj, b, rate);
+        func_800035E8(rl_m068_12600, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+        audspat_point_set_pitch(rl_m068_12600, (u32) soundPitch & 0xFF);
+    }
+    if (b->unk70 == -1) {
+        b->timer += rate / 60.0f;
+        if (b->timer > 1.0f) {
+            b->state = 2;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F7C8);
+#endif
 
 /* Called when something hits the boss: notes a hit by the player */
 void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
@@ -1855,7 +2532,47 @@ void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
     }
 }
 
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern f32 func_8008B200(s32 x);
+extern f32 rl_m068_12A10; /* .rodata floats */
+extern f32 rl_m068_12A14;
+extern f32 rl_m068_12A18;
+extern f32 rl_m068_12A1C;
+
+#ifdef NON_MATCHING
+/*
+ * The followed boulder's rumble pitch: from how fast it closes on the camera (a Doppler shift).
+ * This matches, but it is a static that only 0F7C8 calls, so it waits for 0F7C8.
+ */
+static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate) {
+    ObjectTransform *cam;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 v;
+    f32 max;
+
+    cam = func_80041DE0();
+    dx = obj->trans.x_position - cam->x_position;
+    dy = obj->trans.y_position - cam->y_position;
+    dz = obj->trans.z_position - cam->z_position;
+    d = func_80097140(dx * dx + dy * dy + dz * dz);
+    v = (b->lastDist - d) / rate;
+    v = func_8008B200((40.0f + v) / (40.0f - v) * rl_m068_12A10);
+    max = rl_m068_12A14;
+    b->pitch += (v - rl_m068_12A18 - b->pitch) * 0.5f;
+    if (b->pitch > max) {
+        b->pitch = max;
+    } else if (b->pitch < rl_m068_12A1C) {
+        b->pitch = rl_m068_12A1C;
+    }
+    b->lastDist = d;
+    return (b->pitch + 1.0f) * 100.0f;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10758);
+#endif
 
 void func_m068_108C8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068DrawModel *model;
