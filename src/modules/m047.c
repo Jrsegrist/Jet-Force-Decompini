@@ -50,7 +50,50 @@ extern char **gMenuText; /* the game's texts */
 
 static M047Subtitle sSubtitles[5];
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_00000);
+/* A scrolling texture (size 0x14) */
+typedef struct M047Scroller {
+    /* 0x00 */ u8 tex;  /* 0xFF: not in use */
+    /* 0x01 */ u8 frac; /* the eighths of a texel left over: u in the low nibble, v in the high one */
+    /* 0x02 */ s16 timer; /* frames left of the speed change, 0: none */
+    /* 0x04 */ u32 du;  /* the speed in u and v (8 fractional bits) */
+    /* 0x08 */ u32 ddu; /* and how it changes per frame */
+    /* 0x0C */ u32 dv;
+    /* 0x10 */ u32 ddv;
+} M047Scroller;
+
+extern M047Scroller D_80104608[8];
+extern void tex_scroll_queue(s32 tex, s32 u, s32 v); /* scrolls a texture by (u, v) texels */
+
+/* Scrolls the textures on by `updateRate` frames */
+void func_m047_00000(s32 updateRate) {
+    s32 i;
+    s32 step;
+    s32 u;
+    s32 v;
+    M047Scroller *s;
+
+    s = D_80104608;
+    i = 7;
+    do {
+        if (s->tex != 0xFF) {
+            step = s->timer;
+            if (step != 0) {
+                if (updateRate < step) {
+                    step = updateRate;
+                }
+                s->du += s->ddu * step;
+                s->dv += s->ddv * step;
+                s->timer -= step;
+            }
+            u = ((s32) (s->du * updateRate) >> 8) + (s->frac & 0xF);
+            v = ((s32) (s->dv * updateRate) >> 8) + (s->frac >> 4);
+            tex_scroll_queue(s->tex, u >> 3, v >> 3);
+            s->frac = u & 7;
+            s->frac |= (v & 7) << 4;
+        }
+        s++;
+    } while (i--);
+}
 
 /* Moves the colour fades on by `updateRate` frames */
 void func_m047_00130(s32 updateRate) {
