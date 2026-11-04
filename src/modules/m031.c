@@ -740,7 +740,71 @@ INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_0242C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_026B8);
 
+/* A coloured mark of the speed gauge (12 bytes; the colour's low byte is its alpha) */
+typedef struct M031GaugeMark {
+    /* 0x0 */ u8 pad0[0x8];
+    /* 0x8 */ u32 colour;
+} M031GaugeMark;
+
+/* The racer state that 029FC reads (obj->unk68) */
+typedef struct M031Speed {
+    /* 0x0 */ u8 pad0[0x4];
+    /* 0x4 */ f32 speed;
+} M031Speed;
+
+/* .data/.rodata (still assembly): the gauge's two rows of marks and the second row's alpha scale */
+extern s32 rl_m031_04108[20];
+extern M031GaugeMark rl_m031_04158[20];
+extern M031GaugeMark rl_m031_04248[20];
+extern f32 rl_m031_04470; /* marks per unit of speed */
+extern void screen_line_add_raw(s32 x, s32 y, s32 value, s32 digits, s32 flag); /* draws a number */
+extern void menu_fill_boxes(s32 arg0, s32 count, M031GaugeMark *marks, s32 arg3);
+
+/* Draws the racer's speed gauge: the marks up to its speed lit, and the speed as a number */
+#ifdef NON_MATCHING
+/* Same code and length; only the loop counter and the scale pointer swap registers (a0/a2) */
+void func_m031_029FC(s32 arg0, Object *obj) {
+    M031Speed *s;
+    s32 *scale;
+    M031GaugeMark *lit;
+    M031GaugeMark *dim;
+    s32 i;
+    s32 n;
+    u32 base;
+
+    if (obj != NULL && (s = obj->unk68) != NULL) {
+        n = s->speed * rl_m031_04470;
+        if (n < 0) {
+            n = -n;
+        }
+        scale = rl_m031_04108;
+        lit = rl_m031_04248;
+        dim = rl_m031_04158;
+        for (i = 0; i < 20; i++) {
+            base = lit->colour & ~0xFF;
+            if (i < n) {
+                lit->colour = base | 0xAA;
+                dim->colour = ((*scale * 0xAA) >> 8) | base;
+            } else {
+                lit->colour = base | 0x55;
+                dim->colour = ((*scale * 0x55) >> 8) | base;
+            }
+            scale++;
+            lit++;
+            dim++;
+        }
+        n = s->speed * 25.0f;
+        if (n < 0) {
+            n = -n;
+        }
+        screen_line_add_raw(0xA8, 0xCC, n, 3, n >= 501);
+    }
+    menu_fill_boxes(arg0, 20, rl_m031_04248, 0);
+    menu_fill_boxes(arg0, 20, rl_m031_04158, 0);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_029FC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_02B88);
 
