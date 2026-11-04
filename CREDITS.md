@@ -210,3 +210,4 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | DKR file | Functions |
 | --- | --- |
 | `src/tracks.c` | func_8002DE30, as JFG's func_8001FFE0 (object shading from the triangle under it; 16-bit cell masks, the rate a variable; DKR's `if (blockId) {}` fakematch kept) |
+| `src/objects.c` | sort_objects_by_dist, as JFG's func_8000E278 (pointer walk, JFG's loop counts); obj_spawn_attachment, as JFG's func_8000774C (built in a scratch buffer, then copied) (helper ma13h1) |

@@ -1199,7 +1199,89 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800809F4);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80081658);
 
+#ifdef NON_MATCHING
+/* JFG: find the object edge (flag bits 3-5 of its triangle) that continues the line: one ending at
+   the line's start (line[6] < 0.5) or starting at its end; copies its ends to out and returns 1.
+   NON_MATCHING: the right length and stack; the entry count sits in v0 (target a3), which
+   renumbers the loop's temporaries. */
+s32 func_80081CB8(f32 *line, f32 *out) {
+    s32 found;
+    s32 i;
+    s32 j;
+    s32 k;
+    ModelHeader7E *header;
+    Obj7EModel *model;
+    ModelEdges7E *edges;
+    Obj7E *obj;
+    s32 tri;
+    s32 start[3];
+    s32 end[3];
+    Triangle7E *triangle;
+    Vertex7E *verts;
+    Vertex7E *va;
+    Vertex7E *vb;
+    u8 flags;
+
+    start[0] = line[0];
+    start[1] = line[1];
+    start[2] = line[2];
+    end[0] = line[3];
+    end[1] = line[4];
+    end[2] = line[5];
+    found = 0;
+    for (i = 0; i < D_801047F0 && !found; i++) {
+        if (D_801047F4[i] > 0) {
+            obj = (Obj7E *) (D_801047F4[i] | 0x80000000);
+            model = obj->modelInstances[obj->data->unk133];
+            header = model->header;
+            if (model->edges != NULL) {
+                edges = model->edges;
+            } else {
+                edges = header->edges;
+            }
+        } else {
+            tri = D_801047FC[i];
+            triangle = &header->triangles[tri];
+            verts = &model->vertices[header->batches[D_801047F8[i]].verticesOffset];
+            flags = edges->edgeFlags[tri] >> 3;
+            if (flags & 7) {
+                for (j = 0; j < 3; j++) {
+                    if (flags & (1 << j)) {
+                        k = j + 1;
+                        if (k >= 3) {
+                            k = 0;
+                        }
+                        va = &verts[triangle->vi[j]];
+                        vb = &verts[triangle->vi[k]];
+                        if (line[6] < 0.5f) {
+                            if (start[0] == vb->x && start[1] == vb->y && start[2] == vb->z) {
+                                found = 1;
+                                out[0] = va->x;
+                                out[1] = va->y;
+                                out[2] = va->z;
+                                out[3] = vb->x;
+                                out[4] = vb->y;
+                                out[5] = vb->z;
+                            }
+                        } else if (end[0] == va->x && end[1] == va->y && end[2] == va->z) {
+                            found = 1;
+                            out[0] = va->x;
+                            out[1] = va->y;
+                            out[2] = va->z;
+                            out[3] = vb->x;
+                            out[4] = vb->y;
+                            out[5] = vb->z;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return found;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80081CB8);
+#endif
 
 /* JFG: every moving type-0x5B object (other than self) that is moving down and whose box overlaps
  * the box spanned by a and b gets state->unk0 = -32000 and flag bit 0 cleared. */
