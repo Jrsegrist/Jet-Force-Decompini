@@ -175,7 +175,9 @@ typedef struct LevelHeader12 {
     /* 0x6C */ s8 raceType; // DKR: race_type
     /* 0x6D */ u8 pad6D[0xA0 - 0x6D];
     /* 0xA0 */ s16 weatherEnable;
-    /* 0xA2 */ u8 padA2[0xB2 - 0xA2];
+    /* 0xA2 */ u8 padA2[0xB0 - 0xA2];
+    /* 0xB0 */ u8 skyScaleU;           // DKR: unkA0
+    /* 0xB1 */ u8 skyScaleV;           // DKR: unkA1
     /* 0xB2 */ s8 skyScrollU;          // DKR: unkA2
     /* 0xB3 */ s8 skyScrollV;          // DKR: unkA3
     /* 0xB4 */ TextureHeader *skyTex;  // DKR: unkA4
@@ -239,7 +241,7 @@ void viewport_apply(Gfx **dList, Mtx **mtx);
 void view_planes_update(void);
 void func_8000C9E8(s32 arg0);
 void screen_lines_set_window(s32 arg0);
-void func_80012BAC(s32 updateRate);
+void trackbg_render_flashy(); // JFG: called with the update rate, which it doesn't read
 void skydome_render(s32 updateRate);
 void func_80013454(void);
 void initialise_player_viewport_vars(s32 arg0, s32 arg1);
@@ -341,7 +343,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
             screen_lines_set_window(D_800F2F84);
             if (numViewports < 2) {
                 if (D_800A0D64->skydomeFixed == -1) {
-                    func_80012BAC(updateRate);
+                    trackbg_render_flashy(updateRate);
                 } else {
                     skydome_render(updateRate);
                 }
@@ -559,8 +561,6 @@ void set_skydome_visbility(s32 renderSky) {
     gSceneRenderSkyDome = renderSky;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80012BAC);
-
 /* JFG: the game's own vertex load (include/modules/gfx.h gSPVertexJFG), given the index of the
    last vertex */
 #define gSPVertexLast(pkt, v, last, v0) \
@@ -574,6 +574,166 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80012BAC);
             _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(5, 24, 8) | _SHIFTL(((numTris) * 16), 0, 16); \
         _g->words.w1 = (unsigned int) (ptr);                                                                       \
     }
+
+Camera *cam_get_active_camera(void);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+void func_80041168(Gfx **dList, Mtx **matrices); // DKR: mtx_world_origin
+void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
+extern u8 D_800A0D90[]; // DKR: D_800DC92C, the 8 triangles' vertex indices
+
+/**
+ * DKR trackbg_render_flashy (tracks.c): a flat textured plane around the camera, fading out at the edges.
+ * JFG: the plane's texture and scales from the level header's sky fields, white prim/env colours, no reset.
+ */
+void trackbg_render_flashy() {
+    Triangle *tris;
+    Vertex *verts;
+    s32 vCoordMask;
+    s32 uCoordMask;
+    f32 scaledXSin;
+    f32 scaledXCos;
+    f32 var_f16;
+    s16 uCoords[9];
+    s16 vCoords[9];
+    f32 xCos;
+    f32 xSin;
+    f32 pad_sp108;
+    Camera *camera;
+    f32 pad_sp100;
+    f32 xPositions[9];
+    f32 zPositions[9];
+    f32 pos[3]; // DKR: Vec3f
+    s32 i;
+    s32 var_v0;
+    s32 var_v1;
+    s32 var_a1;
+    s32 var_a2;
+    u8 *var_v0_3;
+    f32 var_f14;
+    s16 vertY;
+    UNUSED s16 vTempCoord;
+    UNUSED s16 uTempCoord;
+    TextureHeader *texHeader;
+    UNUSED s32 pad[4];
+
+    verts = D_800F2F78;
+    tris = D_800F2F7C;
+
+    camera = cam_get_active_camera();
+    texHeader = D_800A0D64->skyTex;
+    D_800F2FAC = -1;
+    uCoordMask = (texHeader->width << 5) - 1;
+    vCoordMask = (texHeader->height << 5) - 1;
+    xSin = func_80049C34(-camera->trans.rotation[0]);
+    xCos = func_80049C30(-camera->trans.rotation[0]);
+
+    scaledXSin = xSin * 1280.0f;
+    scaledXCos = xCos * 1280.0f;
+    pad_sp100 = 2.0f * scaledXSin;
+    xPositions[0] = -scaledXCos - (xSin * 1280.0f);
+    zPositions[0] = -scaledXCos + (xSin * 1280.0f);
+    xPositions[1] = scaledXCos - (xSin * 1280.0f);
+    zPositions[1] = -scaledXCos - (xSin * 1280.0f);
+    xPositions[2] = scaledXCos + scaledXSin;
+    zPositions[2] = scaledXCos - (xSin * 1280.0f);
+    xPositions[3] = -scaledXCos + (xSin * 1280.0f);
+    zPositions[3] = scaledXCos + (xSin * 1280.0f);
+    xPositions[4] = 0.0f;
+    zPositions[4] = 0.0f;
+
+    xPositions[5] = -(xCos * 1280.0f) - (2.0f * scaledXSin);
+    zPositions[5] = scaledXSin + -(2.0f * (xCos * 1280.0f));
+    xPositions[6] = (xCos * 1280.0f) - (2.0f * scaledXSin);
+    zPositions[6] = -(2.0f * (xCos * 1280.0f)) - scaledXSin;
+    xPositions[7] = (xCos * 1280.0f) + (2.0f * scaledXSin);
+    zPositions[7] = (2.0f * (xCos * 1280.0f)) - scaledXSin;
+    xPositions[8] = -(xCos * 1280.0f) + (2.0f * scaledXSin);
+    zPositions[8] = (2.0f * (xCos * 1280.0f)) + scaledXSin;
+
+    scaledXCos = 1280.0f;
+    var_f14 = scaledXCos * 0.25f;
+
+    var_a1 = texHeader->width * 16 * D_800A0D64->skyScaleU;
+    var_a2 = texHeader->height * 16 * D_800A0D64->skyScaleV;
+
+    var_v0 = ((s32) (camera->trans.x_position * ((scaledXCos * 0.25f) / var_a1)) + (D_800A0D64->skyOffsetU >> 4)) &
+             uCoordMask;
+    var_v1 = ((s32) (camera->trans.z_position * ((scaledXCos * 0.25f) / var_a2)) + (D_800A0D64->skyOffsetV >> 4)) &
+             vCoordMask;
+
+    var_f14 = var_a1 * xCos;
+    pos[2] = var_a1 * xCos;
+    pos[0] = var_a1 * xCos;
+    var_f16 = var_a2 * xSin;
+    xCos = var_f16;
+    pad_sp108 = var_f16;
+
+    // @fake
+    var_a2 = texHeader->height * 16 * D_800A0D64->skyScaleV;
+
+    uCoords[0] = (s16) (-var_f14 - pad_sp108) + var_v0;
+    vCoords[0] = (s16) (var_f16 - var_f14) + var_v1;
+    uCoords[1] = (s16) (var_f14 - pad_sp108) + var_v0;
+    vCoords[1] = (s16) (-var_f14 - var_f16) + var_v1;
+    uCoords[2] = (s16) (var_f14 + var_f16) + var_v0;
+    vCoords[2] = (s16) (var_f14 - var_f16) + var_v1;
+    uCoords[3] = (s16) (var_f16 - var_f14) + var_v0;
+    vCoords[3] = (s16) (var_f14 + var_f16) + var_v1;
+
+    uCoords[4] = var_v0;
+    vCoords[4] = var_v1;
+
+    uCoords[5] = (s16) (-var_f14 - (2.0f * xCos)) + var_v0;
+    vCoords[5] = (s16) (var_f16 - (2.0f * var_f14)) + var_v1;
+    uCoords[6] = (s16) (var_f14 - (2.0f * xCos)) + var_v0;
+    vCoords[6] = (s16) ((-(2.0f * var_f14)) - var_f16) + var_v1;
+    uCoords[7] = (s16) (pos[2] + (2.0f * xCos)) + var_v0;
+    vCoords[7] = (s16) ((2.0f * pos[0]) - var_f16) + var_v1;
+    uCoords[8] = (s16) ((2.0f * xCos) - pos[2]) + var_v0;
+    vCoords[8] = (s16) ((2.0f * pos[0]) + var_f16) + var_v1;
+
+    func_80041168(&D_800F2F70, &D_800F2F74);
+    func_80055C00(&D_800F2F70, texHeader, 0x10, D_800F2FA4 << 8);
+    gDPSetPrimColor(D_800F2F70++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(D_800F2F70++, 255, 255, 255, 255);
+    gSPVertexLast(D_800F2F70++, OS_K0_TO_PHYSICAL(D_800F2F78), 9, 0);
+    gSPPolygon(D_800F2F70++, OS_K0_TO_PHYSICAL(D_800F2F7C), 8, 1);
+    gDPPipeSync(D_800F2F70++);
+
+    vertY = camera->trans.y_position + 192.0f;
+    for (i = 0; i < 9; i++) {
+        verts->x = xPositions[i] + camera->trans.x_position;
+        verts->y = vertY;
+        verts->z = zPositions[i] + camera->trans.z_position;
+        verts->r = 0xFF;
+        verts->g = 0xFF;
+        verts->b = 0xFF;
+        verts->a = (i <= 4) ? (255) : (0);
+        verts++;
+    }
+
+    var_v0_3 = D_800A0D90;
+    for (i = 0; i < 8; i++) {
+        tris->flags = 0x40; // DKR: BACKFACE_DRAW
+        tris->vi0 = *var_v0_3;
+        tris->uv[0][0] = uCoords[*var_v0_3];
+        tris->uv[0][1] = vCoords[*var_v0_3];
+        var_v0_3 += 1;
+        tris->vi1 = *var_v0_3;
+        tris->uv[1][0] = uCoords[*var_v0_3];
+        tris->uv[1][1] = vCoords[*var_v0_3];
+        var_v0_3 += 1;
+        tris->vi2 = *var_v0_3;
+        tris->uv[2][0] = uCoords[*var_v0_3];
+        tris->uv[2][1] = vCoords[*var_v0_3];
+        var_v0_3 += 1;
+        tris++;
+    }
+
+    D_800F2F78 = verts;
+    D_800F2F7C = tris;
+}
 
 /* JFG: an object's header, reduced */
 typedef struct ObjectHeader12 {
@@ -1200,7 +1360,8 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_8001448C);
 extern s32 D_800F2FA0; // JFG: render flags added to batches with neither of 0x180
 void tex_disable_modes(s32 flags);
 void tex_enable_modes(s32 flags);
-void func_8001C778(TextureHeader *tex, s32 texOffset, s32 flags);
+struct WaterTexture;
+void track_texture_load(struct WaterTexture *tex, s32 texOffset, s32 flags);
 
 /**
  * Render a group of a level segment's batches: pass 0x10000000 draws the opaque ones (without Z compare), the
@@ -1280,7 +1441,7 @@ void func_80014EBC(s32 segmentId, s32 pass) {
         }
         special = batchFlags & 0x4000;
         if (special && texture != NULL) {
-            func_8001C778(texture, texOffset, batchFlags);
+            track_texture_load((struct WaterTexture *) texture, texOffset, batchFlags);
         } else {
             func_80055C00(&D_800F2F70, texture, batchFlags | 2, texOffset);
         }
@@ -2918,4 +3079,86 @@ s32 highest_set_bit(u32 value) {
     return bit;
 }
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001C778);
+/* JFG: TextureHeader with the fields the water texture code reads */
+typedef struct WaterTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0xC - 2];
+    /* 0x0C */ Gfx *cmd;
+    /* 0x10 */ u8 pad10[2];
+    /* 0x12 */ u16 numOfTextures;
+    /* 0x14 */ u8 pad14[0x1B - 0x14];
+    /* 0x1B */ u8 unk1B; // JFG: 2 and up = the texture loads itself (its own display list)
+} WaterTexture;
+
+extern Gfx D_800A0DC8[];
+extern Gfx D_800A0DF0[];
+extern Gfx D_800A0E18[];
+extern Gfx D_800A0E48[];
+void *set_animated_texture_header(void *texHead, s32 offset);
+
+/**
+ * JFG: load a level texture for drawing: a self-loading texture runs its display list; otherwise the water effect
+ * texture (or the texture's next frame) is loaded as a second, IA8 texture at tmem 256 with the texture
+ * (RGBA16, or IA8 with the env colour from texOffset) as the first.
+ */
+void track_texture_load(WaterTexture *tex, s32 texOffset, s32 flags) {
+    s32 masks;
+    s32 maskt;
+    s32 envMaskt;
+    s32 envMasks;
+    WaterTexture *env;
+    s32 envOffset;
+    s32 shifts;
+    s32 shiftt;
+    s32 blend;
+    void *frame;
+    void *envFrame;
+
+    frame = set_animated_texture_header(tex, texOffset);
+    if (tex->unk1B >= 2) {
+        D_800F2F70->words.w0 = tex->cmd->words.w0;
+        D_800F2F70->words.w1 = (u32) frame;
+        D_800F2F70++;
+        gSPDisplayList(D_800F2F70++, tex->cmd + 1);
+        gSPDisplayList(D_800F2F70++, D_800A0E48);
+        return;
+    }
+    masks = highest_set_bit(tex->width);
+    maskt = highest_set_bit(tex->height);
+    env = (WaterTexture *) D_800A0D68;
+    if (env != NULL) {
+        envOffset = D_800A0D6C;
+        blend = FALSE;
+    } else {
+        env = tex;
+        envOffset = (texOffset >> 8) + 0x100;
+        if (envOffset >= tex->numOfTextures) {
+            envOffset -= tex->numOfTextures;
+        }
+        envOffset <<= 8;
+        blend = TRUE;
+    }
+    envFrame = set_animated_texture_header(env, envOffset);
+    envMasks = highest_set_bit(env->width);
+    envMaskt = highest_set_bit(env->height);
+    shifts = (masks - envMasks) & 0xF;
+    shiftt = (maskt - envMaskt) & 0xF;
+    gDPLoadMultiBlockS(D_800F2F70++, envFrame, 256, 1, G_IM_FMT_IA, G_IM_SIZ_8b, env->width, env->height, 0, 0, 0,
+                       envMasks, envMaskt, shifts, shiftt);
+    if (!blend) {
+        gDPLoadTextureBlockS(D_800F2F70++, frame, G_IM_FMT_RGBA, G_IM_SIZ_16b, tex->width, tex->height, 0, 0, 0,
+                             masks, maskt, 0, 0);
+        gSPDisplayList(D_800F2F70++, D_800A0DC8);
+        return;
+    }
+    gDPLoadTextureBlockS(D_800F2F70++, frame, G_IM_FMT_IA, G_IM_SIZ_8b, tex->width, tex->height, 0, 0, 0, masks,
+                         maskt, 0, 0);
+    if ((flags & 0x70) == 0x10) {
+        gSPDisplayList(D_800F2F70++, D_800A0E18);
+    } else {
+        gSPDisplayList(D_800F2F70++, D_800A0DF0);
+    }
+    gDPSetEnvColor(D_800F2F70++, (texOffset >> 8) & 0xFF, (texOffset >> 8) & 0xFF, (texOffset >> 8) & 0xFF,
+                   (texOffset >> 8) & 0xFF);
+}

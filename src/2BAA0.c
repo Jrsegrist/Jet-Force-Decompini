@@ -557,7 +557,100 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002C9A0);
 #endif
 
+/* JFG: what func_80018808 writes back here (the object hit, then the point) */
+typedef struct TrackHit2BAA0 {
+    /* 0x00 */ struct {
+        u8 pad0[0x48];
+        s16 behaviorId;
+    } *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ u8 pad10[0x28 - 0x10];
+} TrackHit2BAA0;
+
+s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags, s32 arg5);
+s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the last (empty) search loop: the target guards it with n > 0 and builds &heights[i] from an i
+   still in $zero; all else matches */
+/* JFG: move pos to where the track stops the way from `from` (passing through objects 0x30/0x31 once), then out
+   of the floors and ceilings around it; on a clear way also not below its starting height. The int copies of x
+   and z are unused (the target keeps only their rounding-mode switches). */
+void func_8002CC70(f32 *from, f32 *pos, UNUSED s32 arg2) {
+    f32 **p;
+    TrackHit2BAA0 hit;
+    s32 i;
+    s32 done;
+    s32 mode;
+    s32 x;
+    s32 z;
+    s32 n;
+    f32 yOrig;
+    f32 start[3];
+    f32 lo;
+    f32 hi;
+    f32 **heights;
+
+    if (&from) {}
+    start[0] = from[0];
+    mode = 1;
+    start[1] = from[1];
+    done = FALSE;
+    start[2] = from[2];
+    yOrig = pos[1];
+    do {
+        if (func_80018808(0, start, pos, &hit, 0, 0) == 0) {
+            done = TRUE;
+        } else if (mode != 2 && hit.obj != NULL && (hit.obj->behaviorId == 0x30 || hit.obj->behaviorId == 0x31)) {
+            mode = 2;
+            start[0] = hit.pos[0];
+            start[1] = hit.pos[1];
+            start[2] = hit.pos[2];
+            pos[1] = hit.pos[1];
+        } else {
+            mode = 3;
+            pos[0] = hit.pos[0];
+            done = TRUE;
+            pos[1] = hit.pos[1];
+            pos[2] = hit.pos[2];
+        }
+    } while (!done);
+    x = pos[0];
+    z = pos[2];
+    if (x) {}
+    if (z) {}
+    n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 1, &heights);
+    while (n--) {
+        hi = *heights[n] + 1.0f;
+        lo = *heights[n] - 16.0f;
+        if (lo < pos[1] && pos[1] < hi) {
+            pos[1] = lo;
+        }
+    }
+    n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 0, &heights);
+    while (n--) {
+        hi = *heights[n] + 16.0f;
+        lo = *heights[n] - 1.0f;
+        if (lo < pos[1] && pos[1] < hi) {
+            pos[1] = hi;
+        }
+    }
+    if (mode == 1) {
+        n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 0, &heights);
+        if (n != 0) {
+            done = FALSE;
+            i = 0;
+            for (p = &heights[i] + 1; p < &heights[n] && !done; p++) {
+            }
+        }
+        if (pos[1] < yOrig) {
+            pos[1] = yOrig;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CC70);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CF6C);
 
@@ -1323,7 +1416,7 @@ void func_80034164(s16 *pos, u8 *obj) {
 
 void obj_spawn_particle(u8 *obj, s32 updateRate);
 s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
-void func_800694CC(void *handle, s16 pitch);
+void effect_mesh_set_uvs(void *handle, s16 pitch);
 void effect_mesh_update(void *handle, s16 value, u8 volume);
 
 /* JFG: the player's four engine-like loops (0x598, state at 0x5B8, volume 0x5AC, phase 0x5A8): 0 waits for its
@@ -1412,7 +1505,7 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
         p[0x5AC] = volume;
         p[0x5A8] = phase;
         if (volume != 0) {
-            func_800694CC(handle, (s8) p[0x5A8] << 8);
+            effect_mesh_set_uvs(handle, (s8) p[0x5A8] << 8);
             effect_mesh_update(handle, value, p[0x5AC]);
         }
     }
@@ -1429,9 +1522,119 @@ f32 func_80049C30(s32 angle);
 /* JFG: the quick turn: when the stick points more than `wide` away from the player's facing (*angle), start a turn
  * towards the object's angle (moving backwards fast: a reverse turn, *out = 1); while turning, *speed follows the
  * stick in the turn's frame, and the turn ends within `wide` of the start or `narrow` of the object's angle */
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800346C4);
+void player_quick_turn(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide, s16 narrow, s32 *out, f32 scale) {
+    f32 sinA;
+    f32 cosA;
+    f32 s;
+    f32 c;
+    f32 x;
+    f32 y;
+    s16 diff;
+    s32 two = 2; // kept in one register for the state test and both unk576 stores
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800349AC);
+    *out = 0;
+    if ((*(s32 *) (D_800A18B0 + 0xC) & gPlayerButtonsPressed) || racer->unk569 != 0 ||
+        (racer->unk1F4 != 0 && func_8005AAB8(racer->player) == 0) || (racer->unk568 != 0 && racer->unk568 != two)) {
+        racer->unk13E = 0;
+        return;
+    }
+    if (racer->unk13E == 0) {
+        diff = *obj - *angle;
+        if (diff < -wide || wide < diff) {
+            racer->unk13C = *obj;
+            racer->unk13E = 1;
+            racer->unk13F = 0;
+            if (racer->velX < -2.5f) {
+                racer->unk576 = two;
+                racer->unk13F = 1;
+                *out = 1;
+            }
+        }
+        return;
+    }
+    if (racer->unk13F) {
+        racer->unk576 = two;
+        *speed = 0.0f;
+    } else {
+        s = -func_80049C34(racer->unk13C);
+        c = -func_80049C30(racer->unk13C);
+        sinA = func_80049C34(*obj);
+        cosA = func_80049C30(*obj);
+        x = gPlayerStickX;
+        y = -gPlayerStickY;
+        s *= x * cosA + y * sinA;
+        c *= y * cosA - x * sinA;
+        *speed = sqrtf(s * s + c * c) * scale;
+    }
+    diff = racer->unk13C - *angle;
+    if (-wide < diff && diff < wide) {
+        racer->unk13E = 0;
+    }
+    diff = *angle - *obj;
+    if (-narrow < diff && diff < narrow) {
+        racer->unk13E = 0;
+    }
+    if (racer->unk13E == 0) {
+        if (*speed > 0.0f) {
+            *speed = -*speed;
+        }
+        if (racer->velX > 0.0f) {
+            racer->velX = -racer->velX;
+        }
+        racer->unk576 = 0;
+    }
+}
+
+extern f32 D_800ABF68; // JFG: how fast the breathing level rises
+extern f32 D_800ABF6C; // and falls
+extern f32 D_800ABF70; // JFG: the breath length per breath period
+
+/* JFG: the player's breathing: the level eases towards the speed (the larger of |velX| and |velZ|, 1 from 4 up), the
+   phase advances by one breath every 180 - 130 * level frames, and a breath starts (breathNow, breathTimer) each
+   time it wraps. */
+void player_breath_update(Racer *racer, f32 updateRate) {
+    f32 vz;
+    f32 speed;
+
+    if (racer->unk568 == 10) {
+        racer->breathTimer = 0;
+        racer->breathNow = 0;
+    }
+    speed = racer->velX;
+    if (speed < 0.0f) {
+        speed = -speed;
+    }
+    vz = racer->velZ;
+    if (vz < 0.0f) {
+        vz = -vz;
+    }
+    if (speed < vz) {
+        speed = vz;
+    }
+    if (speed >= 4.0f) {
+        speed = 1.0f;
+    } else {
+        speed *= 0.25f;
+    }
+    if (racer->breathLevel < speed) {
+        vz = D_800ABF68;
+    } else {
+        vz = D_800ABF6C;
+    }
+    racer->breathLevel += (speed - racer->breathLevel) * (1.0f - func_80049BEC(1.0f - vz, (s32) updateRate));
+    racer->breathPhase += updateRate / (180.0f + -130.0f * racer->breathLevel);
+    if (racer->breathPhase >= 1.0f) {
+        racer->breathTimer = (180.0f + -130.0f * racer->breathLevel) * D_800ABF70;
+        racer->breathNow = 1;
+        racer->breathPhase -= 1.0f;
+    } else {
+        racer->breathTimer -= (s32) updateRate;
+        if (racer->breathTimer < 0) {
+            racer->breathTimer = 0;
+        }
+        racer->breathNow = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80034BB0);
 
@@ -1554,7 +1757,7 @@ void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 #endif
 
-void func_80035B30(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void player_platform_segment_point(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 
 /* JFG: a platform object's motion block (its 0x5C): world-to-local and local-to-world matrices, double buffered */
@@ -1569,7 +1772,7 @@ typedef struct PlatformData {
 } PlatformData;
 
 /* JFG: ride the platform object the player stands on: turn with it and move by the platform's motion since the
- * last frame (its previous and current matrices, or func_80035B30 in states 6, 7, 8 and 12) */
+ * last frame (its previous and current matrices, or player_platform_segment_point in states 6, 7, 8 and 12) */
 void player_platform_ride(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
     s16 *platform;
     PlatformData *data;
@@ -1597,7 +1800,7 @@ void player_platform_ride(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
             racer->unk13C += turn;
         }
         if (racer->unk568 == 8 || racer->unk568 == 6 || racer->unk568 == 7 || racer->unk568 == 12) {
-            func_80035B30(obj, racer, &x, &y, &z);
+            player_platform_segment_point(obj, racer, &x, &y, &z);
             dx = x - *(f32 *) (obj + 0xC);
             dy = y - *(f32 *) (obj + 0x10);
             dz = z - *(f32 *) (obj + 0x14);
@@ -1641,7 +1844,64 @@ s32 func_80049C84(f32 x, f32 z);
 void func_80049394(s16 *rotation, f32 *vec);
 f32 sqrtf(f32 x);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035B30);
+/* JFG: where the racer stands on its platform segment (states 6, 7, 8 and 12): the point at segT along the segment
+ * through the platform's last matrix; also aims the racer along the segment (0x182 yaw, 0x17E pitch). */
+void player_platform_segment_point(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
+    PlatformData *data;
+    f32 *seg = racer->segStart;
+    f32 local[3];
+    f32 world[3];
+    f32 ax;
+    f32 ay;
+    f32 az;
+    f32 bx;
+    f32 by;
+    f32 bz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    s16 rot[3];
+    u8 prev;
+    u8 cur;
+
+    data = *(PlatformData **) ((u8 *) racer->platform + 0x5C);
+    cur = data->cur;
+    prev = data->cur ^ 1;
+    dx = racer->segEnd[0] - racer->segStart[0];
+    dy = racer->segEnd[1] - racer->segStart[1];
+    dz = racer->segEnd[2] - racer->segStart[2];
+    world[0] = racer->segStart[0] + racer->segT * dx;
+    world[1] = racer->segStart[1] + racer->segT * dy;
+    world[2] = racer->segStart[2] + racer->segT * dz;
+    func_80048B60(&data->toWorld[prev], world[0], world[1], world[2], &local[0], &local[1], &local[2]);
+    local[0] -= *(f32 *) (obj + 0xC);
+    local[1] -= *(f32 *) (obj + 0x10);
+    local[2] -= *(f32 *) (obj + 0x14);
+    func_80048B60(&data->toWorld[cur], seg[0], seg[1], seg[2], &ax, &ay, &az);
+    func_80048B60(&data->toWorld[cur], seg[3], seg[4], seg[5], &bx, &by, &bz);
+    dx = bx - ax;
+    dy = by - ay;
+    dz = bz - az;
+    racer->unk182 = (func_80049C84(dx, dz) - 0x4000) & 0xFFF0;
+    dist = sqrtf(dx * dx + dz * dz);
+    racer->unk17E = func_80049C84(dy, dist) & 0xFFF0;
+    world[0] = seg[6] * dx + ax;
+    world[1] = seg[6] * dy + ay;
+    world[2] = seg[6] * dz + az;
+    racer->unk178 = world[1];
+    rot[0] = -racer->unk122;
+    rot[1] = 0;
+    rot[2] = -racer->unk126;
+    func_80049394(rot, local);
+    rot[0] = racer->unk182;
+    rot[1] = 0;
+    rot[2] = racer->unk17E;
+    func_800492DC(rot, local);
+    *x = world[0] - local[0];
+    *y = world[1] - local[1];
+    *z = world[2] - local[2];
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
 
@@ -1649,7 +1909,7 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 
 void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
 void falling_objects_hit_box(f32 *min, f32 *max, void *ignore);
-s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, s32 arg7);
+s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
 /* JFG: squash check before moving (in states 6, 7, 8 and 12): the pose points placed in the world; the lowest
  * object over a free point (down to the pose height) squashes the player, or the platform stood on does when

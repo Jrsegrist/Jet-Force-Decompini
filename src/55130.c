@@ -26,7 +26,7 @@ typedef struct TextureHeader {
     /* 0x02 */ u8 format; // Lower 4 bits determines image format.
     /* 0x03 */ u8 posX;   // JFG: the tile's position in a sprite frame
     /* 0x04 */ u8 posY;
-    /* 0x05 */ u8 pad5;
+    /* 0x05 */ u8 unk5; // JFG: an effect slot to start (func_80056070)
     /* 0x06 */ s16 flags;
     /* 0x08 */ u16 numberOfInstances;
     /* 0x0A */ s16 numberOfCommands;
@@ -840,7 +840,160 @@ void rendermode_reset(Gfx **dList) {
     }
 }
 
+/* JFG: a render mode: the display lists to run (picked by the mode bits) and the bits it keeps/adds */
+typedef struct MaterialMode {
+    /* 0x00 */ Gfx *combine;  // indexed by bits >> 3
+    /* 0x04 */ Gfx *otherMode; // indexed by bits
+    /* 0x08 */ u32 mask;
+    /* 0x0C */ u32 bits;
+} MaterialMode;
+
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(7, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                      \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+extern MaterialMode D_800A48E0[]; // textured
+extern MaterialMode D_800A4BE0[]; // untextured
+extern u8 D_800A4E70;             // JFG: semi-transparent draws become cutouts
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 5 words: the final copy keeps bits >> 3 in $a1 and bits << 3 in $a2 (the ROM has them swapped) */
+/**
+ * Load a texture (JFG: up to two frames for blending) and set the render mode for the flags.
+ * Tracks which modes are active, to skip setting them again.
+ * DKR material_set (textures_sprites.c), heavily changed in JFG.
+ */
+void func_80055C00(Gfx **dList, TextureHeader *texhead, s32 flags, s32 texOffset) {
+    Gfx *gfx;
+    s32 textured;
+    TextureHeader *tex1;
+    TextureHeader *tex2;
+    MaterialMode *modes;
+    MaterialMode *mode;
+    Gfx *cmd;
+    s32 frame;
+    s32 numFrames;
+    s32 next;
+    s32 index;
+    s32 bits;
+    s32 key;
+
+    gfx = *dList;
+    textured = FALSE;
+    if (texhead != NULL) {
+        frame = texOffset >> 16;
+        numFrames = texhead->numOfTextures >> 8;
+        if (numFrames >= 2 && frame < numFrames && D_800A4E6C == 0) {
+            tex1 = (TextureHeader *) ((u8 *) texhead + frame * texhead->textureSize + 0x20);
+            if ((texhead->flags & 0x40) && texhead->unk1B < 2) {
+                next = frame + 1;
+                if (next >= numFrames) {
+                    if (texhead->unk18) {
+                        next = 0;
+                    } else {
+                        next = numFrames - 1;
+                    }
+                }
+                tex2 = (TextureHeader *) ((u8 *) texhead + next * texhead->textureSize + 0x20);
+            } else {
+                tex2 = tex1;
+            }
+        } else {
+            tex1 = texhead + 1;
+            tex2 = tex1;
+        }
+        flags |= texhead->flags;
+        textured = TRUE;
+        modes = D_800A48E0;
+        if ((s32) tex1 != D_800FED34 || (s32) tex2 != D_800FED38) {
+            D_800FED34 = (s32) tex1;
+            D_800FED38 = (s32) tex2;
+            cmd = texhead->cmd;
+            gfx->words.w0 = cmd->words.w0;
+            gfx->words.w1 = (u32) tex1;
+            gfx++;
+            cmd++;
+            if (texhead->unk1B >= 2) {
+                gSPDisplayList(gfx++, cmd);
+            } else {
+                gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(cmd), 6);
+                if ((texhead->flags & 0x40) && texhead->unk1B < 2) {
+                    gfx->words.w0 = cmd[6].words.w0;
+                    gfx->words.w1 = (u32) tex2;
+                    gfx++;
+                    cmd += 7;
+                    gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(cmd), 6);
+                }
+            }
+        }
+    } else {
+        modes = D_800A4BE0;
+    }
+    if ((flags & 0x80) && D_800A4E70) {
+        flags = (flags & ~0x80) | 4;
+    }
+    flags &= ~gBlockedRenderFlags;
+    index = (flags & 0x70) >> 4;
+    if (textured) {
+        if (texhead->unk1B >= 2) {
+            index += 0x20;
+            if (flags & 0x80) {
+                index += 8;
+            }
+        } else if (flags & 0x80) {
+            index += 8;
+        } else if (flags & 0x100) {
+            index += 0x10;
+        } else if (flags & 0x200) {
+            index += 0x18;
+        }
+    } else if (flags & 0x400) {
+        index += 8;
+    }
+    mode = (MaterialMode *) ((u8 *) modes + (index << 4));
+    bits = mode->bits | (flags & mode->mask);
+    key = (index << 8) | bits;
+    if (key != D_800FED3C || (s32) modes != D_800FED30) {
+        D_800FED3C = key;
+        D_800FED30 = (s32) modes;
+        gDPPipeSync(gfx++);
+        if (bits & 2) {
+            if (!D_800FED40) {
+                gSPSetGeometryMode(gfx++, G_ZBUFFER);
+            }
+            D_800FED40 = TRUE;
+        } else {
+            if (D_800FED40) {
+                gSPClearGeometryMode(gfx++, G_ZBUFFER);
+            }
+            D_800FED40 = FALSE;
+        }
+        if (bits & 8) {
+            if (!D_800FED44) {
+                gSPSetGeometryMode(gfx++, G_FOG);
+            }
+            D_800FED44 = TRUE;
+        } else {
+            if (D_800FED44) {
+                gSPClearGeometryMode(gfx++, G_FOG);
+            }
+            D_800FED44 = FALSE;
+        }
+        gfx[0].words.w0 = mode->combine[bits >> 3].words.w0;
+        gfx[0].words.w1 = mode->combine[bits >> 3].words.w1;
+        gfx[1].words.w0 = mode->otherMode[bits].words.w0;
+        gfx[1].words.w1 = mode->otherMode[bits].words.w1;
+        gfx += 2;
+    }
+    *dList = gfx;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/55130", func_80055C00);
+#endif
 
 extern s32 D_800A4E64;
 
@@ -871,6 +1024,9 @@ extern s32 D_800A4E74;
 void func_80056064(void) {
     D_800A4E74 = 0;
 }
+
+extern MaterialMode D_800A4CE0[]; // JFG: the sprite render modes
+void effect_slot_start(s32 slot, u8 *dims);
 
 INCLUDE_ASM("asm/nonmatchings/55130", func_80056070);
 

@@ -9,7 +9,18 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 /* DKR include/level.h (reduced to the fields used here) */
 typedef struct LevelHeader {
-    /* 0x00 */ u8 pad0[0x69];
+    /* 0x00 */ u8 pad0[0x54];
+    /* 0x54 */ s16 unk54;
+    /* 0x56 */ s16 unk56;
+    /* 0x58 */ s16 unk58;
+    /* 0x5A */ s16 fogNear;
+    /* 0x5C */ s16 fogFar;
+    /* 0x5E */ s16 fogUnk5E;
+    /* 0x60 */ u8 fogR;
+    /* 0x61 */ u8 fogG;
+    /* 0x62 */ u8 fogB;
+    /* 0x63 */ u8 fogUnk63;
+    /* 0x64 */ u8 pad64[0x69 - 0x64];
     /* 0x69 */ s8 unk69;
     /* 0x6A */ u8 pad6A[2];
     /* 0x6C */ u8 race_type;
@@ -19,14 +30,44 @@ typedef struct LevelHeader {
     /* 0x74 */ u16 instruments;
     /* 0x76 */ u8 pad76[0x92 - 0x76];
     /* 0x92 */ s16 colourCycles[7];
-    /* 0xA0 */ s16 weatherCount;
-    /* 0xA2 */ u8 padA2[0xB4 - 0xA2];
+    /* 0xA0 */ s16 weatherCount; // DKR: weatherEnable
+    /* 0xA2 */ u8 padA2;
+    /* 0xA3 */ u8 weatherType;
+    /* 0xA4 */ u8 weatherIntensity;
+    /* 0xA5 */ u8 weatherOpacity;
+    /* 0xA6 */ s16 weatherVelX;
+    /* 0xA8 */ s16 weatherVelY;
+    /* 0xAA */ s16 weatherVelZ;
+    /* 0xAC */ s8 cameraFOV;
+    /* 0xAD */ u8 bgColorRed;
+    /* 0xAE */ u8 bgColorGreen;
+    /* 0xAF */ u8 bgColorBlue;
+    /* 0xB0 */ u8 padB0[4];
     /* 0xB4 */ void *texture;
-    /* 0xB8 */ u8 padB8[0xE3 - 0xB8];
+    /* 0xB8 */ s16 unkB8;
+    /* 0xBA */ s16 unkBA;
+    /* 0xBC */ s32 pulseLightData; // a misc asset ID, then the asset
+    /* 0xC0 */ u8 padC0[2];
+    /* 0xC2 */ s8 unkC2;
+    /* 0xC3 */ u8 voiceLimit;
+    /* 0xC4 */ u8 padC4[4];
+    /* 0xC8 */ s8 unkC8;
+    /* 0xC9 */ u8 padC9;
+    /* 0xCA */ s16 unkCA;
+    /* 0xCC */ u8 padCC[0xE3 - 0xCC];
     /* 0xE3 */ u8 unkE3;
-    /* 0xE4 */ u8 padE4[0x102 - 0xE4];
+    /* 0xE4 */ s32 unkE4; // a misc asset ID, then the asset (or 0)
+    /* 0xE8 */ s16 unkE8;
+    /* 0xEA */ u8 padEA[0xF7 - 0xEA];
+    /* 0xF7 */ u8 unkF7;
+    /* 0xF8 */ u8 padF8[0x101 - 0xF8];
+    /* 0x101 */ u8 unk101;
     /* 0x102 */ u8 unk102;
     /* 0x103 */ u8 region;
+    /* 0x104 */ u8 lightCount;
+    /* 0x105 */ u8 pad105[2];
+    /* 0x107 */ u8 unk107;
+    /* 0x108 */ s16 sounds[3]; // looping level sounds
 } LevelHeader;
 
 /* JFG: per-region object flags (17 bytes each) */
@@ -240,7 +281,215 @@ s32 leveltable_world_regions(s32 world, u8 *regions) {
     return count;
 }
 
+void rumble_stop_all(s32 arg0);
+u8 func_80048558(void); // the number of players
+void sndp_set_active_sound_limit(s32 limit);
+void check_reset_and_halt(void);
+void objflags_select_region(void);
+void colour_cycle_init(ColourCycle *cycle, s32 assetID);
+void music_voicelimit_set(u8 voiceLimit);
+void lights_init(s32 count, s32 arg1, s32 arg2);
+void troop_lists_init(void);
+void collision_level_buffers_alloc(void);
+void func_8000E674(s32 arg0);
+s32 func_80054530(); // a module function (patched in by the runtime linker)
+/* The module trap called with a float first; needs `func_80054530_fi = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_fi(f32 arg0, s32 arg1);
+void sequence_start(s32 id);
+void func_80051EA4(void);
+void reset_fog(s32 playerID);
+void set_fog(s32 fogIdx, s16 near, s16 far, s16 unk, u8 red, u8 green, u8 blue, u8 unk2);
+void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity);
+void weather_clip_planes(s16 near, s16 far);
+void *load_texture(s32 assetIndex);
+s32 *get_misc_asset(s32 index);
+void init_pulsating_light_data(void *data);
+void bgdraw_primcolour(u8 red, u8 green, u8 blue);
+void video_delta_reset(void);
+void level_music_start(f32 tempo);
+void set_active_camera(s32 index);
+void cam_set_fov(f32 camFieldOfView, s32 force);
+void glitch_effect_start(s32 arg0);
+void func_8005342C(s32 module);
+void sound_stop(s32 soundHandle);
+void sound_play(u16 soundID, s32 *handlePtr);
+extern s32 D_800A31B0[3]; // JFG: the handles of the looping level sounds
+extern s16 D_800A31BC[3]; // JFG: the IDs of the looping level sounds (-1: none)
+
+/**
+ * Load a level: its header, then everything it sets up (colour cycles, lights, the objects and the
+ * track through the modules, fog for the four cameras, weather, the sky, the camera field of view,
+ * the music), then swap the looping level sounds over to the new level's.
+ * DKR: level_load (a different order and set of steps)
+ */
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation (loop tests, the sound loops' pointers and slot) */
+void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
+    s32 count;
+    s32 offset;
+    s32 size;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 missing;
+    s16 soundID;
+    s32 slot;
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+
+    rumble_stop_all(1);
+    gTempAssetTable = asset_table_load(0x1E);
+    if (arg3 < 0) {
+        arg3 = 0;
+    }
+    switch (func_80048558()) {
+        case 4:
+            sndp_set_active_sound_limit(16);
+            break;
+        case 3:
+            sndp_set_active_sound_limit(16);
+            break;
+        case 2:
+            sndp_set_active_sound_limit(12);
+            break;
+        default:
+            sndp_set_active_sound_limit(8);
+            break;
+    }
+    for (count = 0; (s32) gTempAssetTable[count] != -1; count++) {}
+    count--;
+    if (level >= count) {
+        level = 0;
+    }
+    offset = gTempAssetTable[level];
+    size = gTempAssetTable[level + 1] - offset;
+    gCurrentLevelHeader = mempool_alloc_safe(size, COLOUR_TAG_YELLOW);
+    asset_load(0x1F, (u32) gCurrentLevelHeader, offset, size);
+    check_reset_and_halt();
+    mempool_free(gTempAssetTable);
+    gMapId = level;
+    objflags_select_region();
+    for (i = 0; i < 7; i++) {
+        if (gCurrentLevelHeader->colourCycles[i] != -1) {
+            colour_cycle_init(&gLevelColourCycles[i], gCurrentLevelHeader->colourCycles[i]);
+        }
+    }
+    music_voicelimit_set(gCurrentLevelHeader->voiceLimit);
+    music_volume_fade_stop();
+    check_reset_and_halt();
+    lights_init(gCurrentLevelHeader->lightCount, 8, 16);
+    check_reset_and_halt();
+    troop_lists_init();
+    check_reset_and_halt();
+    collision_level_buffers_alloc();
+    func_8000E674(arg3);
+    check_reset_and_halt();
+    func_80054530(gCurrentLevelHeader->unk54, gCurrentLevelHeader->unk58, arg1, gCurrentLevelHeader->unk56,
+                  gCurrentLevelHeader->unkCA, gCurrentLevelHeader->unkE8);
+    check_reset_and_halt();
+    sequence_start(arg3);
+    check_reset_and_halt();
+    func_80051EA4();
+    if (gCurrentLevelHeader->fogNear == 0 && gCurrentLevelHeader->fogFar == 0 && gCurrentLevelHeader->fogR == 0 &&
+        gCurrentLevelHeader->fogG == 0 && gCurrentLevelHeader->fogB == 0) {
+        for (i = 0; i < 4; i++) {
+            reset_fog(i);
+        }
+    } else {
+        for (i = 0; i < 4; i++) {
+            set_fog(i, gCurrentLevelHeader->fogNear, gCurrentLevelHeader->fogFar, gCurrentLevelHeader->fogUnk5E,
+                    gCurrentLevelHeader->fogR, gCurrentLevelHeader->fogG, gCurrentLevelHeader->fogB,
+                    gCurrentLevelHeader->fogUnk63);
+        }
+    }
+    if (gCurrentLevelHeader->weatherCount > 0) {
+        func_8005AD90(gCurrentLevelHeader->weatherType, gCurrentLevelHeader->weatherCount,
+                      gCurrentLevelHeader->weatherVelX << 8, gCurrentLevelHeader->weatherVelY << 8,
+                      gCurrentLevelHeader->weatherVelZ << 8, gCurrentLevelHeader->weatherIntensity * 257,
+                      gCurrentLevelHeader->weatherOpacity * 257);
+        weather_clip_planes(-1, -512);
+    }
+    if (gCurrentLevelHeader->unk69 == -1) {
+        gCurrentLevelHeader->texture = load_texture((s32) gCurrentLevelHeader->texture);
+        gCurrentLevelHeader->unkB8 = 0;
+        gCurrentLevelHeader->unkBA = 0;
+    }
+    if (gCurrentLevelHeader->pulseLightData != -1) {
+        gCurrentLevelHeader->pulseLightData = (s32) get_misc_asset(gCurrentLevelHeader->pulseLightData);
+        init_pulsating_light_data((void *) gCurrentLevelHeader->pulseLightData);
+    }
+    bgdraw_primcolour(gCurrentLevelHeader->bgColorRed, gCurrentLevelHeader->bgColorGreen,
+                      gCurrentLevelHeader->bgColorBlue);
+    video_delta_reset();
+    level_music_start(1.0f);
+    i = 0;
+    do {
+        set_active_camera(i);
+        cam_set_fov(gCurrentLevelHeader->cameraFOV, 1);
+        i++;
+    } while (i < 4);
+    set_active_camera(0);
+    if (gCurrentLevelHeader->unkE4 == -1) {
+        gCurrentLevelHeader->unkE4 = 0;
+    } else {
+        gCurrentLevelHeader->unkE4 = (s32) get_misc_asset(gCurrentLevelHeader->unkE4);
+    }
+    check_reset_and_halt();
+    if (gCurrentLevelHeader->unk107) {
+        glitch_effect_start(1);
+    }
+    if (gCurrentLevelHeader->unkC2) {
+        func_80054530();
+    }
+    if (gCurrentLevelHeader->unkC8) {
+        func_80054530();
+    }
+    if (gCurrentLevelHeader->unkF7) {
+        func_80054530(gCurrentLevelHeader);
+    }
+    if (gCurrentLevelHeader->unk101) {
+        func_80054530_fi(12.0f, gCurrentLevelHeader->unk101 * 60);
+    }
+    check_reset_and_halt();
+    func_8005342C(0x18);
+    func_8005342C(0x1E);
+    for (i = 0; i < 3; i++) {
+        missing = TRUE;
+        for (j = 0; j < 3; j++) {
+            if (gCurrentLevelHeader->sounds[j] == D_800A31BC[i]) {
+                missing = FALSE;
+            }
+        }
+        if (missing && D_800A31B0[i] != 0) {
+            D_800A31BC[i] = -1;
+            sound_stop(D_800A31B0[i]);
+        }
+    }
+    if (func_80054530() == 0) {
+        gCurrentLevelHeader->fogNear = 900;
+        gCurrentLevelHeader->fogFar = 920;
+    }
+    for (j = 0; j < 3; j++) {
+        soundID = gCurrentLevelHeader->sounds[j];
+        missing = TRUE;
+        if (soundID != -1) {
+            for (k = 0; k < 3; k++) {
+                if (soundID == D_800A31BC[k]) {
+                    missing = FALSE;
+                } else if (D_800A31BC[k] == -1) {
+                    slot = k;
+                }
+            }
+            if (missing) {
+                sound_play(soundID, &D_800A31B0[slot]);
+                D_800A31BC[slot] = gCurrentLevelHeader->sounds[j];
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/44350", func_80043E3C);
+#endif
 
 /* JFG: start the current level's music (if it isn't already playing) (0x8004455C). */
 void level_music_start(f32 tempo) {

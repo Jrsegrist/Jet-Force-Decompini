@@ -24,7 +24,7 @@ s32 drm_check_rdram_b(void);
 void init_game(void);
 void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void check_reset_and_halt(void);
-void func_80044FAC(void);
+void main_game_loop(void);
 void thread3_verify_stack(void);
 s32 input_update(s32 saveDataFlags, s32 updateRate);
 
@@ -52,7 +52,7 @@ void thread3_main(UNUSED void *unused) {
     func_8004665C(0, D_800A3260, 0, 0, 1, 0);
     while (1) {
         check_reset_and_halt();
-        func_80044FAC();
+        main_game_loop();
         thread3_verify_stack();
     }
 }
@@ -207,7 +207,255 @@ void func_80044F24(s32 step) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_80044FAC);
+/* JFG: the main loop's frame state (DKR main_game_loop's globals) */
+extern Gfx *gfx;
+extern u8 vtx[];
+extern u8 gGameCurrMatrix[];
+extern u8 gGameCurrTriList[];
+#define sGameMtx (*(Mtx **) gGameCurrMatrix)
+#define sGameVtx (*(struct Vtx45 **) vtx)
+#define sGameTri (*(struct Tri45 **) gGameCurrTriList)
+typedef struct Vtx45 {
+    s16 x, y, z;
+    u8 r, g, b, a;
+} Vtx45;
+typedef struct Tri45 {
+    u8 pad[0x10];
+} Tri45;
+extern s32 D_800A3338;        // JFG: the motion blur is on
+extern s32 D_800A32AC;        // JFG: the last RDP wait result (8 = the frame's list was not run)
+extern s32 gSPTaskNum;        // DKR: gSPTaskNum, the buffer set in use
+extern Gfx *gDisplayLists[2];    // DKR: gDisplayLists
+extern Mtx *gMatrixHeap[2];    // DKR: gMatrixHeap
+extern Vtx45 *gVertexHeap[2];  // DKR: gVertexHeap
+extern Tri45 *gTriangleHeap[2];  // DKR: gTriangleHeap
+extern s32 D_800FECB0;        // JFG: the previous frame's image
+extern s32 gVideoLastFramebuffer;
+extern u16 *gVideoDepthBuffer;
+extern char D_800AC55C[];
+extern char D_800AC568[];
+extern u8 D_800A321C;
+extern s16 D_800A3220;
+extern s16 D_800A3224;
+extern s16 D_800A3228;
+extern s16 D_800A322C;
+extern s32 D_800A3374;        // DKR: sLogicUpdateRate
+extern s32 D_800FD7C4;
+extern s8 gIsPaused;
+extern u8 D_800A3208;
+extern s32 D_800A32D0;
+extern s32 D_800FD7D0;
+extern s16 D_801046F4;
+extern s32 D_800A32CC;
+extern s32 D_800A332C;        // DKR: gDrawFrameTimer-like: copy the last frame (an overflow was detected)
+extern s32 D_800A3330;
+extern s32 gCurrNumF3dCmdsPerPlayer;        // JFG: the display list size limit
+extern s32 gCurrNumHudMatPerPlayer;        // JFG: the matrix limit
+extern s32 gCurrNumHudTrisPerPlayer;        // JFG: the triangle limit
+extern s32 gCurrNumHudVertsPerPlayer;        // JFG: the vertex limit
+extern s8 D_800A32C4;
+void osSetTime(OSTime time);
+s32 gfxtask_run_xbus(Gfx *dlBegin, Gfx *dlEnd, s32 type, void *frameBuffer);
+void debug_trace_flip(void);
+void rsp_segment(Gfx **dList, s32 segment, s32 base);
+void rsp_init(Gfx **dList);
+void rdp_init(Gfx **dList);
+void viewport_menu_set(s32 viewPortIndex, s32 x1, s32 y1, s32 x2, s32 y2);
+void bgdraw_fillcolour(s32 red, s32 green, s32 blue);
+void bgdraw_render(Gfx **dList, Mtx **mtx, s32 drawBG);
+s32 get_lockup_status(void);
+void mode_lockup(s32 updateRate);
+void func_80045F00(s32 updateRate);
+void boot_screen_update(s32 updateRate);
+void screen_effects_draw(Gfx **dList);
+s32 menu_set_results(s32 *arg0, s32 *arg1, s32 *arg2, s32 *arg3, s32 arg4);
+void sound_update_queue(u8 updateRate);
+void debug_text_print(Gfx **dList);
+void debug_level_info_draw(void);
+void render_dialogue_boxes(Gfx **dList, Mtx **mat, Vtx45 **verts);
+void dialogue_close(s32 dialogueBoxID);
+void dialogue_clear(s32 dialogueBoxID);
+s32 transition_update(s32 updateRate);
+void transition_render(Gfx **dList, Mtx **mtx, Vtx45 **vtx);
+s32 is_controller_missing(void);
+void menu_draw_blinking_prompt(Gfx **dList, s32 delta);
+s32 check_fadeout_transition(void);
+void func_800424A0(s32 updateRate);
+void copy_viewports_to_stack(void);
+void transition_values_update(s32 updateRate);
+s8 is_game_paused(void);
+s32 gfxtask_wait(void);
+void screen_rects_test_depth(void);
+void frame_post_process(u16 *fb, s32 arg1);
+void func_80013970(void);
+void track_lighting_update(s32 arg0, s32 updateRate);
+void runlink_unload_timers_update(void);
+void mempool_free_queue_clear(void);
+void fb_size(s32 *width, s32 *height);
+s32 fb_update(s32 mesg);
+void debug_trace_add(Gfx *dList, char *file, s32 line);
+void video_delta_reset(void);
+void level_load_pending(s32 updateRate);
+void func_8003FE3C(s32 arg0, s32 arg1);
+void func_8003FEB8(s32 arg0, s32 arg1);
+s32 runlink_module_loaded(s32 module);
+s32 func_80054530_ret(void);
+
+/**
+ * JFG: one frame of the game: run the last frame's display list, swap the buffers, then build the next frame
+ * (game, menus, debug, fades), update the systems, copy the last image if a buffer overflowed and wait for
+ * the next frame.
+ * DKR: main_game_loop (thread3_main.c), heavily changed.
+ */
+void main_game_loop(void) {
+    s32 *src;
+    s32 *dst;
+    u32 n; // the copy count, then the next update rate
+
+    if (D_800A3338) {
+        func_80054530(NULL);
+    }
+    osSetTime(0);
+    if (D_800A32AC == 8) {
+        gfx = gDisplayLists[gSPTaskNum];
+        rsp_segment(&gfx, 0, 0);
+        rsp_segment(&gfx, 1, D_800FECB0);
+        rsp_segment(&gfx, 2, (s32) gVideoDepthBuffer);
+        rsp_segment(&gfx, 4, D_800FECB0 - 0x500);
+    }
+    gfxtask_run_xbus(gDisplayLists[gSPTaskNum], gfx, 0, (void *) D_800FECB0);
+    if (D_800A3338) {
+        func_80054530();
+    }
+    gSPTaskNum ^= 1;
+    debug_trace_flip();
+    gfx = gDisplayLists[gSPTaskNum];
+    sGameMtx = gMatrixHeap[gSPTaskNum];
+    sGameVtx = gVertexHeap[gSPTaskNum];
+    sGameTri = gTriangleHeap[gSPTaskNum];
+    debug_trace_add(gfx, D_800AC55C, 0x386);
+    rsp_segment(&gfx, 0, 0);
+    rsp_segment(&gfx, 1, gVideoLastFramebuffer);
+    rsp_segment(&gfx, 2, (s32) gVideoDepthBuffer);
+    rsp_segment(&gfx, 4, gVideoLastFramebuffer - 0x500);
+    rsp_init(&gfx);
+    rdp_init(&gfx);
+    if (func_80054530_ret()) {
+        if (D_800A321C) {
+            viewport_menu_set(0, D_800A3220, D_800A3224, D_800A3228, D_800A322C);
+            func_8003FE3C(0, 1);
+            bgdraw_fillcolour(0, 0, 0);
+        }
+        bgdraw_render(&gfx, &sGameMtx, 1);
+        func_8003FEB8(0, 1);
+    }
+    gSaveDataFlags = input_update(gSaveDataFlags, D_800A3374);
+    get_lockup_status();
+    if (D_800FD7C4 == 5) {
+        mode_lockup(D_800A3374);
+    } else {
+        func_80045F00(D_800A3374);
+        if (D_800FD7C4 == 6) {
+            boot_screen_update(D_800A3374);
+        }
+    }
+    screen_effects_draw(&gfx);
+    if (gIsPaused == 1) {
+        if (D_800A3208) {
+            func_80054530();
+        } else if (runlink_module_loaded(0x13)) {
+            func_80054530(&gfx, &sGameMtx, &sGameVtx, D_800A3374);
+        }
+    } else {
+        func_80044F24(D_800A3374);
+    }
+    menu_set_results((s32 *) &gfx, (s32 *) &sGameMtx, (s32 *) &sGameVtx, (s32 *) &sGameTri, D_800A3374);
+    if (runlink_module_loaded(0x16)) {
+        func_80054530(&gfx, &sGameMtx, D_800A3374);
+    }
+    sound_update_queue(D_800A3374);
+    debug_text_print(&gfx);
+    if (D_800A32D0) {
+        debug_level_info_draw();
+    }
+    render_dialogue_boxes(&gfx, &sGameMtx, &sGameVtx);
+    dialogue_close(4);
+    dialogue_clear(4);
+    if (transition_update(D_800A3374)) {
+        transition_render(&gfx, &sGameMtx, &sGameVtx);
+    }
+    if (D_800FD7D0 >= 8 && is_controller_missing()) {
+        menu_draw_blinking_prompt(&gfx, D_800A3374);
+    }
+    debug_trace_add(gfx, D_800AC568, 0x44B);
+    gDPFullSync(gfx++);
+    gSPEndDisplayList(gfx++);
+    if (runlink_module_loaded(2) && !check_fadeout_transition()) {
+        func_80054530();
+    }
+    func_800424A0(D_800A3374);
+    copy_viewports_to_stack();
+    transition_values_update(D_800A3374);
+    if (D_801046F4) {
+        func_80054530(D_800A3374);
+    }
+    if (runlink_module_loaded(0x17) && !is_game_paused()) {
+        func_80054530((D_800A3374 * D_800A32CC) >> 8);
+    }
+    if (runlink_module_loaded(0x27)) {
+        func_80054530(D_800A3374);
+    }
+    D_800A32AC = gfxtask_wait();
+    screen_rects_test_depth();
+    frame_post_process((u16 *) D_800FECB0, D_800A3374);
+    func_80013970();
+    track_lighting_update(1, D_800A3374);
+    runlink_unload_timers_update();
+    mempool_free_queue_clear();
+    if (D_800A332C) {
+        u32 width;
+        u32 height;
+        fb_size((s32 *) &width, (s32 *) &height);
+        src = (s32 *) D_800FECB0;
+        dst = (s32 *) gVideoLastFramebuffer;
+        n = (width * height) >> 1;
+        while (n--) {
+            *dst++ = *src++;
+        }
+    }
+    D_800A3330 -= D_800A3374;
+    if (D_800A3330 < 0) {
+        D_800A3330 = 0;
+    }
+    D_800A332C = 0;
+    if (gCurrNumF3dCmdsPerPlayer < gfx - gDisplayLists[gSPTaskNum]) {
+        D_800A332C = 1;
+    }
+    if (gCurrNumHudMatPerPlayer < sGameMtx - gMatrixHeap[gSPTaskNum]) {
+        D_800A332C = 1;
+    }
+    if (gCurrNumHudVertsPerPlayer < sGameVtx - gVertexHeap[gSPTaskNum]) {
+        D_800A332C = 1;
+    }
+    if (gCurrNumHudTrisPerPlayer < sGameTri - gTriangleHeap[gSPTaskNum]) {
+        D_800A332C = 1;
+    }
+    if (D_800A332C) {
+        gfx = gDisplayLists[gSPTaskNum];
+        gDPFullSync(gfx++);
+        gSPEndDisplayList(gfx++);
+        D_800A3330 = 60;
+    }
+    n = fb_update(D_800A32AC);
+    D_800A3374 = n;
+    if (D_800A32C4) {
+        video_delta_reset();
+        D_800A3374 = 2;
+    } else if ((s32) n >= 7) {
+        D_800A3374 = 6;
+    }
+    level_load_pending(D_800A3374);
+}
 
 /* JFG: a screen rectangle whose visibility is tested against the depth buffer */
 typedef struct ScreenRect {
@@ -498,7 +746,7 @@ void debug_trace_add(Gfx *dList, char *file, s32 line);
 void objects_set_attachment_byte(s32 updateRate);
 s32 func_80011C2C(void);
 void func_80077614(s32 updateRate);
-void func_80008FF0(s32 updateRate);
+void obj_update(s32 updateRate);
 void particles_update_all(s32 updateRate);
 void *cam_get_active_camera(void);
 void func_80079890(s32 arg0, void *camera);
@@ -559,7 +807,7 @@ void func_80045F00(s32 updateRate) {
         if (runlink_module_loaded(3)) {
             func_80054530(updateRate);
         }
-        func_80008FF0(updateRate);
+        obj_update(updateRate);
         particles_update_all(updateRate);
         func_80079890(0, cam_get_active_camera());
         track_module_effects_run(updateRate);
@@ -630,7 +878,7 @@ typedef struct CharacterData {
     /* 0x14 */ s16 unk14[16]; // per weapon
     /* 0x34 */ s16 unk34[16]; // per weapon
     /* 0x54 */ u8 unk54[16];  // per weapon
-    /* 0x64 */ s16 unk64;
+    /* 0x64 */ u16 unk64;
     /* 0x66 */ u8 items[8]; // one bit per item, highest bit first
     /* 0x6E */ u8 pad6E;
     /* 0x6F */ u8 unk6F;
@@ -693,7 +941,7 @@ extern s16 D_800A327C;
 extern s8 D_800A3284;
 extern s8 D_800A3288;
 extern GameStats *gSettingsPtr;
-extern s8 D_800A32A0;
+extern u8 D_800A32A0;
 extern u8 D_800A3304[];
 s32 level_redirect_get(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4);
 void transition_begin(void *arg0);
@@ -877,7 +1125,332 @@ s16 func_800468DC(void) {
     return D_800A3250;
 }
 
-INCLUDE_ASM("asm/nonmatchings/45750", func_800468EC);
+extern s16 D_800A3240;
+extern s16 D_800A3244;
+extern s16 D_800A3248;
+extern s16 D_800A324C;
+extern s16 D_800A3258;
+extern s16 D_800A3264;
+extern s16 D_800A3268;
+extern s16 D_800A3270;
+extern s16 D_800A3274;
+extern s16 D_800A3278;
+extern s16 D_800A327C;
+extern s8 D_800A3284;
+extern s8 D_800A3288;
+extern s8 D_800A3298;
+extern u8 D_800A507C;
+extern u8 D_800A4FB4; // JFG: in a race
+extern u8 D_800A4FC4; // JFG: a multiplayer game
+extern u8 D_800A4FC0;
+extern u8 D_800A4FCC; // JFG: the number of cameras
+extern s8 D_800A5040;
+extern s16 D_800A4FB8;
+extern s32 D_800A3928;
+extern f32 D_800AC628;
+extern u8 D_800A32EC[];
+extern u8 D_800A32F4[];
+extern u8 D_800A32FC[];
+u32 input_pressed(s32 player);
+extern u8 D_800A326C;
+s32 leveltable_type(s32 level);
+void func_800482A0(s32 player, s32 arg1, s32 arg2);
+void func_80047EFC(s32 flag, s32 set);
+s32 func_80055234(void);
+void mempool_free_queue_flush(void);
+void mempool_free_timer(s32 state);
+void menu_set_close(void);
+void level_free(void);
+void reset_particles(void);
+void free_message_box(void);
+u8 music_current_sequence(void);
+void music_stop(void);
+void settings_clear_stats(void);
+s32 func_8005A8E8();
+s32 leveltable_blur(s32 level);
+void func_800551E8(s32 arg0);
+s32 fb_mode(void);
+s32 func_80055208(void);
+void func_8005483C(s32 mode);
+s32 func_80043D08(s32 level);
+void func_8005342C(s32 module);
+void cam_init(s32 arg0);
+void init_dialogue_text(void);
+void level_load(s32 level, s32 arg1, s32 arg2, s32 arg3);
+void func_80029B78(void);
+void menu_mode_set(s32 mode);
+void func_8004B55C(void);
+void func_80000B80(void);
+void rumble_allow_set(s32 arg0);
+
+/**
+ * JFG: the level change: when the countdown set by a level change runs out, store the player's position and
+ * apply the game flags' character changes, free the old level (modules, particles, text, display list), set up
+ * the music, the race and region state and the video mode, then load the new level and start it.
+ */
+void level_load_pending(s32 updateRate) {
+    s32 screenMode;
+    s32 levelType;
+    s16 redirArg2;
+    s16 redirArg4;
+    s16 newLevel;
+    s16 redirArg3;
+    CharacterData *chr;
+    s32 *dst;
+    u32 n;
+    s32 value;
+
+    check_reset_and_halt();
+    if (D_800A329C) {
+        if (!(input_pressed(0) & 0x8000) && !(input_pressed(0) & 0x1000)) {
+            return;
+        }
+        D_800A329C = 0;
+        if (!check_fadeout_transition()) {
+            D_800A32A0 = 1;
+            transition_begin(D_800A32FC);
+        }
+        music_volume_fade(D_800AC628, 0);
+        D_800A3294 = 30;
+    }
+    D_800A32C4 = 0;
+    chr = &gSettingsPtr->chars[D_800A3260 & 3];
+    if (D_800A3294 == 0) {
+        return;
+    }
+    D_800A3294 -= updateRate;
+    if (D_800A3294 > 0) {
+        return;
+    }
+    if (D_800A507C && !game_flag_get(3)) {
+        func_80047EFC(3, 1);
+    }
+    levelType = leveltable_type(D_800A3250);
+    if (levelType == 1 || levelType == 2) {
+        func_800482A0(D_800A3260, -1, leveltable_world(D_800A3250));
+    } else {
+        func_800482A0(D_800A3260, D_800A3250, leveltable_world(D_800A3250));
+    }
+    if (level_redirect_get(D_800A3250, &newLevel, &redirArg2, &redirArg3, &redirArg4)) {
+        chr->unk74_hi = newLevel;
+        chr->unk74_lo = redirArg3;
+    } else {
+        switch (D_800A3268) {
+            case 0:
+                if (levelType != 2 && levelType != 1) {
+                    chr->unk74_hi = D_800A3250;
+                    chr->unk74_lo = D_800A3258;
+                }
+                break;
+            case 0xFF:
+                break;
+            default:
+                if (!D_800A4FB4) {
+                    if (D_800FD7A4 != D_800A3268) {
+                        chr->unk74_hi = D_800A3250;
+                        chr->unk74_lo = D_800A3258;
+                    } else if ((D_800A3260 & 3) != (D_800A3240 & 3)) {
+                        chr->unk74_hi = D_800A3250;
+                        chr->unk74_lo = D_800A3258;
+                        D_800A3288 = 1;
+                    }
+                }
+                break;
+        }
+    }
+    if (game_flag_get(0x62)) {
+        gSettingsPtr->chars[0].unk74_hi = 0x130;
+        gSettingsPtr->chars[0].unk71 = 2;
+        gSettingsPtr->chars[0].unk74_lo = 6;
+        gSettingsPtr->chars[1].unk74_hi = 0x130;
+        gSettingsPtr->chars[1].unk71 = 2;
+        gSettingsPtr->chars[1].unk74_lo = 8;
+        gSettingsPtr->chars[2].unk74_hi = 0x130;
+        gSettingsPtr->chars[2].unk74_lo = 7;
+        gSettingsPtr->chars[2].unk71 = 2;
+        func_80047EFC(0x62, 0);
+    }
+    if (game_flag_get(0x60)) {
+        gSettingsPtr->chars[1].unk74_hi = 0x87;
+        gSettingsPtr->chars[1].unk71 = 5;
+        func_80047EFC(0x60, 0);
+    }
+    if (game_flag_get(0x61)) {
+        gSettingsPtr->chars[0].unk74_hi = 0x133;
+        gSettingsPtr->chars[0].unk71 = 2;
+        func_80047EFC(0x61, 0);
+    }
+    if (game_flag_get(0x5F)) {
+        gSettingsPtr->chars[0].unk64 |= gSettingsPtr->chars[1].unk64 | gSettingsPtr->chars[2].unk64;
+        gSettingsPtr->chars[1].unk64 |= gSettingsPtr->chars[0].unk64 | gSettingsPtr->chars[2].unk64;
+        gSettingsPtr->chars[2].unk64 |= gSettingsPtr->chars[0].unk64 | gSettingsPtr->chars[1].unk64;
+        gSettingsPtr->chars[0].unk64 &= ~2;
+        gSettingsPtr->chars[2].unk64 &= ~2;
+    }
+    if (!func_80055234()) {
+        D_800A3294 = 1;
+        return;
+    }
+    D_800A3530 = 1;
+    mempool_free_queue_flush();
+    mempool_free_timer(0);
+    check_reset_and_halt();
+    menu_set_close();
+    check_reset_and_halt();
+    if (runlink_module_loaded(0xA)) {
+        func_80054530();
+    }
+    if (runlink_module_loaded(8)) {
+        func_80054530();
+    }
+    if (runlink_module_loaded(7)) {
+        func_80054530();
+    }
+    if (D_800A3208) {
+        func_80054530();
+    }
+    if (D_800A3298) {
+        check_reset_and_halt();
+        if (D_800A4FB4) {
+            func_80054530();
+        }
+        level_free();
+        if (runlink_module_loaded(0xB)) {
+            func_80054530();
+        }
+        check_reset_and_halt();
+        reset_particles();
+        check_reset_and_halt();
+        free_message_box();
+        gfx = gDisplayLists[gSPTaskNum];
+        gDPFullSync(gfx++);
+        gSPEndDisplayList(gfx++);
+        D_800A3298 = 0;
+    }
+    if ((u32) music_current_sequence() != (u32) leveltable_tune(D_800A3250)) {
+        music_stop();
+    }
+    if ((D_800A3240 & 3) != 3 && (D_800A3260 & 3) == 3) {
+        D_800A4FC0 = D_800A3240;
+        gSettingsPtr->chars[3].unk4_lo = D_800A3240;
+    }
+    if (!D_800A4FC4) {
+        if (D_800A3250 == 0x10C) {
+            D_800A5040 = 0;
+            func_80054530(0);
+        } else if (D_800A3250 == 0x102) {
+            D_800A4FB8 = gPlayableMapId;
+            D_800A5040 = 1;
+            func_80054530(1);
+        } else if (D_800A3250 == 0x18D) {
+            D_800A4FB8 = gPlayableMapId;
+            D_800A5040 = 2;
+            func_80054530(1);
+        } else if (D_800A3250 == 0x14F) {
+            gSettingsPtr->chars[1].unk64 |= 2;
+        }
+    }
+    gPlayableMapId = D_800A3250;
+    D_800A3248 = D_800A3254;
+    D_800A3244 = D_800A3258;
+    D_800A3240 = D_800A3260;
+    D_800A324C = D_800A3264;
+    if (gPlayableMapId == 0x7F && game_flag_get(0x5F)) {
+        D_800A3254 = 1;
+        D_800A3248 = D_800A3254;
+    }
+    if ((D_800FD7A4 != D_800A3268 && !D_800A4FB4) || D_800A3288) {
+        D_800FD7A4 = D_800A3268;
+        gSettingsPtr->unk514 = 0;
+        if (D_800A3268 != 0 && D_800A3268 != 0xFF) {
+            settings_clear_stats();
+            D_800A3270 = gPlayableMapId;
+            D_800A3274 = D_800A3248;
+            D_800A3278 = D_800A3244;
+            D_800A327C = D_800FD7A4;
+            D_800A3280 = 2;
+            D_800A3284 = 1;
+        }
+    }
+    if (D_800A3284) {
+        D_800A328C = 240;
+    } else {
+        D_800A328C = 0;
+    }
+    D_800A3284 = 0;
+    D_800A3288 = 0;
+    if (D_800A325C) {
+        D_800A4FCC = D_800A325C;
+    }
+    D_800A325C = 0;
+    check_reset_and_halt();
+    screenMode = func_8005A8E8(gPlayableMapId);
+    func_800551E8(leveltable_blur(gPlayableMapId));
+    if (fb_mode() != screenMode || func_80055208()) {
+        func_8005483C(screenMode);
+    } else {
+        u32 width;
+        u32 height;
+        fb_size((s32 *) &width, (s32 *) &height);
+        dst = (s32 *) D_800FECB0;
+        n = (width * height) >> 1;
+        value = D_800A32A0 - 1;
+        while (n--) {
+            *dst++ = value;
+        }
+    }
+    D_800A3928 = 0;
+    check_reset_and_halt();
+    mempool_free_queue_flush();
+    mempool_free_timer(0);
+    check_reset_and_halt();
+    func_80054530(func_80043D08(gPlayableMapId));
+    func_8005342C(0x24);
+    check_reset_and_halt();
+    mempool_free_queue_flush();
+    mempool_free_timer(0);
+    cam_init(1);
+    if (runlink_module_loaded(0xB)) {
+        func_80054530();
+    }
+    check_reset_and_halt();
+    init_dialogue_text();
+    check_reset_and_halt();
+    func_80054530(100, 100, 100, 10, 10, 15, 10);
+    check_reset_and_halt();
+    func_8005342C(0x1A);
+    check_reset_and_halt();
+    level_load(gPlayableMapId, D_800A3244, D_800A3240, D_800A3248);
+    check_reset_and_halt();
+    if (D_800A32A0) {
+        transition_begin(D_800A32EC);
+    } else {
+        transition_begin(D_800A32F4);
+    }
+    osSetTime(0);
+    func_80029B78();
+    check_reset_and_halt();
+    menu_mode_set(D_800A324C);
+    mempool_free_timer(2);
+    func_8004B55C();
+    gSaveDataFlags = input_update(gSaveDataFlags, 2);
+    D_800A3294 = 0;
+    D_800A3298 = 1;
+    gIsPaused = 0;
+    D_800A32C4 = 1;
+    if (game_flag_get(0x59)) {
+        D_800A32CC = 0;
+    } else {
+        D_800A32CC = 0x100;
+    }
+    if (D_800A326C) {
+        func_80000B80();
+        D_800A326C = 0;
+    }
+    D_800A32B8 = 0;
+    rumble_allow_set(1);
+    D_800A3530 = 0;
+}
 
 extern u8 D_800A326C;
 

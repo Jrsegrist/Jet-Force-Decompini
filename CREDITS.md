@@ -222,3 +222,20 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | --- | --- |
 | `src/tracks.c` | track_init_collision, as the NON_MATCHING body of JFG's func_m024_00CE4 (5.0f for 10.0f, the edge flags, the 0x880 batch skip, a third-vertex test, the plane count returned) (helper m14h2) |
 | `include/structs.h` | CollisionFacetPlanes (m024's segment triangle planes) (helper m14h2) |
+
+### Round 14 (main14), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/fade_transition.c` | transition_init_shape |
+| `src/particles.c` | setup_particle_position, particle_update; setup_particle_velocity (NON_MATCHING) |
+| `src/weather.c` | weather_reset (NON_MATCHING, as func_8005AD90); snow_vertices (NON_MATCHING) |
+| `src/objects.c` | obj_update |
+| `src/object_functions.c` | obj_loop_exit (helper ma14h1) |
+| `src/tracks.c` | trackbg_render_flashy; func_8002FF6C (NON_MATCHING) (helper ma14h1) |
+| `src/thread3_main.c` | main_game_loop, structure only (helper ma14h1) |
+| `src/textures_sprites.c` | material_set (NON_MATCHING) (helper ma14h1) |
+| `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (NON_MATCHING, JFG's three output buffers and high quality mode) |
+| `src/game.c` | level_load, structure only (NON_MATCHING) |

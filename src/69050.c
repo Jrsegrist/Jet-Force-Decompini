@@ -332,7 +332,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 void *load_texture(s32 assetIndex);
 void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
 void effect_mesh_build_cone(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
-void func_800694CC(EffectMesh *mesh, s32 arg1);
+void effect_mesh_set_uvs(EffectMesh *mesh, s16 angle);
 
 /* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
    and build it (a single point when segments is 0). */
@@ -379,7 +379,7 @@ EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5
         } else {
             effect_mesh_build_cone(mesh, x, y, z, arg3, arg4, arg5, arg6);
         }
-        func_800694CC(mesh, 0);
+        effect_mesh_set_uvs(mesh, 0);
     }
     return mesh;
 }
@@ -496,7 +496,78 @@ void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800694CC);
+/* JFG: set an effect mesh's texture coordinates for the texture rotated by angle: a fan (no segments) gets its 32
+ * triangles mapped through the inner and outer rings, a cone gets a ring of segments + 1 points around the
+ * texture centre. */
+void effect_mesh_set_uvs(EffectMesh *mesh, s16 angle) {
+    s32 w;
+    s32 h;
+    s32 n;
+    s32 step;
+    s32 i;
+    UNUSED s32 pad;
+    s16 u[20];
+    s16 v[20];
+    f32 s;
+    Triangle *tri;
+    f32 c;
+    f32 fw;
+    f32 fh;
+
+    if (mesh == NULL) {
+        return;
+    }
+    n = angle;
+    if (mesh->tex1 == NULL) {
+        return;
+    }
+    w = ((u8 *) mesh->tex1)[0] << 4;
+    h = ((u8 *) mesh->tex1)[1] << 4;
+    tri = (Triangle *) mesh->tris;
+    if (mesh->segments == 0) {
+        fw = w - 1;
+        fh = h - 1;
+        for (i = 0; i < 8; i++) {
+            s = func_80049C34(n);
+            c = func_80049C30(n);
+            u[i + 1] = (s32) (102.4f * s) + w;
+            v[i + 1] = (s32) (102.4f * c) + h;
+            u[i + 9] = (s32) (fw * s) + w;
+            v[i + 9] = (s32) (fh * c) + h;
+            n += 0x2000;
+        }
+        n = 32;
+        while (n--) {
+            tri->uv[0][0] = u[tri->vi0];
+            tri->uv[0][1] = v[tri->vi0];
+            tri->uv[1][0] = u[tri->vi1];
+            tri->uv[1][1] = v[tri->vi1];
+            tri->uv[2][0] = u[tri->vi2];
+            tri->uv[2][1] = v[tri->vi2];
+            tri++;
+        }
+        n = 8;
+        step = 0x2000;
+    } else {
+        n = mesh->segments;
+        step = 0x10000 / n;
+    }
+    fw = w - 1;
+    fh = h - 1;
+    for (i = 0; i <= n; i++, angle += step) {
+        u[i] = (s32) (func_80049C34(angle) * fw) + w;
+        v[i] = (s32) (func_80049C30(angle) * fh) + h;
+    }
+    for (i = 0; i < n; i++) {
+        tri->uv[0][0] = u[i];
+        tri->uv[0][1] = v[i];
+        tri->uv[1][0] = u[i + 1];
+        tri->uv[1][1] = v[i + 1];
+        tri->uv[2][0] = w;
+        tri->uv[2][1] = h;
+        tri++;
+    }
+}
 
 void func_8004944C(void *angles, f32 *vec);
 f32 func_80049C30(s32 angle);
@@ -858,7 +929,82 @@ void func_8006B090(RippleObj *obj, s32 updateRate) {
 }
 
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
+/* JFG: one triangle strip set of a ripple's child effect: vertices, an optional second vertex set drawn with the
+   same triangles, and the triangles */
+typedef struct RippleStrip {
+    /* 0x00 */ u8 *vtx;
+    /* 0x04 */ u8 *vtx2;
+    /* 0x08 */ u8 *tris;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 numTris;
+} RippleStrip;
+
+typedef struct RippleChild {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ RippleStrip *strips;
+    /* 0x14 */ u8 pad14[0x30 - 0x14];
+    /* 0x30 */ RippleTexture *tex;
+    /* 0x34 */ s16 texFrame;
+    /* 0x36 */ u8 pad36[2];
+    /* 0x38 */ u8 numStrips;
+} RippleChild;
+
+void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
+
+/* JFG: the game's own vertex load, given the index of the last vertex (as 53C0.c) */
+#define gSPVertexLast(pkt, v, last, v0) \
+    gDma1p(pkt, G_VTX, v, ((last) << 3) + ((last) << 1) + 8, ((last) << 3) | ((u32) (v) & 6) | (v0))
+
+/* JFG: draw a ripple's child effect: its texture, then each strip in batches of up to 16 triangles (twice when
+   the strip has a second vertex set), faded by the texture frame when the texture asks for it. */
+void ripple_child_draw(RippleChild *child, Gfx **dList) {
+    s32 i;
+    s32 alpha;
+    s32 n;
+    s32 count;
+    u8 *vtx;
+    u8 *vtx2;
+    u8 *tris;
+
+    if (child->numStrips > 0) {
+        func_80055C00(dList, child->tex, 0x1F, child->texFrame << 8);
+        if (child->tex->flags & 0x40) {
+            alpha = child->texFrame & 0xFF;
+        } else {
+            alpha = 0xFF;
+        }
+        gDPSetEnvColor((*dList)++, alpha, alpha, alpha, alpha);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+        for (i = 0; i < child->numStrips; i++) {
+            n = child->strips[i].numTris;
+            vtx = child->strips[i].vtx;
+            vtx2 = child->strips[i].vtx2;
+            tris = child->strips[i].tris;
+            while (n != 0) {
+                if (n > 16) {
+                    n -= 16;
+                    count = 16;
+                } else {
+                    count = n;
+                    n = 0;
+                }
+                gSPVertexLast((*dList)++, vtx + 0x80000000, count + 2, 0);
+                gSPPolygon((*dList)++, tris + 0x80000000, count, 1);
+                vtx += count * 10;
+                if (vtx2 != NULL) {
+                    gSPVertexLast((*dList)++, vtx2 + 0x80000000, count + 2, 0);
+                    gSPPolygon((*dList)++, tris + 0x80000000, count, 1);
+                    vtx2 += count * 10;
+                }
+                tris += count * 16;
+            }
+        }
+        if (alpha != 0xFF) {
+            gDPPipeSync((*dList)++);
+            gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+        }
+    }
+}
 
 typedef struct RippleQuad {
     /* 0x00 */ u8 tris[0x20];     // two Triangles
@@ -874,8 +1020,7 @@ typedef struct RippleQuad {
 
 extern s32 D_800A6950;
 extern Gfx D_800A6958[];
-void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
-void func_8006B3CC(void *child, Gfx **dList);
+void ripple_child_draw(RippleChild *child, Gfx **dList);
 
 /* DKR f3ddkr.h: runs a display list of numberOfCommands commands */
 #define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
@@ -906,7 +1051,7 @@ void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
             rendermode_reset(dList);
         }
         if (obj->child != NULL) {
-            func_8006B3CC(obj->child, dList);
+            ripple_child_draw(obj->child, dList);
         }
         gDPPipeSync((*dList)++);
         gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
@@ -959,7 +1104,7 @@ extern u8 D_800A68F8[];
 extern u8 D_800A6904[];
 extern u8 D_800A6918[];
 void transition_fullscreen_start(FadeTransition *transition);
-void func_8006C230(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+void transition_init_shape(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
                    u8 *alpha1, u8 *alpha2, u8 *tris); // DKR: transition_init_shape
 void transition_init_blank(FadeTransition *transition);
 
@@ -998,17 +1143,17 @@ s32 transition_begin(FadeTransition *transition) {
                 transition_fullscreen_start(transition);
                 break;
             case 1:
-                func_8006C230(transition, 12, 8, D_800A6810, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                transition_init_shape(transition, 12, 8, D_800A6810, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
                               D_800A6898);
                 break;
             case 2:
-                func_8006C230(transition, 12, 8, D_800A6848, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                transition_init_shape(transition, 12, 8, D_800A6848, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
                               D_800A6898);
                 break;
             case 3:
             case 4:
             case 5:
-                func_8006C230(transition, 10, 6, D_800A68BC, D_800A68EC, D_800A68F8, D_800A6918, D_800A6918,
+                transition_init_shape(transition, 10, 6, D_800A68BC, D_800A68EC, D_800A68F8, D_800A6918, D_800A6918,
                               D_800A6904);
                 break;
             case 6:
@@ -1188,7 +1333,72 @@ void transition_render_fullscreen(Gfx **dList, UNUSED Mtx **matrix, UNUSED Verte
     rendermode_reset(dList);
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006C230);
+void fb_get_scale(f32 *x, f32 *y);
+
+/**
+ * Build the transition's geometry from the vertex and triangle shapes given.
+ * JFG: the buffers are fixed (no allocation here), the coordinates are scaled to the screen, and the steps are
+ * multiplied by the reciprocal of the fade time.
+ * DKR: transition_init_shape
+ */
+void transition_init_shape(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+                   u8 *nextAlpha, u8 *targetAlpha, u8 *vertIndices) {
+    f32 invTime;
+    u8 *swap;
+    f32 scaleX;
+    f32 scaleY;
+    s32 i;
+    s32 j;
+
+    fb_get_scale(&scaleX, &scaleY);
+    if (transition->type & FADE_FLAG_OUT) {
+        swap = nextPos;
+        nextPos = targetPos;
+        targetPos = swap;
+        swap = nextAlpha;
+        nextAlpha = targetAlpha;
+        targetAlpha = swap;
+    }
+    invTime = 1.0f / sTransitionFadeTimer;
+    for (i = 0; i < numVerts; i++) {
+        gTransitionNextVtx[(i * 3) + 0] = coords[nextPos[i]] * scaleX;
+        gTransitionNextVtx[(i * 3) + 1] = coords[nextPos[i] + 1] * scaleY;
+        gTransitionNextVtx[(i * 3) + 2] = nextAlpha[i];
+        gTransitionVertexTarget[(i * 3) + 0] = coords[targetPos[i]] * scaleX;
+        gTransitionVertexTarget[(i * 3) + 1] = coords[targetPos[i] + 1] * scaleY;
+        gTransitionVertexTarget[(i * 3) + 2] = targetAlpha[i];
+        gTransitionVtxStep[(i * 3) + 0] =
+            (gTransitionVertexTarget[(i * 3) + 0] - gTransitionNextVtx[(i * 3) + 0]) * invTime;
+        gTransitionVtxStep[(i * 3) + 1] =
+            (gTransitionVertexTarget[(i * 3) + 1] - gTransitionNextVtx[(i * 3) + 1]) * invTime;
+        gTransitionVtxStep[(i * 3) + 2] =
+            (gTransitionVertexTarget[(i * 3) + 2] - gTransitionNextVtx[(i * 3) + 2]) * invTime;
+    }
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < numVerts; j++) {
+            sTransitionVtx[i][j].z = -16;
+            sTransitionVtx[i][j].r = gCurFadeRed;
+            sTransitionVtx[i][j].g = gCurFadeGreen;
+            sTransitionVtx[i][j].b = gCurFadeBlue;
+        }
+    }
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < numTris; j++) {
+            sTransitionTris[i][j].flags = 0x40;
+            sTransitionTris[i][j].vi0 = vertIndices[(j * 3) + 0];
+            sTransitionTris[i][j].uv[0][0] = 0;
+            sTransitionTris[i][j].uv[0][1] = 0;
+            sTransitionTris[i][j].vi1 = vertIndices[(j * 3) + 1];
+            sTransitionTris[i][j].uv[1][0] = 0;
+            sTransitionTris[i][j].uv[1][1] = 0;
+            sTransitionTris[i][j].vi2 = vertIndices[(j * 3) + 2];
+            sTransitionTris[i][j].uv[2][0] = 0;
+            sTransitionTris[i][j].uv[2][1] = 0;
+        }
+    }
+    sTransitionStatus = TRANSITION_ACTIVE;
+    gTransitionVertexCount = numVerts;
+}
 
 /**
  * Slowly update the vertices of the transition based on what the next frames target is.

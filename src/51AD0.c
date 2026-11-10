@@ -573,7 +573,7 @@ typedef struct ModuleEntry {
     /* 0x10 */ s32 unk10;
     /* 0x14 */ u16 unk14;
     /* 0x16 */ u16 unk16;
-    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x18 */ s32 unk18; // an init entry point offset, run once on load (-1 for none)
     /* 0x1C */ s32 unk1C; // an entry point offset (-1 for none)
 } ModuleEntry;
 extern ModuleEntry *gRunlinkModules;
@@ -681,9 +681,208 @@ void runlink_reloc_apply(PatchWord *insn, u32 value, u8 type) {
 
 /* JFG: apply one relocation of a module whose sections are in D_800FEAB8 (type 3 = the data section); a HI16
  * (kind 5) also applies the LO16 after it with the combined addend. Returns how many relocations it used. */
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
+extern u32 D_800FEAB8[5]; // JFG: the section addresses of the module being relocated
+#ifdef NON_MATCHING
+/* NON_MATCHING: insn gets s1 (target: a3, spilled around the first call), so target lands in a3 and the temps shift */
+s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
+    PatchWord *insn;
+    u32 kind;
+    u32 target;
+    PatchWord *lo;
+    s32 symModule;
+    s32 addend;
+    s32 type;
+    s32 loHalf;
 
+    type = reloc->type;
+    kind = reloc->kind;
+    if (reloc->type == 3) {
+        insn = (PatchWord *) (D_800FEAB8[2] + reloc->offset);
+        reloc->type = 0;
+    } else {
+        insn = (PatchWord *) (D_800FEAB8[1] + reloc->offset);
+    }
+    target = runlink_reloc_target(reloc->symbol, module, reloc, (u32 *) insn);
+    if (kind == 5) {
+        symModule = D_800FEAA8[reloc->symbol] >> 20;
+        if (symModule >= 0xFFC) {
+            symModule = 0;
+        }
+        if (reloc->type == 0 && gRunlinkModules[symModule].unk0 == 0) {
+            target = (u32) D_800FEAD4;
+        }
+        lo = (PatchWord *) (reloc[1].offset + D_800FEAB8[1]);
+        loHalf = lo->half.lo;
+        addend = insn->half.lo;
+        if (loHalf & 0x8000) {
+            loHalf |= 0xFFFF0000;
+        }
+        addend = (addend << 16) + loHalf;
+        if (addend != (s32) D_800FEAD4) {
+            target += addend;
+        }
+        runlink_reloc_apply(insn, target, 5);
+        runlink_reloc_apply(lo, target, 6);
+        reloc->type = type;
+        return 2;
+    }
+    if (kind == 6) {
+        symModule = D_800FEAA8[reloc->symbol] >> 20;
+        if (symModule >= 0xFFC) {
+            symModule = 0;
+        }
+        if (reloc->type == 0 && gRunlinkModules[symModule].unk0 == 0) {
+            target = (u32) D_800FEAD4;
+        }
+        runlink_reloc_apply(insn, target + insn->half.lo, 6);
+        reloc->type = type;
+        return 1;
+    }
+    runlink_reloc_apply(insn, target, kind);
+    reloc->type = type;
+    return 1;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
+#endif
+
+typedef struct ModuleSlot {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 module;
+} ModuleSlot;
+extern ModuleSlot D_800FEAD8[16];
+extern s32 gNumRunlinkModules;  // JFG: the number of modules
+extern ModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
+extern u32 D_800FEAB0;          // JFG: their number
+extern s32 gForcedColourTag2;   // JFG: the module being allocated (-1 for none)
+void mempool_free(void *data);
+s32 mempool_free_timer_get();
+void mempool_free_timer(s32 state);
+s32 func_80052AB8(ModuleReloc *reloc, s32 module);
+
+/* JFG: load a module (unless loaded or in a slot): allocate its code, data and bss, copy them from ROM (clearing
+   the bss), apply its relocations (the extra ones from a temporary buffer first), the loaded modules' relocations
+   into it, then run its init entry point. Returns FALSE when it is in a slot or out of memory. */
+#ifdef NON_MATCHING
+/* NON_MATCHING: the module's code address and the counts land in a0/v0/v1 one register off from the ROM's */
+s32 func_80052CFC(s32 module) {
+    ModuleEntry *entry = &gRunlinkModules[module];
+    ModuleSlot *slot;
+    ModuleReloc *reloc;
+    ModuleReloc *extra;
+    u32 *p;
+    s32 i;
+    s32 n;
+    s32 timer;
+    s32 symModule;
+
+    slot = D_800FEAD8;
+    extra = NULL;
+    n = 16;
+    if (entry->unk0 != 0) {
+        return TRUE;
+    }
+    while (n--) {
+        if (module == slot->module) {
+            return FALSE;
+        }
+        slot++;
+    }
+    gForcedColourTag2 = module;
+    entry->unk0 = (s32) mempool_alloc_safe(entry->unk8 + entry->unkC + entry->unk10 + entry->unk14, 0x7F7F7FFF);
+    gForcedColourTag2 = -1;
+    if (entry->unk0 == 0) {
+        return FALSE;
+    }
+    if (entry->unk16 != 0) {
+        extra = mempool_alloc_safe(entry->unk16, 0x7F7F7FFF);
+        if (extra == NULL) {
+            mempool_free((void *) entry->unk0);
+            return FALSE;
+        }
+        dmacopy(entry->unk4 + entry->unk8 + entry->unkC + entry->unk14, (u32) extra, entry->unk16);
+    }
+    D_800FEAB8[1] = entry->unk0;
+    D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
+    D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
+    D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
+    if (entry->unk10 == 0) {
+        dmacopy(entry->unk4, entry->unk0, entry->unk8 + entry->unkC + entry->unk14);
+    } else {
+        dmacopy(entry->unk4, entry->unk0, entry->unk8 + entry->unkC);
+        p = (u32 *) D_800FEAB8[3];
+        n = (u32) entry->unk10 >> 2;
+        while (n--) {
+            *p++ = 0;
+        }
+        dmacopy(entry->unk4 + entry->unk8 + entry->unkC, D_800FEAB8[4], entry->unk14);
+    }
+    osInvalICache((void *) entry->unk0, entry->unk8);
+    if (extra != NULL) {
+        timer = mempool_free_timer_get();
+        reloc = extra;
+        n = (u32) entry->unk16 >> 3;
+        while (n-- > 0) {
+            if (func_80052AB8(reloc, module) == 2) {
+                n--;
+                reloc++;
+            }
+            reloc++;
+        }
+        mempool_free_timer(0);
+        mempool_free(extra);
+        mempool_free_timer(timer);
+    }
+    reloc = (ModuleReloc *) D_800FEAB8[4];
+    n = (u32) entry->unk14 >> 3;
+    while (n-- > 0) {
+        if (func_80052AB8(reloc, module) == 2) {
+            n--;
+            reloc++;
+        }
+        reloc++;
+    }
+    entry = gRunlinkModules;
+    for (i = 0; i < gNumRunlinkModules; i++, entry++) {
+        if (entry->unk0 != 0 && i != module) {
+            if (i == 0) {
+                D_800FEAB8[1] = (u32) sound_volume_change;
+                D_800FEAB8[2] = (u32) gMusicPlayer;
+                D_800FEAB8[3] = (u32) D_800B0B50;
+                reloc = D_800FEAA4;
+                D_800FEAB8[4] = (u32) reloc;
+                n = D_800FEAB0;
+            } else {
+                D_800FEAB8[1] = entry->unk0;
+                D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
+                D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
+                reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                n = (u32) entry->unk14 >> 3;
+            }
+            while (n-- > 0) {
+                symModule = D_800FEAA8[reloc->symbol] >> 20;
+                if (symModule >= 0xFFC) {
+                    symModule = 0;
+                }
+                if (symModule == module && (reloc->type == 0 || reloc->type == 3)) {
+                    if (func_80052AB8(reloc, i) == 2) {
+                        n--;
+                        reloc++;
+                    }
+                }
+                reloc++;
+            }
+        }
+    }
+    entry = &gRunlinkModules[module];
+    if (entry->unk18 != -1) {
+        ((void (*)(void))(entry->unk0 + entry->unk18))();
+    }
+    return TRUE;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);
+#endif
 
 extern s32 gNumRunlinkModules; // JFG: the number of modules
 extern ModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
@@ -732,7 +931,8 @@ s32 func_800531C8(u32 *addr) {
                     if (symModule >= 0xFFC) {
                         symModule = 0;
                     }
-                    func_80052CFC(symModule, reloc, D_800FEAB8, 3);
+                    // JFG: the ROM passes three extra arguments, which the callee ignores
+                    ((s32 (*)()) func_80052CFC)(symModule, reloc, D_800FEAB8, 3);
                     return TRUE;
                 }
                 reloc++;
@@ -745,10 +945,6 @@ s32 func_800531C8(u32 *addr) {
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800531C8);
 #endif
 
-typedef struct ModuleSlot {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ s32 module;
-} ModuleSlot;
 extern ModuleSlot D_800FEAD8[16];
 extern s32 gNumRunlinkModules; // JFG: the number of modules
 void func_80053D2C(s32 module);
@@ -784,13 +980,94 @@ void runlink_module_run(s32 module) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
-
 typedef struct UnloadTimer {
     u16 timer : 10;
     u16 unk : 6;
 } UnloadTimer;
 extern UnloadTimer *D_800FEB58;
+extern s32 D_800A38F0; // JFG: set while a module is unloaded into a slot
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation like func_8005372C: the code address and the module pointer in v0/a0
+   (target a0/a1), and the symbol-table loop's temps one lower */
+/* JFG: free a module (its code, or its slot's buffer) and point every loaded module's and the main segment's
+   references to it back at the trap. */
+void func_8005342C(s32 module) {
+    ModuleEntry *entry = &gRunlinkModules[module];
+    ModuleSlot *slot;
+    ModuleReloc *reloc;
+    u32 n;
+    s32 i;
+    s32 found;
+    s32 symModule;
+    u32 addr;
+    s32 type;
+
+    if (D_800A38F0 == 0) {
+        runlink_module_run(module);
+    }
+    found = FALSE;
+    n = 15;
+    if (entry->unk0 == 0) {
+        slot = D_800FEAD8;
+        do {
+            if (module == slot->module) {
+                found = TRUE;
+                break;
+            }
+            slot++;
+        } while (n--);
+        if (found) {
+            mempool_free((void *) (slot->unk0 + entry->unk8));
+            slot->module = 0xFFB;
+        }
+    } else {
+        mempool_free((void *) entry->unk0);
+        entry->unk0 = 0;
+        D_800FEB58[module].timer = 0;
+        D_800FEB58[module].unk = 0;
+        entry = gRunlinkModules;
+        for (i = 0; i < gNumRunlinkModules; i++, entry++) {
+            if (entry->unk0 != 0 && i != module) {
+                if (i == 0) {
+                    D_800FEAB8[1] = (u32) sound_volume_change;
+                    D_800FEAB8[2] = (u32) gMusicPlayer;
+                    D_800FEAB8[3] = (u32) D_800B0B50;
+                    reloc = D_800FEAA4;
+                    D_800FEAB8[4] = (u32) reloc;
+                    n = D_800FEAB0;
+                } else {
+                    D_800FEAB8[1] = entry->unk0;
+                    D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
+                    D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
+                    reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                    n = (u32) entry->unk14 >> 3;
+                }
+                while (n--) {
+                    symModule = D_800FEAA8[reloc->symbol] >> 20;
+                    type = reloc->type;
+                    if (symModule >= 0xFFC) {
+                        symModule = 0;
+                    }
+                    if (symModule == module) {
+                        if (reloc->type == 3) {
+                            addr = D_800FEAB8[2] + reloc->offset;
+                            reloc->type = 0;
+                        } else {
+                            addr = D_800FEAB8[1] + reloc->offset;
+                        }
+                        runlink_reloc_apply((PatchWord *) addr, reloc->kind == 4 ? (u32) func_80054530 : 0, reloc->kind);
+                    }
+                    reloc->type = type;
+                    reloc++;
+                }
+            }
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: register allocation: the code address is loaded into a0 (mine v0), the relocation word into a0 (mine v1), addr in a3 */
@@ -958,7 +1235,128 @@ void runlink_module_move_to_slot(s32 module) {
     }
 }
 
+extern u32 D_800FEAB8[5];
+s32 func_80052AB8(ModuleReloc *reloc, s32 module);
+
+/* JFG: load a module back from its slot: free the slot's copy, reserve the code at the same address, copy the code
+   from ROM, apply its own relocations (the extra ones only inside the code) and every loaded module's relocations
+   into it, then free the slot. */
+#ifdef NON_MATCHING
+/* NON_MATCHING: the extra relocation count is loaded into a0 (target v0), and the symbol loop's temps are one lower */
+void func_80053D2C(s32 module) {
+    ModuleEntry *entry = &gRunlinkModules[module];
+    UNUSED s32 pad;
+    ModuleSlot *slot;
+    ModuleReloc *reloc;
+    ModuleReloc *extra;
+    s32 found;
+    s32 i;
+    s32 n;
+    s32 timer;
+    s32 timer2;
+    s32 symModule;
+
+    slot = D_800FEAD8;
+    found = FALSE;
+    extra = NULL;
+    n = 15;
+    do {
+        if (module == slot->module) {
+            found = TRUE;
+            break;
+        }
+        slot++;
+    } while (n--);
+    if (!found) {
+        return;
+    }
+    timer = mempool_free_timer_get();
+    mempool_free_timer(0);
+    mempool_free((void *) (slot->unk0 + entry->unk8));
+    mempool_free_timer(timer);
+    entry->unk0 = (s32) mempool_alloc_fixed(entry->unk8 + entry->unkC + entry->unk10 + entry->unk14,
+                                            (u8 *) slot->unk0, 0x7F7F7FFF);
+    if (entry->unk0 == 0) {
+        return;
+    }
+    if (entry->unk16 != 0) {
+        extra = mempool_alloc_safe(entry->unk16, 0x7F7F7FFF);
+        if (extra == NULL) {
+            mempool_free((void *) entry->unk0);
+            return;
+        }
+        dmacopy(entry->unk4 + entry->unk8 + entry->unkC + entry->unk14, (u32) extra, entry->unk16);
+    }
+    D_800FEAB8[1] = entry->unk0;
+    D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
+    D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
+    D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
+    dmacopy(entry->unk4, entry->unk0, entry->unk8);
+    if (extra != NULL) {
+        timer2 = mempool_free_timer_get();
+        reloc = extra;
+        n = (u32) entry->unk16 >> 3;
+        while (n-- > 0) {
+            if (reloc->offset < (u32) entry->unk8) {
+                if (func_80052AB8(reloc, module) == 2) {
+                    n--;
+                    reloc++;
+                }
+            }
+            reloc++;
+        }
+        mempool_free_timer(0);
+        mempool_free(extra);
+        mempool_free_timer(timer2);
+    }
+    reloc = (ModuleReloc *) D_800FEAB8[4];
+    n = (u32) entry->unk14 >> 3;
+    while (n-- > 0) {
+        if (reloc->offset < (u32) entry->unk8) {
+            if (func_80052AB8(reloc, module) == 2) {
+                n--;
+                reloc++;
+            }
+        }
+        reloc++;
+    }
+    entry = gRunlinkModules;
+    for (i = 0; i < gNumRunlinkModules; i++, entry++) {
+        if (entry->unk0 != 0 && i != module) {
+            if (i == 0) {
+                D_800FEAB8[1] = (u32) sound_volume_change;
+                D_800FEAB8[2] = (u32) gMusicPlayer;
+                D_800FEAB8[3] = (u32) D_800B0B50;
+                reloc = D_800FEAA4;
+                D_800FEAB8[4] = (u32) reloc;
+                n = D_800FEAB0;
+            } else {
+                D_800FEAB8[1] = entry->unk0;
+                D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
+                D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
+                reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                n = (u32) entry->unk14 >> 3;
+            }
+            while (n-- > 0) {
+                symModule = D_800FEAA8[reloc->symbol] >> 20;
+                if (symModule >= 0xFFC) {
+                    symModule = 0;
+                }
+                if (symModule == module && (reloc->type == 0 || reloc->type == 3)) {
+                    if (func_80052AB8(reloc, i) == 2) {
+                        n--;
+                        reloc++;
+                    }
+                }
+                reloc++;
+            }
+        }
+    }
+    slot->module = 0xFFB;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053D2C);
+#endif
 
 /* JFG: unload the module of every used slot (0xFFB = free). */
 void runlink_slots_unload_all(void) {

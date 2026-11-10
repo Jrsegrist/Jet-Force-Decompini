@@ -354,7 +354,7 @@ extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern f32 table_lerp_diff(f32 from, f32 to, void *table, f32 updateRate);
 extern s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 arg3, f32 arg4);
 extern void player_turn_limit_update(Object *obj, Racer *racer, f32 *speed, s16 angle, s32 arg4, s32 arg5, f32 arg6, f32 arg7);
-extern void func_800346C4(Object *obj, Racer *racer, f32 *speed, s16 *angle, s32 arg4, s32 arg5, void *arg6, f32 arg7,
+extern void player_quick_turn(Object *obj, Racer *racer, f32 *speed, s16 *angle, s32 arg4, s32 arg5, void *arg6, f32 arg7,
                           f32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 amount);
 /* A player's character record (func_80047C1C) */
@@ -700,7 +700,7 @@ extern void player_charge_meter_update(Racer *racer, s32 arg1, s32 updateRate);
 extern s32 func_80033F4C(s32 arg0);
 extern void func_80034164(Object *obj, Racer *racer);
 extern void player_loop_sounds_update(Object *obj, Racer *racer, s32 a, s32 b, s32 updateRate);
-extern void func_800349AC(Racer *racer, f32 updateRate);
+extern void player_breath_update(Racer *racer, f32 updateRate);
 extern void player_platform_ride(Object *obj, Racer *racer, f32 updateRate);
 extern void racer_angle_sync(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate, void *table);
@@ -973,7 +973,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             racer->unk576 = 0;
         }
     }
-    func_800349AC(racer, updateRate);
+    player_breath_update(racer, updateRate);
     switch (racer->state) {
         case 0:
             func_m015_02B2C(obj, racer, speed, angle, updateRate);
@@ -1692,7 +1692,7 @@ static void func_m015_02B2C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     } else {
         angle += 0x8000;
     }
-    func_800346C4(obj, racer, &speed, &angle, 0x6AAA, 0x38E, &out, D_m015_089D4, updateRate);
+    player_quick_turn(obj, racer, &speed, &angle, 0x6AAA, 0x38E, &out, D_m015_089D4, updateRate);
     if (out != 0) {
         func_m015_05180(obj, racer, 15, 0);
     }
@@ -1813,7 +1813,7 @@ static void func_m015_03564(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     } else {
         angle += 0x8000;
     }
-    func_800346C4(obj, racer, &speed, &angle, 0x6AAA, 0x38E, &unused, 0.0291666674f, updateRate);
+    player_quick_turn(obj, racer, &speed, &angle, 0x6AAA, 0x38E, &unused, 0.0291666674f, updateRate);
     rate = updateRate;
     racer->unk4 = (1.0f - func_80049BEC(0.96f, rate)) * (speed - racer->unk4) + racer->unk4;
     racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(0.975f, rate));

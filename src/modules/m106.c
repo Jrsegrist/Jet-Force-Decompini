@@ -154,7 +154,7 @@ extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 
 extern void music_volume_fade(f32 time, s32 volume);
 extern void func_800116BC(Object *obj, f32 arg1);
 extern s32 func_8004966C(s16 angle); /* sine */
-extern void func_800694CC(M106Flare *flare, s16 angle);
+extern void effect_mesh_set_uvs(M106Flare *flare, s16 angle);
 extern void effect_mesh_update(M106Flare *flare, s16 size, s32 alpha);
 extern void audspat_point_set_pitch(s32 sound, u8 pitch);
 
@@ -516,13 +516,13 @@ void func_m106_00290(Object *obj, s32 updateRate) {
         if ((flare = t->flare1) != NULL) {
             t->unk3A += updateRate * 16;
             size = ((func_8004966C(t->unk3A << 8) + 0x18000) * ((flare->size * t->u38.word) >> 8)) >> 16;
-            func_800694CC(flare, t->unk3A << 8);
+            effect_mesh_set_uvs(flare, t->unk3A << 8);
             effect_mesh_update(flare, size, t->u38.word);
         }
         if ((flare = t->flare2) != NULL) {
             t->unk3B += updateRate * 16;
             size = ((func_8004966C(t->unk3B << 8) + 0x18000) * ((flare->size * t->u38.word) >> 8)) >> 16;
-            func_800694CC(flare, t->unk3B << 8);
+            effect_mesh_set_uvs(flare, t->unk3B << 8);
             effect_mesh_update(flare, size, t->u38.word);
         }
     }

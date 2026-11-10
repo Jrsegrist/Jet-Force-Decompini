@@ -22,13 +22,27 @@ typedef struct Vec3s {
 typedef struct ParticleBehaviour {
     /* 0x00 */ s32 flags;
     /* 0x04 */ Vec3f emitterPos;
-    /* 0x10 */ u8 pad10[4];
+    /* 0x10 */ f32 sourceDistance;
     /* 0x14 */ Vec3s sourceRotation;
     /* 0x1A */ u8 pad1A[0x22 - 0x1A];
     /* 0x22 */ Vec3s emissionDirection;
-    /* 0x28 */ u8 pad28[0x40 - 0x28];
+    /* 0x28 */ u8 pad28[0x30 - 0x28];
+    /* 0x30 */ Vec3f velocityModifier;
+    /* 0x3C */ f32 emissionSpeed;
     /* 0x40 */ s16 spawnInterval;
     /* 0x42 */ s16 burstCount;
+    /* 0x44 */ u8 pad44[0x58 - 0x44];
+    /* 0x58 */ f32 movementParam;
+    /* 0x5C */ s32 randomizationFlags;
+    /* 0x60 */ s32 sourceDistanceRange;
+    /* 0x64 */ Vec3s sourceDirRange;
+    /* 0x6A */ Vec3s emissionDirRange;
+    /* 0x70 */ s32 emissionSpeedRange;
+    /* 0x74 */ struct {
+        s32 x, y, z;
+    } velocityModifierRange;
+    /* 0x80 */ u8 pad80[0x94 - 0x80];
+    /* 0x94 */ s32 movementParamRange;
 } ParticleBehaviour;
 
 #define PARTICLE_POINT 0x400
@@ -210,10 +224,21 @@ struct TextureHeader {
     /* 0x12 */ u16 numOfTextures;
 };
 
+/* DKR src/weather.h. Size: 0x2C bytes */
 typedef struct SnowGfxData {
     /* 0x00 */ void *pos;
-    /* 0x04 */ s32 unk4;
-    /* 0x08 */ TextureHeader *texture;
+    /* 0x04 */ s32 unk4; // DKR: size
+    /* 0x08 */ TextureHeader *texture; // DKR: a union with the type in the presets
+    /* 0x0C */ s32 offsetX;
+    /* 0x10 */ s32 offsetY;
+    /* 0x14 */ s32 offsetZ;
+    /* 0x18 */ s32 radiusX;
+    /* 0x1C */ s32 radiusY;
+    /* 0x20 */ s32 radiusZ;
+    /* 0x24 */ s16 vertOffsetW;
+    /* 0x26 */ s16 vertOffsetH;
+    /* 0x28 */ s16 vertWidth;
+    /* 0x2A */ s16 vertHeight;
 } SnowGfxData;
 
 void mempool_free(void *data);
@@ -314,7 +339,164 @@ void weather_free(void) {
     }
 }
 
+/* DKR include/structs.h. Size: 0x10 bytes */
+typedef struct SnowPosData {
+    /* 0x00 */ s32 x_position;
+    /* 0x04 */ s32 y_position;
+    /* 0x08 */ s32 z_position;
+    /* 0x0C */ s8 unused_C;
+    /* 0x0D */ s8 unused_D;
+    /* 0x0E */ s8 unused_E;
+    /* 0x0F */ u8 index;
+} SnowPosData;
+
+/* DKR include/structs.h (Triangle). Size: 0x10 bytes */
+typedef struct SnowTriangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s16 u0, v0;
+    /* 0x08 */ s16 u1, v1;
+    /* 0x0C */ s16 u2, v2;
+} SnowTriangle;
+
+/* DKR include/structs.h (the start of Vertex) */
+typedef struct SnowVertex {
+    /* 0x00 */ s16 x, y, z;
+    /* 0x06 */ u8 r, g, b, a;
+} SnowVertex;
+
+/* DKR include/structs.h (the start of TextureHeader) */
+typedef struct SnowTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+} SnowTexture;
+
+extern SnowGfxData D_800A5940[]; // DKR: gWeatherPresets
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void rain_init(s32 density, s32 intensity, s32 opacity);
+void func_8005CBBC(void); // DKR: snow_init
+s32 rand_range(s32 min, s32 max);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target's frame is 0x30 bytes bigger and keeps the density in s3; the colour tag is
+   rebuilt for each call there, mine stays in s5 */
+/**
+ * Free all existing weather data.
+ * If the weather type allows rain, then allocate and initialise rain.
+ * Afterwards, allocate and set the defaults for snow model data.
+ * JFG: the whole preset is copied, rain_init also takes the density, and the triangle count is fixed.
+ * DKR: weather_reset
+ */
+void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity) {
+    s16 width;
+    s16 height;
+    s32 numOfElements;
+    s32 allocSize;
+    s32 i;
+    SnowGfxData *preset;
+    SnowPosData *pos;
+    SnowVertex *verts;
+    SnowVertex **vertexData;
+    SnowTriangle *tris;
+    u8 *src;
+    u8 *dst;
+    u8 n;
+
+    weather_free();
+    gWeather.velX = velX;
+    gWeather.velXStep = 0;
+    gWeather.velXTarget = velX;
+    gWeather.velY = velY;
+    gWeather.velYStep = 0;
+    gWeather.velYTarget = velY;
+    gWeather.velZStep = 0;
+    gWeather.intensityStep = 0;
+    gWeather.opacityStep = 0;
+    gWeather.shiftTime = 0;
+    gWeather.velZ = velZ;
+    gWeather.velZTarget = velZ;
+    gWeather.intensity = intensity;
+    gWeather.intensityTarget = intensity;
+    gWeather.opacity = opacity;
+    gWeather.opacityTarget = opacity;
+    if (weatherType > WEATHER_RAIN) {
+        weatherType = WEATHER_RAIN;
+    }
+    preset = &D_800A5940[weatherType];
+    if ((s32) preset->texture == WEATHER_RAIN) {
+        rain_init(density, intensity + 1, opacity + 1);
+        return;
+    }
+    src = (u8 *) preset;
+    dst = (u8 *) &gSnowGfx;
+    n = sizeof(SnowGfxData) - 1;
+    do {
+        *dst++ = *src++;
+    } while (n--);
+    gSnowGfx.pos = mempool_alloc_safe(preset->unk4 * 12, 0xAA55FFFF);
+    if ((s32) preset->texture == WEATHER_SNOW) {
+        func_8005CBBC();
+    }
+    gSnowDensity = density;
+    gSnowTriIndices = mempool_alloc_safe(density * 2, 0xAA55FFFF);
+    gSnowPhysics = pos = mempool_alloc_safe(density * sizeof(SnowPosData), 0xAA55FFFF);
+    for (i = 0; i < gSnowDensity; i++) {
+        pos->x_position = rand_range(0, gSnowGfx.radiusX);
+        pos->y_position = rand_range(0, gSnowGfx.radiusY);
+        pos->z_position = rand_range(0, gSnowGfx.radiusZ);
+        pos->unused_C = 1 << (rand_range(0, 32) + 5);
+        pos->unused_D = 1 << (rand_range(0, 32) + 5);
+        pos->unused_E = 1 << (rand_range(0, 32) + 5);
+        pos->index = rand_range(0, gSnowGfx.unk4 - 1);
+        pos++;
+    }
+    numOfElements = density * 4;
+    allocSize = sizeof(SnowVertex);
+    allocSize *= numOfElements;
+    gSnowVertexData[0] = mempool_alloc_safe(allocSize, 0xAA55FFFF);
+    gSnowVertexData[1] = mempool_alloc_safe(allocSize, 0xAA55FFFF);
+    for (vertexData = (SnowVertex **) gSnowVertexData; vertexData < (SnowVertex **) &gSnowVertexData[2]; vertexData++) {
+        verts = *vertexData;
+        for (i = 0; i < numOfElements; i++) {
+            verts->r = 255;
+            verts->g = 255;
+            verts->b = 255;
+            verts->a = 255;
+            verts++;
+        }
+    }
+    width = (((SnowTexture *) gSnowGfx.texture)->width << 5) - 1;
+    height = (((SnowTexture *) gSnowGfx.texture)->height << 5) - 1;
+    gSnowTriangles = tris = mempool_alloc_safe(gSnowTriCount * sizeof(SnowTriangle), 0xAA55FFFF);
+    for (i = 0; i < gSnowTriCount; i += 2) {
+        tris[i].flags = 0;
+        tris[i].vi0 = (i << 1) + 3;
+        tris[i].u0 = 0;
+        tris[i].v0 = height;
+        tris[i].vi1 = (i << 1) + 1;
+        tris[i].u1 = width;
+        tris[i].v1 = 0;
+        tris[i].vi2 = (i << 1) + 0;
+        tris[i].u2 = 0;
+        tris[i].v2 = 0;
+        tris[i + 1].flags = 0;
+        tris[i + 1].vi0 = (i << 1) + 3;
+        tris[i + 1].u0 = 0;
+        tris[i + 1].v0 = height;
+        tris[i + 1].vi1 = (i << 1) + 2;
+        tris[i + 1].u1 = width;
+        tris[i + 1].v1 = height;
+        tris[i + 1].vi2 = (i << 1) + 1;
+        tris[i + 1].u2 = width;
+        tris[i + 1].v2 = 0;
+    }
+    gSnowVertexFlip = 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AD90);
+#endif
 
 /**
  * Change the current properties of the weather.
@@ -397,8 +579,6 @@ void weather_update(Gfx **currDisplayList, Mtx **currHudMat, Vertex **currHudVer
     *currHudTris = gCurrWeatherTriList;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
-
 /* DKR include/structs.h, size 10 */
 struct Vertex {
     /* 0x00 */ s16 x, y, z;
@@ -427,6 +607,75 @@ struct Vertex {
 extern s32 D_800A59F8; // DKR: gSnowVertCount
 Mtx *get_projection_matrix_s16(void);
 void func_80055C00(Gfx **dList, TextureHeader *tex, s32 flags, s32 frame);
+void func_80048C00(); // DKR: mtxf_transform_dir (mtx, in, out)
+
+struct ObjectSegment {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ u8 pad2[0xC - 2];
+    /* 0x0C */ Vec3f pos;
+};
+
+/**
+ * Build a camera facing quad (4 vertices) for every snowflake that is close enough.
+ * The snowflake positions wrap around the camera inside the snow box.
+ * JFG: the quad half sizes are read once, before the loop.
+ * DKR: snow_vertices
+ */
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation (the quad half sizes and the vertex count pointer swap s-registers) */
+void snow_vertices(void) {
+    s32 posX;
+    s32 posY;
+    s32 posZ;
+    Vec3f posF;
+    s32 i;
+    Vertex *verts;
+    s32 camX;
+    s32 camY;
+    s32 camZ;
+    s16 offsetW;
+    s16 offsetH;
+
+    offsetW = gSnowGfx.vertOffsetW;
+    offsetH = gSnowGfx.vertOffsetH;
+    camX = gWeatherCamera->pos.x * 65536.0f;
+    camY = gWeatherCamera->pos.y * 65536.0f;
+    camZ = gWeatherCamera->pos.z * 65536.0f;
+    D_800A59F8 = 0;
+    verts = gSnowVerts;
+    for (i = 0; i < gSnowParticleCount; i++) {
+        posF.x = (((((SnowPosData *) gSnowPhysics)[i].x_position - camX) & gSnowGfx.radiusX) + gSnowGfx.offsetX) *
+                 (1.0f / 65536.0f);
+        posF.y = (((((SnowPosData *) gSnowPhysics)[i].y_position - camY) & gSnowGfx.radiusY) + gSnowGfx.offsetY) *
+                 (1.0f / 65536.0f);
+        posF.z = (((((SnowPosData *) gSnowPhysics)[i].z_position - camZ) & gSnowGfx.radiusZ) + gSnowGfx.offsetZ) *
+                 (1.0f / 65536.0f);
+        func_80048C00(gWeatherCameraMatrix, &posF, &posF);
+        posZ = posF.z;
+        if ((s16) posZ < gSnowPlane.near && gSnowPlane.current < (s16) posZ) {
+            posX = posF.x;
+            posY = posF.y;
+            verts[0].x = posX - offsetW;
+            verts[0].y = posY + offsetH;
+            verts[0].z = posZ;
+            verts[1].x = posX + offsetW;
+            verts[1].y = posY + offsetH;
+            verts[1].z = posZ;
+            verts[2].x = posX + offsetW;
+            verts[2].y = posY - offsetH;
+            verts[2].z = posZ;
+            verts[3].x = posX - offsetW;
+            verts[3].y = posY - offsetH;
+            verts[3].z = posZ;
+            verts += 4;
+            D_800A59F8 += 4;
+            ((s16 *) gSnowTriIndices)[D_800A59F8 >> 2] = i;
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
+#endif
 
 /**
  * Load and execute the draw commands for the falling snowflakes, seen with snowy weather enabled.
@@ -672,12 +921,6 @@ void rain_lightning(s32 updateRate) {
     }
 }
 
-struct ObjectSegment {
-    /* 0x00 */ s16 y_rotation;
-    /* 0x02 */ u8 pad2[0xC - 2];
-    /* 0x0C */ Vec3f pos;
-};
-
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 void audspat_point_set_position(AudioPoint *audioPoint, f32 x, f32 y, f32 z);
@@ -725,7 +968,85 @@ void func_8005CBBC(void) {
     D_800A59D0 = load_texture(*gWeatherAssetTable);
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CC0C);
+extern s32 D_801008C8; // JFG: the wind's target (x, y, z), picked again when D_801008B8 runs out
+extern s32 D_801008CC;
+extern s32 D_801008D0;
+void func_8004944C(Vec3s *rotation, Vec3f *vec); // DKR: vec3f_rotate_py
+
+/**
+ * Snow drift: every few seconds pick a new random wind (yaw anywhere, pitched slightly down),
+ * ease the current wind (D_801008BC) toward it, then move every snowflake by the wind plus the
+ * weather velocity, wrapped inside the snow box.
+ * JFG: not in DKR; DKR's snow_update moves the flakes by the velocity only.
+ */
+void snow_wind_update(s32 updateRate) {
+    s32 curX;
+    s32 curY;
+    s32 curZ;
+    s32 targetX;
+    s32 targetY;
+    s32 targetZ;
+    s32 velX;
+    s32 velY;
+    s32 velZ;
+    s32 sumX;
+    s32 sumY;
+    s32 sumZ;
+    SnowPosData *pos;
+    Vec3s angle;
+    Vec3f vec;
+    s32 i;
+
+    D_801008B8 -= updateRate;
+    if (D_801008B8 <= 0) {
+        D_801008B8 = rand_range(0xB4, 0x12C);
+        angle.y_rotation = rand_range(-0x8000, 0x7FFF);
+        angle.x_rotation = rand_range(-0x800, -0x400);
+        vec.z = -(f32) rand_range(0x28000, 0x58000);
+        func_8004944C(&angle, &vec);
+        D_801008C8 = vec.x;
+        D_801008CC = vec.y;
+        D_801008D0 = vec.z;
+    }
+    curX = D_801008BC;
+    curY = D_801008C0;
+    curZ = D_801008C4;
+    targetX = D_801008C8;
+    targetY = D_801008CC;
+    targetZ = D_801008D0;
+    velX = gWeather.velX;
+    velY = gWeather.velY;
+    velZ = gWeather.velZ;
+    sumX = 0;
+    sumY = 0;
+    sumZ = 0;
+    i = updateRate;
+    while (i--) {
+        curX += (targetX - curX) >> 6;
+        curY += (targetY - curY) >> 6;
+        curZ += (targetZ - curZ) >> 6;
+        sumX += curX + velX;
+        sumY += curY + velY;
+        sumZ += curZ + velZ;
+    }
+    D_801008BC = curX;
+    D_801008C0 = curY;
+    D_801008C4 = curZ;
+    sumX >>= 1;
+    sumY >>= 1;
+    sumZ >>= 1;
+    targetX = gSnowGfx.radiusX;
+    targetY = gSnowGfx.radiusY;
+    targetZ = gSnowGfx.radiusZ;
+    pos = gSnowPhysics;
+    i = gSnowDensity;
+    while (i--) {
+        pos->x_position = (pos->x_position + sumX) & targetX;
+        pos->y_position = (pos->y_position + sumY) & targetY;
+        pos->z_position = (pos->z_position + sumZ) & targetZ;
+        pos++;
+    }
+}
 
 /**
  * Deallocate all memory buffers used by particles.
@@ -1454,7 +1775,7 @@ extern f32 D_801008F4; // JFG: a velocity taken off a new particle while it catc
 extern f32 D_801008F8;
 extern f32 D_801008FC;
 s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
-s32 func_80061228(s32 particle, s32 updateRate);
+s32 particle_update(s32 particle, s32 updateRate);
 void func_80061698(ParticleObj *obj, ParticleEmitter *emitter);
 void func_80062D5C(void *arg0, ParticleEmitter *emitter);
 
@@ -1490,7 +1811,7 @@ void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
                         particle->velocity.x -= D_801008F4;
                         particle->velocity.y -= D_801008F8;
                         particle->velocity.z -= D_801008FC;
-                        func_80061228((s32) particle, emitter->colourIndex);
+                        particle_update((s32) particle, emitter->colourIndex);
                         particle->velocity.x += D_801008F4;
                         particle->velocity.y += D_801008F8;
                         particle->velocity.z += D_801008FC;
@@ -1502,9 +1823,309 @@ void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
+/* JFG: the parts of a particle setup_particle_velocity sets */
+typedef struct VelParticle {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x48 - 0x28];
+    /* 0x48 */ Vec3s *parentObj; // its rotation comes first
+} VelParticle;
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005FE4C);
+/* JFG: a model's attachment table entry */
+typedef struct VelAttach {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 matrix; // the joint matrix the point moves with
+} VelAttach;
+
+typedef struct VelModelData {
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ VelAttach *attach;
+    /* 0x34 */ u8 pad34[0x4E - 0x34];
+    /* 0x4E */ s8 unk4E;
+} VelModelData;
+
+typedef struct VelModel {
+    /* 0x00 */ VelModelData *data;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 matrixIndex;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ u8 *matrices[1];
+} VelModel;
+
+typedef struct VelObject {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x3A - 0x28];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B[0x40 - 0x3B];
+    /* 0x40 */ struct {
+        u8 pad0[0x1E];
+        s8 unk1E;
+    } *header;
+    /* 0x44 */ u8 pad44[0x6C - 0x44];
+    /* 0x6C */ VelModel **models;
+} VelObject;
+
+void func_80048C00(u8 *mtx, Vec3f *in, Vec3f *out, VelModelData *data);
+f32 sqrtf(f32 x);
+void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
+void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec3f_rotate_py
+extern f32 D_801008F4; // JFG: the velocity the last particle got (x, y, z)
+extern f32 D_801008F8;
+extern f32 D_801008FC;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target loads model->data into a0 and copies it to a3 for the call (mine loads a3), which
+   shifts the FPRs of the normalisation */
+/**
+ * Initializes the particle velocity.
+ * JFG: the emission direction of an emitter at a model point turns with that point's joint matrix (keeping the
+ * emission speed), and the base velocity is kept in D_801008F4.
+ * DKR: setup_particle_velocity
+ */
+void func_8005F960(VelParticle *particle, VelObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour) {
+    s32 randomizationFlags;
+    Vec3f sourceVel;
+    Vec3s angle;
+    VelModel *model;
+    f32 len;
+    f32 scale;
+    f32 speed;
+
+    if (behaviour->flags & 0x70) {
+        particle->velocity.x = behaviour->velocityModifier.x;
+        particle->velocity.y = behaviour->velocityModifier.y;
+        particle->velocity.z = behaviour->velocityModifier.z;
+    } else {
+        particle->velocity.x = 0.0f;
+        particle->velocity.y = 0.0f;
+        particle->velocity.z = 0.0f;
+    }
+    randomizationFlags = behaviour->randomizationFlags & 0x700;
+    if (randomizationFlags) {
+        if (randomizationFlags & 0x100) {
+            particle->velocity.x += (f32) rand_range(-behaviour->velocityModifierRange.x,
+                                                     behaviour->velocityModifierRange.x) * 0.0000152587890625f;
+        }
+        if (randomizationFlags & 0x200) {
+            particle->velocity.y += (f32) rand_range(-behaviour->velocityModifierRange.y,
+                                                     behaviour->velocityModifierRange.y) * 0.0000152587890625f;
+        }
+        if (randomizationFlags & 0x400) {
+            particle->velocity.z += (f32) rand_range(-behaviour->velocityModifierRange.z,
+                                                     behaviour->velocityModifierRange.z) * 0.0000152587890625f;
+        }
+    }
+    switch (behaviour->flags & 0x70) {
+        case 0x10:
+            particle->velocity.x += obj->velocity.x;
+            particle->velocity.y += obj->velocity.y;
+            particle->velocity.z += obj->velocity.z;
+            break;
+        case 0x40:
+            particle->velocity.x *= obj->velocity.x;
+            particle->velocity.y *= obj->velocity.y;
+            particle->velocity.z *= obj->velocity.z;
+            break;
+    }
+    D_801008F4 = particle->velocity.x;
+    D_801008F8 = particle->velocity.y;
+    D_801008FC = particle->velocity.z;
+    if (behaviour->flags & 4) {
+        randomizationFlags = behaviour->randomizationFlags;
+        sourceVel.x = 0;
+        sourceVel.y = 0;
+        sourceVel.z = -behaviour->emissionSpeed;
+        if (randomizationFlags & 0x10) {
+            sourceVel.z +=
+                (f32) rand_range(-behaviour->emissionSpeedRange, behaviour->emissionSpeedRange) * 0.0000152587890625f;
+        }
+        speed = -sourceVel.z;
+        if (randomizationFlags & 0x60) {
+            angle.y_rotation = emitter->emissionDirection.y_rotation;
+            if (randomizationFlags & 0x20) {
+                angle.y_rotation +=
+                    rand_range(-behaviour->emissionDirRange.y_rotation, behaviour->emissionDirRange.y_rotation);
+            }
+            angle.x_rotation = emitter->emissionDirection.x_rotation;
+            if (randomizationFlags & 0x40) {
+                angle.x_rotation +=
+                    rand_range(-behaviour->emissionDirRange.x_rotation, behaviour->emissionDirRange.x_rotation);
+            }
+        } else {
+            angle.y_rotation = emitter->emissionDirection.y_rotation;
+            angle.x_rotation = emitter->emissionDirection.x_rotation;
+        }
+        func_8004944C(&angle, &sourceVel);
+        if (obj->header->unk1E != 0) {
+            model = obj->models[obj->modelIndex];
+        } else {
+            model = NULL;
+        }
+        if (emitter->unk23 != -1 && model != NULL && model->data->unk4E != 0) {
+            if (model->unkA != 0) {
+                sourceVel.x = 0.0f;
+                sourceVel.y = 0.0f;
+                sourceVel.z = 0.0f;
+            } else {
+                func_80048C00((model->data->attach[emitter->unk23].matrix << 6) + model->matrices[model->matrixIndex],
+                              &sourceVel, &sourceVel, model->data);
+                len = sqrtf(sourceVel.z * sourceVel.z + (sourceVel.x * sourceVel.x + sourceVel.y * sourceVel.y));
+                if (len == 0.0f) {
+                    scale = speed;
+                } else {
+                    scale = speed / len;
+                }
+                sourceVel.x *= scale;
+                sourceVel.y *= scale;
+                sourceVel.z *= scale;
+            }
+        } else if (particle->parentObj != NULL) {
+            func_800496B0(1, particle->parentObj, &sourceVel, &sourceVel);
+        }
+        particle->velocity.x += sourceVel.x;
+        particle->velocity.y += sourceVel.y;
+        particle->velocity.z += sourceVel.z;
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
+#endif
+
+/* JFG: the parts of a particle setup_particle_position sets */
+typedef struct PosParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f position;
+    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x2E */ u8 movementType;
+    /* 0x2F */ u8 pad2F;
+    /* 0x30 */ Vec3f localPos;
+    /* 0x3C */ f32 movementParam;
+} PosParticle;
+
+typedef struct PosModelData {
+    /* 0x00 */ u8 pad0[0x4E];
+    /* 0x4E */ s8 unk4E;
+} PosModelData;
+
+typedef struct PosModel {
+    /* 0x00 */ PosModelData *data;
+    /* 0x04 */ u8 pad4[0x68 - 0x4];
+    /* 0x68 */ Vec3f *points;
+} PosModel;
+
+typedef struct PosObjHeader {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ s8 unk1E;
+} PosObjHeader;
+
+typedef struct PosObject {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B[0x40 - 0x3B];
+    /* 0x40 */ PosObjHeader *header;
+    /* 0x44 */ u8 pad44[0x6C - 0x44];
+    /* 0x6C */ PosModel **models;
+} PosObject;
+
+void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
+void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec3f_rotate_py
+
+/**
+ * Initializes the particle position.
+ * JFG: an emitter with a model point (unk23) starts there (scaled, or relative to the object), and the movement
+ * parameter is randomised by flag 0x80000.
+ * DKR: setup_particle_position
+ */
+void setup_particle_position(PosParticle *particle, PosObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour) {
+    s32 randomizationFlags;
+    Vec3f sourcePos;
+    Vec3s sourceDir;
+    PosModel *model;
+
+    if (emitter->unk23 == -1) {
+        particle->localPos.x = emitter->posX;
+        particle->localPos.y = emitter->posY;
+        particle->localPos.z = emitter->posZ;
+    } else {
+        if (obj->header->unk1E == 0) {
+            model = obj->models[obj->modelIndex];
+        } else {
+            model = NULL;
+        }
+        if (model != NULL && model->points != NULL) {
+            particle->localPos.x = model->points[emitter->unk23].x;
+            particle->localPos.y = model->points[emitter->unk23].y;
+            particle->localPos.z = model->points[emitter->unk23].z;
+            if (model->data->unk4E == 0) {
+                particle->localPos.x *= obj->scale;
+                particle->localPos.y *= obj->scale;
+                particle->localPos.z *= obj->scale;
+                func_800496B0(1, (Vec3s *) obj->rotation, &particle->localPos, &particle->localPos);
+            } else {
+                particle->localPos.x -= obj->x;
+                particle->localPos.y -= obj->y;
+                particle->localPos.z -= obj->z;
+            }
+        } else {
+            particle->localPos.x = 0.0f;
+            particle->localPos.y = 0.0f;
+            particle->localPos.z = 0.0f;
+        }
+    }
+    particle->movementParam = behaviour->movementParam;
+    if (behaviour->randomizationFlags & 0x80000) {
+        particle->movementParam +=
+            (f32) rand_range(-behaviour->movementParamRange, behaviour->movementParamRange) * 0.0000152587890625f;
+    }
+    if (behaviour->flags & 1) {
+        sourcePos.x = 0.0f;
+        sourcePos.y = 0.0f;
+        sourcePos.z = -behaviour->sourceDistance;
+        randomizationFlags = behaviour->randomizationFlags;
+        if (randomizationFlags & 1) {
+            sourcePos.z +=
+                (f32) rand_range(-behaviour->sourceDistanceRange, behaviour->sourceDistanceRange) * 0.0000152587890625f;
+        }
+        if (randomizationFlags & 6) {
+            sourceDir.y_rotation = emitter->sourceRotation.y_rotation;
+            if (randomizationFlags & 2) {
+                sourceDir.y_rotation +=
+                    rand_range(-behaviour->sourceDirRange.y_rotation, behaviour->sourceDirRange.y_rotation);
+            }
+            sourceDir.x_rotation = emitter->sourceRotation.x_rotation;
+            if (randomizationFlags & 4) {
+                sourceDir.x_rotation +=
+                    rand_range(-behaviour->sourceDirRange.x_rotation, behaviour->sourceDirRange.x_rotation);
+            }
+            func_8004944C(&sourceDir, &sourcePos);
+        } else {
+            func_800496B0(1, &emitter->sourceRotation, &sourcePos, &sourcePos);
+        }
+        particle->localPos.x += sourcePos.x;
+        particle->localPos.y += sourcePos.y;
+        particle->localPos.z += sourcePos.z;
+    }
+    if (particle->movementType != 4 && emitter->unk23 == -1) {
+        func_800496B0(1, (Vec3s *) obj->rotation, &particle->localPos, &particle->localPos);
+    }
+    particle->position.x = particle->localPos.x;
+    particle->position.y = particle->localPos.y;
+    particle->position.z = particle->localPos.z;
+    if (particle->movementType == 4) {
+        func_800496B0(1, (Vec3s *) obj->rotation, &particle->position, &particle->position);
+    }
+    particle->position.x += obj->x;
+    particle->position.y += obj->y;
+    particle->position.z += obj->z;
+}
 
 typedef struct EmitterSpec {
     /* 0x00 */ s16 behaviourID;
@@ -1629,7 +2250,194 @@ WeatherParticle *particle_alloc(s32 kind, s32 slot) {
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_800610CC);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80061228);
+/* JFG: a particle that bounces off the level (the part particles_update_all touches) */
+typedef struct BounceParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x2F - 0x28];
+    /* 0x2F */ u8 bounces;
+    /* 0x30 */ u8 pad30[0x50 - 0x30];
+    /* 0x50 */ s32 flags;
+    /* 0x54 */ u8 pad54[0x5C - 0x54];
+    /* 0x5C */ s16 destroyTimer;
+} BounceParticle;
+
+/* JFG: a particle to test against the level this frame, and where it was */
+typedef struct ParticleSweep {
+    /* 0x00 */ BounceParticle *queued;
+    /* 0x04 */ Vec3f from;
+} ParticleSweep;
+
+extern u8 D_800A5DE0;              // JFG: the sweep slot to fill next (the one with the most bounces)
+extern ParticleSweep D_80100908[5];
+
+/* JFG: the parts of a particle particle_update touches */
+typedef struct UpdParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f position;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 frame;
+    /* 0x2C */ s16 kind;
+    /* 0x2E */ u8 movementType;
+    /* 0x2F */ u8 bounces;
+    /* 0x30 */ u8 pad30[0x44 - 0x30];
+    /* 0x44 */ u8 *colours;
+    /* 0x48 */ u8 pad48[0x4C - 0x48];
+    /* 0x4C */ void *texture;
+    /* 0x50 */ s32 flags;
+    /* 0x54 */ u8 pad54[0x58 - 0x54];
+    /* 0x58 */ ParticleEmitter *emitter;
+    /* 0x5C */ s16 destroyTimer;
+    /* 0x5E */ u8 pad5E[0x64 - 0x5E];
+    /* 0x64 */ s16 opacity;
+    /* 0x66 */ s16 opacityVel;
+    /* 0x68 */ s16 opacityTimer;
+    /* 0x6A */ s16 colourIndex;
+    /* 0x6C */ s16 colourTimer;
+    /* 0x6E */ u8 numColours;
+    /* 0x6F */ u8 pad6F[0x71 - 0x6F];
+    /* 0x71 */ u8 r;
+    /* 0x72 */ u8 g;
+    /* 0x73 */ u8 b;
+    /* 0x74 */ u8 pad74[0x77 - 0x74];
+    /* 0x77 */ u8 texUpdateRate;
+} UpdParticle;
+
+struct Particle;
+void move_particle_basic_parent(struct Particle *particle);
+void move_particle_attached_to_parent(struct Particle *particle);
+void move_particle_with_acceleration(struct Particle *particle);
+void move_particle_basic(struct Particle *particle);
+void move_particle_forward(struct Particle *particle);
+void func_800610CC(UpdParticle *particle);
+s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
+s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+extern s32 gParticleUpdateRate;
+
+#define particle ((UpdParticle *) particleAddr)
+/**
+ * Call a function to update the current particle texture frame if applicable.
+ * Applies movement, then the colour cycle and the opacity.
+ * JFG: a particle flagged 0x200000 skips a frame, one flagged 0x80000 only catches up; general particles that
+ * bounce (0x10000) queue for the level test in D_80100908; the colour cycle is per particle. Returns TRUE when
+ * the particle was freed.
+ * DKR: particle_update
+ */
+s32 particle_update(s32 particleAddr, s32 updateRate) {
+    Vec3f prevPos;
+    s32 found;
+    s32 i;
+    u8 *colour;
+
+    if (particle->flags & 0x200000) {
+        particle->flags &= ~0x200000;
+        return FALSE;
+    }
+    gParticleUpdateRate = updateRate;
+    if (particle->flags & 0x80000) {
+        particle->flags ^= 0x80000;
+        if (particle->movementType == 3) {
+            gParticleUpdateRate = 0;
+            move_particle_attached_to_parent((struct Particle *) particle);
+            gParticleUpdateRate = updateRate;
+        }
+    } else if (particle->kind != 5) {
+    particle->destroyTimer -= gParticleUpdateRate;
+    if (particle->destroyTimer <= 0) {
+        func_800610CC(particle);
+        return TRUE;
+    }
+    if (particle->kind == 2 && (particle->flags & 1)) {
+        sprite_anim_advance(particle->texture, &particle->flags, particle->texUpdateRate, &particle->frame,
+                      gParticleUpdateRate);
+    } else if (particle->kind == 1 || particle->kind == 0) {
+        if (particle->texture != NULL) {
+            func_80057A10(particle->texture, &particle->flags, particle->texUpdateRate, &particle->frame,
+                          gParticleUpdateRate);
+        }
+    }
+    if (!(particle->flags & 0x20000)) {
+        if (particle->flags & 0x10000) {
+            prevPos.x = particle->position.x;
+            prevPos.y = particle->position.y;
+            prevPos.z = particle->position.z;
+        }
+        if (particle->movementType == 2) {
+            move_particle_with_acceleration((struct Particle *) particle);
+        } else if (particle->movementType == 3) {
+            move_particle_attached_to_parent((struct Particle *) particle);
+        } else if (particle->movementType == 4) {
+            move_particle_basic_parent((struct Particle *) particle);
+        } else if (particle->movementType == 5) {
+            move_particle_forward((struct Particle *) particle);
+        } else {
+            move_particle_basic((struct Particle *) particle);
+        }
+        if (particle->flags & 0x10000) {
+            found = FALSE;
+            if (D_80100908[D_800A5DE0].queued != NULL) {
+                if (particle->bounces < D_80100908[D_800A5DE0].queued->bounces ||
+                    D_80100908[D_800A5DE0].queued->destroyTimer < particle->destroyTimer) {
+                    found = TRUE;
+                }
+            } else {
+                found = TRUE;
+            }
+            if (found) {
+                D_80100908[D_800A5DE0].queued = (BounceParticle *) particle;
+                D_80100908[D_800A5DE0].from.x = prevPos.x;
+                D_80100908[D_800A5DE0].from.y = prevPos.y;
+                D_80100908[D_800A5DE0].from.z = prevPos.z;
+                D_800A5DE0 = 0;
+                for (i = 1; i < 5; i++) {
+                    if (D_80100908[i].queued != NULL) {
+                        if (D_80100908[D_800A5DE0].queued->bounces < D_80100908[i].queued->bounces) {
+                            D_800A5DE0 = i;
+                        }
+                    } else {
+                        D_800A5DE0 = i;
+                        i = 5;
+                    }
+                }
+            }
+        }
+    }
+    if (particle->flags & 0x400) {
+        if (particle->colourTimer == 0) {
+            particle->colourIndex += gParticleUpdateRate;
+            while (particle->colourIndex >= particle->numColours) {
+                particle->colourIndex -= particle->numColours;
+            }
+            colour = &particle->colours[particle->colourIndex * 4];
+            particle->r = colour[0];
+            particle->g = colour[1];
+            particle->b = colour[2];
+        } else {
+            particle->colourTimer -= gParticleUpdateRate;
+            if (particle->colourTimer < 0) {
+                particle->colourIndex -= particle->colourTimer;
+            }
+        }
+    }
+    if (particle->opacityTimer == 0) {
+        particle->opacity += gParticleUpdateRate * particle->opacityVel;
+    } else {
+        particle->opacityTimer -= gParticleUpdateRate;
+        if (particle->opacityTimer < 0) {
+            particle->opacity -= particle->opacityTimer * particle->opacityVel;
+            particle->opacityTimer = 0;
+        }
+    }
+    if (particle->emitter != NULL) {
+        particle->emitter->colourIndex += updateRate;
+        obj_trigger_emitter((ParticleObj *) particle, particle->emitter);
+    }
+    }
+    return FALSE;
+}
+#undef particle
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80061698);
 
@@ -1707,7 +2515,7 @@ void line_particle_set_update(LineParticleSet *set, s32 updateRate) {
     }
 }
 
-s32 func_80061228(s32 particle, s32 updateRate);
+s32 particle_update(s32 particle, s32 updateRate);
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 
 /* JFG: update a point set's particles, pack the live ones to the front, then free or animate its texture. */
@@ -1719,7 +2527,7 @@ void point_particle_set_update(PointParticleSet *set, s32 updateRate) {
     TextureHeader *tex;
 
     for (i = 0; i < set->count; i++) {
-        if (func_80061228(set->points[i], updateRate)) {
+        if (particle_update(set->points[i], updateRate)) {
             set->points[i] = 0;
             removed = TRUE;
         }
@@ -2028,23 +2836,6 @@ void move_particle_forward(Particle *particle) {
     }
 }
 
-/* JFG: a particle that bounces off the level (the part particles_update_all touches) */
-typedef struct BounceParticle {
-    /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ Vec3f pos;
-    /* 0x18 */ u8 pad18[0x1C - 0x18];
-    /* 0x1C */ Vec3f velocity;
-    /* 0x28 */ u8 pad28[0x2F - 0x28];
-    /* 0x2F */ u8 bounces;
-    /* 0x30 */ u8 pad30[0x50 - 0x30];
-    /* 0x50 */ s32 flags;
-} BounceParticle;
-
-/* JFG: a particle to test against the level this frame, and where it was */
-typedef struct ParticleSweep {
-    /* 0x00 */ BounceParticle *particle;
-    /* 0x04 */ Vec3f from;
-} ParticleSweep;
 
 /* JFG: what func_80016208 fills in (12D50.c SweepHit) */
 typedef struct ParticleHit {
@@ -2054,8 +2845,6 @@ typedef struct ParticleHit {
     /* 0x1C */ u8 pad1C[0x28 - 0x1C];
 } ParticleHit;
 
-extern u8 D_800A5DE0;
-extern ParticleSweep D_80100908[5];
 extern f32 D_800AD848;
 extern f32 D_800AD84C;
 void line_particle_set_update(LineParticleSet *set, s32 updateRate);
@@ -2085,7 +2874,7 @@ void particles_update_all(s32 updateRate) {
 
     D_800A5DE0 = 0;
     for (i = 0; i < 5; i++) {
-        D_80100908[i].particle = NULL;
+        D_80100908[i].queued = NULL;
     }
     for (listPtr = D_801008E0; listPtr < D_801008E0 + 4; listPtr++) {
         list = *listPtr;
@@ -2093,7 +2882,7 @@ void particles_update_all(s32 updateRate) {
             p = list->particles;
             for (i = 0; i < list->count; i++, p++) {
                 if (p->kind != 0x80) {
-                    func_80061228((s32) p, updateRate);
+                    particle_update((s32) p, updateRate);
                 }
             }
         }
@@ -2115,7 +2904,7 @@ void particles_update_all(s32 updateRate) {
         }
     }
     for (i = 0; i < 5; i++) {
-        particle = D_80100908[i].particle;
+        particle = D_80100908[i].queued;
         if (particle != NULL) {
             radius = 5.0f;
             func_8001CE10(1, &D_80100908[i].from.x, &particle->pos.x, &radius, 0xCE002000, 0, 0);

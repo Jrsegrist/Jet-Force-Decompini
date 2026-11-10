@@ -401,7 +401,93 @@ void obj_loop_animator(Object *obj, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_8002561C);
+/* DKR Object_Exit, JFG layout */
+typedef struct Object_Exit {
+    /* 0x00 */ f32 directionX;
+    /* 0x04 */ f32 directionY;
+    /* 0x08 */ f32 directionZ;
+    /* 0x0C */ f32 rotationDiff;
+    /* 0x10 */ s32 radius;
+    /* 0x14 */ s16 bossFlag;
+    /* 0x16 */ s16 checkDirection;
+} Object_Exit;
+
+/* JFG: a racer's data, the fields an exit uses */
+typedef struct RacerExitData {
+    /* 0x000 */ u8 pad0;
+    /* 0x001 */ s8 flags;
+    /* 0x002 */ u8 pad2[0xF4 - 2];
+    /* 0x0F4 */ Object *exitObj;
+    /* 0x0F8 */ u8 padF8[0x189 - 0xF8];
+    /* 0x189 */ s8 unk189;
+    /* 0x18A */ u8 pad18A[0x196 - 0x18A];
+    /* 0x196 */ s8 transitionTimer;
+} RacerExitData;
+
+/* JFG: game flag conditions for each exit kind: two (flag, value) pairs, flag 0xFF = none */
+extern u8 D_800A1120[][4];
+
+s32 game_flag_get(s32 flag);
+
+/* DKR obj_loop_exit (object_functions.c), JFG variant: the exit's game flag conditions, then each racer
+   that touches it on the right side gets the exit (kinds 3-5 test the racer first). */
+void obj_loop_exit(Object *obj, UNUSED s32 updateRate) {
+    s32 numRacers;
+    s32 i;
+    Object *racerObj;
+    RacerExitData *racer;
+    s32 skip;
+    u8 *cond;
+    Object *racers[9];
+    Object_Exit *exit;
+    UNUSED s32 pad;
+    Object *target; // a second copy of racerObj (needed for the register allocation)
+
+    exit = (Object_Exit *) obj->animator;
+    if (exit->bossFlag >= 0 && exit->bossFlag < 25) {
+        cond = D_800A1120[exit->bossFlag];
+        if (cond[0] != 0xFF && game_flag_get(cond[0]) != cond[1]) {
+            return;
+        }
+        if (cond[2] != 0xFF && game_flag_get(cond[2]) != cond[3]) {
+            return;
+        }
+    }
+    numRacers = obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, exit->radius, 0, racers);
+    if (numRacers) {
+        for (i = 0; i < numRacers; i++) {
+            racerObj = racers[i];
+            target = racerObj;
+            if (!exit->checkDirection || (exit->directionX * racerObj->x_position +
+                                          exit->directionY * racerObj->y_position +
+                                          exit->directionZ * target->z_position + exit->rotationDiff) < 0.0f) {
+                racer = (RacerExitData *) target->animator;
+                skip = FALSE;
+                switch (exit->bossFlag) {
+                    case 3:
+                        if (racer->flags & 4) {
+                            skip = TRUE;
+                        }
+                        break;
+                    case 4:
+                        if (!(racer->flags & 4)) {
+                            skip = TRUE;
+                        }
+                        break;
+                    case 5:
+                        if (racer->unk189 != 1) {
+                            skip = TRUE;
+                        }
+                        break;
+                }
+                if (!skip) {
+                    racer->exitObj = obj;
+                    racer->transitionTimer = -120;
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/25A70", func_80025A08);
 

@@ -12,13 +12,20 @@ typedef struct Vec3s {
 
 /* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
 typedef struct Object_Racer {
-    /* 0x000 */ u8 pad0[0x48];
+    /* 0x000 */ u8 pad0;
+    /* 0x001 */ s8 unk1; // JFG: an index into D_800A0C2C (6 bytes each)
+    /* 0x002 */ u8 pad2[0x3C - 0x2];
+    /* 0x03C */ f32 prevX; // JFG: the position at the start of the frame
+    /* 0x040 */ f32 prevY;
+    /* 0x044 */ f32 prevZ;
     /* 0x048 */ f32 unk48;
     /* 0x04C */ u8 pad4C[0x64 - 0x4C];
     /* 0x064 */ f32 unk64; // DKR: unkD0
     /* 0x068 */ u8 pad68[0xA4 - 0x68];
     /* 0x0A4 */ u16 fogFlags; // JFG: a bit per player: draw with the flash fog colour
-    /* 0x0A6 */ u8 padA6[0x140 - 0xA6];
+    /* 0x0A6 */ u8 padA6[0x122 - 0xA6];
+    /* 0x122 */ s16 prevRotation[3]; // JFG: the angles at the start of the frame
+    /* 0x128 */ u8 pad128[0x140 - 0x128];
     /* 0x140 */ s16 y_rotation_offset;
     /* 0x142 */ s16 z_rotation_offset;
     /* 0x144 */ s16 x_rotation_offset;
@@ -29,7 +36,16 @@ typedef struct Object_Racer {
     /* 0x1FA */ u8 unk1FA;
     /* 0x1FB */ u8 pad1FB[0x53C - 0x1FB];
     /* 0x53C */ s8 unk53C;
-    /* 0x53D */ u8 pad53D[0x5C0 - 0x53D];
+    /* 0x53D */ u8 pad53D[0x544 - 0x53D];
+    /* 0x544 */ u8 unk544[0x550 - 0x544];
+    /* 0x550 */ s32 unk550;
+    /* 0x554 */ u8 pad554[0x598 - 0x554];
+    /* 0x598 */ s32 effects[4];  // JFG: four effect meshes drawn at model points (0: none)
+    /* 0x5A8 */ u8 pad5A8[0x5AC - 0x5A8];
+    /* 0x5AC */ u8 effectAlpha[4]; // JFG: 0: off
+    /* 0x5B0 */ s8 effectPoint[4]; // JFG: the model point each is drawn at
+    /* 0x5B4 */ s8 effectMtx[4];   // JFG: the joint matrix each is drawn with
+    /* 0x5B8 */ u8 pad5B8[0x5C0 - 0x5B8];
     /* 0x5C0 */ s32 unk5C0;
 } Object_Racer;
 
@@ -157,7 +173,7 @@ typedef struct Object {
     /* 0x4C */ struct ObjectPoints *unk4C;
     /* 0x50 */ struct ObjectSprite *sprite;
     /* 0x54 */ void *shade; // JFG: the lighting the object is drawn with
-    /* 0x58 */ u8 pad58[0x5C - 0x58];
+    /* 0x58 */ void *unk58; // JFG: a ripple it makes (func_8006B090)
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ struct ObjectUnk60 *unk60;
     /* 0x64 */ struct ObjectSpriteSlot *spriteSlots;
@@ -1058,7 +1074,9 @@ typedef struct ObjectPoint {
 
 /* JFG: an object's block of point states (obj->unk4C) */
 typedef struct ObjectPoints {
-    /* 0x00 */ u8 pad0[0x32];
+    /* 0x00 */ u8 pad0[0x9];
+    /* 0x09 */ u8 flags9; // JFG: 8 = the object is updated elsewhere
+    /* 0x0A */ u8 padA[0x32 - 0xA];
     /* 0x32 */ s16 count;
     /* 0x34 */ u8 pad34[0x40 - 0x34];
     /* 0x40 */ ObjectPoint *points;
@@ -1323,7 +1341,151 @@ void anim_obj_list_remove(void *obj) {
 void func_80008FE8(void) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80008FF0);
+/* JFG: an object's sprite as the object update animates it */
+typedef struct ObjSpriteAnim {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ struct {
+        u8 pad0[0x12];
+        u16 numFrames; // in 1/256 frames
+    } *texture;
+    /* 0x08 */ u16 frame;
+    /* 0x0A */ u16 speed;
+} ObjSpriteAnim;
+
+extern s32 D_800F2C90; // DKR: gEventCountdown
+extern s32 D_800F2C94; // DKR: gEventStartTimer
+extern u8 D_800A4FD0;  // JFG: the number of players
+extern u8 D_800A4FD8;  // JFG: the multiplayer game type
+extern u8 D_800A4FB4;
+extern s32 D_800F2C8C;
+extern f32 D_800F2C88; // DKR: gObjectUpdateRateF
+extern u8 D_800A0974;
+extern u8 D_800A0978;
+extern s32 D_800F2EA0[16];
+extern s32 D_800F2EE0[16];
+void func_8007A534(void);
+void func_80029CFC(s32 updateRate);
+Object **collision_objects_get(s32 *count);
+void func_8000FBF0(Object *obj, s32 updateRate);
+void func_8007E504(void);
+void func_8000DF00(Object *obj, s32 updateRate);
+void func_8006B090(Object *obj, s32 updateRate);
+void func_80032A48(Object *obj, s32 updateRate);
+void light_update_all(s32 updateRate);
+void objects_shade_all(void);
+s32 runlink_module_loaded(s32 module);
+void sound_nearest_emitter_update(void);
+void func_80002AB8(Object **racers, s32 numRacers, s32 updateRate);
+s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
+void func_80054530(); // a module function (patched in by the runtime linker)
+
+/**
+ * Updates all objects in the game.
+ * JFG: the racers' previous positions and angles, the collision objects, then the other objects (but types 9,
+ * 0x1E and 0x25: their sprite and sprite-slot animations too), the players, types 9 and 0x25, the lights and
+ * the sounds; then three ring buffers get their next slot cleared.
+ * DKR: obj_update
+ */
+void obj_update(s32 updateRate) {
+    s32 j;
+    s32 i;
+    s32 k;
+    Object **objs;
+    Object *obj;
+    Object_Racer *racer;
+    ObjSpriteAnim *sprite;
+    ObjectSpriteSlot *slot;
+
+    D_800F2C94 = D_800F2C90;
+    if (D_800F2C90 > 0) {
+        D_800F2C90 -= updateRate;
+    }
+    if (D_800F2C90 < 0) {
+        D_800F2C90 = 0;
+    }
+    for (i = 0; i < gNumRacers; i++) {
+        racer = (*gRacers)[i]->racer;
+        racer->prevX = (*gRacers)[i]->trans.x_position;
+        racer->prevY = (*gRacers)[i]->trans.y_position;
+        racer->prevZ = (*gRacers)[i]->trans.z_position;
+        racer->prevRotation[0] = (*gRacers)[i]->trans.y_rotation;
+        racer->prevRotation[1] = (*gRacers)[i]->trans.x_rotation;
+        racer->prevRotation[2] = (*gRacers)[i]->trans.z_rotation;
+    }
+    func_8007A534();
+    func_80029CFC(updateRate);
+    objs = collision_objects_get(&j);
+    for (i = 0; i < j; i++) {
+        func_8000FBF0(objs[i], updateRate);
+    }
+    func_8007E504();
+    i = gObjectCount;
+    for (j = gObjectListStart; j < i; j++) {
+        obj = gObjPtrList[j];
+        if (obj->behaviorId != 0x1E && obj->behaviorId != 9 && obj->behaviorId != 0x25) {
+                if (obj->unk4C == NULL || (obj->unk4C != NULL && !(obj->unk4C->flags9 & 8))) {
+                    func_8000FBF0(obj, updateRate);
+                }
+                if (obj->header->unk1E == 0 && obj->header->scrollTexture != 0xFF) {
+                    func_8000DF00(obj, updateRate);
+                }
+                if (obj->behaviorId != 1 && obj->unk58 != NULL) {
+                    func_8006B090(obj, updateRate);
+                }
+                sprite = (ObjSpriteAnim *) obj->sprite;
+                if (sprite != NULL && sprite->speed != 0 && sprite->texture != NULL) {
+                    sprite->frame += sprite->speed * updateRate;
+                    while (sprite->frame >= sprite->texture->numFrames) {
+                        sprite->frame -= sprite->texture->numFrames;
+                    }
+                }
+                if (obj->spriteSlots != NULL) {
+                    slot = obj->spriteSlots;
+                    for (k = 0; k < obj->numSpriteSlots; k++) {
+                        sprite_anim_advance(slot->sprite, (s32 *) &slot->flags, slot->unk5, &slot->frame, updateRate);
+                        slot++;
+                    }
+                }
+        }
+    }
+    if (D_800A4FC4 && D_800A4FD8 == 6) {
+        func_80054530(D_800A4FD0, updateRate);
+    } else {
+        for (j = 0; j < gNumRacers; j++) {
+            func_80032A48((*gRacers)[j], updateRate);
+        }
+        if ((D_800A4FC4 && D_800A4FD8 == 4) || D_800A4FB4) {
+            func_80054530(updateRate);
+        }
+    }
+    for (j = gObjectListStart; j < i; j++) {
+        obj = gObjPtrList[j];
+        if (obj->behaviorId == 9 || obj->behaviorId == 0x25) {
+            func_8000FBF0(obj, updateRate);
+        }
+    }
+    light_update_all(updateRate);
+    objects_shade_all();
+    if (runlink_module_loaded(0x1C)) {
+        func_80054530();
+    }
+    sound_nearest_emitter_update();
+    func_80002AB8(*gRacers, gNumRacers, updateRate);
+    if (D_800F2C8C == 0) {
+        gParticlePtrList_flush();
+    }
+    D_800F2C8C = 1;
+    D_800F2C88 = updateRate;
+    D_800F2EA0[D_800A0974] = -1;
+    D_800A0974++;
+    D_800A0974 &= 0xF;
+    gFreedObjectIds[gFreedObjectIdIndex] = -1;
+    gFreedObjectIdIndex++;
+    gFreedObjectIdIndex &= 0xF;
+    D_800F2EE0[D_800A0978] = -1;
+    D_800A0978++;
+    D_800A0978 &= 0xF;
+}
 
 extern s32 D_800F2C8C;
 extern f32 D_800F2C88;
@@ -1928,7 +2090,65 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BE5C);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
+f32 get_distance_to_camera(f32 x, f32 y, f32 z);
+void func_80069BE8(Gfx **dList, void *mesh, s32 flags, u8 alpha);
+extern u8 D_800A0C2C[];
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: from the joint matrix statement on, every t-register is one lower than the target's */
+/* JFG: draw a player's (up to four) effect meshes at their model points, farthest first, each with its joint
+   matrix; then the module's extra effect (racer 0x550) if there is one. */
+void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
+    s16 i;
+    s16 j;
+    s16 count;
+    s16 order[8];
+    s16 alpha[8];
+    u32 mtx[8];
+    f32 depth[8];
+    s32 eff;
+    s32 effects[8];
+    ObjectAttachment *model;
+    Object_Racer *racer;
+    f32 *point;
+
+    racer = obj->racer;
+    model = obj->attachments[0];
+    for (i = 0, count = 0; i < 4; i++) {
+        if (racer->effectAlpha[i] != 0 && (eff = racer->effects[i]) != 0) {
+            point = (f32 *) ((racer->effectPoint[i] * 12) + (u32) model->point);
+            order[count] = count;
+            depth[count] = get_distance_to_camera(point[0], point[1], point[2]);
+            effects[count] = eff;
+            mtx[count] = (racer->effectMtx[i] << 6) + (u32) model->matrices[model->matrixIndex];
+            alpha[count] = racer->effectAlpha[i];
+            count++;
+        }
+    }
+    if (count > 0) {
+        for (i = count - 1; i > 0; i--) {
+            for (j = 0; j < i; j++) {
+                s16 a = order[j + 1];
+                s16 b = order[j];
+                if (depth[a] < depth[b]) {
+                    order[j] = a;
+                    order[j + 1] = b;
+                }
+            }
+        }
+        for (i = 0; i < count; i++) {
+            fast3d_cmd((*dList)++, 0x01810040, mtx[order[i]] + 0x80000000);
+            func_80069BE8(dList, (void *) effects[order[i]], 6, alpha[order[i]]);
+        }
+        fast3d_cmd((*dList)++, 0xBC00000A, 0);
+    }
+    if (racer->unk550 != 0) {
+        func_80054530(dList, arg1, racer->unk550, &D_800A0C2C[racer->unk1 * 6], racer->unk544, (u8 *) racer + 0x78);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C6E0);
+#endif
 
 extern u8 D_800A0C5C;
 extern u8 D_800A0C60;
