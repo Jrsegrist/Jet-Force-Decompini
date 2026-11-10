@@ -120,8 +120,8 @@ void amCreateAudioMgr(AMSynConfig *c, OSPri pri, void *audSched) {
     osCreateMesgQueue(&audDMAMessageQ, D_800F28B0, NUM_DMA_BUFFERS);
     osCreateThread(&sAudioMgrThread, -4, __amMain, NULL, D_800F17B8, pri);
 }
-void func_80001EF8(void);
-void func_80002484(void);
+void __amHandleFrameMsg(void);
+void __amHandleDoneMsg(void);
 void func_8008A5AC(void *synth); // DKR: alClose
 void osScAddClient();
 
@@ -140,9 +140,9 @@ void __amMain(UNUSED void *arg) {
         (void) osRecvMesg(&D_800F1AF4, (OSMesg *) &msg, OS_MESG_BLOCK);
         switch (msg->type) {
             case 1:
-                func_80001EF8();
+                __amHandleFrameMsg();
                 osRecvMesg(&D_800F1B0C, (OSMesg *) &lastInfo, OS_MESG_BLOCK);
-                func_80002484();
+                __amHandleDoneMsg();
                 break;
             case 4:
                 break;
@@ -240,7 +240,7 @@ OSMesgQueue *osScGetCmdQ(void *sc);
  */
 #ifdef NON_MATCHING
 /* NON_MATCHING: the ROM keeps the `== 1` test of the mode in v0 (xori), shifting the t-registers by one */
-void func_80001EF8(void) {
+void __amHandleFrameMsg(void) {
     s16 *audioPtr;
     Acmd *cmdp;
     s32 cmdLen;
@@ -379,7 +379,7 @@ u32 osAiGetLength(void);
  * checks for the audio interface running out of samples (the report is stubbed out).
  * JFG: takes no arguments.
  */
-void func_80002484(void) {
+void __amHandleDoneMsg(void) {
     s32 samplesLeft;
     s32 *firstTime = &D_800A07FC; // fake? a plain global shares one address register
 

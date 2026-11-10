@@ -979,7 +979,7 @@ void func_8004944C(Vec3s *rotation, Vec3f *vec); // DKR: vec3f_rotate_py
  * weather velocity, wrapped inside the snow box.
  * JFG: not in DKR; DKR's snow_update moves the flakes by the velocity only.
  */
-void func_8005CC0C(s32 updateRate) {
+void snow_wind_update(s32 updateRate) {
     s32 curX;
     s32 curY;
     s32 curZ;

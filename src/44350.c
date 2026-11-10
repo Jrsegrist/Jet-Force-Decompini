@@ -324,7 +324,7 @@ extern s16 D_800A31BC[3]; // JFG: the IDs of the looping level sounds (-1: none)
  */
 #ifdef NON_MATCHING
 /* NON_MATCHING: register allocation (loop tests, the sound loops' pointers and slot) */
-void func_80043E3C(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
+void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
     s32 count;
     s32 offset;
     s32 size;

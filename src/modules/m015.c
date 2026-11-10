@@ -700,7 +700,7 @@ extern void player_charge_meter_update(Racer *racer, s32 arg1, s32 updateRate);
 extern s32 func_80033F4C(s32 arg0);
 extern void func_80034164(Object *obj, Racer *racer);
 extern void player_loop_sounds_update(Object *obj, Racer *racer, s32 a, s32 b, s32 updateRate);
-extern void func_800349AC(Racer *racer, f32 updateRate);
+extern void player_breath_update(Racer *racer, f32 updateRate);
 extern void player_platform_ride(Object *obj, Racer *racer, f32 updateRate);
 extern void racer_angle_sync(Object *obj, Racer *racer, f32 updateRate);
 extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate, void *table);
@@ -973,7 +973,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             racer->unk576 = 0;
         }
     }
-    func_800349AC(racer, updateRate);
+    player_breath_update(racer, updateRate);
     switch (racer->state) {
         case 0:
             func_m015_02B2C(obj, racer, speed, angle, updateRate);

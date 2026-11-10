@@ -1592,7 +1592,7 @@ extern f32 D_800ABF70; // JFG: the breath length per breath period
 /* JFG: the player's breathing: the level eases towards the speed (the larger of |velX| and |velZ|, 1 from 4 up), the
    phase advances by one breath every 180 - 130 * level frames, and a breath starts (breathNow, breathTimer) each
    time it wraps. */
-void func_800349AC(Racer *racer, f32 updateRate) {
+void player_breath_update(Racer *racer, f32 updateRate) {
     f32 vz;
     f32 speed;
 

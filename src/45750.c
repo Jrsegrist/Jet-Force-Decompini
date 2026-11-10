@@ -1176,7 +1176,7 @@ s32 func_80043D08(s32 level);
 void func_8005342C(s32 module);
 void cam_init(s32 arg0);
 void init_dialogue_text(void);
-void func_80043E3C(s32 level, s32 arg1, s32 arg2, s32 arg3);
+void level_load(s32 level, s32 arg1, s32 arg2, s32 arg3);
 void func_80029B78(void);
 void menu_mode_set(s32 mode);
 void func_8004B55C(void);
@@ -1420,7 +1420,7 @@ void level_load_pending(s32 updateRate) {
     check_reset_and_halt();
     func_8005342C(0x1A);
     check_reset_and_halt();
-    func_80043E3C(gPlayableMapId, D_800A3244, D_800A3240, D_800A3248);
+    level_load(gPlayableMapId, D_800A3244, D_800A3240, D_800A3248);
     check_reset_and_halt();
     if (D_800A32A0) {
         transition_begin(D_800A32EC);

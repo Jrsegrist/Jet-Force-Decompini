@@ -224,7 +224,7 @@ typedef struct FaultThread {
     OSThread thread;
     u8 pad1B0[0x80];
 } FaultThread;
-void func_80067994(FaultThread *fault);
+void crash_screen_draw(FaultThread *fault);
 
 /* JFG: show the crash screen for a fake thread (pc, a0, a1) and hang.
    (The (u64) cast on pc, a no-op for the u32 field, gives the ROM's load order; found by the permuter.) */
@@ -236,7 +236,7 @@ void crash_show_fake_thread(u32 pc, s32 a0, u32 a1) {
     fault.thread.context.a0 = a0;
     fault.thread.context.a1 = a1;
     fault.thread.context.cause = -1;
-    func_80067994(&fault);
+    crash_screen_draw(&fault);
     osWritebackDCacheAll();
     while (1) {
     }
@@ -324,7 +324,7 @@ u8 *get_racer_object_by_port(s32 port);
  * one), the exception, the debug item being handled, the free memory, the registers, then the
  * level header, player 1 and the debug flags.
  */
-void func_80067994(FaultThread *fault) {
+void crash_screen_draw(FaultThread *fault) {
     __OSThreadContext *ctx;
     s32 module;
     s32 offset;
