@@ -213,3 +213,12 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/objects.c` | sort_objects_by_dist (JFG 0x8000E278: pointer walk, JFG's loop counts); obj_spawn_attachment (JFG 0x8000774C: built in a scratch buffer, then copied) (helper ma13h1) |
 | `src/rcp_dkr.c` | bgdraw_texture (JFG 0x8004E4E8: the size from `fb_size(&w, &h)`, unsigned coordinates) (helper ma13h3) |
 | `src/tracks.c` | render_scene, as the NON_MATCHING body of JFG's func_800121C0 (JFG level header fields) (helper ma13h3) |
+
+### Round 14 (mods14), modules
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/tracks.c` | track_init_collision, as the NON_MATCHING body of JFG's func_m024_00CE4 (5.0f for 10.0f, the edge flags, the 0x880 batch skip, a third-vertex test, the plane count returned) (helper m14h2) |
+| `include/structs.h` | CollisionFacetPlanes (m024's segment triangle planes) (helper m14h2) |

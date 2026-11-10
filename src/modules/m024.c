@@ -36,6 +36,12 @@ typedef struct TriangleBatchInfo {
     /* 0x0C */ u32 flags;
 } TriangleBatchInfo;
 
+/* DKR include/structs.h: a triangle's collision plane and its edge planes */
+typedef struct CollisionFacetPlanes {
+    /* 0x00 */ u16 basePlaneIndex;
+    /* 0x02 */ u16 edgeBisectorPlane[3];
+} CollisionFacetPlanes;
+
 /* A segment's vertex colours: three bytes per vertex, and a bit per vertex */
 typedef struct SegmentColours {
     /* 0x00 */ u8 *colours;
@@ -50,8 +56,8 @@ typedef struct LevelModelSegment {
     /* 0x0C */ TriangleBatchInfo *batches;
     /* 0x10 */ u32 *triangleMasks;
     /* 0x14 */ u8 *triangleHeightMasks;
-    /* 0x18 */ void *trianglePlanes;
-    /* 0x1C */ void *planes;
+    /* 0x18 */ CollisionFacetPlanes *trianglePlanes;
+    /* 0x1C */ f32 *planes;
     /* 0x20 */ u8 *edgeFlags;
     /* 0x24 */ s16 numberOfVertices;
     /* 0x26 */ s16 numberOfTriangles;
@@ -136,7 +142,14 @@ extern void func_8004AA08(s32 timer); /* DKR mempool_free_timer */
 extern void func_8004A828(s32 size, void *address, s32 colour); /* DKR mempool_alloc_fixed */
 extern void track_segment_data_alloc(s32 arg0, s32 arg1);
 static void func_m024_00908(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, s32 arg2);
-extern s32 rl_m024_00CE4(LevelModelSegment *seg);
+#ifdef NON_MATCHING
+static s32 func_m024_00CE4(LevelModelSegment *block);
+static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b);
+#define rl_m024_00CE4 func_m024_00CE4
+#else
+extern s32 rl_m024_00CE4(LevelModelSegment *block); /* still assembly */
+#endif
+extern f32 func_80097140(f32 x); /* square root */
 static void func_m024_018B4(LevelModelSegment *segment);
 
 static void func_m024_001F8(s32 modelId);
@@ -447,9 +460,269 @@ static void func_m024_00908(LevelModelSegment *segment, LevelModelSegmentBoundin
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m024", func_m024_00CE4);
+/*
+ * DKR track_init_collision, JFG's form: each triangle's plane, then a plane along each
+ * edge shared with another triangle, the edge flags and the triangles' edge bits.
+ * Returns the number of planes.
+ */
+#ifdef NON_MATCHING
+/* register allocation (FPRs and the loop registers) and the frame */
+static s32 func_m024_00CE4(LevelModelSegment *block) {
+    s32 facesOffset;
+    f32 *plane;
+    f32 x1;
+    f32 y1;
+    f32 z1;
+    f32 x2;
+    f32 y2;
+    f32 z2;
+    f32 x3;
+    f32 y3;
+    f32 z3;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 mag;
+    f32 h;
+    f32 x5;
+    f32 y5;
+    f32 z5;
+    s32 triIndex;
+    s32 nextFacesOffset;
+    s32 verticesOffset;
+    s32 batchIndex;
+    s32 i;
+    s32 next;
+    s32 next2;
+    s32 vertIndex;
+    s32 thirdVertIndex;
+    s32 nextVertIndex;
+    s32 edge;
+    s32 numColPlanes;
+    s32 counter;
+    s32 colPlaneIndex;
+    s32 j;
+    s32 flags;
+    Vertex *v;
+    f32 *edgePlane;
 
+    counter = 0;
+    for (batchIndex = 0; batchIndex < block->numberOfBatches; batchIndex++) {
+        facesOffset = block->batches[batchIndex].facesOffset;
+        nextFacesOffset = block->batches[batchIndex + 1].facesOffset;
+        verticesOffset = block->batches[batchIndex].verticesOffset;
+        for (triIndex = facesOffset; triIndex < nextFacesOffset; triIndex++) {
+            if (block->triangles[triIndex].flags & 0x80) {
+                continue;
+            }
+            v = &block->vertices[block->triangles[triIndex].vi0 + verticesOffset];
+            x1 = v->x;
+            y1 = v->y;
+            z1 = v->z;
+            v = &block->vertices[block->triangles[triIndex].vi1 + verticesOffset];
+            x2 = v->x;
+            y2 = v->y;
+            z2 = v->z;
+            v = &block->vertices[block->triangles[triIndex].vi2 + verticesOffset];
+            x3 = v->x;
+            y3 = v->y;
+            z3 = v->z;
+            nx = (y2 - y1) * (z3 - z2) - (z2 - z1) * (y3 - y2);
+            ny = (z2 - z1) * (x3 - x2) - (x2 - x1) * (z3 - z2);
+            nz = (x2 - x1) * (y3 - y2) - (y2 - y1) * (x3 - x2);
+            mag = func_80097140(nx * nx + ny * ny + nz * nz);
+            if (mag > 0.0f) {
+                nx /= mag;
+                ny /= mag;
+                nz /= mag;
+            }
+            block->edgeFlags[triIndex] = 0;
+            {
+                s32 temp = counter * 4;
+                counter++;
+                block->planes[temp + 0] = nx;
+                block->planes[temp + 1] = ny;
+                block->planes[temp + 2] = nz;
+                block->planes[temp + 3] = -(x1 * nx + y1 * ny + z1 * nz);
+            }
+        }
+    }
+
+    if (D_800F2F9C) {
+        return counter;
+    }
+    numColPlanes = counter;
+
+    for (batchIndex = 0; batchIndex < block->numberOfBatches; batchIndex++) {
+        verticesOffset = block->batches[batchIndex].verticesOffset;
+        facesOffset = block->batches[batchIndex].facesOffset;
+        nextFacesOffset = block->batches[batchIndex + 1].facesOffset;
+        if (block->batches[batchIndex].flags & 0x880) {
+            facesOffset = nextFacesOffset;
+        }
+        for (triIndex = facesOffset; triIndex < nextFacesOffset; triIndex++) {
+            if (block->triangles[triIndex].flags & 0x80) {
+                continue;
+            }
+            colPlaneIndex = block->trianglePlanes[triIndex].basePlaneIndex;
+            nx = block->planes[4 * colPlaneIndex + 0];
+            ny = block->planes[4 * colPlaneIndex + 1];
+            nz = block->planes[4 * colPlaneIndex + 2];
+            plane = &block->planes[4 * colPlaneIndex];
+            for (i = 0; i < 3; i++) {
+                next = i + 1;
+                if (next >= 3) {
+                    next = 0;
+                }
+                next2 = next + 1;
+                if (next2 >= 3) {
+                    next2 = 0;
+                }
+                vertIndex = (&block->triangles[triIndex].vi0)[i] + verticesOffset;
+                nextVertIndex = (&block->triangles[triIndex].vi0)[next] + verticesOffset;
+                thirdVertIndex = (&block->triangles[triIndex].vi0)[next2] + verticesOffset;
+                edge = block->trianglePlanes[triIndex].edgeBisectorPlane[i];
+                if (edge < numColPlanes) {
+                    flags = block->triangles[triIndex].flags;
+                    if ((flags & 1) && (block->triangles[edge].flags & 2)) {
+                        j = func_m024_016E0(block, edge, &block->vertices[vertIndex].x,
+                                            &block->vertices[nextVertIndex].x);
+                        block->triangles[triIndex].flags &= ~1;
+                        block->edgeFlags[edge] |= 1 << (j + 3);
+                    } else if ((flags & 2) && (block->triangles[edge].flags & 1)) {
+                        block->triangles[edge].flags &= ~1;
+                        block->edgeFlags[triIndex] |= 1 << (i + 3);
+                    }
+                    edgePlane = &block->planes[4 * edge];
+                    x5 = block->planes[4 * edge + 0] + nx;
+                    y5 = block->planes[4 * edge + 1] + ny;
+                    z5 = block->planes[4 * edge + 2] + nz;
+                    v = &block->vertices[vertIndex];
+                    x1 = v->x;
+                    y1 = v->y;
+                    z1 = v->z;
+                    v = &block->vertices[nextVertIndex];
+                    x2 = v->x;
+                    y2 = v->y;
+                    z2 = v->z;
+                    x3 = x5 * 5.0f + x1;
+                    y3 = y5 * 5.0f + y1;
+                    z3 = z5 * 5.0f + z1;
+                    x5 = (y2 - y1) * (z3 - z1) - (z2 - z1) * (y3 - y1);
+                    y5 = (z2 - z1) * (x3 - x1) - (x2 - x1) * (z3 - z1);
+                    z5 = (x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1);
+                    mag = func_80097140(x5 * x5 + y5 * y5 + z5 * z5);
+                    if (mag > 0.0f) {
+                        x5 /= mag;
+                        y5 /= mag;
+                        z5 /= mag;
+                    }
+                    if (edge != colPlaneIndex) {
+                        for (j = 0; j < 3; j++) {
+                            if (colPlaneIndex == block->trianglePlanes[edge].edgeBisectorPlane[j]) {
+                                block->trianglePlanes[edge].edgeBisectorPlane[j] = counter | 0x8000;
+                            }
+                        }
+                        v = &block->vertices[thirdVertIndex];
+                        if (v->x * edgePlane[0] + v->y * edgePlane[1] + v->z * edgePlane[2] + edgePlane[3] < 0.0f) {
+                            block->edgeFlags[triIndex] |= 1 << i;
+                        }
+                        if (plane[0] * edgePlane[0] + plane[1] * edgePlane[1] + edgePlane[2] * plane[2] < 0.0f) {
+                            h = y2 - y1;
+                            if (y2 < y1) {
+                                h = -h;
+                            }
+                            if (h <= func_80097140((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1))) {
+                                block->triangles[triIndex].flags |= (1 << i) << 2;
+                            }
+                        }
+                    } else {
+                        block->edgeFlags[triIndex] |= 1 << i;
+                    }
+                    block->trianglePlanes[triIndex].edgeBisectorPlane[i] = counter;
+                    block->planes[4 * counter + 0] = x5;
+                    block->planes[4 * counter + 1] = y5;
+                    block->planes[4 * counter + 2] = z5;
+                    block->planes[4 * counter + 3] = -(x1 * x5 + y1 * y5 + z1 * z5);
+                    counter++;
+                }
+            }
+        }
+    }
+    return counter;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m024", func_m024_00CE4);
+#endif
+
+/* Which edge (0-2) of triangle `tri` of the segment runs between points a and b (either way), or -1 */
+#ifdef NON_MATCHING
+/* two of the compiler's stack temporaries sit two words lower than the ROM's */
+static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b) {
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 edge;
+    s16 ax;
+    s16 ay;
+    s16 az;
+    s16 bx;
+    s16 by;
+    s16 bz;
+    s16 x0;
+    s16 y0;
+    s16 z0;
+    s16 x1;
+    s16 y1;
+    s16 z1;
+    s32 vOffset;
+    s32 start;
+    s32 end;
+    Vertex *verts;
+    Triangle *t;
+    Vertex *v;
+
+    ax = a[0];
+    ay = a[1];
+    az = a[2];
+    bx = b[0];
+    by = b[1];
+    bz = b[2];
+    edge = -1;
+    for (i = 0; i < seg->numberOfBatches; i++) {
+        start = seg->batches[i].facesOffset;
+        end = seg->batches[i + 1].facesOffset;
+        if (tri >= start && tri < end) {
+            j = 0;
+            vOffset = seg->batches[i].verticesOffset;
+            t = &seg->triangles[tri];
+            verts = seg->vertices;
+            for (; j < 3; j++) {
+                k = j + 1;
+                if (k >= 3) {
+                    k = 0;
+                }
+                v = &verts[(&t->vi0)[j] + vOffset];
+                x0 = v->x;
+                y0 = v->y;
+                z0 = v->z;
+                v = &verts[(&t->vi0)[k] + vOffset];
+                x1 = v->x;
+                y1 = v->y;
+                z1 = v->z;
+                if ((ax == x0 && ay == y0 && az == z0 && bx == x1 && by == y1 && bz == z1) ||
+                    (ax == x1 && ay == y1 && az == z1 && bx == x0 && by == y0 && bz == z0)) {
+                    edge = j;
+                    j = 3;
+                }
+            }
+        }
+    }
+    return edge;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m024", func_m024_016E0);
+#endif
 
 /* DKR func_8002C71C: lists the segment's batches with flag 0x2000 and finds their highest first vertex */
 static void func_m024_018B4(LevelModelSegment *segment) {
