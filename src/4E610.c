@@ -213,7 +213,7 @@ void zbuffer_clear_rect(Gfx **dList, u32 width, u32 height, s32 ulx, s32 uly, s3
 
 void fb_size(u32 *width, u32 *height);
 extern s32 gChequerBGEnabled;
-extern void *gTexBGTex1;
+extern struct RectTexture *gTexBGTex1;
 extern void (*gBGDrawFunc)(Gfx **, Mtx **);
 s32 check_viewport_background_flag(s32 viewPortIndex);
 s32 copy_viewport_background_size_to_coords(s32 viewPortIndex, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
@@ -331,7 +331,121 @@ void gfxtask_init(OSSched *sc) {
     osCreateMesgQueue(&D_800FE918, D_800FE930, ARRAY_COUNT(D_800FE930));
 }
 
-INCLUDE_ASM("asm/nonmatchings/4E610", func_8004E4E8);
+/* A texture's header (DKR's TextureHeader, structs.h), the fields used here */
+typedef struct RectTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0xA - 0x2];
+    /* 0x0A */ s16 numberOfCommands;
+    /* 0x0C */ Gfx *cmd;
+} RectTexture;
+
+extern RectTexture *gTexBGTex2;
+extern s32 gTexBGShiftX;
+extern Gfx dRaceFinishBackgroundSettings[];
+
+/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                 \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* The texture rectangle in the older microcode's form (RDPHALF_2, RDPHALF_CONT) */
+#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                    \
+    {                                                                                         \
+        Gfx *_g = (Gfx *) (pkt);                                                              \
+                                                                                              \
+        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));     \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                   \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));          \
+    }
+
+/**
+ * Seems to render the background screen after a race finishes while you're at the menu deciding what to do next.
+ * JFG: the size through pointers (so the shifted width and height live on the stack), unsigned compares.
+ * Official Name: rcpMosaicClear
+ */
+void bgdraw_texture(Gfx **dList) {
+    // The following variables use the (30.2) fixed-point format
+    u32 sumTextureHeights;
+    u32 texWidth;
+    u32 texHeight;
+    s32 xOffset;
+    u32 uly;
+    s32 ulx;
+    u32 videoWidth;
+    u32 videoHeight;
+
+    fb_size(&videoWidth, &videoHeight);
+    gSPDisplayList((*dList)++, dRaceFinishBackgroundSettings);
+
+    if (gTexBGTex2 == NULL) {
+        // Fill the background with a single texture
+        gDkrDmaDisplayList((*dList)++, OS_K0_TO_PHYSICAL(gTexBGTex1->cmd), gTexBGTex1->numberOfCommands);
+        videoWidth <<= 2;
+        videoHeight <<= 2;
+        texWidth = gTexBGTex1->width << 2;
+        texHeight = gTexBGTex1->height << 2;
+        for (xOffset = 0, uly = 0; uly < videoHeight;
+             uly += texHeight, xOffset = (xOffset + gTexBGShiftX) & (texWidth - 1)) {
+            for (ulx = -xOffset; ulx < videoWidth; ulx += texWidth) {
+                if (ulx < 0) {
+                    gSPTextureRectangleOld((*dList)++, 0, uly, ulx + texWidth, uly + texHeight, G_TX_RENDERTILE,
+                                           -(ulx << 3), 0, 1024, 1024);
+                } else {
+                    gSPTextureRectangleOld((*dList)++, ulx, uly, ulx + texWidth, uly + texHeight, G_TX_RENDERTILE,
+                                           0, 0, 1024, 1024);
+                }
+            }
+        }
+    } else {
+        // The screen is filled with alternating horizontal stripes of two textures
+        gDkrDmaDisplayList((*dList)++, OS_K0_TO_PHYSICAL(gTexBGTex1->cmd), gTexBGTex1->numberOfCommands);
+        videoWidth <<= 2;
+        videoHeight <<= 2;
+        uly = 0;
+        texWidth = gTexBGTex1->width << 2;
+        texHeight = gTexBGTex1->height << 2;
+        sumTextureHeights = (gTexBGTex2->height << 2) + texHeight;
+        for (xOffset = 0; uly < videoHeight;
+             uly += sumTextureHeights, xOffset = (xOffset + gTexBGShiftX) & (texWidth - 1)) {
+            for (ulx = -xOffset; ulx < videoWidth; ulx += texWidth) {
+                if (ulx < 0) {
+                    gSPTextureRectangleOld((*dList)++, 0, uly, ulx + texWidth, uly + texHeight, G_TX_RENDERTILE,
+                                           -(ulx << 3), 0, 1024, 1024);
+                } else {
+                    gSPTextureRectangleOld((*dList)++, ulx, uly, ulx + texWidth, uly + texHeight, G_TX_RENDERTILE,
+                                           0, 0, 1024, 1024);
+                }
+            }
+        }
+
+        gDkrDmaDisplayList((*dList)++, OS_K0_TO_PHYSICAL(gTexBGTex2->cmd), gTexBGTex2->numberOfCommands);
+        // Width and height are mistakenly multiplied by 4 again, but it doesn't cause any issues
+        videoWidth <<= 2;
+        videoHeight <<= 2;
+
+        uly = texHeight;
+        texHeight = gTexBGTex2->height << 2;
+        for (xOffset = 0; uly < videoHeight;
+             uly += sumTextureHeights, xOffset = (xOffset + gTexBGShiftX) & (texWidth - 1)) {
+            for (ulx = -xOffset; ulx < videoWidth; ulx += texWidth) {
+                if (ulx < 0) {
+                    gSPTextureRectangleOld((*dList)++, 0, uly, ulx + texWidth, uly + texHeight, G_TX_RENDERTILE,
+                                           -(ulx << 3), 0, 1024, 1024);
+                } else {
+                    gSPTextureRectangleOld((*dList)++, ulx, uly, ulx + texWidth, uly + texHeight, G_TX_RENDERTILE,
+                                           0, 0, 1024, 1024);
+                }
+            }
+        }
+    }
+    gDPPipeSync((*dList)++);
+}
 
 extern Gfx dChequerBGSettings[];
 extern u8 gChequerBGColourR1;
@@ -378,15 +492,6 @@ void bgdraw_chequer(Gfx **dList) {
     gDPPipeSync((*dList)++);
 }
 
-/* A texture's header (DKR's TextureHeader, structs.h), the fields used here */
-typedef struct RectTexture {
-    /* 0x00 */ u8 width;
-    /* 0x01 */ u8 height;
-    /* 0x02 */ u8 pad2[0xA - 0x2];
-    /* 0x0A */ s16 numberOfCommands;
-    /* 0x0C */ Gfx *cmd;
-} RectTexture;
-
 /* One textured rectangle of a list (ended by a NULL texture) */
 typedef struct TexturedRect {
     /* 0x00 */ RectTexture *tex;
@@ -397,26 +502,6 @@ typedef struct TexturedRect {
 
 RectTexture *set_animated_texture_header(RectTexture *texHead, s32 offset);
 extern Gfx D_800A37A8[];
-
-/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
-#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
-    {                                                                                                \
-        Gfx *_g = (Gfx *) (pkt);                                                                     \
-        _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                 \
-                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
-        _g->words.w1 = (unsigned int) (address);                                                     \
-    }
-
-/* The texture rectangle in the older microcode's form (RDPHALF_2, RDPHALF_CONT) */
-#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                    \
-    {                                                                                         \
-        Gfx *_g = (Gfx *) (pkt);                                                              \
-                                                                                              \
-        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
-        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));     \
-        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                   \
-        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));          \
-    }
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the texture pointer comes through v0 (the ROM loads it into s1 for the loop test) */

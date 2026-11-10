@@ -499,7 +499,7 @@ void objects_set_attachment_byte(s32 updateRate);
 s32 func_80011C2C(void);
 void func_80077614(s32 updateRate);
 void func_80008FF0(s32 updateRate);
-void func_80063358(s32 updateRate);
+void particles_update_all(s32 updateRate);
 void *cam_get_active_camera(void);
 void func_80079890(s32 arg0, void *camera);
 void track_module_effects_run(s32 updateRate);
@@ -560,7 +560,7 @@ void func_80045F00(s32 updateRate) {
             func_80054530(updateRate);
         }
         func_80008FF0(updateRate);
-        func_80063358(updateRate);
+        particles_update_all(updateRate);
         func_80079890(0, cam_get_active_camera());
         track_module_effects_run(updateRate);
         if ((s8) header[0x6C] != 1 && (s8) header[0x6C] != 2 && (pressed & START_BUTTON) && D_800A32BC == 0 &&

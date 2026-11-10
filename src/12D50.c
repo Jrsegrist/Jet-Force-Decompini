@@ -133,6 +133,8 @@ typedef struct LevelModel {
     /* 0x14 */ BspTreeNode *segmentsBspTree;
     /* 0x18 */ s16 numberOfTextures;
     /* 0x1A */ s16 numberOfSegments;
+    /* 0x1C */ u8 pad1C[0x1E - 0x1C];
+    /* 0x1E */ s16 numberOfAnimatedTextures;
 } LevelModel;
 
 typedef struct unk8002D30C_a0 {
@@ -165,7 +167,223 @@ void track_module_effects_run(s32 arg0) {
     }
 }
 
+/* JFG: the level header, reduced */
+typedef struct LevelHeader12 {
+    /* 0x00 */ u8 pad0[0x69];
+    /* 0x69 */ s8 skydomeFixed; // JFG: the skydome stays at the camera offset, unrotated (DKR: skyDome)
+    /* 0x6A */ u8 pad6A[0x6C - 0x6A];
+    /* 0x6C */ s8 raceType; // DKR: race_type
+    /* 0x6D */ u8 pad6D[0xA0 - 0x6D];
+    /* 0xA0 */ s16 weatherEnable;
+    /* 0xA2 */ u8 padA2[0xB2 - 0xA2];
+    /* 0xB2 */ s8 skyScrollU;          // DKR: unkA2
+    /* 0xB3 */ s8 skyScrollV;          // DKR: unkA3
+    /* 0xB4 */ TextureHeader *skyTex;  // DKR: unkA4
+    /* 0xB8 */ s16 skyOffsetU;         // DKR: unkA8
+    /* 0xBA */ s16 skyOffsetV;         // DKR: unkAA
+    /* 0xBC */ struct PulsatingLightData *pulseLightData;
+    /* 0xC0 */ u8 padC0[0xCD - 0xC0];
+    /* 0xCD */ s8 antiAliasing; // DKR: unkBD
+    /* 0xCE */ u8 bgBottomR;
+    /* 0xCF */ u8 bgBottomG;
+    /* 0xD0 */ u8 bgBottomB;
+    /* 0xD1 */ u8 bgTopR;
+    /* 0xD2 */ u8 bgTopG;
+    /* 0xD3 */ u8 bgTopB;
+    /* 0xD4 */ u8 padD4[0xE1 - 0xD4];
+    /* 0xE1 */ u8 skydomeSpin; // JFG: the skydome's rotation per frame
+    /* 0xE2 */ u8 padE2[0xEC - 0xE2];
+    /* 0xEC */ s16 maxEdges; // JFG: the edge list's size (track_edges_build)
+} LevelHeader12;
+
+/* DKR include/f3ddkr.h */
+#define gDkrDisableBillboard(pkt) gMoveWd(pkt, 0x02, 0, 0)
+
+extern Gfx *D_800F2F70;      // DKR: gTrackDL
+extern Mtx *D_800F2F74;      // DKR: gTrackMtxPtr
+extern Vertex *D_800F2F78;   // DKR: gTrackVtxPtr
+extern Triangle *D_800F2F7C; // DKR: gTrackTriPtr
+extern s32 D_800F2F84;       // DKR: gSceneCurrentPlayerID
+extern s32 D_800F2F8C;       // DKR: gIsNearCurrBBox
+extern s32 D_800F2FA0;       // DKR: gAntiAliasing
+extern s32 D_800F2FA4;      // DKR: gTrackTexAnimOffset
+extern u32 D_800F2FA8;       // DKR: gTrackTexAnimFlags
+extern s8 D_800A0CD0;        // DKR: gDrawLevelSegments
+extern u8 D_800A0CE0;
+extern LevelHeader12 *D_800A0D64; // DKR: gCurrentLevelHeader2
+extern TextureHeader *D_800A0D68; // JFG: an animated texture (its frame below)
+extern s32 D_800A0D6C;
+extern u8 D_800A321C;
+extern s32 D_800A74E0;
+extern s16 D_801046EE;
+extern char D_800AB520[];
+extern char D_800AB530[];
+u8 func_80048548(void); // the number of cameras
+s8 is_game_paused(void);
+void debug_trace_add(Gfx *dList, char *file, s32 line);
+void set_active_camera(s32 index);
+void func_8001DA1C(s32 arg0, s32 updateRate);
+void level_colour_cycles_update(s32 updateRate);
+void update_pulsating_light_data(struct PulsatingLightData *data, s32 timeDelta);
+void tex_animate_texture(TextureHeader *texture, u32 *triangleBatchInfoFlags, s32 *arg2, s32 updateRate);
+void rendermode_reset(Gfx **dList);
+void rain_fog(void);
+void update_fog(s32 viewportCount, s32 updateRate);
+void track_tex_anim(s32 updateRate);
+void level_effects_update(s32 updateRate);
+void func_8003FE3C(s32 arg0, s32 arg1);
+void func_8003FEB8(s32 arg0, s32 arg1);
+void copy_viewports_to_stack(void);
+void apply_fog(s32 playerID);
+void viewport_apply(Gfx **dList, Mtx **mtx);
+void view_planes_update(void);
+void func_8000C9E8(s32 arg0);
+void screen_lines_set_window(s32 arg0);
+void func_80012BAC(s32 updateRate);
+void skydome_render(s32 updateRate);
+void func_80013454(void);
+void initialise_player_viewport_vars(s32 arg0, s32 arg1);
+void weather_clip_planes(s16 near, s16 far);
+void weather_update(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 updateRate);
+void coronas_update(void);
+void func_80024044(void);
+void func_80024634(Gfx **dList, Mtx **mtx, Vertex **vtx);
+void ground_screen_effect_update(s32 arg0);
+void glitch_effect_draw(Gfx **dList);
+void viewport_reset(Gfx **dList);
+void func_8001D9B4(void);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: updateRate must stay on the stack (the `&updateRate` fake does it, but then IDO reloads it
+   inside the skydome branch; the ROM loads it once before the branch); one word longer */
+/**
+ * The main rendering function for the level: updates the level's animated parts, then draws every
+ * viewport's scene.
+ * JFG: only when a module call returns non-zero; no mirror mode, a debug trace, more module calls.
+ * DKR: render_scene
+ */
+void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 updateRate) {
+    s32 numViewports;
+    s32 tempUpdateRate;
+    s32 i;
+    s32 j;
+
+    if (&updateRate) {} // fakematch: keeps updateRate on the stack
+    numViewports = func_80048548();
+    if (func_80054530()) {
+        D_800F2F70 = *dList;
+        D_800F2F74 = *mtx;
+        D_800F2F78 = *vtx;
+        D_800F2F7C = *tris;
+        debug_trace_add(D_800F2F70, D_800AB520, 0x1F8);
+        set_active_camera(0);
+        gSceneRenderSkyDome = TRUE;
+        D_800F2F8C = FALSE;
+        if (is_game_paused()) {
+            tempUpdateRate = 0;
+        } else {
+            tempUpdateRate = updateRate;
+        }
+        if (D_800A0D68 != NULL) {
+            i = D_800A0D6C;
+            i += D_800A0D68->frameAdvanceDelay * tempUpdateRate;
+            while (i >= D_800A0D68->numOfTextures) {
+                i -= D_800A0D68->numOfTextures;
+            }
+            D_800A0D6C = i;
+        }
+        func_8001DA1C(1, updateRate);
+        level_colour_cycles_update(tempUpdateRate);
+        if (D_800A0D64->pulseLightData != (struct PulsatingLightData *) -1) {
+            update_pulsating_light_data(D_800A0D64->pulseLightData, tempUpdateRate);
+        }
+        if (D_800A0D64->raceType == 2) {
+            D_800A0CD0 = FALSE;
+        } else {
+            D_800A0CD0 = TRUE;
+        }
+        if (D_800A0D64->raceType == 1 || D_800A0D64->raceType == 2 || D_800A0D64->antiAliasing) {
+            D_800F2FA0 = TRUE;
+        }
+        if (D_800A0D64->skydomeFixed == -1) {
+            i = (D_800A0D64->skyTex->width << 9) - 1;
+            D_800A0D64->skyOffsetU = (D_800A0D64->skyOffsetU + (D_800A0D64->skyScrollU * tempUpdateRate)) & i;
+            i = (D_800A0D64->skyTex->height << 9) - 1;
+            D_800A0D64->skyOffsetV = (D_800A0D64->skyOffsetV + (D_800A0D64->skyScrollV * tempUpdateRate)) & i;
+            tex_animate_texture(D_800A0D64->skyTex, &D_800F2FA8, &D_800F2FA4, tempUpdateRate);
+        }
+        rendermode_reset(&D_800F2F70);
+        gDkrDisableBillboard(D_800F2F70++);
+        gSPClearGeometryMode(D_800F2F70++, G_CULL_FRONT);
+        gDPSetBlendColor(D_800F2F70++, 0, 0, 0, 100);
+        gDPSetPrimColor(D_800F2F70++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor(D_800F2F70++, 255, 255, 255, 0);
+        rain_fog();
+        update_fog(numViewports, tempUpdateRate);
+        if (gCurrentLevelModel->numberOfAnimatedTextures > 0) {
+            track_tex_anim(tempUpdateRate);
+        }
+        if (D_800A0CE0) {
+            func_80054530(tempUpdateRate);
+        }
+        level_effects_update(tempUpdateRate);
+        if (D_800A321C && numViewports == 1) {
+            func_8003FE3C(0, 1);
+            copy_viewports_to_stack();
+        }
+        for (j = D_800F2F84 = 0; j < numViewports; D_800F2F84++, j = D_800F2F84) {
+            apply_fog(j);
+            gDPPipeSync(D_800F2F70++);
+            set_active_camera(D_800F2F84);
+            viewport_apply(&D_800F2F70, &D_800F2F74);
+            view_planes_update();
+            func_8000C9E8(1);
+            screen_lines_set_window(D_800F2F84);
+            if (numViewports < 2) {
+                if (D_800A0D64->skydomeFixed == -1) {
+                    func_80012BAC(updateRate);
+                } else {
+                    skydome_render(updateRate);
+                }
+            } else {
+                func_80013454();
+            }
+            debug_trace_add(D_800F2F70, D_800AB530, 0x27D);
+            gDPPipeSync(D_800F2F70++);
+            initialise_player_viewport_vars(numViewports, updateRate);
+            weather_clip_planes(-1, -512);
+            if (D_800A0D64->weatherEnable > 0 && numViewports < 2) {
+                weather_update(&D_800F2F70, &D_800F2F74, &D_800F2F78, &D_800F2F7C, tempUpdateRate);
+            }
+            if (numViewports < 2) {
+                coronas_update();
+                func_80024044();
+                func_80024634(&D_800F2F70, &D_800F2F74, &D_800F2F78);
+                ground_screen_effect_update(tempUpdateRate);
+                glitch_effect_draw(&D_800F2F70);
+            }
+        }
+        if (D_800A74E0 > 0) {
+            func_80054530(&D_800F2F70);
+        }
+        func_80054530(&D_800F2F70);
+        if (D_801046EE != 0) {
+            func_80054530(&D_800F2F70);
+        }
+        func_8003FEB8(0, 1);
+        viewport_reset(&D_800F2F70);
+        gDPPipeSync(D_800F2F70++);
+        gDkrDisableBillboard(D_800F2F70++);
+        func_8001D9B4();
+        *dList = D_800F2F70;
+        *mtx = D_800F2F74;
+        *vtx = D_800F2F78;
+        *tris = D_800F2F7C;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800121C0);
+#endif
 
 extern Gfx *D_800F2F70; // DKR: gTrackDL
 extern s32 D_801008B4;  // JFG: the screen row the effect below starts at (0: all of it)
@@ -356,23 +574,6 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80012BAC);
             _SHIFTL((((numTris) - 1) << 4) | (texEnabled), 16, 8) | _SHIFTL(5, 24, 8) | _SHIFTL(((numTris) * 16), 0, 16); \
         _g->words.w1 = (unsigned int) (ptr);                                                                       \
     }
-
-/* JFG: the level header, reduced */
-typedef struct LevelHeader12 {
-    /* 0x00 */ u8 pad0[0x69];
-    /* 0x69 */ s8 skydomeFixed; // JFG: the skydome stays at the camera offset, unrotated (DKR: skyDome)
-    /* 0x6A */ u8 pad6A[0xCE - 0x6A];
-    /* 0xCE */ u8 bgBottomR;
-    /* 0xCF */ u8 bgBottomG;
-    /* 0xD0 */ u8 bgBottomB;
-    /* 0xD1 */ u8 bgTopR;
-    /* 0xD2 */ u8 bgTopG;
-    /* 0xD3 */ u8 bgTopB;
-    /* 0xD4 */ u8 padD4[0xE1 - 0xD4];
-    /* 0xE1 */ u8 skydomeSpin; // JFG: the skydome's rotation per frame
-    /* 0xE2 */ u8 padE2[0xEC - 0xE2];
-    /* 0xEC */ s16 maxEdges; // JFG: the edge list's size (track_edges_build)
-} LevelHeader12;
 
 /* JFG: an object's header, reduced */
 typedef struct ObjectHeader12 {
@@ -2176,14 +2377,12 @@ LevelModel *get_current_level_model(void) {
 
 extern void *D_800A0D88;
 extern s32 D_800A0D84;
-extern void *D_800A0D68;
 extern void *D_800F31C8;
 extern TrackEdge *D_800F33B0;
 extern s32 *D_800F33B8;
 extern s16 *D_800F33BC;
 extern s16 *D_800F33C0;
 extern void *D_800F2FB0;
-extern s8 D_800A0CE0;
 void track_segment_data_free(void);
 void func_80038F04(void);
 void tex_free(void *tex);
