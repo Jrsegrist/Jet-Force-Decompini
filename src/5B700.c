@@ -2111,7 +2111,194 @@ WeatherParticle *particle_alloc(s32 kind, s32 slot) {
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_800610CC);
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80061228);
+/* JFG: a particle that bounces off the level (the part particles_update_all touches) */
+typedef struct BounceParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x2F - 0x28];
+    /* 0x2F */ u8 bounces;
+    /* 0x30 */ u8 pad30[0x50 - 0x30];
+    /* 0x50 */ s32 flags;
+    /* 0x54 */ u8 pad54[0x5C - 0x54];
+    /* 0x5C */ s16 destroyTimer;
+} BounceParticle;
+
+/* JFG: a particle to test against the level this frame, and where it was */
+typedef struct ParticleSweep {
+    /* 0x00 */ BounceParticle *queued;
+    /* 0x04 */ Vec3f from;
+} ParticleSweep;
+
+extern u8 D_800A5DE0;              // JFG: the sweep slot to fill next (the one with the most bounces)
+extern ParticleSweep D_80100908[5];
+
+/* JFG: the parts of a particle particle_update touches */
+typedef struct UpdParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f position;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 frame;
+    /* 0x2C */ s16 kind;
+    /* 0x2E */ u8 movementType;
+    /* 0x2F */ u8 bounces;
+    /* 0x30 */ u8 pad30[0x44 - 0x30];
+    /* 0x44 */ u8 *colours;
+    /* 0x48 */ u8 pad48[0x4C - 0x48];
+    /* 0x4C */ void *texture;
+    /* 0x50 */ s32 flags;
+    /* 0x54 */ u8 pad54[0x58 - 0x54];
+    /* 0x58 */ ParticleEmitter *emitter;
+    /* 0x5C */ s16 destroyTimer;
+    /* 0x5E */ u8 pad5E[0x64 - 0x5E];
+    /* 0x64 */ s16 opacity;
+    /* 0x66 */ s16 opacityVel;
+    /* 0x68 */ s16 opacityTimer;
+    /* 0x6A */ s16 colourIndex;
+    /* 0x6C */ s16 colourTimer;
+    /* 0x6E */ u8 numColours;
+    /* 0x6F */ u8 pad6F[0x71 - 0x6F];
+    /* 0x71 */ u8 r;
+    /* 0x72 */ u8 g;
+    /* 0x73 */ u8 b;
+    /* 0x74 */ u8 pad74[0x77 - 0x74];
+    /* 0x77 */ u8 texUpdateRate;
+} UpdParticle;
+
+struct Particle;
+void move_particle_basic_parent(struct Particle *particle);
+void move_particle_attached_to_parent(struct Particle *particle);
+void move_particle_with_acceleration(struct Particle *particle);
+void move_particle_basic(struct Particle *particle);
+void move_particle_forward(struct Particle *particle);
+void func_800610CC(UpdParticle *particle);
+s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
+s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+extern s32 gParticleUpdateRate;
+
+#define particle ((UpdParticle *) particleAddr)
+/**
+ * Call a function to update the current particle texture frame if applicable.
+ * Applies movement, then the colour cycle and the opacity.
+ * JFG: a particle flagged 0x200000 skips a frame, one flagged 0x80000 only catches up; general particles that
+ * bounce (0x10000) queue for the level test in D_80100908; the colour cycle is per particle. Returns TRUE when
+ * the particle was freed.
+ * DKR: particle_update
+ */
+s32 func_80061228(s32 particleAddr, s32 updateRate) {
+    Vec3f prevPos;
+    s32 found;
+    s32 i;
+    u8 *colour;
+
+    if (particle->flags & 0x200000) {
+        particle->flags &= ~0x200000;
+        return FALSE;
+    }
+    gParticleUpdateRate = updateRate;
+    if (particle->flags & 0x80000) {
+        particle->flags ^= 0x80000;
+        if (particle->movementType == 3) {
+            gParticleUpdateRate = 0;
+            move_particle_attached_to_parent((struct Particle *) particle);
+            gParticleUpdateRate = updateRate;
+        }
+    } else if (particle->kind != 5) {
+    particle->destroyTimer -= gParticleUpdateRate;
+    if (particle->destroyTimer <= 0) {
+        func_800610CC(particle);
+        return TRUE;
+    }
+    if (particle->kind == 2 && (particle->flags & 1)) {
+        sprite_anim_advance(particle->texture, &particle->flags, particle->texUpdateRate, &particle->frame,
+                      gParticleUpdateRate);
+    } else if (particle->kind == 1 || particle->kind == 0) {
+        if (particle->texture != NULL) {
+            func_80057A10(particle->texture, &particle->flags, particle->texUpdateRate, &particle->frame,
+                          gParticleUpdateRate);
+        }
+    }
+    if (!(particle->flags & 0x20000)) {
+        if (particle->flags & 0x10000) {
+            prevPos.x = particle->position.x;
+            prevPos.y = particle->position.y;
+            prevPos.z = particle->position.z;
+        }
+        if (particle->movementType == 2) {
+            move_particle_with_acceleration((struct Particle *) particle);
+        } else if (particle->movementType == 3) {
+            move_particle_attached_to_parent((struct Particle *) particle);
+        } else if (particle->movementType == 4) {
+            move_particle_basic_parent((struct Particle *) particle);
+        } else if (particle->movementType == 5) {
+            move_particle_forward((struct Particle *) particle);
+        } else {
+            move_particle_basic((struct Particle *) particle);
+        }
+        if (particle->flags & 0x10000) {
+            found = FALSE;
+            if (D_80100908[D_800A5DE0].queued != NULL) {
+                if (particle->bounces < D_80100908[D_800A5DE0].queued->bounces ||
+                    D_80100908[D_800A5DE0].queued->destroyTimer < particle->destroyTimer) {
+                    found = TRUE;
+                }
+            } else {
+                found = TRUE;
+            }
+            if (found) {
+                D_80100908[D_800A5DE0].queued = (BounceParticle *) particle;
+                D_80100908[D_800A5DE0].from.x = prevPos.x;
+                D_80100908[D_800A5DE0].from.y = prevPos.y;
+                D_80100908[D_800A5DE0].from.z = prevPos.z;
+                D_800A5DE0 = 0;
+                for (i = 1; i < 5; i++) {
+                    if (D_80100908[i].queued != NULL) {
+                        if (D_80100908[D_800A5DE0].queued->bounces < D_80100908[i].queued->bounces) {
+                            D_800A5DE0 = i;
+                        }
+                    } else {
+                        D_800A5DE0 = i;
+                        i = 5;
+                    }
+                }
+            }
+        }
+    }
+    if (particle->flags & 0x400) {
+        if (particle->colourTimer == 0) {
+            particle->colourIndex += gParticleUpdateRate;
+            while (particle->colourIndex >= particle->numColours) {
+                particle->colourIndex -= particle->numColours;
+            }
+            colour = &particle->colours[particle->colourIndex * 4];
+            particle->r = colour[0];
+            particle->g = colour[1];
+            particle->b = colour[2];
+        } else {
+            particle->colourTimer -= gParticleUpdateRate;
+            if (particle->colourTimer < 0) {
+                particle->colourIndex -= particle->colourTimer;
+            }
+        }
+    }
+    if (particle->opacityTimer == 0) {
+        particle->opacity += gParticleUpdateRate * particle->opacityVel;
+    } else {
+        particle->opacityTimer -= gParticleUpdateRate;
+        if (particle->opacityTimer < 0) {
+            particle->opacity -= particle->opacityTimer * particle->opacityVel;
+            particle->opacityTimer = 0;
+        }
+    }
+    if (particle->emitter != NULL) {
+        particle->emitter->colourIndex += updateRate;
+        obj_trigger_emitter((ParticleObj *) particle, particle->emitter);
+    }
+    }
+    return FALSE;
+}
+#undef particle
 
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80061698);
 
@@ -2510,23 +2697,6 @@ void move_particle_forward(Particle *particle) {
     }
 }
 
-/* JFG: a particle that bounces off the level (the part particles_update_all touches) */
-typedef struct BounceParticle {
-    /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ Vec3f pos;
-    /* 0x18 */ u8 pad18[0x1C - 0x18];
-    /* 0x1C */ Vec3f velocity;
-    /* 0x28 */ u8 pad28[0x2F - 0x28];
-    /* 0x2F */ u8 bounces;
-    /* 0x30 */ u8 pad30[0x50 - 0x30];
-    /* 0x50 */ s32 flags;
-} BounceParticle;
-
-/* JFG: a particle to test against the level this frame, and where it was */
-typedef struct ParticleSweep {
-    /* 0x00 */ BounceParticle *particle;
-    /* 0x04 */ Vec3f from;
-} ParticleSweep;
 
 /* JFG: what func_80016208 fills in (12D50.c SweepHit) */
 typedef struct ParticleHit {
@@ -2536,8 +2706,6 @@ typedef struct ParticleHit {
     /* 0x1C */ u8 pad1C[0x28 - 0x1C];
 } ParticleHit;
 
-extern u8 D_800A5DE0;
-extern ParticleSweep D_80100908[5];
 extern f32 D_800AD848;
 extern f32 D_800AD84C;
 void line_particle_set_update(LineParticleSet *set, s32 updateRate);
@@ -2567,7 +2735,7 @@ void particles_update_all(s32 updateRate) {
 
     D_800A5DE0 = 0;
     for (i = 0; i < 5; i++) {
-        D_80100908[i].particle = NULL;
+        D_80100908[i].queued = NULL;
     }
     for (listPtr = D_801008E0; listPtr < D_801008E0 + 4; listPtr++) {
         list = *listPtr;
@@ -2597,7 +2765,7 @@ void particles_update_all(s32 updateRate) {
         }
     }
     for (i = 0; i < 5; i++) {
-        particle = D_80100908[i].particle;
+        particle = D_80100908[i].queued;
         if (particle != NULL) {
             radius = 5.0f;
             func_8001CE10(1, &D_80100908[i].from.x, &particle->pos.x, &radius, 0xCE002000, 0, 0);
