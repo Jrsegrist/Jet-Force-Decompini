@@ -128,7 +128,7 @@ extern void func_8008B2A0(s32 arg0);
 extern void func_8008B374(s32 arg0, s32 arg1);
 extern void func_80096BB0(void *mq, void *msg, s32 count); /* osCreateMesgQueue */
 extern void func_80003E40(void);
-extern void func_80004164(void);
+extern void osc_update(void);
 extern void func_8000474C(void);
 
 extern void *D_800A0660; /* DKR gMusicPlayer */
@@ -339,7 +339,7 @@ static void *M025SeqPlayerInit(s32 maxVoices, s32 maxEvents) {
     config.heap = D_800E94E0;
     config.initOsc = func_80003E40;
     config.stopOsc = func_8000474C;
-    config.updateOsc = func_80004164;
+    config.updateOsc = osc_update;
     cseqp = func_8008A624(NULL, 0, D_800E94E0, 1, 0x90);
     func_80086640(cseqp, &config);
     M025SetBank(cseqp, D_800E9500->bankArray[0]);

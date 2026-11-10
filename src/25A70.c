@@ -480,7 +480,7 @@ typedef struct ModelBatch26 {
 /* JFG: the state of an object lit by a group's flags */
 typedef struct GroupLightState {
     /* 0x00 */ f32 level;
-    /* 0x04 */ Object *group; // found near the object (func_80004954)
+    /* 0x04 */ Object *group; // found near the object (obj_find_nearest_of_type)
     /* 0x08 */ u8 lit;
     /* 0x09 */ u8 module;
     /* 0x0A */ u8 timer; // 0xFF: none
@@ -494,7 +494,7 @@ typedef struct GroupState26 {
     /* 0x3E */ u16 flags;
 } GroupState26;
 
-Object *func_80004954(f32 x, f32 y, f32 z, s32 type);
+Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, s32 type);
 s32 normalise_time(s32 timer);
 void func_80054530();
 void music_jingle_play(s32 jingle);
@@ -519,7 +519,7 @@ void func_80026A50(Object *obj, s32 updateRate) {
     state = (GroupLightState *) obj->animator;
     lit = state->lit;
     if (state->group == NULL) {
-        state->group = func_80004954(obj->x_position, obj->y_position, obj->z_position, 7);
+        state->group = obj_find_nearest_of_type(obj->x_position, obj->y_position, obj->z_position, 7);
     } else {
         group = (GroupState26 *) state->group->animator;
         if (!(group->flags & 8)) {

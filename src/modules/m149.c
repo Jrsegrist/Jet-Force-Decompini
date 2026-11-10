@@ -669,7 +669,7 @@ void func_m149_01868(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     obj->trans.rotation.z_rotation = 0;
     obj->level_entry = NULL;
     func_80079D1C(obj, 1, 1, 2, 0, 0, 0, INTERACT(obj)->unk24, INTERACT(obj)->unk24, -1.0f, 1.0f, 1);
-    func_8001149C(obj, 1, 0.0f);
+    obj_anim_set(obj, 1, 0.0f);
 }
 
 /* A bomb: falls until it lands, then pulses until its fuse runs out and explodes */

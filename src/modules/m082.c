@@ -127,7 +127,7 @@ void func_m082_00478(Object *obj, M082Setup *setup) {
     state->camHeight = setup->camHeight;
     state->camDist = setup->camDist;
     state->camYaw = setup->camYaw;
-    func_8001149C(obj, 0, 0.0f);
+    obj_anim_set(obj, 0, 0.0f);
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 1);
 }
 

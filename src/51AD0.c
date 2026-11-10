@@ -538,7 +538,31 @@ void troop_spawn_context_set(SpawnedObject *a, u8 *b) {
     }
 }
 
+extern u8 runlink_nameoffs_ROM_START[];
+extern u8 runlink_names_ROM_START[];
+void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same code and frame; the target loads the offset word into a0 (mine a3) and computes skew and the
+ * aligned address in t1/t2 before the call; the buffer + skew addu has its operands swapped */
+/* JFG: the name of runlink symbol `index`: read its offset from the name offset table, then up to 0x60 bytes of
+ * the name (ROM reads are 8-byte aligned). Note: returns a pointer into this function's own stack buffer. */
+char *func_800527F0(s32 index) {
+    u8 *name;
+    s32 skew;
+    u8 buf[0x60];
+
+    name = buf;
+    dmacopy((u32) (runlink_nameoffs_ROM_START + index * 4) & ~7, (u32) &buf, 8);
+    index = *(s32 *) (name + ((u32) (runlink_nameoffs_ROM_START + index * 4) & 7)) + (s32) runlink_names_ROM_START;
+    skew = index & 7;
+    index &= ~7;
+    dmacopy(index, (u32) name, 0x60);
+    return (char *) name + skew;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_800527F0);
+#endif
 
 /* Size: 0x20 bytes */
 typedef struct ModuleEntry {
@@ -655,6 +679,8 @@ void runlink_reloc_apply(PatchWord *insn, u32 value, u8 type) {
     osInvalICache(insn, 4);
 }
 
+/* JFG: apply one relocation of a module whose sections are in D_800FEAB8 (type 3 = the data section); a HI16
+ * (kind 5) also applies the LO16 after it with the combined addend. Returns how many relocations it used. */
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);

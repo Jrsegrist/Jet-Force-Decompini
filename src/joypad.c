@@ -97,7 +97,7 @@ void flash_erase_sectors(void);
 void func_8004BAF4(s32 file, u8 *game);
 void read_eeprom_settings(u8 *flags);
 void write_eeprom_settings(u8 *flags);
-void func_8004B56C(s32 updateRate);
+void rumble_motors_run(s32 updateRate);
 
 /**
  * Reads arg0 for a set of flags on whether to read, write, or erase any save data.
@@ -165,7 +165,7 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
             // Reset all flags
             saveDataFlags = 0;
         }
-        func_8004B56C(updateRate);
+        rumble_motors_run(updateRate);
         osContStartReadData(&sSIMesgQueue);
     }
     for (i = 0; i < MAXCONTROLLERS; i++) {

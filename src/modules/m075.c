@@ -118,7 +118,7 @@ extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
 extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **verts, M075Billboard *board, s32 sprite, s32 flags,
                           s32 alpha);
-extern void func_8004046C(Gfx **dl, Mtx **mtx);
+extern void viewport_apply(Gfx **dl, Mtx **mtx);
 extern void func_80055B80(Gfx **dl);
 
 /* The lights round the screen of the cabinet that launches level 0x18D; their colours run round */
@@ -430,7 +430,7 @@ void func_m075_00900(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj) {
                     gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
                     render_ortho_triangle_image(dl, mtx, verts, &board, sprite, 4, alpha);
                     func_80056000(1);
-                    func_8004046C(dl, mtx);
+                    viewport_apply(dl, mtx);
                     gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
                 }
                 if (state->game == 0x18D) {

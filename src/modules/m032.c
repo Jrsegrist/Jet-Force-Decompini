@@ -287,7 +287,7 @@ void func_m032_025F0(Object *obj, M032Walk *walk, M032Anim *anim) {
     walk->unk33 = 0;
     walk->yaw = func_80049C84(walk->x - obj->trans.x_position, walk->z - obj->trans.z_position);
     walk->speed = anim->speed;
-    func_8001149C(obj, anim->anim, obj->unk28);
+    obj_anim_set(obj, anim->anim, obj->unk28);
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", data);

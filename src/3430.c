@@ -619,7 +619,91 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
 INCLUDE_ASM("asm/nonmatchings/3430", func_80003E40);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80004164);
+extern f32 D_800AA1C0; // 2 pi (.rodata)
+extern f32 D_800AA1C4; // 2 pi (.rodata)
+
+/* JFG: step an oscillator and write its new value (a volume for the tremolos, a pitch ratio for the vibratos);
+ * returns the time until the next update (one frame, or the half period for the square waves) */
+s32 osc_update(void *oscState, f32 *updateVal) {
+    f32 t;
+    OscState *osc = (OscState *) oscState;
+    s32 deltaTime = 16000;
+
+    switch (osc->type) {
+        case 1:
+            if (++osc->curCount >= osc->cycleSpan) {
+                osc->curCount = 0;
+            }
+            t = (f32) osc->curCount / (f32) osc->cycleSpan;
+            t = sinf(t * D_800AA1C0);
+            t = (f32) osc->data.tsin.halfDepth * t;
+            *updateVal = (f32) osc->data.tsin.baseVol + t;
+            break;
+        case 2:
+            if (osc->stateFlags == 0) {
+                *updateVal = (f32) osc->data.tsin.loVal;
+                osc->stateFlags = 1;
+            } else {
+                *updateVal = (f32) osc->data.tsin.baseVol;
+                osc->stateFlags = 0;
+            }
+            deltaTime = osc->cycleSpan * 16000;
+            break;
+        case 3:
+            if (++osc->curCount > osc->cycleSpan) {
+                osc->curCount = 0;
+            }
+            t = (f32) osc->curCount / (f32) osc->cycleSpan;
+            t *= (f32) osc->data.tsin.baseVol;
+            *updateVal = (f32) osc->data.tsin.halfDepth - t;
+            break;
+        case 4:
+            if (++osc->curCount > osc->cycleSpan) {
+                osc->curCount = 0;
+            }
+            t = (f32) osc->curCount / (f32) osc->cycleSpan;
+            t *= (f32) osc->data.tsin.baseVol;
+            *updateVal = (f32) osc->data.tsin.halfDepth + t;
+            break;
+        case 0x80:
+            if (++osc->curCount >= osc->cycleSpan) {
+                osc->curCount = 0;
+            }
+            t = (f32) osc->curCount / (f32) osc->cycleSpan;
+            t = sinf(t * D_800AA1C4) * osc->data.depthcents;
+            *updateVal = alCents2Ratio(t);
+            break;
+        case 0x81:
+            if (osc->stateFlags == 0) {
+                osc->stateFlags = 1;
+                *updateVal = osc->data.vsqr.loRatio;
+            } else {
+                osc->stateFlags = 0;
+                *updateVal = osc->data.vsqr.hiRatio;
+            }
+            deltaTime = osc->cycleSpan * 16000;
+            break;
+        case 0x82:
+            if (++osc->curCount > osc->cycleSpan) {
+                osc->curCount = 0;
+            }
+            t = (f32) osc->curCount / (f32) osc->cycleSpan;
+            t *= (f32) osc->data.vsaw.detuneScale;
+            t = (f32) osc->data.vsaw.hiCents - t;
+            *updateVal = alCents2Ratio(t);
+            break;
+        case 0x83:
+            if (++osc->curCount > osc->cycleSpan) {
+                osc->curCount = 0;
+            }
+            t = (f32) osc->curCount / (f32) osc->cycleSpan;
+            t *= (f32) osc->data.vsaw.detuneScale;
+            t += (f32) osc->data.vsaw.hiCents;
+            *updateVal = alCents2Ratio(t);
+            break;
+    }
+    return deltaTime;
+}
 
 /* JFG: push a node onto a free list. */
 void func_8000474C(FreeNode *node) {

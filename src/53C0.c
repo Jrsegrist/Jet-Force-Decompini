@@ -25,7 +25,11 @@ typedef struct Object_Racer {
     /* 0x146 */ s16 unk146; // DKR: unk166
     /* 0x148 */ u8 pad148[0x197 - 0x148];
     /* 0x197 */ u8 unk197;
-    /* 0x198 */ u8 pad198[0x5C0 - 0x198];
+    /* 0x198 */ u8 pad198[0x1FA - 0x198];
+    /* 0x1FA */ u8 unk1FA;
+    /* 0x1FB */ u8 pad1FB[0x53C - 0x1FB];
+    /* 0x53C */ s8 unk53C;
+    /* 0x53D */ u8 pad53D[0x5C0 - 0x53D];
     /* 0x5C0 */ s32 unk5C0;
 } Object_Racer;
 
@@ -53,12 +57,16 @@ typedef struct ObjHeaderParticleEntry {
 
 /* JFG: the object header, reduced */
 typedef struct ObjectHeader {
-    /* 0x00 */ u8 pad0[0x14];
+    /* 0x00 */ f32 scale;
+    /* 0x04 */ u8 pad4[0x14 - 0x4];
     /* 0x14 */ u16 flags;
-    /* 0x16 */ u8 pad16[0x1E - 0x16];
+    /* 0x16 */ u8 pad16[0x1B - 0x16];
+    /* 0x1B */ u8 category; // JFG: obj_find_nearest_in_category searches by it
+    /* 0x1C */ s16 unk1C;
     /* 0x1E */ s8 unk1E;
     /* 0x1F */ s8 numAttachments;
-    /* 0x20 */ u8 pad20[2];
+    /* 0x20 */ s8 numChildren;    // JFG: child objects (types in unk34)
+    /* 0x21 */ s8 numSpriteSlots; // JFG: sprite slots (definitions in unk3C)
     /* 0x22 */ s8 particleCount;
     /* 0x23 */ u8 pad23[0x30 - 0x23];
     /* 0x30 */ s32 unk30; // JFG: offsets in the asset, made into pointers when loaded
@@ -96,39 +104,71 @@ typedef struct ObjectHeader {
 /* JFG: what an object's attachment list points at, reduced */
 typedef struct ObjectAttachment {
     /* 0x00 */ struct ObjectModel53 *model;
-    /* 0x04 */ u8 pad4[0x8 - 0x4];
-    /* 0x08 */ s8 unk8;
-    /* 0x09 */ u8 pad9;
+    /* 0x04 */ u8 *vertices;
+    /* 0x08 */ s8 unk8; // nonzero: the animation loops
+    /* 0x09 */ s8 prevUnk8;
     /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 matrixIndex;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ u8 *matrices[5]; // JFG: 64-byte joint matrices, one buffer per matrixIndex
+    /* 0x24 */ u16 animIndex;
+    /* 0x26 */ u16 prevAnimIndex;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ f32 prevUnk28;
+    /* 0x30 */ f32 unk30;
+    /* 0x34 */ f32 prevUnk30;
+    /* 0x38 */ f32 animLength;
+    /* 0x3C */ f32 prevAnimLength;
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ f32 prevUnk40;
+    /* 0x48 */ u8 pad48[0x5C - 0x48];
+    /* 0x5C */ s16 unk5C;
+    /* 0x5E */ s16 unk5E;
+    /* 0x60 */ u8 *animData;
+    /* 0x64 */ u8 *prevAnimData;
+    /* 0x68 */ f32 *point; // JFG: a point (x, y, z) of the model
+    /* 0x6C */ u8 pad6C[0x78 - 0x6C];
+    /* 0x78 */ s16 *texOffsets[2];
+    /* 0x80 */ void *unk80;
+    /* 0x84 */ void *unk84;
+    /* 0x88 */ s16 unk88;
+    /* 0x8A */ s16 unk8A;
 } ObjectAttachment;
 
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x18 */ u8 pad18[0x20 - 0x18];
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ u8 pad24[0x28 - 0x24];
     /* 0x28 */ f32 animFrame;
-    /* 0x2C */ u8 pad2C[0x2E - 0x2C];
+    /* 0x2C */ s16 headerIndex; // JFG: the loaded header's index (try_free_object_header)
     /* 0x2E */ s16 segmentID;
-    /* 0x30 */ u8 pad30[0x39 - 0x30];
+    /* 0x30 */ f32 distanceToCamera; // JFG: negated view depth (sort_objects_by_dist)
+    /* 0x34 */ u8 pad34[0x39 - 0x34];
     /* 0x39 */ u8 opacity;
     /* 0x3A */ s8 attachmentIndex;
-    /* 0x3B */ u8 pad3B;
+    /* 0x3B */ s8 animIndex;
     /* 0x3C */ s32 levelEntry; // JFG: the level object entry it was spawned from
 
     /* 0x40 */ struct ObjectHeader *header;
     /* 0x44 */ u8 pad44[0x48 - 0x44];
     /* 0x48 */ s16 behaviorId;
     /* 0x4A */ s16 unk4A;
-    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x4C */ struct ObjectPoints *unk4C;
     /* 0x50 */ struct ObjectSprite *sprite;
-    /* 0x54 */ u8 pad54[0x5C - 0x54];
+    /* 0x54 */ void *shade; // JFG: the lighting the object is drawn with
+    /* 0x58 */ u8 pad58[0x5C - 0x58];
     /* 0x5C */ ObjectUnk5C *unk5C;
-    /* 0x60 */ u8 pad60[0x68 - 0x60];
+    /* 0x60 */ struct ObjectUnk60 *unk60;
+    /* 0x64 */ struct ObjectSpriteSlot *spriteSlots;
     /* 0x68 */ Object_Racer *racer;
     /* 0x6C */ struct ObjectAttachment **attachments; // JFG
     /* 0x70 */ struct ParticleEmitter *particleEmitter;
     /* 0x74 */ u8 pad74[0x7C - 0x74];
     /* 0x7C */ u8 *unk7C;
-    /* 0x80 */ u8 pad80[0xA0 - 0x80];
+    /* 0x80 */ u8 pad80[0x90 - 0x80];
+    /* 0x90 */ u8 numSpriteSlots;
+    /* 0x91 */ u8 pad91[0xA0 - 0x91];
     /* 0xA0 */ u8 freed; // JFG: already on the free list
     /* 0xA1 */ u8 padA1[0xA4 - 0xA1];
     /* 0xA4 */ struct Object *prev;
@@ -241,9 +281,83 @@ void free_all_objects(void) {
     mempool_free(D_800F2CF0[1]);
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004954);
+extern Object *D_800A0834; // JFG: an object the searches skip
+extern f32 D_800AA3FC;     // the search's starting distance, in .rodata
+extern f32 D_800AA400;     // the search's starting distance, in .rodata
+Object **objGetObjList(s32 *arg0, s32 *cnt);
+f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80004AF4);
+/* JFG: the first word of a type 0x18 object's block */
+typedef struct ObjectFlags53 {
+    /* 0x00 */ u32 unk0_31 : 4;
+    /* 0x00 */ u32 skip : 1; // bit 27: nearest-object searches skip it
+} ObjectFlags53;
+
+/* JFG: the nearest live object of the type (type 0x18 ones with bit 0x08000000 of their block's first
+   word set are skipped). */
+Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, u8 type) {
+    Object *obj;
+    Object *nearest;
+    s32 start;
+    s32 count;
+    Object **list;
+    s32 i;
+    f32 best;
+    f32 dist;
+
+    list = objGetObjList(&start, &count);
+    best = D_800AA3FC;
+    nearest = NULL;
+    for (i = start; i < count; i++) {
+        obj = list[i];
+        if (obj->freed) {
+            continue;
+        }
+        if (obj != D_800A0834 && obj->behaviorId == type) {
+            if (type == 0x18 && ((ObjectFlags53 *) obj->racer)->skip) {
+                continue;
+            }
+            dist = point_distance_squared(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
+                                          x, y, z);
+            if (dist < best) {
+                best = dist;
+                nearest = obj;
+            }
+        }
+    }
+    return nearest;
+}
+
+/* JFG: the nearest live object whose header has the category (header byte 0x1B). */
+Object *obj_find_nearest_in_category(f32 x, f32 y, f32 z, u8 category) {
+    Object *obj;
+    Object *nearest;
+    s32 start;
+    s32 count;
+    Object **list;
+    s32 i;
+    f32 best;
+    f32 dist;
+
+    list = objGetObjList(&start, &count);
+    best = D_800AA400;
+    nearest = NULL;
+    for (i = start; i < count; i++) {
+        obj = list[i];
+        if (obj->freed) {
+            continue;
+        }
+        if (obj != D_800A0834 && obj->header->category == category) {
+            dist = point_distance_squared(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
+                                          x, y, z);
+            if (dist < best) {
+                best = dist;
+                nearest = obj;
+            }
+        }
+    }
+    return nearest;
+}
 
 extern s8 D_800A0898;
 
@@ -618,7 +732,144 @@ void obj_free_assets(Object *obj, s32 count, s32 kind) {
     }
 }
 
+/* JFG: an object's child objects (obj->unk60) */
+typedef struct ObjectUnk60 {
+    /* 0x00 */ s32 count;
+    /* 0x04 */ Object *children[10]; // JFG: [0] is the object carried at the model's joints
+    /* 0x2C */ s32 unk2C;
+} ObjectUnk60;
+
+/* JFG: how a sprite slot's first frame is picked: a random frame, or slot index's frame (bits
+   22-27) plus or minus amount (bits 16-21) */
+#define SPRITE_SLOT_RANDOM 0x80000000
+#define SPRITE_SLOT_AFTER 0x40000000
+#define SPRITE_SLOT_BEFORE 0x20000000
+
+/* JFG: a sprite slot definition of an object header (12 bytes) */
+typedef struct SpriteSlotDef {
+    /* 0x00 */ u16 spriteID;
+    /* 0x02 */ s8 unk2;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 size; // the scale times 500
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ u32 flags;
+} SpriteSlotDef;
+
+/* JFG: an object's sprite slot (0x14 bytes) */
+typedef struct ObjectSpriteSlot {
+    /* 0x00 */ u8 *sprite; // the first byte is the frame count
+    /* 0x04 */ s8 unk4;
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ u32 flags;
+    /* 0x10 */ f32 frame;
+} ObjectSpriteSlot;
+
+Object *obj_spawn_attachment(s32 type);
+void try_free_object_header(s32 index);
+s32 rand_range(s32 min, s32 max);
+
+#ifdef NON_MATCHING
+/* JFG: create the object's child objects and load its sprite slots (picking each slot's first
+   frame); if anything failed, free what was made and return 1.
+   NON_MATCHING: IDO sinks index/amount into the two branches that use them (the target computes
+   them once, into a0/a1, before the tests); everything after is renumbered. */
+s32 func_80006F2C(Object *obj) {
+    ObjectHeader *header;
+    ObjectUnk60 *children;
+    ObjectSpriteSlot *slot;
+    s32 failed;
+    s32 i;
+    Object *child;
+    SpriteSlotDef *def;
+    u32 flags;
+    s32 index;
+    s32 amount;
+    s32 numFrames;
+
+    header = obj->header;
+    children = NULL;
+    slot = NULL;
+    failed = FALSE;
+    if (header->numChildren > 0 && header->numChildren < 10) {
+        i = 0;
+        children = obj->unk60;
+        children->count = header->numChildren;
+        for (; i < children->count; i++) {
+            child = obj_spawn_attachment(((s32 *) obj->header->unk34)[i]);
+            if (child != NULL) {
+                child->trans.scale *= obj->trans.scale;
+            }
+            children->children[i] = child;
+            if (child == NULL) {
+                failed = TRUE;
+            }
+        }
+        children->unk2C = obj->header->unk38;
+        header = obj->header;
+    }
+    obj->numSpriteSlots = header->numSpriteSlots;
+    if (obj->numSpriteSlots > 0 && header->numSpriteSlots < 10) {
+        slot = obj->spriteSlots;
+        def = (SpriteSlotDef *) header->unk3C;
+        for (i = 0; i < obj->numSpriteSlots; i++) {
+            slot->sprite = tex_load_sprite(def->spriteID, 1);
+            slot->unk4 = def->unk2;
+            flags = def->flags;
+            slot->flags = flags;
+            index = (flags >> 22) & 0x3F;
+            amount = (flags >> 16) & 0x3F;
+            slot->scale = (def->size / 500.0f) * obj->trans.scale;
+            slot->unk5 = def->unk3;
+            numFrames = slot->sprite[0];
+            if (flags & SPRITE_SLOT_RANDOM) {
+                slot->frame = rand_range(0, numFrames);
+            } else if (flags & SPRITE_SLOT_AFTER) {
+                slot->frame = obj->spriteSlots[index].frame + amount;
+            } else if (flags & SPRITE_SLOT_BEFORE) {
+                slot->frame = obj->spriteSlots[index].frame - amount;
+            }
+            def++;
+            if (numFrames < slot->frame) {
+                slot->frame -= numFrames;
+            } else if (slot->frame < 0.0f) {
+                slot->frame += numFrames;
+            }
+            if (slot->sprite == NULL) {
+                failed = TRUE;
+            }
+            slot++;
+        }
+    }
+    if (failed) {
+        if (children != NULL) {
+            for (i = 0; i < children->count; i++) {
+                child = children->children[i];
+                if (child != NULL) {
+                    obj_free_assets(child, child->header->numAttachments, child->header->unk1E);
+                    try_free_object_header(child->headerIndex);
+                    mempool_free(child);
+                }
+            }
+            children->unk2C = 0;
+        }
+        if (slot != NULL) {
+            slot = obj->spriteSlots;
+            for (i = 0; i < obj->numSpriteSlots; i++) {
+                // JFG: every pass frees slot 0 (the slot pointer never advances)
+                if (slot->sprite != NULL) {
+                    sprite_free(slot->sprite);
+                    slot->sprite = NULL;
+                }
+            }
+        }
+    }
+    return failed;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80006F2C);
+#endif
 
 /* DKR include/structs.h, reduced (Size: 0x24 bytes) */
 typedef struct ParticleEmitter {
@@ -722,7 +973,165 @@ s32 obj_sprite_init(Object *obj, ObjectSprite *sprite) {
     return (size & ~3) + 4;
 }
 
+/* JFG: a texture of an object model, reduced */
+typedef struct ModelTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0x12 - 2];
+    /* 0x12 */ u16 numOfTextures;
+    /* 0x14 */ u8 pad14[2];
+    /* 0x16 */ s16 frameSize;
+    /* 0x18 */ u8 loops;
+} ModelTexture;
+
+typedef struct ModelTextureEntry {
+    /* 0x00 */ ModelTexture *texture;
+    /* 0x04 */ u8 pad4[4];
+} ModelTextureEntry;
+
+/* DKR include/structs.h TriangleBatchInfo, reduced (Size 0x10) */
+typedef struct ModelBatch {
+    /* 0x00 */ u8 textureIndex;
+    /* 0x01 */ u8 pad1[7];
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u8 padA[6];
+} ModelBatch;
+
+/* JFG: a point of an object model (12 bytes) */
+typedef struct ModelPoint {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ s8 unk2;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ f32 size;
+} ModelPoint;
+
+typedef struct ObjectModel53 {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 numberOfTextures;
+    /* 0x11 */ u8 hasTexAnims;
+    /* 0x12 */ u8 pad12[0x16 - 0x12];
+    /* 0x16 */ s16 numberOfBatches;
+    /* 0x18 */ ModelTextureEntry *textures;
+    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
+    /* 0x20 */ Triangle *triangles;
+    /* 0x24 */ ModelBatch *batches;
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x2C */ u8 numTexAnims;
+    /* 0x2D */ u8 pad2D[2];
+    /* 0x2F */ u8 numPoints;
+    /* 0x30 */ u16 *unk30; // JFG: [1] is a joint index
+    /* 0x34 */ u8 pad34[0x38 - 0x34];
+    /* 0x38 */ ModelPoint *points;
+    /* 0x3C */ u8 pad3C[0x4E - 0x3C];
+    /* 0x4E */ s8 numAnims;
+    /* 0x4F */ u8 pad4F;
+    /* 0x50 */ s8 **anims;
+    /* 0x54 */ u8 pad54[0x5C - 0x54];
+    /* 0x5C */ s16 *animIds;
+    /* 0x60 */ u8 pad60[0x64 - 0x60];
+    /* 0x64 */ u8 unk64; // nonzero: animated another way
+    /* 0x65 */ u8 pad65[0x74 - 0x65];
+    /* 0x74 */ Gfx *dl;
+    /* 0x78 */ Gfx *dlTransparent;
+} ObjectModel53;
+
+/* JFG: an object's point state (0x34 bytes) */
+typedef struct ObjectPoint {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ s8 unk8;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ u8 padC[0x24 - 0xC];
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ s16 unk2C;
+    /* 0x2E */ u8 unk2E;
+    /* 0x2F */ u8 unk2F;
+    /* 0x30 */ u8 unk30_7 : 1;
+    /* 0x30 */ u8 unk30_6 : 1;
+} ObjectPoint;
+
+/* JFG: an object's block of point states (obj->unk4C) */
+typedef struct ObjectPoints {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ s16 count;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ ObjectPoint *points;
+} ObjectPoints;
+
+#ifdef NON_MATCHING
+/* JFG: set up the object's point states (one per model point, 40 more for type 0xE6) after the
+   block's 0x44-byte head; returns the size used.
+   NON_MATCHING: the right length; the register allocation differs (the target keeps a copy of
+   block in v0 for the first loop's bound and the model in a2). */
+s32 func_80007528(Object *obj, ObjectPoints *block, s32 type) {
+    s32 size;
+    ObjectModel53 *model;
+    ObjectPoint *points;
+    ObjectPoints *b;
+    s32 i;
+
+    obj->unk4C = block;
+    b = block;
+    size = 0x44;
+    if (obj->header->unk1E == 0) {
+        points = (ObjectPoint *) ((u8 *) block + 0x44);
+        model = obj->attachments[0]->model;
+        if (model->numPoints > 0) {
+            block->count = model->numPoints;
+            block->points = points;
+            size = block->count * 0x34 + 0x44;
+            for (i = 0; i < b->count; i++) {
+                points[i].unk0 = 0;
+                points[i].unk2 = 0;
+                points[i].unk4 = 0;
+                points[i].unk6 = model->points[i].unk0;
+                points[i].unk8 = model->points[i].unk2;
+                points[i].unk9 = model->points[i].unk3;
+                points[i].unkA = 0;
+                points[i].unk24 = model->points[i].size * obj->trans.scale;
+                points[i].unk28 = model->points[i].size * obj->trans.scale;
+                points[i].unk2E = model->points[i].unk4;
+                points[i].unk30_7 = 1;
+                points[i].unk2C = 0;
+                points[i].unk30_6 = 0;
+                points[i].unk2F = model->points[i].unk6;
+            }
+        }
+    }
+    if (type == 0xE6) {
+        b = obj->unk4C;
+        points = (ObjectPoint *) ((u8 *) block + size);
+        b->count = 40;
+        size += b->count * 0x34;
+        b->points = points;
+        for (i = 0; i < b->count; i++) {
+            points[i].unk0 = 0;
+            points[i].unk30_7 = 1;
+            points[i].unk2 = 0;
+            points[i].unk4 = 0;
+            points[i].unk6 = 0;
+            points[i].unk8 = -1;
+            points[i].unk9 = i;
+            points[i].unkA = 0;
+            points[i].unk24 = 40.0f;
+            points[i].unk28 = 40.0f;
+            points[i].unk2E = 100;
+            points[i].unk2F = 0;
+            points[i].unk2C = 0;
+            points[i].unk30_6 = 0;
+        }
+    }
+    return size;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007528);
+#endif
 
 /* JFG: attach a block to the object and return a size. */
 s32 func_80007730(Object *obj, ObjectUnk5C *arg1) {
@@ -737,7 +1146,94 @@ s32 func_8000773C(Object *obj, s32 arg1) {
     return 0x11C;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000774C);
+extern s32 D_800F2C78;     // JFG: the number of object types
+extern Object *D_800F2C64; // JFG: the buffer an attachment object is built in
+extern s32 D_800F2C68;     // JFG: its size in bytes
+s32 func_8000F978(s32 id);
+void *mempool_alloc(s32 size, u32 colourTag);
+
+/**
+ * Attempts to spawn an attachment object.
+ * JFG: built in a scratch buffer (cleared first), then copied into an allocation of its size
+ * rounded up to 16; the models get flags from func_8000F978.
+ * DKR: obj_spawn_attachment
+ */
+Object *obj_spawn_attachment(s32 objID) {
+    ObjectHeader *header;
+    Object *obj;
+    s32 modelFlags;
+    s32 i;
+    u8 *end;
+    s32 failed;
+    s32 size;
+    s8 numModels;
+    s8 modelType;
+    s32 *p;
+    Object *result;
+    s32 *src;
+
+    if (objID >= D_800F2C78) {
+        objID = 0;
+    }
+    header = load_object_header(objID);
+    if (header == NULL) {
+        return NULL;
+    }
+    size = header->numAttachments * 4 + 0xB4;
+    end = (u8 *) D_800F2C64 + size;
+    i = D_800F2C68 >> 2;
+    obj = D_800F2C64;
+    p = (s32 *) obj;
+    while (i--) {
+        *p++ = 0;
+    }
+    obj->header = header;
+    obj->trans.flags = 2;
+    obj->headerIndex = objID;
+    obj->unk4A = objID;
+    obj->trans.scale = header->scale;
+    obj->trans.flags |= header->flags & 0x20C;
+    modelFlags = func_8000F978(header->unk1C) & 7;
+    numModels = obj->header->numAttachments;
+    modelType = obj->header->unk1E;
+    obj->attachments = (ObjectAttachment **) ((u8 *) obj + 0xB4);
+    i = 0;
+    failed = FALSE;
+    for (; i < numModels; i++) {
+        if (modelType == 0) {
+            obj->attachments[i] = func_8003B9E8(((s32 *) obj->header->unk30)[i], modelFlags);
+        } else {
+            obj->attachments[i] = tex_load_sprite(((s32 *) obj->header->unk30)[i], 10);
+        }
+        if (obj->attachments[i] == NULL) {
+            failed = TRUE;
+        }
+    }
+    if (!failed) {
+        size = end - (u8 *) obj;
+        if (size & 0xF) {
+            size = (size + 0xF) & ~0xF;
+        }
+        result = mempool_alloc(size, 0xFFFF);
+        if (result != NULL) {
+            src = (s32 *) D_800F2C64;
+            p = (s32 *) result;
+            i = size >> 2;
+            while (i--) {
+                *p++ = *src++;
+            }
+            result->attachments = (ObjectAttachment **) ((u8 *) result + 0xB4);
+        } else {
+            failed = TRUE;
+        }
+    }
+    if (failed) {
+        obj_free_assets(obj, numModels, modelType);
+        try_free_object_header(objID);
+        result = NULL;
+    }
+    return result;
+}
 
 extern Object **gParticlePtrList;
 extern s32 gFreeListCount;
@@ -874,49 +1370,12 @@ void objects_update_special(s32 updateRate) {
     D_800F6F54 = 0;
 }
 
-/* JFG: a texture of an object model, reduced */
-typedef struct ModelTexture {
-    /* 0x00 */ u8 width;
-    /* 0x01 */ u8 height;
-    /* 0x02 */ u8 pad2[0x12 - 2];
-    /* 0x12 */ u16 numOfTextures;
-    /* 0x14 */ u8 pad14[2];
-    /* 0x16 */ s16 frameSize;
-    /* 0x18 */ u8 loops;
-} ModelTexture;
-
-typedef struct ModelTextureEntry {
-    /* 0x00 */ ModelTexture *texture;
-    /* 0x04 */ u8 pad4[4];
-} ModelTextureEntry;
-
 /* JFG: an animated texture of an object model (8 bytes) */
 typedef struct ModelTexAnim {
     /* 0x00 */ s16 offset;
     /* 0x02 */ s16 nextOffset; // < 0: none
     /* 0x04 */ u32 flags; // the texture index in the low byte
 } ModelTexAnim;
-
-/* DKR include/structs.h TriangleBatchInfo, reduced (Size 0x10) */
-typedef struct ModelBatch {
-    /* 0x00 */ u8 textureIndex;
-    /* 0x01 */ u8 pad1[7];
-    /* 0x08 */ s16 facesOffset;
-    /* 0x0A */ u8 padA[6];
-} ModelBatch;
-
-typedef struct ObjectModel53 {
-    /* 0x00 */ u8 pad0[0x10];
-    /* 0x10 */ u8 numberOfTextures;
-    /* 0x11 */ u8 pad11[0x16 - 0x11];
-    /* 0x16 */ s16 numberOfBatches;
-    /* 0x18 */ ModelTextureEntry *textures;
-    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
-    /* 0x20 */ Triangle *triangles;
-    /* 0x24 */ ModelBatch *batches;
-    /* 0x28 */ u8 pad28[0x2C - 0x28];
-    /* 0x2C */ u8 numTexAnims;
-} ObjectModel53;
 
 typedef struct ModelInstance53 {
     /* 0x00 */ u8 pad0[0xB];
@@ -1274,13 +1733,198 @@ void obj_debug_line_draw(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000AA34);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000B300);
+/* JFG: the block of a type 7 object (drawn twice, or scaled) */
+typedef struct ObjectTwinDraw {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ f32 scale;
+    /* 0x08 */ u8 pad8[0x34 - 0x8];
+    /* 0x34 */ s16 offset;
+    /* 0x36 */ u8 pad36[0x42 - 0x36];
+    /* 0x42 */ u8 kind;
+} ObjectTwinDraw;
+
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+void func_8000CC64(Object *obj);
+extern f32 D_800F2E98;
+
+/* JFG: draw a type 7 object: kind 3 draws attachments 1 and 2 either side of it along its facing,
+   kind 5 draws it at its block's scale. */
+void obj_draw_twin(Object *obj) {
+    ObjectTwinDraw *block;
+    f32 dx;
+    f32 dz;
+
+    block = (ObjectTwinDraw *) obj->racer;
+    if (block->kind == 3) {
+        if (block->offset == 0) {
+            obj->attachmentIndex = 0;
+            func_8000CC64(obj);
+            return;
+        }
+        dx = func_80049C30(-obj->trans.y_rotation) * block->offset;
+        dz = func_80049C34(-obj->trans.y_rotation) * block->offset;
+        obj->attachmentIndex = 1;
+        obj->trans.x_position -= dx;
+        obj->trans.z_position -= dz;
+        func_8000CC64(obj);
+        obj->attachmentIndex = 2;
+        obj->trans.x_position += dx + dx;
+        obj->trans.z_position += dz + dz;
+        func_8000CC64(obj);
+        obj->attachmentIndex = 0;
+        obj->trans.x_position -= dx;
+        obj->trans.z_position -= dz;
+    } else if (block->kind == 5) {
+        D_800F2E98 = block->scale;
+        func_8000CC64(obj);
+        D_800F2E98 = 1.0f;
+    } else {
+        func_8000CC64(obj);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000B46C);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BC28);
+extern s16 D_800A0BD8[]; // JFG: the type 0x33 object IDs that take the point's position, -1 ends
+s32 func_8003B740(Object *obj, Object_Racer *racer);
+void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 
+#ifdef NON_MATCHING
+/* JFG: build the matrix of the object's held item (index slot, 8 past the first nine or while the
+   player's unk53C is set, 0 while unk1FA's check is under 2) from the model's joint matrix, and
+   transform the item's point by it; returns whether it did.
+   NON_MATCHING: one word longer: the copy loop counts with != (target: slti 15), and slot / model
+   swap between register and stack. */
+s32 func_8000BC28(Object *obj, ObjectAttachment *inst, ObjectModel53 *model, s32 slot, f32 *mtx, f32 *x, f32 *y,
+                  f32 *z) {
+    Object_Racer *racer;
+    s32 result;
+    Object *held;
+    f32 *dst;
+    f32 *src;
+    s32 i;
+    s16 *id;
+    ObjectAttachment *item;
+
+    racer = obj->racer;
+    result = 0;
+    if (obj->behaviorId == 1) {
+        if (racer->unk1FA != 0 && func_8003B740(obj, racer) < 2) {
+            slot = 0;
+        } else if (slot >= 9 || racer->unk53C > 0) {
+            slot = 8;
+        }
+    }
+    if (obj->unk60 != NULL) {
+        held = obj->unk60->children[0];
+        if (held != NULL) {
+            src = (f32 *) ((model->unk30[1] << 6) + inst->matrices[inst->matrixIndex]);
+            dst = mtx;
+            i = 0;
+            while (TRUE) {
+                *dst++ = *src++;
+                if (++i >= 15) {
+                    break;
+                }
+            }
+            mtx[3] = 0.0f;
+            mtx[7] = 0.0f;
+            mtx[11] = 0.0f;
+            mtx[15] = 1.0f;
+            if (obj->behaviorId == 0x33 && model->unk30 != NULL && D_800A0BD8[0] != -1) {
+                for (id = D_800A0BD8; *id != -1; id++) {
+                    if (obj->unk4A == *id) {
+                        mtx[12] = inst->point[0];
+                        mtx[13] = inst->point[1];
+                        mtx[14] = inst->point[2];
+                        break;
+                    }
+                }
+            }
+            item = held->attachments[slot];
+            if (item != NULL && item->point != NULL) {
+                func_80048B60(mtx, item->point[0], item->point[1], item->point[2], x, y, z);
+                result = 1;
+            }
+        }
+    }
+    return result;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BC28);
+#endif
+
+extern u8 D_800A0A20;
+extern s16 D_800A0838[]; // JFG: the frame list used for a model without animated textures
+void func_800221F0(Object *obj, ObjectAttachment *inst, void *shade, f32 *mtx);
+void obj_tex_animate(struct ObjectTexAnimState *obj, ObjectModel53 *model, struct ModelInstance53 *inst,
+                     s32 updateRate);
+void mtx_model_push(Gfx **dList, Mtx **mtx, f32 *in);
+void mtx_pop(Gfx **dList);
+void rendermode_reset(Gfx **dList);
+
+#ifdef NON_MATCHING
+/* JFG: draw the object's held item (slot as in func_8000BC28) with the matrix, lighting it and
+   animating its textures first when it asks.
+   NON_MATCHING: the right frame; obj->racer is reloaded (target: in s0, then reused for the item)
+   and the temporaries are numbered differently. */
+void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
+    Object *held;
+    ObjectAttachment *item;
+    Gfx *dl;
+    s16 *texOffsets;
+
+    if (D_800A0A20 == 0) {
+        if (obj->behaviorId == 1) {
+            Object_Racer *racer = obj->racer;
+
+            if (racer->unk1FA != 0 && func_8003B740(obj, racer) < 2) {
+                slot = 0;
+            } else if (slot >= 9 || racer->unk53C > 0) {
+                slot = 8;
+            }
+        }
+        if (obj->unk60 != NULL) {
+            held = obj->unk60->children[0];
+            if (held != NULL) {
+                item = held->attachments[slot];
+                if (item != NULL) {
+                    if (item->unkA != 0) {
+                        func_800221F0(held, item, obj->shade, mtx);
+                        if (item->model->hasTexAnims) {
+                            obj_tex_animate((struct ObjectTexAnimState *) held, item->model,
+                                            (struct ModelInstance53 *) item, item->unkA);
+                        }
+                        item->unkA = 0;
+                    }
+                    if (obj->opacity < 255) {
+                        dl = item->model->dlTransparent;
+                    } else {
+                        dl = item->model->dl;
+                    }
+                    if (item->model->hasTexAnims) {
+                        texOffsets = item->texOffsets[item->matrixIndex];
+                    } else {
+                        texOffsets = D_800A0838;
+                    }
+                    mtx_model_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, mtx);
+                    fast3d_cmd(gObjectCurrDisplayList++,
+                               (((u32) item->matrices[item->matrixIndex] + 0x80000000) & 0xFFFFFF) | 0xBF000000,
+                               (u32) item->vertices + 0x80000000);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + 0x80000000);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + 0x80000000);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
+                    mtx_pop(&gObjectCurrDisplayList);
+                    rendermode_reset(&gObjectCurrDisplayList);
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BE5C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
@@ -1425,7 +2069,7 @@ void obj_render_scale_set(Object *obj) {
     D_800F2E98 = scale;
 }
 
-void func_8000B300(Object *obj);
+void obj_draw_twin(Object *obj);
 void func_8000B46C(Object *obj);
 void func_8000CC64(Object *obj);
 void func_8000AA34(Object *obj);
@@ -1447,7 +2091,7 @@ void render_object_parts(Object *obj) {
     } else if (obj->behaviorId == 0x81) {
         func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
     } else if (obj->behaviorId == 7) {
-        func_8000B300(obj);
+        obj_draw_twin(obj);
     } else if (obj->behaviorId == 0x7A) {
         y = obj->trans.y_position;
         obj->trans.y_position += 40.0f;
@@ -1590,7 +2234,54 @@ s32 get_first_active_object(s32 *retObjCount) {
     return i;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E278);
+f32 get_distance_to_camera(f32 x, f32 y, f32 z);
+
+/**
+ * Sort the objects from first to last by their distance to the camera (nearest last).
+ * JFG: every object's distance is the view depth, walked by pointer; each pass is one shorter.
+ * DKR: sort_objects_by_dist
+ */
+void sort_objects_by_dist(s32 startIndex, s32 lastIndex) {
+    s32 n;
+    s32 i;
+    s32 sorted;
+    Object *obj;
+    Object *next;
+    Object **list;
+
+    n = lastIndex - startIndex;
+    if (n <= 0) {
+        return;
+    }
+    list = &gObjPtrList[startIndex];
+    i = lastIndex - startIndex + 1;
+    while (i != 0) {
+        obj = *list++;
+        if (obj != NULL) {
+            obj->distanceToCamera =
+                -get_distance_to_camera(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+        }
+        i--;
+    }
+    do {
+        i = n;
+        list = &gObjPtrList[startIndex];
+        obj = *list;
+        n--;
+        sorted = TRUE;
+        do {
+            next = list[1];
+            if (next->distanceToCamera < obj->distanceToCamera) {
+                list[0] = next;
+                list[1] = obj;
+                sorted = FALSE;
+            } else {
+                obj = next;
+            }
+            list++;
+        } while (--i != 0);
+    } while (!sorted && n != 0);
+}
 
 /**
  * Returns the group of racer objects.
@@ -1677,7 +2368,103 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000FBF0);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800110E4);
+/* JFG: an animation event (6 bytes) */
+typedef struct AnimTrigger {
+    /* 0x00 */ u16 animId;
+    /* 0x02 */ u16 frame; // times D_800AB508: 0..1
+    /* 0x04 */ u16 event;
+} AnimTrigger;
+
+/* JFG: the header's animation events (header->unkD4) */
+typedef struct AnimTriggerList {
+    /* 0x00 */ s16 pad0;
+    /* 0x02 */ s16 count;
+    /* 0x04 */ AnimTrigger events[1];
+} AnimTriggerList;
+
+/* JFG: what a type 0x33 object's block holds at 0x4C */
+typedef struct ObjectKind53 {
+    /* 0x00 */ u8 pad0[0x4C];
+    /* 0x4C */ s16 kind;
+} ObjectKind53;
+
+extern f32 D_800AB508; // JFG: the event frame scale, in .rodata
+void func_80027120(Object *obj, s32 event);
+void func_800271A0(Object *obj, s32 event);
+void func_80027220(Object *obj, s32 event);
+
+/* JFG: send the object the events of its current animation whose frames it passed since the last
+   frame (in either direction, wrapping), to a module (types 0x5A, 0x18) or one of three handlers
+   picked by a type 0x33 object's kind. */
+void obj_anim_triggers_fire(Object *obj) {
+    AnimTriggerList *list;
+    f32 frame;
+    f32 prevFrame;
+    f32 t;
+    s32 i;
+    s32 animId;
+    s32 wrapped;
+    AnimTrigger *event;
+    ObjectAttachment *att;
+    ObjectModel53 *model;
+    ObjectKind53 *kindBlock;
+
+    list = obj->header->unkD4;
+    att = obj->attachments[obj->attachmentIndex];
+    model = att->model;
+    animId = model->animIds[obj->animIndex];
+    frame = obj->animFrame;
+    prevFrame = obj->prevAnimFrame;
+    event = list->events;
+    if (obj->animSpeed < 0.0f) {
+        frame = 1.0f - frame;
+        prevFrame = 1.0f - prevFrame;
+    }
+    if (frame < prevFrame) {
+        frame += 1.0f;
+        wrapped = TRUE;
+    } else {
+        wrapped = FALSE;
+    }
+    for (i = 0; i < list->count; i++, event++) {
+        if (animId == event->animId) {
+            t = event->frame * D_800AB508;
+            if (wrapped && t <= prevFrame) {
+                t += 1.0f;
+            }
+            if (prevFrame <= t && t <= frame && prevFrame != frame) {
+                switch (obj->behaviorId) {
+                    case 0x5A:
+                        func_80054530(obj, event->event);
+                        break;
+                    case 0x18:
+                        func_80054530(obj, event->event);
+                        break;
+                    case 0x33:
+                        kindBlock = (ObjectKind53 *) obj->racer;
+                        switch (kindBlock->kind) {
+                            case 0xC5:
+                            case 0x118:
+                                func_80027120(obj, event->event);
+                                break;
+                            case 0xC6:
+                            case 0x119:
+                                func_800271A0(obj, event->event);
+                                break;
+                            case 0xC4:
+                            case 0x11A:
+                            case 0x1F6:
+                            case 0x2AE:
+                            case 0x2BA:
+                                func_80027220(obj, event->event);
+                                break;
+                        }
+                        break;
+                }
+            }
+        }
+    }
+}
 
 /* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there.
    Returns whether it passed an end. */
@@ -1712,7 +2499,66 @@ s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
     return result;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8001149C);
+void asset_cache_release(void *arg0);
+
+/* JFG: start animation anim (clamped to the model's) of the object's current attachment at frame
+   0..1, keeping the previous animation's state. */
+s32 obj_anim_set(Object *obj, s32 anim, f32 frame) {
+    ObjectAttachment *att;
+    ObjectModel53 *model;
+    s8 *data;
+
+    if (frame > 1.0f) {
+        frame = 1.0f;
+    } else if (frame < 0.0f) {
+        frame = 0.0f;
+    }
+    obj->animFrame = frame;
+    att = obj->attachments[obj->attachmentIndex];
+    model = att->model;
+    if (model->numAnims == 0) {
+        return 0;
+    }
+    att->prevAnimIndex = att->animIndex;
+    att->prevUnk28 = att->unk28;
+    att->prevAnimLength = att->animLength;
+    att->prevUnk30 = att->unk30;
+    att->prevUnk40 = att->unk40;
+    att->prevAnimData = att->animData;
+    att->prevUnk8 = att->unk8;
+    if (anim >= model->numAnims) {
+        anim = model->numAnims - 1;
+    }
+    if (anim < 0) {
+        anim = 0;
+    }
+    obj->animIndex = anim;
+    att->animIndex = anim;
+    if (model->unk64 == 0) {
+        data = model->anims[att->animIndex];
+        att->animData = (u8 *) (data + 8);
+        att->unk8 = data[1] & 0xF0;
+        att->animLength = att->animData[3];
+        if (att->unk8 == 0) {
+            att->animLength -= 1.0f;
+        }
+        if (data[1] & 0xF) {
+            att->unk5C = 0x3FF / (data[1] & 0xF);
+            att->unk5E = 0x3FF;
+        }
+        att->unk28 = att->animLength * frame;
+    } else {
+        if (att->unk84 != NULL) {
+            asset_cache_release(att->unk84);
+        }
+        att->unk8A = att->unk88;
+        att->unk84 = att->unk80;
+        att->unk80 = NULL;
+    }
+    att->unk30 = 0.0f;
+    att->unk40 = 0.0f;
+    return 0;
+}
 
 #ifdef NON_MATCHING
 /* JFG: a block with a level at 0x28 (func_800116BC) */
@@ -1738,7 +2584,72 @@ s32 func_800116BC(LevelBlock28 *block, f32 level) {
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800116BC);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011708);
+/* JFG: the level object entry of a bonus item */
+typedef struct LevelObjectEntryBonus {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+} LevelObjectEntryBonus;
+
+extern s16 D_800A0CB0[16]; // JFG: the object type of each pickup kind 1..16
+
+/* JFG: spawn a bonus item at the point: kinds 1..16 are pickups (D_800A0CB0), 20..39 are type 0xA9
+   with a sub-kind (23 is type 0xE9), 40 and above nothing. */
+void obj_spawn_bonus(f32 x, f32 y, f32 z, u8 kind) {
+    LevelObjectEntryBonus entry;
+
+    if (kind >= 40) {
+        if (kind == 40) {
+        }
+    } else if (kind >= 20) {
+        Object *obj;
+
+        if (kind == 23) {
+            entry.objectID = 0xE9;
+            entry.unkA = 0;
+        } else {
+            entry.objectID = 0xA9;
+            entry.unkA = kind - 20;
+        }
+        entry.unk3 = 1;
+        entry.size = 12;
+        entry.unkB = 0;
+        entry.x = x;
+        entry.y = y;
+        entry.z = z;
+        obj = spawn_object((LevelObjectEntry53 *) &entry, 1);
+        if (obj != NULL) {
+            obj->levelEntry = 0;
+            if (obj->unk7C != NULL) {
+                obj->unk20 = 1.0f;
+                *obj->unk7C &= ~2;
+            }
+        }
+    } else if (kind > 0) {
+        Object *obj;
+
+        kind = kind - 1; // not kind--: that narrows kind into a3 at the entry
+        if (kind >= 16) {
+            kind = 15;
+        }
+        entry.objectID = D_800A0CB0[kind];
+        entry.size = 12;
+        entry.unkA = 0;
+        entry.unkB = 0;
+        entry.x = x;
+        entry.y = y;
+        entry.z = z;
+        obj = spawn_object((LevelObjectEntry53 *) &entry, 1);
+        if (obj != NULL) {
+            obj->levelEntry = 0;
+        }
+    }
+}
 
 extern s32 D_800F2CD8[];
 extern s32 D_800F2CE0[];
@@ -1780,7 +2691,124 @@ void obj_list_unlink(Object *obj) {
     obj->prev = NULL;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800119B8);
+/* JFG: the blocks of the object types that keep a pointer to another object, reduced */
+typedef struct ObjectLinks53 {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ Object *target; // type 0x99
+    /* 0x08 */ s16 unk8;       // types 0x9B, 0xA1
+    /* 0x0A */ u8 padA[0xD - 0xA];
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 padE[0x1A - 0xE];
+    /* 0x1A */ u8 unk1A; // type 0x18
+    /* 0x1B */ u8 unk1B;
+    /* 0x1C */ u8 pad1C[0x23 - 0x1C];
+    /* 0x23 */ u8 unk23; // type 0x25
+    /* 0x24 */ Object *unk24; // types 0x9E, 0x18
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x2C */ u16 kind;
+} ObjectLinks53;
+
+void troop_members_clear_tag(Object *obj);
+void troop_member_clear_link(Object *obj);
+
+/* JFG: take the object out of its list, and out of the list following it every object that points
+   at it (each type dropping its pointer; a type 0x99 then joins the list of the nearest type 0x18). */
+void obj_unlink_dependants(Object *obj) {
+    ObjectLinks53 *links;
+    s32 wasFirst;
+    Object *prev;
+    Object *next;
+    Object *cur;
+    s32 found;
+    ObjectLinks53 *block;
+    ObjectLinks53 *other;
+
+    if (obj->behaviorId == 1 || obj->behaviorId == 0x18 || obj->behaviorId == 0x4D || obj->behaviorId == 0x40) {
+        troop_members_clear_tag(obj);
+    }
+    if (obj->behaviorId == 0x9B || obj->behaviorId == 0xA1) {
+        troop_member_clear_link(obj);
+    }
+    prev = obj->prev;
+    next = obj->next;
+    wasFirst = prev == NULL;
+    if (prev != NULL) {
+        prev->next = next;
+    }
+    if (next != NULL) {
+        next->prev = prev;
+    }
+    obj->prev = NULL;
+    obj->next = NULL;
+    while (next != NULL) {
+        cur = next;
+        found = FALSE;
+        switch (cur->behaviorId) {
+            case 0x99:
+                links = (ObjectLinks53 *) cur->racer;
+                if (obj == links->target) {
+                    links->target = NULL;
+                    found = TRUE;
+                }
+                break;
+            case 0x9E:
+                block = (ObjectLinks53 *) cur->racer;
+                if (obj == block->unk24) {
+                    block->unk24 = NULL;
+                    found = TRUE;
+                }
+                break;
+            case 0x9B:
+            case 0xA1:
+                if (wasFirst) {
+                    block = (ObjectLinks53 *) cur->racer;
+                    found = TRUE;
+                    block->unk8 = 0;
+                    block->unkD = 0;
+                }
+                break;
+            case 0x25:
+                block = (ObjectLinks53 *) cur->racer;
+                found = TRUE;
+                block->unk23 = 1;
+                break;
+            case 0x18:
+                block = (ObjectLinks53 *) cur->racer;
+                other = (ObjectLinks53 *) block->unk24->racer;
+                if (other->kind == 0x112) {
+                    func_80054530(cur); // one argument: a1 still holds found (0) in the ROM
+                    found = TRUE;
+                } else if (other->kind == 0xE1) {
+                    found = TRUE;
+                    if (block->unk1A == 0x14) {
+                        block->unk1B = 5;
+                    }
+                }
+                break;
+        }
+        prev = cur->prev;
+        next = cur->next;
+        if (found) {
+            cur->prev = NULL;
+            cur->next = NULL;
+            if (prev != NULL) {
+                prev->next = next;
+            }
+            if (next != NULL) {
+                next->prev = prev;
+            }
+            if (cur->behaviorId == 0x99) {
+                links = (ObjectLinks53 *) cur->racer;
+                D_800A0834 = obj;
+                links->target = obj_find_nearest_of_type(cur->trans.x_position, cur->trans.y_position, cur->trans.z_position, 0x18);
+                D_800A0834 = NULL;
+                if (links->target != NULL) {
+                    obj_list_insert_after(cur, links->target);
+                }
+            }
+        }
+    }
+}
 
 /* JFG: whether any racer has its unk5C0 set. */
 s32 func_80011C2C(void) {
@@ -1855,4 +2883,75 @@ void entry_list_remove(s32 entry) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011E74);
+/* JFG: a camera, reduced (0x4C bytes) */
+typedef struct ObjectCamera53 {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+    /* 0x18 */ u8 pad18[0x4C - 0x18];
+} ObjectCamera53;
+
+/* JFG: the block of a type 0xA7 object, reduced */
+typedef struct ObjectSoundSource53 {
+    /* 0x00 */ u8 pad0[0xAC];
+    /* 0xAC */ u8 active;
+} ObjectSoundSource53;
+
+extern void *D_800A089C; // JFG: the sound of the nearest type 0xA7 object
+extern f32 D_800AB510;   // JFG: the search's starting distance, in .rodata
+ObjectCamera53 *cam_get_cameras(void);
+u8 func_80048548(void);
+void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
+void audspat_point_set_position(void *audioPoint, f32 x, f32 y, f32 z);
+void audspat_point_stop(void *handle);
+
+/* JFG: keep sound 0xFB playing at the active type 0xA7 object nearest to any camera (stop it when
+   there is none). */
+void sound_nearest_emitter_update(void) {
+    ObjectCamera53 *cams;
+    s32 numCams;
+    Object **list;
+    s32 i;
+    s32 start;
+    s32 end;
+    s32 j;
+    Object *obj;
+    Object *nearest;
+    f32 best;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    ObjectSoundSource53 *src;
+
+    best = D_800AB510;
+    nearest = NULL;
+    cams = cam_get_cameras();
+    numCams = func_80048548();
+    list = objGetObjList(&start, &end);
+    for (i = start; i < end; i++) {
+        obj = list[i];
+        if (obj->behaviorId == 0xA7 && (src = (ObjectSoundSource53 *) obj->racer)->active) {
+            for (j = 0; j < numCams; j++) {
+                dx = obj->trans.x_position - cams[j].x_position;
+                dy = obj->trans.y_position - cams[j].y_position;
+                dz = obj->trans.z_position - cams[j].z_position;
+                if (dx * dx + dy * dy + dz * dz < best || nearest == NULL) {
+                    best = dx * dx + dy * dy + dz * dz;
+                    nearest = obj;
+                }
+            }
+        }
+    }
+    if (nearest != NULL) {
+        if (D_800A089C == NULL) {
+            audspat_play_sound_at_position(0xFB, nearest->trans.x_position, nearest->trans.y_position,
+                                           nearest->trans.z_position, 1, &D_800A089C);
+        } else {
+            audspat_point_set_position(D_800A089C, nearest->trans.x_position, nearest->trans.y_position,
+                                       nearest->trans.z_position);
+        }
+    } else if (D_800A089C != NULL) {
+        audspat_point_stop(D_800A089C);
+    }
+}

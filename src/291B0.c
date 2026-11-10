@@ -91,17 +91,47 @@ typedef struct CoronaHeader29 {
     /* 0x1F */ u8 visible;
 } CoronaHeader29;
 
-/* JFG: the level entry of a light object */
+/* JFG: an object entry an explosion spawns (0x22 bytes) */
+typedef struct ExplosionSpawn {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0x22 - 0xA];
+} ExplosionSpawn;
+
+/* JFG: an object entry an explosion spawns once, at its time (0x1C bytes) */
+typedef struct ExplosionEvent {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 time;
+    /* 0x0C */ u8 padC[0x1C - 0xC];
+} ExplosionEvent;
+
+/* JFG: the level entry of a light object (also the explosions) */
 typedef struct LevelObjectEntry_LightObj {
-    /* 0x00 */ u8 pad0[0x31];
-    /* 0x31 */ u8 numFlags;
-    /* 0x32 */ u8 pad32[0x36 - 0x32];
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ s16 *triggerStart; // per particle trigger: the time span it runs
+    /* 0x14 */ s16 *triggerEnd;
+    /* 0x18 */ ExplosionSpawn *spawns; // repeated spawns: the time span and the interval
+    /* 0x1C */ s16 *spawnEnd;
+    /* 0x20 */ u8 *spawnStart;
+    /* 0x24 */ u8 *spawnInterval;
+    /* 0x28 */ ExplosionEvent *events;
+    /* 0x2C */ u8 pad2C[4];
+    /* 0x30 */ u8 numTriggers;
+    /* 0x31 */ u8 numFlags; // the number of spawns
+    /* 0x32 */ u8 numEvents;
+    /* 0x33 */ u8 pad33;
+    /* 0x34 */ s16 endTime;
     /* 0x36 */ s16 lightRadius;
     /* 0x38 */ s16 lightColourCycle;
     /* 0x3A */ s16 coronaSize;
     /* 0x3C */ s16 coronaColourCycle;
-    /* 0x3E */ s16 unk3E;
-    /* 0x40 */ u8 pad40[0x4A - 0x40];
+    /* 0x3E */ s16 shakeTimes[3]; // the camera shake: the rate after each of these times
+    /* 0x44 */ s16 shakeRates[3];
     /* 0x4A */ s16 zoneSize;
     /* 0x4C */ u8 zoneValue;
     /* 0x4D */ u8 pad4D;
@@ -111,6 +141,14 @@ typedef struct LevelObjectEntry_LightObj {
     /* 0x54 */ s32 zoneUnk20;
 } LevelObjectEntry_LightObj;
 
+/* JFG: a colour cycle (0x10 bytes) */
+typedef struct ColourCycle29 {
+    /* 0x00 */ s32 index;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ u8 colour[4]; // set by the colour cycle
+    /* 0x0C */ s32 *table;   // table[0]: the number of steps
+} ColourCycle29;
+
 /* JFG: the state of a light object */
 typedef struct LightObjState {
     /* 0x00 */ s16 unk0;
@@ -118,9 +156,7 @@ typedef struct LightObjState {
     /* 0x04 */ f32 unk4;
     /* 0x08 */ void *light;
     /* 0x0C */ void *corona;
-    /* 0x10 */ u8 colourCycle[8];
-    /* 0x18 */ u8 colour[4]; // set by the colour cycle
-    /* 0x1C */ u8 pad1C[4];
+    /* 0x10 */ ColourCycle29 cycle;
     /* 0x20 */ LevelObjectEntry_LightObj *entry;
     /* 0x24 */ u8 *flags;
     /* 0x28 */ u8 pad28[8];
@@ -139,6 +175,8 @@ typedef struct LightObj {
     /* 0x3C */ void *unk3C;
     /* 0x40 */ u8 pad40[0x68 - 0x40];
     /* 0x68 */ LightObjState *state;
+    /* 0x6C */ u8 pad6C[0x84 - 0x6C];
+    /* 0x84 */ s32 triggers; // the particle triggers to run
 } LightObj;
 
 extern f32 D_800ABB3C;
@@ -164,8 +202,8 @@ void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
     state->unk4 = 0;
     obj->flags |= 0x400;
     obj->unk3C = NULL;
-    if (entry->unk3E == 0) {
-        state->unk4 = entry->unk3E * D_800ABB3C;
+    if (entry->shakeTimes[0] == 0) {
+        state->unk4 = entry->shakeTimes[0] * D_800ABB3C;
     }
     for (i = 0; i < entry->numFlags; i++) {
         state->flags[i] = 0;
@@ -188,7 +226,7 @@ void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
         state->light = light_add_from_object_header(obj, &lightHeader);
     }
     if (entry->coronaSize) {
-        colour_cycle_init(state->colourCycle, entry->coronaColourCycle);
+        colour_cycle_init(&state->cycle, entry->coronaColourCycle);
         coronaHeader.active = 1;
         coronaHeader.spriteID = -1;
         coronaHeader.size = 0;
@@ -198,10 +236,10 @@ void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
         coronaHeader.offset[0] = 0.0f;
         coronaHeader.offset[1] = 0.0f;
         coronaHeader.offset[2] = 0.0f;
-        coronaHeader.colour[0] = state->colour[0];
-        coronaHeader.colour[1] = state->colour[1];
-        coronaHeader.colour[2] = state->colour[2];
-        coronaHeader.colour[3] = state->colour[3];
+        coronaHeader.colour[0] = state->cycle.colour[0];
+        coronaHeader.colour[1] = state->cycle.colour[1];
+        coronaHeader.colour[2] = state->cycle.colour[2];
+        coronaHeader.colour[3] = state->cycle.colour[3];
         coronaHeader.unk1A = entry->coronaSize;
         coronaHeader.unk1C = entry->coronaSize;
         coronaHeader.attachPoint = -1;
@@ -213,7 +251,116 @@ void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80028954);
+/* JFG: what an explosion updates in its corona and light */
+typedef struct ExplosionCorona {
+    /* 0x00 */ u8 pad0[0x38];
+    /* 0x38 */ u8 colour[4];
+} ExplosionCorona;
+typedef struct ExplosionLight {
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ ColourCycle29 cycle;
+} ExplosionLight;
+
+extern f32 D_800ABB40;
+void obj_spawn_particle(LightObj *obj, s32 updateRate);
+void update_colour_cycle(void *cycle, s32 updateRate);
+void corona_free(void *corona);
+void light_remove(void *light);
+void cam_shake_on(void);
+void cam_shake_off(void);
+void cam_shake_near_point(f32 x, f32 y, f32 z, f32 radius, f32 strength);
+s32 rand_range(s32 min, s32 max);
+void free_object(void *obj);
+
+/* JFG: an explosion's update: the particle triggers, repeated and one-off spawns at its position, the camera
+ * shake by the time, the corona and the light fading by their colour cycles; at the end time everything goes */
+void obj_explosion_update(LightObj *obj, s32 updateRate) {
+    LightObjState *state;
+    s16 prev;
+    UNUSED s32 pad;
+    ColourCycle29 *lightCycle;
+    LevelObjectEntry_LightObj *entry;
+    s32 i;
+    ExplosionEvent *event;
+    ExplosionSpawn *spawn;
+    ExplosionCorona *corona;
+    ExplosionLight *light;
+    ColourCycle29 *cycle;
+
+    state = obj->state;
+    entry = state->entry;
+    prev = state->unk0;
+    state->unk0 += updateRate;
+    obj->triggers = 0;
+    for (i = 0; i < entry->numTriggers; i++) {
+        if (state->unk0 >= entry->triggerStart[i] && state->unk0 < entry->triggerEnd[i]) {
+            obj->triggers |= 1 << i;
+        }
+    }
+    obj_spawn_particle(obj, updateRate);
+    for (i = 0; i < entry->numFlags; i++) {
+        if (state->unk0 >= entry->spawnStart[i] && state->unk0 < entry->spawnEnd[i]) {
+            if (state->flags[i] < updateRate) {
+                spawn = &entry->spawns[i];
+                spawn->x = obj->x;
+                spawn->y = obj->y;
+                spawn->z = obj->z;
+                state->flags[i] = entry->spawnInterval[i] + state->flags[i] - updateRate;
+                spawn_object((SpawnEntry *) spawn, 1);
+            } else {
+                state->flags[i] -= updateRate;
+            }
+        }
+    }
+    event = entry->events;
+    for (i = 0; i < entry->numEvents; i++, event++) {
+        if (event->time >= prev && state->unk0 >= event->time) {
+            event->x = obj->x;
+            event->y = obj->y;
+            event->z = obj->z;
+            spawn_object((SpawnEntry *) event, 1);
+        }
+    }
+    for (i = 0; entry->shakeTimes[i] < state->unk0 && i != 2; i++) {
+    }
+    state->unk4 += (f32) updateRate * (f32) entry->shakeRates[i] * D_800ABB40;
+    corona = state->corona;
+    cycle = &state->cycle;
+    if (corona != NULL) {
+        update_colour_cycle(cycle, updateRate);
+        if (cycle->index < *cycle->table - 1) {
+            corona->colour[0] = cycle->colour[0];
+            corona->colour[1] = cycle->colour[1];
+            corona->colour[2] = cycle->colour[2];
+            corona->colour[3] = cycle->colour[3];
+        } else {
+            corona_free(state->corona);
+            state->corona = NULL;
+        }
+    }
+    if (state->light != NULL) {
+        update_colour_cycle(&state->cycle, updateRate);
+        cycle = &((ExplosionLight *) state->light)->cycle;
+        // fakematch: the copy sets the order of the two loads' registers
+        if (*cycle->table == (lightCycle = cycle)->index + 1) {
+            light_remove(state->light);
+            state->light = NULL;
+        }
+    }
+    if (state->unk0 >= entry->endTime) {
+        cam_shake_on();
+        if (state->light != NULL) {
+            light_remove(state->light);
+        }
+        if (state->corona != NULL) {
+            corona_free(state->corona);
+        }
+        free_object(obj);
+    } else if (state->unk4 > 2.0f) {
+        cam_shake_off();
+        cam_shake_near_point(obj->x, obj->y, obj->z, 1000.0f, rand_range(0, state->unk4));
+    }
+}
 
 /* JFG: the level entry of object 0x73 (0x22 bytes) */
 typedef struct LevelObjectEntry73 {

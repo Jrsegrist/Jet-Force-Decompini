@@ -521,7 +521,7 @@ static void player_set_form(Object *player, s32 model, s32 shadowModel) {
         free_3d_model(player->modelInstances[0]);
         player->modelInstances[0] = inst;
         pd = player->unk68;
-        func_8001149C(player, player->animationID, player->unk28);
+        obj_anim_set(player, player->animationID, player->unk28);
         base = *inst;
         func_8003D21C(inst, base, player, *(s32 *) ((u8 *) pd + 0x48), 0.0f);
         ((u8 *) inst)[0xA] = 0;

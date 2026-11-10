@@ -2028,13 +2028,132 @@ void move_particle_forward(Particle *particle) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_80063358);
+/* JFG: a particle that bounces off the level (the part particles_update_all touches) */
+typedef struct BounceParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x2F - 0x28];
+    /* 0x2F */ u8 bounces;
+    /* 0x30 */ u8 pad30[0x50 - 0x30];
+    /* 0x50 */ s32 flags;
+} BounceParticle;
+
+/* JFG: a particle to test against the level this frame, and where it was */
+typedef struct ParticleSweep {
+    /* 0x00 */ BounceParticle *particle;
+    /* 0x04 */ Vec3f from;
+} ParticleSweep;
+
+/* JFG: what func_80016208 fills in (12D50.c SweepHit) */
+typedef struct ParticleHit {
+    /* 0x00 */ void *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ f32 normal[3];
+    /* 0x1C */ u8 pad1C[0x28 - 0x1C];
+} ParticleHit;
+
+extern u8 D_800A5DE0;
+extern ParticleSweep D_80100908[5];
+extern f32 D_800AD848;
+extern f32 D_800AD84C;
+void line_particle_set_update(LineParticleSet *set, s32 updateRate);
+void point_particle_set_update(PointParticleSet *set, s32 updateRate);
+void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
+f32 sqrtf(f32 x);
+
+/*
+ * JFG: update every particle (the four particle lists, the line sets and the point sets), then sweep each
+ * particle queued in D_80100908 against the level: one that hits bounces off (reflected about the hit's
+ * vector, scaled by D_800AD84C), or comes to rest (flag 0x20000) when slow on a floor.
+ */
+void particles_update_all(s32 updateRate) {
+    s32 i;
+    WeatherParticleList **listPtr;
+    WeatherParticleList *list;
+    WeatherParticle *p;
+    LineParticleSet *line;
+    PointParticleSet *point;
+    BounceParticle *particle;
+    f32 len;
+    f32 dot;
+    f32 two;
+    f32 radius;
+    ParticleHit hit;
+
+    D_800A5DE0 = 0;
+    for (i = 0; i < 5; i++) {
+        D_80100908[i].particle = NULL;
+    }
+    for (listPtr = D_801008E0; listPtr < D_801008E0 + 4; listPtr++) {
+        list = *listPtr;
+        if (list != NULL) {
+            p = list->particles;
+            for (i = 0; i < list->count; i++, p++) {
+                if (p->kind != 0x80) {
+                    func_80061228((s32) p, updateRate);
+                }
+            }
+        }
+    }
+    if (D_800A5D84 != NULL) {
+        line = D_800A5D84;
+        for (i = 0; i < D_800A5D7C; i++, line++) {
+            if (line->unk124) {
+                line_particle_set_update(line, updateRate);
+            }
+        }
+    }
+    if (D_800A5D88 != NULL) {
+        point = D_800A5D88;
+        for (i = 0; i < D_800A5D80; i++, point++) {
+            if (point->unkA4) {
+                point_particle_set_update(point, updateRate);
+            }
+        }
+    }
+    for (i = 0; i < 5; i++) {
+        particle = D_80100908[i].particle;
+        if (particle != NULL) {
+            radius = 5.0f;
+            func_8001CE10(1, &D_80100908[i].from.x, &particle->pos.x, &radius, 0xCE002000, 0, 0);
+            if (func_80016208(NULL, &D_80100908[i].from.x, &particle->pos.x, radius, 1, &hit)) {
+                if (hit.pos[1] > 0.75f) {
+                    particle->bounces++;
+                }
+                len = sqrtf(particle->velocity.x * particle->velocity.x + particle->velocity.y * particle->velocity.y +
+                            particle->velocity.z * particle->velocity.z);
+                if (len != 0.0f) {
+                    particle->velocity.x /= -len;
+                    particle->velocity.y /= -len;
+                    particle->velocity.z /= -len;
+                }
+                if (len < D_800AD848 && hit.pos[1] > 0.75f) {
+                    particle->velocity.x = 0.0f;
+                    particle->velocity.y = 0.0f;
+                    particle->velocity.z = 0.0f;
+                    particle->flags |= 0x20000;
+                } else {
+                    dot = hit.pos[0] * particle->velocity.x + hit.pos[1] * particle->velocity.y +
+                          hit.pos[2] * particle->velocity.z;
+                    len *= D_800AD84C;
+                    two = (f32) 2 * dot;
+                    particle->velocity.x = (hit.pos[0] * two - particle->velocity.x) * len;
+                    particle->velocity.y = (hit.pos[1] * two - particle->velocity.y) * len;
+                    particle->velocity.z = (hit.pos[2] * two - particle->velocity.z) * len;
+                }
+            }
+        }
+    }
+}
 
 
 extern WeatherParticleList *D_801008E0[5];
 extern s32 D_800A5DD8;
 void set_active_camera(s32 arg0);
-void func_8004046C(Gfx **dList, Mtx **matrix);
+void viewport_apply(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
 void line_particles_render(Gfx **dList, Vertex **vtx);
 void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
@@ -2046,7 +2165,7 @@ void render_all_particles(Gfx **dList, Mtx **matrix) {
 
     gDPPipeSync((*dList)++);
     set_active_camera(0);
-    func_8004046C(dList, matrix);
+    viewport_apply(dList, matrix);
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);
     line_particles_render(dList, &vtx);

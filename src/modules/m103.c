@@ -37,7 +37,7 @@ typedef struct M103Object {
 extern void func_80079D1C(M103Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern void func_8001138C(M103Object *, f32, f32);
-extern void func_80011708(f32, f32, f32, s32);
+extern void obj_spawn_bonus(f32, f32, f32, s32);
 extern void func_8005F5AC(M103Object *, s32);
 extern void func_800079B8(M103Object *);
 
@@ -71,7 +71,7 @@ void func_m103_00110(M103Object *obj, s32 updateRate) {
             func_8001138C(obj, 0.01f, updateRate);
         }
     } else {
-        func_80011708(obj->unkC, obj->unk10, obj->unk14, obj->unk88.unk7);
+        obj_spawn_bonus(obj->unkC, obj->unk10, obj->unk14, obj->unk88.unk7);
         obj->unk84 = 1;
         func_8005F5AC(obj, 2);
         func_800079B8(obj);
