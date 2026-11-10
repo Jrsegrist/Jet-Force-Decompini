@@ -884,8 +884,6 @@ void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
 #define gSPVertexLast(pkt, v, last, v0) \
     gDma1p(pkt, G_VTX, v, ((last) << 3) + ((last) << 1) + 8, ((last) << 3) | ((u32) (v) & 6) | (v0))
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the strength-reduced strip offset is spilled to 0x40 (target 0x44); all else matches */
 /* JFG: draw a ripple's child effect: its texture, then each strip in batches of up to 16 triangles (twice when
    the strip has a second vertex set), faded by the texture frame when the texture asks for it. */
 void func_8006B3CC(RippleChild *child, Gfx **dList) {
@@ -936,9 +934,6 @@ void func_8006B3CC(RippleChild *child, Gfx **dList) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
-#endif
 
 typedef struct RippleQuad {
     /* 0x00 */ u8 tris[0x20];     // two Triangles
