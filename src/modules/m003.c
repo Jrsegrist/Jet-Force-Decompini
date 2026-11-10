@@ -91,7 +91,8 @@ typedef struct M003Member {
     /* 0xB4 */ Object *follower; /* an object kept at the member's place (0E9F0) */
     /* 0xB8 */ u8 padB8[0xBC - 0xB8];
     /* 0xBC */ s32 sound; /* the burning sound's handle */
-    /* 0xC0 */ u8 padC0[0xC8 - 0xC0];
+    /* 0xC0 */ s32 light; /* the fire's light */
+    /* 0xC4 */ s32 unkC4; /* (01764) */
     /* 0xC8 */ Object *spark; /* the electric spark on the member */
 } M003Member;
 
@@ -152,7 +153,7 @@ typedef struct M003Home {
     /* 0x26 */ u8 speed; /* its members' walking speed (0BA20, 0BAD4) */
     /* 0x27 */ u8 pad27;
     /* 0x28 */ u16 flags; /* 0x2000: its members may touch */
-    /* 0x2A */ u8 pad2A[0x2C - 0x2A];
+    /* 0x2A */ s16 unk2A; /* how fast the troop's members burn (01764) */
     /* 0x2C */ u16 kind;
     /* 0x2E */ s16 unk2E; /* a countdown */
     /* 0x30 */ u8 unk30;
@@ -208,7 +209,8 @@ typedef struct M003Node {
     /* 0x17 */ u8 unk17 : 6;
     /* 0x18 */ u8 cmd; /* what a member does there (module 154) */
     /* 0x19 */ u8 unk19; /* how near the troop's first member counts as there (0322C) */
-    /* 0x1A */ u8 pad1A[0x1C - 0x1A];
+    /* 0x1A */ u8 unk1A;
+    /* 0x1B */ u8 unk1B;
     /* 0x1C */ u8 unk1C;
     /* 0x1D */ u8 pad1D[0x31 - 0x1D];
     /* 0x31 */ u8 radius; /* how near counts as there (02760) */
@@ -276,7 +278,9 @@ typedef struct M003Body {
     /* 0x2D */ u8 headPart; /* 0x1F: none */
     /* 0x2E */ u8 pad2E;
     /* 0x2F */ u8 hitPart; /* the body part the last hit took off, 7: none */
-    /* 0x30 */ u8 pad30[0x40 - 0x30];
+    /* 0x30 */ u8 pad30[0x34 - 0x30];
+    /* 0x34 */ u8 turns[3]; /* 0, 0, 0: it turns straight to face an event (00D44) */
+    /* 0x37 */ u8 pad37[0x40 - 0x37];
     /* 0x40 */ M003BodyPart parts[8];
 } M003Body;
 
@@ -607,7 +611,44 @@ void func_m003_00C70(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00D44);
+s32 func_m003_0512C(s32 kind, f32 speed, s32 anim);
+
+/*
+ * Faces the event the member heard (at once, or turning, by its body); after a random while, or when
+ * the event is gone, it goes back to its mission
+ */
+s32 func_m003_00D44(Object *obj, s16 *angle, f32 x, f32 z) {
+    M003Event *e = &sEvents[sMember->event];
+
+    if (sHomeData->unk32 != 10) {
+        func_m003_0512C(3, 1.0f, 0x3B);
+    }
+    if (sMember->unk4B != 3) {
+        func_m003_04F88(sMember->unk4B, 1.0f);
+    }
+    if (sMember->unk1B == 1) {
+        sMember->unk53 = func_80005064(func_80048E2C(50, 65));
+        sMember->unk1B = 4;
+    } else {
+        sMember->unk53 -= D_800FE9F8;
+    }
+    if (sMember->event == -1 || !e->active || sMember->unk53 < 0 ||
+        (sHomeData->unk32 == 17 && (sHomeData->unk30 == 3 || sHomeData->unk30 == 4))) {
+        func_m003_04398(1, 0);
+        sMember->unk10 = 0;
+        sMember->unk4B = 0;
+        return FALSE;
+    }
+    if (sBody->turns[0] == 0 && sBody->turns[1] == 0 && sBody->turns[2] == 0) {
+        *angle = func_80049C84(obj->trans.x_position - e->x, obj->trans.z_position - e->z);
+        return TRUE;
+    }
+    *angle = obj->trans.rotation.y_rotation;
+    sMember->unk10 = func_80049C84(obj->trans.x_position - e->x, obj->trans.z_position - e->z) -
+                     obj->trans.rotation.y_rotation;
+    sMember->turning = TRUE;
+    return TRUE;
+}
 
 /* Turns towards the event the member heard; after a random while it goes back to its mission */
 s32 func_m003_00FD0(Object *obj, s16 *angle, f32 x, f32 z) {
@@ -683,7 +724,43 @@ s32 func_m003_012E8(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
     return TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0136C);
+extern void rl_m003_03CAC(Object *obj);
+
+/*
+ * An object's position; the member jumps off along the way its node, unk51 and unk52 give (yaw, pitch
+ * and speed), first lifted by 1
+ */
+void func_m003_0136C(Object *obj, f32 *x, f32 *y, f32 *z) {
+    f32 c;
+
+    obj->trans.rotation.y_rotation = 0xC000 - (sMember->node << 8);
+    c = func_80049C30(sMember->unk51 << 8);
+    obj->velocity.x = func_80049C30(sMember->node << 8) * c * (u32) sMember->unk52;
+    c = func_80049C30(sMember->unk51 << 8);
+    obj->velocity.z = func_80049C34(sMember->node << 8) * c * (u32) sMember->unk52;
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    switch (sMember->unk1B) {
+        case 1:
+            obj->velocity.y = func_80049C34(sMember->unk51 << 8) * (u32) sMember->unk52;
+            sMember->unk0_11 = FALSE;
+            sMember->unk1B = 4;
+            sMember->lastY += 1.0f;
+            obj->trans.y_position += 1.0f;
+            ((M003Interact *) obj->interactObj)->pos[1] += 1.0f;
+            ((M003Interact *) obj->interactObj)->centre[1] += 1.0f;
+            func_m003_04D08(3, 20, 0, 0);
+            break;
+        case 4:
+            sHomeData->unk35 = 0;
+            if (obj->unk28 < 0.5f) {
+                func_m003_04F88(3, 1.0f);
+            }
+            break;
+    }
+    rl_m003_03CAC(obj);
+}
 
 extern s32 func_m003_0512C(s32 kind, f32 speed, s32 anim);
 
@@ -726,7 +803,64 @@ void func_m003_01608(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
 }
 
+extern f32 rl_m003_199F0; /* .rodata (still assembly): the least burn rate */
+extern f32 rl_m003_199F4; /* and the burn rate per unit of the troop's unk2A */
+extern void func_m146_00000(Object *obj, s32 arg1);
+extern void func_8002179C(s32 handle);
+extern void track_light_off(s32 light);
+
+#ifdef NON_MATCHING
+/* 2 diffs: the ROM computes `hp > 0` into a register before the store (one branch shorter) */
+/*
+ * An object's position; while the member burns its hit points go down, and when its time is up it
+ * goes back to its mission and the fire's spark, unkC4 and light go
+ */
+void func_m003_01764(Object *obj, f32 *x, f32 *y, f32 *z) {
+    f32 min = rl_m003_199F0;
+    f32 rate;
+    s16 hp;
+
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    rate = sHomeData->unk2A * rl_m003_199F4;
+    if (rate < min) {
+        rate = min;
+    }
+    hp = ((M003Interact *) obj->interactObj)->hitPoints;
+    ((M003Interact *) obj->interactObj)->hitPoints = hp - rate * sUpdateRate;
+    if (((M003Interact *) obj->interactObj)->hitPoints <= 0 && hp > 0) {
+        ((M003Interact *) obj->interactObj)->sound = 4;
+        func_m003_0C038(obj);
+    }
+    if (sMember->node < D_800FE9F8) {
+        func_m003_04398(1, 0);
+        if (sHomeData->kind == 0x112) {
+            sMember->unk4B = 3;
+            func_m146_00000(obj, 1);
+        } else {
+            sMember->unk4B = 0;
+        }
+        sMember->flags8 &= ~4;
+        if (sMember->spark != NULL) {
+            func_800079B8(sMember->spark);
+            sMember->spark = NULL;
+            if (sMember->unkC4 != 0) {
+                func_8002179C(sMember->unkC4);
+                sMember->unkC4 = 0;
+            }
+            if (sMember->light != 0) {
+                track_light_off(sMember->light);
+                sMember->light = 0;
+            }
+        }
+    } else {
+        sMember->node -= D_800FE9F8;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01764);
+#endif
 
 /* Keeps the facing; records the turn towards whoever shot the member (no one: the mission ends) */
 s32 func_m003_01974(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
@@ -937,7 +1071,47 @@ void func_m003_02D58(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02DA0);
+/*
+ * Turns the troop's home (by up to 400 a frame) towards its look-out point; once facing it, sets it
+ * moving there at half its top speed
+ */
+void func_m003_02DA0(void) {
+    s16 target;
+    s16 d;
+    f32 t;
+
+    target = func_80049C84(sHomeData->unk40 - sHomeData->x, sHomeData->unk44 - sHomeData->z);
+    d = func_80049D80(sHome->trans.rotation.y_rotation, target);
+    if (d > 400) {
+        d = 400;
+    } else if (d < -400) {
+        d = -400;
+    }
+    sHome->trans.rotation.y_rotation += d;
+    if (target == sHome->trans.rotation.y_rotation) {
+        t = point_distance(sHomeData->unk40, sHomeData->unk42, sHomeData->unk44, sHomeData->x, sHomeData->y,
+                           sHomeData->z) /
+            (sHomeData->maxSpeed >> 1);
+        sHomeData->unk2E = t;
+        t = 1.0f / t;
+        if (sHomeData->unk40 != sHomeData->x) {
+            sHome->velocity.x = (sHomeData->unk40 - sHomeData->x) * t;
+        } else {
+            sHome->velocity.x = 0.0f;
+        }
+        if (sHomeData->unk42 != sHomeData->y) {
+            sHome->velocity.y = (sHomeData->unk42 - sHomeData->y) * t;
+        } else {
+            sHome->velocity.y = 0.0f;
+        }
+        if (sHomeData->unk44 != sHomeData->z) {
+            sHome->velocity.z = (sHomeData->unk44 - sHomeData->z) * t;
+        } else {
+            sHome->velocity.z = 0.0f;
+        }
+        sHomeData->unk33 = 0;
+    }
+}
 
 /* Turns the troop's home towards its target facing, 400 at most */
 void func_m003_0301C(void) {
@@ -1100,7 +1274,69 @@ void func_m003_03470(Object *obj) {
     obj->trans.rotation.y_rotation = anim->trans.rotation.y_rotation;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03628);
+/*
+ * The troop rides its way point's object: each member not unk0_4 takes its place on it and moves with
+ * it; once the first member is near the troop's way point, they get off
+ */
+void func_m003_03628(void) {
+    s32 n = sHomeData->unk0;
+    Object *obj = sHomeData->first;
+    s32 index = (u16) sHomeData->unk3C >> 8;
+    M003Node *node;
+    Object *ride;
+    M003Member *m;
+
+    if (index == 0) {
+        func_m003_033B0(sObj);
+        index = (u16) sHomeData->unk3C >> 8;
+    }
+    node = &D_800FEA9C[index];
+    if (index == 0) {
+        return;
+    }
+    if (node->obj == NULL) {
+        ride = (Object *) func_m003_07BAC(node->x, node->y, node->z, node->kind, node->unk32, node->unk33);
+        if (ride != NULL) {
+            node->obj = ride;
+        }
+    }
+    if (node->obj == NULL) {
+        return;
+    }
+    ride = node->obj;
+    sHomeData->leader = node->obj;
+    while (n--) {
+        m = obj->unk68;
+        if (!m->unk0_4) {
+            m->unk0_9 = TRUE;
+            if (node->cmd == 4 && func_m003_04260(2, 2, node->unk19, node->unk1A, node->unk1B)) {
+                m->unk4A = node->unk1C;
+            }
+            func_m003_03470(obj);
+            obj->velocity.x = ride->velocity.x;
+            obj->velocity.y = ride->velocity.y;
+            obj->velocity.z = ride->velocity.z;
+            rl_m003_03CAC(obj);
+        }
+        obj = ((M003Member *) obj->unk68)->next;
+    }
+    node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
+    if (func_m003_03E20(sHomeData->first->trans.x_position, sHomeData->first->trans.z_position, node->x, node->z) <=
+        node->unk19) {
+        sHomeData->unk33 = 0;
+        n = sHomeData->unk0;
+        obj = sHomeData->first;
+        while (n--) {
+            m = obj->unk68;
+            m->unk0_9 = FALSE;
+            if (m->mission == 2) {
+                func_m003_04398(2, 0);
+                m->unk4B = 0;
+            }
+            obj = ((M003Member *) obj->unk68)->next;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_038D4);
 
