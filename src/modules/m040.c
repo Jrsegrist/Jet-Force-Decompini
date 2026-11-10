@@ -58,7 +58,8 @@ typedef struct M040Stats {
     /* 0x14 */ u8 rank; /* 1 to 4 */
     /* 0x15 */ u8 pad15[0x8C - 0x15];
     /* 0x8C */ u8 player; /* the controller */
-    /* 0x8D */ u8 pad8D[0x94 - 0x8D];
+    /* 0x8D */ u8 pad8D[0x90 - 0x8D];
+    /* 0x90 */ s32 time;
     /* 0x94 */ u16 unk94[4]; /* one per player */
     /* 0x9C */ u8 pad9C[0xA0 - 0x9C];
 } M040Stats;
@@ -297,7 +298,148 @@ void func_m040_00DF8(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_0124C);
+extern void func_m006_015EC(s32 time, char *a, char *b, char *c); /* a time as three two-digit strings */
+extern char rl_m040_0251C[]; /* ":" (.rodata, still assembly) */
+extern char rl_m040_02520[]; /* "." */
+extern char rl_m040_02524[]; /* "+%d" */
+
+/* Slides the table of the players' times in or out, draws it, and counts up their bonus marks (called from 0019C) */
+void func_m040_0124C(s32 updateRate) {
+    s32 i;
+    s32 j;
+    s32 x;
+    s32 rowY;
+    s32 y;
+    s32 done;
+    UNUSED u8 pad[0x88];
+    M040Sprite sprite;
+    M040Stats *stats;
+    char buf[0x100];
+    char min[4];
+    char min2[4];
+    char sec[4];
+    char sec2[4];
+    char cs[4];
+    char cs2[4];
+
+    if (sUnk58 == 0x14) {
+        sUnk8[sUnk4] = 0x17C;
+    } else {
+        sUnk8[sUnk4] = 0x17D;
+    }
+    sprite.trans.rotation.z_rotation = 0;
+    sprite.trans.rotation.x_rotation = 0;
+    sprite.trans.rotation.y_rotation = 0;
+    done = FALSE;
+    sprite.trans.z_position = 0.0f;
+    if (sUnk5 != 0) {
+        sPos[0] -= updateRate * 16;
+        sPos[1] += updateRate * 16;
+        if (sPos[0] < -220) {
+            sUnk4 = sUnk5;
+            done = TRUE;
+            sUnk5 = 0;
+        }
+    } else {
+        sPos[0] += updateRate * 16;
+        if (sPos[0] > 80) {
+            sPos[0] = 80;
+        }
+        sPos[1] -= updateRate * 16;
+        if (sPos[1] < 80) {
+            sPos[1] = 80;
+        } else {
+            sMarks[0] = 0;
+            sMarks[1] = 0;
+            sMarks[2] = 0;
+            sMarks[3] = 0;
+        }
+    }
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    rowY = 100;
+    if (sMarks[0] < sOrder[0] && sPos[0] == 80 && sPos[1] == 80) {
+        sUnk4A -= updateRate;
+        if (sUnk4A < 0) {
+            sUnk4A += 12;
+            for (i = 0; i < D_800A4FD0; i++) {
+                if (sMarks[i] < sOrder[i]) {
+                    sMarks[i]++;
+                }
+            }
+            func_80001248(0x1C3, 0);
+        }
+    }
+    func_8006FC54(2);
+    for (i = 0; i < D_800A4FD0; i++) {
+        stats = D_800FF1C0[i];
+        y = rowY;
+        x = sPos[i & 1];
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.y_position = y;
+        sprite.frame = i;
+        sprite.trans.scale = 0.75f;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x82], 0, 255);
+        sprite.trans.x_position += 40.0f;
+        sprite.frame = stats->player;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
+        func_m006_0107C(&x, &y);
+        x += 70;
+        func_m006_015EC(stats->time, min, sec, cs);
+        min2[0] = min[1];
+        min2[1] = 0;
+        min[1] = 0;
+        sec2[0] = sec[1];
+        sec2[1] = 0;
+        sec[1] = 0;
+        cs2[0] = cs[1];
+        cs2[1] = 0;
+        cs[1] = 0;
+        func_8006FCA8(&D_800FF398, x, rowY, min, 4);
+        x += 8;
+        func_8006FCA8(&D_800FF398, x, rowY, min2, 4);
+        x += 6;
+        func_8006FCA8(&D_800FF398, x, rowY, rl_m040_0251C, 4);
+        x += 6;
+        func_8006FCA8(&D_800FF398, x, rowY, sec, 4);
+        x += 8;
+        func_8006FCA8(&D_800FF398, x, rowY, sec2, 4);
+        x += 6;
+        func_8006FCA8(&D_800FF398, x, rowY, rl_m040_02520, 4);
+        x += 6;
+        func_8006FCA8(&D_800FF398, x, rowY, cs, 4);
+        x += 8;
+        func_8006FCA8(&D_800FF398, x, rowY, cs2, 4);
+        x += 34;
+        func_800639E8(buf, rl_m040_02524, sMarks[i]);
+        func_8006FCA8(&D_800FF398, x, rowY, buf, 0);
+        x += 28;
+        y = rowY + 5;
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.y_position = y;
+        sprite.frame = 0.0f;
+        sprite.trans.scale = 1.0;
+        for (j = 0; j < sMarks[i]; j++) {
+            if (j == sMarks[i] - 1) {
+                sprite.frame = 1.0f;
+            }
+            render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x85], 0, 255);
+            sprite.trans.y_position += 4.0f;
+        }
+        if (!done) {
+            if (func_80043510(stats->player) & 0x8000) {
+                if (sUnk58 == 0x15) {
+                    sUnk5 = 3;
+                } else {
+                    sUnk5 = 2;
+                }
+            }
+        }
+        rowY += 26;
+    }
+}
 
 /* Slides the table of the players' scores in or out and draws it (called from 0019C) */
 void func_m040_0193C(s32 updateRate) {
