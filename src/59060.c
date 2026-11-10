@@ -429,7 +429,118 @@ s32 menu_timer_advance(UNUSED s32 arg0, s32 limit, s32 delta) {
     return done;
 }
 
+/* (as in 4E610.c) a texture with its load commands */
+typedef struct FontTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[0xA - 0x2];
+    /* 0x0A */ s16 numberOfCommands;
+    /* 0x0C */ Gfx *cmd;
+} FontTexture;
+
+/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                 \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* The texture rectangle in the older microcode's form (RDPHALF_2, RDPHALF_CONT) (as in 4E610.c) */
+#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                    \
+    {                                                                                         \
+        Gfx *_g = (Gfx *) (pkt);                                                              \
+                                                                                              \
+        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));     \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                   \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));          \
+    }
+
+#define sMenuGfx (*(Gfx **) &D_800FF398) // the menu display list (also the results' first value)
+extern Gfx D_800A58A0[];
+extern Gfx D_800A58E8[];
+void fb_size(s32 *width, s32 *height);
+FontTexture *set_animated_texture_header(FontTexture *texHead, s32 offset);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 diffs: the texture-load DMA command's two words are stored w0 then w1, the ROM stores w1 first */
+/*
+ * JFG: draws the number n with font (8 or 9: a menu asset holding the digits 1-9, 0 side by side) right
+ * aligned at (x, y) from the screen centre, in colour, then pads it with zeros in padColour to digits.
+ */
+void func_80058EF0(s32 n, s32 x, s32 y, s32 font, s32 digits, s32 colour, s32 padColour) {
+    FontTexture *tex;
+    s32 xl;
+    s32 yl;
+    s32 xh;
+    s32 yh;
+    s32 i;
+    s32 t;
+    s32 spacing;
+    u32 charW;
+    s32 count;
+    Gfx *cmd;
+    u32 width;
+    u32 height;
+    u32 s;
+
+    fb_size((s32 *) &width, (s32 *) &height);
+    x += width >> 1;
+    y = (height >> 1) - y;
+    tex = (FontTexture *) D_800FF3F8[font];
+    if (tex != NULL) {
+        switch (font) {
+            case 9:
+                charW = 8;
+                spacing = 8;
+                break;
+            case 8:
+                charW = 11;
+                spacing = 12;
+                break;
+        }
+        gSPDisplayList(sMenuGfx++, D_800A58A0);
+        gDkrDmaDisplayList(sMenuGfx++, (u8 *) D_800A58E8 + 0x80000000, 2);
+        xl = x << 2;
+        yl = y << 2;
+        t = (tex->height - 1) << 5;
+        xh = (charW << 2) + xl;
+        yh = (tex->height << 2) + yl;
+        cmd = tex->cmd;
+        sMenuGfx->words.w0 = cmd->words.w0;
+        sMenuGfx->words.w1 = (u32) set_animated_texture_header(tex, 0) + 0x80000000;
+        sMenuGfx++;
+        cmd++;
+        {
+            Gfx *_g = sMenuGfx++; // gDkrDmaDisplayList, the count read after the pointer
+            count = tex->numberOfCommands - 1;
+            _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((count), 16, 8) | _SHIFTL((count * 8), 0, 16));
+            _g->words.w1 = (u32) cmd + 0x80000000;
+        }
+        gDPSetColor(sMenuGfx++, G_SETPRIMCOLOR, colour);
+        i = 0;
+        while (n != 0) {
+            s = ((n - 1) % 10) * (charW << 5);
+            xh -= spacing << 2;
+            xl -= spacing << 2;
+            gSPTextureRectangleOld(sMenuGfx++, xl, yl, xh, yh, 0, s, t, 0x400, -0x400);
+            n /= 10;
+            i++;
+        }
+        gDPSetColor(sMenuGfx++, G_SETPRIMCOLOR, padColour);
+        for (i = digits - i; i != 0; i--) {
+            xh -= spacing << 2;
+            xl -= spacing << 2;
+            gSPTextureRectangleOld(sMenuGfx++, xl, yl, xh, yh, 0, 9 * (charW << 5), t, 0x400, -0x400);
+            n /= 10;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/59060", func_80058EF0);
+#endif
 
 typedef struct MenuBox {
     s16 x1, y1, x2, y2;

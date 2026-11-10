@@ -34,6 +34,7 @@ typedef struct SchedTask {
     /* 0x54 */ OSMesg msg;
     /* 0x58 */ u8 pad58[0x68 - 0x58];
     /* 0x68 */ s32 unk68;
+    /* 0x6C */ s32 unk6C; // the task kind (sc_task_type_name)
 } SchedTask;
 
 typedef struct SchedClient {
@@ -442,12 +443,229 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
      * The retrace handler's compiled-out messages come next in .rodata, before its own strings; they
      * are here while that function is assembly.
      */
+#ifndef NON_MATCHING
     stubbed_printf("scheduler: Looks like the SP has crashed %s");
     stubbed_printf("scheduler: Looks like the DP has crashed %s");
+#endif
     return dl;
 }
 
+extern s32 D_800FE950; // the SP was seen running last retrace (arms the hang report)
+extern s32 D_800FE954; // the same for the DP
+extern u8 D_800A32D4;  // display list overflowed
+extern u8 D_800A32D8;  // matrix buffer overflowed
+extern u8 D_800A32DC;  // vertex buffer overflowed
+extern u8 D_800A32E0;  // triangle buffer overflowed
+extern s8 D_800A38C8;  // retraces until the next audio frame
+extern u64 D_800A38D0; // retrace counter
+extern u8 D_800A38B8;
+extern s32 D_800FECB0;
+extern s32 gVideoLastFramebuffer;
+extern u16 *gVideoDepthBuffer;
+void osDpSetStatus(u32 data);
+void rsp_segment(Gfx **dList, s32 segment, s32 base);
+void set_render_printf_position(u16 x, u16 state);
+void render_printf(const char *format, ...);
+void debug_text_print(Gfx **dList);
+s32 func_80001EE8(void);
+
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 42 diffs: the scheduling around the volatile flag at entry and at the end, curRSPTask in v1 (copied to v0) where the ROM has v0, the retrace counter's u64 address materialised, the held task in v0/v1 swapped */
+/*
+ * VI retrace: a task running for more than 10 retraces has hung: reports it once (and, for a graphics task,
+ * finds the command it hangs on), then resets the processor. When it found the command, shows it, the
+ * buffer overflows and the version on screen and stops. Then takes the queued tasks, schedules, sends a
+ * held buffer-swapping task's message after two retraces, and the retrace message to the clients.
+ */
+void __scHandleRetrace(OSSched *sc) {
+    OSMesg msg = NULL;
+    UNUSED s32 pad[2];
+    SchedTask *sp = NULL;
+    SchedTask *dp = NULL;
+    UNUSED u8 pad8;
+    volatile u8 dpHung;
+    Gfx *crash[2]; // [0] DP, [1] SP: the command each hangs on
+    s32 traceA[2][2]; // [0] DP, [1] SP; [0] the trace after, [1] before
+    s32 traceB[2][2];
+    s32 traceC[2][2];
+    char *version;
+    OSMesg msgBuf[8];
+    OSMesgQueue mq;
+    SchedTask *task;
+    Gfx *gfx;
+    s32 rspHung = FALSE;
+    /* */
+
+    s32 state;
+    SchedTask *held;
+    SchedClient *client;
+    Gfx *dl;
+
+    dpHung = FALSE;
+    if (sc->curRSPTask != NULL) {
+        D_800A38C0++;
+
+    }
+    if (sc->curRDPTask != NULL) {
+        D_800A38C4++;
+    }
+    crash[1] = NULL;
+    crash[0] = NULL;
+    held = sc->curRSPTask;
+    if (D_800A38C0 > 10 && held != NULL) {
+        if (D_800FE950) {
+            stubbed_printf("scheduler: Looks like the SP has crashed %s", sc_task_type_name(sc->curRSPTask->unk6C));
+            sc_task_print(sc->curRSPTask);
+            if (sc->curRSPTask->list.t.type == M_GFXTASK) {
+                crash[1] = rcp_hang_find(sc, &traceB[1][1], &traceC[1][1], &traceA[1][1], &traceB[1][0], &traceC[1][0],
+                                         &traceA[1][0]);
+            }
+            D_800FE950 = 0;
+        }
+        D_800A38C0 = 0;
+        rspHung = TRUE;
+        __osSpSetStatus(SP_RESET_STATUS);
+    } else if (held != NULL) {
+        D_800FE950 = 1;
+    }
+    held = sc->curRDPTask;
+    if (D_800A38C4 > 10 && held != NULL) {
+        if (held->unk68 == 0) {
+            osSendMesg(held->msgQ, &D_800A38B8, OS_MESG_BLOCK);
+        }
+        if (D_800FE954) {
+            stubbed_printf("scheduler: Looks like the DP has crashed %s", sc_task_type_name(sc->curRDPTask->unk6C));
+            sc_task_print(sc->curRDPTask);
+            if (sc->curRDPTask->list.t.type == M_GFXTASK) {
+                crash[0] = rcp_hang_find(sc, &traceB[0][1], &traceC[0][1], &traceA[0][1], &traceB[0][0], &traceC[0][0],
+                                         &traceA[0][0]);
+            }
+            D_800FE954 = 0;
+        }
+        dpHung = TRUE;
+        sc->retraceCount = 0;
+        D_800A38C4 = 0;
+        __osSpSetStatus(SP_RESET_STATUS);
+        osDpSetStatus(DP_RESET_STATUS);
+    } else if (held != NULL) {
+
+        D_800FE954 = 1;
+    }
+    if (crash[1] != NULL || crash[0] != NULL) {
+        version = "9.6";
+
+        osCreateMesgQueue(&mq, msgBuf, 8);
+        osSetEventMesg(OS_EVENT_SP, &mq, (OSMesg) SC_MSG_SP_DONE);
+        osSetEventMesg(OS_EVENT_DP, &mq, (OSMesg) SC_MSG_DP_DONE);
+        osViSetEvent(&mq, (OSMesg) SC_MSG_RETRACE, 1);
+        if (sc->curRSPTask != NULL) {
+            task = sc->curRSPTask;
+        } else {
+            task = sc->curRDPTask;
+        }
+        gfx = (Gfx *) task->list.t.data_ptr;
+        rsp_segment(&gfx, 0, 0);
+        rsp_segment(&gfx, 1, gVideoLastFramebuffer);
+        rsp_segment(&gfx, 2, (s32) gVideoDepthBuffer);
+        rsp_segment(&gfx, 4, D_800FECB0 - 0x500);
+        if (crash[1] != NULL) {
+            set_render_printf_position(30, 30);
+            render_printf("SP CRASHED, gfx=%x\n", crash[1]);
+        }
+        if (crash[0] != NULL) {
+            set_render_printf_position(30, 70);
+            render_printf("DP CRASHED, gfx=%x\n", crash[0]);
+        }
+        state = 110;
+        if (D_800A32D4) {
+            set_render_printf_position(30, 110);
+            render_printf("** GFX overflow **\n");
+            state = 120;
+        }
+        if (D_800A32D8) {
+            set_render_printf_position(30, state);
+            render_printf("** MTX overflow **\n");
+            state += 10;
+        }
+        if (D_800A32DC) {
+            set_render_printf_position(30, state);
+            render_printf("** VTX overflow **\n");
+            state += 10;
+        }
+        if (D_800A32E0) {
+            set_render_printf_position(30, state);
+            render_printf("** POL overflow **\n");
+            state += 10;
+        }
+        dpHung = FALSE;
+        dpHung = TRUE;
+        crash[1] = NULL;
+        crash[0] = NULL;
+        set_render_printf_position(30, state + 10);
+        state = 120;
+
+        rspHung = TRUE;
+        render_printf("Version %s\n", version);
+        debug_text_print(&gfx);
+        __osSpSetStatus(SP_RESET_STATUS);
+        osDpSetStatus(DP_RESET_STATUS);
+        dl = gfx++; // gDPFullSync
+        dl->words.w1 = 0;
+        dl->words.w0 = 0xE9000000;
+        dl = gfx++; // gSPEndDisplayList
+        dl->words.w1 = 0;
+        dl->words.w0 = 0xB8000000;
+        osWritebackDCacheAll();
+        osSpTaskLoad(&task->list);
+        osSpTaskStartGo(&task->list);
+        while (TRUE) {}
+    }
+    if (rspHung) {
+        sc->curRSPTask = NULL;
+    }
+    if (dpHung) {
+        sc->curRDPTask = NULL;
+    }
+    while (osRecvMesg(&sc->cmdQ, &msg, OS_MESG_NOBLOCK) != -1) {
+        __scAppendList(sc, (SchedTask *) msg);
+    }
+    state = ((sc->curRSPTask == NULL) << 1) | (sc->curRDPTask == NULL);
+    if (__scSchedule(sc, &sp, &dp, state) != state) {
+        __scExec(sc, sp, dp);
+    }
+    D_800A38D0++;
+    sc->retraceCount++;
+    held = sc->heldTask;
+    if (held != NULL && sc->retraceCount >= 2) {
+        if (held->msgQ != NULL) {
+            if (held->unk68 != 0 || held->msg != NULL) {
+                osSendMesg(held->msgQ, sc->heldTask->msg, OS_MESG_BLOCK);
+            } else {
+                osSendMesg(held->msgQ, &D_800A38B0, OS_MESG_BLOCK);
+            }
+        }
+        sc->retraceCount = 0;
+        sc->heldTask = NULL;
+    }
+    for (client = sc->clientList; client != NULL; client = client->next) {
+        if (client->id == 1) {
+            D_800A38C8--;
+            if (D_800A38C8 <= 0) {
+                osSendMesg(client->msgQ, (OSMesg) sc, OS_MESG_NOBLOCK);
+                if (sc->audioListHead != NULL) {
+                    __scHandleAudioReady(sc);
+                }
+                D_800A38C8 = func_80001EE8();
+            }
+        } else if (client->id == 2) {
+            osSendMesg(client->msgQ, (OSMesg) sc, OS_MESG_NOBLOCK);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/50300", func_80050154);
+#endif
 
 /* SP done: requeues a yielded task, or completes the task, then schedules the next ones.
    (The dead `state = 0;` in the not-yielded arm gives the ROM's scheduling.) */
