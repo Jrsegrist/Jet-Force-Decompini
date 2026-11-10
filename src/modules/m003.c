@@ -86,7 +86,7 @@ typedef struct M003Member {
     /* 0xA4 */ u8 padA4[0xA6 - 0xA4];
     /* 0xA6 */ s16 unkA6;
     /* 0xA8 */ Object *unkA8;
-    /* 0xAC */ u8 padAC[0xB0 - 0xAC];
+    /* 0xAC */ Object *unkAC; /* freed when body 0x20 starts an animation (04968) */
     /* 0xB0 */ struct M003Flags4 *unkB0;
     /* 0xB4 */ Object *follower; /* an object kept at the member's place (0E9F0) */
     /* 0xB8 */ u8 padB8[0xBC - 0xB8];
@@ -160,7 +160,7 @@ typedef struct M003Home {
     /* 0x31 */ u8 pad31;
     /* 0x32 */ u8 unk32; /* its state (0B50C) */
     /* 0x33 */ u8 unk33;
-    /* 0x34 */ u8 pad34;
+    /* 0x34 */ u8 unk34; /* the low two bits pick module 6's members' animations (04968) */
     /* 0x35 */ u8 unk35; /* set while a way-point command runs (01C58) */
     /* 0x36 */ u8 pad36[0x3C - 0x36];
     /* 0x3C */ s16 unk3C;
@@ -288,7 +288,8 @@ typedef struct M003Body {
 typedef struct M003Interact {
     /* 0x00 */ u8 pad0[0x6];
     /* 0x06 */ s16 hitPoints;
-    /* 0x08 */ u32 pad8_0 : 3;
+    /* 0x08 */ u32 pad8_0 : 2;
+    /* 0x08 */ u32 unk8_29 : 1; /* (04968: picks other animations) */
     /* 0x08 */ u32 unk8_3 : 1;
     /* 0x08 */ u32 sound : 4;
     /* 0x08 */ u32 pad8_1 : 24;
@@ -365,7 +366,7 @@ extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
-extern s32 rl_m003_04968(s32 index, s32 anim, s32 arg2);
+static s32 func_m003_04968(s32 index, s32 anim, s32 adjust);
 extern s32 rl_m003_04614(s32 anim, s32 arg1);
 extern void rl_m003_044F4(Object *obj);
 
@@ -374,7 +375,9 @@ typedef struct M003Anim {
     /* 0x00 */ s16 unk0; /* the first entry's: the animation speed, in some unit (044B4) */
     /* 0x02 */ u8 anim;
     /* 0x03 */ u8 unk3;
-    /* 0x04 */ u32 pad4_0 : 10;
+    /* 0x04 */ u32 weight : 5; /* how likely 04614 picks it */
+    /* 0x04 */ u32 pad4_5 : 2;
+    /* 0x04 */ u32 unk4_22 : 3; /* 3: the member loses a body part as it starts (04968), 4: one time in three */
     /* 0x04 */ u32 parts : 7; /* its row of rl_m003_17A10, 0x7F: none (09680) */
     /* 0x04 */ u32 unk4_11 : 4;
     /* 0x04 */ u32 pad4_1 : 11;
@@ -1704,7 +1707,76 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044F4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04614);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04968);
+/*
+ * Starts animation `index` of the member's body (asked for as kind `anim`); with `adjust`, some bodies
+ * swap in other entries for kinds 0x21, 0x25, 0x16 and 0x19. Returns the index started, or -1.
+ */
+static s32 func_m003_04968(s32 index, s32 anim, s32 adjust) {
+    M003Anim *a;
+    s32 r;
+
+    if (sBodyIndex == 0x13) {
+        return index;
+    }
+    if (adjust) {
+        if ((anim == 0x21 || anim == 0x25) &&
+            (sBodyIndex == 1 || sBodyIndex == 5 || sBodyIndex == 0xD || sBodyIndex == 0xE || sBodyIndex == 0xF ||
+             sBodyIndex == 0x16)) {
+            if (((M003Interact *) sObj->interactObj)->unk8_29 || ((M003Interact *) sObj->interactObj)->part == 0) {
+                index = 8;
+            } else {
+                index = (((M003Interact *) sObj->interactObj)->part - 1) << 1;
+            }
+        } else if ((anim == 0x16 || anim == 0x19) &&
+                   (sBodyIndex == 1 || sBodyIndex == 5 || sBodyIndex == 0xD || sBodyIndex == 0x16)) {
+            if (((M003Interact *) sObj->interactObj)->unk8_29) {
+                index = 0x17;
+            } else {
+                index = 0x1A;
+            }
+        } else if (sBodyIndex == 6) {
+            if (anim == 0x21) {
+                index = 2;
+                if ((sHomeData->unk34 & 3) == 2 ||
+                    ((sHomeData->unk34 & 3) == 3 && !((M003Interact *) sObj->interactObj)->unk8_29)) {
+                    index = 0;
+                }
+            } else if (anim == 0x16 || anim == 0x19) {
+                if (((M003Interact *) sObj->interactObj)->unk8_29) {
+                    index = 0xF;
+                } else {
+                    index = 0x12;
+                }
+            }
+        }
+    }
+    if (anim == 1 && sHomeData->unk30 == 3) {
+        r = rl_m003_04614(0x3B, 1);
+        if (r != -1) {
+            index = r;
+        }
+    }
+    a = &rl_m003_17DB8[rl_m003_19278[sBodyIndex * 2] + index];
+    sMember->unk56 = a->unk4_11;
+    if (sBodyIndex == 0x20 && sMember->unkAC != NULL) {
+        func_800079B8(sMember->unkAC);
+        sMember->unkAC = NULL;
+    }
+    sObj->particleEmittersEnabled = 0;
+    if (a->unk4_22 == 3) {
+        rl_m003_044F4(sObj);
+    }
+    if (!(sHomeData->flags & 0x8000) && a->unk4_22 == 4 && func_80048E2C(1, 3) == 1) {
+        rl_m003_044F4(sObj);
+    }
+    if (index == -1) {
+        return -1;
+    }
+    obj_anim_set(sObj, index, 0.0f);
+    sMember->unk60 = 0.0f;
+    sMember->animSet = index;
+    return index;
+}
 
 /* The body's word at 0x24 as bit fields */
 typedef struct M003Body24 {
@@ -1753,7 +1825,7 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
             last = anim;
         } while (i-- != 0 && index == -1 && anims[i] != 0);
     }
-    result = rl_m003_04968(index, last, 1);
+    result = func_m003_04968(index, last, 1);
     if (result != -1) {
         sMember->unk4B = kind;
     }
@@ -1774,7 +1846,7 @@ s32 func_m003_04EC4(s32 arg0, s32 index) {
     if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
         return -1;
     }
-    result = rl_m003_04968(index, anim, 0);
+    result = func_m003_04968(index, anim, 0);
     if (result != -1) {
         sMember->unk4B = arg0;
     }
@@ -1809,7 +1881,7 @@ s32 func_m003_04F88(s32 kind, f32 speed) {
                 }
                 if (anims[1].anim == 0x35 && sMember->unk4B != 9) {
                     sMember->animSet++;
-                    rl_m003_04968(sMember->animSet, 0x35, 1);
+                    func_m003_04968(sMember->animSet, 0x35, 1);
                     return 0;
                 }
             } else if (sMember->unk55 == 0) {
@@ -1849,7 +1921,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
         sMember->unk56 = e->unk3 & 0x7F;
     }
     if (index != sMember->animSet) {
-        rl_m003_04968(index, anim, 1);
+        func_m003_04968(index, anim, 1);
     }
     sMember->unk4B = kind;
     return 0;
