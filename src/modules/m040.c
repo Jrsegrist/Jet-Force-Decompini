@@ -42,12 +42,6 @@ void func_m040_007C8(void) {
     D_800FECCC = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_007F0);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_00DF8);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_0124C);
-
 /* What render_ortho_triangle_image draws an image with */
 typedef struct M040Sprite {
     /* 0x00 */ ObjectTransform trans;
@@ -57,7 +51,8 @@ typedef struct M040Sprite {
 
 /* A player's multiplayer scores (D_800FED50, 0xA0 each) */
 typedef struct M040Stats {
-    /* 0x00 */ u8 pad0[0x8C];
+    /* 0x00 */ u16 kills[4]; /* by victim */
+    /* 0x08 */ u8 pad8[0x8C - 0x8];
     /* 0x8C */ u8 player; /* the controller */
     /* 0x8D */ u8 pad8D[0x94 - 0x8D];
     /* 0x94 */ u16 unk94[4]; /* one per player */
@@ -80,6 +75,101 @@ extern void func_8006FC54(s32 fontId);
 extern void func_8006FCA8(Gfx **dl, s32 textX, s32 textY, char *text, s32 flags);
 extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern s32 func_80043510(s32 player);               /* the buttons pressed */
+extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity); /* the text colour */
+extern char **gMenuText;
+extern char rl_m040_02518[]; /* "%d" (.rodata, still assembly) */
+
+INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_007F0);
+
+/* Slides the table of the players' kills in or out and draws it (called from 0019C) */
+void func_m040_00DF8(s32 updateRate) {
+    UNUSED s32 pad0[2];
+    s32 x;
+    s32 rowY;
+    s32 y;
+    s32 done;
+    s32 i;
+    s32 j;
+    M040Stats *p;
+    UNUSED u8 pad[0x7C];
+    M040Sprite sprite;
+    char buf[0x104];
+
+    sUnk8[sUnk4] = 0x181;
+    sprite.trans.rotation.z_rotation = 0;
+    sprite.trans.rotation.x_rotation = 0;
+    sprite.trans.rotation.y_rotation = 0;
+    done = FALSE;
+    sprite.trans.z_position = 0.0f;
+    sprite.trans.scale = 0.75f;
+    if (sUnk5 != 0) {
+        sPos[0] -= updateRate * 16;
+        sPos[1] += updateRate * 16;
+        if (sPos[0] < -220) {
+            sUnk4 = sUnk5;
+            done = TRUE;
+            sUnk5 = 0;
+        }
+    } else {
+        sPos[0] += updateRate * 16;
+        if (sPos[0] > 80) {
+            sPos[0] = 80;
+        }
+        sPos[1] -= updateRate * 16;
+        if (sPos[1] < 80) {
+            sPos[1] = 80;
+        }
+    }
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    x = sPos[1] + 80;
+    y = 84;
+    func_m006_010D8(&x, &y);
+    sprite.trans.y_position = y;
+    for (i = 0; i < D_800A4FD0; i++) {
+        sprite.trans.x_position = x;
+        sprite.frame = i;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
+        x += 30;
+    }
+    rowY = 110;
+    func_8006FC54(2);
+    for (i = 0; i < D_800A4FD0; i++) {
+        p = &D_800FED50[i];
+        y = rowY;
+        x = sPos[i & 1] - 12;
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.y_position = y;
+        sprite.frame = p->player;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
+        func_m006_0107C(&x, &y);
+        x += 30;
+        func_8006FCA8(&D_800FF398, x, rowY, gMenuText[334], 0);
+        x += 60;
+        for (j = 0; j < D_800A4FD0; j++) {
+            if (i == j) {
+                func_8006FC68(255, 64, 0, 255, 255);
+            } else {
+                func_8006FC68(255, 255, 255, 255, 255);
+            }
+            func_800639E8(buf, rl_m040_02518, p->kills[j]);
+            func_8006FCA8(&D_800FF398, x, rowY, buf, 4);
+            x += 30;
+        }
+        if (!done) {
+            if (func_80043510(p->player) & 0x8000) {
+                sUnk5 = 3;
+            }
+            if (func_80043510(p->player) & 0x4000) {
+                sUnk5 = 1;
+            }
+        }
+        rowY += 26;
+    }
+}
+
+INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_0124C);
 
 /* Slides the table of the players' scores in or out and draws it (called from 0019C) */
 void func_m040_0193C(s32 updateRate) {
