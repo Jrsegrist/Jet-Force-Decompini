@@ -201,14 +201,130 @@ void func_m004_002B8(M004Copy *copy) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_0036C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_00CB8);
-
 /* A matrix with two words after it */
 typedef struct M004Mtx {
     /* 0x00 */ f32 m[4][4];
     /* 0x40 */ s32 unk40;
-    /* 0x44 */ s32 unk44;
+    /* 0x44 */ s32 unk44; /* the low byte: the grey of the copy drawn with it */
 } M004Mtx;
+
+/* A model instance, as drawn here */
+typedef struct M004Inst {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ void *triangles;
+    /* 0x08 */ u8 pad8[0xB - 0x8];
+    /* 0x0B */ s8 buffer;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ void *vertices[2];
+} M004Inst;
+
+/* The behaviour state of an object with a copy (OBJ_STATE) */
+typedef struct M004State {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ s32 model; /* (behaviour 0x33) the model instance of the attached object to draw too */
+} M004State;
+
+extern void debug_trace_add(Gfx *dl, char *file, s32 line);
+extern void func_80050E90(Gfx **dl, s32 segment, s32 address);
+extern void rdp_set_default_modes(Gfx **dl);
+extern void func_80048C7C(MtxF *a, MtxF *b, MtxF *out); /* out = a * b */
+extern void func_80048D84(MtxF *mtx, Mtx *out);         /* to a fixed-point Mtx */
+extern u8 D_800A0838[];
+extern s32 D_800A35E8;
+extern char rl_m004_01730[]; /* .rodata (still assembly): the file names for debug_trace_add */
+
+/*
+ * Builds the display list that draws the object's copies (one per matrix, each a grey of its own) into the
+ * copy's 64x64 8-bit texture, and queues it (called from 0036C)
+ */
+#ifdef NON_MATCHING
+/* 13 diffs: the ROM keeps the queue count in t9 and `attached` in t0 (here t1 and v1) */
+void func_m004_00CB8(Object *obj, M004Mtx **mtxs, s32 count) {
+    Gfx *dl;
+    u32 mtx;
+    s32 grey;
+    s32 colour;
+    M004Inst *inst;
+    s32 i;
+    M004Inst *inst2;
+    M004Copy *copy;
+    M004Inst *other;
+    MtxF *attachMtx;
+    MtxF m1;
+    MtxF m2;
+    s32 index2;
+    s32 index;
+    s32 attached;
+
+    copy = ((M004Shadow *) obj->shadow)->copy;
+    inst = (M004Inst *) copy->model;
+    index2 = rl_m004_01728;
+    inst2 = (M004Inst *) copy->model2;
+    if (index2 < 15) {
+        attached = FALSE;
+        if (obj->behaviorId == 0x33) {
+            attached = TRUE;
+            index = OBJ_STATE(obj, M004State)->model;
+            attachMtx = obj->unk68;
+        }
+        mtx = (u32) copy->unk2C;
+        debug_trace_add(dl = copy->unk28, rl_m004_01730, 0x25D);
+        func_80050E90(&dl, 0, 0);
+        func_80050E90(&dl, 1, (s32) copy->unk20);
+        gDPSetCycleType(dl++, G_CYC_FILL);
+        gDPSetColorImage(dl++, G_IM_FMT_I, G_IM_SIZ_8b, 64, (u32) copy->unk20 + 0x80000000);
+        gDPSetFillColor(dl++, 0);
+        gDPSetScissor(dl++, G_SC_NON_INTERLACE, 0, 0, 64, 64);
+        gDPFillRectangle(dl++, 0, 0, 63, 63);
+        rdp_set_default_modes(&dl);
+        gSPClearGeometryMode(dl++, 0x1F3204);
+        gSPTexture(dl++, 0, 0, 0, G_TX_RENDERTILE, G_OFF);
+        gMoveWd(dl++, G_MW_NUMLIGHT, 0, 0);
+        gSPViewport(dl++, rl_m004_01660 + 0x800000B8);
+        gSPClipRatio(dl++, FRUSTRATIO_2);
+        gDPSetScissor(dl++, G_SC_NON_INTERLACE, 1, 1, 63, 63);
+        for (i = count - 1; i >= 0; i--) {
+            index2 = mtxs[i]->unk44;
+            grey = index2 & 0xFF;
+            colour = (grey << 24) | (grey << 16) | (grey << 8);
+            { Gfx *_g = dl++; _g->words.w0 = 0xFA000000; _g->words.w1 = colour | 0xFF; }
+            { Gfx *_g = dl++; _g->words.w0 = 0xFB000000; _g->words.w1 = colour | 0xFF; }
+            func_80048C7C((MtxF *) &copy->pad6C, (MtxF *) mtxs[i], &m1);
+            func_80048C7C(&m1, (MtxF *) (rl_m004_01660 + 0x78), &m1);
+            func_80048C7C(&m1, (MtxF *) (rl_m004_01660 + 0x38), &m2);
+            func_80048D84(&m2, (Mtx *) mtx);
+            { Gfx *_g = dl++; _g->words.w0 = 0x01000040; _g->words.w1 = mtx + 0x80000000; }
+            mtx += sizeof(Mtx);
+            { Gfx *_g = dl++; _g->words.w0 = (((u32) inst->vertices[inst->buffer] + 0x80000000) & 0xFFFFFF) | 0xBF000000; _g->words.w1 = (u32) inst2->triangles + 0x80000000; }
+            { Gfx *_g = dl++; _g->words.w0 = 0x02000050; _g->words.w1 = (u32) (D_800A0838 + 0x80000000); }
+            gSPDisplayList(dl++, (u32) copy->unk34 + 0x80000000);
+            { Gfx *_g = dl++; _g->words.w0 = 0xBF000000; _g->words.w1 = 0; }
+            if (attached) {
+                Object *o = (*(M004Attached **) obj->pad60)->objs[0];
+                other = ((M004Inst **) o->modelInstances)[index];
+                func_80048C7C(attachMtx, &m2, &m1);
+                func_80048D84(&m1, (Mtx *) mtx);
+                { Gfx *_g = dl++; _g->words.w0 = 0x01010040; _g->words.w1 = mtx + 0x80000000; }
+                mtx += sizeof(Mtx);
+                { Gfx *_g = dl++; _g->words.w0 = (((u32) other->vertices[other->buffer] + 0x80000000) & 0xFFFFFF) | 0xBF000000; _g->words.w1 = (u32) other->triangles + 0x80000000; }
+                gSPDisplayList(dl++, (u32) copy->buffers[index] + 0x80000000);
+                { Gfx *_g = dl++; _g->words.w0 = 0xBF000000; _g->words.w1 = 0; }
+            }
+        }
+        gMoveWd(dl++, 0x0A, 0, 0);
+        gDPFullSync(dl++);
+        gSPEndDisplayList(dl++);
+        debug_trace_add(dl, rl_m004_01730 + 0x10, 0x2A7);
+        copy->unk30 = dl;
+        copy->pending = TRUE;
+        D_800A35E8 = 1;
+        rl_m004_01880[rl_m004_01728] = copy;
+        rl_m004_01728++;
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_00CB8);
+#endif
 
 extern void func_80049BA0(M004Mtx *mtx); /* identity */
 extern f32 rl_m004_01754;                /* .rodata (still assembly) */
