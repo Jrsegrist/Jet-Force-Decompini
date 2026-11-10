@@ -66,7 +66,8 @@ typedef struct M003Member {
     /* 0x44 */ u8 pad44[0x4A - 0x44];
     /* 0x4A */ u8 unk4A;
     /* 0x4B */ u8 unk4B;
-    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x4C */ s16 unk4C; /* how fast it turns (0A5EC) */
+    /* 0x4E */ u8 pad4E[0x50 - 0x4E];
     /* 0x50 */ u8 node;
     /* 0x51 */ u8 unk51;
     /* 0x52 */ u8 unk52;
@@ -270,7 +271,8 @@ typedef struct M003Body {
     /* 0x10 */ f32 unk10; /* a distance (0AF34, 0AFC4) */
     /* 0x14 */ u8 pad14[0x24 - 0x14];
     /* 0x24 */ s16 unk24; /* a height */
-    /* 0x26 */ u8 pad26[0x29 - 0x26];
+    /* 0x26 */ u8 pad26[0x28 - 0x26];
+    /* 0x28 */ u8 turnStep; /* how much faster or slower its members turn each step (0A5EC) */
     /* 0x29 */ u8 numParts;
     /* 0x2A */ u8 pad2A;
     /* 0x2B */ u8 unk2B; /* 5: does not burn */
@@ -376,7 +378,8 @@ typedef struct M003Anim {
     /* 0x02 */ u8 anim;
     /* 0x03 */ u8 unk3;
     /* 0x04 */ u32 weight : 5; /* how likely 04614 picks it */
-    /* 0x04 */ u32 pad4_5 : 2;
+    /* 0x04 */ u32 pad4_5 : 1;
+    /* 0x04 */ u32 unk4_25 : 1; /* turn on the spot when it need not get anywhere (0A5EC) */
     /* 0x04 */ u32 unk4_22 : 3; /* 3: the member loses a body part as it starts (04968), 4: one time in three */
     /* 0x04 */ u32 parts : 7; /* its row of rl_m003_17A10, 0x7F: none (09680) */
     /* 0x04 */ u32 unk4_11 : 4;
@@ -2725,7 +2728,56 @@ void func_m003_0A564(void) {
     sObj->trans.rotation.y_rotation += turn;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A5EC);
+/*
+ * Turns the member towards sBssD6, speeding its turn up or down by the body's turnStep so that it stops
+ * facing that way
+ */
+void func_m003_0A5EC(void) {
+    s16 diff;
+    UNUSED s32 pad;
+    s16 b;
+    s16 a;
+    s16 step;
+
+    diff = func_80049D80(sObj->trans.rotation.y_rotation, sBssD6);
+    a = 0;
+    b = 0;
+    step = sBody->turnStep;
+    if (func_m003_04428(sObj)->unk4_25 && sBssCC == 0.0f) {
+        sMember->unk4C = 0;
+        sBssD6 = sObj->trans.rotation.y_rotation;
+        return;
+    }
+    if (diff >= 0) {
+        do {
+            a += step;
+            b += a;
+        } while (b + a < diff);
+    } else {
+        do {
+            a -= step;
+            b += a;
+        } while (diff < b + a);
+    }
+    if (step >= diff && diff >= -step && step >= sMember->unk4C && sMember->unk4C >= -step &&
+        ((diff >= 0 && sMember->unk4C >= 0) || (diff <= 0 && sMember->unk4C <= 0))) {
+        sMember->unk4C = sBssD6 - sObj->trans.rotation.y_rotation;
+    } else if (a - step >= sMember->unk4C + step) {
+        sMember->unk4C += step;
+    } else if (sMember->unk4C - step < a) {
+        sMember->unk4C = a - step;
+    } else {
+        sMember->unk4C -= step;
+    }
+    if (sMember->unk4C == 0) {
+        if (step < diff) {
+            sMember->unk4C = step;
+        } else if (diff < -step) {
+            sMember->unk4C = -step;
+        }
+    }
+    sObj->trans.rotation.y_rotation += sMember->unk4C;
+}
 
 extern f32 rl_m003_19D40; /* .rodata (still assembly): 0A850's factors */
 extern f32 rl_m003_19D44;
