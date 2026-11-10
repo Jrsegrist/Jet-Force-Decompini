@@ -332,7 +332,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 void *load_texture(s32 assetIndex);
 void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
 void effect_mesh_build_cone(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
-void func_800694CC(EffectMesh *mesh, s32 arg1);
+void func_800694CC(EffectMesh *mesh, s16 angle);
 
 /* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
    and build it (a single point when segments is 0). */
@@ -496,7 +496,78 @@ void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_800694CC);
+/* JFG: set an effect mesh's texture coordinates for the texture rotated by angle: a fan (no segments) gets its 32
+ * triangles mapped through the inner and outer rings, a cone gets a ring of segments + 1 points around the
+ * texture centre. */
+void func_800694CC(EffectMesh *mesh, s16 angle) {
+    s32 w;
+    s32 h;
+    s32 n;
+    s32 step;
+    s32 i;
+    UNUSED s32 pad;
+    s16 u[20];
+    s16 v[20];
+    f32 s;
+    Triangle *tri;
+    f32 c;
+    f32 fw;
+    f32 fh;
+
+    if (mesh == NULL) {
+        return;
+    }
+    n = angle;
+    if (mesh->tex1 == NULL) {
+        return;
+    }
+    w = ((u8 *) mesh->tex1)[0] << 4;
+    h = ((u8 *) mesh->tex1)[1] << 4;
+    tri = (Triangle *) mesh->tris;
+    if (mesh->segments == 0) {
+        fw = w - 1;
+        fh = h - 1;
+        for (i = 0; i < 8; i++) {
+            s = func_80049C34(n);
+            c = func_80049C30(n);
+            u[i + 1] = (s32) (102.4f * s) + w;
+            v[i + 1] = (s32) (102.4f * c) + h;
+            u[i + 9] = (s32) (fw * s) + w;
+            v[i + 9] = (s32) (fh * c) + h;
+            n += 0x2000;
+        }
+        n = 32;
+        while (n--) {
+            tri->uv[0][0] = u[tri->vi0];
+            tri->uv[0][1] = v[tri->vi0];
+            tri->uv[1][0] = u[tri->vi1];
+            tri->uv[1][1] = v[tri->vi1];
+            tri->uv[2][0] = u[tri->vi2];
+            tri->uv[2][1] = v[tri->vi2];
+            tri++;
+        }
+        n = 8;
+        step = 0x2000;
+    } else {
+        n = mesh->segments;
+        step = 0x10000 / n;
+    }
+    fw = w - 1;
+    fh = h - 1;
+    for (i = 0; i <= n; i++, angle += step) {
+        u[i] = (s32) (func_80049C34(angle) * fw) + w;
+        v[i] = (s32) (func_80049C30(angle) * fh) + h;
+    }
+    for (i = 0; i < n; i++) {
+        tri->uv[0][0] = u[i];
+        tri->uv[0][1] = v[i];
+        tri->uv[1][0] = u[i + 1];
+        tri->uv[1][1] = v[i + 1];
+        tri->uv[2][0] = w;
+        tri->uv[2][1] = h;
+        tri++;
+    }
+}
 
 void func_8004944C(void *angles, f32 *vec);
 f32 func_80049C30(s32 angle);
