@@ -1262,7 +1262,72 @@ void transition_render_fullscreen(Gfx **dList, UNUSED Mtx **matrix, UNUSED Verte
     rendermode_reset(dList);
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006C230);
+void fb_get_scale(f32 *x, f32 *y);
+
+/**
+ * Build the transition's geometry from the vertex and triangle shapes given.
+ * JFG: the buffers are fixed (no allocation here), the coordinates are scaled to the screen, and the steps are
+ * multiplied by the reciprocal of the fade time.
+ * DKR: transition_init_shape
+ */
+void func_8006C230(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+                   u8 *nextAlpha, u8 *targetAlpha, u8 *vertIndices) {
+    f32 invTime;
+    u8 *swap;
+    f32 scaleX;
+    f32 scaleY;
+    s32 i;
+    s32 j;
+
+    fb_get_scale(&scaleX, &scaleY);
+    if (transition->type & FADE_FLAG_OUT) {
+        swap = nextPos;
+        nextPos = targetPos;
+        targetPos = swap;
+        swap = nextAlpha;
+        nextAlpha = targetAlpha;
+        targetAlpha = swap;
+    }
+    invTime = 1.0f / sTransitionFadeTimer;
+    for (i = 0; i < numVerts; i++) {
+        gTransitionNextVtx[(i * 3) + 0] = coords[nextPos[i]] * scaleX;
+        gTransitionNextVtx[(i * 3) + 1] = coords[nextPos[i] + 1] * scaleY;
+        gTransitionNextVtx[(i * 3) + 2] = nextAlpha[i];
+        gTransitionVertexTarget[(i * 3) + 0] = coords[targetPos[i]] * scaleX;
+        gTransitionVertexTarget[(i * 3) + 1] = coords[targetPos[i] + 1] * scaleY;
+        gTransitionVertexTarget[(i * 3) + 2] = targetAlpha[i];
+        gTransitionVtxStep[(i * 3) + 0] =
+            (gTransitionVertexTarget[(i * 3) + 0] - gTransitionNextVtx[(i * 3) + 0]) * invTime;
+        gTransitionVtxStep[(i * 3) + 1] =
+            (gTransitionVertexTarget[(i * 3) + 1] - gTransitionNextVtx[(i * 3) + 1]) * invTime;
+        gTransitionVtxStep[(i * 3) + 2] =
+            (gTransitionVertexTarget[(i * 3) + 2] - gTransitionNextVtx[(i * 3) + 2]) * invTime;
+    }
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < numVerts; j++) {
+            sTransitionVtx[i][j].z = -16;
+            sTransitionVtx[i][j].r = gCurFadeRed;
+            sTransitionVtx[i][j].g = gCurFadeGreen;
+            sTransitionVtx[i][j].b = gCurFadeBlue;
+        }
+    }
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < numTris; j++) {
+            sTransitionTris[i][j].flags = 0x40;
+            sTransitionTris[i][j].vi0 = vertIndices[(j * 3) + 0];
+            sTransitionTris[i][j].uv[0][0] = 0;
+            sTransitionTris[i][j].uv[0][1] = 0;
+            sTransitionTris[i][j].vi1 = vertIndices[(j * 3) + 1];
+            sTransitionTris[i][j].uv[1][0] = 0;
+            sTransitionTris[i][j].uv[1][1] = 0;
+            sTransitionTris[i][j].vi2 = vertIndices[(j * 3) + 2];
+            sTransitionTris[i][j].uv[2][0] = 0;
+            sTransitionTris[i][j].uv[2][1] = 0;
+        }
+    }
+    sTransitionStatus = TRANSITION_ACTIVE;
+    gTransitionVertexCount = numVerts;
+}
 
 /**
  * Slowly update the vertices of the transition based on what the next frames target is.

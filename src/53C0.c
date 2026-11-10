@@ -12,7 +12,9 @@ typedef struct Vec3s {
 
 /* DKR include/structs.h, reduced to the fields used here (JFG offsets) */
 typedef struct Object_Racer {
-    /* 0x000 */ u8 pad0[0x48];
+    /* 0x000 */ u8 pad0;
+    /* 0x001 */ s8 unk1; // JFG: an index into D_800A0C2C (6 bytes each)
+    /* 0x002 */ u8 pad2[0x48 - 0x2];
     /* 0x048 */ f32 unk48;
     /* 0x04C */ u8 pad4C[0x64 - 0x4C];
     /* 0x064 */ f32 unk64; // DKR: unkD0
@@ -29,7 +31,16 @@ typedef struct Object_Racer {
     /* 0x1FA */ u8 unk1FA;
     /* 0x1FB */ u8 pad1FB[0x53C - 0x1FB];
     /* 0x53C */ s8 unk53C;
-    /* 0x53D */ u8 pad53D[0x5C0 - 0x53D];
+    /* 0x53D */ u8 pad53D[0x544 - 0x53D];
+    /* 0x544 */ u8 unk544[0x550 - 0x544];
+    /* 0x550 */ s32 unk550;
+    /* 0x554 */ u8 pad554[0x598 - 0x554];
+    /* 0x598 */ s32 effects[4];  // JFG: four effect meshes drawn at model points (0: none)
+    /* 0x5A8 */ u8 pad5A8[0x5AC - 0x5A8];
+    /* 0x5AC */ u8 effectAlpha[4]; // JFG: 0: off
+    /* 0x5B0 */ s8 effectPoint[4]; // JFG: the model point each is drawn at
+    /* 0x5B4 */ s8 effectMtx[4];   // JFG: the joint matrix each is drawn with
+    /* 0x5B8 */ u8 pad5B8[0x5C0 - 0x5B8];
     /* 0x5C0 */ s32 unk5C0;
 } Object_Racer;
 
@@ -1928,7 +1939,65 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BE5C);
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
+f32 get_distance_to_camera(f32 x, f32 y, f32 z);
+void func_80069BE8(Gfx **dList, void *mesh, s32 flags, u8 alpha);
+extern u8 D_800A0C2C[];
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: from the joint matrix statement on, every t-register is one lower than the target's */
+/* JFG: draw a player's (up to four) effect meshes at their model points, farthest first, each with its joint
+   matrix; then the module's extra effect (racer 0x550) if there is one. */
+void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
+    s16 i;
+    s16 j;
+    s16 count;
+    s16 order[8];
+    s16 alpha[8];
+    u32 mtx[8];
+    f32 depth[8];
+    s32 eff;
+    s32 effects[8];
+    ObjectAttachment *model;
+    Object_Racer *racer;
+    f32 *point;
+
+    racer = obj->racer;
+    model = obj->attachments[0];
+    for (i = 0, count = 0; i < 4; i++) {
+        if (racer->effectAlpha[i] != 0 && (eff = racer->effects[i]) != 0) {
+            point = (f32 *) ((racer->effectPoint[i] * 12) + (u32) model->point);
+            order[count] = count;
+            depth[count] = get_distance_to_camera(point[0], point[1], point[2]);
+            effects[count] = eff;
+            mtx[count] = (racer->effectMtx[i] << 6) + (u32) model->matrices[model->matrixIndex];
+            alpha[count] = racer->effectAlpha[i];
+            count++;
+        }
+    }
+    if (count > 0) {
+        for (i = count - 1; i > 0; i--) {
+            for (j = 0; j < i; j++) {
+                s16 a = order[j + 1];
+                s16 b = order[j];
+                if (depth[a] < depth[b]) {
+                    order[j] = a;
+                    order[j + 1] = b;
+                }
+            }
+        }
+        for (i = 0; i < count; i++) {
+            fast3d_cmd((*dList)++, 0x01810040, mtx[order[i]] + 0x80000000);
+            func_80069BE8(dList, (void *) effects[order[i]], 6, alpha[order[i]]);
+        }
+        fast3d_cmd((*dList)++, 0xBC00000A, 0);
+    }
+    if (racer->unk550 != 0) {
+        func_80054530(dList, arg1, racer->unk550, &D_800A0C2C[racer->unk1 * 6], racer->unk544, (u8 *) racer + 0x78);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C6E0);
+#endif
 
 extern u8 D_800A0C5C;
 extern u8 D_800A0C60;

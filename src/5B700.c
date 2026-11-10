@@ -210,10 +210,21 @@ struct TextureHeader {
     /* 0x12 */ u16 numOfTextures;
 };
 
+/* DKR src/weather.h. Size: 0x2C bytes */
 typedef struct SnowGfxData {
     /* 0x00 */ void *pos;
-    /* 0x04 */ s32 unk4;
-    /* 0x08 */ TextureHeader *texture;
+    /* 0x04 */ s32 unk4; // DKR: size
+    /* 0x08 */ TextureHeader *texture; // DKR: a union with the type in the presets
+    /* 0x0C */ s32 offsetX;
+    /* 0x10 */ s32 offsetY;
+    /* 0x14 */ s32 offsetZ;
+    /* 0x18 */ s32 radiusX;
+    /* 0x1C */ s32 radiusY;
+    /* 0x20 */ s32 radiusZ;
+    /* 0x24 */ s16 vertOffsetW;
+    /* 0x26 */ s16 vertOffsetH;
+    /* 0x28 */ s16 vertWidth;
+    /* 0x2A */ s16 vertHeight;
 } SnowGfxData;
 
 void mempool_free(void *data);
@@ -314,7 +325,164 @@ void weather_free(void) {
     }
 }
 
+/* DKR include/structs.h. Size: 0x10 bytes */
+typedef struct SnowPosData {
+    /* 0x00 */ s32 x_position;
+    /* 0x04 */ s32 y_position;
+    /* 0x08 */ s32 z_position;
+    /* 0x0C */ s8 unused_C;
+    /* 0x0D */ s8 unused_D;
+    /* 0x0E */ s8 unused_E;
+    /* 0x0F */ u8 index;
+} SnowPosData;
+
+/* DKR include/structs.h (Triangle). Size: 0x10 bytes */
+typedef struct SnowTriangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s16 u0, v0;
+    /* 0x08 */ s16 u1, v1;
+    /* 0x0C */ s16 u2, v2;
+} SnowTriangle;
+
+/* DKR include/structs.h (the start of Vertex) */
+typedef struct SnowVertex {
+    /* 0x00 */ s16 x, y, z;
+    /* 0x06 */ u8 r, g, b, a;
+} SnowVertex;
+
+/* DKR include/structs.h (the start of TextureHeader) */
+typedef struct SnowTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+} SnowTexture;
+
+extern SnowGfxData D_800A5940[]; // DKR: gWeatherPresets
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+void rain_init(s32 density, s32 intensity, s32 opacity);
+void func_8005CBBC(void); // DKR: snow_init
+s32 rand_range(s32 min, s32 max);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target's frame is 0x30 bytes bigger and keeps the density in s3; the colour tag is
+   rebuilt for each call there, mine stays in s5 */
+/**
+ * Free all existing weather data.
+ * If the weather type allows rain, then allocate and initialise rain.
+ * Afterwards, allocate and set the defaults for snow model data.
+ * JFG: the whole preset is copied, rain_init also takes the density, and the triangle count is fixed.
+ * DKR: weather_reset
+ */
+void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity) {
+    s16 width;
+    s16 height;
+    s32 numOfElements;
+    s32 allocSize;
+    s32 i;
+    SnowGfxData *preset;
+    SnowPosData *pos;
+    SnowVertex *verts;
+    SnowVertex **vertexData;
+    SnowTriangle *tris;
+    u8 *src;
+    u8 *dst;
+    u8 n;
+
+    weather_free();
+    gWeather.velX = velX;
+    gWeather.velXStep = 0;
+    gWeather.velXTarget = velX;
+    gWeather.velY = velY;
+    gWeather.velYStep = 0;
+    gWeather.velYTarget = velY;
+    gWeather.velZStep = 0;
+    gWeather.intensityStep = 0;
+    gWeather.opacityStep = 0;
+    gWeather.shiftTime = 0;
+    gWeather.velZ = velZ;
+    gWeather.velZTarget = velZ;
+    gWeather.intensity = intensity;
+    gWeather.intensityTarget = intensity;
+    gWeather.opacity = opacity;
+    gWeather.opacityTarget = opacity;
+    if (weatherType > WEATHER_RAIN) {
+        weatherType = WEATHER_RAIN;
+    }
+    preset = &D_800A5940[weatherType];
+    if ((s32) preset->texture == WEATHER_RAIN) {
+        rain_init(density, intensity + 1, opacity + 1);
+        return;
+    }
+    src = (u8 *) preset;
+    dst = (u8 *) &gSnowGfx;
+    n = sizeof(SnowGfxData) - 1;
+    do {
+        *dst++ = *src++;
+    } while (n--);
+    gSnowGfx.pos = mempool_alloc_safe(preset->unk4 * 12, 0xAA55FFFF);
+    if ((s32) preset->texture == WEATHER_SNOW) {
+        func_8005CBBC();
+    }
+    gSnowDensity = density;
+    gSnowTriIndices = mempool_alloc_safe(density * 2, 0xAA55FFFF);
+    gSnowPhysics = pos = mempool_alloc_safe(density * sizeof(SnowPosData), 0xAA55FFFF);
+    for (i = 0; i < gSnowDensity; i++) {
+        pos->x_position = rand_range(0, gSnowGfx.radiusX);
+        pos->y_position = rand_range(0, gSnowGfx.radiusY);
+        pos->z_position = rand_range(0, gSnowGfx.radiusZ);
+        pos->unused_C = 1 << (rand_range(0, 32) + 5);
+        pos->unused_D = 1 << (rand_range(0, 32) + 5);
+        pos->unused_E = 1 << (rand_range(0, 32) + 5);
+        pos->index = rand_range(0, gSnowGfx.unk4 - 1);
+        pos++;
+    }
+    numOfElements = density * 4;
+    allocSize = sizeof(SnowVertex);
+    allocSize *= numOfElements;
+    gSnowVertexData[0] = mempool_alloc_safe(allocSize, 0xAA55FFFF);
+    gSnowVertexData[1] = mempool_alloc_safe(allocSize, 0xAA55FFFF);
+    for (vertexData = (SnowVertex **) gSnowVertexData; vertexData < (SnowVertex **) &gSnowVertexData[2]; vertexData++) {
+        verts = *vertexData;
+        for (i = 0; i < numOfElements; i++) {
+            verts->r = 255;
+            verts->g = 255;
+            verts->b = 255;
+            verts->a = 255;
+            verts++;
+        }
+    }
+    width = (((SnowTexture *) gSnowGfx.texture)->width << 5) - 1;
+    height = (((SnowTexture *) gSnowGfx.texture)->height << 5) - 1;
+    gSnowTriangles = tris = mempool_alloc_safe(gSnowTriCount * sizeof(SnowTriangle), 0xAA55FFFF);
+    for (i = 0; i < gSnowTriCount; i += 2) {
+        tris[i].flags = 0;
+        tris[i].vi0 = (i << 1) + 3;
+        tris[i].u0 = 0;
+        tris[i].v0 = height;
+        tris[i].vi1 = (i << 1) + 1;
+        tris[i].u1 = width;
+        tris[i].v1 = 0;
+        tris[i].vi2 = (i << 1) + 0;
+        tris[i].u2 = 0;
+        tris[i].v2 = 0;
+        tris[i + 1].flags = 0;
+        tris[i + 1].vi0 = (i << 1) + 3;
+        tris[i + 1].u0 = 0;
+        tris[i + 1].v0 = height;
+        tris[i + 1].vi1 = (i << 1) + 2;
+        tris[i + 1].u1 = width;
+        tris[i + 1].v1 = height;
+        tris[i + 1].vi2 = (i << 1) + 1;
+        tris[i + 1].u2 = width;
+        tris[i + 1].v2 = 0;
+    }
+    gSnowVertexFlip = 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AD90);
+#endif
 
 /**
  * Change the current properties of the weather.
