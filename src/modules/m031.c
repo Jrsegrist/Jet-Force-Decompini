@@ -732,7 +732,47 @@ void func_m031_02064(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_021F0);
+extern s16 *rl_m031_03DF8[]; /* (.data) per race: the pick-ups that can appear */
+
+/*
+ * Every few seconds puts a random pick-up of the race's kinds at a random one of the objects 0x274 (never
+ * the same one twice running) (called from 00A3C)
+ */
+void func_m031_021F0(s32 updateRate) {
+    s32 r;
+    M031Entry entry;
+    s16 *ids;
+    Object *at;
+    s32 r2;
+    Object *spawned;
+
+    if (rl_m031_040E0 > 0 && D_800A5034 != 0) {
+        rl_m031_040E8 -= updateRate;
+        if (rl_m031_040E8 <= 0) {
+            if (rl_m031_040E0 >= 2) {
+                do {
+                    r = func_80048E2C(0, rl_m031_040E0 - 1);
+                } while (r == rl_m031_040E4);
+            } else {
+                r = 0;
+            }
+            r2 = func_80048E2C(0, 7);
+            ids = rl_m031_03DF8[D_800A5034];
+            at = sBss408[r];
+            entry.objectID = ids[r2];
+            entry.x = at->trans.x_position;
+            entry.y = at->trans.y_position;
+            entry.z = at->trans.z_position;
+            entry.unkA = 10;
+            spawned = func_80005F14(&entry, 1);
+            if (spawned != NULL) {
+                spawned->level_entry = NULL;
+            }
+            rl_m031_040E4 = r;
+            rl_m031_040E8 = func_80048E2C(0, 180) + 300;
+        }
+    }
+}
 
 /* Loads the race's sounds */
 void func_m031_02388(void) {
