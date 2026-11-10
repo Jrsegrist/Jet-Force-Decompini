@@ -189,16 +189,97 @@ void func_m022_00EA0(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_00F18);
+extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
+extern void func_80045DD0(s32 *x1, s32 *y1, s32 *x2, s32 *y2); /* the viewport */
+extern void func_800408C0(Gfx **dl);                 /* sets the viewport's scissor */
+extern Gfx rl_m022_034C0[]; /* .data (still assembly): a display list */
+
+/* The pause screen's frame: the whole screen's scissor, then black right of and below the viewport (called
+   from 018AC) */
+void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+    u32 width;
+    u32 height;
+
+    func_80054EA0(&width, &height);
+    func_80045DD0(&x1, &y1, &x2, &y2);
+    gSPDisplayList((*dl)++, rl_m022_034C0);
+    gDPSetScissor((*dl)++, G_SC_NON_INTERLACE, 0, 0, width - 1, height - 1);
+    if (x2 < (s32) width) {
+        gDPFillRectangle((*dl)++, x2, 0, width, y2);
+    }
+    if (y2 < (s32) height) {
+        gDPFillRectangle((*dl)++, 0, y2, width, height);
+    }
+    gDPPipeSync((*dl)++);
+    gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
+    func_800408C0(dl);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_0114C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_018AC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_020EC);
-
 struct M022Goals;
 extern struct M022Goals *rl_m022_03410;
+extern u8 D_800FD790; /* counters the goals count */
+extern u8 D_800FD791;
+extern u16 D_800FD792; /* flags */
+extern s32 D_800A3204;
+extern u8 rl_m022_03420; /* a bit per goal reached */
+extern s32 rl_m022_0340C; /* the task */
+extern u8 rl_m022_03240[][0x40]; /* .data (still assembly): the goals of each task */
+extern s8 rl_m022_03414;
+extern void func_m118_0007C(Object *obj, LevelObjectEntryCommon *entry);
+extern void func_m118_003DC(Object *obj, LevelObjectEntryCommon *entry);
+extern void func_m074_00000(Object *obj, LevelObjectEntryCommon *entry);
+extern void func_m101_009F8(Object *obj, LevelObjectEntryCommon *entry);
+
+/* Starts task `task`: clears the goal counters and sets up again the objects of kinds 0x66, 0x67, 0x60
+   and 0x4E (called from 002A4) */
+void func_m022_020EC(s32 task) {
+    s32 first;
+    s32 count;
+    Object **objs;
+    Object *obj;
+
+    D_800FD790 = 0;
+    D_800FD791 = 0;
+    D_800FD792 = 0;
+    D_800A3204 = 0;
+    rl_m022_03420 = 0;
+    rl_m022_03424 = 0;
+    rl_m022_03434 = 0;
+    rl_m022_0340C = task;
+    rl_m022_03410 = (struct M022Goals *) rl_m022_03240[task];
+    rl_m022_03414 = -1;
+    objs = func_80005E98(&first, &count);
+    while (first < count) {
+        obj = objs[first++];
+        if (obj->behaviorId == 0x66) {
+            if (obj->level_entry != NULL) {
+                func_m118_0007C(obj, obj->level_entry);
+            }
+        } else if (obj->behaviorId == 0x67) {
+            if (obj->level_entry != NULL) {
+                func_m118_003DC(obj, obj->level_entry);
+            }
+        } else if (obj->behaviorId == 0x60) {
+            if (obj->level_entry != NULL) {
+                func_m074_00000(obj, obj->level_entry);
+            }
+        } else if (obj->behaviorId == 0x4E && *(s32 *) obj->state <= 0) {
+            if (obj->level_entry != NULL) {
+                func_m101_009F8(obj, obj->level_entry);
+                obj->trans.flags &= ~0x400;
+            }
+        }
+    }
+}
 extern void rl_m022_02310(M022HelperState *s);
 
 /* Puts the helper in state 1 and starts its task (called from 002A4) */
@@ -265,7 +346,15 @@ typedef struct M022Goals {
     /* 0x03 */ u8 count2;
     /* 0x04 */ M022Goal list1[3];
     /* 0x10 */ M022Goal list2[1];
+    /* 0x14 */ u8 pad14[0x1C - 0x14];
+    /* 0x1C */ struct M022Rank {
+        u16 time; /* in seconds: to beat */
+        u8 count1; /* the counters to reach */
+        u8 count2;
+        u16 flags; /* to have */
+    } ranks[5];
 } M022Goals;
+typedef struct M022Rank M022Rank;
 
 extern u8 D_800FD790;  /* counters the goals count */
 extern u8 D_800FD791;
@@ -324,7 +413,82 @@ void func_m022_02430(s32 bit, s32 kind) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_025B8);
+/* The game's save data, as used here */
+typedef struct M022Save {
+    /* 0x00 */ u8 pad0[0x64];
+    /* 0x64 */ u32 unk64; /* flags */
+    /* 0x68 */ u8 pad68[0x6B - 0x68];
+    /* 0x6B */ u8 unk6B;
+} M022Save;
+
+/* The game's settings (what get_settings returns), as used here */
+typedef struct M022Record {
+    /* 0x00 */ u8 pad0[0x28];
+    /* 0x28 */ u8 rank[4]; /* the best rank of each task */
+} M022Record;
+
+extern M022Save D_800FF318;
+extern M022Record *get_settings(void);
+extern void character_item_give(s32 player, s32 character, s32 item);
+extern s32 player_chars_have_item(s32 item);
+extern s32 game_flag_get(s32 flag);
+extern void func_80047EFC(s32 flag, s32 set);
+extern u8 rl_m022_0341C; /* .bss (still assembly): 2 a new best rank, 1 a rank, 0 none */
+extern s16 rl_m022_033C0[]; /* .data (still assembly): the object shown for each rank, or -1 */
+
+/*
+ * The end of the task: its rank (the ranks it meets in turn), the record, the rewards, and the
+ * object that shows the rank
+ */
+void func_m022_025B8(s8 *player) {
+    LevelObjectEntryCommon entry;
+    M022Rank *r;
+    M022Record *rec;
+
+    rl_m022_03414 = 0;
+    r = rl_m022_03410->ranks;
+    while (rl_m022_03414 < 5 && D_800A3204 < r->time * 60 && D_800FD790 >= r->count1 &&
+           D_800FD791 >= r->count2 && (D_800FD792 & r->flags) == r->flags) {
+        rl_m022_03414++;
+        r++;
+    }
+    rec = get_settings();
+    if (rec->rank[rl_m022_0340C] < rl_m022_03414) {
+        rec->rank[rl_m022_0340C] = rl_m022_03414;
+        rl_m022_0341C = 2;
+    } else if (rl_m022_03414 > 0) {
+        rl_m022_0341C = 1;
+    } else {
+        rl_m022_0341C = 0;
+    }
+    if (rl_m022_0340C == 0 && rl_m022_03414 >= 4 && !(D_800FF318.unk6B & 1)) {
+        rl_m022_03414 = 6;
+        func_80047EFC(0x49, 1);
+    } else if (rl_m022_0340C == 1 && rl_m022_03414 >= 4 && !player_chars_have_item(0x1A) && !game_flag_get(0x20)) {
+        character_item_give(player[0], player[1], 0x1A);
+        rl_m022_03414 = 7;
+    } else if (rl_m022_0340C == 2 && rl_m022_03414 >= 4 && !player_chars_have_item(0x1B)) {
+        character_item_give(0, 0, 0x1B);
+        character_item_give(0, 1, 0x1B);
+        character_item_give(0, 2, 0x1B);
+        rl_m022_03414 = 8;
+    } else if (rl_m022_0340C == 3 && rl_m022_03414 >= 4 && !(D_800FF318.unk6B & 4)) {
+        rl_m022_03414 = 9;
+        func_80047EFC(0x4B, 1);
+    } else if (rec->rank[0] == 5 && rec->rank[1] == 5 && rec->rank[2] == 5 && rec->rank[3] == 5 &&
+               !(D_800FF318.unk64 & 0x20000)) {
+        func_80047EFC(0x11, 1);
+        rl_m022_03414 = 10;
+    }
+    entry.objectID = rl_m022_033C0[rl_m022_03414];
+    rl_m022_03418 = NULL;
+    if (entry.objectID >= 0) {
+        entry.x = 0;
+        entry.y = 0;
+        entry.z = 0;
+        rl_m022_03418 = func_80005F14(&entry, 0);
+    }
+}
 
 /* Pauses the task: brings the letterbox in */
 void func_m022_02990(void) {

@@ -112,7 +112,70 @@ INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_000A8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_00A84);
 
+/* The query that func_8007C2E8 takes, as used here */
+typedef struct M069Ray {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 to[3];
+    /* 0x18 */ f32 from[3];
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ u8 pad2C[0x54 - 0x2C];
+} M069Ray;
+
+extern Object **func_80005E98(s32 *first, s32 *count); /* the objects */
+extern s32 func_8007C2E8(s32 arg0, M069Ray *ray, s32 count, Object **objs, Object **hit, s32 arg5);
+extern f32 func_80097140(f32 x); /* sqrtf */
+
+#ifdef NON_MATCHING
+/* 27 diffs: stack offsets only (the frame is 8 bytes bigger; the code is the same) */
+/*
+ * Of the objects with a hit box of kind 1 or 2 (and header flag 0x40), how many the line from `from`
+ * to `to` meets; the distance to the first goes to *dist (as the original computes it)
+ */
+s32 func_m069_0135C(s32 arg0, f32 *from, f32 *to, f32 *dist) {
+    s32 i;
+    s32 first;
+    s32 count;
+    M069Ray ray;
+    s32 n;
+    Object *hit;
+    Object **list;
+    Object *obj;
+    Object *objs[256];
+
+    n = 0;
+    ray.from[0] = from[0];
+    ray.from[1] = from[1];
+    ray.from[2] = from[2];
+    ray.to[0] = to[0];
+    ray.to[1] = to[1];
+    ray.to[2] = to[2];
+    ray.unk24 = 1.0f;
+    ray.unk28 = 1.0f;
+    list = func_80005E98(&first, &count);
+    list += first;
+    i = count - first;
+    while (i--) {
+        obj = *list++;
+        if (obj->interactObj != NULL && (((u16 *) obj->header)[0x14 / 2] & 0x40)) {
+            if (((u8 *) obj->interactObj)[0x30] == 1 || ((u8 *) obj->interactObj)[0x30] == 2) {
+                objs[n++] = obj;
+            }
+        }
+    }
+    if (n > 0) {
+        n = func_8007C2E8(0, &ray, n, objs, &hit, arg0);
+    }
+    if (n > 0) {
+        *dist = func_80097140((ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position) +
+                              (ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position) +
+                              (ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position));
+    }
+    return n;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_0135C);
+#endif
 
 /* Draws player `player`'s crosshair at (x, y) */
 static void func_m069_014D0(Gfx **dl, Vertex **verts, s32 player, s32 x, s32 y) {

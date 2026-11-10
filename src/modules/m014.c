@@ -2,6 +2,7 @@
  * Runlink module 14: part of the HUD (still mostly assembly).
  */
 #include "module.h"
+#include "gfx.h"
 
 extern void menu_assetgroup_free(void *images); /* frees a list of loaded images */
 extern void func_m006_00EFC();
@@ -41,7 +42,45 @@ void func_m014_00000(void) {
     rl_m014_04898 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00074);
+/* The part of the player's state that 00074 reads */
+typedef struct M014Player {
+    /* 0x000 */ u8 pad0[0x1CA];
+    /* 0x1CA */ s16 yaw;
+    /* 0x1CC */ u8 pad1CC[0x540 - 0x1CC];
+    /* 0x540 */ u16 unk540;
+} M014Player;
+
+extern Gfx *D_800FF398;
+extern void func_80055B80(Gfx **dl);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* sets a texture */
+extern s32 rl_m014_04528;     /* .data (still assembly): the arrow's blink timer */
+extern u8 rl_m014_044D8[];    /* its triangle */
+extern u8 rl_m014_044E8[];    /* its vertices, pointing left */
+extern u8 rl_m014_04508[];    /* and right */
+
+/* Blinks an arrow to the left or right when `angle` is more than 0xA00 off the player's yaw (called from
+   00B30) */
+void func_m014_00074(s16 *angle, M014Player *p, s32 updateRate) {
+    rl_m014_04528 += updateRate;
+    if ((p->unk540 & 0xF) && (rl_m014_04528 & 0x10)) {
+        s16 d = *angle - p->yaw;
+
+        if (d < -0xA00 || d > 0xA00) {
+            func_80055B80(&D_800FF398);
+            func_80055C00(&D_800FF398, NULL, 7, 0);
+            gDPSetEnvColor(D_800FF398++, 0xFF, 0xFF, 0xFF, 0x00);
+            gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0x80);
+            if (d < -0x800) {
+                gSPVertexJFG(D_800FF398++, rl_m014_044E8 + 0x80000000, 4, 0);
+            } else {
+                gSPVertexJFG(D_800FF398++, rl_m014_04508 + 0x80000000, 4, 0);
+            }
+            gSPPolygon(D_800FF398++, rl_m014_044D8 + 0x80000000, 1, 0);
+            gDPPipeSync(D_800FF398++);
+            gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00220);
 
@@ -276,7 +315,70 @@ void func_m014_03AD4(Gfx **dl, s32 region, s32 world, s32 number, s32 alpha) {
     func_8006FCA8(dl, 159, 87, buf, 12);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_03C68);
+/* A colour cycle (55130.c's) */
+typedef struct M014ColourCycle {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ u8 colour[4];
+    /* 0x0C */ void *source;
+} M014ColourCycle;
+
+/* A filled box (59060.c's MenuBox) */
+typedef struct M014Box {
+    s16 x1, y1, x2, y2;
+    s32 colour;
+} M014Box;
+
+extern void func_m006_0107C(s32 *x, s32 *y);
+extern void colour_cycle_init(M014ColourCycle *cycle, s32 assetID);
+extern void update_colour_cycle(M014ColourCycle *cycle, s32 updateRate);
+extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
+
+/*
+ * A bar from (x1, y1) to (x2, y2) in 4-pixel steps, coloured along colour cycle 0x3B, bright up to
+ * value / max of its length and dim after (called from 00B30)
+ */
+void func_m014_03C68(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alpha) {
+    M014Box *b;
+    s32 x;
+    s32 width;
+    s32 split;
+    s32 n;
+    s32 left;
+    s32 range;
+    M014ColourCycle cycle;
+    M014Box boxes[64];
+    UNUSED s32 padB[3];
+
+    n = 0;
+    if (max != 0) {
+        func_m006_0107C(&x1, &y1);
+        func_m006_0107C(&x2, &y2);
+        b = boxes;
+        width = x2 - x1;
+        split = (((x2 - x1) * ((value << 16) / max)) >> 16) + x1;
+        /* (one line: IDO schedules by line) */
+        range = width; for (x = x1 + 4; x < x2; x += 4) {
+            left = x - 2;
+            if (x < split) {
+                max = 0xFF;
+            } else {
+                max = 0x30;
+            }
+            max = (max * alpha) >> 8;
+            colour_cycle_init(&cycle, 0x3B);
+            update_colour_cycle(&cycle, (func_80005064(60) * (left - x1)) / range);
+            b->x1 = left;
+            b->y1 = y1;
+            b->x2 = x;
+            b->y2 = y2;
+            b->colour = ((cycle.colour[2] << 8) | ((cycle.colour[1] << 16) | (cycle.colour[0] << 24))) | max;
+            b++;
+            n++;
+        }
+        menu_fill_boxes(&D_800FF398, n, boxes, 0);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", data);
 

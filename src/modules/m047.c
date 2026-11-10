@@ -208,7 +208,90 @@ void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01560);
+/* The model of a model instance, as 01560 uses it */
+typedef struct M047ActorModel {
+    /* 0x00 */ u8 pad0[0x11];
+    /* 0x11 */ u8 texAnims; /* animated textures */
+    /* 0x12 */ u8 pad12[0x4E - 0x12];
+    /* 0x4E */ s8 animated;
+} M047ActorModel;
+
+/* A model instance, as 01560 uses it */
+typedef struct M047ActorInst {
+    /* 0x00 */ M047ActorModel *model;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 updateRate; /* set while the object is drawn this frame */
+    /* 0x0B */ s8 buffer;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ void *vertices[2];
+} M047ActorInst;
+
+/* What obj->unk60 points at for objects 0x33 */
+typedef struct M047Attached {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ Object *obj;
+} M047Attached;
+
+extern s32 sprite_anim_advance(void *sprite, s32 *flags, s32 frame, f32 *frameOut, s32 updateRate);
+extern void func_8003D21C(M047ActorInst *inst, M047ActorModel *model, Object *obj, f32 scale, f32 arg4);
+extern void func_800221F0(Object *obj, M047ActorInst *inst, ObjectShading *shading, void *vertices);
+extern void func_8000BC28(Object *obj, M047ActorInst *inst, M047ActorModel *model, s32 arg3, void *arg4, void *arg5,
+                          void *arg6, void *arg7);
+extern void obj_tex_animate(Object *obj, M047ActorModel *model, M047ActorInst *inst, s32 updateRate);
+
+/* Animates the actor's sprite or model for this frame (called from 0084C) */
+void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate) {
+    UNUSED s32 pad0;
+    s32 flags;
+    UNUSED s32 pad;
+    s32 frame;
+    M047ActorModel *model;
+    M047ActorInst *inst;
+
+    if (((M047Header *) obj->header)->noAnim == 1) {
+        void *sprite = obj->modelInstances[obj->modelIndex];
+
+        if (sprite != NULL) {
+            frame = a->animSpeed * 60.0f;
+            flags = 9;
+            if (a->backwards) {
+                flags = 11;
+            }
+            sprite_anim_advance(sprite, &flags, frame, &obj->unk28, updateRate);
+        }
+    } else if (((M047Header *) obj->header)->noAnim == 0) {
+        inst = obj->modelInstances[obj->modelIndex];
+        if (inst->updateRate) {
+            model = inst->model;
+            if (model->animated) {
+                func_8003D21C(inst, model, obj, 1.0f, 0.0f);
+                func_800221F0(obj, inst, obj->shading, inst->vertices[inst->buffer]);
+            } else {
+                if (model->texAnims) {
+                    inst->buffer = 1 - inst->buffer;
+                }
+                func_800221F0(obj, inst, obj->shading, inst->vertices[inst->buffer]);
+            }
+            if (obj->behaviorId == 0x33 && *(M047Attached **) &obj->pad60 != NULL) {
+                u8 *v = obj->unk68;
+
+                func_8000BC28(obj, inst, model, *(s32 *) &obj->state[4], v, v + 0x40, v + 0x44, v + 0x48);
+                if ((*(M047Attached **) &obj->pad60)->obj != NULL) {
+                    M047ActorInst *other =
+                        (*(M047Attached **) &obj->pad60)->obj->modelInstances[*(s32 *) &obj->state[4]];
+
+                    if (other != NULL) {
+                        other->updateRate = updateRate;
+                    }
+                }
+            }
+            if (model->texAnims > 0) {
+                obj_tex_animate(obj, model, inst, inst->updateRate);
+            }
+            inst->updateRate = 0;
+        }
+    }
+}
 
 /*
  * Starts changing a colour to (r, g, b, a) over `time`: an object's light (isLight) or a colour block

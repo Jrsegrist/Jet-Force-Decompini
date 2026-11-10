@@ -168,7 +168,40 @@ void func_m009_02880(s32 index) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02978);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02FB0);
+/* Fills the rectangle between two corners (in any order), clipped to the 320x240 screen (called from 00690) */
+void func_m009_02FB0(s16 x1, s16 y1, s16 x2, s16 y2) {
+    s32 t;
+
+    if (x2 < x1) {
+        t = x1;
+        x1 = x2;
+        x2 = t;
+    }
+    if (y2 < y1) {
+        t = y1;
+        y1 = y2;
+        y2 = t;
+    }
+    if (x2 == x1) {
+        x2++;
+    }
+    y2++;
+    if (x1 < 0) {
+        x1 = 0;
+    }
+    if (x2 >= 320) {
+        x2 = 319;
+    }
+    if (y1 < 0) {
+        y1 = 0;
+    }
+    if (y2 >= 240) {
+        y2 = 239;
+    }
+    if (x2 > 0 && x1 < 319 && y2 > 0 && y1 < 239) {
+        gDPFillRectangle(D_800FF398++, x1, y1, x2, y2);
+    }
+}
 
 extern void func_80042134(MtxF *mtx);                          /* identity */
 extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx);     /* scale */
@@ -354,7 +387,58 @@ static void func_m009_03908(s32 index) {
     func_8000DB94(&D_800FF398, &D_800FF39C, &D_800FF3A0, obj);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_039F0);
+extern void func_80055B80(Gfx **dl);
+extern s16 rl_m009_0444C[8][4]; /* .data (still assembly): eight rectangles on the map */
+extern f32 rl_m009_09798;       /* .bss (still assembly) */
+extern f32 rl_m009_0979C;
+extern f32 rl_m009_097AC;       /* the map's scale */
+
+/* Fills the map's eight rectangles, scaled and moved with the map and clipped to the screen (called from
+   00690) */
+void func_m009_039F0(void) {
+    s32 i;
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+    s32 cx;
+    s32 cy;
+    s32 ox;
+    s32 oy;
+    s16 *r;
+
+    r = rl_m009_0444C[0];
+    func_80055B80(&D_800FF398);
+    gDPSetCycleType(D_800FF398++, G_CYC_1CYCLE);
+    gDPSetCombineMode(D_800FF398++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0xFF, 0x00, 0x80);
+    cx = rl_m009_09798;
+    cy = rl_m009_0979C;
+    ox = rl_m009_09790;
+    oy = rl_m009_09794;
+    for (i = 0; i < 8; i++) {
+        x1 = *r++ * rl_m009_097AC + cx - ox + 160.0f;
+        y1 = *r++ * rl_m009_097AC + cy - oy;
+        x2 = *r++ * rl_m009_097AC + cx - ox + 160.0f;
+        y2 = *r++ * rl_m009_097AC + cy - oy;
+        if (x1 < 0) {
+            x1 = 0;
+        }
+        if (y1 < 0) {
+            y1 = 0;
+        }
+        if (x2 > 320) {
+            x2 = 320;
+        }
+        if (y2 > 240) {
+            y2 = 240;
+        }
+        if (x2 >= 0 && y2 >= 0 && x1 <= 320 && y1 <= 240) {
+            gDPFillRectangle(D_800FF398++, x1, y1, x2 + 1, y2 + 1);
+        }
+    }
+    func_80055B80(&D_800FF398);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_03D0C);
 
