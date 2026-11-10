@@ -241,7 +241,7 @@ void viewport_apply(Gfx **dList, Mtx **mtx);
 void view_planes_update(void);
 void func_8000C9E8(s32 arg0);
 void screen_lines_set_window(s32 arg0);
-void func_80012BAC(); // JFG: called with the update rate, which it doesn't read
+void trackbg_render_flashy(); // JFG: called with the update rate, which it doesn't read
 void skydome_render(s32 updateRate);
 void func_80013454(void);
 void initialise_player_viewport_vars(s32 arg0, s32 arg1);
@@ -343,7 +343,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
             screen_lines_set_window(D_800F2F84);
             if (numViewports < 2) {
                 if (D_800A0D64->skydomeFixed == -1) {
-                    func_80012BAC(updateRate);
+                    trackbg_render_flashy(updateRate);
                 } else {
                     skydome_render(updateRate);
                 }
@@ -586,7 +586,7 @@ extern u8 D_800A0D90[]; // DKR: D_800DC92C, the 8 triangles' vertex indices
  * DKR trackbg_render_flashy (tracks.c): a flat textured plane around the camera, fading out at the edges.
  * JFG: the plane's texture and scales from the level header's sky fields, white prim/env colours, no reset.
  */
-void func_80012BAC() {
+void trackbg_render_flashy() {
     Triangle *tris;
     Vertex *verts;
     s32 vCoordMask;
@@ -1361,7 +1361,7 @@ extern s32 D_800F2FA0; // JFG: render flags added to batches with neither of 0x1
 void tex_disable_modes(s32 flags);
 void tex_enable_modes(s32 flags);
 struct WaterTexture;
-void func_8001C778(struct WaterTexture *tex, s32 texOffset, s32 flags);
+void track_texture_load(struct WaterTexture *tex, s32 texOffset, s32 flags);
 
 /**
  * Render a group of a level segment's batches: pass 0x10000000 draws the opaque ones (without Z compare), the
@@ -1441,7 +1441,7 @@ void func_80014EBC(s32 segmentId, s32 pass) {
         }
         special = batchFlags & 0x4000;
         if (special && texture != NULL) {
-            func_8001C778((struct WaterTexture *) texture, texOffset, batchFlags);
+            track_texture_load((struct WaterTexture *) texture, texOffset, batchFlags);
         } else {
             func_80055C00(&D_800F2F70, texture, batchFlags | 2, texOffset);
         }
@@ -3102,7 +3102,7 @@ void *set_animated_texture_header(void *texHead, s32 offset);
  * texture (or the texture's next frame) is loaded as a second, IA8 texture at tmem 256 with the texture
  * (RGBA16, or IA8 with the env colour from texOffset) as the first.
  */
-void func_8001C778(WaterTexture *tex, s32 texOffset, s32 flags) {
+void track_texture_load(WaterTexture *tex, s32 texOffset, s32 flags) {
     s32 masks;
     s32 maskt;
     s32 envMaskt;

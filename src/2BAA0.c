@@ -1416,7 +1416,7 @@ void func_80034164(s16 *pos, u8 *obj) {
 
 void obj_spawn_particle(u8 *obj, s32 updateRate);
 s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
-void func_800694CC(void *handle, s16 pitch);
+void effect_mesh_set_uvs(void *handle, s16 pitch);
 void effect_mesh_update(void *handle, s16 value, u8 volume);
 
 /* JFG: the player's four engine-like loops (0x598, state at 0x5B8, volume 0x5AC, phase 0x5A8): 0 waits for its
@@ -1505,7 +1505,7 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
         p[0x5AC] = volume;
         p[0x5A8] = phase;
         if (volume != 0) {
-            func_800694CC(handle, (s8) p[0x5A8] << 8);
+            effect_mesh_set_uvs(handle, (s8) p[0x5A8] << 8);
             effect_mesh_update(handle, value, p[0x5AC]);
         }
     }
@@ -1522,7 +1522,7 @@ f32 func_80049C30(s32 angle);
 /* JFG: the quick turn: when the stick points more than `wide` away from the player's facing (*angle), start a turn
  * towards the object's angle (moving backwards fast: a reverse turn, *out = 1); while turning, *speed follows the
  * stick in the turn's frame, and the turn ends within `wide` of the start or `narrow` of the object's angle */
-void func_800346C4(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide, s16 narrow, s32 *out, f32 scale) {
+void player_quick_turn(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide, s16 narrow, s32 *out, f32 scale) {
     f32 sinA;
     f32 cosA;
     f32 s;
@@ -1708,7 +1708,7 @@ void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
 #endif
 
-void func_80035B30(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void player_platform_segment_point(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 
 /* JFG: a platform object's motion block (its 0x5C): world-to-local and local-to-world matrices, double buffered */
@@ -1723,7 +1723,7 @@ typedef struct PlatformData {
 } PlatformData;
 
 /* JFG: ride the platform object the player stands on: turn with it and move by the platform's motion since the
- * last frame (its previous and current matrices, or func_80035B30 in states 6, 7, 8 and 12) */
+ * last frame (its previous and current matrices, or player_platform_segment_point in states 6, 7, 8 and 12) */
 void player_platform_ride(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
     s16 *platform;
     PlatformData *data;
@@ -1751,7 +1751,7 @@ void player_platform_ride(u8 *obj, Racer *racer, UNUSED f32 updateRate) {
             racer->unk13C += turn;
         }
         if (racer->unk568 == 8 || racer->unk568 == 6 || racer->unk568 == 7 || racer->unk568 == 12) {
-            func_80035B30(obj, racer, &x, &y, &z);
+            player_platform_segment_point(obj, racer, &x, &y, &z);
             dx = x - *(f32 *) (obj + 0xC);
             dy = y - *(f32 *) (obj + 0x10);
             dz = z - *(f32 *) (obj + 0x14);
@@ -1797,7 +1797,7 @@ f32 sqrtf(f32 x);
 
 /* JFG: where the racer stands on its platform segment (states 6, 7, 8 and 12): the point at segT along the segment
  * through the platform's last matrix; also aims the racer along the segment (0x182 yaw, 0x17E pitch). */
-void func_80035B30(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
+void player_platform_segment_point(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
     PlatformData *data;
     f32 *seg = racer->segStart;
     f32 local[3];

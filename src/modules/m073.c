@@ -72,7 +72,7 @@ typedef struct M073State {
 extern M073Flare *effect_mesh_create(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
                                  s32 arg9);
 extern s32 func_8004966C(s16 angle);
-extern void func_800694CC(M073Flare *flare, s16 angle);
+extern void effect_mesh_set_uvs(M073Flare *flare, s16 angle);
 extern void effect_mesh_update(M073Flare *flare, s16 size, u8 alpha);
 extern void func_80026FD4(Object *obj, s32 updateRate);
 extern void effect_texture_pair_free(M073Flare *flare);
@@ -215,7 +215,7 @@ void func_m073_00208(Object *obj, s32 updateRate) {
             }
             glow->phase += updateRate * 16;
             size = (((func_8004966C(glow->phase << 8) * flare->size) >> 20) + flare->size) * glow->alpha >> 8;
-            func_800694CC(flare, glow->phase << 8);
+            effect_mesh_set_uvs(flare, glow->phase << 8);
             effect_mesh_update(flare, size, glow->alpha);
         }
         glow++;

@@ -1636,7 +1636,7 @@ extern f32 D_801008F4; // JFG: a velocity taken off a new particle while it catc
 extern f32 D_801008F8;
 extern f32 D_801008FC;
 s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
-s32 func_80061228(s32 particle, s32 updateRate);
+s32 particle_update(s32 particle, s32 updateRate);
 void func_80061698(ParticleObj *obj, ParticleEmitter *emitter);
 void func_80062D5C(void *arg0, ParticleEmitter *emitter);
 
@@ -1672,7 +1672,7 @@ void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
                         particle->velocity.x -= D_801008F4;
                         particle->velocity.y -= D_801008F8;
                         particle->velocity.z -= D_801008FC;
-                        func_80061228((s32) particle, emitter->colourIndex);
+                        particle_update((s32) particle, emitter->colourIndex);
                         particle->velocity.x += D_801008F4;
                         particle->velocity.y += D_801008F8;
                         particle->velocity.z += D_801008FC;
@@ -1905,7 +1905,7 @@ void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec
  * parameter is randomised by flag 0x80000.
  * DKR: setup_particle_position
  */
-void func_8005FE4C(PosParticle *particle, PosObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour) {
+void setup_particle_position(PosParticle *particle, PosObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour) {
     s32 randomizationFlags;
     Vec3f sourcePos;
     Vec3s sourceDir;
@@ -2186,7 +2186,7 @@ extern s32 gParticleUpdateRate;
  * the particle was freed.
  * DKR: particle_update
  */
-s32 func_80061228(s32 particleAddr, s32 updateRate) {
+s32 particle_update(s32 particleAddr, s32 updateRate) {
     Vec3f prevPos;
     s32 found;
     s32 i;
@@ -2376,7 +2376,7 @@ void line_particle_set_update(LineParticleSet *set, s32 updateRate) {
     }
 }
 
-s32 func_80061228(s32 particle, s32 updateRate);
+s32 particle_update(s32 particle, s32 updateRate);
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 
 /* JFG: update a point set's particles, pack the live ones to the front, then free or animate its texture. */
@@ -2388,7 +2388,7 @@ void point_particle_set_update(PointParticleSet *set, s32 updateRate) {
     TextureHeader *tex;
 
     for (i = 0; i < set->count; i++) {
-        if (func_80061228(set->points[i], updateRate)) {
+        if (particle_update(set->points[i], updateRate)) {
             set->points[i] = 0;
             removed = TRUE;
         }
@@ -2743,7 +2743,7 @@ void particles_update_all(s32 updateRate) {
             p = list->particles;
             for (i = 0; i < list->count; i++, p++) {
                 if (p->kind != 0x80) {
-                    func_80061228((s32) p, updateRate);
+                    particle_update((s32) p, updateRate);
                 }
             }
         }

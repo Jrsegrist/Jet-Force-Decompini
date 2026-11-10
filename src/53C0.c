@@ -1386,7 +1386,7 @@ void func_80054530(); // a module function (patched in by the runtime linker)
  * the sounds; then three ring buffers get their next slot cleared.
  * DKR: obj_update
  */
-void func_80008FF0(s32 updateRate) {
+void obj_update(s32 updateRate) {
     s32 j;
     s32 i;
     s32 k;

@@ -835,3 +835,19 @@ func_8004B56C = rumble_motors_run
 func_80004164 = osc_update
 func_80028954 = obj_explosion_update
 func_80063358 = particles_update_all
+
+# main14 (round 14), main segment
+func_80075AC0 = guPerspectiveF
+func_8006B3CC = ripple_child_draw
+func_8006C230 = transition_init_shape
+func_8005FE4C = setup_particle_position
+func_80061228 = particle_update
+func_80008FF0 = obj_update
+func_80035B30 = player_platform_segment_point
+func_800346C4 = player_quick_turn
+func_800694CC = effect_mesh_set_uvs
+func_8001C778 = track_texture_load
+func_80012BAC = trackbg_render_flashy
+func_8002561C = obj_loop_exit
+func_80044FAC = main_game_loop
+func_800468EC = level_load_pending

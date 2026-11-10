@@ -6,7 +6,7 @@ f32 func_80049C34(s32 angle);
 
 /* JFG: a perspective matrix like libultra's guPerspectiveF, with the 16-bit angle cosine/sine and the scale
    applied per element. */
-void func_80075AC0(f32 mf[4][4], u16 *perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
+void guPerspectiveF(f32 mf[4][4], u16 *perspNorm, f32 fovy, f32 aspect, f32 near, f32 far, f32 scale) {
     UNUSED s32 pad[4];
     f32 cosine;
     s32 angle;

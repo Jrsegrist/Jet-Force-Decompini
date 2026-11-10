@@ -24,7 +24,7 @@ s32 drm_check_rdram_b(void);
 void init_game(void);
 void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void check_reset_and_halt(void);
-void func_80044FAC(void);
+void main_game_loop(void);
 void thread3_verify_stack(void);
 s32 input_update(s32 saveDataFlags, s32 updateRate);
 
@@ -52,7 +52,7 @@ void thread3_main(UNUSED void *unused) {
     func_8004665C(0, D_800A3260, 0, 0, 1, 0);
     while (1) {
         check_reset_and_halt();
-        func_80044FAC();
+        main_game_loop();
         thread3_verify_stack();
     }
 }
@@ -295,7 +295,7 @@ void fb_size(s32 *width, s32 *height);
 s32 fb_update(s32 mesg);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
 void video_delta_reset(void);
-void func_800468EC(s32 updateRate);
+void level_load_pending(s32 updateRate);
 void func_8003FE3C(s32 arg0, s32 arg1);
 void func_8003FEB8(s32 arg0, s32 arg1);
 s32 runlink_module_loaded(s32 module);
@@ -307,7 +307,7 @@ s32 func_80054530_ret(void);
  * the next frame.
  * DKR: main_game_loop (thread3_main.c), heavily changed.
  */
-void func_80044FAC(void) {
+void main_game_loop(void) {
     s32 *src;
     s32 *dst;
     u32 n; // the copy count, then the next update rate
@@ -454,7 +454,7 @@ void func_80044FAC(void) {
     } else if ((s32) n >= 7) {
         D_800A3374 = 6;
     }
-    func_800468EC(D_800A3374);
+    level_load_pending(D_800A3374);
 }
 
 /* JFG: a screen rectangle whose visibility is tested against the depth buffer */
@@ -746,7 +746,7 @@ void debug_trace_add(Gfx *dList, char *file, s32 line);
 void objects_set_attachment_byte(s32 updateRate);
 s32 func_80011C2C(void);
 void func_80077614(s32 updateRate);
-void func_80008FF0(s32 updateRate);
+void obj_update(s32 updateRate);
 void particles_update_all(s32 updateRate);
 void *cam_get_active_camera(void);
 void func_80079890(s32 arg0, void *camera);
@@ -807,7 +807,7 @@ void func_80045F00(s32 updateRate) {
         if (runlink_module_loaded(3)) {
             func_80054530(updateRate);
         }
-        func_80008FF0(updateRate);
+        obj_update(updateRate);
         particles_update_all(updateRate);
         func_80079890(0, cam_get_active_camera());
         track_module_effects_run(updateRate);
@@ -1188,7 +1188,7 @@ void rumble_allow_set(s32 arg0);
  * apply the game flags' character changes, free the old level (modules, particles, text, display list), set up
  * the music, the race and region state and the video mode, then load the new level and start it.
  */
-void func_800468EC(s32 updateRate) {
+void level_load_pending(s32 updateRate) {
     s32 screenMode;
     s32 levelType;
     s16 redirArg2;

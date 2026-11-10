@@ -431,7 +431,7 @@ s32 game_flag_get(s32 flag);
 
 /* DKR obj_loop_exit (object_functions.c), JFG variant: the exit's game flag conditions, then each racer
    that touches it on the right side gets the exit (kinds 3-5 test the racer first). */
-void func_8002561C(Object *obj, UNUSED s32 updateRate) {
+void obj_loop_exit(Object *obj, UNUSED s32 updateRate) {
     s32 numRacers;
     s32 i;
     Object *racerObj;

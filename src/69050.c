@@ -332,7 +332,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 void *load_texture(s32 assetIndex);
 void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
 void effect_mesh_build_cone(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 rotY, f32 radius, f32 depth);
-void func_800694CC(EffectMesh *mesh, s16 angle);
+void effect_mesh_set_uvs(EffectMesh *mesh, s16 angle);
 
 /* JFG: allocate an effect mesh with its three vertex buffers (segments + 1 points), load its two textures
    and build it (a single point when segments is 0). */
@@ -379,7 +379,7 @@ EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5
         } else {
             effect_mesh_build_cone(mesh, x, y, z, arg3, arg4, arg5, arg6);
         }
-        func_800694CC(mesh, 0);
+        effect_mesh_set_uvs(mesh, 0);
     }
     return mesh;
 }
@@ -499,7 +499,7 @@ void effect_mesh_build_fan(EffectMesh *mesh, s16 x, s16 y, s16 z, s16 rotX, s16 
 /* JFG: set an effect mesh's texture coordinates for the texture rotated by angle: a fan (no segments) gets its 32
  * triangles mapped through the inner and outer rings, a cone gets a ring of segments + 1 points around the
  * texture centre. */
-void func_800694CC(EffectMesh *mesh, s16 angle) {
+void effect_mesh_set_uvs(EffectMesh *mesh, s16 angle) {
     s32 w;
     s32 h;
     s32 n;
@@ -957,7 +957,7 @@ void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
 
 /* JFG: draw a ripple's child effect: its texture, then each strip in batches of up to 16 triangles (twice when
    the strip has a second vertex set), faded by the texture frame when the texture asks for it. */
-void func_8006B3CC(RippleChild *child, Gfx **dList) {
+void ripple_child_draw(RippleChild *child, Gfx **dList) {
     s32 i;
     s32 alpha;
     s32 n;
@@ -1020,7 +1020,7 @@ typedef struct RippleQuad {
 
 extern s32 D_800A6950;
 extern Gfx D_800A6958[];
-void func_8006B3CC(RippleChild *child, Gfx **dList);
+void ripple_child_draw(RippleChild *child, Gfx **dList);
 
 /* DKR f3ddkr.h: runs a display list of numberOfCommands commands */
 #define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
@@ -1051,7 +1051,7 @@ void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
             rendermode_reset(dList);
         }
         if (obj->child != NULL) {
-            func_8006B3CC(obj->child, dList);
+            ripple_child_draw(obj->child, dList);
         }
         gDPPipeSync((*dList)++);
         gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
@@ -1104,7 +1104,7 @@ extern u8 D_800A68F8[];
 extern u8 D_800A6904[];
 extern u8 D_800A6918[];
 void transition_fullscreen_start(FadeTransition *transition);
-void func_8006C230(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+void transition_init_shape(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
                    u8 *alpha1, u8 *alpha2, u8 *tris); // DKR: transition_init_shape
 void transition_init_blank(FadeTransition *transition);
 
@@ -1143,17 +1143,17 @@ s32 transition_begin(FadeTransition *transition) {
                 transition_fullscreen_start(transition);
                 break;
             case 1:
-                func_8006C230(transition, 12, 8, D_800A6810, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                transition_init_shape(transition, 12, 8, D_800A6810, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
                               D_800A6898);
                 break;
             case 2:
-                func_8006C230(transition, 12, 8, D_800A6848, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
+                transition_init_shape(transition, 12, 8, D_800A6848, D_800A6880, D_800A688C, D_800A68B0, D_800A68B0,
                               D_800A6898);
                 break;
             case 3:
             case 4:
             case 5:
-                func_8006C230(transition, 10, 6, D_800A68BC, D_800A68EC, D_800A68F8, D_800A6918, D_800A6918,
+                transition_init_shape(transition, 10, 6, D_800A68BC, D_800A68EC, D_800A68F8, D_800A6918, D_800A6918,
                               D_800A6904);
                 break;
             case 6:
@@ -1341,7 +1341,7 @@ void fb_get_scale(f32 *x, f32 *y);
  * multiplied by the reciprocal of the fade time.
  * DKR: transition_init_shape
  */
-void func_8006C230(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
+void transition_init_shape(FadeTransition *transition, s32 numVerts, s32 numTris, s16 *coords, u8 *nextPos, u8 *targetPos,
                    u8 *nextAlpha, u8 *targetAlpha, u8 *vertIndices) {
     f32 invTime;
     u8 *swap;
