@@ -833,3 +833,4 @@ func_80036DBC = player_squash_update
 func_8004046C = viewport_apply
 func_8004B56C = rumble_motors_run
 func_80004164 = osc_update
+func_80028954 = obj_explosion_update
