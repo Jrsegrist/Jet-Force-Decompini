@@ -3,6 +3,7 @@
  * (the players ranked by kills and other scores).
  */
 #include "module.h"
+#include "gfx.h"
 
 /* A player's multiplayer scores (D_800FED50, 0xA0 each) */
 typedef struct M061Stats {
@@ -285,7 +286,108 @@ INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_01218);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_019E0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_01F14);
+/* A dot on a player's radar (sMarks[player] holds four) */
+typedef struct M061Dot {
+    /* 0x0 */ s8 x;
+    /* 0x1 */ s8 y;
+    /* 0x2 */ u8 alpha;  /* 0: not shown on its own radar */
+    /* 0x3 */ u8 colour; /* an index into the colours at .data 0x618 */
+} M061Dot;
+
+extern Gfx *D_800FF398;
+extern Mtx *D_800FF39C;
+extern Object *D_800FF3F8[]; /* the menu's images */
+extern u8 D_800A5064;
+extern void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y);
+extern void func_m006_0107C(s32 *x, s32 *y);
+extern void func_80042134(MtxF *mtx);                      /* identity */
+extern void func_800498E8(f32 x, f32 y, f32 z, MtxF *mtx); /* translation */
+extern void func_80049978(s16 angle, MtxF *mtx);
+extern void func_80048D84(MtxF *mtx, Mtx *out);            /* to a fixed-point Mtx */
+extern void func_80040D64(Gfx **dl, Mtx **mtx);
+extern void func_80055B80(Gfx **dl);
+extern void menu_fill_box(Gfx **dl, s32 x1, s32 y1, s32 x2, s32 y2, u32 colour); /* fills a rectangle */
+#define sRadarAngle (*(s16 *) &rl_m061_02FA0[0x478])
+extern u32 rl_m061_035B8[]; /* .data (still assembly): the dots' colours */
+#define sDotColours rl_m061_035B8
+
+/* Draws a player's radar in its corner of the screen, with a dot for each other player (called from 0043C) */
+void func_m061_01F14(Object *obj, UNUSED s32 arg1, UNUSED s32 arg2) {
+    UNUSED s32 pad;
+    s32 x;
+    s32 y;
+    s32 dotX;
+    s32 dotY;
+    MtxF mtx;
+    s8 *player = obj->unk68;
+    M061Dot *dot;
+    s32 i;
+    u32 colour;
+    Object *tex;
+
+    func_m006_00F30(3, *player, &x, &y);
+    func_80042134(&mtx);
+    func_800498E8(x, y, 0.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    tex = D_800FF3F8[0x33];
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x07070038;
+        _g->words.w1 = *(u32 *) ((u8 *) tex + 0xC) + 0x80000000;
+    }
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x01000040;
+        _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+    }
+    D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+    gDPPipeSync(D_800FF398++);
+    gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, 0x60);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+    /* a display list of two commands in .data */
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m061_02FA0 + 0x80000490); }
+    gSPVertexJFG(D_800FF398++, rl_m061_02FA0 + 0x800003D0, 10, 0);
+    gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000350, 8, 1);
+    func_80040D64(&D_800FF398, &D_800FF39C);
+    func_80055B80(&D_800FF398);
+    dot = (M061Dot *) &sMarks[*player];
+    for (i = 0; i < D_800A4FD0; i++, dot++) {
+        if (i != *player || dot->alpha != 0) {
+            colour = sDotColours[dot->colour] | dot->alpha;
+            dotX = dot->x + x;
+            dotY = dot->y + y;
+            func_m006_0107C(&dotX, &dotY);
+            menu_fill_box(&D_800FF398, dotX - 1, dotY - 1, dotX + 1, dotY + 1, colour);
+        }
+    }
+    if (D_800A5064 == 1) {
+        func_80049978(sRadarAngle, &mtx);
+        func_80048D84(&mtx, D_800FF39C);
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0x01000040;
+            _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+        }
+        D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+        tex = D_800FF3F8[0x32];
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m061_02FA0 + 0x800004A0); }
+        gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0xFF, 0xFF, 0xFF);
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0x07070038;
+            _g->words.w1 = *(u32 *) ((u8 *) tex + 0xC) + 0x80000000;
+        }
+        gSPVertexJFG(D_800FF398++, rl_m061_02FA0 + 0x80000450, 5, 0);
+        gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000430, 2, 1);
+        func_80040D64(&D_800FF398, &D_800FF39C);
+        func_80055B80(&D_800FF398);
+    }
+    dotX = x;
+    dotY = y;
+    func_m006_0107C(&dotX, &dotY);
+    menu_fill_box(&D_800FF398, dotX - 1, dotY - 1, dotX + 1, dotY + 1, 0xFFFF00FF);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_023B8);
 
