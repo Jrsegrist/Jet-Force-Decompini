@@ -134,7 +134,7 @@ INCLUDE_ASM("asm/nonmatchings/67780", func_80066EB0);
 
 void epc_clear_framebuffer(void);
 void epc_printf(s32 arg0, s32 x, const char *format, ...);
-s32 func_80054368(s32 address, s32 *module, s32 *offset, s32 arg3);
+s32 func_80054368(u32 address, s32 *module, s32 *offset, char *name);
 extern char D_800AE8FC[];
 extern char D_800AE918[];
 
@@ -148,7 +148,7 @@ void lockup_show_address(s32 address) {
         epc_clear_framebuffer();
     }
     epc_printf(30, 80, D_800AE8FC, address);
-    if (func_80054368(address, &module, &offset, 0)) {
+    if (func_80054368(address, &module, &offset, NULL)) {
         epc_printf(30, 100, D_800AE918, module, offset);
     }
     while (1) {
@@ -259,7 +259,174 @@ void mode_lockup(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/67780", func_80067994);
+/* JFG: the debug "current item" the crash screen reports (kind 1 to 3, an index into a name table). */
+typedef struct CrashItem {
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ s16 id;
+} CrashItem;
+
+extern s32 D_800A64C0;
+extern char *D_800A64DC[16]; // JFG: the exception names, by cause code
+extern s32 D_800A333C;
+extern CrashItem *D_800A3340;
+extern s32 D_800A3344;
+extern s32 D_800A3348;
+extern char *D_800A334C[];
+extern s32 gMainPoolFreeBytes;
+extern u8 D_80102550; // JFG: flags shown at the bottom of the crash screen
+extern char D_800AE93C[];
+extern char D_800AE958[];
+extern char D_800AE964[];
+extern char D_800AE970[];
+extern char D_800AE980[];
+extern char D_800AE98C[];
+extern char D_800AE998[];
+extern char D_800AE9A8[];
+extern char D_800AE9C4[];
+extern char D_800AE9D4[];
+extern char D_800AE9E4[];
+extern char D_800AE9F4[];
+extern char D_800AEA08[];
+extern char D_800AEA1C[];
+extern char D_800AEA28[];
+extern char D_800AEA3C[];
+extern char D_800AEA50[];
+extern char D_800AEA60[];
+extern char D_800AEA74[];
+extern char D_800AEA88[];
+extern char D_800AEA98[];
+extern char D_800AEAA8[];
+extern char D_800AEABC[];
+extern char D_800AEAD0[];
+extern char D_800AEAE4[];
+extern char D_800AEAF8[];
+extern char D_800AEB0C[];
+extern char D_800AEB20[];
+extern char D_800AEB34[];
+extern char D_800AEB48[];
+extern char D_800AEB5C[];
+extern char D_800AEB70[];
+extern char D_800AEB84[];
+extern char D_800AEB98[];
+extern char D_800AEBAC[];
+extern char D_800AEBC0[];
+extern char D_800AEBCC[];
+extern char D_800AEBDC[];
+extern char D_800AEBFC[];
+extern char D_800AEC1C[];
+extern char D_800AEC38[];
+extern char D_800AEC58[];
+u8 *level_header(void);
+u8 *get_racer_object_by_port(s32 port);
+
+/**
+ * JFG: the crash screen: the thread, the pc and ra (with their module and offset when they are in
+ * one), the exception, the debug item being handled, the free memory, the registers, then the
+ * level header, player 1 and the debug flags.
+ */
+void func_80067994(FaultThread *fault) {
+    __OSThreadContext *ctx;
+    s32 module;
+    s32 offset;
+    char name[16];
+    u8 *ptr;
+
+    epc_clear_framebuffer();
+    ctx = &fault->thread.context;
+    epc_printf(0x20, 0x18, D_800AE93C, fault->thread.id, D_800A64C0);
+    if (ctx->pc == 0) {
+        epc_printf(0x20, 0x22, D_800AE958);
+    } else if (func_80054368(ctx->pc, &module, &offset, name)) {
+        epc_printf(0x20, 0x22, D_800AE964, module, offset);
+    } else {
+        epc_printf(0x20, 0x22, D_800AE970, ctx->pc);
+    }
+    if ((u32) ctx->ra == 0) {
+        epc_printf(0x20, 0x28, D_800AE980);
+    } else if (func_80054368((u32) ctx->ra, &module, &offset, name)) {
+        epc_printf(0x20, 0x28, D_800AE98C, module, offset);
+    } else {
+        epc_printf(0x20, 0x28, D_800AE998, (u32) ctx->ra);
+    }
+    if (ctx->cause == -1) {
+        epc_printf(0x20, 0x2E, D_800AE9A8, (u32) ctx->a0, (u32) ctx->a1);
+    } else {
+        if (((ctx->cause >> 2) & 0x1F) < 16) {
+            epc_printf(0x20, 0x2E, D_800AE9C4, D_800A64DC[(ctx->cause >> 2) & 0x1F]);
+        } else {
+            epc_printf(0x20, 0x2E, D_800AE9D4, ctx->cause);
+        }
+    }
+    if (D_800A3348 != 4 && D_800A333C != 0) {
+        switch (D_800A3348) {
+            case 1:
+                if (D_800A3344 != 0) {
+                    epc_printf(0x20, 0x34, D_800AE9E4, D_800A334C[D_800A333C], D_800A3344);
+                } else if (D_800A3340 != NULL) {
+                    epc_printf(0x20, 0x34, D_800AE9F4, D_800A334C[D_800A333C], D_800A3340->id);
+                } else {
+                    epc_printf(0x20, 0x34, D_800AEA08, D_800A334C[D_800A333C]);
+                }
+                break;
+            case 3:
+                if (D_800A3344 != 0) {
+                    epc_printf(0x20, 0x34, D_800AEA1C, D_800A334C[D_800A333C], D_800A3344);
+                } else if (D_800A3340 != NULL) {
+                    epc_printf(0x20, 0x34, D_800AEA28, D_800A334C[D_800A333C], D_800A3340->id);
+                } else {
+                    epc_printf(0x20, 0x34, D_800AEA3C, D_800A334C[D_800A333C]);
+                }
+                break;
+            case 2:
+                if (D_800A3344 != 0) {
+                    epc_printf(0x20, 0x34, D_800AEA50, D_800A334C[D_800A333C], D_800A3344);
+                } else if (D_800A3340 != NULL) {
+                    epc_printf(0x20, 0x34, D_800AEA60, D_800A334C[D_800A333C], D_800A3340->id);
+                } else {
+                    epc_printf(0x20, 0x34, D_800AEA74, D_800A334C[D_800A333C]);
+                }
+                break;
+        }
+    } else {
+        epc_printf(0x20, 0x34, D_800AEA88, ctx->badvaddr);
+    }
+    epc_printf(0x20, 0x3A, D_800AEA98, gMainPoolFreeBytes);
+    epc_printf(0x20, 0x44, D_800AEAA8, (u32) ctx->at, (u32) ctx->v0);
+    epc_printf(0x20, 0x4A, D_800AEABC, (u32) ctx->v1, (u32) ctx->a0);
+    epc_printf(0x20, 0x50, D_800AEAD0, (u32) ctx->a1, (u32) ctx->a2);
+    epc_printf(0x20, 0x56, D_800AEAE4, (u32) ctx->a3, (u32) ctx->t0);
+    epc_printf(0x20, 0x5C, D_800AEAF8, (u32) ctx->t1, (u32) ctx->t2);
+    epc_printf(0x20, 0x62, D_800AEB0C, (u32) ctx->t3, (u32) ctx->t4);
+    epc_printf(0x20, 0x68, D_800AEB20, (u32) ctx->t5, (u32) ctx->t6);
+    epc_printf(0x20, 0x6E, D_800AEB34, (u32) ctx->t7, (u32) ctx->s0);
+    epc_printf(0x20, 0x74, D_800AEB48, (u32) ctx->s1, (u32) ctx->s2);
+    epc_printf(0x20, 0x7A, D_800AEB5C, (u32) ctx->s3, (u32) ctx->s4);
+    epc_printf(0x20, 0x80, D_800AEB70, (u32) ctx->s5, (u32) ctx->s6);
+    epc_printf(0x20, 0x86, D_800AEB84, (u32) ctx->s7, (u32) ctx->t8);
+    epc_printf(0x20, 0x8C, D_800AEB98, (u32) ctx->t9, (u32) ctx->gp);
+    epc_printf(0x20, 0x92, D_800AEBAC, (u32) ctx->sp, (u32) ctx->s8);
+    epc_printf(0x20, 0x98, D_800AEBC0, ctx->sr);
+    ptr = level_header();
+    if (ptr != NULL && ((u32) ptr & 0x80000000)) {
+        epc_printf(0x20, 0xA4, D_800AEBCC, ptr);
+    }
+    ptr = get_racer_object_by_port(0);
+    if (ptr != NULL && ((u32) ptr & 0x80000000)) {
+        epc_printf(0x20, 0xAA, D_800AEBDC, ptr + 0xC, ptr + 0x10, ptr + 0x14);
+    }
+    if (D_80102550 & 1) {
+        epc_printf(0x20, 0xB0, D_800AEBFC);
+    }
+    if (D_80102550 & 2) {
+        epc_printf(0x20, 0xB6, D_800AEC1C);
+    }
+    if (D_80102550 & 4) {
+        epc_printf(0x20, 0xBC, D_800AEC38);
+    }
+    if (D_80102550 & 8) {
+        epc_printf(0x20, 0xC2, D_800AEC58);
+    }
+}
 
 void fb_size(s32 *width, s32 *height);
 extern u16 *gVideoLastFramebuffer;
