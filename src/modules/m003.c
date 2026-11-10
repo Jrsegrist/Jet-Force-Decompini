@@ -962,7 +962,90 @@ s32 func_m003_01C58(M003Node *node, s32 arrive) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01D3C);
+/* A node of an animation path (0x2C bytes) */
+typedef struct M003PathNode {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ u8 junction; /* 0: none; else the id of the junction object that picks the way on */
+    /* 0x1F */ u8 pad1F[0x28 - 0x1F];
+    /* 0x28 */ struct M003PathNode *next;
+} M003PathNode;
+
+/* An animation path (D_801045B0) */
+typedef struct M003AnimPath {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ M003PathNode *nodes;
+} M003AnimPath;
+
+/* What a junction object (behaviour 0x1B) keeps in obj->unk68 */
+typedef struct M003Junction {
+    /* 0x00 */ s16 path[4];   /* its four exits: D_801045B0 indices */
+    /* 0x08 */ u8 weight[4];  /* how likely each exit is */
+    /* 0x0C */ u8 node[4];    /* the node of that path to go on from */
+    /* 0x10 */ u8 flags;      /* 1: set up */
+    /* 0x11 */ u8 id;
+} M003Junction;
+
+extern M003AnimPath **D_801045B0;
+
+/*
+ * The node after `node`: at a junction, the start of one of the junction's exits, picked at random by
+ * weight. (If no junction object has the id, `j` is used unset, as in the original.)
+ */
+M003PathNode *func_m003_01D3C(M003PathNode *node) {
+    s32 first;
+    s32 count;
+    s32 i;
+    s32 total;
+    s32 r;
+    M003Junction *j;
+    M003PathNode *next;
+    Object **objs;
+    Object *o;
+    u8 id;
+    M003AnimPath *path;
+
+    next = node->next;
+    objs = func_80005E98(&first, &count);
+    id = next->junction;
+    total = 0;
+    if (id == 0) {
+        return next;
+    }
+    for (r = first; r < count; r++) {
+        o = objs[r];
+        if (o->freed == 0 && o->behaviorId == 0x1B) {
+            j = o->unk68;
+            if (j->id == id) {
+                break;
+            }
+        }
+    }
+    r = 3;
+    do {
+        total += j->weight[r];
+    } while (r--);
+    if (total <= 0) {
+        i = 0;
+    } else {
+        r = func_80048E2C(1, total);
+        i = 0;
+        while (TRUE) {
+            r -= j->weight[i];
+            if (r <= 0) {
+                break;
+            }
+            i++;
+        }
+    }
+    total = j->path[i];
+    path = D_801045B0[total];
+    next = path->nodes;
+    r = j->node[i];
+    while (r--) {
+        next = next->next;
+    }
+    return next;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
 
@@ -3699,14 +3782,6 @@ void func_m003_16C10(Object *obj) {
     func_m003_05450(saved);
 }
 
-/* What a junction object keeps in obj->unk68 */
-typedef struct M003Junction {
-    /* 0x00 */ s16 unk0[4];
-    /* 0x08 */ u8 unk8[4];
-    /* 0x0C */ s8 unkC[4];
-    /* 0x10 */ u8 flags; /* 1: set up */
-} M003Junction;
-
 /* A junction's set-up (once): its four exits */
 void func_m003_16CB4(Object *obj, s32 updateRate) {
     M003Junction *data = obj->unk68;
@@ -3718,9 +3793,9 @@ void func_m003_16CB4(Object *obj, s32 updateRate) {
     if (!(data->flags & 1)) {
         anim_paths_find_near(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, a, b);
         while (i--) {
-            data->unk8[i] = entry[0xC + i];
-            data->unk0[i] = a[i];
-            data->unkC[i] = b[i];
+            data->weight[i] = entry[0xC + i];
+            data->path[i] = a[i];
+            data->node[i] = b[i];
         }
         data->flags |= 1;
     }
