@@ -579,8 +579,6 @@ void weather_update(Gfx **currDisplayList, Mtx **currHudMat, Vertex **currHudVer
     *currHudTris = gCurrWeatherTriList;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
-
 /* DKR include/structs.h, size 10 */
 struct Vertex {
     /* 0x00 */ s16 x, y, z;
@@ -609,6 +607,75 @@ struct Vertex {
 extern s32 D_800A59F8; // DKR: gSnowVertCount
 Mtx *get_projection_matrix_s16(void);
 void func_80055C00(Gfx **dList, TextureHeader *tex, s32 flags, s32 frame);
+void func_80048C00(); // DKR: mtxf_transform_dir (mtx, in, out)
+
+struct ObjectSegment {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ u8 pad2[0xC - 2];
+    /* 0x0C */ Vec3f pos;
+};
+
+/**
+ * Build a camera facing quad (4 vertices) for every snowflake that is close enough.
+ * The snowflake positions wrap around the camera inside the snow box.
+ * JFG: the quad half sizes are read once, before the loop.
+ * DKR: snow_vertices
+ */
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation (the quad half sizes and the vertex count pointer swap s-registers) */
+void snow_vertices(void) {
+    s32 posX;
+    s32 posY;
+    s32 posZ;
+    Vec3f posF;
+    s32 i;
+    Vertex *verts;
+    s32 camX;
+    s32 camY;
+    s32 camZ;
+    s16 offsetW;
+    s16 offsetH;
+
+    offsetW = gSnowGfx.vertOffsetW;
+    offsetH = gSnowGfx.vertOffsetH;
+    camX = gWeatherCamera->pos.x * 65536.0f;
+    camY = gWeatherCamera->pos.y * 65536.0f;
+    camZ = gWeatherCamera->pos.z * 65536.0f;
+    D_800A59F8 = 0;
+    verts = gSnowVerts;
+    for (i = 0; i < gSnowParticleCount; i++) {
+        posF.x = (((((SnowPosData *) gSnowPhysics)[i].x_position - camX) & gSnowGfx.radiusX) + gSnowGfx.offsetX) *
+                 (1.0f / 65536.0f);
+        posF.y = (((((SnowPosData *) gSnowPhysics)[i].y_position - camY) & gSnowGfx.radiusY) + gSnowGfx.offsetY) *
+                 (1.0f / 65536.0f);
+        posF.z = (((((SnowPosData *) gSnowPhysics)[i].z_position - camZ) & gSnowGfx.radiusZ) + gSnowGfx.offsetZ) *
+                 (1.0f / 65536.0f);
+        func_80048C00(gWeatherCameraMatrix, &posF, &posF);
+        posZ = posF.z;
+        if ((s16) posZ < gSnowPlane.near && gSnowPlane.current < (s16) posZ) {
+            posX = posF.x;
+            posY = posF.y;
+            verts[0].x = posX - offsetW;
+            verts[0].y = posY + offsetH;
+            verts[0].z = posZ;
+            verts[1].x = posX + offsetW;
+            verts[1].y = posY + offsetH;
+            verts[1].z = posZ;
+            verts[2].x = posX + offsetW;
+            verts[2].y = posY - offsetH;
+            verts[2].z = posZ;
+            verts[3].x = posX - offsetW;
+            verts[3].y = posY - offsetH;
+            verts[3].z = posZ;
+            verts += 4;
+            D_800A59F8 += 4;
+            ((s16 *) gSnowTriIndices)[D_800A59F8 >> 2] = i;
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/5B700", func_8005B62C);
+#endif
 
 /**
  * Load and execute the draw commands for the falling snowflakes, seen with snowy weather enabled.
@@ -854,12 +921,6 @@ void rain_lightning(s32 updateRate) {
     }
 }
 
-struct ObjectSegment {
-    /* 0x00 */ s16 y_rotation;
-    /* 0x02 */ u8 pad2[0xC - 2];
-    /* 0x0C */ Vec3f pos;
-};
-
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 void audspat_point_set_position(AudioPoint *audioPoint, f32 x, f32 y, f32 z);
@@ -907,7 +968,85 @@ void func_8005CBBC(void) {
     D_800A59D0 = load_texture(*gWeatherAssetTable);
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005CC0C);
+extern s32 D_801008C8; // JFG: the wind's target (x, y, z), picked again when D_801008B8 runs out
+extern s32 D_801008CC;
+extern s32 D_801008D0;
+void func_8004944C(Vec3s *rotation, Vec3f *vec); // DKR: vec3f_rotate_py
+
+/**
+ * Snow drift: every few seconds pick a new random wind (yaw anywhere, pitched slightly down),
+ * ease the current wind (D_801008BC) toward it, then move every snowflake by the wind plus the
+ * weather velocity, wrapped inside the snow box.
+ * JFG: not in DKR; DKR's snow_update moves the flakes by the velocity only.
+ */
+void func_8005CC0C(s32 updateRate) {
+    s32 curX;
+    s32 curY;
+    s32 curZ;
+    s32 targetX;
+    s32 targetY;
+    s32 targetZ;
+    s32 velX;
+    s32 velY;
+    s32 velZ;
+    s32 sumX;
+    s32 sumY;
+    s32 sumZ;
+    SnowPosData *pos;
+    Vec3s angle;
+    Vec3f vec;
+    s32 i;
+
+    D_801008B8 -= updateRate;
+    if (D_801008B8 <= 0) {
+        D_801008B8 = rand_range(0xB4, 0x12C);
+        angle.y_rotation = rand_range(-0x8000, 0x7FFF);
+        angle.x_rotation = rand_range(-0x800, -0x400);
+        vec.z = -(f32) rand_range(0x28000, 0x58000);
+        func_8004944C(&angle, &vec);
+        D_801008C8 = vec.x;
+        D_801008CC = vec.y;
+        D_801008D0 = vec.z;
+    }
+    curX = D_801008BC;
+    curY = D_801008C0;
+    curZ = D_801008C4;
+    targetX = D_801008C8;
+    targetY = D_801008CC;
+    targetZ = D_801008D0;
+    velX = gWeather.velX;
+    velY = gWeather.velY;
+    velZ = gWeather.velZ;
+    sumX = 0;
+    sumY = 0;
+    sumZ = 0;
+    i = updateRate;
+    while (i--) {
+        curX += (targetX - curX) >> 6;
+        curY += (targetY - curY) >> 6;
+        curZ += (targetZ - curZ) >> 6;
+        sumX += curX + velX;
+        sumY += curY + velY;
+        sumZ += curZ + velZ;
+    }
+    D_801008BC = curX;
+    D_801008C0 = curY;
+    D_801008C4 = curZ;
+    sumX >>= 1;
+    sumY >>= 1;
+    sumZ >>= 1;
+    targetX = gSnowGfx.radiusX;
+    targetY = gSnowGfx.radiusY;
+    targetZ = gSnowGfx.radiusZ;
+    pos = gSnowPhysics;
+    i = gSnowDensity;
+    while (i--) {
+        pos->x_position = (pos->x_position + sumX) & targetX;
+        pos->y_position = (pos->y_position + sumY) & targetY;
+        pos->z_position = (pos->z_position + sumZ) & targetZ;
+        pos++;
+    }
+}
 
 /**
  * Deallocate all memory buffers used by particles.
