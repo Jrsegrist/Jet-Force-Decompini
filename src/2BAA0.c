@@ -1734,7 +1734,64 @@ s32 func_80049C84(f32 x, f32 z);
 void func_80049394(s16 *rotation, f32 *vec);
 f32 sqrtf(f32 x);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035B30);
+/* JFG: where the racer stands on its platform segment (states 6, 7, 8 and 12): the point at segT along the segment
+ * through the platform's last matrix; also aims the racer along the segment (0x182 yaw, 0x17E pitch). */
+void func_80035B30(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
+    PlatformData *data;
+    f32 *seg = racer->segStart;
+    f32 local[3];
+    f32 world[3];
+    f32 ax;
+    f32 ay;
+    f32 az;
+    f32 bx;
+    f32 by;
+    f32 bz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    s16 rot[3];
+    u8 prev;
+    u8 cur;
+
+    data = *(PlatformData **) ((u8 *) racer->platform + 0x5C);
+    cur = data->cur;
+    prev = data->cur ^ 1;
+    dx = racer->segEnd[0] - racer->segStart[0];
+    dy = racer->segEnd[1] - racer->segStart[1];
+    dz = racer->segEnd[2] - racer->segStart[2];
+    world[0] = racer->segStart[0] + racer->segT * dx;
+    world[1] = racer->segStart[1] + racer->segT * dy;
+    world[2] = racer->segStart[2] + racer->segT * dz;
+    func_80048B60(&data->toWorld[prev], world[0], world[1], world[2], &local[0], &local[1], &local[2]);
+    local[0] -= *(f32 *) (obj + 0xC);
+    local[1] -= *(f32 *) (obj + 0x10);
+    local[2] -= *(f32 *) (obj + 0x14);
+    func_80048B60(&data->toWorld[cur], seg[0], seg[1], seg[2], &ax, &ay, &az);
+    func_80048B60(&data->toWorld[cur], seg[3], seg[4], seg[5], &bx, &by, &bz);
+    dx = bx - ax;
+    dy = by - ay;
+    dz = bz - az;
+    racer->unk182 = (func_80049C84(dx, dz) - 0x4000) & 0xFFF0;
+    dist = sqrtf(dx * dx + dz * dz);
+    racer->unk17E = func_80049C84(dy, dist) & 0xFFF0;
+    world[0] = seg[6] * dx + ax;
+    world[1] = seg[6] * dy + ay;
+    world[2] = seg[6] * dz + az;
+    racer->unk178 = world[1];
+    rot[0] = -racer->unk122;
+    rot[1] = 0;
+    rot[2] = -racer->unk126;
+    func_80049394(rot, local);
+    rot[0] = racer->unk182;
+    rot[1] = 0;
+    rot[2] = racer->unk17E;
+    func_800492DC(rot, local);
+    *x = world[0] - local[0];
+    *y = world[1] - local[1];
+    *z = world[2] - local[2];
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
 
