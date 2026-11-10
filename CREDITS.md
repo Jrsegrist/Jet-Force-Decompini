@@ -213,3 +213,20 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/objects.c` | sort_objects_by_dist (JFG 0x8000E278: pointer walk, JFG's loop counts); obj_spawn_attachment (JFG 0x8000774C: built in a scratch buffer, then copied) (helper ma13h1) |
 | `src/rcp_dkr.c` | bgdraw_texture (JFG 0x8004E4E8: the size from `fb_size(&w, &h)`, unsigned coordinates) (helper ma13h3) |
 | `src/tracks.c` | render_scene, as the NON_MATCHING body of JFG's func_800121C0 (JFG level header fields) (helper ma13h3) |
+
+### Round 14 (main14), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/fade_transition.c` | transition_init_shape |
+| `src/particles.c` | setup_particle_position, particle_update; setup_particle_velocity (NON_MATCHING) |
+| `src/weather.c` | weather_reset (NON_MATCHING, as func_8005AD90); snow_vertices (NON_MATCHING) |
+| `src/objects.c` | obj_update |
+| `src/object_functions.c` | obj_loop_exit (helper ma14h1) |
+| `src/tracks.c` | trackbg_render_flashy; func_8002FF6C (NON_MATCHING) (helper ma14h1) |
+| `src/thread3_main.c` | main_game_loop, structure only (helper ma14h1) |
+| `src/textures_sprites.c` | material_set (NON_MATCHING) (helper ma14h1) |
+| `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (NON_MATCHING, JFG's three output buffers and high quality mode) |
+| `src/game.c` | level_load, structure only (NON_MATCHING) |
