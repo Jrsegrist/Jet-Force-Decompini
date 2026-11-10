@@ -22,13 +22,27 @@ typedef struct Vec3s {
 typedef struct ParticleBehaviour {
     /* 0x00 */ s32 flags;
     /* 0x04 */ Vec3f emitterPos;
-    /* 0x10 */ u8 pad10[4];
+    /* 0x10 */ f32 sourceDistance;
     /* 0x14 */ Vec3s sourceRotation;
     /* 0x1A */ u8 pad1A[0x22 - 0x1A];
     /* 0x22 */ Vec3s emissionDirection;
-    /* 0x28 */ u8 pad28[0x40 - 0x28];
+    /* 0x28 */ u8 pad28[0x30 - 0x28];
+    /* 0x30 */ Vec3f velocityModifier;
+    /* 0x3C */ f32 emissionSpeed;
     /* 0x40 */ s16 spawnInterval;
     /* 0x42 */ s16 burstCount;
+    /* 0x44 */ u8 pad44[0x58 - 0x44];
+    /* 0x58 */ f32 movementParam;
+    /* 0x5C */ s32 randomizationFlags;
+    /* 0x60 */ s32 sourceDistanceRange;
+    /* 0x64 */ Vec3s sourceDirRange;
+    /* 0x6A */ Vec3s emissionDirRange;
+    /* 0x70 */ s32 emissionSpeedRange;
+    /* 0x74 */ struct {
+        s32 x, y, z;
+    } velocityModifierRange;
+    /* 0x80 */ u8 pad80[0x94 - 0x80];
+    /* 0x94 */ s32 movementParamRange;
 } ParticleBehaviour;
 
 #define PARTICLE_POINT 0x400
@@ -1670,9 +1684,309 @@ void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
+/* JFG: the parts of a particle setup_particle_velocity sets */
+typedef struct VelParticle {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x48 - 0x28];
+    /* 0x48 */ Vec3s *parentObj; // its rotation comes first
+} VelParticle;
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005FE4C);
+/* JFG: a model's attachment table entry */
+typedef struct VelAttach {
+    /* 0x00 */ u16 unk0;
+    /* 0x02 */ u16 matrix; // the joint matrix the point moves with
+} VelAttach;
+
+typedef struct VelModelData {
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ VelAttach *attach;
+    /* 0x34 */ u8 pad34[0x4E - 0x34];
+    /* 0x4E */ s8 unk4E;
+} VelModelData;
+
+typedef struct VelModel {
+    /* 0x00 */ VelModelData *data;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 matrixIndex;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ u8 *matrices[1];
+} VelModel;
+
+typedef struct VelObject {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x3A - 0x28];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B[0x40 - 0x3B];
+    /* 0x40 */ struct {
+        u8 pad0[0x1E];
+        s8 unk1E;
+    } *header;
+    /* 0x44 */ u8 pad44[0x6C - 0x44];
+    /* 0x6C */ VelModel **models;
+} VelObject;
+
+void func_80048C00(u8 *mtx, Vec3f *in, Vec3f *out, VelModelData *data);
+f32 sqrtf(f32 x);
+void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
+void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec3f_rotate_py
+extern f32 D_801008F4; // JFG: the velocity the last particle got (x, y, z)
+extern f32 D_801008F8;
+extern f32 D_801008FC;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the target loads model->data into a0 and copies it to a3 for the call (mine loads a3), which
+   shifts the FPRs of the normalisation */
+/**
+ * Initializes the particle velocity.
+ * JFG: the emission direction of an emitter at a model point turns with that point's joint matrix (keeping the
+ * emission speed), and the base velocity is kept in D_801008F4.
+ * DKR: setup_particle_velocity
+ */
+void func_8005F960(VelParticle *particle, VelObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour) {
+    s32 randomizationFlags;
+    Vec3f sourceVel;
+    Vec3s angle;
+    VelModel *model;
+    f32 len;
+    f32 scale;
+    f32 speed;
+
+    if (behaviour->flags & 0x70) {
+        particle->velocity.x = behaviour->velocityModifier.x;
+        particle->velocity.y = behaviour->velocityModifier.y;
+        particle->velocity.z = behaviour->velocityModifier.z;
+    } else {
+        particle->velocity.x = 0.0f;
+        particle->velocity.y = 0.0f;
+        particle->velocity.z = 0.0f;
+    }
+    randomizationFlags = behaviour->randomizationFlags & 0x700;
+    if (randomizationFlags) {
+        if (randomizationFlags & 0x100) {
+            particle->velocity.x += (f32) rand_range(-behaviour->velocityModifierRange.x,
+                                                     behaviour->velocityModifierRange.x) * 0.0000152587890625f;
+        }
+        if (randomizationFlags & 0x200) {
+            particle->velocity.y += (f32) rand_range(-behaviour->velocityModifierRange.y,
+                                                     behaviour->velocityModifierRange.y) * 0.0000152587890625f;
+        }
+        if (randomizationFlags & 0x400) {
+            particle->velocity.z += (f32) rand_range(-behaviour->velocityModifierRange.z,
+                                                     behaviour->velocityModifierRange.z) * 0.0000152587890625f;
+        }
+    }
+    switch (behaviour->flags & 0x70) {
+        case 0x10:
+            particle->velocity.x += obj->velocity.x;
+            particle->velocity.y += obj->velocity.y;
+            particle->velocity.z += obj->velocity.z;
+            break;
+        case 0x40:
+            particle->velocity.x *= obj->velocity.x;
+            particle->velocity.y *= obj->velocity.y;
+            particle->velocity.z *= obj->velocity.z;
+            break;
+    }
+    D_801008F4 = particle->velocity.x;
+    D_801008F8 = particle->velocity.y;
+    D_801008FC = particle->velocity.z;
+    if (behaviour->flags & 4) {
+        randomizationFlags = behaviour->randomizationFlags;
+        sourceVel.x = 0;
+        sourceVel.y = 0;
+        sourceVel.z = -behaviour->emissionSpeed;
+        if (randomizationFlags & 0x10) {
+            sourceVel.z +=
+                (f32) rand_range(-behaviour->emissionSpeedRange, behaviour->emissionSpeedRange) * 0.0000152587890625f;
+        }
+        speed = -sourceVel.z;
+        if (randomizationFlags & 0x60) {
+            angle.y_rotation = emitter->emissionDirection.y_rotation;
+            if (randomizationFlags & 0x20) {
+                angle.y_rotation +=
+                    rand_range(-behaviour->emissionDirRange.y_rotation, behaviour->emissionDirRange.y_rotation);
+            }
+            angle.x_rotation = emitter->emissionDirection.x_rotation;
+            if (randomizationFlags & 0x40) {
+                angle.x_rotation +=
+                    rand_range(-behaviour->emissionDirRange.x_rotation, behaviour->emissionDirRange.x_rotation);
+            }
+        } else {
+            angle.y_rotation = emitter->emissionDirection.y_rotation;
+            angle.x_rotation = emitter->emissionDirection.x_rotation;
+        }
+        func_8004944C(&angle, &sourceVel);
+        if (obj->header->unk1E != 0) {
+            model = obj->models[obj->modelIndex];
+        } else {
+            model = NULL;
+        }
+        if (emitter->unk23 != -1 && model != NULL && model->data->unk4E != 0) {
+            if (model->unkA != 0) {
+                sourceVel.x = 0.0f;
+                sourceVel.y = 0.0f;
+                sourceVel.z = 0.0f;
+            } else {
+                func_80048C00((model->data->attach[emitter->unk23].matrix << 6) + model->matrices[model->matrixIndex],
+                              &sourceVel, &sourceVel, model->data);
+                len = sqrtf(sourceVel.z * sourceVel.z + (sourceVel.x * sourceVel.x + sourceVel.y * sourceVel.y));
+                if (len == 0.0f) {
+                    scale = speed;
+                } else {
+                    scale = speed / len;
+                }
+                sourceVel.x *= scale;
+                sourceVel.y *= scale;
+                sourceVel.z *= scale;
+            }
+        } else if (particle->parentObj != NULL) {
+            func_800496B0(1, particle->parentObj, &sourceVel, &sourceVel);
+        }
+        particle->velocity.x += sourceVel.x;
+        particle->velocity.y += sourceVel.y;
+        particle->velocity.z += sourceVel.z;
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/5B700", func_8005F960);
+#endif
+
+/* JFG: the parts of a particle setup_particle_position sets */
+typedef struct PosParticle {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f position;
+    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x2E */ u8 movementType;
+    /* 0x2F */ u8 pad2F;
+    /* 0x30 */ Vec3f localPos;
+    /* 0x3C */ f32 movementParam;
+} PosParticle;
+
+typedef struct PosModelData {
+    /* 0x00 */ u8 pad0[0x4E];
+    /* 0x4E */ s8 unk4E;
+} PosModelData;
+
+typedef struct PosModel {
+    /* 0x00 */ PosModelData *data;
+    /* 0x04 */ u8 pad4[0x68 - 0x4];
+    /* 0x68 */ Vec3f *points;
+} PosModel;
+
+typedef struct PosObjHeader {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ s8 unk1E;
+} PosObjHeader;
+
+typedef struct PosObject {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B[0x40 - 0x3B];
+    /* 0x40 */ PosObjHeader *header;
+    /* 0x44 */ u8 pad44[0x6C - 0x44];
+    /* 0x6C */ PosModel **models;
+} PosObject;
+
+void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
+void func_8004944C(Vec3s *rotation, Vec3f *vec);                     // DKR: vec3f_rotate_py
+
+/**
+ * Initializes the particle position.
+ * JFG: an emitter with a model point (unk23) starts there (scaled, or relative to the object), and the movement
+ * parameter is randomised by flag 0x80000.
+ * DKR: setup_particle_position
+ */
+void func_8005FE4C(PosParticle *particle, PosObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour) {
+    s32 randomizationFlags;
+    Vec3f sourcePos;
+    Vec3s sourceDir;
+    PosModel *model;
+
+    if (emitter->unk23 == -1) {
+        particle->localPos.x = emitter->posX;
+        particle->localPos.y = emitter->posY;
+        particle->localPos.z = emitter->posZ;
+    } else {
+        if (obj->header->unk1E == 0) {
+            model = obj->models[obj->modelIndex];
+        } else {
+            model = NULL;
+        }
+        if (model != NULL && model->points != NULL) {
+            particle->localPos.x = model->points[emitter->unk23].x;
+            particle->localPos.y = model->points[emitter->unk23].y;
+            particle->localPos.z = model->points[emitter->unk23].z;
+            if (model->data->unk4E == 0) {
+                particle->localPos.x *= obj->scale;
+                particle->localPos.y *= obj->scale;
+                particle->localPos.z *= obj->scale;
+                func_800496B0(1, (Vec3s *) obj->rotation, &particle->localPos, &particle->localPos);
+            } else {
+                particle->localPos.x -= obj->x;
+                particle->localPos.y -= obj->y;
+                particle->localPos.z -= obj->z;
+            }
+        } else {
+            particle->localPos.x = 0.0f;
+            particle->localPos.y = 0.0f;
+            particle->localPos.z = 0.0f;
+        }
+    }
+    particle->movementParam = behaviour->movementParam;
+    if (behaviour->randomizationFlags & 0x80000) {
+        particle->movementParam +=
+            (f32) rand_range(-behaviour->movementParamRange, behaviour->movementParamRange) * 0.0000152587890625f;
+    }
+    if (behaviour->flags & 1) {
+        sourcePos.x = 0.0f;
+        sourcePos.y = 0.0f;
+        sourcePos.z = -behaviour->sourceDistance;
+        randomizationFlags = behaviour->randomizationFlags;
+        if (randomizationFlags & 1) {
+            sourcePos.z +=
+                (f32) rand_range(-behaviour->sourceDistanceRange, behaviour->sourceDistanceRange) * 0.0000152587890625f;
+        }
+        if (randomizationFlags & 6) {
+            sourceDir.y_rotation = emitter->sourceRotation.y_rotation;
+            if (randomizationFlags & 2) {
+                sourceDir.y_rotation +=
+                    rand_range(-behaviour->sourceDirRange.y_rotation, behaviour->sourceDirRange.y_rotation);
+            }
+            sourceDir.x_rotation = emitter->sourceRotation.x_rotation;
+            if (randomizationFlags & 4) {
+                sourceDir.x_rotation +=
+                    rand_range(-behaviour->sourceDirRange.x_rotation, behaviour->sourceDirRange.x_rotation);
+            }
+            func_8004944C(&sourceDir, &sourcePos);
+        } else {
+            func_800496B0(1, &emitter->sourceRotation, &sourcePos, &sourcePos);
+        }
+        particle->localPos.x += sourcePos.x;
+        particle->localPos.y += sourcePos.y;
+        particle->localPos.z += sourcePos.z;
+    }
+    if (particle->movementType != 4 && emitter->unk23 == -1) {
+        func_800496B0(1, (Vec3s *) obj->rotation, &particle->localPos, &particle->localPos);
+    }
+    particle->position.x = particle->localPos.x;
+    particle->position.y = particle->localPos.y;
+    particle->position.z = particle->localPos.z;
+    if (particle->movementType == 4) {
+        func_800496B0(1, (Vec3s *) obj->rotation, &particle->position, &particle->position);
+    }
+    particle->position.x += obj->x;
+    particle->position.y += obj->y;
+    particle->position.z += obj->z;
+}
 
 typedef struct EmitterSpec {
     /* 0x00 */ s16 behaviourID;
