@@ -681,7 +681,70 @@ void runlink_reloc_apply(PatchWord *insn, u32 value, u8 type) {
 
 /* JFG: apply one relocation of a module whose sections are in D_800FEAB8 (type 3 = the data section); a HI16
  * (kind 5) also applies the LO16 after it with the combined addend. Returns how many relocations it used. */
+extern u32 D_800FEAB8[5]; // JFG: the section addresses of the module being relocated
+#ifdef NON_MATCHING
+/* NON_MATCHING: insn gets s1 (target: a3, spilled around the first call), so target lands in a3 and the temps shift */
+s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
+    PatchWord *insn;
+    u32 kind;
+    u32 target;
+    PatchWord *lo;
+    s32 symModule;
+    s32 addend;
+    s32 type;
+    s32 loHalf;
+
+    type = reloc->type;
+    kind = reloc->kind;
+    if (reloc->type == 3) {
+        insn = (PatchWord *) (D_800FEAB8[2] + reloc->offset);
+        reloc->type = 0;
+    } else {
+        insn = (PatchWord *) (D_800FEAB8[1] + reloc->offset);
+    }
+    target = runlink_reloc_target(reloc->symbol, module, reloc, (u32 *) insn);
+    if (kind == 5) {
+        symModule = D_800FEAA8[reloc->symbol] >> 20;
+        if (symModule >= 0xFFC) {
+            symModule = 0;
+        }
+        if (reloc->type == 0 && gRunlinkModules[symModule].unk0 == 0) {
+            target = (u32) D_800FEAD4;
+        }
+        lo = (PatchWord *) (reloc[1].offset + D_800FEAB8[1]);
+        loHalf = lo->half.lo;
+        addend = insn->half.lo;
+        if (loHalf & 0x8000) {
+            loHalf |= 0xFFFF0000;
+        }
+        addend = (addend << 16) + loHalf;
+        if (addend != (s32) D_800FEAD4) {
+            target += addend;
+        }
+        runlink_reloc_apply(insn, target, 5);
+        runlink_reloc_apply(lo, target, 6);
+        reloc->type = type;
+        return 2;
+    }
+    if (kind == 6) {
+        symModule = D_800FEAA8[reloc->symbol] >> 20;
+        if (symModule >= 0xFFC) {
+            symModule = 0;
+        }
+        if (reloc->type == 0 && gRunlinkModules[symModule].unk0 == 0) {
+            target = (u32) D_800FEAD4;
+        }
+        runlink_reloc_apply(insn, target + insn->half.lo, 6);
+        reloc->type = type;
+        return 1;
+    }
+    runlink_reloc_apply(insn, target, kind);
+    reloc->type = type;
+    return 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052AB8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);
 
