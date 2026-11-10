@@ -1522,7 +1522,68 @@ f32 func_80049C30(s32 angle);
 /* JFG: the quick turn: when the stick points more than `wide` away from the player's facing (*angle), start a turn
  * towards the object's angle (moving backwards fast: a reverse turn, *out = 1); while turning, *speed follows the
  * stick in the turn's frame, and the turn ends within `wide` of the start or `narrow` of the object's angle */
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800346C4);
+void func_800346C4(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide, s16 narrow, s32 *out, f32 scale) {
+    f32 sinA;
+    f32 cosA;
+    f32 s;
+    f32 c;
+    f32 x;
+    f32 y;
+    s16 diff;
+    s32 two = 2; // kept in one register for the state test and both unk576 stores
+
+    *out = 0;
+    if ((*(s32 *) (D_800A18B0 + 0xC) & gPlayerButtonsPressed) || racer->unk569 != 0 ||
+        (racer->unk1F4 != 0 && func_8005AAB8(racer->player) == 0) || (racer->unk568 != 0 && racer->unk568 != two)) {
+        racer->unk13E = 0;
+        return;
+    }
+    if (racer->unk13E == 0) {
+        diff = *obj - *angle;
+        if (diff < -wide || wide < diff) {
+            racer->unk13C = *obj;
+            racer->unk13E = 1;
+            racer->unk13F = 0;
+            if (racer->velX < -2.5f) {
+                racer->unk576 = two;
+                racer->unk13F = 1;
+                *out = 1;
+            }
+        }
+        return;
+    }
+    if (racer->unk13F) {
+        racer->unk576 = two;
+        *speed = 0.0f;
+    } else {
+        s = -func_80049C34(racer->unk13C);
+        c = -func_80049C30(racer->unk13C);
+        sinA = func_80049C34(*obj);
+        cosA = func_80049C30(*obj);
+        x = gPlayerStickX;
+        y = -gPlayerStickY;
+        s *= x * cosA + y * sinA;
+        c *= y * cosA - x * sinA;
+        *speed = sqrtf(s * s + c * c) * scale;
+    }
+    diff = racer->unk13C - *angle;
+    if (-wide < diff && diff < wide) {
+        racer->unk13E = 0;
+    }
+    diff = *angle - *obj;
+    if (-narrow < diff && diff < narrow) {
+        racer->unk13E = 0;
+    }
+    if (racer->unk13E == 0) {
+        if (*speed > 0.0f) {
+            *speed = -*speed;
+        }
+        if (racer->velX > 0.0f) {
+            racer->velX = -racer->velX;
+        }
+        racer->unk576 = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800349AC);
 
