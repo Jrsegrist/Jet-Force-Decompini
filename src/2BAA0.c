@@ -1585,7 +1585,56 @@ void player_quick_turn(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide,
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800349AC);
+extern f32 D_800ABF68; // JFG: how fast the breathing level rises
+extern f32 D_800ABF6C; // and falls
+extern f32 D_800ABF70; // JFG: the breath length per breath period
+
+/* JFG: the player's breathing: the level eases towards the speed (the larger of |velX| and |velZ|, 1 from 4 up), the
+   phase advances by one breath every 180 - 130 * level frames, and a breath starts (breathNow, breathTimer) each
+   time it wraps. */
+void func_800349AC(Racer *racer, f32 updateRate) {
+    f32 vz;
+    f32 speed;
+
+    if (racer->unk568 == 10) {
+        racer->breathTimer = 0;
+        racer->breathNow = 0;
+    }
+    speed = racer->velX;
+    if (speed < 0.0f) {
+        speed = -speed;
+    }
+    vz = racer->velZ;
+    if (vz < 0.0f) {
+        vz = -vz;
+    }
+    if (speed < vz) {
+        speed = vz;
+    }
+    if (speed >= 4.0f) {
+        speed = 1.0f;
+    } else {
+        speed *= 0.25f;
+    }
+    if (racer->breathLevel < speed) {
+        vz = D_800ABF68;
+    } else {
+        vz = D_800ABF6C;
+    }
+    racer->breathLevel += (speed - racer->breathLevel) * (1.0f - func_80049BEC(1.0f - vz, (s32) updateRate));
+    racer->breathPhase += updateRate / (180.0f + -130.0f * racer->breathLevel);
+    if (racer->breathPhase >= 1.0f) {
+        racer->breathTimer = (180.0f + -130.0f * racer->breathLevel) * D_800ABF70;
+        racer->breathNow = 1;
+        racer->breathPhase -= 1.0f;
+    } else {
+        racer->breathTimer -= (s32) updateRate;
+        if (racer->breathTimer < 0) {
+            racer->breathTimer = 0;
+        }
+        racer->breathNow = 0;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80034BB0);
 
