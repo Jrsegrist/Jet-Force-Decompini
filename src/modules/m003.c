@@ -70,7 +70,8 @@ typedef struct M003Member {
     /* 0x50 */ u8 node;
     /* 0x51 */ u8 unk51;
     /* 0x52 */ u8 unk52;
-    /* 0x53 */ u8 pad53[0x55 - 0x53];
+    /* 0x53 */ s8 unk53; /* a countdown (00FD0) */
+    /* 0x54 */ s8 event; /* the event it heard (sEvents), -1: none */
     /* 0x55 */ u8 unk55;
     /* 0x56 */ s8 unk56;
     /* 0x57 */ u8 pad57[0x5A - 0x57];
@@ -138,7 +139,9 @@ typedef struct M003Home {
     /* 0x01 */ u8 count; /* members */
     /* 0x02 */ u8 pad2[0x10 - 0x2];
     /* 0x10 */ s8 offset[3];
-    /* 0x13 */ u8 pad13[0x1A - 0x13];
+    /* 0x13 */ u8 unk13; /* how far it looks round (028D4), in 16s */
+    /* 0x14 */ u8 unk14; /* and up and down, in 8s */
+    /* 0x15 */ u8 pad15[0x1A - 0x15];
     /* 0x1A */ u16 kind2 : 4;
     /* 0x1A */ u16 unk1A : 12;
     /* 0x1C */ u8 pad1C[0x21 - 0x1C];
@@ -178,7 +181,8 @@ typedef struct M003Home {
     /* 0x64 */ u8 unk64;
     /* 0x65 */ u8 pad65[0x6C - 0x65];
     /* 0x6C */ f32 unk6C;
-    /* 0x70 */ u8 pad70[0x75 - 0x70];
+    /* 0x70 */ u8 pad70[0x74 - 0x70];
+    /* 0x74 */ u8 unk74; /* the last way point with flag 2 it reached (03AA8) */
     /* 0x75 */ u8 unk75;
     /* 0x76 */ u8 pad76;
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
@@ -203,7 +207,8 @@ typedef struct M003Node {
     /* 0x17 */ u8 kind : 2; /* the kind of object spawned for it */
     /* 0x17 */ u8 unk17 : 6;
     /* 0x18 */ u8 cmd; /* what a member does there (module 154) */
-    /* 0x19 */ u8 pad19[0x1C - 0x19];
+    /* 0x19 */ u8 unk19; /* how near the troop's first member counts as there (0322C) */
+    /* 0x1A */ u8 pad1A[0x1C - 0x1A];
     /* 0x1C */ u8 unk1C;
     /* 0x1D */ u8 pad1D[0x31 - 0x1D];
     /* 0x31 */ u8 radius; /* how near counts as there (02760) */
@@ -334,7 +339,7 @@ extern s32 D_800FEA00;
 extern s32 D_800FEA04;
 extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
 extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
-extern void func_80051880(u8 arg0);
+extern s32 func_80051880(u8 arg0);
 extern s32 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
 extern void func_m155_02BB0(Object *home);
 extern void func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
@@ -526,7 +531,22 @@ void func_m003_00328(Object *obj, f32 *x, f32 *y, f32 *z) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00384);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_009C8);
+extern f32 rl_m003_199EC; /* .rodata (still assembly): how much of its sideways speed it keeps */
+
+/* An object's position; slows it and counts down its way point, moving on at 0 */
+void func_m003_009C8(Object *obj, f32 *x, f32 *y, f32 *z) {
+    f32 k = rl_m003_199EC;
+
+    *x = obj->trans.x_position;
+    *y = obj->trans.y_position;
+    *z = obj->trans.z_position;
+    obj->velocity.x *= k;
+    obj->velocity.z *= k;
+    sMember->node--;
+    if (sMember->node == 0) {
+        func_m003_0C038(obj);
+    }
+}
 
 /* The current member's target point */
 void func_m003_00A5C(Object *obj, f32 *x, f32 *y, f32 *z) {
@@ -589,7 +609,39 @@ void func_m003_00C70(Object *obj, f32 *x, f32 *y, f32 *z) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00D44);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00FD0);
+/* Turns towards the event the member heard; after a random while it goes back to its mission */
+s32 func_m003_00FD0(Object *obj, s16 *angle, f32 x, f32 z) {
+    M003Event *e = &sEvents[sMember->event];
+
+    func_m003_04F88(sMember->unk4B, 1.0f);
+    if (sMember->event == -1) {
+        func_m003_04398(1, 0);
+        sMember->unk4B = 0;
+        sMember->unk10 = 0;
+        return FALSE;
+    }
+    switch (sMember->unk1B) {
+        case 1:
+            sMember->unk53 = func_80005064(func_80048E2C(30, 40));
+            sMember->unk1B = 4;
+            break;
+        case 4:
+            sMember->unk53 -= D_800FE9F8;
+            if (sMember->unk53 < 0) {
+                func_m003_04398(1, 0);
+                sMember->unk4B = 0;
+                if (sHomeData->unk30 == 2 || sHomeData->unk30 == 3) {
+                    sHomeData->unk30 = 4;
+                }
+            }
+            break;
+    }
+    *angle = obj->trans.rotation.y_rotation;
+    sMember->unk10 = func_80049C84(obj->trans.x_position - e->x, obj->trans.z_position - e->z) -
+                     obj->trans.rotation.y_rotation;
+    sMember->turning = TRUE;
+    return TRUE;
+}
 
 /* An object's position; the mission that waits at a way point */
 void func_m003_01188(Object *obj, f32 *x, f32 *y, f32 *z) {
@@ -792,9 +844,61 @@ s32 func_m003_02760(M003Node *node) {
     return node->radius;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_027A4);
+extern s32 func_m154_01278(void);
+extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* the distance between two points */
+extern s32 rl_m003_02760(M003Node *node);
+extern s32 rl_m003_01C58(M003Node *node, s32 arrive);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_028D4);
+/* Once the troop's first member is near enough its way point, starts the point's command and moves on */
+void func_m003_027A4(void) {
+    UNUSED s32 pad[3];
+    f32 dist;
+    Object *first;
+    M003Node *node;
+    s32 lo;
+    s32 hi;
+
+    if (func_m154_01278()) {
+        first = sHomeData->first;
+        node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
+        if (!sMember->unk0_11 && sHomeData->unk6C == 1.0f) {
+            dist = point_distance(first->trans.x_position, first->trans.y_position, first->trans.z_position,
+                                 node->x, node->y, node->z);
+            if (dist < rl_m003_02760(node) && !rl_m003_01C58(node, 1)) {
+                lo = sHomeData->unk3C;
+                hi = sHomeData->unk3C;
+                if (func_80051880(func_m154_00DFC(sHomeData->unk30, lo & 0xFF, (u16) hi >> 8))) {
+                    rl_m003_01C58(node, 0);
+                }
+            }
+        }
+    }
+}
+
+extern u8 D_800FE9EE;
+
+/* Counts down the troop's wait; at 0 it turns its look-out point round and goes to state 20 */
+void func_m003_028D4(void) {
+    s32 x;
+    s32 y;
+    s32 z;
+
+    sHomeData->unk2E--;
+    if (sHomeData->unk2E == 0) {
+        sHomeData->unk3C += 0x8C40;
+        x = func_80049C34(sHomeData->unk3C) * (f32) (sHomeData->unk13 * 16);
+        z = func_80049C30(sHomeData->unk3C) * (f32) (sHomeData->unk13 * 16);
+        y = func_80048E2C(-(sHomeData->unk14 * 8), sHomeData->unk14 * 8);
+        sHomeData->unk40 = sHomeData->offset[0] * 16 + x;
+        sHomeData->unk42 = sHomeData->offset[1] * 16 + y;
+        sHomeData->unk44 = sHomeData->offset[2] * 16 + z;
+        sHome->velocity.x = 0.0f;
+        sHome->velocity.y = 0.0f;
+        sHome->velocity.z = 0.0f;
+        sHomeData->unk33 = 20;
+        D_800FE9EE = 20;
+    }
+}
 
 /* The troop's home takes a point in front of the closest player (at the body's height) */
 void func_m003_02A94(void) {
@@ -888,7 +992,39 @@ void func_m003_03170(void) {
     }
 }
 
+f32 func_m003_03E20(f32 x1, f32 z1, f32 x2, f32 z2);
+extern void rl_m003_03CAC(Object *obj);
+extern f32 rl_m003_199F8; /* .rodata (still assembly) */
+
+#ifdef NON_MATCHING
+/* 7 diffs: the ROM's constant (a .rodata literal) takes f14, after dx, dy, dz (C: f0, first) */
+/* When the troop's first member is near its way point, sends it there (state 30) */
+void func_m003_0322C(void) {
+    M003Node *node;
+    Object *first;
+    f32 k;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    first = sHomeData->first;
+    node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
+    if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) < node->unk19) {
+        k = rl_m003_199F8;
+        sHomeData->unk33 = 30;
+        sHomeData->unk3E = 10;
+        dx = node->x - first->trans.x_position;
+        dy = node->y - first->trans.y_position;
+        dz = node->z - first->trans.z_position;
+        first->velocity.x = dx * k;
+        first->velocity.y = dy * k;
+        first->velocity.z = dz * k;
+        rl_m003_03CAC(first);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0322C);
+#endif
 
 /* Counts down the troop's wait, then sends it on from its way point (low byte) towards the next (high byte) */
 void func_m003_0332C(void) {
@@ -968,7 +1104,56 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03628);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_038D4);
 
+extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
+#define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
+
+#ifdef NON_MATCHING
+/* 21 diffs: only temp register numbers (the ROM uses one more temp from the start) */
+/*
+ * Once the troop's first member is near enough its way point: on, unless the point says to wait for
+ * a player who is not within 700
+ */
+void func_m003_03AA8(void) {
+    Object *first;
+    UNUSED s32 pad[3];
+    f32 dist;
+    s32 n;
+    M003Node *node;
+    s32 next;
+
+    if (func_m154_01278()) {
+        n = sHomeData->unk3C & 0xFF;
+        node = &D_800FEA9C[n];
+        first = sHomeData->first;
+        if (NODEWORD14(node) & 2) {
+            sHomeData->unk74 = n;
+        }
+        if (sHomeData->unk6C == 1.0f) {
+            dist = point_distance(first->trans.x_position, first->trans.y_position, first->trans.z_position,
+                                 node->x, node->y, node->z);
+            if (dist < rl_m003_02760(node) && !rl_m003_01C58(node, 1)) {
+                if (point_distance(first->trans.x_position, first->trans.y_position, first->trans.z_position,
+                                  ((Object *) sClosestPlayer)->trans.x_position,
+                                  ((Object *) sClosestPlayer)->trans.y_position,
+                                  ((Object *) sClosestPlayer)->trans.z_position) < 700.0f ||
+                    !(NODEWORD14(node) & 2)) {
+                    next = func_m154_00A10(sHomeData->unk3C & 0xFF);
+                    if (next != (sHomeData->unk3C & 0xFF)) {
+                        func_80051880(next);
+                        sMember->unk0_21 = TRUE;
+                        return;
+                    }
+                } else {
+                    sMember->unk0_21 = FALSE;
+                }
+                rl_m003_01C58(node, 0);
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03AA8);
+#endif
 
 void func_m003_03C84(void) {
     func_m155_02BB0(sHome);
@@ -1791,7 +1976,24 @@ void func_m003_09680(void) {
     }
 }
 
+#ifdef NON_MATCHING
+/* 2 diffs: the ROM masks `flag` to 16 bits in the branch's delay slot (with this prototype IDO masks
+   it through its stack slot; with none it does not mask it at all) */
+extern void obj_group_countdown(s32 id, u16 flag);
+
+/* Puts the troop in state 7 and, once, counts it down in its object group */
+void func_m003_09840(M003Home *home, s32 flag) {
+    u8 group = home->unk75;
+
+    home->unk30 = 7;
+    if (group != 0 && !(home->flags & 8)) {
+        obj_group_countdown(group, flag);
+        home->flags |= 8;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09840);
+#endif
 
 extern void rl_m003_09840(M003Home *home, s32 arg1);
 
