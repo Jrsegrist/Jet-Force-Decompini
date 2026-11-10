@@ -346,7 +346,7 @@ extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
 extern s32 func_80051880(u8 arg0);
 extern s32 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
 extern void func_m155_02BB0(Object *home);
-extern void func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
+s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
 extern s32 func_m003_04F88(s32 arg0, f32 arg1);
 extern void func_m003_06D28(Object *home, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 extern s32 func_m003_0C324(); /* (Object *obj); 0CF40 calls it with no argument */
@@ -1623,7 +1623,62 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04614);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04968);
 
+/* The body's word at 0x24 as bit fields */
+typedef struct M003Body24 {
+    u32 pad6 : 26;
+    u32 unk5 : 1; /* animations 0x16 to 0x1F do not follow each other (04D08) */
+    u32 pad0 : 5;
+} M003Body24;
+#define BODY24(b) ((M003Body24 *) &(b)->unk24)
+
+#ifdef NON_MATCHING
+/* ~90 diffs: the ROM keeps the index in a3 and the array pointer as an induction variable */
+/*
+ * Starts the first of the member's animations anim1, anim2, anim3 (up to a 0) that its body has, for
+ * animation kind `kind`; -1 if none can start now
+ */
+s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
+    s32 anims[3];
+    s32 i;
+    s32 anim;
+    s32 result;
+    s32 last;
+    s32 index;
+
+    if (!func_m003_043FC(kind)) {
+        return -1;
+    }
+    index = -1;
+    anims[0] = anim3;
+    anims[1] = anim2;
+    anims[2] = anim1;
+    i = 2;
+    if (anim1 != 0) {
+        do {
+            anim = anims[i];
+            if (BODY24(sBody)->unk5 && anim >= 0x16 && anim < 0x20 && sMember->unkA >= 0x16 &&
+                sMember->unkA < 0x20) {
+                return -1;
+            }
+            if (anim == sMember->unkA) {
+                return -1;
+            }
+            if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
+                return -1;
+            }
+            index = rl_m003_04614(anim, 0);
+            last = anim;
+        } while (i-- != 0 && index == -1 && anims[i] != 0);
+    }
+    result = rl_m003_04968(index, last, 1);
+    if (result != -1) {
+        sMember->unk4B = kind;
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04D08);
+#endif
 
 /* Starts animation `index` of the member's body, unless it may not move now; returns what 04968 does */
 s32 func_m003_04EC4(s32 arg0, s32 index) {
