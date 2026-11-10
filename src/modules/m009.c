@@ -89,7 +89,7 @@ extern Gfx *D_800FF398;
 extern void *D_800FF39C;
 extern void func_80040D64(Gfx **dl, void *mtx);
 extern void rl_m009_02978(M009Model *model, s32 updateRate);
-extern void rl_m009_030E8(M009Model *model);
+static void func_m009_030E8(M009Model *model);
 static void func_m009_03908(s32 index);
 extern M009Place rl_m009_0469C[]; /* (.data) */
 extern M009Model rl_m009_04990[]; /* (.bss) */
@@ -116,7 +116,7 @@ void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
                     model->y = y;
                     func_80040D64(&D_800FF398, &D_800FF39C);
                     rl_m009_02978(model, updateRate);
-                    rl_m009_030E8(model);
+                    func_m009_030E8(model);
                 } else {
                     D_800FF780[p->index].posX = x;
                     D_800FF780[p->index].posY = y;
@@ -209,8 +209,6 @@ extern void func_800498E8(f32 x, f32 y, f32 z, MtxF *mtx);     /* translation */
 extern void func_80048D84(MtxF *mtx, void *out);               /* to a fixed-point Mtx */
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a texture */
 
-#ifdef NON_MATCHING
-/* Only the triangle commands' stores are scheduled differently (16 words) */
 /*
  * Draws a world model on the map: its body and, if it has one, its glowing layer, shrunk as its timer runs.
  * (Commands: the matrix, 25 vertices, 16 + 7 triangles; then pipe sync and the glow's prim colour.)
@@ -237,16 +235,8 @@ static void func_m009_030E8(M009Model *model) {
         _g->words.w1 = v;
     }
     func_80055C00(&D_800FF398, *(void **) ((u8 *) model + 0x4C0), 1, 0);
-    {
-        Gfx *_g = D_800FF398++;
-        _g->words.w0 = 0x05F10100;
-        _g->words.w1 = (u32) model + 0x80000000;
-    }
-    {
-        Gfx *_g = D_800FF398++;
-        _g->words.w0 = 0x05610070;
-        _g->words.w1 = (u32) model + 0x80000100;
-    }
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05F10100; _g->words.w1 = (u32) model + 0x80000000; }
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05610070; _g->words.w1 = (u32) model + 0x80000100; }
     if (*(void **) ((u8 *) model + 0x4C4) != NULL) {
         func_80042134(&mtx);
         func_80049874(scale, scale, scale, &mtx);
@@ -263,30 +253,15 @@ static void func_m009_030E8(M009Model *model) {
             _g->words.w0 = ((((v & 6) | 0xC0) & 0xFF) << 16) | 0x04000000 | 0xF8;
             _g->words.w1 = v;
         }
-        {
-            Gfx *_g = D_800FF398++;
-            _g->words.w0 = 0xE7000000;
-            _g->words.w1 = 0;
-        }
+        gDPPipeSync(D_800FF398++);
         func_80055C00(&D_800FF398, *(void **) ((u8 *) model + 0x4C4), 5, 0);
         g = D_800FF398++;
         g->words.w0 = 0xFA000000;
         g->words.w1 = glow[5];
-        {
-            Gfx *_g = D_800FF398++;
-            _g->words.w0 = 0x05F10100;
-            _g->words.w1 = (u32) model + 0x80000260;
-        }
-        {
-            Gfx *_g = D_800FF398++;
-            _g->words.w0 = 0x05610070;
-            _g->words.w1 = (u32) model + 0x80000360;
-        }
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05F10100; _g->words.w1 = (u32) model + 0x80000260; }
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05610070; _g->words.w1 = (u32) model + 0x80000360; }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_030E8);
-#endif
 
 /* The game's save data, as 0343C reads it */
 typedef struct M009Character {
