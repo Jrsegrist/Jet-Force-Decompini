@@ -44,10 +44,14 @@ void func_m014_00000(void) {
 
 /* The part of the player's state that 00074 reads */
 typedef struct M014Player {
-    /* 0x000 */ u8 pad0[0x1CA];
+    /* 0x000 */ s8 unk0; /* (with unk1: picks the weapons, func_80047C1C) */
+    /* 0x001 */ s8 unk1;
+    /* 0x002 */ u8 pad2[0x1CA - 0x2];
     /* 0x1CA */ s16 yaw;
-    /* 0x1CC */ u8 pad1CC[0x540 - 0x1CC];
+    /* 0x1CC */ u8 pad1CC[0x53E - 0x1CC];
+    /* 0x53E */ s16 unk53E; /* the ammo of weapons 3, 4 and 6 */
     /* 0x540 */ u16 unk540;
+    /* 0x542 */ u8 unk542; /* the level of weapon 0 */
 } M014Player;
 
 extern Gfx *D_800FF398;
@@ -94,6 +98,45 @@ static void func_m014_010D8(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_010F4);
 
+/* What func_80047C1C returns: the player's weapons */
+typedef struct M014Weapons {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 owned; /* a bit per weapon */
+    /* 0x0C */ u8 padC[0x14 - 0xC];
+    /* 0x14 */ u16 unk14[16]; /* per weapon: the first number shown */
+    /* 0x34 */ u16 unk34[16]; /* and the second */
+    /* 0x54 */ u8 pad54[0x70 - 0x54];
+    /* 0x70 */ u8 weapon; /* the weapon in hand */
+} M014Weapons;
+
+/* A menu item (D_800FF780, size 0x20; the main segment's MenuItem), as used here */
+typedef struct M014MenuItem {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 image;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 posX;
+    /* 0x10 */ f32 posY;
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ f32 unk1C;
+} M014MenuItem;
+
+extern M014MenuItem D_800FF780[];
+extern Object **func_8000E464(s32 *count); /* the players */
+extern M014Weapons *func_80047C1C(s32 a, s32 b);
+extern void func_80042134(MtxF *mtx);                      /* identity */
+extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx); /* scale */
+extern void func_800498E8(f32 x, f32 y, f32 z, MtxF *mtx); /* translation */
+extern void func_80048D84(MtxF *mtx, Mtx *out);            /* to a fixed-point Mtx */
+extern void func_80040D64(Gfx **dl, Mtx **mtx);
+extern void func_800408C0(Gfx **dl); /* sets the viewport's scissor */
+extern void menu_item_load(s32 image);
+extern void func_80056000(s32 arg0);
+extern void func_8005A0D0(s32 item); /* draws a menu item */
+extern Mtx *D_800FF39C;
+extern s32 D_800A51CC; /* the text opacity */
+extern u8 rl_m014_03E70[]; /* .data (still assembly): the weapon wheel's display list, vertices and triangles */
+
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01328);
 
 /* Frees the images 10 to 25 */
@@ -110,15 +153,6 @@ static void free_images(void) {
 void func_m014_019E4(void) {
     rl_m014_04894 = 0xF0;
 }
-
-/* A menu item (D_800FF780, size 0x20; the main segment's MenuItem), as used here */
-typedef struct M014MenuItem {
-    /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ f32 posX;
-    /* 0x10 */ u8 pad10[0x20 - 0x10];
-} M014MenuItem;
-
-extern M014MenuItem D_800FF780[];
 
 /* Slides menu item 6 in while 019E4's timer runs, and out again after */
 void func_m014_019F4(s32 updateRate) {
@@ -143,7 +177,99 @@ void func_m014_019F4(s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01AD8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_0292C);
+/* A filled box (59060.c's MenuBox) */
+typedef struct M014Box {
+    s16 x1, y1, x2, y2;
+    s32 colour;
+} M014Box;
+
+extern s32 func_800373E4(M014Weapons *w, s32 weapon); /* the weapon's ammo capacity */
+extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
+extern void func_80058EF0(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 arg5, s32 arg6); /* draws a number */
+extern void rl_m014_01AD8(M014Player *p, s32 updateRate, s32 image);
+#define rl_m014_04810 (*(s32 *) (rl_m014_03E70 + 0x9A0)) /* .data (still assembly): the weapon last shown */
+extern M014Box rl_m014_0447C[7]; /* the ammo bar's boxes */
+
+/*
+ * The weapon panel: the weapon's image (loaded when it changes), the ammo bar (six boxes from red to
+ * green as the ammo fills), item 7's fade and the weapon's two numbers (called from 00B30)
+ */
+void func_m014_0292C(s32 updateRate) {
+    s32 count;
+    s32 shown;
+    s32 ammo;
+    s32 alpha;
+    s32 red;
+    s32 green;
+    s32 image; /* then the ammo bar's level */
+    M014Box *b;
+    M014MenuItem *item;
+    M014Weapons *weapons;
+    M014Player *p;
+    M014Weapons *w;
+
+    p = (*func_8000E464(&count))->unk68;
+    w = func_80047C1C(p->unk0, p->unk1);
+    shown = rl_m014_04810;
+    weapons = w; /* (a copy: the ROM spills the pointer after reading the old weapon) */
+    image = weapons->weapon + 10;
+    if (shown != weapons->weapon) {
+        shown = weapons->weapon;
+        rl_m014_04810 = weapons->weapon;
+        if (shown != -5) { /* (always true: weapon is a u8) */
+            menu_item_free(image);
+        }
+    }
+    D_800FF780[1].image = image;
+    rl_m014_01AD8(p, updateRate, image);
+    if (D_800FF3F8[image] == NULL) {
+        menu_item_load(image);
+    }
+    func_80056000(0);
+    func_8005A0D0(1);
+    if (weapons->weapon == 0) {
+        image = p->unk542;
+        alpha = 0xFF;
+    } else if (weapons->weapon == 3 || weapons->weapon == 6 || weapons->weapon == 4) {
+        ammo = func_800373E4(weapons, weapons->weapon);
+        image = p->unk53E;
+        if (weapons->weapon == 3) {
+            ammo -= 32;
+            image -= 32;
+        }
+        image = 252 - image * 252 / ammo;
+        alpha = 0xFF;
+    } else {
+        image = 0;
+        alpha = 0x55;
+    }
+    b = &rl_m014_0447C[1];
+    ammo = 5; /* (now the box counter) */
+    do {
+        if (image >= 42) {
+            red = 0xFF;
+            green = 0;
+            image -= 42;
+        } else {
+            red = image * 6;
+            green = 0xFF - red;
+            image = 0;
+        }
+        b->colour = (red << 24) | (green << 16) | alpha;
+        b++;
+    } while (ammo--);
+    menu_fill_boxes(&D_800FF398, 7, rl_m014_0447C, 0);
+    item = &D_800FF780[7];
+    if (D_800FF780[4].posY < 46.0f) {
+        item->unk18 -= item->unk18 * 0.125f;
+    } else {
+        item->unk18 += (1.0f - item->unk18) * 0.125f;
+    }
+    func_8005A0D0(7);
+    func_80056000(1);
+    func_80058EF0(weapons->unk14[weapons->weapon], D_800FF780[9].posX, D_800FF780[9].posY, 8, 3, 0xFFFF00A0, 0xFFFF0040);
+    func_80058EF0(weapons->unk34[weapons->weapon], D_800FF780[10].posX, D_800FF780[10].posY, 9, 3, -0x60, -0xC0);
+}
 
 void func_m014_02CC0(void) {
     menu_assetgroup_free(rl_m014_04440);
@@ -323,16 +449,9 @@ typedef struct M014ColourCycle {
     /* 0x0C */ void *source;
 } M014ColourCycle;
 
-/* A filled box (59060.c's MenuBox) */
-typedef struct M014Box {
-    s16 x1, y1, x2, y2;
-    s32 colour;
-} M014Box;
-
 extern void func_m006_0107C(s32 *x, s32 *y);
 extern void colour_cycle_init(M014ColourCycle *cycle, s32 assetID);
 extern void update_colour_cycle(M014ColourCycle *cycle, s32 updateRate);
-extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
 
 /*
  * A bar from (x1, y1) to (x2, y2) in 4-pixel steps, coloured along colour cycle 0x3B, bright up to
