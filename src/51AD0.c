@@ -784,13 +784,94 @@ void runlink_module_run(s32 module) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
-
 typedef struct UnloadTimer {
     u16 timer : 10;
     u16 unk : 6;
 } UnloadTimer;
 extern UnloadTimer *D_800FEB58;
+extern s32 D_800A38F0; // JFG: set while a module is unloaded into a slot
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: register allocation like func_8005372C: the code address and the module pointer in v0/a0
+   (target a0/a1), and the symbol-table loop's temps one lower */
+/* JFG: free a module (its code, or its slot's buffer) and point every loaded module's and the main segment's
+   references to it back at the trap. */
+void func_8005342C(s32 module) {
+    ModuleEntry *entry = &gRunlinkModules[module];
+    ModuleSlot *slot;
+    ModuleReloc *reloc;
+    u32 n;
+    s32 i;
+    s32 found;
+    s32 symModule;
+    u32 addr;
+    s32 type;
+
+    if (D_800A38F0 == 0) {
+        runlink_module_run(module);
+    }
+    found = FALSE;
+    n = 15;
+    if (entry->unk0 == 0) {
+        slot = D_800FEAD8;
+        do {
+            if (module == slot->module) {
+                found = TRUE;
+                break;
+            }
+            slot++;
+        } while (n--);
+        if (found) {
+            mempool_free((void *) (slot->unk0 + entry->unk8));
+            slot->module = 0xFFB;
+        }
+    } else {
+        mempool_free((void *) entry->unk0);
+        entry->unk0 = 0;
+        D_800FEB58[module].timer = 0;
+        D_800FEB58[module].unk = 0;
+        entry = gRunlinkModules;
+        for (i = 0; i < gNumRunlinkModules; i++, entry++) {
+            if (entry->unk0 != 0 && i != module) {
+                if (i == 0) {
+                    D_800FEAB8[1] = (u32) sound_volume_change;
+                    D_800FEAB8[2] = (u32) gMusicPlayer;
+                    D_800FEAB8[3] = (u32) D_800B0B50;
+                    reloc = D_800FEAA4;
+                    D_800FEAB8[4] = (u32) reloc;
+                    n = D_800FEAB0;
+                } else {
+                    D_800FEAB8[1] = entry->unk0;
+                    D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
+                    D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
+                    reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                    n = (u32) entry->unk14 >> 3;
+                }
+                while (n--) {
+                    symModule = D_800FEAA8[reloc->symbol] >> 20;
+                    type = reloc->type;
+                    if (symModule >= 0xFFC) {
+                        symModule = 0;
+                    }
+                    if (symModule == module) {
+                        if (reloc->type == 3) {
+                            addr = D_800FEAB8[2] + reloc->offset;
+                            reloc->type = 0;
+                        } else {
+                            addr = D_800FEAB8[1] + reloc->offset;
+                        }
+                        runlink_reloc_apply((PatchWord *) addr, reloc->kind == 4 ? (u32) func_80054530 : 0, reloc->kind);
+                    }
+                    reloc->type = type;
+                    reloc++;
+                }
+            }
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: register allocation: the code address is loaded into a0 (mine v0), the relocation word into a0 (mine v1), addr in a3 */

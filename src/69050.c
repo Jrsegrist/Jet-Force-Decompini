@@ -858,7 +858,87 @@ void func_8006B090(RippleObj *obj, s32 updateRate) {
 }
 
 
+/* JFG: one triangle strip set of a ripple's child effect: vertices, an optional second vertex set drawn with the
+   same triangles, and the triangles */
+typedef struct RippleStrip {
+    /* 0x00 */ u8 *vtx;
+    /* 0x04 */ u8 *vtx2;
+    /* 0x08 */ u8 *tris;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 numTris;
+} RippleStrip;
+
+typedef struct RippleChild {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ RippleStrip *strips;
+    /* 0x14 */ u8 pad14[0x30 - 0x14];
+    /* 0x30 */ RippleTexture *tex;
+    /* 0x34 */ s16 texFrame;
+    /* 0x36 */ u8 pad36[2];
+    /* 0x38 */ u8 numStrips;
+} RippleChild;
+
+void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
+
+/* JFG: the game's own vertex load, given the index of the last vertex (as 53C0.c) */
+#define gSPVertexLast(pkt, v, last, v0) \
+    gDma1p(pkt, G_VTX, v, ((last) << 3) + ((last) << 1) + 8, ((last) << 3) | ((u32) (v) & 6) | (v0))
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the strength-reduced strip offset is spilled to 0x40 (target 0x44); all else matches */
+/* JFG: draw a ripple's child effect: its texture, then each strip in batches of up to 16 triangles (twice when
+   the strip has a second vertex set), faded by the texture frame when the texture asks for it. */
+void func_8006B3CC(RippleChild *child, Gfx **dList) {
+    s32 i;
+    s32 alpha;
+    s32 n;
+    s32 count;
+    u8 *vtx;
+    u8 *vtx2;
+    u8 *tris;
+
+    if (child->numStrips > 0) {
+        func_80055C00(dList, child->tex, 0x1F, child->texFrame << 8);
+        if (child->tex->flags & 0x40) {
+            alpha = child->texFrame & 0xFF;
+        } else {
+            alpha = 0xFF;
+        }
+        gDPSetEnvColor((*dList)++, alpha, alpha, alpha, alpha);
+        gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);
+        for (i = 0; i < child->numStrips; i++) {
+            n = child->strips[i].numTris;
+            vtx = child->strips[i].vtx;
+            vtx2 = child->strips[i].vtx2;
+            tris = child->strips[i].tris;
+            while (n != 0) {
+                if (n > 16) {
+                    n -= 16;
+                    count = 16;
+                } else {
+                    count = n;
+                    n = 0;
+                }
+                gSPVertexLast((*dList)++, vtx + 0x80000000, count + 2, 0);
+                gSPPolygon((*dList)++, tris + 0x80000000, count, 1);
+                vtx += count * 10;
+                if (vtx2 != NULL) {
+                    gSPVertexLast((*dList)++, vtx2 + 0x80000000, count + 2, 0);
+                    gSPPolygon((*dList)++, tris + 0x80000000, count, 1);
+                    vtx2 += count * 10;
+                }
+                tris += count * 16;
+            }
+        }
+        if (alpha != 0xFF) {
+            gDPPipeSync((*dList)++);
+            gDPSetEnvColor((*dList)++, 255, 255, 255, 255);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B3CC);
+#endif
 
 typedef struct RippleQuad {
     /* 0x00 */ u8 tris[0x20];     // two Triangles
@@ -874,8 +954,7 @@ typedef struct RippleQuad {
 
 extern s32 D_800A6950;
 extern Gfx D_800A6958[];
-void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
-void func_8006B3CC(void *child, Gfx **dList);
+void func_8006B3CC(RippleChild *child, Gfx **dList);
 
 /* DKR f3ddkr.h: runs a display list of numberOfCommands commands */
 #define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \

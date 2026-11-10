@@ -557,7 +557,100 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002C9A0);
 #endif
 
+/* JFG: what func_80018808 writes back here (the object hit, then the point) */
+typedef struct TrackHit2BAA0 {
+    /* 0x00 */ struct {
+        u8 pad0[0x48];
+        s16 behaviorId;
+    } *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ u8 pad10[0x28 - 0x10];
+} TrackHit2BAA0;
+
+s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags, s32 arg5);
+s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the last (empty) search loop: the target guards it with n > 0 and builds &heights[i] from an i
+   still in $zero; all else matches */
+/* JFG: move pos to where the track stops the way from `from` (passing through objects 0x30/0x31 once), then out
+   of the floors and ceilings around it; on a clear way also not below its starting height. The int copies of x
+   and z are unused (the target keeps only their rounding-mode switches). */
+void func_8002CC70(f32 *from, f32 *pos, UNUSED s32 arg2) {
+    f32 **p;
+    TrackHit2BAA0 hit;
+    s32 i;
+    s32 done;
+    s32 mode;
+    s32 x;
+    s32 z;
+    s32 n;
+    f32 yOrig;
+    f32 start[3];
+    f32 lo;
+    f32 hi;
+    f32 **heights;
+
+    if (&from) {}
+    start[0] = from[0];
+    mode = 1;
+    start[1] = from[1];
+    done = FALSE;
+    start[2] = from[2];
+    yOrig = pos[1];
+    do {
+        if (func_80018808(0, start, pos, &hit, 0, 0) == 0) {
+            done = TRUE;
+        } else if (mode != 2 && hit.obj != NULL && (hit.obj->behaviorId == 0x30 || hit.obj->behaviorId == 0x31)) {
+            mode = 2;
+            start[0] = hit.pos[0];
+            start[1] = hit.pos[1];
+            start[2] = hit.pos[2];
+            pos[1] = hit.pos[1];
+        } else {
+            mode = 3;
+            pos[0] = hit.pos[0];
+            done = TRUE;
+            pos[1] = hit.pos[1];
+            pos[2] = hit.pos[2];
+        }
+    } while (!done);
+    x = pos[0];
+    z = pos[2];
+    if (x) {}
+    if (z) {}
+    n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 1, &heights);
+    while (n--) {
+        hi = *heights[n] + 1.0f;
+        lo = *heights[n] - 16.0f;
+        if (lo < pos[1] && pos[1] < hi) {
+            pos[1] = lo;
+        }
+    }
+    n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 0, &heights);
+    while (n--) {
+        hi = *heights[n] + 16.0f;
+        lo = *heights[n] - 1.0f;
+        if (lo < pos[1] && pos[1] < hi) {
+            pos[1] = hi;
+        }
+    }
+    if (mode == 1) {
+        n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 0, &heights);
+        if (n != 0) {
+            done = FALSE;
+            i = 0;
+            for (p = &heights[i] + 1; p < &heights[n] && !done; p++) {
+            }
+        }
+        if (pos[1] < yOrig) {
+            pos[1] = yOrig;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CC70);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CF6C);
 
@@ -1649,7 +1742,7 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 
 void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
 void falling_objects_hit_box(f32 *min, f32 *max, void *ignore);
-s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, s32 arg7);
+s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
 /* JFG: squash check before moving (in states 6, 7, 8 and 12): the pose points placed in the world; the lowest
  * object over a free point (down to the pose height) squashes the player, or the platform stood on does when
