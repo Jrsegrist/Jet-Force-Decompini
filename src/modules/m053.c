@@ -482,14 +482,14 @@ void func_m053_0271C(Object *obj, M053Anim *s, UNUSED s32 arg2, f32 updateRateF)
         case 0:
             func_8001138C(obj, 0.005f, updateRateF);
             if (s->unk4 < rl_m053_037EC || rl_m053_037F0 < s->unk4) {
-                func_8001149C(obj, 1, obj->unk28);
+                obj_anim_set(obj, 1, obj->unk28);
             }
             s->unk14 += (0.0f - s->unk14) * k;
             break;
         case 1:
             func_8001138C(obj, 0.01f, updateRateF);
             if (rl_m053_037F4 < s->unk4 && s->unk4 < rl_m053_037F8) {
-                func_8001149C(obj, 0, obj->unk28);
+                obj_anim_set(obj, 0, obj->unk28);
             }
             if (s->unk58C > 300) {
                 s->unk14 += (2.0f - s->unk14) * k;
