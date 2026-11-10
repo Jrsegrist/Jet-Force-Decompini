@@ -29,7 +29,7 @@ static s8 sUnk49;
 static s16 sUnk4A;
 static s16 sUnk4C;
 static s16 sUnk4E;
-static u8 sUnk50[8];
+static u16 sMarks[4]; /* the players' bonus marks (007F0) */
 static s32 sUnk58;
 static s32 sUnk5C;
 
@@ -52,7 +52,11 @@ typedef struct M040Sprite {
 /* A player's multiplayer scores (D_800FED50, 0xA0 each) */
 typedef struct M040Stats {
     /* 0x00 */ u16 kills[4]; /* by victim */
-    /* 0x08 */ u8 pad8[0x8C - 0x8];
+    /* 0x08 */ u8 pad8[0x10 - 0x8];
+    /* 0x10 */ s16 score;
+    /* 0x12 */ u8 pad12[2];
+    /* 0x14 */ u8 rank; /* 1 to 4 */
+    /* 0x15 */ u8 pad15[0x8C - 0x15];
     /* 0x8C */ u8 player; /* the controller */
     /* 0x8D */ u8 pad8D[0x94 - 0x8D];
     /* 0x94 */ u16 unk94[4]; /* one per player */
@@ -79,7 +83,131 @@ extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity); /* the text 
 extern char **gMenuText;
 extern char rl_m040_02518[]; /* "%d" (.rodata, still assembly) */
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_007F0);
+extern M040Stats *D_800FF1C0[]; /* the players, sorted */
+extern s32 menu_mode_get();
+extern char rl_m040_02510[];    /* "%d" (.rodata, still assembly) */
+extern char rl_m040_02514[];    /* "+%d" */
+
+/* Slides the table of the players' places in or out, draws it, and counts up their bonus marks (called from 0019C) */
+void func_m040_007F0(s32 updateRate) {
+    s32 i;
+    s32 j;
+    s32 rank;
+    s32 score;
+    s32 x;
+    s32 rowY;
+    s32 y;
+    s32 done;
+    s32 blink;
+    M040Stats *stats;
+    UNUSED u8 pad[0x84];
+    M040Sprite sprite;
+    char buf[0x104];
+
+    sprite.trans.rotation.z_rotation = 0;
+    sprite.trans.rotation.x_rotation = 0;
+    sprite.trans.rotation.y_rotation = 0;
+    sprite.trans.z_position = 0.0f;
+    switch (menu_mode_get()) {
+        default:
+            sUnk8[sUnk4] = 0x17B;
+            break;
+        case 0x14:
+            sUnk8[sUnk4] = 0x17C;
+            break;
+        case 0x16:
+            sUnk8[sUnk4] = 0x17E;
+            break;
+    }
+    done = FALSE;
+    if (sUnk5 != 0) {
+        sPos[0] -= updateRate * 16;
+        sPos[1] += updateRate * 16;
+        if (sPos[0] < -220) {
+            sUnk4 = sUnk5;
+            done = TRUE;
+            sUnk5 = 0;
+        }
+    } else {
+        sPos[0] += updateRate * 16;
+        if (sPos[0] > 80) {
+            sPos[0] = 80;
+        }
+        sPos[1] -= updateRate * 16;
+        if (sPos[1] < 80) {
+            sPos[1] = 80;
+        } else {
+            sMarks[0] = 0;
+            sMarks[1] = 0;
+            sMarks[2] = 0;
+            sMarks[3] = 0;
+        }
+    }
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    func_8006FC54(2);
+    blink = FALSE;
+    rowY = 100;
+    if (sMarks[0] < sOrder[0] && sPos[0] == 80 && sPos[1] == 80) {
+        sUnk4A -= updateRate;
+        if (sUnk4A < 0) {
+            sUnk4A += 12;
+            func_80001248(0x1C3, 0);
+            blink = TRUE;
+        }
+    }
+    for (i = 0; i < D_800A4FD0; i++) {
+        stats = D_800FF1C0[i];
+        score = stats->score;
+        rank = (stats->rank - 1) & 3;
+        if (blink && sMarks[i] < sOrder[rank]) {
+            sMarks[i]++;
+        }
+        y = rowY;
+        x = sPos[i & 1];
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.y_position = y;
+        sprite.frame = rank;
+        sprite.trans.scale = 0.75f;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x82], 0, 255);
+        sprite.trans.x_position += 40.0f;
+        sprite.frame = stats->player;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
+        func_m006_0107C(&x, &y);
+        x += 88;
+        func_800639E8(buf, rl_m040_02510, score);
+        func_8006FCA8(&D_800FF398, x - 2, rowY, buf, 1);
+        func_8006FCA8(&D_800FF398, x + 2, rowY, gMenuText[334], 0);
+        x += 42;
+        func_800639E8(buf, rl_m040_02514, sMarks[i]);
+        func_8006FCA8(&D_800FF398, x, rowY, buf, 0);
+        x += 28;
+        y = rowY + 5;
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.y_position = y;
+        sprite.frame = 0.0f;
+        sprite.trans.scale = 1.0;
+        for (j = 0; j < sMarks[i]; j++) {
+            if (j == sMarks[i] - 1) {
+                sprite.frame = 1.0f;
+            }
+            render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x85], 0, 255);
+            sprite.trans.y_position += 4.0f;
+        }
+        if (!done) {
+            if (func_80043510(stats->player) & 0x8000) {
+                if (sUnk58 == 0x16) {
+                    sUnk5 = 3;
+                } else {
+                    sUnk5 = 2;
+                }
+            }
+        }
+        rowY += 26;
+    }
+}
 
 /* Slides the table of the players' kills in or out and draws it (called from 0019C) */
 void func_m040_00DF8(s32 updateRate) {
