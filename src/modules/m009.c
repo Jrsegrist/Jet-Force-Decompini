@@ -89,7 +89,7 @@ extern Gfx *D_800FF398;
 extern void *D_800FF39C;
 extern void func_80040D64(Gfx **dl, void *mtx);
 extern void rl_m009_02978(M009Model *model, s32 updateRate);
-extern void rl_m009_030E8(M009Model *model);
+static void func_m009_030E8(M009Model *model);
 static void func_m009_03908(s32 index);
 extern M009Place rl_m009_0469C[]; /* (.data) */
 extern M009Model rl_m009_04990[]; /* (.bss) */
@@ -116,7 +116,7 @@ void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
                     model->y = y;
                     func_80040D64(&D_800FF398, &D_800FF39C);
                     rl_m009_02978(model, updateRate);
-                    rl_m009_030E8(model);
+                    func_m009_030E8(model);
                 } else {
                     D_800FF780[p->index].posX = x;
                     D_800FF780[p->index].posY = y;
@@ -149,7 +149,7 @@ extern f32 rl_m009_097A4;
 extern s32 rl_m009_097A8; /* the time it takes */
 
 /* Picks map place `index`: the map heads for its world model or menu item */
-void func_m009_02880(s32 index) {
+static void func_m009_02880(s32 index) {
     M009Place *p;
 
     rl_m009_0490C = index;
@@ -209,8 +209,6 @@ extern void func_800498E8(f32 x, f32 y, f32 z, MtxF *mtx);     /* translation */
 extern void func_80048D84(MtxF *mtx, void *out);               /* to a fixed-point Mtx */
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a texture */
 
-#ifdef NON_MATCHING
-/* Only the triangle commands' stores are scheduled differently (16 words) */
 /*
  * Draws a world model on the map: its body and, if it has one, its glowing layer, shrunk as its timer runs.
  * (Commands: the matrix, 25 vertices, 16 + 7 triangles; then pipe sync and the glow's prim colour.)
@@ -237,16 +235,8 @@ static void func_m009_030E8(M009Model *model) {
         _g->words.w1 = v;
     }
     func_80055C00(&D_800FF398, *(void **) ((u8 *) model + 0x4C0), 1, 0);
-    {
-        Gfx *_g = D_800FF398++;
-        _g->words.w0 = 0x05F10100;
-        _g->words.w1 = (u32) model + 0x80000000;
-    }
-    {
-        Gfx *_g = D_800FF398++;
-        _g->words.w0 = 0x05610070;
-        _g->words.w1 = (u32) model + 0x80000100;
-    }
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05F10100; _g->words.w1 = (u32) model + 0x80000000; }
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05610070; _g->words.w1 = (u32) model + 0x80000100; }
     if (*(void **) ((u8 *) model + 0x4C4) != NULL) {
         func_80042134(&mtx);
         func_80049874(scale, scale, scale, &mtx);
@@ -263,32 +253,127 @@ static void func_m009_030E8(M009Model *model) {
             _g->words.w0 = ((((v & 6) | 0xC0) & 0xFF) << 16) | 0x04000000 | 0xF8;
             _g->words.w1 = v;
         }
-        {
-            Gfx *_g = D_800FF398++;
-            _g->words.w0 = 0xE7000000;
-            _g->words.w1 = 0;
-        }
+        gDPPipeSync(D_800FF398++);
         func_80055C00(&D_800FF398, *(void **) ((u8 *) model + 0x4C4), 5, 0);
         g = D_800FF398++;
         g->words.w0 = 0xFA000000;
         g->words.w1 = glow[5];
-        {
-            Gfx *_g = D_800FF398++;
-            _g->words.w0 = 0x05F10100;
-            _g->words.w1 = (u32) model + 0x80000260;
-        }
-        {
-            Gfx *_g = D_800FF398++;
-            _g->words.w0 = 0x05610070;
-            _g->words.w1 = (u32) model + 0x80000360;
-        }
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05F10100; _g->words.w1 = (u32) model + 0x80000260; }
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x05610070; _g->words.w1 = (u32) model + 0x80000360; }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_030E8);
-#endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_0343C);
+/* The game's save data, as 0343C reads it */
+typedef struct M009Character {
+    /* 0x00 */ u16 flags; /* >> 5: the level the character is in */
+    /* 0x02 */ u8 pad2[0x76 - 0x2];
+} M009Character;
+typedef struct M009Save {
+    /* 0x000 */ u8 pad0[0x1D0];
+    /* 0x1D0 */ M009Character characters[1];
+} M009Save;
+
+extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern M009Save *get_settings(void);
+extern s32 leveltable_world(s32 level);
+extern s32 func_m018_03B44(s32 i, s32 dir); /* the next character along */
+extern Object *D_800FF3F8[];               /* the menu's objects */
+static void func_m009_037E4(Object *obj, s32 frame, s32 frames);
+
+extern s32 rl_m009_04910; /* .data (still assembly): the way the characters turn, -1 or 1 */
+extern s32 rl_m009_04914; /* the character picked */
+extern s16 rl_m009_04918; /* frames before the stick is read again */
+extern s32 rl_m009_097C4; /* .bss (still assembly): the player */
+extern s32 rl_m009_097C8;
+extern s16 rl_m009_097CC; /* the angle the characters turn to */
+
+/* Turns the character carousel with the stick, and picks the place of the character picked (called from 00690) */
+void func_m009_0343C(s32 updateRate) {
+    s32 angle;
+    s32 start;
+    s32 wrap;
+    s32 i;
+    s32 moved;
+    s32 found;
+    s32 world;
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+    M009Place *p;
+    M009MenuItem *item; /* the carousel's menu item */
+
+    if (updateRate < rl_m009_04918) {
+        rl_m009_04918 -= updateRate;
+    } else {
+        rl_m009_04918 = 0;
+    }
+    moved = FALSE;
+    if ((func_80043510(rl_m009_097C4) & 2) && rl_m009_04918 == 0 && rl_m009_097C8 == 0) {
+        i = rl_m009_04914;
+        rl_m009_04914 = func_m018_03B44(rl_m009_04914, -1);
+        if (i != rl_m009_04914) {
+            rl_m009_097CC -= 0x8000;
+            rl_m009_04910 = -1;
+            rl_m009_04918 = 7;
+            moved = TRUE;
+        }
+    } else if ((func_80043510(rl_m009_097C4) & 1) && rl_m009_04918 == 0 && rl_m009_097C8 == 0) {
+        i = rl_m009_04914;
+        rl_m009_04914 = func_m018_03B44(rl_m009_04914, 1);
+        if (i != rl_m009_04914) {
+            rl_m009_097CC += 0x8000;
+            rl_m009_04910 = 1;
+            rl_m009_04918 = 7;
+            moved = TRUE;
+        }
+    }
+    if (moved) {
+        world = leveltable_world((u32) get_settings()->characters[rl_m009_04914].flags >> 5);
+        p = rl_m009_0469C;
+        found = FALSE;
+        i = 0;
+        while (p->kind != 0xFF && !found) {
+            if (world == p->world) {
+                found = TRUE;
+                func_m009_02880(i);
+            } else {
+                i++;
+                p++;
+            }
+        }
+    }
+    item = &D_800FF780[19];
+    angle = item->x;
+    i = 0;
+    start = angle;
+    if (rl_m009_04910 == -1 && angle < rl_m009_097CC) {
+        wrap = 1;
+        angle += 0x10000;
+    } else if (rl_m009_04910 == 1 && rl_m009_097CC < angle) {
+        wrap = 2;
+        angle -= 0x10000;
+    } else {
+        wrap = 0;
+    }
+    for (i = 0; i < updateRate; i++) {
+        angle += (rl_m009_097CC - angle) >> 4;
+    }
+    item->x = angle;
+    if (wrap == 1) {
+        angle -= 0x10000;
+    } else if (wrap == 2) {
+        angle += 0x10000;
+    }
+    if (angle < 0) {
+        angle += 0x8000;
+    }
+    if (start < 0) {
+        start += 0x8000;
+    }
+    if ((rl_m009_04910 == 1 && start <= 0x4000 && angle > 0x4000) ||
+        (rl_m009_04910 == -1 && start > 0x4000 && angle <= 0x4000)) {
+        func_m009_037E4(D_800FF3F8[72], rl_m009_04914 << 8, 3);
+    }
+}
 
 /* A texture of a model, as 037E4 uses it (m135's 02834 is the same function) */
 typedef struct M009Texture {
@@ -329,7 +414,7 @@ typedef struct M009Instance {
 
 /* Sets the frames of the object's animated textures `frames` long to `frame` (the second one to the
    next frame), and writes each batch's texture offsets */
-void func_m009_037E4(Object *obj, s32 frame, s32 frames) {
+static void func_m009_037E4(Object *obj, s32 frame, s32 frames) {
     M009Instance *inst = obj->modelInstances[obj->modelIndex];
     M009Model3D *model = inst->model;
     M009TexAnim *a = inst->texAnims;
@@ -364,7 +449,6 @@ void func_m009_037E4(Object *obj, s32 frame, s32 frames) {
     }
 }
 
-extern Object *D_800FF3F8[]; /* the menu's objects */
 extern void *D_800FF3A0;
 extern void func_800221F0(Object *obj, void *model, void *shading, s32 arg3);
 extern void func_8000DB94(Gfx **dl, void *mtx, void *vtx, Object *obj);

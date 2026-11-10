@@ -66,7 +66,8 @@ typedef struct M003Member {
     /* 0x44 */ u8 pad44[0x4A - 0x44];
     /* 0x4A */ u8 unk4A;
     /* 0x4B */ u8 unk4B;
-    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x4C */ s16 unk4C; /* how fast it turns (0A5EC) */
+    /* 0x4E */ u8 pad4E[0x50 - 0x4E];
     /* 0x50 */ u8 node;
     /* 0x51 */ u8 unk51;
     /* 0x52 */ u8 unk52;
@@ -86,7 +87,7 @@ typedef struct M003Member {
     /* 0xA4 */ u8 padA4[0xA6 - 0xA4];
     /* 0xA6 */ s16 unkA6;
     /* 0xA8 */ Object *unkA8;
-    /* 0xAC */ u8 padAC[0xB0 - 0xAC];
+    /* 0xAC */ Object *unkAC; /* freed when body 0x20 starts an animation (04968) */
     /* 0xB0 */ struct M003Flags4 *unkB0;
     /* 0xB4 */ Object *follower; /* an object kept at the member's place (0E9F0) */
     /* 0xB8 */ u8 padB8[0xBC - 0xB8];
@@ -160,7 +161,7 @@ typedef struct M003Home {
     /* 0x31 */ u8 pad31;
     /* 0x32 */ u8 unk32; /* its state (0B50C) */
     /* 0x33 */ u8 unk33;
-    /* 0x34 */ u8 pad34;
+    /* 0x34 */ u8 unk34; /* the low two bits pick module 6's members' animations (04968) */
     /* 0x35 */ u8 unk35; /* set while a way-point command runs (01C58) */
     /* 0x36 */ u8 pad36[0x3C - 0x36];
     /* 0x3C */ s16 unk3C;
@@ -270,7 +271,8 @@ typedef struct M003Body {
     /* 0x10 */ f32 unk10; /* a distance (0AF34, 0AFC4) */
     /* 0x14 */ u8 pad14[0x24 - 0x14];
     /* 0x24 */ s16 unk24; /* a height */
-    /* 0x26 */ u8 pad26[0x29 - 0x26];
+    /* 0x26 */ u8 pad26[0x28 - 0x26];
+    /* 0x28 */ u8 turnStep; /* how much faster or slower its members turn each step (0A5EC) */
     /* 0x29 */ u8 numParts;
     /* 0x2A */ u8 pad2A;
     /* 0x2B */ u8 unk2B; /* 5: does not burn */
@@ -288,7 +290,8 @@ typedef struct M003Body {
 typedef struct M003Interact {
     /* 0x00 */ u8 pad0[0x6];
     /* 0x06 */ s16 hitPoints;
-    /* 0x08 */ u32 pad8_0 : 3;
+    /* 0x08 */ u32 pad8_0 : 2;
+    /* 0x08 */ u32 unk8_29 : 1; /* (04968: picks other animations) */
     /* 0x08 */ u32 unk8_3 : 1;
     /* 0x08 */ u32 sound : 4;
     /* 0x08 */ u32 pad8_1 : 24;
@@ -365,7 +368,7 @@ extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
-extern s32 rl_m003_04968(s32 index, s32 anim, s32 arg2);
+static s32 func_m003_04968(s32 index, s32 anim, s32 adjust);
 extern s32 rl_m003_04614(s32 anim, s32 arg1);
 extern void rl_m003_044F4(Object *obj);
 
@@ -374,7 +377,10 @@ typedef struct M003Anim {
     /* 0x00 */ s16 unk0; /* the first entry's: the animation speed, in some unit (044B4) */
     /* 0x02 */ u8 anim;
     /* 0x03 */ u8 unk3;
-    /* 0x04 */ u32 pad4_0 : 10;
+    /* 0x04 */ u32 weight : 5; /* how likely 04614 picks it */
+    /* 0x04 */ u32 pad4_5 : 1;
+    /* 0x04 */ u32 unk4_25 : 1; /* turn on the spot when it need not get anywhere (0A5EC) */
+    /* 0x04 */ u32 unk4_22 : 3; /* 3: the member loses a body part as it starts (04968), 4: one time in three */
     /* 0x04 */ u32 parts : 7; /* its row of rl_m003_17A10, 0x7F: none (09680) */
     /* 0x04 */ u32 unk4_11 : 4;
     /* 0x04 */ u32 pad4_1 : 11;
@@ -962,7 +968,90 @@ s32 func_m003_01C58(M003Node *node, s32 arrive) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01D3C);
+/* A node of an animation path (0x2C bytes) */
+typedef struct M003PathNode {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ u8 junction; /* 0: none; else the id of the junction object that picks the way on */
+    /* 0x1F */ u8 pad1F[0x28 - 0x1F];
+    /* 0x28 */ struct M003PathNode *next;
+} M003PathNode;
+
+/* An animation path (D_801045B0) */
+typedef struct M003AnimPath {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ M003PathNode *nodes;
+} M003AnimPath;
+
+/* What a junction object (behaviour 0x1B) keeps in obj->unk68 */
+typedef struct M003Junction {
+    /* 0x00 */ s16 path[4];   /* its four exits: D_801045B0 indices */
+    /* 0x08 */ u8 weight[4];  /* how likely each exit is */
+    /* 0x0C */ u8 node[4];    /* the node of that path to go on from */
+    /* 0x10 */ u8 flags;      /* 1: set up */
+    /* 0x11 */ u8 id;
+} M003Junction;
+
+extern M003AnimPath **D_801045B0;
+
+/*
+ * The node after `node`: at a junction, the start of one of the junction's exits, picked at random by
+ * weight. (If no junction object has the id, `j` is used unset, as in the original.)
+ */
+M003PathNode *func_m003_01D3C(M003PathNode *node) {
+    s32 first;
+    s32 count;
+    s32 i;
+    s32 total;
+    s32 r;
+    M003Junction *j;
+    M003PathNode *next;
+    Object **objs;
+    Object *o;
+    u8 id;
+    M003AnimPath *path;
+
+    next = node->next;
+    objs = func_80005E98(&first, &count);
+    id = next->junction;
+    total = 0;
+    if (id == 0) {
+        return next;
+    }
+    for (r = first; r < count; r++) {
+        o = objs[r];
+        if (o->freed == 0 && o->behaviorId == 0x1B) {
+            j = o->unk68;
+            if (j->id == id) {
+                break;
+            }
+        }
+    }
+    r = 3;
+    do {
+        total += j->weight[r];
+    } while (r--);
+    if (total <= 0) {
+        i = 0;
+    } else {
+        r = func_80048E2C(1, total);
+        i = 0;
+        while (TRUE) {
+            r -= j->weight[i];
+            if (r <= 0) {
+                break;
+            }
+            i++;
+        }
+    }
+    total = j->path[i];
+    path = D_801045B0[total];
+    next = path->nodes;
+    r = j->node[i];
+    while (r--) {
+        next = next->next;
+    }
+    return next;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
 
@@ -1338,7 +1427,58 @@ void func_m003_03628(void) {
     }
 }
 
+extern f32 rl_m003_199FC; /* .rodata (still assembly): how fast the first member heads for the way point */
+
+/*
+ * Puts the troop's first member back on the way point it came from (the high byte of unk3C), then heads it
+ * for the next one (the low byte) if that is still out of reach
+ */
+#ifdef NON_MATCHING
+/* 7 diffs, float registers only: the ROM's multiplier looks like a literal (CSE'd, f14), which needs m003's .rodata in C */
+void func_m003_038D4(void) {
+    s32 prev;
+    M003Home *h;
+    Object *first;
+    M003Node *node;
+    f32 k;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    h = sHomeData;
+    prev = (u16) h->unk3C >> 8;
+    if (prev != 0) {
+        first = h->first;
+        node = &D_800FEA9C[prev];
+        func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z);
+        first->trans.x_position = node->x;
+        first->trans.y_position = node->y;
+        first->trans.z_position = node->z;
+        first->velocity.x = 0.0f;
+        first->velocity.y = 0.0f;
+        first->velocity.z = 0.0f;
+        rl_m003_03CAC(first);
+        node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
+        if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) <= node->unk19) {
+            sHomeData->unk33 = 0;
+        }
+        if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) < node->unk19) {
+            k = rl_m003_199FC;
+            sHomeData->unk33 = 30;
+            sHomeData->unk3E = 10;
+            dx = node->x - first->trans.x_position;
+            dy = node->y - first->trans.y_position;
+            dz = node->z - first->trans.z_position;
+            first->velocity.x = dx * k;
+            first->velocity.y = dy * k;
+            first->velocity.z = dz * k;
+            rl_m003_03CAC(first);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_038D4);
+#endif
 
 extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
@@ -1621,7 +1761,76 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044F4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04614);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04968);
+/*
+ * Starts animation `index` of the member's body (asked for as kind `anim`); with `adjust`, some bodies
+ * swap in other entries for kinds 0x21, 0x25, 0x16 and 0x19. Returns the index started, or -1.
+ */
+static s32 func_m003_04968(s32 index, s32 anim, s32 adjust) {
+    M003Anim *a;
+    s32 r;
+
+    if (sBodyIndex == 0x13) {
+        return index;
+    }
+    if (adjust) {
+        if ((anim == 0x21 || anim == 0x25) &&
+            (sBodyIndex == 1 || sBodyIndex == 5 || sBodyIndex == 0xD || sBodyIndex == 0xE || sBodyIndex == 0xF ||
+             sBodyIndex == 0x16)) {
+            if (((M003Interact *) sObj->interactObj)->unk8_29 || ((M003Interact *) sObj->interactObj)->part == 0) {
+                index = 8;
+            } else {
+                index = (((M003Interact *) sObj->interactObj)->part - 1) << 1;
+            }
+        } else if ((anim == 0x16 || anim == 0x19) &&
+                   (sBodyIndex == 1 || sBodyIndex == 5 || sBodyIndex == 0xD || sBodyIndex == 0x16)) {
+            if (((M003Interact *) sObj->interactObj)->unk8_29) {
+                index = 0x17;
+            } else {
+                index = 0x1A;
+            }
+        } else if (sBodyIndex == 6) {
+            if (anim == 0x21) {
+                index = 2;
+                if ((sHomeData->unk34 & 3) == 2 ||
+                    ((sHomeData->unk34 & 3) == 3 && !((M003Interact *) sObj->interactObj)->unk8_29)) {
+                    index = 0;
+                }
+            } else if (anim == 0x16 || anim == 0x19) {
+                if (((M003Interact *) sObj->interactObj)->unk8_29) {
+                    index = 0xF;
+                } else {
+                    index = 0x12;
+                }
+            }
+        }
+    }
+    if (anim == 1 && sHomeData->unk30 == 3) {
+        r = rl_m003_04614(0x3B, 1);
+        if (r != -1) {
+            index = r;
+        }
+    }
+    a = &rl_m003_17DB8[rl_m003_19278[sBodyIndex * 2] + index];
+    sMember->unk56 = a->unk4_11;
+    if (sBodyIndex == 0x20 && sMember->unkAC != NULL) {
+        func_800079B8(sMember->unkAC);
+        sMember->unkAC = NULL;
+    }
+    sObj->particleEmittersEnabled = 0;
+    if (a->unk4_22 == 3) {
+        rl_m003_044F4(sObj);
+    }
+    if (!(sHomeData->flags & 0x8000) && a->unk4_22 == 4 && func_80048E2C(1, 3) == 1) {
+        rl_m003_044F4(sObj);
+    }
+    if (index == -1) {
+        return -1;
+    }
+    obj_anim_set(sObj, index, 0.0f);
+    sMember->unk60 = 0.0f;
+    sMember->animSet = index;
+    return index;
+}
 
 /* The body's word at 0x24 as bit fields */
 typedef struct M003Body24 {
@@ -1670,7 +1879,7 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
             last = anim;
         } while (i-- != 0 && index == -1 && anims[i] != 0);
     }
-    result = rl_m003_04968(index, last, 1);
+    result = func_m003_04968(index, last, 1);
     if (result != -1) {
         sMember->unk4B = kind;
     }
@@ -1691,7 +1900,7 @@ s32 func_m003_04EC4(s32 arg0, s32 index) {
     if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
         return -1;
     }
-    result = rl_m003_04968(index, anim, 0);
+    result = func_m003_04968(index, anim, 0);
     if (result != -1) {
         sMember->unk4B = arg0;
     }
@@ -1726,7 +1935,7 @@ s32 func_m003_04F88(s32 kind, f32 speed) {
                 }
                 if (anims[1].anim == 0x35 && sMember->unk4B != 9) {
                     sMember->animSet++;
-                    rl_m003_04968(sMember->animSet, 0x35, 1);
+                    func_m003_04968(sMember->animSet, 0x35, 1);
                     return 0;
                 }
             } else if (sMember->unk55 == 0) {
@@ -1766,7 +1975,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
         sMember->unk56 = e->unk3 & 0x7F;
     }
     if (index != sMember->animSet) {
-        rl_m003_04968(index, anim, 1);
+        func_m003_04968(index, anim, 1);
     }
     sMember->unk4B = kind;
     return 0;
@@ -2519,7 +2728,56 @@ void func_m003_0A564(void) {
     sObj->trans.rotation.y_rotation += turn;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A5EC);
+/*
+ * Turns the member towards sBssD6, speeding its turn up or down by the body's turnStep so that it stops
+ * facing that way
+ */
+void func_m003_0A5EC(void) {
+    s16 diff;
+    UNUSED s32 pad;
+    s16 b;
+    s16 a;
+    s16 step;
+
+    diff = func_80049D80(sObj->trans.rotation.y_rotation, sBssD6);
+    a = 0;
+    b = 0;
+    step = sBody->turnStep;
+    if (func_m003_04428(sObj)->unk4_25 && sBssCC == 0.0f) {
+        sMember->unk4C = 0;
+        sBssD6 = sObj->trans.rotation.y_rotation;
+        return;
+    }
+    if (diff >= 0) {
+        do {
+            a += step;
+            b += a;
+        } while (b + a < diff);
+    } else {
+        do {
+            a -= step;
+            b += a;
+        } while (diff < b + a);
+    }
+    if (step >= diff && diff >= -step && step >= sMember->unk4C && sMember->unk4C >= -step &&
+        ((diff >= 0 && sMember->unk4C >= 0) || (diff <= 0 && sMember->unk4C <= 0))) {
+        sMember->unk4C = sBssD6 - sObj->trans.rotation.y_rotation;
+    } else if (a - step >= sMember->unk4C + step) {
+        sMember->unk4C += step;
+    } else if (sMember->unk4C - step < a) {
+        sMember->unk4C = a - step;
+    } else {
+        sMember->unk4C -= step;
+    }
+    if (sMember->unk4C == 0) {
+        if (step < diff) {
+            sMember->unk4C = step;
+        } else if (diff < -step) {
+            sMember->unk4C = -step;
+        }
+    }
+    sObj->trans.rotation.y_rotation += sMember->unk4C;
+}
 
 extern f32 rl_m003_19D40; /* .rodata (still assembly): 0A850's factors */
 extern f32 rl_m003_19D44;
@@ -3699,14 +3957,6 @@ void func_m003_16C10(Object *obj) {
     func_m003_05450(saved);
 }
 
-/* What a junction object keeps in obj->unk68 */
-typedef struct M003Junction {
-    /* 0x00 */ s16 unk0[4];
-    /* 0x08 */ u8 unk8[4];
-    /* 0x0C */ s8 unkC[4];
-    /* 0x10 */ u8 flags; /* 1: set up */
-} M003Junction;
-
 /* A junction's set-up (once): its four exits */
 void func_m003_16CB4(Object *obj, s32 updateRate) {
     M003Junction *data = obj->unk68;
@@ -3718,9 +3968,9 @@ void func_m003_16CB4(Object *obj, s32 updateRate) {
     if (!(data->flags & 1)) {
         anim_paths_find_near(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, a, b);
         while (i--) {
-            data->unk8[i] = entry[0xC + i];
-            data->unk0[i] = a[i];
-            data->unkC[i] = b[i];
+            data->weight[i] = entry[0xC + i];
+            data->path[i] = a[i];
+            data->node[i] = b[i];
         }
         data->flags |= 1;
     }

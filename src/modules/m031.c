@@ -732,7 +732,47 @@ void func_m031_02064(Object *obj) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_021F0);
+extern s16 *rl_m031_03DF8[]; /* (.data) per race: the pick-ups that can appear */
+
+/*
+ * Every few seconds puts a random pick-up of the race's kinds at a random one of the objects 0x274 (never
+ * the same one twice running) (called from 00A3C)
+ */
+void func_m031_021F0(s32 updateRate) {
+    s32 r;
+    M031Entry entry;
+    s16 *ids;
+    Object *at;
+    s32 r2;
+    Object *spawned;
+
+    if (rl_m031_040E0 > 0 && D_800A5034 != 0) {
+        rl_m031_040E8 -= updateRate;
+        if (rl_m031_040E8 <= 0) {
+            if (rl_m031_040E0 >= 2) {
+                do {
+                    r = func_80048E2C(0, rl_m031_040E0 - 1);
+                } while (r == rl_m031_040E4);
+            } else {
+                r = 0;
+            }
+            r2 = func_80048E2C(0, 7);
+            ids = rl_m031_03DF8[D_800A5034];
+            at = sBss408[r];
+            entry.objectID = ids[r2];
+            entry.x = at->trans.x_position;
+            entry.y = at->trans.y_position;
+            entry.z = at->trans.z_position;
+            entry.unkA = 10;
+            spawned = func_80005F14(&entry, 1);
+            if (spawned != NULL) {
+                spawned->level_entry = NULL;
+            }
+            rl_m031_040E4 = r;
+            rl_m031_040E8 = func_80048E2C(0, 180) + 300;
+        }
+    }
+}
 
 /* Loads the race's sounds */
 void func_m031_02388(void) {
@@ -756,7 +796,7 @@ typedef struct M031Save {
 
 extern M031Save D_800FF318;
 extern void func_80047EFC(s32 flag, s32 set);
-extern M031Record *rl_m031_038E0(u32 time, s8 *place);
+static M031Record *func_m031_038E0(u32 time, s8 *place);
 
 /*
  * The finish of racer n: once, its time goes into the best times (with the reward flags for a
@@ -765,7 +805,7 @@ extern M031Record *rl_m031_038E0(u32 time, s8 *place);
 void func_m031_0242C(s32 n, s32 step) {
     if (n >= 0 && n < D_800A4FD0) {
         if (rl_m031_040EC == 0) {
-            sRacers[n].record = rl_m031_038E0(D_800FED50[n].time * 100 / 60, &sRacers[n].place);
+            sRacers[n].record = func_m031_038E0(D_800FED50[n].time * 100 / 60, &sRacers[n].place);
             if (sRacers[n].record != NULL) {
                 if (D_800A5040 == 0) {
                     if (sRacers[n].unk1E == 4 && !(D_800FF318.unk6A & 1)) {
@@ -937,7 +977,61 @@ void func_m031_03888(void) {
     D_800A4FB4 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_038E0);
+/*
+ * Puts a best time into the current race's table (shifting the slower ones down, with the default
+ * letters) and gives its place; returns the table, or NULL when the time is not among the five best
+ */
+static M031Record *func_m031_038E0(u32 time, s8 *place) {
+    M031Record *table;
+    s32 i;
+    s32 j;
+
+    switch (D_800A5040) {
+        case 0:
+            table = D_800FF318.records[0];
+            break;
+        case 1:
+            table = D_800FF318.records[1];
+            break;
+        case 2:
+            table = D_800FF318.records[2];
+            break;
+        case 3:
+            table = D_800FF318.records[3];
+            break;
+        default:
+            table = D_800FF318.records[4];
+            break;
+    }
+    i = 5;
+    while (i > 0 && time < table[i - 1].time) {
+        i--;
+    }
+    if (i != 5) {
+        j = 4;
+        while (j > i) {
+            table[j].time = table[j - 1].time;
+            table[j].c0 = table[j - 1].c0;
+            table[j].c1 = table[j - 1].c1;
+            table[j].c2 = table[j - 1].c2;
+            j--;
+        }
+        table[i].time = time;
+        if (D_800A4FC0 & 3) {
+            table[i].c0 = 9;
+            table[i].c1 = 20;
+            table[i].c2 = 13;
+        } else {
+            table[i].c0 = 21;
+            table[i].c1 = 4;
+            table[i].c2 = 11;
+        }
+    } else {
+        table = NULL;
+    }
+    *place = i;
+    return table;
+}
 
 /* A sphere of an object's hit shape (size 0x34) */
 typedef struct M031Sphere {

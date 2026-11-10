@@ -12,10 +12,19 @@ typedef struct M032Line {
     /* 0x3 */ s8 variants;
 } M032Line;
 
+/* A speaker kind's animation (12 bytes) */
+typedef struct M032Pose {
+    /* 0x0 */ u8 pad0[2];
+    /* 0x2 */ s16 anim;
+    /* 0x4 */ u8 pad4[4];
+    /* 0x8 */ f32 unk8;
+} M032Pose;
+
 /* What a character says, by object ID. Size 0x38 */
 typedef struct M032Lines {
     /* 0x00 */ s16 objectID; /* -1 ends the table */
-    /* 0x02 */ u8 pad2[0x8 - 0x2];
+    /* 0x02 */ s16 yaw;      /* added to the setup's facing */
+    /* 0x04 */ M032Pose *poses; /* by kind */
     /* 0x08 */ M032Line *lines;
     /* 0x0C */ u8 padC[0x38 - 0xC];
 } M032Lines;
@@ -23,9 +32,69 @@ typedef struct M032Lines {
 /* A speaker's state (obj->unk68) */
 typedef struct M032Speaker {
     /* 0x00 */ u8 kind;
-    /* 0x01 */ u8 pad1[0x2C - 0x1];
+    /* 0x01 */ u8 unk1; /* its settings flag is still clear (01D2C) */
+    /* 0x02 */ s16 yaw;
+    /* 0x04 */ f32 x;
+    /* 0x08 */ f32 y;
+    /* 0x0C */ f32 z;
+    /* 0x10 */ f32 radius;
+    /* 0x14 */ f32 radiusSq; /* times a .rodata factor */
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
     /* 0x2C */ s32 sound;
+    /* 0x30 */ u8 unk30;
+    /* 0x31 */ u8 unk31;
+    /* 0x32 */ u8 flag; /* its bit in the settings' flags from 8 on */
+    /* 0x33 */ u8 kind2;
+    /* 0x34 */ u8 unk34;
+    /* 0x35 */ u8 unk35;
+    /* 0x36 */ u8 unk36;
+    /* 0x37 */ u8 unk37;
 } M032Speaker;
+
+/* A speaker's level entry */
+typedef struct M032SpeakerSetup {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 pad2[2];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 radius; /* 0: kind 2, else kind 0 */
+    /* 0x0C */ u8 scale;
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 flag;
+    /* 0x10 */ s16 yaw;
+    /* 0x12 */ s8 unk12;
+    /* 0x13 */ s8 unk13;
+} M032SpeakerSetup;
+
+/* The parts of the object header used here */
+typedef struct M032Header {
+    /* 0x00 */ f32 scale;
+    /* 0x04 */ u8 pad4[0xB4 - 0x4];
+    /* 0xB4 */ s16 unkB4;
+    /* 0xB6 */ s16 unkB6;
+    /* 0xB8 */ s16 unkB8;
+    /* 0xBA */ u8 unkBA;
+    /* 0xBB */ u8 padBB;
+    /* 0xBC */ f32 unkBC;
+    /* 0xC0 */ f32 unkC0;
+} M032Header;
+
+/* A model instance and its model, as used here */
+typedef struct M032Model {
+    /* 0x00 */ u8 pad0[0x4E];
+    /* 0x4E */ s8 unk4E;
+} M032Model;
+typedef struct M032Inst {
+    /* 0x0 */ M032Model *model;
+    /* 0x4 */ u8 pad4[0xA - 0x4];
+    /* 0xA */ s8 unkA;
+} M032Inst;
 
 typedef struct M032BobSetup {
     LevelObjectEntryCommon common;
@@ -74,7 +143,75 @@ extern Object *rl_m032_031CC;     /* the character the player is talking to */
 
 void func_m032_0241C(Object *obj, s16 sound, s8 variants);
 
+extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
+                          f32 arg8, f32 arg9, f32 arg10, s32 arg11);
+extern void func_8003D21C(M032Inst *inst, M032Model *model, Object *obj, f32 arg3, f32 arg4);
+extern s32 rl_m032_01D2C(M032Speaker *st);
+extern s32 rl_m032_01DD8(M032Speaker *st);
+extern f32 rl_m032_031D0; /* .rodata (still assembly) */
+extern f32 rl_m032_031D4;
+
+/* The speaker's init: its place, reach and lines (by its object ID), animation and settings flag */
+#ifdef NON_MATCHING
+/* 7 diffs: after the first call the ROM keeps the header pointer in v1, C in v0 */
+void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
+    M032Speaker *st = obj->unk68;
+    M032Lines *l;
+    M032Pose *pose;
+    f32 r;
+    M032Inst *inst;
+    M032Model *model;
+
+    st->yaw = obj->trans.rotation.y_rotation;
+    st->x = setup->x;
+    st->y = setup->y;
+    st->z = setup->z;
+    st->radius = setup->radius;
+    r = st->radius;
+    st->radiusSq = r * r * rl_m032_031D0;
+    st->unk18 = setup->unkD;
+    st->unk1C = setup->unk12 * 2;
+    st->unk20 = setup->unk13 * 2;
+    st->unk30 = 0;
+    st->unk24 = 0.0f;
+    st->unk31 = setup->unkE;
+    obj->trans.rotation.y_rotation = setup->yaw;
+    obj->trans.scale = ((M032Header *) obj->header)->scale * setup->scale * rl_m032_031D4;
+    l = rl_m032_02F24;
+    while (l->objectID != setup->objectID && l->objectID >= 0) {
+        l++;
+    }
+    pose = l->poses;
+    obj->trans.rotation.y_rotation += l->yaw;
+    if (setup->radius != 0) {
+        st->kind = 0;
+    } else {
+        st->kind = 2;
+    }
+    st->unk28 = pose[st->kind].unk8;
+    st->flag = setup->flag;
+    st->unk34 = 0;
+    st->unk35 = 0;
+    st->unk36 = 0;
+    st->unk37 = 0;
+    st->kind2 = st->kind;
+    obj_anim_set(obj, pose[st->kind].anim, 0.0f);
+    func_80079D1C(obj, 0x100, ((M032Header *) obj->header)->unkBA, 1, ((M032Header *) obj->header)->unkB4,
+                  ((M032Header *) obj->header)->unkB6, ((M032Header *) obj->header)->unkB8,
+                  ((M032Header *) obj->header)->unkBC, ((M032Header *) obj->header)->unkC0, -1.0f, 1.0f, 0x11);
+    inst = *(M032Inst **) obj->modelInstances;
+    model = inst->model;
+    st->unk1 = rl_m032_01D2C(st);
+    *(s32 *) &obj->state[4] = rl_m032_01DD8(st);
+    if (model->unk4E > 0) {
+        func_8003D21C(inst, model, obj, 1.0f, 0.0f);
+        inst->unkA = 0;
+    }
+    rl_m032_031CC = NULL;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_00000);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_002E8);
 
