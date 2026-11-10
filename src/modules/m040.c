@@ -61,7 +61,8 @@ typedef struct M040Stats {
     /* 0x8D */ u8 pad8D[0x90 - 0x8D];
     /* 0x90 */ s32 time;
     /* 0x94 */ u16 unk94[4]; /* one per player */
-    /* 0x9C */ u8 pad9C[0xA0 - 0x9C];
+    /* 0x9C */ u16 bonus; /* the bonus marks earned (up to 50000) */
+    /* 0x9E */ u8 pad9E[0xA0 - 0x9E];
 } M040Stats;
 
 extern Gfx *D_800FF398;
@@ -526,7 +527,158 @@ void func_m040_0193C(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_01D60);
+extern char rl_m040_0252C[]; /* "%d" (.rodata, still assembly) */
+extern f32 rl_m040_02558;    /* 0.87f */
+
+/* Slides the table of the players' bonus marks in or out and draws them in rows of four (called from 0019C) */
+void func_m040_01D60(s32 updateRate) {
+    s32 i;
+    s32 j;
+    s32 x;
+    s32 rowY;
+    s32 y;
+    s32 place;
+    s32 done;
+    s32 rows;
+    s32 count;
+    s32 maxed;
+    u32 *colour;
+    UNUSED u8 pad[0x84];
+    M040Sprite sprite;
+    M040Stats *stats;
+    char buf[0x100];
+
+    sUnk8[sUnk4] = 0x17;
+    sprite.trans.rotation.z_rotation = 0;
+    sprite.trans.rotation.x_rotation = 0;
+    sprite.trans.rotation.y_rotation = 0;
+    done = FALSE;
+    sprite.trans.z_position = 0.0f;
+    sprite.trans.scale = 0.75f;
+    if (sUnk5 != 0) {
+        sPos[0] -= updateRate * 16;
+        sPos[1] += updateRate * 16;
+        if (sPos[0] < -220) {
+            sUnk4 = sUnk5;
+            done = TRUE;
+            sUnk5 = 0;
+        }
+    } else {
+        sPos[0] += updateRate * 16;
+        if (sPos[0] > 80) {
+            sPos[0] = 80;
+        }
+        sPos[1] -= updateRate * 16;
+        if (sPos[1] < 80) {
+            sPos[1] = 80;
+        } else {
+            sMarks[0] = 0;
+            sMarks[1] = 0;
+            sMarks[2] = 0;
+            sMarks[3] = 0;
+        }
+    }
+    maxed = FALSE;
+    if (sMarks[0] < D_800FF1C0[0]->bonus && sPos[0] == 80 && sPos[1] == 80) {
+        sUnk4A -= updateRate;
+        if (sUnk4A < 0) {
+            sUnk4A += 7;
+            for (i = 0; i < D_800A4FD0; i++) {
+                if (sMarks[i] < D_800FF1C0[i]->bonus) {
+                    sMarks[i]++;
+                    if (sMarks[i] > 20) {
+                        maxed = TRUE;
+                        sMarks[i] = D_800FF1C0[i]->bonus;
+                    }
+                }
+            }
+            func_80001248(0x1C3, 0);
+        }
+        if (maxed) {
+            func_80001248(0x47, 0);
+        }
+    }
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    func_8006FC54(2);
+    rowY = 100;
+    place = 0;
+    for (i = 0; i < D_800A4FD0; rowY += 26) {
+        y = rowY;
+        stats = D_800FF1C0[i];
+        x = sPos[i & 1] + 30;
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.y_position = y;
+        sprite.frame = place;
+        sprite.trans.scale = 0.75f;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x82], 0, 255);
+        x += 30;
+        sprite.trans.x_position = x;
+        sprite.frame = stats->player;
+        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
+        func_m006_0107C(&x, &y);
+        x += 15;
+        func_800639E8(buf, rl_m040_0252C, sMarks[i]);
+        func_8006FCA8(&D_800FF398, x, rowY, buf, 0);
+        rows = stats->bonus / 4;
+        if (stats->bonus % 4) {
+            rows++;
+        }
+        if (rows >= 6) {
+            rows = 5;
+            x += 35;
+        }
+        count = sMarks[i];
+        x += rows * 9 + 21;
+        y = rowY + 5;
+        func_m006_010D8(&x, &y);
+        sprite.trans.x_position = x;
+        sprite.trans.scale = 1.0;
+        sprite.trans.y_position = y;
+        if (rows != 0) {
+            colour = &sColours[rows];
+            do {
+                gDPSetColor(D_800FF398++, G_SETPRIMCOLOR, *colour);
+                j = 0;
+                sprite.frame = 0.0f;
+                sprite.trans.y_position = y;
+                if (count > 0) {
+                    do {
+                        if (j == 3 || count == 1) {
+                            sprite.frame = 1.0f;
+                        }
+                        render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x85],
+                                                    0, 255);
+                        j++;
+                        sprite.trans.y_position += 4.0f;
+                        count--;
+                    } while (j < 4 && count > 0);
+                }
+                sprite.trans.x_position -= 9.0f;
+                colour--;
+            } while (colour != sColours);
+        }
+        if (sMarks[i] > 20) {
+            sprite.trans.y_position -= 10.0f;
+            sprite.trans.x_position -= 4.0f;
+            sprite.trans.scale = rl_m040_02558;
+            render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x86], 0, 255);
+        }
+        if (!done) {
+            if (func_80043510(stats->player) & 0x8000) {
+                sUnk5 = 5;
+            }
+            if (func_80043510(stats->player) & 0x4000) {
+                sUnk5 = 3;
+            }
+        }
+        i++;
+        if (i < D_800A4FD0 && stats->bonus != D_800FF1C0[i]->bonus) {
+            place = i;
+        }
+    }
+}
 
 s32 *func_m040_024C0(void) {
     return sTiltList;
