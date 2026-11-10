@@ -1424,7 +1424,58 @@ void func_m003_03628(void) {
     }
 }
 
+extern f32 rl_m003_199FC; /* .rodata (still assembly): how fast the first member heads for the way point */
+
+/*
+ * Puts the troop's first member back on the way point it came from (the high byte of unk3C), then heads it
+ * for the next one (the low byte) if that is still out of reach
+ */
+#ifdef NON_MATCHING
+/* 7 diffs, float registers only: the ROM's multiplier looks like a literal (CSE'd, f14), which needs m003's .rodata in C */
+void func_m003_038D4(void) {
+    s32 prev;
+    M003Home *h;
+    Object *first;
+    M003Node *node;
+    f32 k;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+
+    h = sHomeData;
+    prev = (u16) h->unk3C >> 8;
+    if (prev != 0) {
+        first = h->first;
+        node = &D_800FEA9C[prev];
+        func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z);
+        first->trans.x_position = node->x;
+        first->trans.y_position = node->y;
+        first->trans.z_position = node->z;
+        first->velocity.x = 0.0f;
+        first->velocity.y = 0.0f;
+        first->velocity.z = 0.0f;
+        rl_m003_03CAC(first);
+        node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
+        if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) <= node->unk19) {
+            sHomeData->unk33 = 0;
+        }
+        if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) < node->unk19) {
+            k = rl_m003_199FC;
+            sHomeData->unk33 = 30;
+            sHomeData->unk3E = 10;
+            dx = node->x - first->trans.x_position;
+            dy = node->y - first->trans.y_position;
+            dz = node->z - first->trans.z_position;
+            first->velocity.x = dx * k;
+            first->velocity.y = dy * k;
+            first->velocity.z = dz * k;
+            rl_m003_03CAC(first);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_038D4);
+#endif
 
 extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
