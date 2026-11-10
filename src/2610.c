@@ -179,7 +179,23 @@ s32 func_80001EE8(void) {
 
 INCLUDE_ASM("asm/nonmatchings/2610", func_80001EF8);
 
-INCLUDE_ASM("asm/nonmatchings/2610", func_80002484);
+extern s32 D_800A07FC; // DKR: firstTime (a static set to 1)
+u32 osAiGetLength(void);
+
+/**
+ * From the Diddy Kong Racing decompilation (CC0 1.0), src/audiomgr.c (__amHandleDoneMsg):
+ * checks for the audio interface running out of samples (the report is stubbed out).
+ * JFG: takes no arguments.
+ */
+void func_80002484(void) {
+    s32 samplesLeft;
+    s32 *firstTime = &D_800A07FC; // fake? a plain global shares one address register
+
+    samplesLeft = osAiGetLength() >> 2;
+    if (samplesLeft == 0 && !*firstTime) {
+        *firstTime = 0;
+    }
+}
 
 extern AudioMgrHandle dmaState;
 extern u32 audFrameCt;
