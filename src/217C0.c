@@ -925,7 +925,7 @@ void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *
             if (shade->unkE == 1) {
                 func_800229E0(inst->unk4, model->unk6C, light, D_800A1010, model->unk68);
             } else if (shade->unkE == 2) {
-                func_80022BC4(inst->unk4, model->unk6C, D_800A1010, n, light, shade->pad30, model->unk68);
+                func_80022BC4(inst->unk4, model->unk6C, D_800A1010, n, light, &shade->lights[1], model->unk68);
             } else {
                 func_80022E98(inst->unk4, model->unk6C, light, model->unk68, D_800A1010, n, shade->unkE);
             }
