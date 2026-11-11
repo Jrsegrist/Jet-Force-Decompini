@@ -385,6 +385,7 @@ void __amHandleDoneMsg(void) {
 
     samplesLeft = osAiGetLength() >> 2;
     if (samplesLeft == 0 && !*firstTime) {
+        stubbed_printf("audio: ai out of samples\n");
         *firstTime = 0;
     }
 }
@@ -398,7 +399,7 @@ extern OSIoMesg audDMAIOMesgBuf[];
 /* Returns a DMA'd sample buffer for a ROM address, starting a new DMA when no buffer holds it (0x800024C4). */
 /**
  * From the Diddy Kong Racing decompilation (CC0 1.0), src/audiomgr.c (__amDMA): the sample DMA
- * callback. JFG: no debug print when no buffer is free.
+ * callback.
  */
 s32 __amDMA(s32 addr, s32 len, UNUSED void *state) {
     s32 addrEnd;
@@ -430,6 +431,7 @@ s32 __amDMA(s32 addr, s32 len, UNUSED void *state) {
         lastDmaPtr = dmaState.firstUsed;
     }
     if (!dmaPtr) {
+        stubbed_printf("OH DEAR - No audio DMA buffers left\n");
         return (int) osVirtualToPhysical(lastDmaPtr->ptr) + delta;
     }
     dmaState.firstFree = (AMDMABuffer *) dmaPtr->node.next;
@@ -479,7 +481,9 @@ void __clearAudioDMA(void) {
     AMDMABuffer *dmaPtr, *nextPtr;
 
     for (i = 0; i < nextDMA; i++) {
-        osRecvMesg(&audDMAMessageQ, (OSMesg *) &iomsg, OS_MESG_NOBLOCK);
+        if (osRecvMesg(&audDMAMessageQ, (OSMesg *) &iomsg, OS_MESG_NOBLOCK) == -1) {
+            stubbed_printf("Dma not done\n");
+        }
     }
     dmaPtr = dmaState.firstUsed;
     while (dmaPtr) {
