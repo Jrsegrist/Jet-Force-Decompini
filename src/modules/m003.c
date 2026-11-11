@@ -16,7 +16,7 @@ typedef struct M003Member {
     /* 0x00 */ u32 pad0_8 : 4;
     /* 0x00 */ u32 unk0_21 : 1;
     /* 0x00 */ u32 unk0_20 : 1;
-    /* 0x00 */ u32 pad0_2 : 1;
+    /* 0x00 */ u32 placed : 1; /* its level entry gave a place (0DF84) */
     /* 0x00 */ u32 unk0_18 : 1; /* (0E9F0: moved by 0E3CC) */
     /* 0x00 */ u32 unk0_17 : 1; /* (0A850: the member moves five times as fast) */
     /* 0x00 */ u32 pad0_7 : 2;
@@ -46,7 +46,8 @@ typedef struct M003Member {
     /* 0x0B */ u8 mission;
     /* 0x0C */ u8 padC[0x10 - 0xC];
     /* 0x10 */ s16 unk10;
-    /* 0x12 */ u8 pad12[0x15 - 0x12];
+    /* 0x12 */ u8 pad12[0x14 - 0x12];
+    /* 0x14 */ u8 troop; /* its troop's tag (0DF84) */
     /* 0x15 */ u8 unk15;
     /* 0x16 */ u8 pad16[0x19 - 0x16];
     /* 0x19 */ u8 animSet;
@@ -75,7 +76,8 @@ typedef struct M003Member {
     /* 0x54 */ s8 event; /* the event it heard (sEvents), -1: none */
     /* 0x55 */ u8 unk55;
     /* 0x56 */ s8 unk56;
-    /* 0x57 */ u8 pad57[0x5A - 0x57];
+    /* 0x57 */ u8 unk57; /* from its entry, or its home's unk8C counted up (0DF84) */
+    /* 0x58 */ u8 pad58[0x5A - 0x58];
     /* 0x5A */ u16 lostParts; /* bit per body part */
     /* 0x5C */ u8 pad5C[0x60 - 0x5C];
     /* 0x60 */ f32 unk60; /* the body's animation frame */
@@ -3500,7 +3502,91 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D360);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D810);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0DF84);
+/* A member's level entry */
+typedef struct M003MemberEntry {
+    /* 0x00 */ u8 pad0[0x4];
+    /* 0x04 */ s16 x; /* all three 0: no place given */
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 yaw;   /* the way it is thrown, in 256ths of a turn */
+    /* 0x0B */ u8 pitch; /* and how steeply */
+    /* 0x0C */ u8 speed; /* and how fast */
+    /* 0x0D */ u8 rotY;  /* its rotation, in 256ths of a turn */
+    /* 0x0E */ u8 rotX;
+    /* 0x0F */ u8 rotZ;
+    /* 0x10 */ u8 model;
+    /* 0x11 */ u8 troop; /* its troop's tag, 0: the nearest troop's */
+    /* 0x12 */ s16 unk12; /* (member unk38-40) */
+    /* 0x14 */ s16 unk14;
+    /* 0x16 */ s16 unk16;
+    /* 0x18 */ u8 unk18;
+} M003MemberEntry;
+
+extern Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, u8 type);
+extern void rl_m003_0D360(Object *home); /* still assembly */
+
+/*
+ * A member is set up from its level entry: its troop, place, throw and rotation (an old-style definition:
+ * 1477C calls it with nothing)
+ */
+void func_m003_0DF84(obj, entry)
+    Object *obj;
+    M003MemberEntry *entry;
+{
+    f32 c;
+
+    sMember = (sObj = obj)->unk68;
+    if (entry->x != 0 || entry->y != 0 || entry->z != 0) {
+        sMember->placed = TRUE;
+        if (entry->troop != 0) {
+            sHome = (Object *) troop_find_by_tag((s16) entry->troop);
+            sMember->unk38 = entry->unk12;
+            sMember->unk3C = entry->unk14;
+            sMember->unk40 = entry->unk16;
+        } else {
+            sHome = obj_find_nearest_of_type(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
+                                             0x17);
+            if (sHome != NULL) {
+                sHomeData = sHome->unk68;
+                sMember->troop = sHomeData->unk64;
+                entry->troop = sHomeData->unk64;
+            }
+        }
+        if (sHome != NULL) {
+            sMember->home = sHome;
+            sHomeData = sHome->unk68;
+            sObj->modelIndex = entry->model;
+        }
+    } else {
+        sMember->placed = FALSE;
+    }
+    if (sHome != NULL && sHomeData->unk33 == 0x1F && !sMember->unk0_4) {
+        sObj->velocity.x = 0.0f;
+        sObj->velocity.y = 0.0f;
+        sObj->velocity.z = 0.0f;
+        func_m003_03470(sObj);
+    } else {
+        sObj->trans.x_position = entry->x;
+        sObj->trans.y_position = entry->y;
+        sObj->trans.z_position = entry->z;
+        c = func_80049C30(entry->pitch << 8);
+        sObj->velocity.x = func_80049C30(entry->yaw << 8) * c * (u32) entry->speed;
+        sObj->velocity.y = func_80049C34(entry->pitch << 8) * (u32) entry->speed;
+        c = func_80049C30(entry->pitch << 8);
+        sObj->velocity.z = func_80049C34(entry->yaw << 8) * c * (u32) entry->speed;
+        rl_m003_03CAC(sObj);
+        sObj->trans.rotation.y_rotation = entry->rotY << 8;
+        sObj->trans.rotation.x_rotation = entry->rotX << 8;
+        sObj->trans.rotation.z_rotation = entry->rotZ << 8;
+    }
+    if (sMember->placed) {
+        sMember->unk57 = entry->unk18;
+    } else {
+        sMember->unk57 = sHomeData->unk8C;
+        sHomeData->unk8C++;
+    }
+    rl_m003_0D360(sHome);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0E3CC);
 
