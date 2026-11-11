@@ -286,6 +286,8 @@ segments:
       - [0xACF80, .rodata, 40240]
       - [0xAD030, .rodata, 432D0]
       - [0xAD040, rodata]
+      - [0xAD0D0, .rodata, 45750]
+      - [0xAD230, rodata]
       - [0xAD540, .rodata, 4BC70]
       - [0xAD550, .rodata, 50300]
       - [0xAD8D0, .rodata, 51AD0]
