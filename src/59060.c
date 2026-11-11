@@ -464,8 +464,6 @@ extern Gfx D_800A58E8[];
 void fb_size(s32 *width, s32 *height);
 FontTexture *set_animated_texture_header(FontTexture *texHead, s32 offset);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 diffs: the texture-load DMA command's two words are stored w0 then w1, the ROM stores w1 first */
 /*
  * JFG: draws the number n with font (8 or 9: a menu asset holding the digits 1-9, 0 side by side) right
  * aligned at (x, y) from the screen centre, in colour, then pads it with zeros in padColour to digits.
@@ -516,8 +514,8 @@ void func_80058EF0(s32 n, s32 x, s32 y, s32 font, s32 digits, s32 colour, s32 pa
         {
             Gfx *_g = sMenuGfx++; // gDkrDmaDisplayList, the count read after the pointer
             count = tex->numberOfCommands - 1;
-            _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((count), 16, 8) | _SHIFTL((count * 8), 0, 16));
-            _g->words.w1 = (u32) cmd + 0x80000000;
+            // both words on one line: IDO schedules by line (the ROM stores w1 first)
+            _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((count), 16, 8) | _SHIFTL((count * 8), 0, 16)); _g->words.w1 = (u32) cmd + 0x80000000;
         }
         gDPSetColor(sMenuGfx++, G_SETPRIMCOLOR, colour);
         i = 0;
@@ -538,9 +536,6 @@ void func_80058EF0(s32 n, s32 x, s32 y, s32 font, s32 digits, s32 colour, s32 pa
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058EF0);
-#endif
 
 typedef struct MenuBox {
     s16 x1, y1, x2, y2;

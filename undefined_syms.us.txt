@@ -543,6 +543,7 @@ gSnowVertOffset = 0x80100890;
 D_800A5DE8 = 0x800A5DE8;
 gSnowTriCount = 0x80100894;
 gWeatherAssetTableLength = 0x800A5A10;
+D_800A58E8 = 0x800A58E8; /* 59060.c func_80058EF0: inside main.data's D_800A58A0 */
 
 /* ---- 217C0.c ---- */
 func_800213A8 = light_update_all;
