@@ -774,12 +774,10 @@ typedef struct AnimPathData {
 void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut);
 void anim_path_link_nodes(u8 index);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: same code but register choice (count, slot and flags) and some load scheduling differ */
 /* JFG: create the sequence's paths (count in the top byte of its first word, then id << 24 | offset per path). */
 void func_80077468(void) {
     u32 *entry = (u32 *) D_800A74BC;
-    s32 numPaths = (*entry++ >> 24) & 0xFF;
+    u32 header;
     s32 count;
     u32 e;
     AnimPathData *data;
@@ -788,13 +786,14 @@ void func_80077468(void) {
     u8 flags;
     AnimPath *path;
 
+    header = *entry++;
+    count = (header >> 24) & 0xFF;
     sequence_commands_begin();
-    count = numPaths;
     while (count > 0) {
         e = *entry++;
         data = (AnimPathData *) ((u8 *) D_800A74BC + (e & 0xFFFFFF));
-        D_801045B0[slot = (e >> 24) & 0xFF] =
-            mempool_alloc_safe(data->numNodes * sizeof(AnimNode) + sizeof(AnimPath), 0x4080F0FF);
+        slot = (e >> 24) & 0xFF;
+        D_801045B0[slot] = mempool_alloc_safe(data->numNodes * sizeof(AnimNode) + sizeof(AnimPath), 0x4080F0FF);
         path = D_801045B0[slot];
         index = slot;
         if (path != NULL) {
@@ -803,14 +802,14 @@ void func_80077468(void) {
             } else {
                 path->nodes = NULL;
             }
-            path->obj = NULL;
             path->unk2 = data->unk2;
+            path->obj = NULL;
             path->unk0 = data->unk1;
             path->unk4 = data->unk4;
             path->unk6 = data->unk6;
+            path->unk7 = data->unk7;
             path->flags = 0;
-            flags = data->unk7;
-            path->unk7 = flags;
+            flags = path->unk7;
             if (flags & 0x80) {
                 path->flags = 0x80;
                 path->unk7 = flags & 0x7F;
@@ -823,9 +822,6 @@ void func_80077468(void) {
         count--;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80077468);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077614);
 

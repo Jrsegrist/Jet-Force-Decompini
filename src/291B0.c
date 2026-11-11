@@ -673,23 +673,20 @@ void func_80029B78(void) {
     D_800A11B4 = 0;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target keeps the `i != 0` guards of the constant-count loops (and other registers) */
 /* JFG: add a zone: the first unused one, or (all 16 in use) the one with the smallest value. */
 void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7) {
     Zone *zone = D_800F6B60;
     Zone *other;
     s32 i;
 
+    i = 15; // before the test: IDO then keeps both loops' `15 != 0` guards
     if (D_800A11B4 < 16) {
-        i = 15;
         while (i-- && zone->unk1C != 0) {
             zone++;
         }
         D_800A11B4++;
     } else {
         other = &D_800F6B60[1];
-        i = 15;
         while (i--) {
             if (other->value < zone->value) {
                 zone = other;
@@ -702,16 +699,13 @@ void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6,
     zone->z = z;
     zone->size = size;
     zone->unk10 = 16384.0f / size;
-    zone->unk1E = 1;
-    zone->value = value;
     zone->unk1C = time * 60.0f;
+    zone->value = value;
     zone->unk18 = value / zone->unk1C;
+    zone->unk1E = 1;
     zone->unk1F = arg6;
     zone->unk20 = arg7;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80029BA4);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/291B0", func_80029CFC);
 
