@@ -162,7 +162,7 @@ static void find_targets(Object *obj, M091Fish *fish) {
 INCLUDE_ASM("asm/nonmatchings/modules/m091", func_m091_00000);
 #endif
 
-#ifdef NON_MATCHING
+extern f32 rl_m091_00F38; /* .rodata (still assembly): the scale unit, 0.01 */
 
 void func_m091_0031C(Object *obj, M091Setup *setup, s32 arg2) {
     M091Fish *fish = obj->unk68;
@@ -172,7 +172,7 @@ void func_m091_0031C(Object *obj, M091Setup *setup, s32 arg2) {
     s16 a;
     s16 i;
 
-    obj->trans.scale = setup->scale * FISH_SCALE_UNIT;
+    obj->trans.scale = setup->scale * rl_m091_00F38;
     fish->side = func_80048E2C(0, 7);
     max = 0;
     fish->swimming = setup->swimming << 8;
@@ -215,13 +215,10 @@ void func_m091_0031C(Object *obj, M091Setup *setup, s32 arg2) {
         fish->inWater = 1;
     }
     fish->damage = setup->damage << 8;
-    fish->timer = 0;
     fish->biteDelay = setup->biteDelay * 60;
+    fish->timer = 0;
     fish->leaderTimer = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m091", func_m091_0031C);
-#endif
 
 #ifdef NON_MATCHING
 void func_m091_005C4(Object *obj, s32 updateRate) {

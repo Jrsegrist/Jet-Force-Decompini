@@ -41,12 +41,16 @@ typedef struct M107Entry {
 
 /* The colour cycle of 55130.c (colour_cycle_init) */
 typedef struct M107ColourCycle {
-    /* 0x0 */ u8 data[0x10];
+    /* 0x0 */ u8 pad0[8];
+    /* 0x8 */ u8 r; /* the current colour */
+    /* 0x9 */ u8 g;
+    /* 0xA */ u8 b;
+    /* 0xB */ u8 padB[0x10 - 0xB];
 } M107ColourCycle;
 
 /* The shield's data (its object's unk68) */
 typedef struct M107Shield {
-    /* 0x000 */ u8 pad0[0x438];
+    /* 0x000 */ Vertex verts[108]; /* the three rings of 18, double-buffered (54 a buffer) */
     /* 0x438 */ s16 radius;
     /* 0x43A */ s16 height;
     /* 0x43C */ s16 unk43C[3];
@@ -67,7 +71,9 @@ typedef struct M107Shield {
     /* 0x4C2 */ s16 timer;
     /* 0x4C4 */ f32 scaleX;
     /* 0x4C8 */ f32 scaleY;
-    /* 0x4CC */ u8 pad4CC[0x4F0 - 0x4CC];
+    /* 0x4CC */ f32 ringX[3]; /* where each ring's spark is */
+    /* 0x4D8 */ f32 ringY[3];
+    /* 0x4E4 */ f32 ringZ[3];
     /* 0x4F0 */ s16 angle[3];
     /* 0x4F6 */ s16 buffer;
     /* 0x4F8 */ s32 lights[3];
@@ -262,7 +268,150 @@ void func_m107_0027C(Object *obj, M107Entry *entry) {
 INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_0027C);
 #endif
 
+/* A light as the shield moves it (func_800210A4's) */
+typedef struct M107Light {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ f32 x;
+    /* 0x1C */ f32 y;
+    /* 0x20 */ f32 z;
+} M107Light;
+
+extern void func_800212D0(s32 light);                    /* turns a light off */
+extern void func_800212E4(s32 light);                    /* turns it on */
+extern void light_colour_set(s32 light, u8 r, u8 g, u8 b);
+extern void light_intensity_set(M107Light *light, u8 alpha);
+extern void func_80003614(s32 sound);                    /* stops a sound */
+extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a sound */
+extern void audspat_point_set_volume(s32 sound, u8 volume);
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves an object */
+extern void func_80057D58(M107ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
+
+/* The shield's control: follows its owner, fades out at the end, turns the rings and builds their vertices */
+#ifdef NON_MATCHING
+/*
+ * Five instructions: in the vertex loop the height load and the y sum get other registers (ROM: y in v0).
+ * The pad fills a frame word the ROM has (a temporary of the original?).
+ */
+void func_m107_005C0(Object *obj, s32 updateRate) {
+    M107Shield *shield = obj->unk68;
+    Object *owner = shield->owner;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 alpha;
+    s32 index;
+    s16 angle;
+    s16 x;
+    s16 z;
+    s16 y;
+    s16 *c;
+    f32 r;
+    f32 h;
+    Vertex *v;
+    M107Light *light;
+    UNUSED s32 pad;
+
+    if (shield->timer > 0) {
+        shield->timer -= updateRate;
+        if (shield->timer <= 0) {
+            obj->opacity = 0;
+            for (i = 0; i < 3; i++) {
+                if (shield->lights[i] != 0) {
+                    func_800212D0(shield->lights[i]);
+                }
+            }
+            if (shield->sound != 0) {
+                func_80003614(shield->sound);
+            }
+        } else {
+            if (shield->sound == 0) {
+                func_80003410(0xF9, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1,
+                              &shield->sound);
+            }
+            for (i = 0; i < 3; i++) {
+                if (shield->lights[i] != 0) {
+                    func_800212E4(shield->lights[i]);
+                }
+            }
+            for (i = 0; i < 3; i++) {
+                shield->unk458[i] += shield->unk45E[i] * updateRate;
+                shield->unk458[i] &= 0x1FFF;
+                shield->unk43C[i] += shield->unk442[i] * updateRate;
+                shield->unk464[i] += shield->unk46A[i] * updateRate;
+                r = func_80049C34(shield->unk464[i]);
+                shield->unk47C[i] = shield->scale[i] * r + 1.0f;
+                func_80057D58(&shield->cycles[i], updateRate);
+                if (shield->lights[i] != 0) {
+                    light_colour_set(shield->lights[i], shield->cycles[i].r, shield->cycles[i].g, shield->cycles[i].b);
+                }
+            }
+            func_80009A04(obj, owner->trans.x_position - obj->trans.x_position,
+                          owner->trans.y_position - obj->trans.y_position,
+                          owner->trans.z_position - obj->trans.z_position);
+            func_800035E8(shield->sound, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+            alpha = (shield->timer * 254) / func_80005064(120);
+            if (alpha >= 255) {
+                obj->opacity = 254;
+            } else {
+                obj->opacity = alpha;
+            }
+            audspat_point_set_volume(shield->sound, obj->opacity >> 1);
+            for (i = 0; i < updateRate; i++) {
+                shield->height += (shield->targetHeight - shield->height) >> 2;
+                shield->scaleX += (shield->targetScaleX - shield->scaleX) * 0.125f;
+                shield->scaleY += (shield->targetScaleY - shield->scaleY) * 0.125f;
+                for (j = 0; j < 3; j++) {
+                    shield->angle[j] += updateRate << 8;
+                }
+            }
+            shield->buffer ^= 1;
+            v = &shield->verts[shield->buffer * 54];
+            for (i = 0; i < 3; i++) {
+                r = shield->unk47C[i] * shield->scaleX;
+                angle = shield->unk43C[i];
+                index = shield->unk458[i] >> 8;
+                h = shield->radius * shield->scaleY;
+                for (j = 0; j < 9; j++) {
+                    index = (shield->unk448[i] + index) & 0x1F;
+                    c = sCircle[index];
+                    angle += shield->unk44E[i];
+                    x = c[0] * r;
+                    z = c[1] * r;
+                    y = (s32) (func_80049C34(angle) * h) + shield->height;
+                    v[0].x = x;
+                    v[0].y = y + 40;
+                    v[0].z = z;
+                    v[0].r = 255;
+                    v[0].g = 255;
+                    v[0].b = 255;
+                    v[0].a = 128;
+                    v[1].x = x;
+                    v[1].y = y - 40;
+                    v[1].z = z;
+                    v[1].r = 255;
+                    v[1].g = 255;
+                    v[1].b = 255;
+                    v[1].a = 128;
+                    v += 2;
+                }
+                shield->ringX[i] = (s16) (c[0] * r * obj->trans.scale) + obj->trans.x_position;
+                shield->ringY[i] =
+                    (s16) (func_80049C34(angle) * h + shield->height) * obj->trans.scale + obj->trans.y_position;
+                shield->ringZ[i] = (s16) (c[1] * r * obj->trans.scale + obj->trans.z_position);
+                light = (M107Light *) shield->lights[i];
+                if (light != NULL) {
+                    light->x = shield->ringX[i];
+                    light->y = shield->ringY[i];
+                    light->z = shield->ringZ[i];
+                    light_intensity_set(light, obj->opacity);
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_005C0);
+#endif
 
 void func_m107_00D08(Object *obj, f32 scaleX, f32 scaleY, s32 height) {
     M107Shield *shield = obj->unk68;
@@ -272,6 +421,79 @@ void func_m107_00D08(Object *obj, f32 scaleX, f32 scaleY, s32 height) {
     shield->targetScaleY = scaleY;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_00D24);
+/* What obj->header points at, as far as the shield uses it */
+typedef struct M107Header {
+    /* 0x00 */ u8 pad0[0xAC];
+    /* 0xAC */ void **textures; /* the rings' texture, then the sparks' */
+} M107Header;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m107", rodata);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* sets a texture */
+extern void func_80041CA0(Gfx **dl, Mtx **mtx, Object *obj, f32 scale, f32 arg4);
+extern void func_80041DC0(Gfx **dl);
+extern void func_8005600C(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
+extern void func_80056064(void);
+extern void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj, void *sprite, s32 flags,
+                                    s32 alpha);
+
+#define gSPVertexM107(pkt, v, n) \
+    gDma1p(pkt, G_VTX, v, ((n) << 3) + ((n) << 1) + 8, (n) << 3 | ((u32) (v) & 6))
+
+/* Draws the shield: the three rings, each in its colour, then a spark on each */
+void func_m107_00D24(Gfx **dList, Mtx **mtxList, Vertex **vtxList, Object *obj) {
+    M107Shield *shield;
+    Object *owner;
+    Gfx *dl;
+    Mtx *mtx;
+    Vertex *vtx;
+    s32 i;
+    Vertex *verts;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 scale;
+
+    if (obj->opacity != 0) {
+        dl = *dList;
+        mtx = *mtxList;
+        vtx = *vtxList;
+        shield = obj->unk68;
+        owner = shield->owner;
+        obj->trans.x_position = owner->trans.x_position;
+        obj->trans.y_position = owner->trans.y_position;
+        obj->trans.z_position = owner->trans.z_position;
+        func_80055C00(&dl, ((M107Header *) obj->header)->textures[0], 0x207, 0);
+        gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, obj->opacity);
+        verts = &shield->verts[shield->buffer * 54];
+        for (i = 0; i < 3; i++) {
+            func_80041CA0(&dl, &mtx, obj, 1.0f, 0.0f);
+            gDPSetEnvColor(dl++, shield->cycles[i].r, shield->cycles[i].g, shield->cycles[i].b, obj->opacity);
+            gSPVertexM107(dl++, (u8 *) verts + 0x80000000, 18);
+            gSPPolygon(dl++, (u8 *) sTriangles + 0x80000000, 16, 1);
+            verts += 18;
+            func_80041DC0(&dl);
+        }
+        x = obj->trans.x_position;
+        y = obj->trans.y_position;
+        z = obj->trans.z_position;
+        scale = obj->trans.scale;
+        obj->trans.scale = 0.6f;
+        for (i = 0; i < 3; i++) {
+            obj->trans.rotation.z_rotation = shield->angle[i];
+            obj->trans.x_position = shield->ringX[i];
+            obj->trans.y_position = shield->ringY[i];
+            obj->trans.z_position = shield->ringZ[i];
+            func_8005600C(255, 255, 255, shield->cycles[i].r, shield->cycles[i].g, shield->cycles[i].b);
+            render_sprite_billboard(&dl, &mtx, &vtx, obj, ((M107Header *) obj->header)->textures[1], 0x206,
+                                    obj->opacity);
+        }
+        func_80056064();
+        obj->trans.x_position = x;
+        obj->trans.y_position = y;
+        obj->trans.z_position = z;
+        obj->trans.scale = scale;
+        obj->trans.rotation.z_rotation = 0;
+        *dList = dl;
+        *mtxList = mtx;
+        *vtxList = vtx;
+    }
+}
