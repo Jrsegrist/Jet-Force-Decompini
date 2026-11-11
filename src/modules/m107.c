@@ -268,7 +268,146 @@ void func_m107_0027C(Object *obj, M107Entry *entry) {
 INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_0027C);
 #endif
 
+/* A light as the shield moves it (func_800210A4's) */
+typedef struct M107Light {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ f32 x;
+    /* 0x1C */ f32 y;
+    /* 0x20 */ f32 z;
+} M107Light;
+
+extern void func_800212D0(s32 light);                    /* turns a light off */
+extern void func_800212E4(s32 light);                    /* turns it on */
+extern void light_colour_set(s32 light, u8 r, u8 g, u8 b);
+extern void light_intensity_set(M107Light *light, u8 alpha);
+extern void func_80003614(s32 sound);                    /* stops a sound */
+extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a sound */
+extern void audspat_point_set_volume(s32 sound, u8 volume);
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves an object */
+extern void func_80057D58(M107ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
+
+/* The shield's control: follows its owner, fades out at the end, turns the rings and builds their vertices */
+#ifdef NON_MATCHING
+/* register allocation in the vertex loop (the y conversion and the height load get other temporaries) */
+void func_m107_005C0(Object *obj, s32 updateRate) {
+    M107Shield *shield = obj->unk68;
+    Object *owner = shield->owner;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 alpha;
+    s32 index;
+    s16 angle;
+    s16 x;
+    s16 z;
+    s32 y;
+    s16 *c;
+    f32 r;
+    f32 h;
+    Vertex *v;
+    M107Light *light;
+
+    if (shield->timer > 0) {
+        shield->timer -= updateRate;
+        if (shield->timer <= 0) {
+            obj->opacity = 0;
+            for (i = 0; i < 3; i++) {
+                if (shield->lights[i] != 0) {
+                    func_800212D0(shield->lights[i]);
+                }
+            }
+            if (shield->sound != 0) {
+                func_80003614(shield->sound);
+            }
+        } else {
+            if (shield->sound == 0) {
+                func_80003410(0xF9, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1,
+                              &shield->sound);
+            }
+            for (i = 0; i < 3; i++) {
+                if (shield->lights[i] != 0) {
+                    func_800212E4(shield->lights[i]);
+                }
+            }
+            for (i = 0; i < 3; i++) {
+                shield->unk458[i] += shield->unk45E[i] * updateRate;
+                shield->unk458[i] &= 0x1FFF;
+                shield->unk43C[i] += shield->unk442[i] * updateRate;
+                shield->unk464[i] += shield->unk46A[i] * updateRate;
+                r = func_80049C34(shield->unk464[i]);
+                shield->unk47C[i] = shield->scale[i] * r + 1.0f;
+                func_80057D58(&shield->cycles[i], updateRate);
+                if (shield->lights[i] != 0) {
+                    light_colour_set(shield->lights[i], shield->cycles[i].r, shield->cycles[i].g, shield->cycles[i].b);
+                }
+            }
+            func_80009A04(obj, owner->trans.x_position - obj->trans.x_position,
+                          owner->trans.y_position - obj->trans.y_position,
+                          owner->trans.z_position - obj->trans.z_position);
+            func_800035E8(shield->sound, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+            alpha = (shield->timer * 254) / func_80005064(120);
+            if (alpha >= 255) {
+                obj->opacity = 254;
+            } else {
+                obj->opacity = alpha;
+            }
+            audspat_point_set_volume(shield->sound, obj->opacity >> 1);
+            for (i = 0; i < updateRate; i++) {
+                shield->height += (shield->targetHeight - shield->height) >> 2;
+                shield->scaleX += (shield->targetScaleX - shield->scaleX) * 0.125f;
+                shield->scaleY += (shield->targetScaleY - shield->scaleY) * 0.125f;
+                for (j = 0; j < 3; j++) {
+                    shield->angle[j] += updateRate << 8;
+                }
+            }
+            shield->buffer ^= 1;
+            v = &shield->verts[shield->buffer * 54];
+            for (i = 0; i < 3; i++) {
+                r = shield->unk47C[i] * shield->scaleX;
+                angle = shield->unk43C[i];
+                index = shield->unk458[i] >> 8;
+                h = shield->radius * shield->scaleY;
+                for (j = 0; j < 9; j++) {
+                    index = (shield->unk448[i] + index) & 0x1F;
+                    c = sCircle[index];
+                    angle += shield->unk44E[i];
+                    x = c[0] * r;
+                    z = c[1] * r;
+                    y = (s32) (func_80049C34(angle) * h) + shield->height;
+                    v[0].x = x;
+                    v[0].y = y + 40;
+                    v[0].z = z;
+                    v[0].r = 255;
+                    v[0].g = 255;
+                    v[0].b = 255;
+                    v[0].a = 128;
+                    v[1].x = x;
+                    v[1].y = y - 40;
+                    v[1].z = z;
+                    v[1].r = 255;
+                    v[1].g = 255;
+                    v[1].b = 255;
+                    v[1].a = 128;
+                    v += 2;
+                }
+                shield->ringX[i] = (s16) (c[0] * r * obj->trans.scale) + obj->trans.x_position;
+                shield->ringY[i] =
+                    (s16) (func_80049C34(angle) * h + shield->height) * obj->trans.scale + obj->trans.y_position;
+                shield->ringZ[i] = (s16) (c[1] * r * obj->trans.scale + obj->trans.z_position);
+                light = (M107Light *) shield->lights[i];
+                if (light != NULL) {
+                    light->x = shield->ringX[i];
+                    light->y = shield->ringY[i];
+                    light->z = shield->ringZ[i];
+                    light_intensity_set(light, obj->opacity);
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_005C0);
+#endif
 
 void func_m107_00D08(Object *obj, f32 scaleX, f32 scaleY, s32 height) {
     M107Shield *shield = obj->unk68;
