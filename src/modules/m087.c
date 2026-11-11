@@ -222,7 +222,7 @@ extern void runlink_unload_timer_set(s32, s32, s32);
 extern void objflag_set(s32 flag, s32 value);
 extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void spawn_object_from_list(s16 id, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
-extern void func_80029BA4(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7); /* shakes the camera */
+extern void zone_add(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7); /* shakes the camera */
 extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz, s32 alpha, s32 arg7, f32 arg8);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 
@@ -383,7 +383,7 @@ void func_m087_00510(Object *obj, s32 updateRate) {
                 }
             }
             if (maxA > 0.0f) {
-                func_80029BA4(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, maxB, maxA, maxC,
+                zone_add(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, maxB, maxA, maxC,
                               100, 0);
             }
         }
