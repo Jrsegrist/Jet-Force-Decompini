@@ -218,6 +218,11 @@ void anim_path_free(u8 index) {
         mempool_free(path);
     }
     D_801045B0[index] = NULL;
+    // The file's three debug strings: nothing references them (their calls are compiled out) and where they
+    // were is unknown (they read like anim_path_spawn_object's, but there they change its registers).
+    stubbed_printf("Path %d, Obj %d\n");
+    stubbed_printf("Before Level Number %d (%d)\n");
+    stubbed_printf("After  Level Number %d\n");
 }
 
 /* JFG: the start of a level object entry (the object ID is an s16 and the size byte follows it) */
@@ -273,8 +278,7 @@ void anim_path_spawn_object(u8 index) {
                     path->unk2 = D_800A7580[func_800468CC() & 3];
                 } else {
                     path->unk2 = D_800A7588[func_800468CC() & 3];
-                }
-            }
+                }            }
             setup.x = node->x;
             setup.y = node->y;
             setup.z = node->z;
@@ -448,7 +452,6 @@ void anim_path_sound_stop(u8 index) {
     }
 }
 
-extern f32 D_800AEFDC;
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: only the order of the four float constant loads before the loop (D_800AEFDC is a literal in the
@@ -460,7 +463,7 @@ void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u
     f32 scaleUnit;
 
     if (numNodes > 0) {
-        scaleUnit = D_800AEFDC;
+        scaleUnit = 0.01f;
         do {
         bitstream_init((s32 *) &data);
         node->unk6 = bitstream_read_bits(8);

@@ -73,7 +73,6 @@ extern MtxF gOrthoMatrixF;
 
 extern s8 D_800FA650; // DKR: gAdjustViewportHeight
 extern s32 D_800A2ED0;
-extern f32 D_800AC40C; // the far plane (a .rodata constant, not split out yet)
 extern MtxF gPerspectiveMatrixF;
 extern u16 perspNorm;
 void cam_reset(s32 x, s32 y, s32 z, s32 angleZ, s32 angleX, s32 angleY);
@@ -101,7 +100,7 @@ void cam_init(s32 arg0) {
         D_800A2ED0 = 0;
     }
     gCurCamFOV = CAMERA_DEFAULT_FOV;
-    guPerspectiveF(gPerspectiveMatrixF, &perspNorm, gCurCamFOV, CAMERA_ASPECT, CAMERA_NEAR, D_800AC40C, CAMERA_SCALE);
+    guPerspectiveF(gPerspectiveMatrixF, &perspNorm, gCurCamFOV, CAMERA_ASPECT, CAMERA_NEAR, 15000.0f, CAMERA_SCALE);
     D_800A316C = (D_800A316C + 1) & 0xF;
     func_80048D84(&gPerspectiveMatrixF, &gPerspectiveMatrix[D_800A316C]);
 }
@@ -144,9 +143,6 @@ void cam_fov_scale_set(f32 x, f32 y) {
 
 extern u8 gCamZoomSet[4];  // JFG: per camera, a zoom is set
 extern f32 gCamZoom[4]; // JFG: per camera, the zoom
-extern f32 D_800AC410;    // .rodata constants, not split out yet
-extern f32 D_800AC414;
-extern f32 D_800AC418;
 extern f32 D_800A3168;
 s32 fb_mode(void); // the video mode
 s32 level_type(void);
@@ -171,8 +167,8 @@ void cam_set_fov(f32 camFieldOfView, s32 force) {
     if (CAMERA_MIN_FOV < camFieldOfView && camFieldOfView < CAMERA_MAX_FOV) {
         if (force || camFieldOfView != gCurCamFOV) {
             gCurCamFOV = camFieldOfView;
-            guPerspectiveF(gPerspectiveMatrixF, &perspNorm, gCurCamFOV, CAMERA_ASPECT, CAMERA_NEAR, D_800AC410, CAMERA_SCALE);
-            D_800A3168 = gPerspectiveMatrixF[0][0] / D_800AC414;
+            guPerspectiveF(gPerspectiveMatrixF, &perspNorm, gCurCamFOV, CAMERA_ASPECT, CAMERA_NEAR, 15000.0f, CAMERA_SCALE);
+            D_800A3168 = gPerspectiveMatrixF[0][0] / 1.817394f;
             mode = fb_mode();
             if (D_800FAA5C) {
                 gPerspectiveMatrixF[0][0] *= D_800FAA60;
@@ -181,7 +177,7 @@ void cam_set_fov(f32 camFieldOfView, s32 force) {
             } else if (mode & 1) {
                 type = level_type();
                 if (type == 1 || type == 2) {
-                    gPerspectiveMatrixF[1][1] *= D_800AC418;
+                    gPerspectiveMatrixF[1][1] *= 1.33f;
                 } else {
                     gPerspectiveMatrixF[0][0] *= 0.75f;
                 }
@@ -250,6 +246,7 @@ s32 get_current_viewport(void) {
 /* Sets the viewport layout and returns the number of cameras for it (0x8003FBDC). */
 s32 cam_set_layout(s32 mode) {
     if (mode < 0 || mode >= 4) {
+        stubbed_printf("Camera Error: Illegal mode!\n");
         mode = 0;
     }
     if ((gActiveCameraID = mode) < D_800FA634) {
@@ -268,6 +265,7 @@ s32 cam_get_active_camera_id(void) {
 /* Sets the active camera, 0 to 3 (else 0) (0x8003FC2C). */
 void set_active_camera(s32 index) {
     if (index < 0 || index >= 4) {
+        stubbed_printf("Illegal CAMERA number %d\n", index);
         index = 0;
     }
     D_800FA634 = index;
@@ -693,6 +691,7 @@ void func_80040AA4(Gfx **dList, Mtx **mtx) {
  * Official Name: camOrthoYAspect
  */
 void set_ortho_matrix_height(f32 value) {
+    stubbed_printf("%f\n", value); // a debug string with no reference; its function is a guess (the order is the ROM's)
     gOrthoMatrixF[1][1] = value;
 }
 
@@ -801,7 +800,6 @@ typedef struct Vertex40 {
 extern MtxF D_800FAAB0; // DKR: gCurrentModelMatrixF
 extern Mtx *D_800FAB30;
 extern f32 D_800FECC4; // JFG: the screen's aspect ratio
-extern f32 D_800AC41C;
 s32 fb_mode(void);
 void func_8004924C(s32 angle, f32 scaleX, f32 scaleY, MtxF *out); // DKR: mtxf_billboard
 void func_80049BA0(MtxF *mtx);                                     // an identity matrix
@@ -831,7 +829,7 @@ void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex40 **verts, Billboard
     aspect = D_800FECC4;
     if (fb_mode() & 1) {
         scale *= 0.75f;
-        aspect *= D_800AC41C;
+        aspect *= 1.3334f;
     }
     func_8004924C(angle, scale, aspect, &D_800FAAB0);
     if (flags & 0x20000000) {
@@ -852,7 +850,6 @@ void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex40 **verts, Billboard
     gMoveWd((*dList)++, 2, 0, 0);
 }
 
-extern f32 D_800AC420;
 
 /* JFG: render_sprite_billboard for a sprite at a given point, roll and scale instead of a transform. */
 void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex40 **verts, void *sprite, s16 x, s16 y, s16 z, s16 roll,
@@ -876,7 +873,7 @@ void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex40 **verts, void *
     aspect = D_800FECC4;
     if (fb_mode() & 1) {
         scale *= 0.75f;
-        aspect *= D_800AC420;
+        aspect *= 1.3334f;
     }
     func_8004924C(angle, scale, aspect, &D_800FAAB0);
     if (flags & 0x20000000) {
@@ -914,6 +911,7 @@ void render_ortho_triangle_image(Gfx **dList, Mtx **mtx, Vertex40 **verts, Billb
     Vertex40 *v;
 
     if (sprite == NULL) {
+        stubbed_printf("\nCam do 2D sprite called with NULL pointer!");
         return;
     }
     v = *verts;
@@ -1023,6 +1021,7 @@ void func_80048F20(MtxF *mtx, f32 scaleY);
  * Official Name: camPushModelMtx
  */
 void mtx_cam_push(Gfx **dList, Mtx **mtx, void *trans, f32 scaleY, f32 offsetY) {
+    stubbed_printf("CAM Error!! Convlist overflow.\n"); // unreferenced debug string; its function is a guess
     func_80049DC0(trans, &D_800FAAB0);
     if (offsetY != 0.0f) {
         func_80048F4C(&D_800FAAB0, offsetY);

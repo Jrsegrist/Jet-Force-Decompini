@@ -79,7 +79,6 @@ typedef struct RumbleData {
 } RumbleData;
 extern RumbleData gRumble[];
 u8 input_player_id(s32 player);
-extern f32 D_800AC940;
 
 /* JFG: start a rumble on a controller (strength squared, time in seconds) (0x8004B0F4). */
 void rumble_start(s32 pad, s32 strength, f32 time) {
@@ -90,7 +89,7 @@ void rumble_start(s32 pad, s32 strength, f32 time) {
             rumble = &gRumble[input_player_id(pad)];
             if (rumble->state != 2) {
                 rumble->state = 1;
-                rumble->strength = strength * strength * D_800AC940;
+                rumble->strength = strength * strength * 0.1f;
                 rumble->strength2 = rumble->strength;
                 rumble->time = time * 60.0f;
             }
@@ -111,8 +110,6 @@ void rumble_stop(s32 pad, s32 force) {
     }
 }
 
-extern f32 D_800AC944;
-extern f32 D_800AC948;
 
 /* JFG: set a controller's rumble strength (when nonzero) and, unless it is stopping, restart it for time
  * seconds. */
@@ -124,7 +121,7 @@ void rumble_set(s32 pad, s32 strength, f32 time) {
         if (pad >= 0 && pad < 4) {
             id = input_player_id(pad);
             if (strength != 0) {
-                gRumble[id].strength = strength * strength * D_800AC944;
+                gRumble[id].strength = strength * strength * 0.1f;
             }
             rumble = &gRumble[id];
             if (rumble->state != 2 && time != 0.0f) {
@@ -147,7 +144,7 @@ void rumble_raise(s32 pad, s32 strength, f32 time) {
                 rumble->strength = 0;
             }
             if (strength != 0) {
-                strength = strength * strength * D_800AC948;
+                strength = strength * strength * 0.1f;
                 if (rumble->strength < strength) {
                     rumble->strength = strength;
                 }
@@ -179,7 +176,6 @@ void func_8004B55C(void) {
     D_800A3464 = 0x1;
 }
 
-extern f32 D_800AC94C;
 
 /* JFG: the rumble tick: after a (re)scan, every plugged-in rumble pak is initialised; then each present pak
  * runs its state: 1 = rumbling (the motor pulses by the strength, on above 490, off below D_800AC94C, until the
@@ -236,7 +232,7 @@ void rumble_motors_run(s32 updateRate) {
                                 err = osMotorStart(&pfs[i]);
                                 rumble->unk3 = 1;
                             }
-                        } else if (rumble->strength < D_800AC94C) {
+                        } else if (rumble->strength < 3.6000001f) {
                             if (rumble->unk3) {
                                 err = osMotorStop(&pfs[i]);
                                 rumble->unk3 = 0;

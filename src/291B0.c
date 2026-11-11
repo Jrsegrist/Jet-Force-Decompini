@@ -383,9 +383,7 @@ typedef struct LevelObjectEntry73 {
 } LevelObjectEntry73;
 
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target loads D_800ABB44 before moving `a` to $f12 (the first two instructions swap) */
-/* JFG: spawn an object 0x73 at (x, y, z); the four values are scaled by D_800ABB44. */
+/* JFG: spawn an object 0x73 at (x, y, z); the four values are scaled by 327.67 (1.0 = 0x7FFF). */
 void func_80028E7C(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8 arg8) {
     LevelObjectEntry73 entry;
 
@@ -402,9 +400,6 @@ void func_80028E7C(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8
     entry.z = z;
     spawn_object((SpawnEntry *) &entry, 1);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80028E7C);
-#endif
 
 /* JFG: a 10 byte coloured vertex */
 typedef struct ColVertex {
