@@ -2104,6 +2104,8 @@ void func_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next) {
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_05650);
+void rl_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next); /* static: called by its module offset */
+#define func_m003_05650 rl_m003_05650
 #endif
 
 /* Region `index`, or NULL before the regions are loaded */
@@ -4105,8 +4107,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
 
 extern void rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, void *node);
 
-#ifdef NON_MATCHING
-/* 2 words: the ROM computes `point & 0xFF` one store earlier */
 /*
  * Where the segment (x1, z1)-(x2, z2) leaves a region (into *out if out is not NULL); 0 if it doesn't. `point`
  * (not -1) is a point of region `regionIndex` the segment starts at, used if the crossing is next to it.
@@ -4145,8 +4145,8 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
                 !func_m003_16F44(((sCrossX - sCrossX1) >> 1) + sCrossX1, ((sCrossZ - sCrossZ1) >> 1) + sCrossZ1,
                                  region)) {
                 out->x = p->x;
-                out->point = point;
                 out->z = p->z;
+                out->point = point;
                 out->region = regionIndex;
                 func_m003_05650(from, point, &out->unk5, &out->unk6);
                 out->atPoint = FALSE;
@@ -4164,9 +4164,6 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
     }
     return TRUE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_175E8);
-#endif
 
 s32 func_m003_17910(f32 x, f32 z, s32 index) {
     return func_m003_16F44(x, z, index + sRegions);
