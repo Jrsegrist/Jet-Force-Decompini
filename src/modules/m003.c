@@ -2716,7 +2716,93 @@ void func_m003_09FF0(Object *obj) {
     func_m003_09A14(obj);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0A110);
+/* The data of the object that calls 0A110 */
+typedef struct M003Alarm {
+    /* 0x00 */ u8 kind;   /* 2: kill the members; 3, 4: send them on missions 11 and 2 */
+    /* 0x01 */ u8 troop;  /* the home's unk64 it acts on; 0xFF: every troop */
+    /* 0x02 */ u8 pad2;
+    /* 0x03 */ u8 range;  /* in 8s */
+    /* 0x04 */ u8 height; /* in 4s */
+    /* 0x05 */ u8 pad5[3];
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ u8 unkA;
+} M003Alarm;
+
+/* Acts on the members of every troop within the object's range */
+void func_m003_0A110(Object *obj, UNUSED s32 arg1) {
+    M003Alarm *alarm;
+    s32 count;
+    Object **homes;
+    M003Home *h;
+    Object *home;
+    Object *o;
+    M003Member *m;
+    f32 dist;
+    f32 dy;
+
+    alarm = obj->unk68;
+    homes = func_80050F44(&count);
+    while (count--) {
+        home = homes[count];
+        h = home->unk68;
+        if (alarm->troop == 0xFF || alarm->troop == h->unk64) {
+            switch (alarm->kind) {
+                case 3:
+                    for (o = h->first; o != NULL; o = m->next) {
+                        m = o->unk68;
+                        dist = func_m003_03E20(obj->trans.x_position, obj->trans.z_position, o->trans.x_position,
+                                               o->trans.z_position);
+                        dy = obj->trans.y_position - o->trans.y_position;
+                        if (dy < 0.0f) {
+                            dy = -dy;
+                        }
+                        if (dist < alarm->range * 8 && dy < alarm->height * 4 && func_m003_05450(o) &&
+                            !sMember->unk0_26) {
+                            if (sMember->unk1A != 13 || sMember->unk38 != obj->trans.x_position ||
+                                sMember->unk3C != obj->trans.y_position || sMember->unk40 != obj->trans.z_position) {
+                                if (func_m003_04260(11, 13, 0, 0, 0)) {
+                                    sMember->unk38 = obj->trans.x_position;
+                                    sMember->unk3C = obj->trans.y_position;
+                                    sMember->unk40 = obj->trans.z_position;
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case 4:
+                    for (o = h->first; o != NULL; o = m->next) {
+                        m = o->unk68;
+                        dist = func_m003_03E20(obj->trans.x_position, obj->trans.z_position, o->trans.x_position,
+                                               o->trans.z_position);
+                        dy = obj->trans.y_position - o->trans.y_position;
+                        if (dy < 0.0f) {
+                            dy = -dy;
+                        }
+                        if (dist < alarm->range * 8 && dy < alarm->height * 4 && func_m003_05450(o) &&
+                            sMember->unk1A != 19) {
+                            func_m003_04260(2, 19, alarm->unk8, alarm->unk9, alarm->unkA);
+                        }
+                    }
+                    break;
+                case 2:
+                    for (o = h->first; o != NULL; o = m->next) {
+                        m = o->unk68;
+                        dist = func_m003_03E20(obj->trans.x_position, obj->trans.z_position, o->trans.x_position,
+                                               o->trans.z_position);
+                        dy = obj->trans.y_position - o->trans.y_position;
+                        if (dy < 0.0f) {
+                            dy = -dy;
+                        }
+                        if (dist < alarm->range * 8 && dy < alarm->height * 4 && func_m003_05450(o)) {
+                            func_m003_09A14(o);
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+}
 
 /* Turns the member towards sBssD6, at most 1000 a step */
 void func_m003_0A564(void) {
