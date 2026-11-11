@@ -521,7 +521,50 @@ void buffer_clear_words(void *buffer, s32 size) {
     osWritebackDCacheAll();
 }
 
-INCLUDE_ASM("asm/nonmatchings/55130", func_800552DC);
+/* libultra's VI mode table entries (vimodes*.c), by address */
+extern OSViMode D_800A9AB0;
+extern OSViMode D_800A9B00;
+extern OSViMode D_800A9B50;
+extern OSViMode D_800A9BA0;
+extern OSViMode D_800A9BF0;
+extern OSViMode D_800A9C40;
+extern OSViMode D_800A9C90;
+extern OSViMode D_800A9CE0;
+extern OSViMode D_800A9D30;
+extern OSViMode D_800A9D80;
+extern OSViMode D_800A9DD0;
+extern OSViMode D_800A9E20;
+
+/* JFG: the VI mode for one of the video mode table's twelve modes (NULL for others). */
+OSViMode *func_800552DC(s32 mode) {
+    switch (mode) {
+        case 0:
+            return &D_800A9B50;
+        case 1:
+            return &D_800A9BA0;
+        case 2:
+            return &D_800A9BF0;
+        case 3:
+            return &D_800A9C40;
+        case 4:
+            return &D_800A9B00;
+        case 5:
+            return &D_800A9C90;
+        case 6:
+            return &D_800A9CE0;
+        case 7:
+            return &D_800A9D30;
+        case 8:
+            return &D_800A9AB0;
+        case 9:
+            return &D_800A9D80;
+        case 10:
+            return &D_800A9DD0;
+        case 11:
+            return &D_800A9E20;
+    }
+    return NULL;
+}
 
 extern s8 D_800FECA4; // JFG: the framebuffer index
 extern s32 D_800FECB4; // JFG: the frame buffer to draw into
