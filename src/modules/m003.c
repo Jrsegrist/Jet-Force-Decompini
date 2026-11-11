@@ -148,7 +148,9 @@ typedef struct M003Home {
     /* 0x15 */ u8 pad15[0x1A - 0x15];
     /* 0x1A */ u16 kind2 : 4;
     /* 0x1A */ u16 unk1A : 12;
-    /* 0x1C */ u8 pad1C[0x21 - 0x1C];
+    /* 0x1C */ u8 pad1C[0x1E - 0x1C];
+    /* 0x1E */ u8 spacing; /* how many trail steps apart its members follow the leader (0237C) */
+    /* 0x1F */ u8 pad1F[0x21 - 0x1F];
     /* 0x21 */ u8 unk21; /* how loud an event its members notice must be */
     /* 0x22 */ u8 pad22[0x24 - 0x22];
     /* 0x24 */ s8 maxSpeed; /* its members' (0AD38) */
@@ -160,12 +162,13 @@ typedef struct M003Home {
     /* 0x2C */ u16 kind;
     /* 0x2E */ s16 unk2E; /* a countdown */
     /* 0x30 */ u8 unk30;
-    /* 0x31 */ u8 pad31;
+    /* 0x31 */ u8 unk31; /* 1: its members follow the leader's trail (0237C) */
     /* 0x32 */ u8 unk32; /* its state (0B50C) */
     /* 0x33 */ u8 unk33;
     /* 0x34 */ u8 unk34; /* the low two bits pick module 6's members' animations (04968) */
     /* 0x35 */ u8 unk35; /* set while a way-point command runs (01C58) */
-    /* 0x36 */ u8 pad36[0x3C - 0x36];
+    /* 0x36 */ u8 trailPos; /* the trail entry the leader writes next (0237C) */
+    /* 0x37 */ u8 pad37[0x3C - 0x37];
     /* 0x3C */ s16 unk3C;
     /* 0x3E */ s16 unk3E;
     /* 0x40 */ s16 unk40;
@@ -1059,7 +1062,87 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_021C8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0237C);
+/* A step of the leader's trail (D_800FEA18[home->unk77] holds the troop's ring of them) */
+typedef struct M003Trail {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ s16 rotY;
+    /* 0x0E */ s16 rotX;
+    /* 0x10 */ s16 rotZ;
+} M003Trail;
+
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void rl_m003_01EB8(void);                   /* still assembly */
+extern void rl_m003_021C8(void);
+
+/*
+ * The troop follows its leader: it keeps the leader's place in unk40-44, or (unk31 1) records the leader in
+ * a ring of steps and puts each member that many steps behind it
+ */
+void func_m003_0237C(void) {
+    s32 total;
+    s32 i;
+    s32 j;
+    M003Trail *t;
+
+    if (sHomeData->leader != NULL) {
+        if (sHomeData->unk31 != 1) {
+            sHomeData->unk40 = sHomeData->leader->trans.x_position;
+            sHomeData->unk42 = sHomeData->leader->trans.y_position;
+            sHomeData->unk44 = sHomeData->leader->trans.z_position;
+        } else {
+            total = sHomeData->spacing * 2 * sHomeData->count;
+            if (sHomeData->group == -1) {
+                rl_m003_01EB8();
+            } else {
+                rl_m003_021C8();
+            }
+            if (sHomeData->unk77 == 0xFF) {
+                i = 15;
+                do {
+                    if (D_800FEA18[i] == NULL) {
+                        break;
+                    }
+                } while (i--);
+                sHomeData->unk77 = i;
+                sHomeData->trailPos = 0;
+                D_800FEA18[i] = func_8004A57C(total * sizeof(M003Trail), 0xFFFF00FF);
+            }
+            t = &((M003Trail *) D_800FEA18[sHomeData->unk77])[sHomeData->trailPos];
+            t->x = sHomeData->leader->trans.x_position;
+            t->y = sHomeData->leader->trans.y_position;
+            t->z = sHomeData->leader->trans.z_position;
+            t->rotY = sHomeData->leader->trans.rotation.y_rotation;
+            t->rotX = sHomeData->leader->trans.rotation.x_rotation;
+            t->rotZ = sHomeData->leader->trans.rotation.z_rotation;
+            for (sObj = sHomeData->first; sObj != NULL; sObj = sMember->next) {
+                sMember = sObj->unk68;
+                if (sMember->unkA6 > 0) {
+                    j = sHomeData->trailPos - sMember->unk15 * (sHomeData->spacing << 1);
+                    if (j < 0) {
+                        j += total;
+                    }
+                    t = &((M003Trail *) D_800FEA18[sHomeData->unk77])[j];
+                    sObj->velocity.x = 0.0f;
+                    sObj->velocity.y = 0.0f;
+                    sObj->velocity.z = 0.0f;
+                    rl_m003_03CAC(sObj);
+                    sObj->trans.x_position = t->x;
+                    sObj->trans.y_position = t->y;
+                    sObj->trans.z_position = t->z;
+                    sObj->trans.rotation.y_rotation = t->rotY;
+                    sObj->trans.rotation.x_rotation = t->rotX;
+                    sObj->trans.rotation.z_rotation = t->rotZ;
+                }
+            }
+            sHomeData->trailPos++;
+            if (sHomeData->trailPos >= total) {
+                sHomeData->trailPos = 0;
+            }
+        }
+    }
+}
 
 /* How near the member must get to way point `node`: farther when its troop's unk6C is 1 */
 s32 func_m003_02760(M003Node *node) {
