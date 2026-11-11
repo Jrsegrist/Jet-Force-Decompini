@@ -7,3 +7,5 @@ entrypoint = 0x80000400; // type:func
 D_800AD8B4 = 0x800AD8B4; // type:asciz
 // audio.c: the string compiled into music_sequence_start
 D_800AA0D4 = 0x800AA0D4; // type:asciz
+// 67780.c: the empty string func_80066D28 passes after "CORE" (migrated into its .s)
+D_800AE858 = 0x800AE858; // type:asciz force_migration:True

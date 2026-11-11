@@ -453,9 +453,6 @@ void anim_path_sound_stop(u8 index) {
 }
 
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: only the order of the four float constant loads before the loop (D_800AEFDC is a literal in the
- * original, hoisted with the others) */
 /* JFG: unpack numNodes path nodes from the bit stream at data; the next node and stream position go to
  * nodeOut and dataOut. */
 void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut) {
@@ -496,9 +493,6 @@ void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u
         *dataOut = data;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/76C20", func_80076B44);
-#endif
 
 /* JFG: link path index's nodes to their neighbours; the ends link to each other on a looping path, else to themselves. */
 void anim_path_link_nodes(u8 index) {
