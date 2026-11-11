@@ -83,7 +83,6 @@ f32 func_80049BEC(f32 base, s32 exponent);
 s16 func_80049C84(f32 x, f32 z);
 s16 angle_lerp(s16 angle, s16 target, f32 factor);
 f32 sqrtf(f32);
-extern f32 D_800AC430;
 
 /*
  * JFG: moves the camera towards the point behind the followed object (at the follow distance from
@@ -111,7 +110,7 @@ void camera_follow_update(Attachment *target, ObjectTransform *cam, s32 updateRa
     angleFactor = 1.0f;
     if (smooth) {
         posFactor = 1.0f - func_80049BEC(0.875f, updateRate);
-        angleFactor = 1.0f - func_80049BEC(D_800AC430, updateRate);
+        angleFactor = 1.0f - func_80049BEC(0.9f, updateRate);
     }
     target->offset[0] = ((CameraFollow *) D_800FB080)->offset[0];
     target->offset[1] = ((CameraFollow *) D_800FB080)->offset[1];
@@ -147,7 +146,6 @@ void camera_follow_update(Attachment *target, ObjectTransform *cam, s32 updateRa
  * point and within angleRange of its angle. Logic is believed right; the frame is 8 bytes too big
  * and sinA/cosA land in f22 instead of being spilled.
  */
-extern f32 D_800AC434;
 f32 func_80049C34(s16 angle);
 f32 func_80049C30(s16 angle);
 void func_80042A74(Attachment *target, ObjectTransform *cam, s32 updateRate, s32 smooth) {
@@ -178,7 +176,7 @@ void func_80042A74(Attachment *target, ObjectTransform *cam, s32 updateRate, s32
     posFactor = 1.0f;
     angleFactor = 1.0f;
     if (smooth) {
-        posFactor = 1.0f - func_80049BEC(D_800AC434, updateRate);
+        posFactor = 1.0f - func_80049BEC(0.9f, updateRate);
         angleFactor = 1.0f - func_80049BEC(0.9375f, updateRate);
     }
     target->offset[0] = ((CameraFollow *) D_800FB080)->offset[0];

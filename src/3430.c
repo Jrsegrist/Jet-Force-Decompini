@@ -143,10 +143,204 @@ void audspat_reset(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/3430", func_80002AB8);
-
 extern MtxF gAudioListenerMtx; // JFG: the listener's matrix
 s32 func_80048548(void); // the number of cameras
+
+/* The cameras (only the position is read here; 40240.c has the whole struct). */
+typedef struct Camera {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+    /* 0x18 */ u8 pad18[0x34];
+} Camera;
+
+Camera *cam_get_cameras(void);
+void mtx_view_persp_get(s32 arg0, MtxF *out);
+f32 sqrtf(f32 x);
+s32 audspat_calculate_spatial_pan(f32 x, f32 y, f32 z);
+void sound_play_direct(u16 soundID, u8 volume, u8 pan, f32 pitch, u8 fxMix, void **handlePtr);
+void sndp_set_param(void *soundMask, s16 type, u32 paramValue);
+s32 sound_volume_half(s32 volume);
+void func_80085E94(void *soundHandle, u8 priority);
+void func_800037F8(void *soundHandle, f32 x, f32 y, f32 z);
+void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix);
+void audio_group_play(s32 group);
+void audspat_point_group_remove(AudioPoint *point);
+
+#define AUDIO_POINT_FLAG_ONE_TIME_TRIGGER 4
+#define AUDIO_POINT_FLAG_SINGLE_PLAYER 2
+#define MIN_VOLUME_THRESHOLD 10
+
+/**
+ * Updates the parameters of the audio points, then the point groups, and calls into module 0x2C.
+ * From the Diddy Kong Racing decompilation (CC0 1.0), src/audio_spatial.c (audspat_update_all).
+ * JFG: no audio lines or jingles; the pan comes from the point's world position (with the "behind" bit giving
+ * the 0x80 effect mix); points in a group (unk23) are played through their group.
+ * Official Name: amPlayAudioMap
+ */
+void audspat_update_all(struct Object **objList, s32 numObjects, s32 updateRate) {
+    s32 i;
+    s32 j;
+    s32 volume;
+    s32 numCameras;
+    u32 pan;
+    f32 dx, dy, dz;
+    s32 distance;
+    AudioPoint *audioPoint;
+    u32 pan2;
+    s32 fxMix;
+    f32 pitch;
+    Camera *cameras;
+    f32 temp;
+    s32 adjustedVolume;
+    f32 minDistance;
+
+    numCameras = func_80048548();
+    if (numCameras == 1) {
+        mtx_view_persp_get(0, &gAudioListenerMtx);
+    }
+    cameras = cam_get_cameras();
+
+    for (i = 0; i < gNumAudioPoints; i++) {
+        audioPoint = gAudioPoints[i];
+        volume = 0;
+
+        if (audioPoint->flags & AUDIO_POINT_FLAG_SINGLE_PLAYER) {
+            if (numCameras == 1) {
+                dx = audioPoint->pos.x - cameras[0].x_position;
+                dy = audioPoint->pos.y - cameras[0].y_position;
+                dz = audioPoint->pos.z - cameras[0].z_position;
+                distance = sqrtf(dx * dx + dy * dy + dz * dz);
+                if (distance < audioPoint->range && !audioPoint->inRange) {
+                    pitch = audioPoint->pitch / 100.0f;
+                    pan2 = audspat_calculate_spatial_pan(audioPoint->pos.x, audioPoint->pos.y, audioPoint->pos.z);
+                    if (pan2 >> 24) {
+                        pan2 &= 0xFF;
+                        fxMix = 0x80;
+                    } else {
+                        fxMix = 0;
+                    }
+                    // This can never be true
+                    if (numCameras != 1) {
+                        pan2 = 64;
+                    }
+                    if (audioPoint->soundHandle == NULL &&
+                        (!audioPoint->triggeredOnce || !(audioPoint->flags & AUDIO_POINT_FLAG_ONE_TIME_TRIGGER))) {
+                        sound_play_direct(audioPoint->soundBite, audioPoint->volume, pan2, pitch, fxMix,
+                                          &audioPoint->soundHandle);
+                        audioPoint->triggeredOnce = TRUE;
+                    } else if (audioPoint->soundHandle != NULL) {
+                        sndp_set_param(audioPoint->soundHandle, 8, sound_volume_half(audioPoint->volume << 8));
+                        sndp_set_param(audioPoint->soundHandle, 16, *(s32 *) &pitch);
+                        sndp_set_param(audioPoint->soundHandle, 4, pan2);
+                        func_800037F8(audioPoint->soundHandle, audioPoint->pos.x, audioPoint->pos.y,
+                                      audioPoint->pos.z);
+                        sndp_set_param(audioPoint->soundHandle, 0x100, fxMix);
+                    }
+                    audioPoint->inRange = TRUE;
+                } else if (distance > audioPoint->range && audioPoint->inRange) {
+                    audioPoint->inRange = FALSE;
+                }
+            }
+        } else {
+            // Calculate volume and pan for all cameras and find the max volume
+            for (j = 0; j < numCameras; j++) {
+                dx = audioPoint->pos.x - cameras[j].x_position;
+                dy = audioPoint->pos.y - cameras[j].y_position;
+                dz = audioPoint->pos.z - cameras[j].z_position;
+                distance = sqrtf(dx * dx + dy * dy + dz * dz);
+                if (distance < audioPoint->range) {
+                    if (!audioPoint->fastFalloff) {
+                        adjustedVolume = (1.0f - (f32) distance / (f32) audioPoint->range) * audioPoint->volume;
+                    } else {
+                        temp = (f32) (audioPoint->range - distance) / (f32) audioPoint->range;
+                        adjustedVolume = temp * temp * audioPoint->volume;
+                    }
+                    if (volume < adjustedVolume) {
+                        volume = adjustedVolume;
+                        pan = audspat_calculate_spatial_pan(audioPoint->pos.x, audioPoint->pos.y, audioPoint->pos.z);
+                    }
+                }
+            }
+
+            // If all cameras are far enough then set volume to minVolume
+            // and calculate pan based on the closest camera
+            if (volume < audioPoint->minVolume) {
+                minDistance = 999999.0f;
+                for (j = 0; j < numCameras; j++) {
+                    dx = audioPoint->pos.x - cameras[j].x_position;
+                    dy = audioPoint->pos.y - cameras[j].y_position;
+                    dz = audioPoint->pos.z - cameras[j].z_position;
+                    distance = sqrtf(dx * dx + dy * dy + dz * dz);
+                    if (distance < minDistance) {
+                        pan = audspat_calculate_spatial_pan(audioPoint->pos.x, audioPoint->pos.y, audioPoint->pos.z);
+                        minDistance = distance;
+                    }
+                }
+                volume = audioPoint->minVolume;
+            }
+
+            if (volume > MIN_VOLUME_THRESHOLD) {
+                pitch = audioPoint->pitch / 100.0f;
+                if (numCameras != 1) {
+                    pan = 64;
+                }
+                if (pan >> 24) {
+                    pan &= 0xFF;
+                    fxMix = 0x80;
+                } else {
+                    fxMix = 0;
+                }
+                if (!audioPoint->unk23) {
+                    if (audioPoint->soundHandle == NULL &&
+                        (!audioPoint->triggeredOnce || !(audioPoint->flags & AUDIO_POINT_FLAG_ONE_TIME_TRIGGER))) {
+                        sound_play_direct(audioPoint->soundBite, volume, pan, pitch, fxMix, &audioPoint->soundHandle);
+                        audioPoint->triggeredOnce = TRUE;
+                    } else if (audioPoint->soundHandle != NULL) {
+                        sndp_set_param(audioPoint->soundHandle, 8, sound_volume_half(volume << 8));
+                        sndp_set_param(audioPoint->soundHandle, 16, *(s32 *) &pitch);
+                        sndp_set_param(audioPoint->soundHandle, 4, pan);
+                        func_80085E94(audioPoint->soundHandle, audioPoint->priority);
+                        func_800037F8(audioPoint->soundHandle, audioPoint->pos.x, audioPoint->pos.y,
+                                      audioPoint->pos.z);
+                        sndp_set_param(audioPoint->soundHandle, 0x100, fxMix);
+                    }
+                } else {
+                    func_8000380C(audioPoint, volume, pitch, pan, fxMix);
+                }
+            } else {
+                if (audioPoint->soundHandle != NULL) {
+                    sound_stop(audioPoint->soundHandle);
+                    if (audioPoint->unk23) {
+                        audspat_point_group_remove(audioPoint);
+                    }
+                } else {
+                    audioPoint->triggeredOnce = TRUE;
+                }
+            }
+        }
+    }
+
+    for (i = 0; i < 4; i++) {
+        audio_group_play(i);
+    }
+
+    for (i = 0; i < gNumAudioPoints; i++) {
+        audioPoint = gAudioPoints[i];
+        if (audioPoint->unk23) {
+            audioPoint->triggeredOnce = TRUE;
+        }
+        if ((audioPoint->flags & AUDIO_POINT_FLAG_ONE_TIME_TRIGGER) && audioPoint->triggeredOnce &&
+            audioPoint->soundHandle == NULL) {
+            audspat_point_stop_by_index(i);
+        }
+    }
+
+    if (runlink_module_loaded(0x2C)) {
+        func_80054530(cameras, numCameras);
+    }
+}
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 s32 func_80049C84(f32 x, f32 z); // arctangent as a 16-bit angle
 
@@ -298,6 +492,7 @@ void audspat_point_create(u16 soundBite, f32 x, f32 y, f32 z, u8 flags, u8 minVo
         gMaxAudioPointsUsed = gNumAudioPoints;
     }
     if (gNumAudioPoints == MAX_AUDIO_POINTS) {
+        stubbed_printf("OUT OF AUDIO POINTS\n");
         if (handlePtr != NULL) {
             *handlePtr = NULL;
         }
@@ -480,250 +675,4 @@ s32 audspat_volume_at_distance(u16 soundID, f32 *a, f32 *b) {
         }
     }
     return volume;
-}
-
-/* JFG: a node of the D_800F2B10 free list */
-typedef struct FreeNode {
-    /* 0x00 */ struct FreeNode *next;
-    /* 0x04 */ u8 pad4[0x10];
-} FreeNode;
-
-extern FreeNode *D_800F2B10;
-extern FreeNode D_800F2B18[16];
-
-/* JFG: link all the nodes into the free list. */
-void func_80003DB0(void) {
-    s32 i;
-    FreeNode *node;
-
-    D_800F2B10 = node = D_800F2B18;
-    for (i = 1; i < 16; i++) {
-        node->next = &D_800F2B18[i];
-        node = node->next;
-    }
-    node->next = NULL;
-}
-
-/* JFG: an oscillator (vibrato/tremolo) state, taken from the D_800F2B10 free list */
-typedef struct OscState {
-    /* 0x00 */ struct OscState *next;
-    /* 0x04 */ u8 type;
-    /* 0x05 */ u8 stateFlags;
-    /* 0x06 */ u16 cycleSpan;
-    /* 0x08 */ u16 curCount;
-    /* 0x0A */ u8 padA[2];
-    union {
-        struct {
-            /* 0x0C */ u8 halfDepth;
-            /* 0x0D */ u8 baseVol;
-            /* 0x0E */ u8 loVal;
-        } tsin;
-        struct {
-            /* 0x0C */ f32 loRatio;
-            /* 0x10 */ f32 hiRatio;
-        } vsqr;
-        struct {
-            /* 0x0C */ s32 hiCents;
-            /* 0x10 */ s32 detuneScale;
-        } vsaw;
-        /* 0x0C */ f32 depthcents;
-    } data;
-} OscState;
-
-f32 func_80004768(u8 depth);
-f32 alCents2Ratio(s32 cents);
-
-#ifdef NON_MATCHING
-/* NON_MATCHING: temporaries only: the target keeps the shared 127 in $v0 (mine $v1) and the cycle spans in
-   t-registers (mine $v0), so the t-register numbering in the cases is shifted */
-/* JFG: start an oscillator of the given type (1-4: tremolo shapes, 0x80-0x83: vibrato shapes); returns its delay
- * (in 1/0x4000 units), 0 when none is free. */
-s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscDepth, u8 oscDelay) {
-    OscState *osc;
-    s32 retVal = 0;
-    s32 cents;
-
-    if (D_800F2B10 != NULL) {
-        osc = (OscState *) D_800F2B10;
-        D_800F2B10 = (FreeNode *) osc->next;
-        osc->type = oscType;
-        *oscState = osc;
-        retVal = oscDelay << 14;
-        switch (oscType) {
-            case 1:
-                osc->curCount = 0;
-                osc->cycleSpan = 259 - oscRate;
-                osc->data.tsin.halfDepth = oscDepth >> 1;
-                osc->data.tsin.baseVol = 127 - osc->data.tsin.halfDepth;
-                *initVal = osc->data.tsin.baseVol;
-                break;
-            case 2:
-                osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
-                osc->stateFlags = 0;
-                osc->data.tsin.loVal = 127 - oscDepth;
-                osc->data.tsin.baseVol = 127;
-                osc->data.tsin.halfDepth = 127;
-                *initVal = 127.0f;
-                break;
-            case 3:
-                osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 0;
-                osc->data.tsin.halfDepth = 127;
-                osc->data.tsin.baseVol = oscDepth;
-                *initVal = osc->data.tsin.halfDepth;
-                break;
-            case 4:
-                osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 0;
-                osc->data.tsin.halfDepth = 127 - oscDepth;
-                osc->data.tsin.baseVol = oscDepth;
-                *initVal = osc->data.tsin.halfDepth;
-                break;
-            case 0x80:
-                osc->data.depthcents = func_80004768(oscDepth);
-                osc->curCount = 0;
-                osc->cycleSpan = 259 - oscRate;
-                *initVal = 1.0f;
-                break;
-            case 0x81:
-                osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
-                osc->stateFlags = 0;
-                cents = func_80004768(oscDepth);
-                osc->data.vsqr.loRatio = alCents2Ratio(-cents);
-                osc->data.vsqr.hiRatio = alCents2Ratio(cents);
-                *initVal = osc->data.vsqr.hiRatio;
-                break;
-            case 0x82:
-                osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
-                cents = func_80004768(oscDepth);
-                osc->data.vsaw.hiCents = cents;
-                osc->data.vsaw.detuneScale = cents * 2;
-                *initVal = alCents2Ratio(cents);
-                break;
-            case 0x83:
-                osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
-                cents = func_80004768(oscDepth);
-                osc->data.vsaw.hiCents = -cents;
-                osc->data.vsaw.detuneScale = cents * 2;
-                *initVal = alCents2Ratio(-cents);
-                break;
-        }
-    }
-    return retVal;
-}
-#else
-INCLUDE_ASM("asm/nonmatchings/3430", func_80003E40);
-#endif
-
-extern f32 D_800AA1C0; // 2 pi (.rodata)
-extern f32 D_800AA1C4; // 2 pi (.rodata)
-
-/* JFG: step an oscillator and write its new value (a volume for the tremolos, a pitch ratio for the vibratos);
- * returns the time until the next update (one frame, or the half period for the square waves) */
-s32 osc_update(void *oscState, f32 *updateVal) {
-    f32 t;
-    OscState *osc = (OscState *) oscState;
-    s32 deltaTime = 16000;
-
-    switch (osc->type) {
-        case 1:
-            if (++osc->curCount >= osc->cycleSpan) {
-                osc->curCount = 0;
-            }
-            t = (f32) osc->curCount / (f32) osc->cycleSpan;
-            t = sinf(t * D_800AA1C0);
-            t = (f32) osc->data.tsin.halfDepth * t;
-            *updateVal = (f32) osc->data.tsin.baseVol + t;
-            break;
-        case 2:
-            if (osc->stateFlags == 0) {
-                *updateVal = (f32) osc->data.tsin.loVal;
-                osc->stateFlags = 1;
-            } else {
-                *updateVal = (f32) osc->data.tsin.baseVol;
-                osc->stateFlags = 0;
-            }
-            deltaTime = osc->cycleSpan * 16000;
-            break;
-        case 3:
-            if (++osc->curCount > osc->cycleSpan) {
-                osc->curCount = 0;
-            }
-            t = (f32) osc->curCount / (f32) osc->cycleSpan;
-            t *= (f32) osc->data.tsin.baseVol;
-            *updateVal = (f32) osc->data.tsin.halfDepth - t;
-            break;
-        case 4:
-            if (++osc->curCount > osc->cycleSpan) {
-                osc->curCount = 0;
-            }
-            t = (f32) osc->curCount / (f32) osc->cycleSpan;
-            t *= (f32) osc->data.tsin.baseVol;
-            *updateVal = (f32) osc->data.tsin.halfDepth + t;
-            break;
-        case 0x80:
-            if (++osc->curCount >= osc->cycleSpan) {
-                osc->curCount = 0;
-            }
-            t = (f32) osc->curCount / (f32) osc->cycleSpan;
-            t = sinf(t * D_800AA1C4) * osc->data.depthcents;
-            *updateVal = alCents2Ratio(t);
-            break;
-        case 0x81:
-            if (osc->stateFlags == 0) {
-                osc->stateFlags = 1;
-                *updateVal = osc->data.vsqr.loRatio;
-            } else {
-                osc->stateFlags = 0;
-                *updateVal = osc->data.vsqr.hiRatio;
-            }
-            deltaTime = osc->cycleSpan * 16000;
-            break;
-        case 0x82:
-            if (++osc->curCount > osc->cycleSpan) {
-                osc->curCount = 0;
-            }
-            t = (f32) osc->curCount / (f32) osc->cycleSpan;
-            t *= (f32) osc->data.vsaw.detuneScale;
-            t = (f32) osc->data.vsaw.hiCents - t;
-            *updateVal = alCents2Ratio(t);
-            break;
-        case 0x83:
-            if (++osc->curCount > osc->cycleSpan) {
-                osc->curCount = 0;
-            }
-            t = (f32) osc->curCount / (f32) osc->cycleSpan;
-            t *= (f32) osc->data.vsaw.detuneScale;
-            t += (f32) osc->data.vsaw.hiCents;
-            *updateVal = alCents2Ratio(t);
-            break;
-    }
-    return deltaTime;
-}
-
-/* JFG: push a node onto a free list. */
-void func_8000474C(FreeNode *node) {
-    node->next = D_800F2B10;
-    D_800F2B10 = node;
-}
-
-extern f32 D_800AA1C8; // a constant in .rodata (not split out yet)
-
-/* JFG: D_800AA1C8 raised to the power of depth (by squaring). */
-f32 func_80004768(u8 depth) {
-    f32 base = D_800AA1C8;
-    f32 result = 1.0f;
-
-    while (depth) {
-        if (depth & 1) {
-            result *= base;
-        }
-        base *= base;
-        depth >>= 1;
-    }
-    return result;
 }

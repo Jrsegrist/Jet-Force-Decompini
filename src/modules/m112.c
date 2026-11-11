@@ -158,7 +158,7 @@ extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, Obje
 extern s16 func_80049C84(f32 x, f32 z);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern Object *func_80005F14(void *entry, s32 arg1);
-extern void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, Object *owner);
+extern void zone_add(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, Object *owner);
 extern void enemy_module_notify(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, s32 arg6);
 extern void func_8003D21C(M112Instance *inst, M112Model *model, Object *obj, f32 arg3, f32 arg4);
 extern void func_800221F0(Object *obj, M112Instance *inst, ObjectShading *shading, MtxF *mtx);
@@ -488,7 +488,7 @@ void func_m112_00220(Object *obj, s32 updateRate) {
                 if (blast != NULL) {
                     blast->level_entry = NULL;
                 }
-                func_80029BA4(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 160.0f, 80.0f,
+                zone_add(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 160.0f, 80.0f,
                               0.5f, rl_m112_013E4[s->type], owner);
             }
             func_80003410(0x22, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);

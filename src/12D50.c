@@ -218,8 +218,6 @@ extern s32 D_800A0D6C;
 extern u8 D_800A321C;
 extern s32 D_800A74E0;
 extern s16 D_801046EE;
-extern char D_800AB520[];
-extern char D_800AB530[];
 u8 func_80048548(void); // the number of cameras
 s8 is_game_paused(void);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
@@ -277,7 +275,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
         D_800F2F74 = *mtx;
         D_800F2F78 = *vtx;
         D_800F2F7C = *tris;
-        debug_trace_add(D_800F2F70, D_800AB520, 0x1F8);
+        debug_trace_add(D_800F2F70, "track/track.c", 0x1F8);
         set_active_camera(0);
         gSceneRenderSkyDome = TRUE;
         D_800F2F8C = FALSE;
@@ -350,7 +348,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
             } else {
                 func_80013454();
             }
-            debug_trace_add(D_800F2F70, D_800AB530, 0x27D);
+            debug_trace_add(D_800F2F70, "track/track.c", 0x27D);
             gDPPipeSync(D_800F2F70++);
             initialise_player_viewport_vars(numViewports, updateRate);
             weather_clip_planes(-1, -512);
@@ -498,17 +496,21 @@ typedef struct Object_Racer {
 
 typedef struct Object {
     /* 0x00 */ ObjectTransform trans;
-    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x18 */ u8 pad18[0x34 - 0x18];
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ u8 pad38;
     /* 0x39 */ u8 opacity;
     /* 0x3A */ u8 pad3A[0x3C - 0x3A];
     /* 0x3C */ void *level_entry;
     /* 0x40 */ struct ObjectHeader12 *header;
-    /* 0x44 */ u8 pad44[0x4A - 0x44];
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 behaviorId;
     /* 0x4A */ s16 objectID;
     /* 0x4C */ u8 pad4C[0x68 - 0x4C];
     /* 0x68 */ Object_Racer *racer;
     /* 0x6C */ u8 pad6C[0x88 - 0x6C];
     /* 0x88 */ f32 radius; // DKR: properties.distance.radius
+    /* 0x8C */ s32 unk8C;
 } Object;
 
 /* JFG: the object ID is an s16 and the size byte follows it. */
@@ -737,7 +739,9 @@ void trackbg_render_flashy() {
 
 /* JFG: an object's header, reduced */
 typedef struct ObjectHeader12 {
-    /* 0x00 */ u8 pad0[0xA2];
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 drawDistance;
+    /* 0x18 */ u8 pad18[0xA2 - 0x18];
     /* 0xA2 */ u8 unkA2;
 } ObjectHeader12;
 
@@ -1092,7 +1096,6 @@ void track_segment_data_free(void) {
     gMaxTrackLights = 0;
 }
 
-extern f32 D_800AB648; // a .rodata constant, not split out yet
 void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
 /* JFG: add a track light in the first free slot. */
@@ -1114,7 +1117,7 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
             light->outerRadiusSquare = outerRadius * outerRadius;
             light->innerRadius = innerRadius;
             light->innerRadiusSquare = innerRadius * innerRadius;
-            light->falloff = D_800AB648 / (outerRadius - innerRadius);
+            light->falloff = 31.99f / (outerRadius - innerRadius);
             track_light_set_colour((u8 *) light, red, green, blue, 255);
             gNumTrackLights++;
             return light;
@@ -1786,7 +1789,162 @@ s32 player_get_draw_alpha(Object *obj) {
     return alpha;
 }
 
+/* JFG: the object's 0x68 block as the draw range check reads it (it differs per object kind) */
+typedef struct DrawRangeData {
+    /* 0x00 */ u8 pad0[7];
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 pad9[0x24 - 0x9];
+    /* 0x24 */ Object *rider;
+    /* 0x28 */ u8 pad28[0x55 - 0x28];
+    /* 0x55 */ u8 unk55;
+    /* 0x56 */ u8 pad56[0x90 - 0x56];
+    /* 0x90 */ s16 unk90;
+} DrawRangeData;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same length; the switch cases from 0x2B on use other t-registers, and the plane loop is entered
+ * through a second inRange test (the target tests it once, before the loads). */
+/**
+ * Sets the object's opacity for its kind, fades it out towards the end of its draw distance, and tells whether it is
+ * in range and in front of the three view planes.
+ * JFG: per-kind opacities (racers through player_get_draw_alpha, others from their data), a 30% fade band, and the
+ * plane test stops at the first failure.
+ * DKR: check_if_in_draw_range
+ */
+s32 func_80015ED8(Object *obj) {
+    s32 viewDistance;
+    s32 inRange;
+    DrawRangeData *data;
+    s32 alpha;
+    s32 value;
+    f32 dist;
+    f32 fadeDist;
+    f32 fade;
+    s32 i;
+    f32 py;
+    f32 pz;
+    f32 pw;
+    UNUSED s32 pad;
+    f32 y;
+    f32 z;
+    f32 px;
+    f32 w;
+
+    inRange = TRUE;
+    switch (obj->behaviorId) {
+        case 2:
+            data = (DrawRangeData *) obj->racer;
+            obj->opacity = data->unk90;
+            if (data->rider != NULL) {
+                alpha = player_get_draw_alpha(data->rider);
+                if (alpha != 255) {
+                    obj->opacity = (obj->opacity * alpha) >> 8;
+                }
+            }
+            break;
+        case 1:
+            obj->opacity = player_get_draw_alpha(obj);
+            break;
+        case 0x26:
+            data = (DrawRangeData *) obj->racer;
+            obj->opacity = data->unk8;
+            break;
+        case 0x18:
+            obj->opacity = 255 - ((DrawRangeData *) obj->racer)->unk55;
+            break;
+        case 0x2B:
+        case 0x3D:
+        case 0x50:
+        case 0x51:
+            obj->opacity = obj->unk8C;
+            break;
+        case 0x42:
+            obj->opacity = func_80054530(obj, cam_get_active_camera_id());
+            break;
+        case 0x55:
+        case 0x56:
+            obj->opacity = obj->unk8C;
+            break;
+        case 0x5E:
+            obj->opacity = obj->unk8C;
+            break;
+        case 0x54:
+        case 0xA8:
+            obj->opacity = ((DrawRangeData *) obj->racer)->unk7;
+            break;
+        case 0x66:
+        case 0x67:
+            obj->opacity = obj->unk8C;
+            break;
+        case 0x6E:
+            value = obj->unk8C;
+            if (value >= 255) {
+                obj->opacity = 255;
+            } else {
+                obj->opacity = value;
+            }
+            break;
+        case 0x7A:
+        case 0x7B:
+        case 0x7E:
+        case 0x86:
+        case 0xA6:
+        case 0xA7:
+            obj->opacity = obj->unk8C;
+            break;
+        case 0x24:
+        case 0x2E:
+        case 0x2F:
+        case 0x30:
+        case 0x31:
+        case 0x33:
+        case 0x40:
+        case 0x52:
+        case 0x71:
+        case 0x8A:
+        case 0xA0:
+        case 0xAB:
+            break;
+        default:
+            obj->opacity = 255;
+            break;
+    }
+    if (obj->opacity == 0) {
+        return FALSE;
+    }
+    viewDistance = obj->header->drawDistance;
+    if (viewDistance != 0) {
+        dist = get_distance_to_active_camera(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+        if (viewDistance < dist) {
+            inRange = FALSE;
+        } else {
+            fadeDist = viewDistance - dist;
+            fade = viewDistance * 0.3f;
+            if (fadeDist < fade) {
+                obj->opacity = (s32) (obj->opacity * (fadeDist / fade));
+            }
+        }
+    }
+    if (inRange) {
+        y = obj->trans.y_position;
+        z = obj->trans.z_position;
+        w = obj->unk34;
+        for (i = 0; inRange && i < 3; i++) {
+            px = D_800F2FB8[i].x;
+            py = D_800F2FB8[i].y;
+            pz = D_800F2FB8[i].z;
+            pw = D_800F2FB8[i].w;
+            if ((px * obj->trans.x_position) + (py * y) + (pz * z) + pw + w < 0.0f) {
+                inRange = FALSE;
+            }
+        }
+    }
+    return inRange;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80015ED8);
+#endif
 
 /* JFG: what the sweep tests fill in (func_80016208) */
 typedef struct SweepHit {
@@ -1804,7 +1962,6 @@ typedef struct SweepHit {
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target copies flags to $s0 (in the delay slot of the first branch) and takes the 0x40 test
    from that copy, which also moves the hit-field stores after the float stores; IDO propagates my copies away */
-extern f32 D_800ABA28;
 void track_edges_build(void);
 void func_800805F4(void);
 s32 func_8007F280(void *obj, f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
@@ -1841,7 +1998,7 @@ s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, SweepHit
     hit->unk20 = 0;
     hit->unk26 = 0;
     hit->unk27 = 0;
-    hit->unk1C = D_800ABA28;
+    hit->unk1C = 1024000000.0f;
     found = TRUE;
     while (found && !once) {
         found = FALSE;

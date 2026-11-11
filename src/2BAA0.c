@@ -66,15 +66,17 @@ typedef struct Racer {
     /* 0x14C */ f32 segStart[3]; // a segment in the platform's local space, and the position along it
     /* 0x158 */ f32 segEnd[3];
     /* 0x164 */ f32 segT;
-    /* 0x168 */ u8 pad168[0x16C - 0x168];
+    /* 0x168 */ f32 *segNormal;
     /* 0x16C */ s32 unk16C;
-    /* 0x170 */ u8 pad170[0x178 - 0x170];
+    /* 0x170 */ f32 unk170;
+    /* 0x174 */ f32 unk174;
     /* 0x178 */ f32 unk178;
-    /* 0x17C */ u8 pad17C[2];
+    /* 0x17C */ s16 unk17C;
     /* 0x17E */ s16 unk17E;
-    /* 0x180 */ u8 pad180[2];
+    /* 0x180 */ s16 unk180;
     /* 0x182 */ s16 unk182;
-    /* 0x184 */ u8 pad184[0x186 - 0x184];
+    /* 0x184 */ s8 unk184;
+    /* 0x185 */ u8 pad185;
     /* 0x186 */ s8 squashTimer;
     /* 0x187 */ u8 squashEvent;
     /* 0x188 */ u8 squashCheck;
@@ -123,7 +125,9 @@ typedef struct Racer {
     /* 0x574 */ u8 unk574;
     /* 0x575 */ u8 pad575;
     /* 0x576 */ u8 unk576;
-    /* 0x577 */ u8 pad577[0x57A - 0x577];
+    /* 0x577 */ u8 pad577;
+    /* 0x578 */ s8 unk578;
+    /* 0x579 */ s8 unk579;
     /* 0x57A */ u8 unk57A;
     /* 0x57B */ u8 pad57B[0x5CC - 0x57B];
     /* 0x5CC */ u8 *held;
@@ -1903,7 +1907,173 @@ void player_platform_segment_point(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z
     *z = world[2] - local[2];
 }
 
+/* JFG: how a ledge may be grabbed (the hang move's parameters) */
+typedef struct HangParams {
+    /* 0x00 */ f32 rangeX; // grab only below this speed (x and z), unless ...
+    /* 0x04 */ f32 rangeZ;
+    /* 0x08 */ f32 distance;
+    /* 0x0C */ f32 edgeGap;
+    /* 0x10 */ u8 pad10[4];
+    /* 0x14 */ s32 turnFrames;
+    /* 0x18 */ s32 frames;
+} HangParams;
+
+s32 func_80081658(f32 *from, f32 *to, f32 *seg, s32 *hit); // the ledge crossed between two points (platforms)
+s32 func_80019888(f32 *from, f32 *to, f32 *seg);           // the same on the track
+s32 func_80081CB8(f32 *seg, f32 *next);                    // the ledge next to seg (platforms)
+s32 track_edge_find_next(f32 *seg, f32 *next);
+void func_8004A2FC(MtxF *mf, f32 *in, f32 *out);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the frame and the declared stack slots match; the float registers are numbered differently from the
+ * else branch on (the target loads the segment ends into f4..f18 in turn) and the temporaries sit one word lower. */
+/* JFG: grab the ledge the player has just crossed, if the move allows it: snap to the point along it, enter the hang
+ * state (6) facing the wall, and slide towards the middle when the next ledge turns away. */
+void func_80035E14(u8 *obj, Racer *racer, f32 arg2, f32 arg3, UNUSED s32 arg4, HangParams *params) {
+    s32 hit;
+    f32 *seg;
+    s32 result;
+    s32 angle;
+    f32 adj[6];
+    PlatformData *data;
+    f32 hang[3];
+    s16 next;
+    f32 normal[3];
+    UNUSED s32 pad0;
+    f32 dist;
+    f32 ax;
+    f32 ay;
+    f32 az;
+    f32 bx;
+    f32 by;
+    f32 bz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 s;
+    UNUSED s32 pad[3];
+    f32 velX;
+    f32 velZ;
+    UNUSED s32 pad2;
+    s32 ok;
+    s16 side;
+    s16 roll;
+    s16 pitch;
+    s16 yaw;
+    u8 cur;
+    f32 s2;
+    f32 c2;
+    f32 c1;
+
+    if (racer->unk184 == 0) {
+        return;
+    }
+    seg = racer->segStart;
+    if (racer->platform != NULL) {
+        result = func_80081658(racer->pos, (f32 *) (obj + 0xC), seg, &hit);
+    } else {
+        result = func_80019888(racer->pos, (f32 *) (obj + 0xC), seg);
+    }
+    if (result != -1) {
+        return;
+    }
+    if (racer->platform != NULL) {
+        data = *(PlatformData **) ((u8 *) racer->platform + 0x5C);
+        cur = data->cur;
+        func_80048B60(&data->toWorld[cur], seg[0], seg[1], seg[2], &ax, &ay, &az);
+        func_80048B60(&data->toWorld[cur], seg[3], seg[4], seg[5], &bx, &by, &bz);
+        func_8004A2FC(&data->toLocal[cur], *(f32 **) &seg[7], normal);
+    } else {
+        ax = seg[0];
+        ay = seg[1];
+        az = seg[2];
+        bx = seg[3];
+        by = seg[4];
+        bz = seg[5];
+        normal[0] = (*(f32 **) &seg[7])[0];
+        normal[1] = (*(f32 **) &seg[7])[1];
+        normal[2] = (*(f32 **) &seg[7])[2];
+    }
+    dx = bx - ax;
+    dy = by - ay;
+    dz = bz - az;
+    hang[0] = seg[6] * dx + ax;
+    hang[1] = seg[6] * dy + ay;
+    hang[2] = seg[6] * dz + az;
+    dist = sqrtf(dx * dx + dz * dz);
+    yaw = func_80049C84(dx, dz);
+    pitch = func_80049C84(dy, dist);
+    angle = -yaw;
+    s = func_80049C34(angle);
+    roll = func_80049C84(normal[2] * s + normal[0] * func_80049C30(angle), normal[1]);
+    ok = 0;
+    velX = racer->velX;
+    velZ = racer->velZ;
+    angle = arg3;
+    c1 = func_80049C30(angle);
+    side = yaw - 0x4000;
+    c2 = func_80049C30(side);
+    s2 = func_80049C34(side);
+    if (-params->rangeX < velX && velX < params->rangeX && -params->rangeZ < velZ && velZ < params->rangeZ) {
+        ok = 1;
+    } else if (arg2 == 0.0f && (velX != 0.0f || velZ != 0.0f)) {
+        ok = 1;
+    } else if (func_80049C34(angle) * s2 + c2 * c1 > 0.0f) {
+        ok = 1;
+    }
+    if (ok && *(f32 *) (obj + 0x10) - 10.0f < hang[1] && hang[1] < *(f32 *) (obj + 0x10) + 10.0f) {
+        *(f32 *) (obj + 0xC) = hang[0];
+        *(f32 *) (obj + 0x10) = hang[1];
+        *(f32 *) (obj + 0x14) = hang[2];
+        racer->unk568 = 6;
+        racer->unk579 = params->turnFrames;
+        racer->unk17C = racer->unk11C - side;
+        racer->unk578 = params->frames;
+        racer->unk17C /= params->turnFrames;
+        racer->unk576 = 0;
+        racer->unk13E = 0;
+        racer->unk16C = (s32) racer->platform;
+        racer->unk170 = params->distance / params->frames;
+        racer->unk17E = pitch;
+        racer->unk182 = side;
+        racer->unk180 = roll;
+        racer->unk1F4 = 0;
+        racer->unk178 = hang[1];
+        if (racer->platform != NULL) {
+            result = func_80081CB8(seg, adj);
+        } else {
+            result = track_edge_find_next(seg, adj);
+        }
+        racer->unk174 = 0.0f;
+        if (result) {
+            if (racer->platform != NULL) {
+                func_80048B60(&data->toWorld[cur], adj[0], adj[1], adj[2], &ax, &ay, &az);
+                func_80048B60(&data->toWorld[cur], adj[3], adj[4], adj[5], &bx, &by, &bz);
+                next = func_80049C84(bx - ax, bz - az);
+            } else {
+                next = func_80049C84(adj[3] - adj[0], adj[5] - adj[2]);
+            }
+            next -= yaw;
+            if (next < -3000 || next > 3000) {
+                dist = sqrtf(dx * dx + dy * dy + dz * dz);
+                if (seg[6] < 0.5f) {
+                    dist *= seg[6];
+                    if (dist < params->edgeGap) {
+                        racer->unk174 = (params->edgeGap - dist) / params->frames;
+                    }
+                } else {
+                    dist *= 1.0f - seg[6];
+                    if (dist < params->edgeGap) {
+                        racer->unk174 = -(params->edgeGap - dist) / params->frames;
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 

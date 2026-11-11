@@ -1,6 +1,19 @@
 #include "common.h"
 #include "joypad.h"
 
+/*
+ * The strings that main's .data (still asm) points at: a version, a build date and a list of names. They open
+ * the file's .rodata, so they are defined here, by address.
+ */
+const char D_800AC4D0[] = "1.1848";
+const char D_800AC4D8[] = "04/09/99 20:40";
+const char D_800AC4E8[] = "jpegg";
+const char D_800AC4F0[] = "null";
+const char D_800AC4F8[] = "setting up";
+const char D_800AC504[] = "freeing";
+const char D_800AC50C[] = "processing";
+const char D_800AC518[] = "exploding";
+
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
 extern OSMesgQueue gNMIMesgQueue;
 extern s32 gGameMode;
@@ -114,6 +127,7 @@ void code_patch_addiu_666(void) {
     s32 j;
 
     while (i--) {
+        stubbed_printf("%d\n", i);
         instr = D_800A3360[i];
         j = 0x40;
         while (j--) {
@@ -130,6 +144,7 @@ void code_patch_addiu_666(void) {
             }
             instr++;
         }
+        stubbed_printf("WARNING: couldn't find 'ra=0x666' in function %d\n", i);
     }
 }
 
@@ -232,8 +247,6 @@ extern Tri45 *gTriangleHeap[2];  // DKR: gTriangleHeap
 extern s32 D_800FECB0;        // JFG: the previous frame's image
 extern s32 gVideoLastFramebuffer;
 extern u16 *gVideoDepthBuffer;
-extern char D_800AC55C[];
-extern char D_800AC568[];
 extern u8 D_800A321C;
 extern s16 D_800A3220;
 extern s16 D_800A3224;
@@ -333,7 +346,7 @@ void main_game_loop(void) {
     sGameMtx = gMatrixHeap[gSPTaskNum];
     sGameVtx = gVertexHeap[gSPTaskNum];
     sGameTri = gTriangleHeap[gSPTaskNum];
-    debug_trace_add(gfx, D_800AC55C, 0x386);
+    debug_trace_add(gfx, "main/main.c", 0x386);
     rsp_segment(&gfx, 0, 0);
     rsp_segment(&gfx, 1, gVideoLastFramebuffer);
     rsp_segment(&gfx, 2, (s32) gVideoDepthBuffer);
@@ -387,7 +400,7 @@ void main_game_loop(void) {
     if (D_800FD7D0 >= 8 && is_controller_missing()) {
         menu_draw_blinking_prompt(&gfx, D_800A3374);
     }
-    debug_trace_add(gfx, D_800AC568, 0x44B);
+    debug_trace_add(gfx, "main/main.c", 0x44B);
     gDPFullSync(gfx++);
     gSPEndDisplayList(gfx++);
     if (runlink_module_loaded(2) && !check_fadeout_transition()) {
@@ -736,10 +749,6 @@ extern Gfx *gfx;
 extern u8 vtx[];
 extern u8 gGameCurrMatrix[];
 extern u8 gGameCurrTriList[];
-extern char D_800AC574[];
-extern char D_800AC580[];
-extern char D_800AC58C[];
-extern char D_800AC598[];
 extern s8 D_800A3294;
 struct LevelHeader *level_header(void);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
@@ -797,7 +806,7 @@ void func_80045F00(s32 updateRate) {
             startPlayer = i;
         }
     }
-    debug_trace_add(gfx, D_800AC574, 0x62E);
+    debug_trace_add(gfx, "main/main.c", 0x62E);
     objects_set_attachment_byte(updateRate);
     v = func_80011C2C();
     D_800A38FC = 1;
@@ -839,9 +848,9 @@ void func_80045F00(s32 updateRate) {
         }
     }
     gParticlePtrList_flush();
-    debug_trace_add(gfx, D_800AC580, 0x683);
+    debug_trace_add(gfx, "main/main.c", 0x683);
     func_800121C0(&gfx, gGameCurrMatrix, vtx, gGameCurrTriList, updateRate);
-    debug_trace_add(gfx, D_800AC58C, 0x6C0);
+    debug_trace_add(gfx, "main/main.c", 0x6C0);
     process_subtitles(updateRate);
     if (runlink_module_loaded(7)) {
         func_80054530(&gfx, updateRate);
@@ -850,7 +859,7 @@ void func_80045F00(s32 updateRate) {
         func_80054530(&gfx, gGameCurrMatrix, vtx, D_800A32B8);
     }
     splitscreen_dividers_draw(&gfx);
-    debug_trace_add(gfx, D_800AC598, 0x6DC);
+    debug_trace_add(gfx, "main/main.c", 0x6DC);
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/45750", func_80045F00);
@@ -1023,7 +1032,6 @@ s32 level_redirect_get(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4
 
 extern s8 D_800A329C;
 extern u8 D_800A32FC[];
-extern f32 D_800AC624;
 s32 game_flag_get(s32 flag);
 void func_8003B6BC(void);
 s16 leveltable_region(void);
@@ -1086,7 +1094,7 @@ void func_8004665C(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) 
     }
     seq = music_current_sequence();
     if (leveltable_tune(D_800A3250) != seq && !is_game_paused()) {
-        music_volume_fade(D_800AC624, 0);
+        music_volume_fade(0.45f, 0);
     }
     rumble_stop_all(1);
     rumble_allow_set(0);
@@ -1147,7 +1155,6 @@ extern u8 D_800A4FCC; // JFG: the number of cameras
 extern s8 D_800A5040;
 extern s16 D_800A4FB8;
 extern s32 D_800A3928;
-extern f32 D_800AC628;
 extern u8 D_800A32EC[];
 extern u8 D_800A32F4[];
 extern u8 D_800A32FC[];
@@ -1210,7 +1217,7 @@ void level_load_pending(s32 updateRate) {
             D_800A32A0 = 1;
             transition_begin(D_800A32FC);
         }
-        music_volume_fade(D_800AC628, 0);
+        music_volume_fade(0.45f, 0);
         D_800A3294 = 30;
     }
     D_800A32C4 = 0;
@@ -2165,9 +2172,6 @@ void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentF
 int sprintf(char *s, const char *fmt, ...);
 extern u8 gGameCurrMatrix[];
 extern s32 gPoolFreeBytes[3]; // JFG: three sizes shown in KB
-extern char D_800AC604[];
-extern char D_800AC614[];
-extern char D_800AC61C[];
 
 /* JFG: a debug box: the level's name (upper case), player 1's position and three sizes in KB. */
 void debug_level_info_draw(void) {
@@ -2203,14 +2207,14 @@ void debug_level_info_draw(void) {
         draw_text(&gfx, 208, 194, buffer, 0);
     }
     if (racer != NULL) {
-        sprintf(buffer, D_800AC604, (s32) racer->x, (s32) racer->y, (s32) racer->z);
+        sprintf(buffer, "%5d  %5d  %5d\n", (s32) racer->x, (s32) racer->y, (s32) racer->z);
         draw_text(&gfx, 208, 200, buffer, 0);
     }
     i = 0;
     while (i < 3) {
-        sprintf(buffer, D_800AC614, i);
+        sprintf(buffer, "FREE %d", i);
         draw_text(&gfx, 208, 208 + i * 6, buffer, 0);
-        sprintf(buffer, D_800AC61C, gPoolFreeBytes[i] / 1024);
+        sprintf(buffer, "%d K", gPoolFreeBytes[i] / 1024);
         draw_text(&gfx, 240, 208 + i * 6, buffer, 0);
         i++;
     }

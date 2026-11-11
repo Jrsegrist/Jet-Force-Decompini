@@ -49,13 +49,14 @@ typedef struct DialogueBoxBackground {
 
 /* JFG's font header (Size: 0x10 bytes) */
 typedef struct FontData {
-    u8 pad0;
+    u8 width;
     u8 y;
     u8 charWidth; // the width of a character without its own entry
-    u8 unk3;
+    u8 lineHeight;
     s32 dataOffset; // JFG: of the glyph images in asset 0x3B
     s16 glyphSize;
-    u8 padA[6];
+    u16 format;     // JFG: 4: the glyphs take two texture loads
+    u32 *loadCmds;  // JFG: the texture load commands of the glyphs
 } FontData;
 extern FontData *gFonts; // Official Name: Font
 
@@ -133,7 +134,7 @@ void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentF
 
 #define POS_CENTRED -0x8000
 
-void func_8006FD98(Gfx **displayList, DialogueBoxBackground *box, char *text, s32 alignmentFlags);
+void render_text_string(Gfx **displayList, DialogueBoxBackground *box, char *text, s32 alignmentFlags);
 
 /**
  * Text draw function that draws text in a dialogue box while overriding its position.
@@ -146,11 +147,257 @@ void draw_dialogue_text_pos_unused(Gfx **displayList, s32 dialogueBoxID, s32 xpo
         DialogueBoxBackground *temp = &gDialogueBoxBackground[dialogueBoxID];
         temp->xpos = (xpos == POS_CENTRED) ? temp->width >> 1 : xpos;
         temp->ypos = (ypos == POS_CENTRED) ? temp->height >> 1 : ypos;
-        func_8006FD98(displayList, temp, text, alignmentFlags);
+        render_text_string(displayList, temp, text, alignmentFlags);
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/707F0", func_8006FD98);
+extern u8 *D_80104108; // JFG: the buffer render_text_string converts its text into
+extern u8 D_8010410C;  // JFG: compact kerning (one pixel less per two-byte character)
+extern u8 D_8010410D;  // JFG: glyph colours on (the text mode byte func_8006FC14 sets)
+extern u8 *D_801040F8; // JFG: the glyph cache's image data
+extern u8 *D_801040E8[]; // JFG: per font, the width of each two-byte character
+void fontConvertString(u8 *in, u8 *out);
+extern Gfx dDialogueBoxBegin[];
+extern Gfx D_800A6E98[]; // DKR: &dDialogueBoxDrawModes[1]
+s32 get_text_width(u8 *text, s32 font, s32 convert);
+void viewport_scissor(Gfx **dList);
+void rendermode_reset(Gfx **dList);
+
+/* JFG: an entry of the glyph cache (256 blocks of 0x80 bytes). Size: 0x10 bytes */
+typedef struct GlyphCacheEntry {
+    /* 0x00 */ u8 font; // 0xFF: free
+    /* 0x01 */ u8 ch;
+    /* 0x02 */ u16 offset; // of the block in D_801040F8
+    /* 0x04 */ u8 state;
+    /* 0x05 */ u8 next; // how many blocks of the glyph follow
+    /* 0x06 */ u16 image;  // offset of the glyph's image in D_801040F8
+    /* 0x08 */ u16 image2; // and of its second image (fonts of format 4)
+    /* 0x0A */ u8 s;  // the glyph's texture rectangle
+    /* 0x0B */ u8 t;
+    /* 0x0C */ u8 s2;
+    /* 0x0D */ u8 t2;
+    /* 0x0E */ u8 spacing;
+    /* 0x0F */ u8 padF;
+} GlyphCacheEntry;
+
+GlyphCacheEntry *glyph_cache_get(u8 ch);
+
+/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(7, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                      \
+                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* The texture rectangle in the older microcode's form (RDPHALF_2, RDPHALF_CONT), as in 4E610.c */
+#define gSPTextureRectangleOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                    \
+    {                                                                                         \
+        Gfx *_g = (Gfx *) (pkt);                                                              \
+                                                                                              \
+        _g->words.w0 = (_SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));     \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                   \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));          \
+    }
+
+/**
+ * Loops through a string, then draws each character onscreen.
+ * Will also draw a fillrect if text backgrounds are enabled.
+ * JFG: DKR's Japanese version of render_text_string (two-byte characters, glyphs from a cache), without
+ * the scissor scale; the box is clamped to the screen, and one off the screen returns at once (leaving
+ * the font switched); glyphs 2, 0xE and 0x41-0x44 recolour the text while D_8010410D is set. The commands after the
+ * first go through a copy of *dList taken before it, so they overwrite that first gSPDisplayList.
+ */
+void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, s32 alignmentFlags) {
+    s32 prevFont;
+    s32 xpos;
+    s32 ypos;
+    s32 ulx;
+    s32 uly;
+    s32 lrx;
+    s32 lry;
+    s32 charSpace;
+    s32 textureS;
+    s32 textureT;
+    s32 xAlignmentDiff;
+    u8 ch;
+    s32 coloured;
+    GlyphCacheEntry *glyph;
+    u32 *cmds;
+    FontData *fontData;
+    Gfx *gfx;
+    u8 *str;
+
+    if (text != NULL) {
+        gfx = *dList;
+        fontConvertString((u8 *) text, D_80104108);
+        prevFont = fontInUse;
+        fontInUse = box->font;
+        fontData = &gFonts[fontInUse];
+        str = D_80104108;
+        gSPDisplayList((*dList)++, dDialogueBoxBegin);
+        if (box != gDialogueBoxBackground) {
+            ulx = box->x1;
+            uly = box->y1;
+            lrx = box->x2;
+            lry = box->y2;
+            if (ulx > gDialogueBoxBackground[0].x2 || uly > gDialogueBoxBackground[0].y2 || lrx < 0 || lry < 0) {
+                return;
+            }
+            if (ulx < 0) {
+                ulx = 0;
+            }
+            if (uly < 0) {
+                uly = 0;
+            }
+            if (lrx > gDialogueBoxBackground[0].x2) {
+                lrx = gDialogueBoxBackground[0].x2;
+            }
+            if (lry > gDialogueBoxBackground[0].y2) {
+                lry = gDialogueBoxBackground[0].y2;
+            }
+            gDPSetScissor(gfx++, G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
+        }
+        xpos = box->xpos;
+        ypos = box->ypos;
+        xAlignmentDiff = -1;
+        if (alignmentFlags & (1 | 4)) { // right or centred
+            xAlignmentDiff = get_text_width(str, box->font, 0);
+            if (alignmentFlags & 1) {
+                xpos = (xpos - xAlignmentDiff) + 1;
+            } else {
+                xpos -= xAlignmentDiff >> 1;
+            }
+        }
+        if (alignmentFlags & 2) { // bottom
+            ypos = (ypos - fontData->y) + 1;
+        }
+        if (alignmentFlags & 8) { // middle
+            ypos -= fontData->y >> 1;
+        }
+        if (box->textBGColourA != 0) {
+            gDPSetEnvColor(gfx++, box->textBGColourR, box->textBGColourG, box->textBGColourB, box->textBGColourA);
+            if (xAlignmentDiff == -1) {
+                xAlignmentDiff = get_text_width(str, box->font, 0);
+            }
+            lrx = xpos + xAlignmentDiff;
+            lry = fontData->y + ypos;
+            gDPSetPrimColor(gfx++, 0, 0, D_800A6EA8, D_800A6EAC, D_800A6EB0, 0);
+            gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(D_800A6E98), 2);
+            gDPFillRectangle(gfx++, xpos + box->x1, ypos + box->y1, lrx + box->x1, lry + box->y1);
+            gDPPipeSync(gfx++);
+        }
+        gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, box->opacity);
+        gDPSetEnvColor(gfx++, box->textColourR, box->textColourG, box->textColourB, box->textColourA);
+        coloured = FALSE;
+        while (*str != '\0' && box->y2 >= ypos) {
+            ch = *str++;
+            if (ch & 0x80) {
+                ch = *str++;
+                if (ch == 0 || ch == 0xF) { // a space
+                    charSpace = fontData->charWidth;
+                } else {
+                    if (D_8010410D) {
+                        if (ch == 2) {
+                            gDPPipeSync(gfx++);
+                            gDPSetEnvColor(gfx++, 0, 0, 255, 255);
+                            coloured = TRUE;
+                        } else if (ch == 0xE) {
+                            gDPPipeSync(gfx++);
+                            gDPSetEnvColor(gfx++, 0, 255, 0, 255);
+                            coloured = TRUE;
+                        } else if (ch >= 0x41 && ch < 0x45) {
+                            gDPPipeSync(gfx++);
+                            gDPSetEnvColor(gfx++, 255, 255, 0, 255);
+                            coloured = TRUE;
+                        } else if (coloured) {
+                            gDPPipeSync(gfx++);
+                            gDPSetEnvColor(gfx++, box->textColourR, box->textColourG, box->textColourB,
+                                           box->textColourA);
+                            coloured = FALSE;
+                        }
+                    }
+                    ulx = box->x1 + xpos;
+                    uly = box->y1 + ypos;
+                    lrx = fontData->width + ulx;
+                    lry = fontData->y + uly;
+                    charSpace = D_801040E8[fontInUse][ch];
+                    if (lrx > 0 && lry > 0 && ulx < box->x2 && uly < box->y2) {
+                        glyph = glyph_cache_get(ch);
+                        if (glyph != NULL) {
+                            ulx <<= 2;
+                            uly = (glyph->t + uly) << 2;
+                            charSpace = glyph->spacing;
+                            lrx = (glyph->s2 - glyph->s) * 4 + ulx;
+                            lry = (glyph->t2 - glyph->t) * 4 + uly;
+                            if (lrx > 0 && lry > 0) {
+                                textureS = glyph->s << 5;
+                                textureT = glyph->t << 5;
+                                if (ulx < 0) {
+                                    textureS -= ulx << 3;
+                                    ulx = 0;
+                                }
+                                if (uly < 0) {
+                                    textureT -= uly << 3;
+                                    uly = 0;
+                                }
+                                cmds = fontData->loadCmds;
+                                gfx->words.w0 = cmds[0];
+                                gfx->words.w1 = (u32) D_801040F8 + glyph->image;
+                                gfx++;
+                                cmds += 2;
+                                if (fontData->format == 4) {
+                                    gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(cmds), 6);
+                                    gfx->words.w0 = cmds[12];
+                                    gfx->words.w1 = (u32) D_801040F8 + glyph->image2;
+                                    gfx++;
+                                    cmds += 14;
+                                }
+                                gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(cmds), 8);
+                                gSPTextureRectangleOld(gfx++, ulx, uly, lrx, lry, 0, textureS, textureT, 1 << 10,
+                                                       1 << 10);
+                            }
+                        }
+                    }
+                }
+                if (D_8010410C && charSpace) {
+                    charSpace--;
+                }
+                xpos += charSpace;
+            } else {
+                switch (ch) {
+                    case '\n': // newline
+                        xpos = box->textOffsetX;
+                        ypos += fontData->lineHeight;
+                        break;
+                    case '\t': // Tab
+                        xpos = ((s32) xpos + (fontData->charWidth * 4)) -
+                               ((xpos - box->textOffsetX) % (fontData->charWidth * 4));
+                        break;
+                    case '\v': // VT - Vertical Tab
+                        ypos += fontData->lineHeight;
+                        break;
+                    case '\r': // Carriage Return
+                        xpos = box->textOffsetX;
+                        break;
+                    default:
+                        xpos += fontData->charWidth;
+                        break;
+                }
+            }
+        }
+        box->xpos = xpos - box->textOffsetX;
+        box->ypos = ypos - box->textOffsetY;
+        fontInUse = prevFont; // Put previous font index back.
+        *dList = gfx;
+        rendermode_reset(dList);
+        if (box != gDialogueBoxBackground) {
+            viewport_scissor(dList);
+        }
+    }
+}
 
 extern u8 *D_801040E8[]; // JFG: per font, the width of each two-byte character
 extern u8 *D_80104104;   // JFG: the buffer for converted strings
@@ -515,16 +762,6 @@ void render_fill_rectangle(Gfx **dList, s32 ulx, s32 uly, s32 lrx, s32 lry) {
     }
 }
 
-/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
-#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
-    {                                                                                                \
-        Gfx *_g = (Gfx *) (pkt);                                                                     \
-        _g->words.w0 = (_SHIFTL(7, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                      \
-                        _SHIFTL((numberOfCommands * 8), 0, 16));                                     \
-        _g->words.w1 = (unsigned int) (address);                                                     \
-    }
-extern Gfx dDialogueBoxBegin[];
-extern Gfx D_800A6E98[]; // DKR: &dDialogueBoxDrawModes[1]
 extern s8 sDialogueBoxDimensions[];
 void render_fill_rectangle(Gfx **dList, s32 ulx, s32 uly, s32 lrx, s32 lry);
 
@@ -593,7 +830,7 @@ void render_dialogue_box(Gfx **dList, UNUSED Mtx **mat, UNUSED Vertex **verts, s
         dialogueBox->opacity = dialogueTextBox->opacity;
         dialogueBox->font = dialogueTextBox->font;
         parse_string_with_number(dialogueTextBox->text, D_80104100, dialogueTextBox->number);
-        func_8006FD98(dList, dialogueBox, D_80104100, 0);
+        render_text_string(dList, dialogueBox, D_80104100, 0);
         dialogueTextBox = (DialogueTextElement *) dialogueTextBox->nextBox;
     }
 }
@@ -627,23 +864,6 @@ void parse_string_with_number(char *input, char *output, s32 number) {
     } while (ch);
 }
 
-/* JFG: an entry of the glyph cache (256 blocks of 0x80 bytes). Size: 0x10 bytes */
-typedef struct GlyphCacheEntry {
-    /* 0x00 */ u8 font; // 0xFF: free
-    /* 0x01 */ u8 ch;
-    /* 0x02 */ u16 offset; // of the block in D_801040F8
-    /* 0x04 */ u8 state;
-    /* 0x05 */ u8 next; // how many blocks of the glyph follow
-    /* 0x06 */ s16 width;
-    /* 0x08 */ s16 height;
-    /* 0x0A */ u8 unkA;
-    /* 0x0B */ u8 unkB;
-    /* 0x0C */ u8 unkC;
-    /* 0x0D */ u8 unkD;
-    /* 0x0E */ u8 unkE;
-    /* 0x0F */ u8 padF;
-} GlyphCacheEntry;
-
 /* JFG: the header of a glyph image (asset 0x3B). Size: 0x10 bytes */
 typedef struct GlyphHeader {
     /* 0x00 */ u16 width;
@@ -657,7 +877,6 @@ typedef struct GlyphHeader {
 } GlyphHeader;
 
 extern GlyphCacheEntry *D_801040FC;
-extern u8 *D_801040F8;
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 #ifdef NON_MATCHING
@@ -665,7 +884,7 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
    bytes the glyph's header overwrites in front of its block).
    NON_MATCHING: the target keeps the 4-word save as a loop (IDO unrolls this one), ch out of $s0,
    and other argument registers for the counters (frame 0x70). */
-GlyphCacheEntry *func_80071388(u8 ch) {
+GlyphCacheEntry *glyph_cache_get(u8 ch) {
     GlyphCacheEntry *entry;
     FontData *font;
     s32 i;
@@ -742,13 +961,13 @@ GlyphCacheEntry *func_80071388(u8 ch) {
             *dst++ = *src++;
         } while (++j < 4);
         asset_load(0x3B, (u32) glyph, font->dataOffset + ch * font->glyphSize, font->glyphSize);
-        found->width = found->offset + glyph->width - 16;
-        found->height = found->offset + glyph->height - 16;
-        found->unkA = glyph->unk4;
-        found->unkB = glyph->unk5;
-        found->unkC = glyph->unk6;
-        found->unkD = glyph->unk7;
-        found->unkE = glyph->unk8;
+        found->image = found->offset + glyph->width - 16;
+        found->image2 = found->offset + glyph->height - 16;
+        found->s = glyph->unk4;
+        found->t = glyph->unk5;
+        found->s2 = glyph->unk6;
+        found->t2 = glyph->unk7;
+        found->spacing = glyph->unk8;
         ((u32 *) glyph)[0] = saved[0];
         ((u32 *) glyph)[1] = saved[1];
         ((u32 *) glyph)[2] = saved[2];
@@ -762,7 +981,84 @@ GlyphCacheEntry *func_80071388(u8 ch) {
 INCLUDE_ASM("asm/nonmatchings/707F0", func_80071388);
 #endif
 
+void *mempool_alloc_safe(s32 size, u32 colourTag);
+extern u32 D_800A6E68[]; // JFG: the draw modes (two commands) that end a font's load commands
+extern u32 D_800A6E78[]; // JFG: the same for fonts of format 4
+extern u32 D_800A6E88[]; // JFG: the same for fonts of format 7
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 4 words: in case 4 the target schedules the addiu of D_800A6E78's address three
+   instructions later (the lui is right with the assignment on the macro's line). */
+/**
+ * JFG: build a font's texture load commands (0x80 bytes, kept at font->loadCmds) for its format, loading
+ * from the glyph cache (render_text_string patches each glyph's image address into the first command), and
+ * end them with the format's draw modes.
+ * DKR: fontCreateDisplayList (font.c), one load for the whole font.
+ * Official Name: fontCreateDisplayList
+ */
+void fontCreateDisplayList(FontData *font) {
+    Gfx *dl;
+    u32 *mode;
+
+    dl = (Gfx *) (font->loadCmds = mempool_alloc_safe(0x80, 0xFF0000FF));
+    if (dl != NULL) {
+        mode = D_800A6E68;
+        switch (font->format) {
+            case 4: // RGBA16 and I4
+                mode = D_800A6E78; gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_RGBA, G_IM_SIZ_16b, font->width, font->y, 0,
+                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                     G_TX_NOLOD);
+                gDPLoadMultiBlock_4bS(dl++, D_801040F8, 0x100, 1, G_IM_FMT_I, font->width, font->y, 0,
+                                      G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                      G_TX_NOLOD);
+                break;
+            case 2: // RGBA32
+                gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_RGBA, G_IM_SIZ_32b, font->width, font->y, 0,
+                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                     G_TX_NOLOD);
+                break;
+            case 3: // RGBA16
+                gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_RGBA, G_IM_SIZ_16b, font->width, font->y, 0,
+                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                     G_TX_NOLOD);
+                break;
+            case 1: // IA8
+                gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_IA, G_IM_SIZ_8b, font->width, font->y, 0,
+                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                     G_TX_NOLOD);
+                break;
+            case 0: // IA4
+                gDPLoadTextureBlock_4bS(dl++, D_801040F8, G_IM_FMT_IA, font->width, font->y, 0,
+                                        G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                        G_TX_NOLOD);
+                break;
+            case 5: // I4
+                gDPLoadTextureBlock_4bS(dl++, D_801040F8, G_IM_FMT_I, font->width, font->y, 0,
+                                        G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                        G_TX_NOLOD);
+                break;
+            case 6: // I8
+                gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_I, G_IM_SIZ_8b, font->width, font->y, 0,
+                                     G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                     G_TX_NOLOD);
+                break;
+            case 7: // I4, other draw modes
+                gDPLoadTextureBlock_4bS(dl++, D_801040F8, G_IM_FMT_I, font->width, font->y, 0,
+                                        G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
+                                        G_TX_NOLOD);
+                mode = D_800A6E88;
+                break;
+        }
+        dl->words.w0 = mode[0];
+        dl->words.w1 = mode[1];
+        dl++;
+        dl->words.w0 = mode[2];
+        dl->words.w1 = mode[3];
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/707F0", func_800715E8);
+#endif
 
 extern u8 gFontConversionTable[]; // JFG: the font code of each ASCII character from ' '
 
@@ -858,5 +1154,5 @@ INCLUDE_ASM("asm/nonmatchings/707F0", func_8007216C);
 #endif
 
 u8 func_8007230C(s32 font) {
-    return gFonts[font].unk3;
+    return gFonts[font].lineHeight;
 }

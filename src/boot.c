@@ -48,10 +48,13 @@ void thread1_main(UNUSED void *unused) {
 
 /**
  * Increments the start and endpoint of the stack.
- * JFG: no stack wraparound check follows (DKR prints a warning when they differ).
+ * JFG: the warning when they differ is compiled out (only its string is left in .rodata).
  * Official Name: bootCheckStack
  */
 void thread3_verify_stack(void) {
     gThread3Stack[STACKSIZE(STACK_GAME)]++;
     gThread3Stack[0]++;
+    if (gThread3Stack[STACKSIZE(STACK_GAME)] != gThread3Stack[0]) {
+        stubbed_printf("WARNING: Stack overflow/underflow!!!\n");
+    }
 }

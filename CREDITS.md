@@ -239,3 +239,18 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/textures_sprites.c` | material_set (NON_MATCHING) (helper ma14h1) |
 | `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (NON_MATCHING, JFG's three output buffers and high quality mode) |
 | `src/game.c` | level_load, structure only (NON_MATCHING) |
+
+### Round 15 (main15), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/audio_spatial.c` | audspat_update_all (JFG: points only, the pan from the world position, grouped points); the "OUT OF AUDIO POINTS" report in audspat_point_create |
+| `src/audiomgr.c` | the three stubbed reports of __amHandleDoneMsg, __amDMA and __clearAudioDMA |
+| `src/font.c` | render_text_string (JP version, JFG variant); fontCreateDisplayList (NON_MATCHING) (helper ma15h1) |
+| `src/rcp_dkr.c` | texrect_draw_scaled, as the NON_MATCHING body of JFG's func_8004F02C |
+| `src/tracks.c` | check_if_in_draw_range, as the NON_MATCHING body of JFG's func_80015ED8 |
+| `src/main.c` | the stack check of the idle thread, with its stubbed report (boot.c) |
+| `src/camera.c` | the stubbed reports of cam_set_layout, set_active_camera, set_ortho_matrix_height, render_ortho_triangle_image, mtx_cam_push |
+| `src/textures_sprites.c` | the textures file's debug strings (560B0.c, split from 55130) |

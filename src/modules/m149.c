@@ -164,7 +164,7 @@ extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern f32 func_80097140(f32 x); /* square root */
 extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
-extern void func_80029BA4(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
+extern void zone_add(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 
 static s16 sSpeed = 0x140; /* the boss's speed along its way */
@@ -717,7 +717,7 @@ void func_m149_019C8(Object *obj, s32 updateRate) {
         if (spawned != NULL) {
             spawned->level_entry = NULL;
         }
-        func_80029BA4(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 160.0f, 80.0f, 0.5f, 100,
+        zone_add(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 160.0f, 80.0f, 0.5f, 100,
                       NULL);
         func_80003410(0x22, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
         func_800079B8(obj);

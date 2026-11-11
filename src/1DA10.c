@@ -440,7 +440,143 @@ void obj_shading_from_ground(u8 *obj) {
     }
 }
 
+/* JFG: a model's face normals (the first halfword of each 14-byte face entry indexes the normal table) */
+typedef struct HitNormalSet {
+    /* 0x00 */ u8 *faces;
+    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x0C */ f32 (*normals)[4];
+} HitNormalSet;
+
+/* JFG: an object model's triangle batch (0x10 bytes) */
+typedef struct HitBatch {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 verticesOffset;
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ u32 flags;
+} HitBatch;
+
+typedef struct HitModel {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 numberOfBatches;
+    /* 0x18 */ u8 pad18[0x20 - 0x18];
+    /* 0x20 */ ShadowTriangle *triangles;
+    /* 0x24 */ HitBatch *batches;
+    /* 0x28 */ u8 pad28[0x60 - 0x28];
+    /* 0x60 */ HitNormalSet *normals;
+} HitModel;
+
+typedef struct HitInstance {
+    /* 0x00 */ HitModel *model;
+    /* 0x04 */ ShadowVertex *vertices;
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ HitNormalSet *normals; // NULL: the model's own
+} HitInstance;
+
+typedef struct HitObjData {
+    /* 0x000 */ u8 pad0[0x12B];
+    /* 0x12B */ u8 matrixIndex;
+    /* 0x12C */ u8 pad12C[0x133 - 0x12C];
+    /* 0x133 */ u8 instanceIndex;
+} HitObjData;
+
+typedef struct HitObj {
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ u8 padC[0x5C - 0xC];
+    /* 0x5C */ HitObjData *data;
+    /* 0x60 */ u8 pad60[0x6C - 0x60];
+    /* 0x6C */ HitInstance **instances;
+} HitObj;
+
+void func_8004A2FC(MtxF *mtx, f32 *in, f32 *out);                                // a direction by the matrix
+void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // a point by the matrix
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: the frame matches; the target keeps the point matrix in s7 for the whole function and the batch
+ * index in memory with its own *16 counter (mine recomputes mtx + 2 and i << 4). */
+/*
+ * JFG: collect the faces of the object's model that face up (normal y times the scale above 0.5) and overlap the
+ * box (x1, z1)-(x2, z2): their three corners go to `out` as shorts (10 per face) and their planes, scaled, to
+ * `planes`. Returns the number of faces.
+ */
+s32 func_800203C4(HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f32 z2) {
+    ShadowPoint points[8];
+    HitInstance *inst;
+    HitModel *model;
+    HitNormalSet *normalSet;
+    ShadowVertex *v;
+    HitBatch *batch;
+    f32 *planesOut;
+    MtxF *pointMtx;
+    f32 (*normals)[4];
+    MtxF *mtx;
+    s32 j;
+    s32 k;
+    s32 vertOffset;
+    s32 numBatches;
+    f32 plane[4];
+    s16 *dst;
+    s32 i;
+    UNUSED s32 pad;
+    s32 faceEnd;
+    UNUSED s32 pad2[2];
+    s32 count;
+    UNUSED s32 pad3;
+
+    inst = obj->instances[obj->data->instanceIndex];
+    model = inst->model;
+    if (inst->normals != NULL) {
+        normalSet = inst->normals;
+    } else {
+        normalSet = model->normals;
+    }
+    normals = normalSet->normals;
+    planesOut = planes;
+    dst = out;
+    count = 0;
+    mtx = (MtxF *) ((u8 *) obj->data + (obj->data->matrixIndex << 6));
+    pointMtx = mtx + 2;
+    for (i = 0; i < model->numberOfBatches; i++) {
+        batch = &model->batches[i];
+        if (!(batch->flags & 0x1C80)) {
+            j = batch->facesOffset;
+            faceEnd = batch[1].facesOffset;
+            vertOffset = batch->verticesOffset;
+            for (; j < faceEnd; j++) {
+                func_8004A2FC(mtx, normals[*(u16 *) (normalSet->faces + j * 14)], plane);
+                if (plane[1] * obj->scale > 0.5f) {
+                    for (k = 0; k < 3; k++) {
+                        v = &inst->vertices[model->triangles[j].verticesArray[k + 1] + vertOffset];
+                        func_80048B60(pointMtx, v->x, v->y, v->z, &points[k].x, &points[k].y, &points[k].z);
+                    }
+                    if (func_80020890(x1, z1, x2, z2, 3, points)) {
+                        dst[0] = points[0].x;
+                        dst[1] = points[0].y;
+                        dst[2] = points[0].z;
+                        dst[3] = points[1].x;
+                        dst[4] = points[1].y;
+                        dst[5] = points[1].z;
+                        dst[6] = points[2].x;
+                        dst[7] = points[2].y;
+                        dst[8] = points[2].z;
+                        dst += 10;
+                        planesOut[0] = plane[0] * obj->scale;
+                        planesOut[1] = plane[1] * obj->scale;
+                        planesOut[2] = plane[2] * obj->scale;
+                        planesOut[3] = plane[3] * obj->scale;
+                        planesOut += 4;
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+    return count;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_800203C4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_80020890);
 

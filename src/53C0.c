@@ -1375,7 +1375,7 @@ void light_update_all(s32 updateRate);
 void objects_shade_all(void);
 s32 runlink_module_loaded(s32 module);
 void sound_nearest_emitter_update(void);
-void func_80002AB8(Object **racers, s32 numRacers, s32 updateRate);
+void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
 s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
@@ -1470,7 +1470,7 @@ void obj_update(s32 updateRate) {
         func_80054530();
     }
     sound_nearest_emitter_update();
-    func_80002AB8(*gRacers, gNumRacers, updateRate);
+    audspat_update_all(*gRacers, gNumRacers, updateRate);
     if (D_800F2C8C == 0) {
         gParticlePtrList_flush();
     }
@@ -1490,8 +1490,8 @@ void obj_update(s32 updateRate) {
 extern s32 D_800F2C8C;
 extern f32 D_800F2C88;
 extern s32 D_800F6F54;
-void func_80026A50(Object *obj, s32 updateRate);
-void func_80002AB8(Object **racers, s32 numRacers, s32 updateRate);
+void group_light_update(Object *obj, s32 updateRate);
+void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
 /* JFG: update the objects some types need first (one of type 0x80 last), then the racers. */
@@ -1510,7 +1510,7 @@ void objects_update_special(s32 updateRate) {
                 func_80054530(obj, updateRate);
                 break;
             case 0x43:
-                func_80026A50(obj, updateRate);
+                group_light_update(obj, updateRate);
                 break;
             case 0x80:
                 deferred = obj;
@@ -1523,7 +1523,7 @@ void objects_update_special(s32 updateRate) {
     if (deferred != NULL) {
         func_80054530(deferred, updateRate);
     }
-    func_80002AB8(*gRacers, gNumRacers, updateRate);
+    audspat_update_all(*gRacers, gNumRacers, updateRate);
     if (D_800F2C8C == 0) {
         gParticlePtrList_flush();
     }

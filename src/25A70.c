@@ -217,11 +217,9 @@ Object **get_racer_objects(s32 *numRacers);
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 
-#ifdef NON_MATCHING
 /* JFG: loop: give each racer inside the (turned) box the zone's mode and value; in mode 1 the value
-   fades out over the top half of the box.
-   NON_MATCHING: 25 words: dy and dz get $f12/$f2 swapped, and the final multiply's operands swap. */
-void func_8002500C(Object *obj, UNUSED s32 updateRate) {
+   fades out over the top half of the box. */
+void zone_box_apply(Object *obj, UNUSED s32 updateRate) {
     Object **racers;
     LevelObjectEntry_BoxZone *entry;
     s32 numRacers;
@@ -260,16 +258,14 @@ void func_8002500C(Object *obj, UNUSED s32 updateRate) {
                     data->zoneMode = entry->mode;
                     data->zoneValue = entry->value;
                     if (dz < dy && data->zoneMode == 1) {
-                        data->zoneValue = (1.0f - (dy - dz) / dz) * data->zoneValue;
+                        dy = 1.0f - (dy - dz) / dz; // now the factor
+                        data->zoneValue = data->zoneValue * dy;
                     }
                 }
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_8002500C);
-#endif
 
 /**
  * Object animator init function.
@@ -585,21 +581,16 @@ s32 normalise_time(s32 timer);
 void func_80054530();
 void music_jingle_play(s32 jingle);
 void func_8001138C(Object *obj, f32 level, f32 updateRate);
-extern f32 D_800ABAE8;
-extern f32 D_800ABAEC;
-extern f32 D_800ABAF0;
 
-#ifdef NON_MATCHING
 /* JFG: loop: find the group object nearby, then follow its flags: light up (setting a level, or a module
-   effect with a jingle after a delay) and pass the lit state to the model's flagged batches.
-   NON_MATCHING: scheduling in three places (the else arm's lit store, the module argument via v0, the
-   loop reloads model->header after the batch store). */
-void func_80026A50(Object *obj, s32 updateRate) {
+   effect with a jingle after a delay) and pass the lit state to the model's flagged batches. */
+void group_light_update(Object *obj, s32 updateRate) {
     GroupLightState *state;
     GroupState26 *group;
     s32 lit;
     ModelInstance26 *model;
     ModelBatch26 *batch;
+    ModelHeader26 *header;
     s32 i;
 
     state = (GroupLightState *) obj->animator;
@@ -611,12 +602,11 @@ void func_80026A50(Object *obj, s32 updateRate) {
         if (!(group->flags & 8)) {
             if (state->unkC) {
                 if (group->flags & 5) {
-                    lit = 1;
-                    state->level = D_800ABAE8;
+                    state->level = 0.012f;
                 } else {
-                    state->level = D_800ABAEC;
-                    lit = 1;
+                    state->level = -0.012f;
                 }
+                lit = 1;
             } else if (!(group->flags & 0x10)) {
                 obj->unk28 = 1.0f;
                 lit = 1;
@@ -629,7 +619,7 @@ void func_80026A50(Object *obj, s32 updateRate) {
                         state->timer = 0;
                     }
                 }
-                if (state->module) {
+                if (state->module != 0) {
                     func_80054530(state->module);
                     state->module = 0;
                     state->jingle = 1;
@@ -644,7 +634,7 @@ void func_80026A50(Object *obj, s32 updateRate) {
                         }
                         state->timer = 0;
                         lit = 1;
-                        state->level = D_800ABAF0;
+                        state->level = 0.012f;
                     }
                 }
             }
@@ -654,8 +644,9 @@ void func_80026A50(Object *obj, s32 updateRate) {
     if (lit != state->lit) {
         model = obj->models[obj->modelIndex];
         batch = model->batches;
+        header = model->header;
         if (batch != NULL) {
-            for (i = 0; i < model->header->numBatches; i++) {
+            for (i = 0; i < header->numBatches; i++) {
                 if (batch->flags & 0x10000) {
                     batch->light = lit << 8;
                 }
@@ -665,9 +656,6 @@ void func_80026A50(Object *obj, s32 updateRate) {
         state->lit = lit;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80026A50);
-#endif
 
 void set_skydome_visbility(s32 renderSky);
 
@@ -1069,7 +1057,160 @@ void func_800275E8(Object *obj, u8 *entry) {
 INCLUDE_ASM("asm/nonmatchings/25A70", func_800275E8);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80027844);
+/* JFG: the game character data of a player (reduced) */
+typedef struct PieceCharacter {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ u16 unk8;
+    /* 0x0A */ u16 weaponFlags;
+    /* 0x0C */ u8 padC[8];
+    /* 0x14 */ u16 ammo[16];
+    /* 0x34 */ u16 maxAmmo[16];
+    /* 0x54 */ u8 pad54[0x70 - 0x54];
+    /* 0x70 */ u8 unk70;
+} PieceCharacter;
+
+/* JFG: what an object's 0x7C points to for these pieces (reduced) */
+typedef struct PieceParams {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 pad1;
+    /* 0x02 */ u16 unk2;
+    /* 0x04 */ u8 pad4[0x10];
+    /* 0x14 */ f32 unk14;
+} PieceParams;
+
+/* JFG: an object, as model_piece_update uses it */
+typedef struct PieceObject {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ u8 pad6[6];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x39 */ u8 opacity;
+    /* 0x3A */ u8 pad3A[0x68 - 0x3A];
+    /* 0x68 */ u8 *state;
+    /* 0x6C */ u8 pad6C[0x7C - 0x6C];
+    /* 0x7C */ PieceParams *params;
+} PieceObject;
+
+PieceCharacter *func_80047C1C(s32 player, s32 character);
+u8 *weapon_info_get(s32 index);
+void mark_write_eeprom_settings(void);
+void sound_play(u16 soundID, s32 *handlePtr);
+extern u8 D_800FF318[];
+
+/* JFG: loop: a piece of a broken model (made by func_800275E8) spins away while it fades out (freed then); a
+   player touching it (kind 2 or more) gets ammo (kind 3: for a weapon it is short of, preferring its current
+   one; kind 4: weapon 6) or, kind 2, a count (bits of D_800FF318 at 100, 200 and 300) and a jingle. */
+void model_piece_update(PieceObject *obj, s32 updateRate) {
+    u8 *state;
+    Object *racers[8];
+    s32 count;
+    UNUSED s32 pad;
+    s32 range;
+    s32 weapon;
+    s8 *hitState;
+    PieceCharacter *chr;
+    s32 a;
+    s32 b;
+    s32 c;
+    u8 *info;
+
+    state = obj->state;
+    count = obj_dist_racer(obj->x, obj->y, obj->z, 40.0f, 0, racers);
+    if (obj->params->flags & 2) {
+        *(s16 *) (state + 0x18) = 0;
+        *(s16 *) (state + 0x1A) = 0;
+        *(s16 *) (state + 0x1C) = 0;
+    } else if (obj->params->unk2 != 0) {
+        range = obj->params->unk14 * 2500.0f;
+        *(s16 *) (state + 0x18) = rand_range(-range, range);
+        *(s16 *) (state + 0x1A) = rand_range(-range, range);
+        *(s16 *) (state + 0x1C) = rand_range(-range, range);
+    }
+    obj->rotation[0] += *(s16 *) (state + 0x18);
+    obj->rotation[1] += *(s16 *) (state + 0x1A);
+    obj->rotation[2] += *(s16 *) (state + 0x1C);
+    if (updateRate >= *(s16 *) (state + 0x14)) {
+        *(s16 *) (state + 0x14) = 0;
+        if (updateRate * 2 >= obj->opacity) {
+            free_object((Object *) obj);
+        } else {
+            obj->opacity -= updateRate * 2;
+        }
+    } else {
+        *(s16 *) (state + 0x14) -= updateRate * 2;
+    }
+    if (state[0x17] >= 2 && count > 0) {
+        hitState = (s8 *) racers[0]->animator;
+        chr = func_80047C1C(hitState[0], hitState[1]);
+        weapon = -1;
+        if (state[0x17] == 3) {
+            switch (chr->unk70) {
+                case 0:
+                    a = 0; b = 2; c = 3;
+                    break;
+                case 3:
+                    a = 3; b = 2; c = 0;
+                    break;
+                case 2:
+                    a = 2; b = 0; c = 3;
+                    break;
+                default: // no break: IDO then jumps to it at the end, as the target does
+                    a = 2; b = 3; c = 0;
+            }
+            if ((chr->weaponFlags & (1 << a)) && chr->ammo[a] < chr->maxAmmo[a]) {
+                weapon = a;
+            } else if ((chr->weaponFlags & (1 << b)) && chr->ammo[b] < chr->maxAmmo[b]) {
+                weapon = b;
+            } else if ((chr->weaponFlags & (1 << c)) && chr->ammo[c] < chr->maxAmmo[c]) {
+                weapon = c;
+            } else if (chr->weaponFlags & (1 << a)) {
+                weapon = a;
+            } else {
+                weapon = 0;
+            }
+        } else if (state[0x17] == 4) {
+            if (chr->weaponFlags & 0x40) {
+                weapon = 6;
+            }
+        } else if (state[0x17] == 2) {
+            if (state[0x1E] == 0) {
+                chr->unk6++;
+                if (chr->unk6 > 10000) {
+                    chr->unk6 = 10000;
+                }
+            } else {
+                chr->unk8++;
+                if (chr->unk8 > 10000) {
+                    chr->unk8 = 10000;
+                }
+                if (chr->unk8 == 100 && !(D_800FF318[0x7A] & 1)) {
+                    D_800FF318[0x7A] |= 1;
+                    mark_write_eeprom_settings();
+                } else if (chr->unk8 == 200 && !(D_800FF318[0x7A] & 2)) {
+                    D_800FF318[0x7A] |= 2;
+                    mark_write_eeprom_settings();
+                } else if (chr->unk8 == 300 && !(D_800FF318[0x7A] & 4)) {
+                    D_800FF318[0x7A] |= 4;
+                    mark_write_eeprom_settings();
+                }
+            }
+            music_jingle_play(13);
+        }
+        if (weapon != -1) {
+            info = weapon_info_get(weapon);
+            chr->ammo[weapon] += *(s16 *) (info + 0x2A);
+            if (chr->ammo[weapon] > chr->maxAmmo[weapon]) {
+                chr->ammo[weapon] = chr->maxAmmo[weapon];
+            }
+            func_80054530(hitState, weapon + 0x48, weapon);
+            sound_play(0x1E9, NULL);
+        }
+        free_object((Object *) obj);
+    }
+}
 
 typedef struct BufferState {
     /* 0x00 */ s32 unk0;
@@ -1138,7 +1279,6 @@ typedef struct HitResult {
 
 s32 func_80018808(s32 arg0, f32 *from, f32 *to, HitResult *result, s32 flags, s32 arg5);
 void move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos);
-extern f32 D_800ABAF8; // gravity
 
 /* JFG: loop: fall along the velocity; every unkE frames test the path since the last check, and on a hit put
  * the object there, emit particles by surface type and free it. */
@@ -1149,7 +1289,7 @@ void obj_loop_falling_spark(Object *obj, s32 updateRate) {
 
     state = (MoverState *) obj->animator;
     move_object(obj, obj->x_velocity * updateRate, obj->y_velocity * updateRate, obj->z_velocity * updateRate);
-    obj->y_velocity -= D_800ABAF8 * updateRate;
+    obj->y_velocity -= 0.134f * updateRate;
     state->unkC++;
     if (state->unkC >= state->unkE) {
         if (func_80018808(0, &state->x, &obj->x_position, &result, 0, 0)) {
@@ -1182,8 +1322,6 @@ typedef struct LevelObjectEntry_Spray {
     /* 0x10 */ f32 unk10;
 } LevelObjectEntry_Spray;
 
-extern f32 D_800ABAFC;
-extern f32 D_800ABB00;
 
 /* JFG: init: emitter settings from the entry's (absolute) size. */
 void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
@@ -1192,9 +1330,9 @@ void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
     if (size < 0.0f) {
         size = -size;
     }
-    obj->properties.common.unk0 = (s32) (size * D_800ABAFC) + 2;
+    obj->properties.common.unk0 = (s32) (size * 0.2f) + 2;
     obj->properties.common.unk4 = 0x23;
-    obj->scale *= (15.0f + size) * D_800ABB00;
+    obj->scale *= (15.0f + size) * 0.03f;
     obj->particleEmittersEnabled = 1;
     obj->y_velocity = size * 0.25f + 2.5f;
 }
@@ -1203,30 +1341,22 @@ s32 rand_range(s32 min, s32 max);
 /* The module trap (0x80054530) under a prototype with float arguments: needs
    `func_80054530_f8 = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_f8(f32 speed, f32 x, f32 y, f32 z, f32 arg4, f32 vx, f32 vy, f32 vz);
-extern f32 D_800ABB04;
-extern f32 D_800ABB08;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: frame 0x80 vs 0x78 (angle/vel 0x10 higher) and the two constants swap $f22/$f24 */
 /* JFG: loop: while unk0 counts down, send three random sparks (through a module) per frame, then emit
  * particles; free the object when unk4 runs out. */
-void func_80028034(Object *obj, s32 updateRate) {
-    s16 angle[2];
-    f32 vel[3];
+void sparks_emitter_update(Object *obj, s32 updateRate) {
     s32 i;
     f32 speed;
-    f32 kVel;
-    f32 kSpeed;
+    s16 angle[2];
+    f32 vel[3];
 
     if (obj->properties.common.unk0 != 0) {
         obj->properties.common.unk0--;
-        kVel = D_800ABB04;
-        kSpeed = D_800ABB08;
         for (i = 0; i < 3; i++) {
-            speed = rand_range(75, 125) * kSpeed;
+            speed = rand_range(75, 125) * 0.01f;
             angle[0] = rand_range(-0x8000, 0x7FFF);
             angle[1] = rand_range(0x2400, 0x3C00);
-            vel[2] = rand_range(25, 50) * kVel;
+            vel[2] = rand_range(25, 50) * -0.1f;
             func_8004944C(angle, vel);
             func_80054530_f8(speed, obj->x_position, obj->y_position, obj->z_position, obj->y_position, vel[0],
                              vel[1], vel[2]);
@@ -1240,9 +1370,6 @@ void func_80028034(Object *obj, s32 updateRate) {
         free_object(obj);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80028034);
-#endif
 
 typedef struct LevelObjectEntry_Drift {
     /* 0x00 */ u8 pad0[0xA];
@@ -1261,13 +1388,9 @@ typedef struct DriftState {
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 s32 rand_range(s32 min, s32 max);
-extern f32 D_800ABB0C;
-extern f32 D_800ABB10;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target loads D_800ABB0C before reloading the state pointer and the float registers differ */
 /* JFG: init: horizontal velocity along the entry's angle, a random scale factor. */
-void func_800281B4(Object *obj, LevelObjectEntry_Drift *entry) {
+void drift_object_init(Object *obj, LevelObjectEntry_Drift *entry) {
     f32 r;
     DriftState *state = (DriftState *) obj->animator;
     f32 k;
@@ -1277,22 +1400,17 @@ void func_800281B4(Object *obj, LevelObjectEntry_Drift *entry) {
     obj->y_velocity = 0.0f;
     obj->z_velocity = func_80049C30(entry->angle) * entry->speed;
     r = rand_range(0x4B, 0x7D);
-    k = D_800ABB0C;
-    s = r * D_800ABB10;
+    k = 0.1f;
+    s = r * 0.01f;
     state->unk4 = k;
+    state->unk0 = obj->scale * s; // IDO swaps these two stores
     state->unk8 = s;
-    state->unk0 = obj->scale * s;
     state->unkC = entry->unk10;
     obj->scale = state->unk0 * k;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
-#endif
 
 Object *cam_get_cameras(void);
 f32 func_80049BEC(f32 base, s32 exponent);
-extern f32 D_800ABB14;
-extern f32 D_800ABB18;
 
 /* JFG: loop: flag the object while the camera is above its floor height; grow in, then drift (easing the
    vertical speed to its target) until it rises past that height, where it emits particles and is freed. */
@@ -1310,14 +1428,14 @@ void obj_loop_drift(Object *obj, s32 updateRate) {
         obj->flags &= ~8;
     }
     if (state->unk4 < 1.0f) {
-        state->unk4 += updateRate * D_800ABB14;
+        state->unk4 += updateRate * 0.1f;
         if (state->unk4 >= 1.0f) {
             state->unk4 = 1.0f;
         }
         obj->scale = state->unk0 * state->unk4;
     } else {
         move_object(obj, obj->x_velocity * moveScale, obj->y_velocity * moveScale, obj->z_velocity * moveScale);
-        obj->y_velocity += (state->unk8 - obj->y_velocity) * (1.0f - func_80049BEC(D_800ABB18, updateRate));
+        obj->y_velocity += (state->unk8 - obj->y_velocity) * (1.0f - func_80049BEC(0.95f, updateRate));
         if (state->unkC < obj->y_position) {
             obj->y_position = state->unkC;
             obj->particleEmittersEnabled = 1;

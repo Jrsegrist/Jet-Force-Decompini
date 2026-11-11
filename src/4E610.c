@@ -558,4 +558,125 @@ void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 gr
 INCLUDE_ASM("asm/nonmatchings/4E610", func_8004EDBC);
 #endif
 
+/* DKR include/macros.h */
+#define gDPSetPrimColorRGBA(pkt, rgba)                                                                \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(G_SETPRIMCOLOR, 24, 8));                                             \
+        _g->words.w1 = (rgba);                                                                       \
+    }
+
+extern Gfx D_800A37F0[];    // DKR: dScaledRectangleBaseModes
+extern Gfx D_800A3828[][2]; // DKR: dTextureRectangleScaledOpa
+extern Gfx D_800A3868[][2]; // DKR: dTextureRectangleScaledXlu
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 2 words short: the ROM keeps a dead `move a2, zero` before the loop (and so one register fewer,
+ * where mine keeps 0x80000000 in $ra); otherwise the same code. */
+/*
+ * Renders one or more textures directly on screen, scaled, in a primitive colour (flags 0x1000 and 0x2000 flip
+ * them in x and y).
+ * JFG: the size through pointers; each texture's first command is its own frame's.
+ * DKR: texrect_draw_scaled
+ */
+void func_8004F02C(Gfx **dList, TexturedRect *element, f32 xPos, f32 yPos, f32 xScale, f32 yScale, u32 colour,
+                   s32 flags) {
+    RectTexture *tex;
+    Gfx *dmaDlist;
+    s32 i;
+    s32 bFlipX;
+    s32 bFlipY;
+    s32 s;
+    s32 width = 0;
+    s32 height = 0;
+    s32 t;
+    s32 dsdx;
+    s32 dtdy;
+    s32 lrx; // the ROM reads lrx and lry before they are set (unused there): see the loop
+    s32 lry;
+    s32 ulx;
+    s32 uly;
+    s32 xPos4x;
+    s32 yPos4x;
+    Gfx *gfx;
+    s32 count;
+
+    gfx = *dList;
+    fb_size(&width, &height);
+    height *= 4;
+    width *= 4;
+    if ((colour & 0xFF) == 0xFF) {
+        dmaDlist = D_800A3828[flags & 0xFF];
+    } else {
+        dmaDlist = D_800A3868[flags & 0xFF];
+    }
+    gSPDisplayList(gfx++, D_800A37F0);
+    gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(dmaDlist), 2);
+    gDPSetPrimColorRGBA(gfx++, colour);
+    bFlipX = flags & 0x1000;
+    bFlipY = flags & 0x2000;
+    xScale *= 4;
+    yScale *= 4;
+    xPos4x = xPos * 4;
+    yPos4x = yPos * 4;
+    for (i = 0; (tex = element[i].tex); i++) {
+        if (!bFlipX) {
+            ulx = (s32) (element[i].x * xScale) + xPos4x;
+        } else {
+            lrx = xPos4x - (s32) (element[i].x * xScale);
+            ulx = lrx - (s32) (tex->width * xScale);
+        }
+        if (!bFlipY) {
+            uly = (s32) (element[i].y * yScale) + yPos4x;
+        } else {
+            lry = yPos4x - (s32) (element[i].y * yScale);
+            uly = lry - (s32) (tex->height * yScale);
+        }
+        if (ulx < width && uly < height) {
+            if (!bFlipX) {
+                lrx = (s32) (tex->width * xScale) + ulx;
+            }
+            if (!bFlipY) {
+                lry = (s32) (tex->height * yScale) + uly;
+            }
+            if (lrx > 0 && lry > 0 && ulx < lrx && uly < lry) {
+                dsdx = ((tex->width - 1) << 12) / (lrx - ulx);
+                if (bFlipX) {
+                    s = (tex->width - 1) << 5;
+                    dsdx = -dsdx;
+                } else {
+                    s = 0;
+                }
+                dtdy = ((tex->height - 1) << 12) / (lry - uly);
+                if (bFlipY) {
+                    t = (tex->height - 1) << 5;
+                    dtdy = -dtdy;
+                } else {
+                    t = 0;
+                }
+                if (ulx < 0) {
+                    s += (-ulx * dsdx) >> 7;
+                    ulx = 0;
+                }
+                if (uly < 0) {
+                    t += (-uly * dtdy) >> 7;
+                    uly = 0;
+                }
+                dmaDlist = tex->cmd;
+                gfx->words.w0 = dmaDlist->words.w0;
+                gfx->words.w1 = (u32) set_animated_texture_header(tex, element[i].frame) + 0x80000000;
+                gfx++;
+                count = tex->numberOfCommands - 1;
+                dmaDlist++;
+                gDkrDmaDisplayList(gfx++, (u32) dmaDlist + 0x80000000, count);
+                gSPTextureRectangleOld(gfx++, ulx, uly, lrx, lry, 0, s, t, dsdx, dtdy);
+            }
+        }
+    }
+    gDPPipeSync(gfx++);
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    *dList = gfx;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/4E610", func_8004F02C);
+#endif
