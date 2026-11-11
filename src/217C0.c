@@ -590,8 +590,39 @@ ObjectLight *light_find_strongest_at(f32 x, f32 y, f32 z) {
     return best;
 }
 
+/* JFG: a directional light (D_800F5B28 is the default object light) */
+typedef struct DirLight {
+    /* 0x00 */ f32 dir[3];
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ u8 shift;
+    /* 0x15 */ u8 max;
+    /* 0x16 */ u8 range;
+    /* 0x17 */ u8 min;
+    /* 0x18 */ u8 *table;
+    /* 0x1C */ s16 angle1;
+    /* 0x1E */ s16 angle0;
+} DirLight;
+
+/* JFG: an object's shading (Size: 0x90 bytes, 8 for sprites) */
+typedef struct ShadeProperties {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 unk9;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 padB;
+    /* 0x0C */ u8 diffuse; // JFG: the object's own (see init_object_shading)
+    /* 0x0D */ u8 ambient;
+    /* 0x0E */ s16 unkE;   // JFG: the number of lights in use (light first)
+    /* 0x10 */ DirLight lights[4]; // JFG: the directional light, then up to three point lights
+} ShadeProperties;
+
 Object **objGetObjList(s32 *arg0, s32 *cnt);
-void func_80021B8C(Object *obj, void *arg1);
+void func_80021B8C(Object *obj, ShadeProperties *shade);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
@@ -627,7 +658,131 @@ void objects_shade_all(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/217C0", func_80021B8C);
+f32 light_falloff_scale(f32 scale, f32 arg1, f32 arg2, s32 type);
+f32 light_direction_calc(f32 dirX, f32 dirY, f32 dirZ, f32 diffX, f32 diffY, f32 diffZ, f32 distance);
+extern s32 gNumActiveLights;
+extern ObjectLight **gActiveLights;
+
+/*
+ * JFG: pick up to three point lights for an object's shading (the strongest replace the weakest), and dim
+ * its ambient and diffuse by the strongest light flagged 0x20.
+ */
+void func_80021B8C(Object *obj, ShadeProperties *shade) {
+    s32 i;
+    ObjectLight *light;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 distSq;
+    s32 strength;
+    s32 maxStrength;
+    DirLight *slot;
+    s32 minMax;
+    f32 dir;
+    s32 j;
+    s32 scale;
+    LevelHeader217 *levelHeader;
+    s32 ambient;
+
+    shade->unkE = 1;
+    maxStrength = 0;
+    levelHeader = level_header();
+    for (i = 0; i < gNumActiveLights; i++) {
+        light = gActiveLights[i];
+        if ((light->enabled & 1) && light->intensity != 0) {
+            if (light->unk0 != 0) {
+                dx = light->posX - obj->x;
+                dy = light->posY - obj->y;
+                dz = light->posZ - obj->z;
+                strength = 0;
+                distSq = dx * dx + dz * dz;
+                switch (light->unk0) {
+                    case 2:
+                        if (distSq < light->radiusSquare && light->minY < obj->y && obj->y <= light->maxY) {
+                            strength = light_falloff_scale(light->intensityF, sqrtf(distSq), light->radiusMag,
+                                                           light->unk1);
+                        }
+                        break;
+                    case 3:
+                        distSq += dy * dy;
+                        if (distSq < light->radiusSquare) {
+                            distSq = sqrtf(distSq);
+                            dir = light_direction_calc(light->dir[0], light->dir[1], light->dir[2], dx, dy, dz,
+                                                       distSq);
+                            if (dir > 0.0f) {
+                                strength = light_falloff_scale(light->intensityF, distSq, light->radiusMag,
+                                                               light->unk1) *
+                                           dir;
+                            }
+                        }
+                        break;
+                    default:
+                        distSq += dy * dy;
+                        if (distSq < light->radiusSquare) {
+                            strength = light_falloff_scale(light->intensityF, sqrtf(distSq), light->radiusMag,
+                                                           light->unk1);
+                        }
+                        break;
+                }
+            } else {
+                dx = light->dir[0];
+                dy = light->dir[1];
+                dz = light->dir[2];
+                strength = light->intensity;
+            }
+            if (strength != 0) {
+                if ((light->enabled & 0x20) && maxStrength < strength) {
+                    maxStrength = strength;
+                }
+                if (shade->unkE < 4) {
+                    slot = &shade->lights[shade->unkE];
+                    shade->unkE++;
+                } else {
+                    slot = &shade->lights[1];
+                    minMax = shade->lights[1].max;
+                    for (j = 2; j < 4; j++) {
+                        if (shade->lights[j].max < minMax) {
+                            slot = &shade->lights[j];
+                            minMax = shade->lights[j].max;
+                        }
+                    }
+                    if (slot->max >= strength) {
+                        slot = NULL;
+                    }
+                }
+                if (slot != NULL) {
+                    slot->dir[0] = dx;
+                    slot->dir[1] = dy;
+                    slot->dir[2] = dz;
+                    slot->shift = 0;
+                    slot->unkC = (1 << (8 - shade->lights[0].shift)) << 6;
+                    slot->max = strength;
+                    slot->min = 0;
+                    slot->range = strength;
+                    slot->unk10 = strength << shade->lights[0].shift;
+                    slot->table = light->unk70;
+                }
+            }
+        }
+    }
+    // strength now holds the diffuse range
+    scale = 0x13F - maxStrength;
+    if (levelHeader->shadeOverride) {
+        ambient = levelHeader->shadeAmbient;
+        strength = levelHeader->shadeDiffuse - ambient;
+    } else {
+        ambient = shade->ambient;
+        strength = shade->diffuse - ambient;
+    }
+    if (maxStrength >= 0x40) {
+        ambient = (s32) ((u32) scale * ambient) >> 8;
+        strength = (s32) ((u32) scale * strength) >> 8;
+    }
+    shade->lights[0].max = ambient + strength;
+    shade->lights[0].range = strength;
+    shade->lights[0].min = ambient;
+    shade->lights[0].unk10 = strength << shade->lights[0].shift;
+}
 
 f32 sqrtf(f32 x);
 f32 func_80049C30(s32 angle);
@@ -677,36 +832,6 @@ f32 light_direction_calc(f32 dirX, f32 dirY, f32 dirZ, f32 diffX, f32 diffY, f32
     }
     return result;
 }
-
-/* JFG: a directional light (D_800F5B28 is the default object light) */
-typedef struct DirLight {
-    /* 0x00 */ f32 dir[3];
-    /* 0x0C */ s32 unkC;
-    /* 0x10 */ s32 unk10;
-    /* 0x14 */ u8 shift;
-    /* 0x15 */ u8 max;
-    /* 0x16 */ u8 range;
-    /* 0x17 */ u8 min;
-    /* 0x18 */ u8 *table;
-    /* 0x1C */ s16 angle1;
-    /* 0x1E */ s16 angle0;
-} DirLight;
-
-/* JFG: an object's shading (Size: 0x90 bytes, 8 for sprites) */
-typedef struct ShadeProperties {
-    /* 0x00 */ f32 unk0;
-    /* 0x04 */ u8 unk4;
-    /* 0x05 */ u8 unk5;
-    /* 0x06 */ u8 unk6;
-    /* 0x07 */ u8 unk7;
-    /* 0x08 */ u8 unk8;
-    /* 0x09 */ u8 unk9;
-    /* 0x0A */ u8 unkA;
-    /* 0x0B */ u8 padB[0xE - 0xB];
-    /* 0x0E */ s16 unkE;
-    /* 0x10 */ DirLight light;
-    /* 0x30 */ u8 pad30[0x90 - 0x30];
-} ShadeProperties;
 
 /* JFG: a model, reduced */
 typedef struct ShadeModel {
@@ -781,7 +906,7 @@ void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *
         n = 1;
     }
     if (shade != NULL) {
-        light = &shade->light;
+        light = &shade->lights[0];
         if (shade->unk0 != 1.0f) {
             max = light->max;
             min = light->min;
@@ -794,7 +919,7 @@ void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *
             light->unk10 = light->range << light->shift;
             light->min = newMin;
         }
-        light = &shade->light;
+        light = &shade->lights[0];
         if (shade->unkE > 0) {
             func_800231C8(shade->unkE, light, n, matrix, D_800A1010);
             if (shade->unkE == 1) {
@@ -805,7 +930,7 @@ void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *
                 func_80022E98(inst->unk4, model->unk6C, light, model->unk68, D_800A1010, n, shade->unkE);
             }
         }
-        light = &shade->light;
+        light = &shade->lights[0];
         if (shade->unk0 != 1.0f) {
             light->max = max;
             light->min = min;
@@ -906,10 +1031,10 @@ s32 init_object_shading(Object *obj, ShadeProperties *shadeData) {
         shadeData->unkE = 1;
         returnSize = sizeof(ShadeProperties);
         if (levelHeader->shadeOverride) {
-            dir_light_setup(&shadeData->light, levelHeader->shadeAmbient, levelHeader->shadeDiffuse,
+            dir_light_setup(&shadeData->lights[0], levelHeader->shadeAmbient, levelHeader->shadeDiffuse,
                           levelHeader->shadeAngleX, levelHeader->shadeAngleY + 0x8000, 0);
         } else {
-            dir_light_setup(&shadeData->light, objHeader->shadeAmbient * 255.0f, objHeader->shadeDiffuse * 255.0f,
+            dir_light_setup(&shadeData->lights[0], objHeader->shadeAmbient * 255.0f, objHeader->shadeDiffuse * 255.0f,
                           objHeader->shadeAngleX, objHeader->shadeAngleY, objHeader->shadeShift);
         }
         shadeData->unk4 = 255;
