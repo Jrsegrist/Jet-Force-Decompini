@@ -585,9 +585,6 @@ s32 normalise_time(s32 timer);
 void func_80054530();
 void music_jingle_play(s32 jingle);
 void func_8001138C(Object *obj, f32 level, f32 updateRate);
-extern f32 D_800ABAE8;
-extern f32 D_800ABAEC;
-extern f32 D_800ABAF0;
 
 #ifdef NON_MATCHING
 /* JFG: loop: find the group object nearby, then follow its flags: light up (setting a level, or a module
@@ -612,9 +609,9 @@ void func_80026A50(Object *obj, s32 updateRate) {
             if (state->unkC) {
                 if (group->flags & 5) {
                     lit = 1;
-                    state->level = D_800ABAE8;
+                    state->level = 0.012f;
                 } else {
-                    state->level = D_800ABAEC;
+                    state->level = -0.012f;
                     lit = 1;
                 }
             } else if (!(group->flags & 0x10)) {
@@ -644,7 +641,7 @@ void func_80026A50(Object *obj, s32 updateRate) {
                         }
                         state->timer = 0;
                         lit = 1;
-                        state->level = D_800ABAF0;
+                        state->level = 0.012f;
                     }
                 }
             }
@@ -1138,7 +1135,6 @@ typedef struct HitResult {
 
 s32 func_80018808(s32 arg0, f32 *from, f32 *to, HitResult *result, s32 flags, s32 arg5);
 void move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos);
-extern f32 D_800ABAF8; // gravity
 
 /* JFG: loop: fall along the velocity; every unkE frames test the path since the last check, and on a hit put
  * the object there, emit particles by surface type and free it. */
@@ -1149,7 +1145,7 @@ void obj_loop_falling_spark(Object *obj, s32 updateRate) {
 
     state = (MoverState *) obj->animator;
     move_object(obj, obj->x_velocity * updateRate, obj->y_velocity * updateRate, obj->z_velocity * updateRate);
-    obj->y_velocity -= D_800ABAF8 * updateRate;
+    obj->y_velocity -= 0.134f * updateRate;
     state->unkC++;
     if (state->unkC >= state->unkE) {
         if (func_80018808(0, &state->x, &obj->x_position, &result, 0, 0)) {
@@ -1182,8 +1178,6 @@ typedef struct LevelObjectEntry_Spray {
     /* 0x10 */ f32 unk10;
 } LevelObjectEntry_Spray;
 
-extern f32 D_800ABAFC;
-extern f32 D_800ABB00;
 
 /* JFG: init: emitter settings from the entry's (absolute) size. */
 void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
@@ -1192,9 +1186,9 @@ void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
     if (size < 0.0f) {
         size = -size;
     }
-    obj->properties.common.unk0 = (s32) (size * D_800ABAFC) + 2;
+    obj->properties.common.unk0 = (s32) (size * 0.2f) + 2;
     obj->properties.common.unk4 = 0x23;
-    obj->scale *= (15.0f + size) * D_800ABB00;
+    obj->scale *= (15.0f + size) * 0.03f;
     obj->particleEmittersEnabled = 1;
     obj->y_velocity = size * 0.25f + 2.5f;
 }
@@ -1203,8 +1197,6 @@ s32 rand_range(s32 min, s32 max);
 /* The module trap (0x80054530) under a prototype with float arguments: needs
    `func_80054530_f8 = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_f8(f32 speed, f32 x, f32 y, f32 z, f32 arg4, f32 vx, f32 vy, f32 vz);
-extern f32 D_800ABB04;
-extern f32 D_800ABB08;
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: frame 0x80 vs 0x78 (angle/vel 0x10 higher) and the two constants swap $f22/$f24 */
@@ -1220,8 +1212,8 @@ void func_80028034(Object *obj, s32 updateRate) {
 
     if (obj->properties.common.unk0 != 0) {
         obj->properties.common.unk0--;
-        kVel = D_800ABB04;
-        kSpeed = D_800ABB08;
+        kVel = -0.1f;
+        kSpeed = 0.01f;
         for (i = 0; i < 3; i++) {
             speed = rand_range(75, 125) * kSpeed;
             angle[0] = rand_range(-0x8000, 0x7FFF);
@@ -1261,8 +1253,6 @@ typedef struct DriftState {
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 s32 rand_range(s32 min, s32 max);
-extern f32 D_800ABB0C;
-extern f32 D_800ABB10;
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target loads D_800ABB0C before reloading the state pointer and the float registers differ */
@@ -1277,8 +1267,8 @@ void func_800281B4(Object *obj, LevelObjectEntry_Drift *entry) {
     obj->y_velocity = 0.0f;
     obj->z_velocity = func_80049C30(entry->angle) * entry->speed;
     r = rand_range(0x4B, 0x7D);
-    k = D_800ABB0C;
-    s = r * D_800ABB10;
+    k = 0.1f;
+    s = r * 0.01f;
     state->unk4 = k;
     state->unk8 = s;
     state->unk0 = obj->scale * s;
@@ -1291,8 +1281,6 @@ INCLUDE_ASM("asm/nonmatchings/25A70", func_800281B4);
 
 Object *cam_get_cameras(void);
 f32 func_80049BEC(f32 base, s32 exponent);
-extern f32 D_800ABB14;
-extern f32 D_800ABB18;
 
 /* JFG: loop: flag the object while the camera is above its floor height; grow in, then drift (easing the
    vertical speed to its target) until it rises past that height, where it emits particles and is freed. */
@@ -1310,14 +1298,14 @@ void obj_loop_drift(Object *obj, s32 updateRate) {
         obj->flags &= ~8;
     }
     if (state->unk4 < 1.0f) {
-        state->unk4 += updateRate * D_800ABB14;
+        state->unk4 += updateRate * 0.1f;
         if (state->unk4 >= 1.0f) {
             state->unk4 = 1.0f;
         }
         obj->scale = state->unk0 * state->unk4;
     } else {
         move_object(obj, obj->x_velocity * moveScale, obj->y_velocity * moveScale, obj->z_velocity * moveScale);
-        obj->y_velocity += (state->unk8 - obj->y_velocity) * (1.0f - func_80049BEC(D_800ABB18, updateRate));
+        obj->y_velocity += (state->unk8 - obj->y_velocity) * (1.0f - func_80049BEC(0.95f, updateRate));
         if (state->unkC < obj->y_position) {
             obj->y_position = state->unkC;
             obj->particleEmittersEnabled = 1;

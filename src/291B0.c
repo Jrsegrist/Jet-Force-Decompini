@@ -18,6 +18,8 @@ void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5) 
     SpawnEntry *entry;
 
     if (index >= D_800F6B08) {
+        // the file's one debug string (no code references it); placed here as a guess
+        stubbed_printf("explosion %d out of range\n", index);
         return;
     }
     entry = D_800F6B04[index];
@@ -179,7 +181,6 @@ typedef struct LightObj {
     /* 0x84 */ s32 triggers; // the particle triggers to run
 } LightObj;
 
-extern f32 D_800ABB3C;
 void colour_cycle_init(void *cycle, s32 assetID);
 void *light_add_from_object_header(LightObj *obj, LightHeader29 *header);
 void *corona_add(LightObj *owner, CoronaHeader29 *header);
@@ -203,7 +204,7 @@ void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
     obj->flags |= 0x400;
     obj->unk3C = NULL;
     if (entry->shakeTimes[0] == 0) {
-        state->unk4 = entry->shakeTimes[0] * D_800ABB3C;
+        state->unk4 = entry->shakeTimes[0] * 0.003051851f;
     }
     for (i = 0; i < entry->numFlags; i++) {
         state->flags[i] = 0;
@@ -261,7 +262,6 @@ typedef struct ExplosionLight {
     /* 0x48 */ ColourCycle29 cycle;
 } ExplosionLight;
 
-extern f32 D_800ABB40;
 void obj_spawn_particle(LightObj *obj, s32 updateRate);
 void update_colour_cycle(void *cycle, s32 updateRate);
 void corona_free(void *corona);
@@ -323,7 +323,7 @@ void obj_explosion_update(LightObj *obj, s32 updateRate) {
     }
     for (i = 0; entry->shakeTimes[i] < state->unk0 && i != 2; i++) {
     }
-    state->unk4 += (f32) updateRate * (f32) entry->shakeRates[i] * D_800ABB40;
+    state->unk4 += (f32) updateRate * (f32) entry->shakeRates[i] * 0.003051851f;
     corona = state->corona;
     cycle = &state->cycle;
     if (corona != NULL) {
@@ -382,7 +382,6 @@ typedef struct LevelObjectEntry73 {
     /* 0x1E */ u8 pad1E[4];
 } LevelObjectEntry73;
 
-extern f32 D_800ABB44;
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target loads D_800ABB44 before moving `a` to $f12 (the first two instructions swap) */
@@ -392,10 +391,10 @@ void func_80028E7C(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8
 
     entry.size = sizeof(LevelObjectEntry73);
     entry.objectID = 0x73;
-    entry.unkC = a * D_800ABB44;
-    entry.unkE = b * D_800ABB44;
-    entry.unk10 = c * D_800ABB44;
-    entry.unk12 = d * D_800ABB44;
+    entry.unkC = a * 327.67f;
+    entry.unkE = b * 327.67f;
+    entry.unk10 = c * 327.67f;
+    entry.unk12 = d * 327.67f;
     entry.x = x;
     entry.unk18 = arg7;
     entry.unk1C = arg8;
@@ -420,7 +419,6 @@ typedef struct ColVertex {
 
 extern u8 D_800A11B0;
 extern f32 D_800F6B10[20];
-extern f32 D_800ABB48;
 f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 void *load_texture(s32 id);
@@ -451,7 +449,7 @@ void obj_init_col_vertices(u8 *obj, u8 *entry) {
         ((ColVertex *) state)[i].b = 255;
         ((ColVertex *) state)[i].a = 255;
     }
-    scale = D_800ABB48;
+    scale = 0.003051851f;
     *(s16 *) (obj + 2) = *(s16 *) (entry + 0xA);
     *(f32 *) (state + 0x198) = *(s16 *) (entry + 0xE) * scale;
     *(f32 *) (state + 0x194) = *(s16 *) (entry + 0xC) * scale;
@@ -587,7 +585,6 @@ typedef struct ChromaSpriteEntry {
 void sprite_free(void *sprite);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
 void colour_cycle_init(void *cycle, s32 assetID);
-extern f32 D_800ABB4C;
 
 /* JFG: (re)set a sprite object from its entry. */
 void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
@@ -595,7 +592,7 @@ void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
 
     sprite_free(*obj->sprite);
     *obj->sprite = tex_load_sprite(entry->spriteID, 0);
-    obj->scale = entry->scale * D_800ABB4C;
+    obj->scale = entry->scale * 0.001f;
     data->x = entry->x;
     data->y = entry->y;
     data->z = entry->z;
@@ -757,7 +754,6 @@ s32 zone_sphere_touches(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
 
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 sqrtf(f32 x);
-extern f32 D_800ABD08;
 
 typedef struct WaveObject {
     /* 0x00 */ u8 pad0[0x10];
@@ -774,7 +770,7 @@ void wave_vector_scale(WaveObject *obj, f32 t, f32 x, f32 y, f32 z, f32 *ox, f32
     scale = x * x + y * y + z * z;
     if (scale != 0.0f) {
         scale = 1.0f / sqrtf(scale);
-        k = func_80049C30(obj->unk10 * t) * (D_800ABD08 * obj->unk14);
+        k = func_80049C30(obj->unk10 * t) * (0.1f * obj->unk14);
         if (k < 1.0f) {
             k = 1.0f;
         }
