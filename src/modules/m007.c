@@ -279,23 +279,19 @@ void func_m007_00148(s32 hint, s32 arg1) {
 
 extern s32 rl_m007_02A78[12]; /* .data (still assembly): game flags that 0032C counts */
 
-#ifdef NON_MATCHING
-/* 2 diffs: the ROM moves the pointer step into the call's delay slot */
 /* How many of the twelve flags are set (called from 00390) */
 s32 func_m007_0032C(void) {
     s32 i;
     s32 count = 0;
 
-    for (i = 0; i < 12; i++) {
-        if (game_flag_get(rl_m007_02A78[i])) {
+    i = 0;
+    while (i < 12) {
+        if (game_flag_get(rl_m007_02A78[i++])) {
             count++;
         }
     }
     return count;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_0032C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00390);
 
