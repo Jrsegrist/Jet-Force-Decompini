@@ -219,7 +219,7 @@ f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 
 /* JFG: loop: give each racer inside the (turned) box the zone's mode and value; in mode 1 the value
    fades out over the top half of the box. */
-void func_8002500C(Object *obj, UNUSED s32 updateRate) {
+void zone_box_apply(Object *obj, UNUSED s32 updateRate) {
     Object **racers;
     LevelObjectEntry_BoxZone *entry;
     s32 numRacers;
@@ -584,7 +584,7 @@ void func_8001138C(Object *obj, f32 level, f32 updateRate);
 
 /* JFG: loop: find the group object nearby, then follow its flags: light up (setting a level, or a module
    effect with a jingle after a delay) and pass the lit state to the model's flagged batches. */
-void func_80026A50(Object *obj, s32 updateRate) {
+void group_light_update(Object *obj, s32 updateRate) {
     GroupLightState *state;
     GroupState26 *group;
     s32 lit;
@@ -1079,7 +1079,7 @@ typedef struct PieceParams {
     /* 0x14 */ f32 unk14;
 } PieceParams;
 
-/* JFG: an object, as func_80027844 uses it */
+/* JFG: an object, as model_piece_update uses it */
 typedef struct PieceObject {
     /* 0x00 */ s16 rotation[3];
     /* 0x06 */ u8 pad6[6];
@@ -1103,7 +1103,7 @@ extern u8 D_800FF318[];
 /* JFG: loop: a piece of a broken model (made by func_800275E8) spins away while it fades out (freed then); a
    player touching it (kind 2 or more) gets ammo (kind 3: for a weapon it is short of, preferring its current
    one; kind 4: weapon 6) or, kind 2, a count (bits of D_800FF318 at 100, 200 and 300) and a jingle. */
-void func_80027844(PieceObject *obj, s32 updateRate) {
+void model_piece_update(PieceObject *obj, s32 updateRate) {
     u8 *state;
     Object *racers[8];
     s32 count;
@@ -1344,7 +1344,7 @@ void func_80054530_f8(f32 speed, f32 x, f32 y, f32 z, f32 arg4, f32 vx, f32 vy, 
 
 /* JFG: loop: while unk0 counts down, send three random sparks (through a module) per frame, then emit
  * particles; free the object when unk4 runs out. */
-void func_80028034(Object *obj, s32 updateRate) {
+void sparks_emitter_update(Object *obj, s32 updateRate) {
     s32 i;
     f32 speed;
     s16 angle[2];
@@ -1390,7 +1390,7 @@ f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 s32 rand_range(s32 min, s32 max);
 
 /* JFG: init: horizontal velocity along the entry's angle, a random scale factor. */
-void func_800281B4(Object *obj, LevelObjectEntry_Drift *entry) {
+void drift_object_init(Object *obj, LevelObjectEntry_Drift *entry) {
     f32 r;
     DriftState *state = (DriftState *) obj->animator;
     f32 k;

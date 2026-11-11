@@ -97,7 +97,7 @@ extern void func_80054EA0(s32 *width, s32 *height);
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M035Font *func_8004D37C(s32 asset);
 extern void func_8004D530(s32 asset, void *dst, s32 offset, s32 size);
-extern void func_800715E8(void *);
+extern void fontCreateDisplayList(void *);
 
 void func_m035_00000(void) {
     s32 i;
@@ -171,7 +171,7 @@ void func_m035_00000(void) {
             func_8004D530(0x3B, ch, font->offset + j * font->stride, 0x20);
             D_801040E8[i][j] = ch->unk8;
         }
-        func_800715E8(font);
+        fontCreateDisplayList(font);
         font++;
     }
     D_80103BA0 = 0;

@@ -184,7 +184,7 @@ typedef struct LightObj {
 void colour_cycle_init(void *cycle, s32 assetID);
 void *light_add_from_object_header(LightObj *obj, LightHeader29 *header);
 void *corona_add(LightObj *owner, CoronaHeader29 *header);
-void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7);
+void zone_add(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7);
 
 /* JFG: init a light object from its level entry: a light, a corona (with a colour cycle) and a zone,
    each if the entry has one. */
@@ -247,7 +247,7 @@ void obj_init_light_object(LightObj *obj, LevelObjectEntry_LightObj *entry) {
         state->corona = corona_add(obj, &coronaHeader);
     }
     if (entry->zoneSize && entry->zoneTime && entry->zoneValue) {
-        func_80029BA4(obj->x, obj->y, obj->z, entry->zoneSize, entry->zoneValue, entry->zoneTime / 60.0f,
+        zone_add(obj->x, obj->y, obj->z, entry->zoneSize, entry->zoneValue, entry->zoneTime / 60.0f,
                       entry->zoneUnk1F, entry->zoneUnk20);
     }
 }
@@ -384,7 +384,7 @@ typedef struct LevelObjectEntry73 {
 
 
 /* JFG: spawn an object 0x73 at (x, y, z); the four values are scaled by 327.67 (1.0 = 0x7FFF). */
-void func_80028E7C(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8 arg8) {
+void object73_spawn_at(s16 x, s16 y, s16 z, f32 a, f32 b, f32 c, f32 d, s16 arg7, u8 arg8) {
     LevelObjectEntry73 entry;
 
     entry.size = sizeof(LevelObjectEntry73);
@@ -674,7 +674,7 @@ void func_80029B78(void) {
 }
 
 /* JFG: add a zone: the first unused one, or (all 16 in use) the one with the smallest value. */
-void func_80029BA4(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7) {
+void zone_add(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 arg7) {
     Zone *zone = D_800F6B60;
     Zone *other;
     s32 i;

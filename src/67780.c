@@ -103,7 +103,7 @@ s32 write_controller_pak_file(s32 controllerIndex, s32 fileNumber, char *fileNam
                               s32 fileSize);
 
 /* JFG: save the log, the faulted thread and its stack (at 0x80700000) to the controller pak. */
-void func_80066D28(OSThread *thread) {
+void crash_core_dump_write(OSThread *thread) {
     u8 *dst;
     void *stack;
     s32 size;
@@ -126,7 +126,7 @@ void func_80066D28(OSThread *thread) {
     write_controller_pak_file(0, -1, "CORE", "", (u8 *) 0x80700000, size);
 }
 
-void func_80066D28(OSThread *thread);
+void crash_core_dump_write(OSThread *thread);
 void func_80066EB0(OSThread *thread);
 
 /* JFG: find the first faulted thread (or the end of the queue) and show it. */
@@ -141,7 +141,7 @@ void crash_find_faulted_thread(void) {
         }
     }
     if (thread->priority != -1) {
-        func_80066D28(thread);
+        crash_core_dump_write(thread);
     }
     func_80066EB0(thread);
 }
@@ -232,7 +232,7 @@ void log_show(s32 start) {
     } while (i < 20 && !done);
 }
 
-/* JFG: a fault thread record (0x230 bytes, the size bcopied in func_80066D28). */
+/* JFG: a fault thread record (0x230 bytes, the size bcopied in crash_core_dump_write). */
 typedef struct FaultThread {
     OSThread thread;
     u8 pad1B0[0x80];

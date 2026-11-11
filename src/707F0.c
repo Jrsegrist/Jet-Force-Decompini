@@ -134,7 +134,7 @@ void draw_text(Gfx **displayList, s32 xpos, s32 ypos, char *text, s32 alignmentF
 
 #define POS_CENTRED -0x8000
 
-void func_8006FD98(Gfx **displayList, DialogueBoxBackground *box, char *text, s32 alignmentFlags);
+void render_text_string(Gfx **displayList, DialogueBoxBackground *box, char *text, s32 alignmentFlags);
 
 /**
  * Text draw function that draws text in a dialogue box while overriding its position.
@@ -147,11 +147,11 @@ void draw_dialogue_text_pos_unused(Gfx **displayList, s32 dialogueBoxID, s32 xpo
         DialogueBoxBackground *temp = &gDialogueBoxBackground[dialogueBoxID];
         temp->xpos = (xpos == POS_CENTRED) ? temp->width >> 1 : xpos;
         temp->ypos = (ypos == POS_CENTRED) ? temp->height >> 1 : ypos;
-        func_8006FD98(displayList, temp, text, alignmentFlags);
+        render_text_string(displayList, temp, text, alignmentFlags);
     }
 }
 
-extern u8 *D_80104108; // JFG: the buffer func_8006FD98 converts its text into
+extern u8 *D_80104108; // JFG: the buffer render_text_string converts its text into
 extern u8 D_8010410C;  // JFG: compact kerning (one pixel less per two-byte character)
 extern u8 D_8010410D;  // JFG: glyph colours on (the text mode byte func_8006FC14 sets)
 extern u8 *D_801040F8; // JFG: the glyph cache's image data
@@ -180,7 +180,7 @@ typedef struct GlyphCacheEntry {
     /* 0x0F */ u8 padF;
 } GlyphCacheEntry;
 
-GlyphCacheEntry *func_80071388(u8 ch);
+GlyphCacheEntry *glyph_cache_get(u8 ch);
 
 /* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address. */
 #define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
@@ -210,7 +210,7 @@ GlyphCacheEntry *func_80071388(u8 ch);
  * the font switched); glyphs 2, 0xE and 0x41-0x44 recolour the text while D_8010410D is set. The commands after the
  * first go through a copy of *dList taken before it, so they overwrite that first gSPDisplayList.
  */
-void func_8006FD98(Gfx **dList, DialogueBoxBackground *box, char *text, s32 alignmentFlags) {
+void render_text_string(Gfx **dList, DialogueBoxBackground *box, char *text, s32 alignmentFlags) {
     s32 prevFont;
     s32 xpos;
     s32 ypos;
@@ -325,7 +325,7 @@ void func_8006FD98(Gfx **dList, DialogueBoxBackground *box, char *text, s32 alig
                     lry = fontData->y + uly;
                     charSpace = D_801040E8[fontInUse][ch];
                     if (lrx > 0 && lry > 0 && ulx < box->x2 && uly < box->y2) {
-                        glyph = func_80071388(ch);
+                        glyph = glyph_cache_get(ch);
                         if (glyph != NULL) {
                             ulx <<= 2;
                             uly = (glyph->t + uly) << 2;
@@ -830,7 +830,7 @@ void render_dialogue_box(Gfx **dList, UNUSED Mtx **mat, UNUSED Vertex **verts, s
         dialogueBox->opacity = dialogueTextBox->opacity;
         dialogueBox->font = dialogueTextBox->font;
         parse_string_with_number(dialogueTextBox->text, D_80104100, dialogueTextBox->number);
-        func_8006FD98(dList, dialogueBox, D_80104100, 0);
+        render_text_string(dList, dialogueBox, D_80104100, 0);
         dialogueTextBox = (DialogueTextElement *) dialogueTextBox->nextBox;
     }
 }
@@ -884,7 +884,7 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
    bytes the glyph's header overwrites in front of its block).
    NON_MATCHING: the target keeps the 4-word save as a loop (IDO unrolls this one), ch out of $s0,
    and other argument registers for the counters (frame 0x70). */
-GlyphCacheEntry *func_80071388(u8 ch) {
+GlyphCacheEntry *glyph_cache_get(u8 ch) {
     GlyphCacheEntry *entry;
     FontData *font;
     s32 i;
@@ -991,12 +991,12 @@ extern u32 D_800A6E88[]; // JFG: the same for fonts of format 7
    instructions later (the lui is right with the assignment on the macro's line). */
 /**
  * JFG: build a font's texture load commands (0x80 bytes, kept at font->loadCmds) for its format, loading
- * from the glyph cache (func_8006FD98 patches each glyph's image address into the first command), and
+ * from the glyph cache (render_text_string patches each glyph's image address into the first command), and
  * end them with the format's draw modes.
  * DKR: fontCreateDisplayList (font.c), one load for the whole font.
  * Official Name: fontCreateDisplayList
  */
-void func_800715E8(FontData *font) {
+void fontCreateDisplayList(FontData *font) {
     Gfx *dl;
     u32 *mode;
 

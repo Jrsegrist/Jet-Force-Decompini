@@ -455,7 +455,7 @@ void anim_path_sound_stop(u8 index) {
 
 /* JFG: unpack numNodes path nodes from the bit stream at data; the next node and stream position go to
  * nodeOut and dataOut. */
-void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut) {
+void anim_path_nodes_read(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut) {
     s32 fullScale;
     f32 scaleUnit;
 
@@ -691,7 +691,7 @@ void sequence_stop(void) {
     }
 }
 
-void func_80077468(void);
+void sequence_paths_create(void);
 void anim_paths_spawn_all(void);
 void func_800773EC(void);
 extern s32 D_800A74C0;
@@ -719,7 +719,7 @@ void sequence_start(s32 id) {
             if (offset != 0xFFFFFF) {
                 D_800A74C0 = entryId;
                 D_800A74BC = (s32 *) ((u8 *) D_800A74B0 + offset);
-                func_80077468();
+                sequence_paths_create();
                 anim_paths_spawn_all();
                 func_800773EC();
                 D_800A74E4 = level_header()->unkAC;
@@ -771,11 +771,11 @@ typedef struct AnimPathData {
     /* 0x08 */ u8 nodes[1];
 } AnimPathData;
 
-void func_80076B44(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut);
+void anim_path_nodes_read(s32 numNodes, AnimNode *node, u8 *data, AnimNode **nodeOut, u8 **dataOut);
 void anim_path_link_nodes(u8 index);
 
 /* JFG: create the sequence's paths (count in the top byte of its first word, then id << 24 | offset per path). */
-void func_80077468(void) {
+void sequence_paths_create(void) {
     u32 *entry = (u32 *) D_800A74BC;
     u32 header;
     s32 count;
@@ -816,7 +816,7 @@ void func_80077468(void) {
             }
             path->numNodes = data->numNodes;
             anim_path_restart(index);
-            func_80076B44(path->numNodes, path->nodes, data->nodes, 0, 0);
+            anim_path_nodes_read(path->numNodes, path->nodes, data->nodes, 0, 0);
             anim_path_link_nodes(index);
         }
         count--;

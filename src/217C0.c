@@ -622,11 +622,11 @@ typedef struct ShadeProperties {
 } ShadeProperties;
 
 Object **objGetObjList(s32 *arg0, s32 *cnt);
-void func_80021B8C(Object *obj, ShadeProperties *shade);
+void light_shading_points_update(Object *obj, ShadeProperties *shade);
 void func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
- * JFG: shade every 3D-model object that has shading (and unkA1 clear): func_80021B8C, or a module
+ * JFG: shade every 3D-model object that has shading (and unkA1 clear): light_shading_points_update, or a module
  * function when the level header says so. (The shading read into a local per loop, as found by the
  * permuter, gives the ROM's frame.)
  */
@@ -652,7 +652,7 @@ void objects_shade_all(void) {
             obj = objs[i++];
             shading = obj->shading;
             if (obj->shading != NULL && obj->header->unk1E == 0 && obj->unkA1 == 0) {
-                func_80021B8C(obj, shading);
+                light_shading_points_update(obj, shading);
             }
         }
     }
@@ -667,7 +667,7 @@ extern ObjectLight **gActiveLights;
  * JFG: pick up to three point lights for an object's shading (the strongest replace the weakest), and dim
  * its ambient and diffuse by the strongest light flagged 0x20.
  */
-void func_80021B8C(Object *obj, ShadeProperties *shade) {
+void light_shading_points_update(Object *obj, ShadeProperties *shade) {
     s32 i;
     ObjectLight *light;
     f32 dx;

@@ -112,7 +112,7 @@ extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern M113Level *func_8004470C();                   /* DKR levelGetLevel */
-extern void func_80029BA4(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
+extern void zone_add(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
 extern void spawn_object_from_list(s32, s16, s16, s16, s32, Object *);
 extern void enemy_module_notify(s32, s16, s16, s16, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
@@ -358,7 +358,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 if (spawned != NULL) {
                     spawned->level_entry = NULL;
                 }
-                func_80029BA4(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 120.0f, 120.0f,
+                zone_add(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 120.0f, 120.0f,
                               0.34f, sBurstKinds[m->kind], owner);
             } else {
                 spawn_object_from_list(2, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,

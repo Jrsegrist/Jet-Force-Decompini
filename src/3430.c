@@ -179,7 +179,7 @@ void audspat_point_group_remove(AudioPoint *point);
  * the 0x80 effect mix); points in a group (unk23) are played through their group.
  * Official Name: amPlayAudioMap
  */
-void func_80002AB8(struct Object **objList, s32 numObjects, s32 updateRate) {
+void audspat_update_all(struct Object **objList, s32 numObjects, s32 updateRate) {
     s32 i;
     s32 j;
     s32 volume;

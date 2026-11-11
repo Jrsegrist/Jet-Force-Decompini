@@ -309,7 +309,7 @@ typedef struct VideoFlags {
 extern VideoFlags D_800FF384;
 extern OSViMode gTvViMode;
 extern s32 D_800A3924; // JFG: set once the first mode was built (the first is not applied here)
-OSViMode *func_800552DC(s32 mode);
+OSViMode *video_vi_mode_get(s32 mode);
 void fb_memcpy(u8 *src, u8 *dst, s32 size);
 
 /**
@@ -325,7 +325,7 @@ void fb_init_vi(void) {
     VideoMode *mode;
 
     mode = &D_800A392C[gVideoModeIndex];
-    tvViMode = func_800552DC(mode->viMode);
+    tvViMode = video_vi_mode_get(mode->viMode);
     fb_memcpy((u8 *) tvViMode, (u8 *) &gTvViMode, sizeof(OSViMode));
     gTvViMode.comRegs.width = mode->width;
     gTvViMode.comRegs.xScale = (mode->width << 9) / mode->unk8;
@@ -536,7 +536,7 @@ extern OSViMode D_800A9DD0;
 extern OSViMode D_800A9E20;
 
 /* JFG: the VI mode for one of the video mode table's twelve modes (NULL for others). */
-OSViMode *func_800552DC(s32 mode) {
+OSViMode *video_vi_mode_get(s32 mode) {
     switch (mode) {
         case 0:
             return &D_800A9B50;
