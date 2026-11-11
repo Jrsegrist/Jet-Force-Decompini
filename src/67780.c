@@ -102,8 +102,6 @@ extern u8 D_80102558[0x200];
 s32 write_controller_pak_file(s32 controllerIndex, s32 fileNumber, char *fileName, char *fileExt, u8 *dataToWrite,
                               s32 fileSize);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: one register: the 0x80700000 argument is built in t4 (target t6) */
 /* JFG: save the log, the faulted thread and its stack (at 0x80700000) to the controller pak. */
 void func_80066D28(OSThread *thread) {
     u8 *dst;
@@ -116,7 +114,7 @@ void func_80066D28(OSThread *thread) {
     dst = (u8 *) 0x80705094;
     bcopy(thread, dst, 0x230);
     dst += 0x200;
-    stack = *(void **) ((u8 *) thread + 0xF4); // JFG: the thread's sp
+    stack = (void *) thread->context.sp; // the low word of the u64
     bcopy(stack, dst, 0x200);
     D_80102554 = stack;
     bcopy(stack, D_80102558, 0x200);
@@ -127,9 +125,6 @@ void func_80066D28(OSThread *thread) {
     }
     write_controller_pak_file(0, -1, "CORE", "", (u8 *) 0x80700000, size);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/67780", func_80066D28);
-#endif
 
 void func_80066D28(OSThread *thread);
 void func_80066EB0(OSThread *thread);
