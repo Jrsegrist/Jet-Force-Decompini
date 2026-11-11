@@ -65,7 +65,6 @@ typedef struct CoronaHeader {
     /* 0x1F */ u8 visible;
 } CoronaHeader;
 
-extern f32 D_800ABAB0;
 void corona_update_transform(Corona *corona);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
 
@@ -91,7 +90,7 @@ Corona *corona_add(struct CoronaOwner *owner, CoronaHeader *header) {
     } else {
         corona->opacity = 16;
     }
-    corona->scale = header->size * D_800ABAB0;
+    corona->scale = header->size * 0.05f;
     corona->owner = owner;
     corona->offset[0] = header->offset[0];
     corona->offset[1] = header->offset[1];
