@@ -276,6 +276,7 @@ segments:
       - [0xAAB80, .data, ultra/libc/xlitob]
       - [0xAABB0, .rodata, audio]
       - [0xAAD00, rodata]
+      - [0xAC120, .rodata, 12D50]
       - [0xAC680, .rodata, 1DA10]
       - [0xAC690, .rodata, 217C0]
       - [0xAC6B0, .rodata, 245D0]

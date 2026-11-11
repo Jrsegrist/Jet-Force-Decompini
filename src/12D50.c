@@ -218,8 +218,6 @@ extern s32 D_800A0D6C;
 extern u8 D_800A321C;
 extern s32 D_800A74E0;
 extern s16 D_801046EE;
-extern char D_800AB520[];
-extern char D_800AB530[];
 u8 func_80048548(void); // the number of cameras
 s8 is_game_paused(void);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
@@ -277,7 +275,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
         D_800F2F74 = *mtx;
         D_800F2F78 = *vtx;
         D_800F2F7C = *tris;
-        debug_trace_add(D_800F2F70, D_800AB520, 0x1F8);
+        debug_trace_add(D_800F2F70, "track/track.c", 0x1F8);
         set_active_camera(0);
         gSceneRenderSkyDome = TRUE;
         D_800F2F8C = FALSE;
@@ -350,7 +348,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
             } else {
                 func_80013454();
             }
-            debug_trace_add(D_800F2F70, D_800AB530, 0x27D);
+            debug_trace_add(D_800F2F70, "track/track.c", 0x27D);
             gDPPipeSync(D_800F2F70++);
             initialise_player_viewport_vars(numViewports, updateRate);
             weather_clip_planes(-1, -512);
@@ -1092,7 +1090,6 @@ void track_segment_data_free(void) {
     gMaxTrackLights = 0;
 }
 
-extern f32 D_800AB648; // a .rodata constant, not split out yet
 void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
 /* JFG: add a track light in the first free slot. */
@@ -1114,7 +1111,7 @@ TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius,
             light->outerRadiusSquare = outerRadius * outerRadius;
             light->innerRadius = innerRadius;
             light->innerRadiusSquare = innerRadius * innerRadius;
-            light->falloff = D_800AB648 / (outerRadius - innerRadius);
+            light->falloff = 31.99f / (outerRadius - innerRadius);
             track_light_set_colour((u8 *) light, red, green, blue, 255);
             gNumTrackLights++;
             return light;
@@ -1804,7 +1801,6 @@ typedef struct SweepHit {
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target copies flags to $s0 (in the delay slot of the first branch) and takes the 0x40 test
    from that copy, which also moves the hit-field stores after the float stores; IDO propagates my copies away */
-extern f32 D_800ABA28;
 void track_edges_build(void);
 void func_800805F4(void);
 s32 func_8007F280(void *obj, f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
@@ -1841,7 +1837,7 @@ s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, SweepHit
     hit->unk20 = 0;
     hit->unk26 = 0;
     hit->unk27 = 0;
-    hit->unk1C = D_800ABA28;
+    hit->unk1C = 1024000000.0f;
     found = TRUE;
     while (found && !once) {
         found = FALSE;
