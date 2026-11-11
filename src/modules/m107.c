@@ -288,7 +288,10 @@ extern void func_80057D58(M107ColourCycle *cycle, s32 updateRate); /* steps a co
 
 /* The shield's control: follows its owner, fades out at the end, turns the rings and builds their vertices */
 #ifdef NON_MATCHING
-/* register allocation in the vertex loop (the y conversion and the height load get other temporaries) */
+/*
+ * Five instructions: in the vertex loop the height load and the y sum get other registers (ROM: y in v0).
+ * The pad fills a frame word the ROM has (a temporary of the original?).
+ */
 void func_m107_005C0(Object *obj, s32 updateRate) {
     M107Shield *shield = obj->unk68;
     Object *owner = shield->owner;
@@ -300,12 +303,13 @@ void func_m107_005C0(Object *obj, s32 updateRate) {
     s16 angle;
     s16 x;
     s16 z;
-    s32 y;
+    s16 y;
     s16 *c;
     f32 r;
     f32 h;
     Vertex *v;
     M107Light *light;
+    UNUSED s32 pad;
 
     if (shield->timer > 0) {
         shield->timer -= updateRate;
