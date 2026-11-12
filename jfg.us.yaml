@@ -157,7 +157,7 @@ segments:
       - [0x92080, asm]
       - [0x92570, asm]
       - [0x928E0, asm]
-      - [0x93430, asm]
+      - [0x93430, c, naudio_93430]
       - [0x93850, asm]
       - [0x93930, asm]
       - [0x93DE0, asm]
