@@ -605,7 +605,12 @@ extern u8 D_800A4E78;
 static void func_m017_02564(M017Model *model, M017ModelInst *inst, Racer *racer, s32 updateRate);
 static void func_m017_02A40(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 static void func_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
+#ifdef NON_MATCHING
+static void func_m017_03258(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
+#define rl_m017_03258 func_m017_03258
+#else
 extern void rl_m017_03258(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
+#endif
 static void func_m017_02848(Object *obj, Racer *racer, f32 updateRate);
 static s32 func_m017_04A44(Racer *racer, f32 *frame);
 static void func_m017_04178(Racer *racer, s16 roll, s16 pitch, s16 yaw);
@@ -1662,7 +1667,256 @@ static void func_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     racer->unk4 *= func_80049BEC(0.95f, updateRate);
 }
 
+#ifdef NON_MATCHING
+/* 38 instructions off, same length: the (s32) updateRate temp is spilled at sp+0x34 (ROM sp+0x40, so the ROM
+   makes three more temporaries before it), and at the end oldAngle/x get a0/v1 (ROM v1/a0) with the t-registers
+   after it one off. */
+/* State 3: in the air (jumping, falling, hovering) */
+static void func_m017_03258(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
+    s32 x;
+    s32 j;
+    s32 i;
+    s32 oldAngle;
+    s32 pad0;
+    s32 oldTime;
+    s32 vol;
+    f32 q;
+    f32 frame;
+    s32 pad1;
+    f32 fall;
+    s32 v;
+
+    if (racer->unk58E == 0 && !(D_800A18B0->unkC & gPlayerButtonsHeld)) {
+        racer->unk58E = 1;
+        racer->unk58F = 60;
+        if (racer->unk14B == 0) {
+            racer->unk594 = 0.0f;
+        }
+        racer->unk590 = 0;
+        racer->unk591 = 0;
+    }
+    racer->unk576 = 0;
+    if ((racer->pose->unk5 & racer->unk532) && racer->unk57A == 0) {
+        if (!(racer->unk520 & 0x8000) || racer->unk5C8 != 0) {
+            racer->unk14A = 0;
+            racer->unk14B = 0;
+            racer->state = racer->unk56A;
+            racer->unk594 = 0.0f;
+            fall = racer->unk57C - obj->trans.y_position;
+            if (racer->character == 2) {
+                if (fall > 240.0f) {
+                    racer->unk190 = 0x80;
+                } else if (fall > 400.0f) {
+                    racer->unk190 = 0xC0;
+                }
+            }
+            func_m017_04B84(obj, racer, func_m017_04A44(racer, &frame), 0);
+            racer->state = 0;
+            player_voice_play(obj, 1);
+            if (racer->character == 6 && fall > 0.0f) {
+                if (fall >= 200.0f) {
+                    vol = 100;
+                } else {
+                    vol = 40.0f * fall / 200 + 60.0f;
+                }
+                func_80001248(0xF3, (s32) &racer->unk5DC);
+                func_800013FC(0xF3, racer->unk5DC, vol);
+            }
+            if (racer->unk60 < 1.0f) {
+                obj->particleEmittersEnabled |= D_m017_0645C[func_8004470C()->unkE2];
+            }
+        }
+    } else if (racer->unk57A > 0) {
+        racer->unk57A -= (s32) updateRate;
+        if (D_800A18B0->unkC & gPlayerButtonsHeld) {
+            racer->unk57B += (s32) updateRate;
+        } else {
+            racer->unk57A = 0;
+        }
+        if (racer->unk57A <= 0) {
+            if (obj->unk28 < 0.25f) {
+                obj->unk28 = 0.4f;
+            }
+            racer->unk57A = 0;
+            player_voice_play(obj, 0);
+            if (racer->unk569 != 0) {
+                obj->velocity.y += 10.0f;
+            } else {
+                if (racer->unk57B > 24) {
+                    racer->unk57B = 24;
+                }
+                obj->velocity.y += 6 + 6.0f * racer->unk57B / 24.0f;
+            }
+        }
+        speed = 0.0f;
+    } else if (racer->character == 6 && racer->unk58E != 0 && racer->unk58C > 0) {
+        racer->unk57C += (obj->trans.y_position - racer->unk57C) * (1.0f - func_80049BEC(0.9f, updateRate));
+        oldTime = racer->unk58C;
+        if ((D_800A18B0->unk10 & gPlayerButtonsHeld) && racer->unk58C > 0) {
+            func_m017_04B84(obj, racer, 0x13, 0);
+            racer->unk14A = 15;
+            if (racer->unk58C > 0) {
+                racer->unk58C -= (s32) updateRate;
+            }
+            racer->unk591 += (s32) updateRate * 2;
+            q = 1.0f - func_80049BEC(0.95f, updateRate);
+            racer->unk594 += ((func_80049C34(racer->unk591 << 8) * 0.125f + 1.0f) - racer->unk594) * q;
+            obj->velocity.y *= func_80049BEC(0.925f, updateRate);
+            racer->unk14B = 0;
+            D_m017_069B0 |= 1;
+            D_m017_069B4 |= 1;
+        } else if ((D_800A18B0->unkC & gPlayerButtonsHeld) && racer->unk58C > 0) {
+            func_m017_04B84(obj, racer, 0x13, 0);
+            racer->unk14A = 15;
+            if (racer->unk58C > 0) {
+                racer->unk58C -= (s32) updateRate * 2;
+            }
+            racer->unk594 += (1.0f - racer->unk594) * (1.0f - func_80049BEC(0.95f, updateRate));
+            obj->velocity.y += (5.0f - obj->velocity.y) * (1.0f - func_80049BEC(0.95f, updateRate));
+            racer->unk14B = 0;
+            D_m017_069B0 |= 2;
+            D_m017_069B4 |= 1;
+        } else if (racer->unk14B == 0) {
+            racer->unk594 *= func_80049BEC(0.96f, updateRate);
+            if (racer->unk594 < 0.2f) {
+                func_m017_04B84(obj, racer, 0x10, 0);
+                racer->unk594 = 0.0f;
+            }
+        }
+        if (oldTime != racer->unk58C) {
+            racer->unk592 = 360;
+        }
+        j = 600;
+        i = 361;
+        do {
+            if (j < oldTime && j >= racer->unk58C) {
+                func_80001248((u16) i, 0);
+                j = 0;
+            } else {
+                j -= 60;
+                i--;
+            }
+        } while (j != 0);
+        if (racer->unk58C <= 0) {
+            racer->unk58E = 0;
+        }
+    } else if (racer->unk58E != 0) {
+        if (D_800A18B0->unkC & gPlayerButtonsHeld) {
+            racer->unk57C += (obj->trans.y_position - racer->unk57C) * (1.0f - func_80049BEC(0.9f, updateRate));
+            if (racer->unk591 < 4) {
+                racer->unk14A = 15;
+            }
+            func_m017_04B84(obj, racer, 0x13, 0);
+            racer->unk14B = 0;
+            player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
+        }
+        if (racer->unk590 != 0) {
+            racer->unk594 *= func_80049BEC(0.89f, updateRate);
+            racer->unk590 -= (s32) updateRate;
+            if (racer->unk590 <= 0) {
+                racer->unk590 = 0;
+                racer->unk58F = 60;
+            }
+            racer->unk58E = 1;
+        } else if ((D_800A18B0->unkC & gPlayerButtonsHeld) && racer->unk591 < 4) {
+            racer->unk14A = 15;
+            racer->unk58E = 2;
+            racer->unk58F -= (s32) updateRate;
+            obj->velocity.y *= func_80049BEC(0.9f, updateRate);
+            racer->unk594 += (1.15f - racer->unk594) * (1.0f - func_80049BEC(0.89f, updateRate));
+            if (racer->unk58F <= 0) {
+                racer->unk590 = 12;
+                racer->unk591++;
+            }
+            D_m017_069B0 |= 1;
+            D_m017_069B4 |= 1;
+        } else {
+            if (racer->unk58E == 2) {
+                racer->unk590 = 12;
+                racer->unk591++;
+            }
+            racer->unk58E = 1;
+            if (racer->unk14B == 0) {
+                racer->unk594 *= func_80049BEC(0.89f, updateRate);
+                if (racer->unk594 < 0.01f) {
+                    racer->unk594 = 0.0f;
+                }
+                if (obj->trans.y_position < racer->unk57C - 120.0f && obj->animationID != 0x10) {
+                    func_m017_04B84(obj, racer, 0x10, 0);
+                }
+            }
+        }
+    } else if (racer->unk14B == 0) {
+        if (racer->unk594 != 0.0f) {
+            racer->unk594 *= func_80049BEC(0.96f, updateRate);
+            if (racer->unk594 < 0.2f) {
+                racer->unk594 = 0.0f;
+            }
+        }
+        if (obj->trans.y_position < racer->unk57C - 120.0f && obj->animationID != 0x10) {
+            func_m017_04B84(obj, racer, 0x10, 0);
+        }
+    }
+    player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
+    func_m017_02848(obj, racer, updateRate);
+    if (racer->unk569 == 0) {
+        speed = -speed;
+    } else {
+        angle += 0x8000;
+    }
+    oldAngle = racer->unk11C;
+    racer->unk4 = (1.0f - func_80049BEC(0.95f, updateRate)) * (speed - racer->unk4) + racer->unk4;
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(0.975f, updateRate));
+    x = racer->unk4;
+    oldAngle = racer->unk11C - oldAngle;
+    if (x < 0.0f) {
+        x = -x;
+    }
+    if (x > 3.0f) {
+        x = 3;
+    }
+    racer->unk120 = (f32) oldAngle * x * 0.3333f * 3.0f;
+    if (racer->unk14A != 0) {
+        v = obj->trans.rotation.z_rotation >> 1;
+        v = obj->trans.rotation.z_rotation + v;
+        *D_m017_069C4 = 0x22;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0x10;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0x82;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0x94;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        v = racer->unk4 * 1400.0f;
+        *D_m017_069C4 = 0x1E;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0xC;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0x7E;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0x90;
+        D_m017_069C4++;
+        *D_m017_069C4 = v;
+        D_m017_069C4++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_03258);
+#endif
 
 /* Adds the commands that turn the body (character 6 uses other joints) */
 static void func_m017_04178(Racer *racer, s16 roll, s16 pitch, s16 yaw) {
