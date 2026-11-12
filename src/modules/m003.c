@@ -213,7 +213,8 @@ typedef struct M003Home {
     /* 0x76 */ u8 pad76;
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
     /* 0x78 */ s8 group; /* its path group, 0 to 31 (061FC) */
-    /* 0x79 */ u8 pad79[0x7B - 0x79];
+    /* 0x79 */ u8 unk79; /* the node count of its group's path last seen (021C8), 0-3 */
+    /* 0x7A */ u8 pad7A;
     /* 0x7B */ u8 unk7B;
     /* 0x7C */ u8 pad7C[0x8C - 0x7C];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
@@ -425,6 +426,23 @@ extern void *rl_m003_19428;
 extern M003Region *rl_m003_1942C;
 #define sRegions rl_m003_1942C
 
+/* A node of an animation path (0x2C bytes; 76C20.c's AnimNode) */
+typedef struct M003PathNode {
+    /* 0x00 */ s16 rot[3];
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ s16 unk18[3];
+    /* 0x1E */ u8 junction; /* 0: none; else the id of the junction object that picks the way on */
+    /* 0x1F */ u8 pad1F;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ struct M003PathNode *prev;
+    /* 0x28 */ struct M003PathNode *next;
+} M003PathNode;
+
 /* The module's .bss (the assembly functions reach it by offset) */
 static u8 sBss0[0x4];
 static s32 sRegionCount;
@@ -457,7 +475,8 @@ static s32 sChangePending;
 static s32 sBss1E4;
 static Object *sTargets[32];
 static s32 sTargetCount;
-static u8 sBss270[0xDB0 - 0x270]; /* (from 0x26C, IDO aligning it to 8) */
+static M003PathNode sGroupPaths[16 * 4]; /* each path group's path, 4 nodes (01EB8; from 0x26C, IDO aligning it to 8) */
+static M003PathNode *sGroupNodes[16]; /* each path group's node (021C8) */
 /* The segment-against-region test's state (func_m003_175E8 and the asm 17174) */
 static void *sCrossData;   /* the region's tree */
 static void *sCrossEdges;  /* and its edges */
@@ -1109,18 +1128,25 @@ s32 func_m003_01C58(M003Node *node, s32 arrive) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
 #endif
 
-/* A node of an animation path (0x2C bytes) */
-typedef struct M003PathNode {
-    /* 0x00 */ u8 pad0[0x1E];
-    /* 0x1E */ u8 junction; /* 0: none; else the id of the junction object that picks the way on */
-    /* 0x1F */ u8 pad1F[0x28 - 0x1F];
-    /* 0x28 */ struct M003PathNode *next;
-} M003PathNode;
-
-/* An animation path (D_801045B0) */
+/* An animation path (D_801045B0; 76C20.c's AnimPath, 0x34 bytes) */
 typedef struct M003AnimPath {
-    /* 0x00 */ u8 pad0[0x20];
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ Object *obj;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ u8 unk14;
+    /* 0x15 */ u8 unk15;
+    /* 0x16 */ u8 flags; /* 0x80: the path loops */
+    /* 0x17 */ u8 numNodes;
+    /* 0x18 */ M003PathNode *curNode;
+    /* 0x1C */ f32 unk1C;
     /* 0x20 */ M003PathNode *nodes;
+    /* 0x24 */ u8 pad24[0x34 - 0x24];
 } M003AnimPath;
 
 /* What a junction object (behaviour 0x1B) keeps in obj->unk68 */
@@ -1138,7 +1164,7 @@ extern M003AnimPath **D_801045B0;
  * The node after `node`: at a junction, the start of one of the junction's exits, picked at random by
  * weight. (If no junction object has the id, `j` is used unset, as in the original.)
  */
-M003PathNode *func_m003_01D3C(M003PathNode *node) {
+static M003PathNode *func_m003_01D3C(M003PathNode *node) {
     s32 first;
     s32 count;
     s32 i;
@@ -1194,9 +1220,149 @@ M003PathNode *func_m003_01D3C(M003PathNode *node) {
     return next;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
+extern s32 D_800FEA58[]; /* each path group's D_801045B0 path */
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern s32 func_80079B6C(void);                   /* a free D_801045B0 slot, or -1 */
+extern M003AnimPath *func_80079AA4(Object *obj);  /* the path an object is on */
+extern void anim_path_spawn_object(u8 index);
+s32 func_m003_061FC(void);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_021C8);
+#ifdef NON_MATCHING
+/*
+ * A troop with no path group takes a free one: a new path of its own, four nodes long (in sGroupPaths), copied
+ * from the leader's path and looping, whose object becomes the leader.
+ * NON_MATCHING: ROM length; ~125 diffs, the group's `g * 4` (the ROM loads the group into s6 and moves g*4 there
+ * after) and the store order of the path's first fields.
+ */
+static void func_m003_01EB8(void) {
+    s32 index;
+    M003AnimPath *src;
+    M003AnimPath *path;
+    M003PathNode *nodes;
+    M003PathNode *node;
+    s32 g;
+    M003PathNode *from;
+    s32 i;
+
+    index = func_80079B6C();
+    sHomeData->group = func_m003_061FC();
+    if (sHomeData->group != -1 && index != -1) {
+        D_801045B0[index] = func_8004A57C(sizeof(M003AnimPath), 0xFFFF00FF);
+        D_800FEA58[sHomeData->group] = index;
+        src = func_80079AA4(sHomeData->leader);
+        if (src != NULL) {
+            path = D_801045B0[index];
+            g = sHomeData->group;
+            path->unk0 = src->unk0;
+            path->unk2 = 0x53;
+            path->unk1 = src->unk1;
+            path->unk4 = src->unk4;
+            path->unk6 = src->unk6;
+            path->obj = NULL;
+            path->unk7 = src->unk7;
+            path->unkC = src->unkC;
+            path->unk10 = src->unk10;
+            path->unk14 = src->unk14;
+            nodes = &sGroupPaths[g * 4];
+            path->flags = 0x80;
+            path->numNodes = 4;
+            path->curNode = nodes;
+            path->nodes = nodes;
+            path->unk15 = src->unk15;
+            path->unk1C = 0.0f;
+            node = nodes;
+            anim_path_spawn_object(index);
+            from = src->curNode;
+            i = 3;
+            do {
+                node->rot[0] = from->rot[0];
+                node->rot[1] = from->rot[1];
+                node->unk6 = index;
+                node->rot[2] = from->rot[2];
+                node->unk7 = from->unk7;
+                node->scale = from->scale;
+                node->x = from->x;
+                node->y = from->y;
+                node->z = from->z;
+                node->unk18[0] = from->unk18[0];
+                node->unk18[1] = from->unk18[1];
+                node->unk18[2] = from->unk18[2];
+                node->junction = from->junction;
+                node->unk20 = from->unk20;
+                if (i == 3) {
+                    node->prev = &nodes[3];
+                } else {
+                    node->prev = node - 1;
+                }
+                if (i == 0) {
+                    node->next = &sGroupPaths[g * 4];
+                } else {
+                    node->next = node + 1;
+                }
+                from = func_m003_01D3C(from);
+                node++;
+            } while (i--);
+            path->obj->trans.flags |= 0x400;
+            sGroupNodes[sHomeData->group] = from;
+            ((void (*)(u8)) func_800767EC)(index); /* module.h declares it unprototyped */
+            sHomeData->leader = path->obj;
+            sHomeData->unk79 = 1;
+            path->curNode = path->nodes->next;
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
+extern void rl_m003_01EB8(void);
+#define func_m003_01EB8 rl_m003_01EB8
+#endif
+
+/*
+ * A troop on a path group follows the group's path: when the path's current node has moved on from the one
+ * the troop last saw, the group's node goes on one (copied into the node two before the current one), and
+ * the count goes round 0-3. The path's object is flagged 0x400.
+ */
+static void func_m003_021C8(void) {
+    s32 index;
+    M003AnimPath *path;
+    M003PathNode *src;
+    M003PathNode *dst;
+    M003PathNode *cur;
+    s32 n;
+
+    index = D_800FEA58[sHomeData->group];
+    path = D_801045B0[index];
+    src = path->nodes;
+    cur = path->curNode;
+    n = 0;
+    while (src != cur) {
+        src = src->next;
+        n++;
+    }
+    if (n != sHomeData->unk79) {
+        src = sGroupNodes[sHomeData->group];
+        dst = cur->prev->prev;
+        sGroupNodes[sHomeData->group] = func_m003_01D3C(src);
+        dst->rot[0] = src->rot[0];
+        dst->rot[1] = src->rot[1];
+        dst->rot[2] = src->rot[2];
+        dst->unk7 = src->unk7;
+        dst->scale = src->scale;
+        dst->x = src->x;
+        dst->y = src->y;
+        dst->z = src->z;
+        dst->unk18[0] = src->unk18[0];
+        dst->unk18[1] = src->unk18[1];
+        dst->unk18[2] = src->unk18[2];
+        dst->junction = src->junction;
+        dst->unk20 = src->unk20;
+        sHomeData->unk79++;
+        if (sHomeData->unk79 >= 4) {
+            sHomeData->unk79 = 0;
+        }
+    }
+    path->obj->trans.flags |= 0x400;
+}
 
 /* A step of the leader's trail (D_800FEA18[home->unk77] holds the troop's ring of them) */
 typedef struct M003Trail {
@@ -1208,9 +1374,6 @@ typedef struct M003Trail {
     /* 0x10 */ s16 rotZ;
 } M003Trail;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern void rl_m003_01EB8(void);                   /* still assembly */
-extern void rl_m003_021C8(void);
 
 /*
  * The troop follows its leader: it keeps the leader's place in unk40-44, or (unk31 1) records the leader in
@@ -1230,9 +1393,9 @@ void func_m003_0237C(void) {
         } else {
             total = sHomeData->spacing * 2 * sHomeData->count;
             if (sHomeData->group == -1) {
-                rl_m003_01EB8();
+                func_m003_01EB8();
             } else {
-                rl_m003_021C8();
+                func_m003_021C8();
             }
             if (sHomeData->unk77 == 0xFF) {
                 i = 15;
