@@ -30,7 +30,8 @@ extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
 extern u8 rl_m007_02A04[]; /* the texts of pages without one */
 extern u8 rl_m007_02A14[];
-extern s32 rl_m007_012E0(s32 condition);
+static int func_m007_012E0(s32 condition);
+extern s32 func_80000F98(void); /* the music playing */
 extern void func_8004AA80(void *data); /* frees */
 extern s32 func_80043510(s32 player); /* the buttons pressed */
 extern s32 func_80043558(s32 player); /* the stick's x */
@@ -479,7 +480,7 @@ static s32 func_m007_007E4(s32 dir) {
 
     if (p != NULL) {
         for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
-            if (rl_m007_012E0(rec->condition)) {
+            if (func_m007_012E0(rec->condition)) {
                 count++;
             }
         }
@@ -488,23 +489,23 @@ static s32 func_m007_007E4(s32 dir) {
             if (dir > 0) {
                 do {
                     i++;
-                } while (i < p->count && !rl_m007_012E0(p->recs[i].condition));
+                } while (i < p->count && !func_m007_012E0(p->recs[i].condition));
             } else {
                 rec = &p->recs[i];
                 if (dir < 0) {
                     do {
                         i--;
-                    } while (i >= 0 && !rl_m007_012E0(p->recs[i].condition));
-                } else if (!rl_m007_012E0(rec->condition)) {
+                    } while (i >= 0 && !func_m007_012E0(p->recs[i].condition));
+                } else if (!func_m007_012E0(rec->condition)) {
                     do {
                         i--;
                         rec--;
-                    } while (i >= 0 && !rl_m007_012E0(rec->condition));
+                    } while (i >= 0 && !func_m007_012E0(rec->condition));
                     if (i < 0) {
                         i = p->current;
                         do {
                             i++;
-                        } while (i < p->count && !rl_m007_012E0(p->recs[i].condition));
+                        } while (i < p->count && !func_m007_012E0(p->recs[i].condition));
                     }
                 }
             }
@@ -754,7 +755,66 @@ static void func_m007_01214(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_012E0);
+/*
+ * Whether a paged hint's condition `condition` holds. With no player, p and items are read unset (as the
+ * original does).
+ */
+static int func_m007_012E0(s32 condition) {
+    Object *obj;
+    M007Player *p;
+    M007Items *items;
+
+    obj = func_8000E4D0(0);
+    if (obj != NULL) {
+        p = obj->unk68;
+        if (p != NULL) {
+            items = func_80047C1C(p->player, p->character);
+        }
+    }
+    switch (condition) {
+        case 0:
+            return !character_has_item(p->player, p->character, 1);
+        case 1:
+            return !player_chars_have_item(0x10) && !player_chars_have_item(0x11);
+        case 2:
+            return !player_chars_have_item(0x11);
+        case 3:
+            return !(items->flags & 0x20);
+        case 4:
+            return !player_chars_have_item(0x15);
+        case 5:
+            return !game_flag_get(0x20);
+        case 6:
+            return !game_flag_get(0x21);
+        case 7:
+            return game_flag_get(0x21);
+        case 8:
+            return !game_flag_get(0x22);
+        case 9:
+            return game_flag_get(0x22);
+        case 10:
+            return !game_flag_get(0x23);
+        case 11:
+            return game_flag_get(0x23);
+        case 12:
+            return !game_flag_get(0x24);
+        case 14:
+            return !player_chars_have_item(0x16);
+        case 15:
+            return func_80000F98() != 0x3C;
+        case 16:
+            return func_80000F98() != 0x3D;
+        case 17:
+            return func_80000F98() != 0x3E;
+        case 18:
+            return func_80000F98() != 0x41;
+        case 19:
+            return game_flag_get(0x2B);
+        case 20:
+            return !game_flag_get(0x2B);
+    }
+    return TRUE;
+}
 
 /*
  * Whether a long hint's condition `condition` holds. With no player, p and items are read unset (as the
@@ -1078,7 +1138,7 @@ static void func_m007_020D4(Gfx **dl) {
             func_8006FC68(0, 0xC0, 0xC0, 0xFF, alpha);
         }
         text = rl_m007_02A5C->recs[i].text;
-        if (!rl_m007_012E0(rl_m007_02A5C->recs[i].condition)) {
+        if (!func_m007_012E0(rl_m007_02A5C->recs[i].condition)) {
             text = NULL;
         }
         while (text != NULL && lines > 0) {
