@@ -158,7 +158,8 @@ typedef struct M003Home {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 count; /* members */
     /* 0x02 */ u8 unk2; /* its members' size, in hundredths (0D360) */
-    /* 0x03 */ u8 pad3[0x10 - 0x3];
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u8 pad4[0x10 - 0x4];
     /* 0x10 */ s8 offset[3];
     /* 0x13 */ u8 unk13; /* how far it looks round (028D4), in 16s */
     /* 0x14 */ u8 unk14; /* and up and down, in 8s */
@@ -213,7 +214,8 @@ typedef struct M003Home {
     /* 0x76 */ u8 pad76;
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
     /* 0x78 */ s8 group; /* its path group, 0 to 31 (061FC) */
-    /* 0x79 */ u8 pad79[0x7B - 0x79];
+    /* 0x79 */ u8 unk79; /* the node count of its group's path last seen (021C8), 0-3 */
+    /* 0x7A */ s8 unk7A; /* the zone module 139 tests (148C0) */
     /* 0x7B */ u8 unk7B;
     /* 0x7C */ u8 pad7C[0x8C - 0x7C];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
@@ -395,7 +397,7 @@ extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
 static s32 func_m003_04968(s32 index, s32 anim, s32 adjust);
-extern s32 rl_m003_04614(s32 anim, s32 arg1);
+static s32 func_m003_04614(s32 anim, s32 arg1);
 extern void rl_m003_044F4(Object *obj);
 
 /* An animation entry (8 bytes) */
@@ -424,6 +426,23 @@ extern void *rl_m003_19428;
 #define sRegionData rl_m003_19428
 extern M003Region *rl_m003_1942C;
 #define sRegions rl_m003_1942C
+
+/* A node of an animation path (0x2C bytes; 76C20.c's AnimNode) */
+typedef struct M003PathNode {
+    /* 0x00 */ s16 rot[3];
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ s16 unk18[3];
+    /* 0x1E */ u8 junction; /* 0: none; else the id of the junction object that picks the way on */
+    /* 0x1F */ u8 pad1F;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ struct M003PathNode *prev;
+    /* 0x28 */ struct M003PathNode *next;
+} M003PathNode;
 
 /* The module's .bss (the assembly functions reach it by offset) */
 static u8 sBss0[0x4];
@@ -457,7 +476,8 @@ static s32 sChangePending;
 static s32 sBss1E4;
 static Object *sTargets[32];
 static s32 sTargetCount;
-static u8 sBss270[0xDB0 - 0x270]; /* (from 0x26C, IDO aligning it to 8) */
+static M003PathNode sGroupPaths[16 * 4]; /* each path group's path, 4 nodes (01EB8; from 0x26C, IDO aligning it to 8) */
+static M003PathNode *sGroupNodes[16]; /* each path group's node (021C8) */
 /* The segment-against-region test's state (func_m003_175E8 and the asm 17174) */
 static void *sCrossData;   /* the region's tree */
 static void *sCrossEdges;  /* and its edges */
@@ -465,13 +485,16 @@ static s32 sCrossX1;       /* the segment, in whole units */
 static s32 sCrossZ1;
 static s32 sCrossX2;
 static s32 sCrossZ2;
-static u8 sBssDC8[0xDD8 - 0xDC8];
+static s32 sCrossSideA;    /* which side of a node's line each end is on (17174) */
+static s32 sCrossSideB;
+static f32 sCrossHitX;     /* where the segment crosses that line */
+static f32 sCrossHitZ;
 static f32 sCrossSlope;    /* the line 170D0 meets: z = slope * x + offset */
 static f32 sCrossOffset;
 static struct M003Crossing *sCrossOut;
 static s32 sCrossX;        /* where it leaves the region */
 static s32 sCrossZ;
-static s32 sCrossEdge;     /* the edge it crosses, -1: none */
+static s32 sCrossDist;     /* the squared distance to the nearest crossing, -1 (unsigned: the most): none */
 static u8 sCrossPoint;     /* the region point it crosses near */
 static u8 sCrossRegion;    /* the region on the other side */
 static s16 sBssDF2;
@@ -1109,18 +1132,25 @@ s32 func_m003_01C58(M003Node *node, s32 arrive) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
 #endif
 
-/* A node of an animation path (0x2C bytes) */
-typedef struct M003PathNode {
-    /* 0x00 */ u8 pad0[0x1E];
-    /* 0x1E */ u8 junction; /* 0: none; else the id of the junction object that picks the way on */
-    /* 0x1F */ u8 pad1F[0x28 - 0x1F];
-    /* 0x28 */ struct M003PathNode *next;
-} M003PathNode;
-
-/* An animation path (D_801045B0) */
+/* An animation path (D_801045B0; 76C20.c's AnimPath, 0x34 bytes) */
 typedef struct M003AnimPath {
-    /* 0x00 */ u8 pad0[0x20];
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ Object *obj;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ u8 unk14;
+    /* 0x15 */ u8 unk15;
+    /* 0x16 */ u8 flags; /* 0x80: the path loops */
+    /* 0x17 */ u8 numNodes;
+    /* 0x18 */ M003PathNode *curNode;
+    /* 0x1C */ f32 unk1C;
     /* 0x20 */ M003PathNode *nodes;
+    /* 0x24 */ u8 pad24[0x34 - 0x24];
 } M003AnimPath;
 
 /* What a junction object (behaviour 0x1B) keeps in obj->unk68 */
@@ -1138,7 +1168,7 @@ extern M003AnimPath **D_801045B0;
  * The node after `node`: at a junction, the start of one of the junction's exits, picked at random by
  * weight. (If no junction object has the id, `j` is used unset, as in the original.)
  */
-M003PathNode *func_m003_01D3C(M003PathNode *node) {
+static M003PathNode *func_m003_01D3C(M003PathNode *node) {
     s32 first;
     s32 count;
     s32 i;
@@ -1194,9 +1224,149 @@ M003PathNode *func_m003_01D3C(M003PathNode *node) {
     return next;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
+extern s32 D_800FEA58[]; /* each path group's D_801045B0 path */
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern s32 func_80079B6C(void);                   /* a free D_801045B0 slot, or -1 */
+extern M003AnimPath *func_80079AA4(Object *obj);  /* the path an object is on */
+extern void anim_path_spawn_object(u8 index);
+s32 func_m003_061FC(void);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_021C8);
+#ifdef NON_MATCHING
+/*
+ * A troop with no path group takes a free one: a new path of its own, four nodes long (in sGroupPaths), copied
+ * from the leader's path and looping, whose object becomes the leader.
+ * NON_MATCHING: ROM length; ~125 diffs, the group's `g * 4` (the ROM loads the group into s6 and moves g*4 there
+ * after) and the store order of the path's first fields.
+ */
+static void func_m003_01EB8(void) {
+    s32 index;
+    M003AnimPath *src;
+    M003AnimPath *path;
+    M003PathNode *nodes;
+    M003PathNode *node;
+    s32 g;
+    M003PathNode *from;
+    s32 i;
+
+    index = func_80079B6C();
+    sHomeData->group = func_m003_061FC();
+    if (sHomeData->group != -1 && index != -1) {
+        D_801045B0[index] = func_8004A57C(sizeof(M003AnimPath), 0xFFFF00FF);
+        D_800FEA58[sHomeData->group] = index;
+        src = func_80079AA4(sHomeData->leader);
+        if (src != NULL) {
+            path = D_801045B0[index];
+            g = sHomeData->group;
+            path->unk0 = src->unk0;
+            path->unk2 = 0x53;
+            path->unk1 = src->unk1;
+            path->unk4 = src->unk4;
+            path->unk6 = src->unk6;
+            path->obj = NULL;
+            path->unk7 = src->unk7;
+            path->unkC = src->unkC;
+            path->unk10 = src->unk10;
+            path->unk14 = src->unk14;
+            nodes = &sGroupPaths[g * 4];
+            path->flags = 0x80;
+            path->numNodes = 4;
+            path->curNode = nodes;
+            path->nodes = nodes;
+            path->unk15 = src->unk15;
+            path->unk1C = 0.0f;
+            node = nodes;
+            anim_path_spawn_object(index);
+            from = src->curNode;
+            i = 3;
+            do {
+                node->rot[0] = from->rot[0];
+                node->rot[1] = from->rot[1];
+                node->unk6 = index;
+                node->rot[2] = from->rot[2];
+                node->unk7 = from->unk7;
+                node->scale = from->scale;
+                node->x = from->x;
+                node->y = from->y;
+                node->z = from->z;
+                node->unk18[0] = from->unk18[0];
+                node->unk18[1] = from->unk18[1];
+                node->unk18[2] = from->unk18[2];
+                node->junction = from->junction;
+                node->unk20 = from->unk20;
+                if (i == 3) {
+                    node->prev = &nodes[3];
+                } else {
+                    node->prev = node - 1;
+                }
+                if (i == 0) {
+                    node->next = &sGroupPaths[g * 4];
+                } else {
+                    node->next = node + 1;
+                }
+                from = func_m003_01D3C(from);
+                node++;
+            } while (i--);
+            path->obj->trans.flags |= 0x400;
+            sGroupNodes[sHomeData->group] = from;
+            ((void (*)(u8)) func_800767EC)(index); /* module.h declares it unprototyped */
+            sHomeData->leader = path->obj;
+            sHomeData->unk79 = 1;
+            path->curNode = path->nodes->next;
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01EB8);
+extern void rl_m003_01EB8(void);
+#define func_m003_01EB8 rl_m003_01EB8
+#endif
+
+/*
+ * A troop on a path group follows the group's path: when the path's current node has moved on from the one
+ * the troop last saw, the group's node goes on one (copied into the node two before the current one), and
+ * the count goes round 0-3. The path's object is flagged 0x400.
+ */
+static void func_m003_021C8(void) {
+    s32 index;
+    M003AnimPath *path;
+    M003PathNode *src;
+    M003PathNode *dst;
+    M003PathNode *cur;
+    s32 n;
+
+    index = D_800FEA58[sHomeData->group];
+    path = D_801045B0[index];
+    src = path->nodes;
+    cur = path->curNode;
+    n = 0;
+    while (src != cur) {
+        src = src->next;
+        n++;
+    }
+    if (n != sHomeData->unk79) {
+        src = sGroupNodes[sHomeData->group];
+        dst = cur->prev->prev;
+        sGroupNodes[sHomeData->group] = func_m003_01D3C(src);
+        dst->rot[0] = src->rot[0];
+        dst->rot[1] = src->rot[1];
+        dst->rot[2] = src->rot[2];
+        dst->unk7 = src->unk7;
+        dst->scale = src->scale;
+        dst->x = src->x;
+        dst->y = src->y;
+        dst->z = src->z;
+        dst->unk18[0] = src->unk18[0];
+        dst->unk18[1] = src->unk18[1];
+        dst->unk18[2] = src->unk18[2];
+        dst->junction = src->junction;
+        dst->unk20 = src->unk20;
+        sHomeData->unk79++;
+        if (sHomeData->unk79 >= 4) {
+            sHomeData->unk79 = 0;
+        }
+    }
+    path->obj->trans.flags |= 0x400;
+}
 
 /* A step of the leader's trail (D_800FEA18[home->unk77] holds the troop's ring of them) */
 typedef struct M003Trail {
@@ -1208,9 +1378,6 @@ typedef struct M003Trail {
     /* 0x10 */ s16 rotZ;
 } M003Trail;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern void rl_m003_01EB8(void);                   /* still assembly */
-extern void rl_m003_021C8(void);
 
 /*
  * The troop follows its leader: it keeps the leader's place in unk40-44, or (unk31 1) records the leader in
@@ -1230,9 +1397,9 @@ void func_m003_0237C(void) {
         } else {
             total = sHomeData->spacing * 2 * sHomeData->count;
             if (sHomeData->group == -1) {
-                rl_m003_01EB8();
+                func_m003_01EB8();
             } else {
-                rl_m003_021C8();
+                func_m003_021C8();
             }
             if (sHomeData->unk77 == 0xFF) {
                 i = 15;
@@ -1977,7 +2144,99 @@ static void func_m003_044F4(Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044F4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04614);
+/* Bits of the member's word at 0x4 (04614) */
+typedef struct M003Word4 {
+    u32 pad31 : 20;
+    u32 bit11 : 1;
+    u32 pad10 : 4;
+    u32 bit6 : 1;
+    u32 bit5 : 1;
+    u32 rest : 5;
+} M003Word4;
+
+/*
+ * Picks one of the current body's animation entries of kind `anim` at random, by weight; -1 if there is
+ * none. Kinds 5 and 6 follow the home's flags (0x2 / 0x8000), and kind 5 becomes 0xC or 0x34 by two of the
+ * member's bits. Unless `arg1`, the member's unkA records the kind.
+ */
+static s32 func_m003_04614(s32 anim, s32 arg1) {
+    M003Anim *a;
+    s32 count;
+    s32 first;
+    s32 forced;
+    u8 list[8]; /* (the frame fits 8 entries) */
+    s32 n;
+    s32 i;
+    s32 weights;
+
+    first = rl_m003_19278[sBodyIndex * 2];
+    count = rl_m003_19278[sBodyIndex * 2 + 1];
+    a = &rl_m003_17DB8[first];
+    i = 0;
+    n = 0;
+    weights = 0;
+    forced = 0;
+    if (sHomeData == NULL) {
+        return -1;
+    }
+    if (anim == 5 || anim == 6) {
+        if ((sHomeData->flags & 2) && (sHomeData->flags & 0x8000)) {
+            return -1;
+        }
+        if (sHomeData->flags & 2) {
+            anim = 6;
+            forced = 1;
+        }
+        if (sHomeData->flags & 0x8000) {
+            anim = 5;
+            forced = 1;
+        }
+    }
+    if (anim == 5 && arg1 == 0) {
+        if (((M003Word4 *) &sMember->unk4)->bit6 == 1 && !((M003Word4 *) &sMember->unk4)->bit5) {
+            anim = 0xC;
+        } else if (((M003Word4 *) &sMember->unk4)->bit6 == 0 && ((M003Word4 *) &sMember->unk4)->bit5 == 1) {
+            anim = 0x34;
+        }
+    }
+    for (; i < count; i++, a++) {
+        if (anim == a->anim || (!forced && anim == a->unk3)) {
+            if ((((M003Word4 *) &sMember->unk4)->bit11 == 0 && a->unk4_22 != 2) ||
+                (((M003Word4 *) &sMember->unk4)->bit11 != 0 && a->unk4_22 != 1)) {
+                if (a->unk3 != 0x3C || !((M003Interact *) sObj->interactObj)->unk8_29) {
+                    if (a->unk3 != 0x3D || ((M003Interact *) sObj->interactObj)->unk8_29) {
+                        list[n++] = i;
+                        weights += a->weight;
+                    }
+                }
+            }
+        }
+    }
+    switch (n) {
+        case 0:
+            return -1;
+        case 1:
+            if (arg1 == 0) {
+                sMember->unkA = anim;
+            }
+            return list[0];
+        default:
+            if (arg1 == 0) {
+                sMember->unkA = anim;
+            }
+            weights = func_80048E2C(1, weights);
+            i = n;
+            do { /* FAKE (permuter): a no-op loop around the pick; without it the dead counter copy takes v0 */
+                while (i--) {
+                    weights -= rl_m003_17DB8[list[i] + first].weight;
+                    if (weights <= 0) {
+                        return list[i];
+                    }
+                }
+                return list[func_80048E2C(0, n - 1)];
+            } while (0);
+    }
+}
 
 /*
  * Starts animation `index` of the member's body (asked for as kind `anim`); with `adjust`, some bodies
@@ -2023,7 +2282,7 @@ static s32 func_m003_04968(s32 index, s32 anim, s32 adjust) {
         }
     }
     if (anim == 1 && sHomeData->unk30 == 3) {
-        r = rl_m003_04614(0x3B, 1);
+        r = func_m003_04614(0x3B, 1);
         if (r != -1) {
             index = r;
         }
@@ -2093,7 +2352,7 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
             if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
                 return -1;
             }
-            index = rl_m003_04614(anim, 0);
+            index = func_m003_04614(anim, 0);
             last = anim;
         } while (i-- != 0 && index == -1 && anims[i] != 0);
     }
@@ -2183,7 +2442,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
         sMember->unkA = anim;
         index = rl_m003_19434;
     } else {
-        index = rl_m003_04614(anim, 0);
+        index = func_m003_04614(anim, 0);
     }
     if (index == -1) {
         return 0;
@@ -3562,7 +3821,7 @@ void func_m003_0CD34(Object *obj) {
     UNUSED s32 pad[2];
     s32 shotBy;
 
-    anim = rl_m003_04614(5, 1);
+    anim = func_m003_04614(5, 1);
     found = FALSE;
     i = 4;
     if (!(sMember->unk4 & 1)) {
@@ -4694,8 +4953,9 @@ void func_m003_16CB4(Object *obj, s32 updateRate) {
     }
 }
 
-extern u8 D_800F31E0[];
 extern s32 rl_m003_148C0(Object *home, s32 arg1);
+
+extern u8 D_800F31E0[];
 
 /* When memory is low, sends the waiting troops none of whose members can be seen or is busy away */
 void func_m003_16D78(void) {
@@ -4769,7 +5029,9 @@ typedef struct M003Edge {
     /* 0x04 */ f32 z0;
     /* 0x08 */ f32 x1;
     /* 0x0C */ f32 z1;
-    /* 0x10 */ u8 pad10[4];
+    /* 0x10 */ u8 point;  /* the region point it ends at (17174) */
+    /* 0x11 */ u8 region; /* the region on its other side */
+    /* 0x12 */ u8 pad12[2];
 } M003Edge;
 
 /* Whether a point is in a region (inside all the edges of its tree's leaf) */
@@ -4804,7 +5066,7 @@ s32 func_m003_16F44(f32 x, f32 z, M003Region *region) {
 }
 
 /* Where the line through (x1, z1) and (x2, z2) meets the line sCrossSlope/sCrossOffset */
-void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
+static void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
     f32 slope;
     f32 offset;
 
@@ -4819,9 +5081,68 @@ void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
     *z = *x * slope + offset;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
+/*
+ * The segment test on a node of the region's tree: at a leaf, the segment sCrossX1..Z2 against each of its
+ * edges, keeping the nearest crossing (TRUE at the first one if no sCrossOut wants it); else (x1, z1)-(x2, z2)
+ * goes down the side(s) of the node's line it lies on, split where it crosses the line.
+ */
+static int func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node) {
+    M003Edge *edge;
+    s32 i;
+    s16 hx;
+    s16 hz;
+    s32 found;
+    u32 d;
 
-extern void rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, void *node);
+    if (node->leaf == 1) {
+        edge = ((M003RegionLeaf *) node)->first + (M003Edge *) sCrossEdges;
+        i = ((M003RegionLeaf *) node)->count;
+        found = FALSE;
+        while (i--) {
+            if (func_m003_03E90(sCrossX1, sCrossZ1, sCrossX2, sCrossZ2, edge->x0, edge->z0, edge->x1, edge->z1, &hx,
+                                &hz)) {
+                d = (u32) (sCrossX1 - hx) * (sCrossX1 - hx) + (u32) (sCrossZ1 - hz) * (sCrossZ1 - hz);
+                if (d != 0 && d < (u32) sCrossDist) {
+                    sCrossDist = d;
+                    sCrossX = hx;
+                    sCrossZ = hz;
+                    sCrossPoint = edge->point;
+                    sCrossRegion = edge->region;
+                }
+                if (sCrossOut != NULL) {
+                    found = TRUE;
+                } else {
+                    return TRUE;
+                }
+            }
+            edge++;
+        }
+        return sCrossOut != NULL ? found : FALSE;
+    }
+    sCrossSideA = z1 < node->slope * x1 + node->offset;
+    sCrossSideB = z2 < node->slope * x2 + node->offset;
+    if (sCrossSideA == sCrossSideB) {
+        return func_m003_17174(x1, z1, x2, z2, sCrossSideA ? node->below : node->above);
+    }
+    sCrossOffset = node->offset;
+    sCrossSlope = node->slope;
+    func_m003_170D0(x1, z1, x2, z2, &sCrossHitX, &sCrossHitZ);
+    if (sCrossSideA) {
+        if (sCrossOut != NULL) {
+            return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->below) |
+                   func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->above);
+        }
+        return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->below) ||
+               func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->above);
+    }
+    if (sCrossOut != NULL) {
+        return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) |
+               func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
+    }
+    return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) ||
+           func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
+}
+
 
 /*
  * Where the segment (x1, z1)-(x2, z2) leaves a region (into *out if out is not NULL); 0 if it doesn't. `point`
@@ -4842,10 +5163,10 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
     sCrossZ1 = z1;
     sCrossX2 = x2;
     sCrossZ2 = z2;
-    sCrossEdge = -1;
+    sCrossDist = -1;
     sCrossOut = out;
-    rl_m003_17174(x1, z1, x2, z2, sCrossData);
-    if (sCrossEdge == -1) {
+    func_m003_17174(x1, z1, x2, z2, sCrossData);
+    if (sCrossDist == -1) {
         return FALSE;
     }
     if (out != NULL) {

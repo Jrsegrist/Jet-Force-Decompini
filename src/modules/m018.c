@@ -377,7 +377,12 @@ extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
 extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprite *sprite, void *tex, s32 arg5, s32 alpha);
 void func_m018_00AEC(void);
+#ifdef NON_MATCHING
+static void func_m018_040A8(f32 rate, s32 item);
+#else
 extern void rl_m018_040A8(f32 rate, s32 item); /* the static at 040A8 (still assembly) */
+#define func_m018_040A8 rl_m018_040A8
+#endif
 
 /* Picks a weapon with the stick and assigns it to a d-pad direction */
 void func_m018_0130C(s32 updateRate) {
@@ -400,7 +405,7 @@ void func_m018_0130C(s32 updateRate) {
     settings = get_settings();
     buttons = func_80043510(D_m019_013D8);
     func_m018_00000();
-    rl_m018_040A8(updateRate, 0x21);
+    func_m018_040A8(updateRate, 0x21);
     if (rl_m018_066AC && rl_m018_06BCC) {
         state = func_8000E4D0(0)->unk68;
         record = func_80047C1C(state[0], func_m018_0207C(state));
@@ -795,7 +800,87 @@ typedef struct M018AnimModel {
     /* 0x78 */ s16 *frames[1];
 } M018AnimModel;
 
+#ifdef NON_MATCHING
+/*
+ * Slides the four panels from `item` on into place (two in x, then two in y; the flag at 0x1C of the .bss
+ * is set when they are there), then sets each panel model's texture frames from its texture animations.
+ * NON_MATCHING: 3 diffs; the ROM compares `0x200 < tex->unk12` with 0x200 in a register and makes 0x100 as
+ * v - 0x100 (IDO folds every spelling tried into slti and the 0x100 already in a register).
+ */
+static void func_m018_040A8(f32 rate, s32 item) {
+    s32 i;
+    M018MenuItem *cur;
+    M018MenuItem *p;
+    M018MenuItem *q;
+    f32 step;
+    s32 j;
+    s32 v;
+    Object *obj;
+    s32 k;
+    M018AnimModel *model;
+    M018ModelHeader *header;
+    s16 *frame;
+    M018TexAnim *anim;
+    M018Tex *tex;
+
+    if (rl_m018_06BCC == 0) {
+        step = rate * 10.0f;
+        p = item + D_800FF780;
+        q = p + 1;
+        p->unkC += step;
+        cur = p + 2;
+        if (p->unkC > 0.0f) {
+            p->unkC = 0.0f;
+        }
+        q->unkC -= step;
+        if (q->unkC < 0.0f) {
+            q->unkC = 0.0f;
+            q = p + 3;
+            cur->unk10 += step;
+            if (cur->unk10 > 0.0f) {
+                cur->unk10 = 0.0f;
+            }
+            q->unk10 -= step;
+            if (q->unk10 < 0.0f) {
+                q->unk10 = 0.0f;
+                rl_m018_06BCC = 1;
+            }
+        }
+    }
+    if (rl_m018_06BCC != 0) {
+        for (i = 0; i < 4; i++) {
+            obj = D_800FF3F8[D_800FF780[i + item].unk6];
+            model = (M018AnimModel *) obj->modelInstances[0];
+            header = model->header;
+            anim = model->anims;
+            frame = model->frames[model->unkB];
+            for (j = 0; j < header->numBatches; j++) {
+                k = anim->unk4 & 0xFF;
+                tex = header->textures[k].tex;
+                if (tex->unk6 & 0x10000) {
+                    anim->unk0 = 0x100;
+                    if (anim->unk2 >= 0) {
+                        v = 0x200;
+                        if (tex->unk12 <= v) {
+                            v -= 0x100;
+                        }
+                        anim->unk2 = v;
+                    }
+                }
+                *frame++ = (anim->unk0 >> 8) * tex->unk16;
+                v = anim->unk2;
+                if (v >= 0) {
+                    *frame++ = (v >> 8) * tex->unk16;
+                }
+                anim++;
+            }
+        }
+    }
+}
+#else
+#undef func_m018_040A8
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_040A8);
+#endif
 
 void func_m018_042D4(void) {
     Object *player;

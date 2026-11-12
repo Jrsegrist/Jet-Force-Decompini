@@ -2,6 +2,7 @@
  * Runlink module 9: a front-end map screen (still mostly assembly).
  */
 #include "module.h"
+#include "gfx.h"
 
 /* the .rodata strings the data refers to (first in .rodata) */
 INCLUDE_ASM("asm/nonmatchings/modules/m009/ro", rodata);
@@ -12,13 +13,23 @@ extern void menu_assetgroup_load(void *images); /* loads a list of images */
 extern void menu_assetgroup_reset(void *images);
 extern void runlink_module_release(s32 module); /* unloads a runlink module */
 extern void func_m005_00010(void);
-extern void rl_m009_03D0C(void *icon);
 extern s32 D_800FECCC;
 
 /* A world's icon on the map (size 0x30) */
 typedef struct M009Icon {
-    /* 0x00 */ u8 pad0[0x30];
+    /* 0x00 */ s16 image;     /* its D_800FF3F8 texture */
+    /* 0x02 */ s16 glowImage; /* -1: none */
+    /* 0x04 */ u8 radius;
+    /* 0x05 */ u8 pad5;
+    /* 0x06 */ s16 x;
+    /* 0x08 */ s16 y;
+    /* 0x0A */ u8 padA[0x22 - 0xA];
+    /* 0x22 */ s16 unk22;
+    /* 0x24 */ s16 unk24;
+    /* 0x26 */ u8 pad26[0x30 - 0x26];
 } M009Icon;
+
+extern void rl_m009_03D0C(M009Icon *icon);
 
 /* The module's .data (still assembly) */
 extern u8 rl_m009_043F8[];
@@ -27,11 +38,181 @@ extern u8 rl_m009_04424[];
 extern M009Icon rl_m009_0448C[11];
 extern s32 rl_m009_04908;
 
+/* A menu item (D_800FF780, size 0x20), as used here */
+typedef struct M009MenuItem {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ s16 object; /* its D_800FF3F8 object */
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 posX;
+    /* 0x10 */ f32 posY;
+    /* 0x14 */ u8 pad14[0x1C - 0x14];
+    /* 0x1C */ s8 model;
+    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
+} M009MenuItem;
+
+/* A place on the map (size 0xC; a kind of 0xFF ends the list) */
+typedef struct M009Place {
+    /* 0x0 */ u8 kind;  /* 0: a world model, else a menu item */
+    /* 0x1 */ u8 index;
+    /* 0x2 */ u8 world;
+    /* 0x3 */ u8 pad3;
+    /* 0x4 */ f32 scale; /* the map's scale there */
+    /* 0x8 */ s16 unk8;
+    /* 0xA */ u8 padA[0xC - 0xA];
+} M009Place;
+
+/* A world model drawn on the map (size 0x4E0): a disc of 23 triangles around vertex 0, and a second
+   one for its glow */
+typedef struct M009Model {
+    /* 0x000 */ Triangle tris[23];
+    /* 0x170 */ Vertex verts[24];
+    /* 0x260 */ Triangle glowTris[23];
+    /* 0x3D0 */ Vertex glowVerts[24];
+    /* 0x4C0 */ u8 *tex; /* (its first byte: the texture's size) */
+    /* 0x4C4 */ u8 *glowTex;
+    /* 0x4C8 */ M009Icon *icon;
+    /* 0x4CC */ s16 x;
+    /* 0x4CE */ s16 y;
+    /* 0x4D0 */ s16 timer;
+    /* 0x4D2 */ s16 unk4D2;
+    /* 0x4D4 */ u8 pad4D4[2];
+    /* 0x4D6 */ s16 unk4D6;
+    /* 0x4D8 */ s16 unk4D8;
+    /* 0x4DA */ u8 pad4DA[0x4E0 - 0x4DA];
+} M009Model;
+
+/* The game's save data, as used here */
+typedef struct M009Character {
+    /* 0x00 */ u16 flags; /* >> 5: the level the character is in */
+    /* 0x02 */ u8 pad2[0x66 - 0x2];
+    /* 0x66 */ u16 unk66;
+    /* 0x68 */ u8 pad68[0x76 - 0x68];
+} M009Character;
+typedef struct M009Save {
+    /* 0x000 */ u8 unk0; /* the low two bits: the character */
+    /* 0x001 */ u8 pad1[0x1C0 - 0x1];
+    /* 0x1C0 */ u16 unk1C0;
+    /* 0x1C2 */ u8 pad1C2[0x1D0 - 0x1C2];
+    /* 0x1D0 */ M009Character characters[2];
+} M009Save;
+
+extern M009MenuItem D_800FF780[];
+extern Object *D_800FF3F8[]; /* the menu's objects */
+extern M009Save *get_settings(void);
+extern s32 leveltable_world(s32 level);
+extern s32 game_flag_get(s32 flag);
+extern s32 runlink_module_loaded(s32 module);
+extern void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom, u32 colourTo, s32 fade);
+extern s32 D_m019_013D8;
+static void func_m009_02880(s32 index);
+static void func_m009_037E4(Object *obj, s32 frame, s32 frames);
+
+extern u8 rl_m009_0441C[];
+extern M009Place rl_m009_0469C[];
+extern s32 rl_m009_0490C; /* the place picked */
+extern s32 rl_m009_04914; /* the character picked */
+
 /* The module's .bss (still assembly) */
+extern M009Model rl_m009_04990[];
+extern f32 rl_m009_09790; /* the map's scroll */
+extern f32 rl_m009_09794;
+extern f32 rl_m009_09798;
+extern f32 rl_m009_0979C;
+extern f32 rl_m009_097A0; /* where the map heads for */
+extern f32 rl_m009_097A4;
+extern s32 rl_m009_097A8; /* the time it takes */
+extern f32 rl_m009_097AC; /* the map's scale */
 extern s32 rl_m009_097B0;
 extern s32 rl_m009_097B4;
+extern s32 rl_m009_097B8;
+extern s32 rl_m009_097BC;
+extern s32 rl_m009_097C0;
+extern s32 rl_m009_097C4; /* the player */
+extern s32 rl_m009_097C8;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_00000);
+/* Sets the map screen up (once): its images, icons and fade, the place the map starts at and the place of
+   the character picked */
+void func_m009_00000(s32 mode) {
+    M009Place *p;
+    s32 i;
+    s32 world;
+    s32 found;
+    M009Save *save;
+    M009Icon *icon;
+    Object *obj;
+
+    if (rl_m009_04908 == 0) {
+        if ((rl_m009_097C0 = mode) == 1) {
+            rl_m009_097C4 = D_m019_013D8;
+        } else {
+            rl_m009_097C4 = 0;
+        }
+        D_800FECCC = 1;
+        menu_assetgroup_load(rl_m009_043F8);
+        menu_assetgroup_load(rl_m009_04400);
+        menu_assetgroup_reset(rl_m009_0441C);
+        menu_assetgroup_reset(rl_m009_04424);
+        obj = D_800FF3F8[106];
+        obj->modelIndex = 0;
+        rl_m009_09790 = 0.0f;
+        rl_m009_09794 = 0.0f;
+        rl_m009_097B4 = 0;
+        icon = rl_m009_0448C;
+        for (i = 0; i < 11; i++, icon++) {
+            rl_m009_03D0C(icon);
+        }
+        if (runlink_module_loaded(5)) {
+            rl_m009_097B0 = 0;
+        } else {
+            rl_m009_097B0 = 1;
+        }
+        func_m005_0004C(800, 400, 400, 300, -1, 0xFF, 300);
+        rl_m009_097A8 = 0;
+        rl_m009_0490C = 0;
+        if (rl_m009_0469C[rl_m009_0490C].kind == 0) {
+            rl_m009_09798 = rl_m009_04990[rl_m009_0469C[rl_m009_0490C].index].x << 8;
+            rl_m009_0979C = rl_m009_04990[rl_m009_0469C[rl_m009_0490C].index].y << 8;
+        } else {
+            rl_m009_09798 = D_800FF780[rl_m009_0469C[rl_m009_0490C].index].posX * 256.0f;
+            rl_m009_0979C = D_800FF780[rl_m009_0469C[rl_m009_0490C].index].posY * 256.0f;
+        }
+        rl_m009_097A0 = rl_m009_09798;
+        rl_m009_097A4 = rl_m009_0979C;
+        rl_m009_097AC = rl_m009_0469C[rl_m009_0490C].scale;
+        rl_m009_097BC = rl_m009_0469C[rl_m009_0490C].unk8;
+        rl_m009_097B8 = 0;
+        save = get_settings();
+        if (game_flag_get(0)) {
+            save->unk1C0 |= 0x40;
+        }
+        if (game_flag_get(2)) {
+            save->characters[1].unk66 |= 0x200;
+        }
+        rl_m009_04914 = save->unk0 & 3;
+        func_m009_037E4(D_800FF3F8[72], rl_m009_04914 << 8, 3);
+        rl_m009_04908 = 1;
+        world = leveltable_world((u32) save->characters[rl_m009_04914].flags >> 5);
+        p = rl_m009_0469C;
+        found = 0;
+        i = 0;
+        while (p->kind != 0xFF && !found) {
+            if (world == p->world) {
+                found = 1;
+                func_m009_02880(i);
+                rl_m009_09798 = rl_m009_097A0;
+                rl_m009_0979C = rl_m009_097A4;
+                rl_m009_09790 = rl_m009_09798;
+                rl_m009_09794 = rl_m009_0979C - 120.0f;
+            } else {
+                i++;
+                p++;
+            }
+        }
+        rl_m009_097C8 = 0;
+    }
+}
 
 void func_m009_003A8(void) {
     func_m005_00010();
@@ -57,47 +238,12 @@ void func_m009_00408(void) {
     }
 }
 
-/* A menu item (D_800FF780, size 0x20), as used here */
-typedef struct M009MenuItem {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s16 z;
-    /* 0x06 */ s16 object; /* its D_800FF3F8 object */
-    /* 0x08 */ f32 scale;
-    /* 0x0C */ f32 posX;
-    /* 0x10 */ f32 posY;
-    /* 0x14 */ u8 pad14[0x1C - 0x14];
-    /* 0x1C */ s8 model;
-    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
-} M009MenuItem;
-
-/* A place on the map (size 0xC; a kind of 0xFF ends the list) */
-typedef struct M009Place {
-    /* 0x0 */ u8 kind;  /* 0: a world model, else a menu item */
-    /* 0x1 */ u8 index;
-    /* 0x2 */ u8 world;
-    /* 0x3 */ u8 pad3[0xC - 0x3];
-} M009Place;
-
-/* A world model drawn on the map (size 0x4E0) */
-typedef struct M009Model {
-    /* 0x000 */ u8 pad0[0x4CC];
-    /* 0x4CC */ s16 x;
-    /* 0x4CE */ s16 y;
-    /* 0x4D0 */ u8 pad4D0[0x4E0 - 0x4D0];
-} M009Model;
-
-extern M009MenuItem D_800FF780[];
 extern Gfx *D_800FF398;
 extern void *D_800FF39C;
 extern void func_80040D64(Gfx **dl, void *mtx);
 extern void rl_m009_02978(M009Model *model, s32 updateRate);
 static void func_m009_030E8(M009Model *model);
 static void func_m009_03908(s32 index);
-extern M009Place rl_m009_0469C[]; /* (.data) */
-extern M009Model rl_m009_04990[]; /* (.bss) */
-extern f32 rl_m009_09790;
-extern f32 rl_m009_09794;
 
 /* Draws the icon of a world on the map at (x, y) */
 void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
@@ -145,11 +291,6 @@ void func_m009_0066C(void) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009/ro", func_m009_00690);
-
-extern s32 rl_m009_0490C; /* .data (still assembly): the place picked */
-extern f32 rl_m009_097A0; /* .bss (still assembly): where the map heads for */
-extern f32 rl_m009_097A4;
-extern s32 rl_m009_097A8; /* the time it takes */
 
 /* Picks map place `index`: the map heads for its world model or menu item */
 static void func_m009_02880(s32 index) {
@@ -266,28 +407,11 @@ static void func_m009_030E8(M009Model *model) {
     }
 }
 
-/* The game's save data, as 0343C reads it */
-typedef struct M009Character {
-    /* 0x00 */ u16 flags; /* >> 5: the level the character is in */
-    /* 0x02 */ u8 pad2[0x76 - 0x2];
-} M009Character;
-typedef struct M009Save {
-    /* 0x000 */ u8 pad0[0x1D0];
-    /* 0x1D0 */ M009Character characters[1];
-} M009Save;
-
 extern s32 func_80043510(s32 player); /* the buttons pressed */
-extern M009Save *get_settings(void);
-extern s32 leveltable_world(s32 level);
 extern s32 func_m018_03B44(s32 i, s32 dir); /* the next character along */
-extern Object *D_800FF3F8[];               /* the menu's objects */
-static void func_m009_037E4(Object *obj, s32 frame, s32 frames);
 
 extern s32 rl_m009_04910; /* .data (still assembly): the way the characters turn, -1 or 1 */
-extern s32 rl_m009_04914; /* the character picked */
 extern s16 rl_m009_04918; /* frames before the stick is read again */
-extern s32 rl_m009_097C4; /* .bss (still assembly): the player */
-extern s32 rl_m009_097C8;
 extern s16 rl_m009_097CC; /* the angle the characters turn to */
 
 /* Turns the character carousel with the stick, and picks the place of the character picked (called from 00690) */
@@ -476,9 +600,6 @@ static void func_m009_03908(s32 index) {
 
 extern void func_80055B80(Gfx **dl);
 extern s16 rl_m009_0444C[8][4]; /* .data (still assembly): eight rectangles on the map */
-extern f32 rl_m009_09798;       /* .bss (still assembly) */
-extern f32 rl_m009_0979C;
-extern f32 rl_m009_097AC;       /* the map's scale */
 
 /* Fills the map's eight rectangles, scaled and moved with the map and clipped to the screen (called from
    00690) */

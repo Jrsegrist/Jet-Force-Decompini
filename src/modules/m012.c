@@ -227,7 +227,137 @@ static void free_textures(void) {
     func_80004C64(0);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_00A64);
+/* A menu image's texture (4E610.c's RectTexture) */
+typedef struct M012Image {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ s16 numberOfCommands;
+    /* 0x0C */ Gfx *cmd;
+} M012Image;
+
+extern Gfx *D_800FF398;
+extern Mtx *D_800FF39C;
+extern Vertex *D_800FF3A0;
+extern M012Image *D_800FF3F8[]; /* the loaded menu images */
+extern void set_active_camera(s32 camera);            /* set_active_camera */
+extern f32 func_8003F7C4(void);                   /* the field of view */
+extern void func_8003F7F4(f32 fov, s32 arg1);     /* sets the field of view */
+extern void viewport_apply(Gfx **dl, s32 arg1);    /* viewport_apply */
+extern void func_80040FE4(Gfx **dl);              /* viewport_reset */
+extern void func_80040E64(Gfx **dl, Mtx **mtx);   /* mtx_perspective */
+extern void func_80055B80(Gfx **dl);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a texture */
+extern void *func_80055B40(M012Image *tex, s32 frame); /* set_animated_texture_header */
+extern void func_m006_0107C(s32 *x, s32 *y);
+extern void rl_m012_01018(void);
+extern void rl_m012_01444(s32 distance, s32 y, s16 angle, s32 side);
+
+/* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address (the length as `<< 3`: IDO
+   folds `(n - 1) * 8` into `n * 8 - 8`, the ROM shifts n - 1) */
+#define gDkrDmaDisplayList(pkt, address, numberOfCommands)                                           \
+    {                                                                                                \
+        Gfx *_g = (Gfx *) (pkt);                                                                     \
+        _g->words.w0 = (_SHIFTL(0x07, 24, 8) | _SHIFTL((numberOfCommands), 16, 8) |                 \
+                        _SHIFTL(((numberOfCommands) << 3), 0, 16));                                  \
+        _g->words.w1 = (unsigned int) (address);                                                     \
+    }
+
+/* The flipped texture rectangle in the older microcode's form (RDPHALF_2, RDPHALF_CONT) */
+#define gSPTextureRectangleFlipOld(pkt, xl, yl, xh, yh, tile, s, t, dsdx, dtdy)                    \
+    {                                                                                             \
+        Gfx *_g = (Gfx *) (pkt);                                                                  \
+                                                                                                  \
+        _g->words.w0 = (_SHIFTL(G_TEXRECTFLIP, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(yh, 0, 12)); \
+        _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL(xl, 12, 12) | _SHIFTL(yl, 0, 12));         \
+        gImmp1(pkt, G_RDPHALF_2, (_SHIFTL(s, 16, 16) | _SHIFTL(t, 0, 16)));                       \
+        gImmp1(pkt, G_RDPHALF_CONT, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));              \
+    }
+
+/*
+ * Draws the frame: its four sides, the background's fade behind it and, while it is narrow, the image
+ * stretched over it
+ */
+void func_m012_00A64(void) {
+    M012Image *tex;
+    Gfx *cmd;
+    s32 x1;
+    s32 x2;
+    s32 y1;
+    s32 y2;
+    M012Frame *frame; /* (set before the calls: the ROM addresses each field with its own lui) */
+    f32 scale;
+    s32 alpha;
+    f32 fov;
+
+    frame = &sFrame;
+    if (sEnabled) {
+        if (frame->flags & 4) {
+            set_active_camera(0);
+            fov = func_8003F7C4();
+            func_8003F7F4(45.0f, 1);
+            viewport_apply(&D_800FF398, 0);
+            func_80040FE4(&D_800FF398);
+            func_80040E64(&D_800FF398, &D_800FF39C);
+            frame->vertices = D_800FF3A0;
+            rl_m012_01018();
+            rl_m012_01444(frame->distance, frame->height >> 1, frame->angle, 1);
+            rl_m012_01444(frame->distance, frame->height >> 1, frame->angle + 0x8000, 1);
+            rl_m012_01444(frame->distance, -(frame->height >> 1), frame->angle, 0);
+            rl_m012_01444(frame->distance, -(frame->height >> 1), frame->angle + 0x8000, 0);
+            x2 = frame->width >> 1;
+            x1 = -x2;
+            y1 = frame->height >> 1;
+            y2 = -y1;
+            func_m006_0107C(&x1, &y1);
+            func_m006_0107C(&x2, &y2);
+            y2++;
+            y1--;
+            if (x1 < 0) {
+                x1 = 0;
+            }
+            if (x2 >= 320) {
+                x2 = 319;
+            }
+            if (y1 < 0) {
+                y1 = 0;
+            }
+            if (y1 >= 240) {
+                y1 = 239;
+            }
+            if (frame->height > 0) {
+                if (frame->alpha > 0) {
+                    func_80055C00(&D_800FF398, NULL, 0, 0);
+                    gDPSetEnvColor(D_800FF398++, 0, 0x28, 0x32, frame->alpha);
+                    gDPSetPrimColor(D_800FF398++, 0, 0, 0, 5, 0x14, 0);
+                    gDkrDmaDisplayList(D_800FF398++, (u8 *) sDisplayList1B70 + 0x80000000, 2);
+                    gDPFillRectangle(D_800FF398++, x1, y1, x2, y2);
+                }
+                if (frame->width < 151) {
+                    x1 *= 4;
+                    y1 *= 4;
+                    x2 *= 4;
+                    y2 *= 4;
+                    alpha = 255 - frame->width * 255 / 150;
+                    gDPPipeSync(D_800FF398++);
+                    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, alpha);
+                    gSPDisplayList(D_800FF398++, sDisplayList1B18);
+                    gDkrDmaDisplayList(D_800FF398++, (u8 *) sDisplayList1B60 + 0x80000000, 2);
+                    tex = D_800FF3F8[52];
+                    cmd = tex->cmd;
+                    D_800FF398->words.w0 = cmd->words.w0;
+                    D_800FF398->words.w1 = (u32) func_80055B40(tex, 0) + 0x80000000;
+                    D_800FF398++;
+                    cmd++;
+                    gDkrDmaDisplayList(D_800FF398++, (u32) cmd + 0x80000000, tex->numberOfCommands - 1);
+                    scale = 16.0f / frame->width;
+                    scale *= 1024.0f;
+                    gSPTextureRectangleFlipOld(D_800FF398++, x1, y1, x2, y2, 0, 0, 0, -1024, (s32) scale);
+                }
+            }
+            func_80055B80(&D_800FF398);
+            func_8003F7F4(fov, 1);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01018);
 
