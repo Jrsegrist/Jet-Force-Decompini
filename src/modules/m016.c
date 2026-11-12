@@ -622,7 +622,7 @@ static f32 D_m016_080E4;
 
 /* The control function: called every frame */
 #ifdef NON_MATCHING
-/* 4 instructions off (m015's 00000 has the same 4): j, the state switch's variable and the joint-loop counter, gets a1 in the loop and its copy a0, the ROM the other way round (a switch variable separate from the counter puts the switch in v0/a2/a3 instead of the ROM's a1). Its statics below are C under NON_MATCHING only because IDO drops a static with no C caller; all but 03464, 03DB0 and 06E24 match once this does. */
+/* 4 instructions off (m015's 00000 has the same 4): j, the state switch's variable and the joint-loop counter, gets a1 in the loop and its copy a0, the ROM the other way round (a switch variable separate from the counter puts the switch in v0/a2/a3 instead of the ROM's a1). Its statics below are C under NON_MATCHING only because IDO drops a static with no C caller; all of them match once this does. */
 void func_m016_00000(Object *obj, s32 updateRate) {
     s32 deep;
     Racer *racer;
@@ -1690,7 +1690,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_0321C);
 #endif
 
 #ifdef NON_MATCHING
-/* 5 instructions off (first at 0x3790); m015's twin 03740 matches with the same q at the end */
+/* Matches in the probe; C only under NON_MATCHING until its caller 00000 matches */
 /* State 3: in the air */
 static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     f32 fall;
@@ -1754,11 +1754,11 @@ static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32
                     racer->unk57B = 24;
                 }
                 if (D_800A4FC4 != 0 && racer->unk189 == 7) {
-                    q = 15.0f;
+                    fall = 15.0f;
                 } else {
-                    q = 12.0f;
+                    fall = 12.0f;
                 }
-                obj->velocity.y += 6.0f + (q - 6.0f) * racer->unk57B / 24.0f;
+                obj->velocity.y += 6.0f + (fall - 6.0f) * racer->unk57B / 24.0f;
             }
         }
         speed = 0.0f;
@@ -1834,9 +1834,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_03464);
 #endif
 
 #ifdef NON_MATCHING
-/* 32 instructions: the ROM computes d - b before the float conversion and a - half late, no move */
+/* Matches in the probe; C only under NON_MATCHING until its caller 00000 matches */
 static void func_m016_03DB0(s16 a, s16 b, s16 c, s16 d) {
-    s32 half;
+    s16 half;
 
     if (a < -0x2AAA) {
         a = -0x2AAA;
@@ -1849,7 +1849,7 @@ static void func_m016_03DB0(s16 a, s16 b, s16 c, s16 d) {
     }
     half = a * 0.5f;
     c -= half;
-    a -= half;
+    d -= b;
     *D_m016_080D8 = 6;
     D_m016_080D8++;
     *D_m016_080D8 = half;
@@ -1858,10 +1858,9 @@ static void func_m016_03DB0(s16 a, s16 b, s16 c, s16 d) {
     D_m016_080D8++;
     *D_m016_080D8 = b;
     D_m016_080D8++;
-    d -= b;
     *D_m016_080D8 = 0x12;
     D_m016_080D8++;
-    *D_m016_080D8 = a;
+    *D_m016_080D8 = a - half;
     D_m016_080D8++;
     *D_m016_080D8 = 0x3C;
     D_m016_080D8++;
