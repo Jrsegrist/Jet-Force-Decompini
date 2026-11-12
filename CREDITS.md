@@ -274,3 +274,11 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | --- | --- |
 | `src/object_models.c` | object_model_init (JFG-extended: asset instances, model-id remaps, display lists per id range); model_instance_init (JFG-extended: matrices, vertex buffers, point and slot tables) (helper ma17h1) |
 | `src/tracks.c` | func_8002E904 and func_8002F440, as the NON_MATCHING bodies of JFG's func_8001E8B8 and func_8001FA24 (helper ma17h1) |
+
+### Round 20 (modsA20), modules m003-m041
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| JFG file | DKR file | Used |
+| --- | --- | --- |
+| `src/modules/m012.c` | `include/f3ddkr.h` | gDkrDmaDisplayList (local copy, length as `<< 3`) (helper mA20h1) |

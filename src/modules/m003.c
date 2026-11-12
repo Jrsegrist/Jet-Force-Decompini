@@ -158,7 +158,8 @@ typedef struct M003Home {
     /* 0x00 */ u8 unk0;
     /* 0x01 */ u8 count; /* members */
     /* 0x02 */ u8 unk2; /* its members' size, in hundredths (0D360) */
-    /* 0x03 */ u8 pad3[0x10 - 0x3];
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u8 pad4[0x10 - 0x4];
     /* 0x10 */ s8 offset[3];
     /* 0x13 */ u8 unk13; /* how far it looks round (028D4), in 16s */
     /* 0x14 */ u8 unk14; /* and up and down, in 8s */
@@ -214,7 +215,7 @@ typedef struct M003Home {
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
     /* 0x78 */ s8 group; /* its path group, 0 to 31 (061FC) */
     /* 0x79 */ u8 unk79; /* the node count of its group's path last seen (021C8), 0-3 */
-    /* 0x7A */ u8 pad7A;
+    /* 0x7A */ s8 unk7A; /* the zone module 139 tests (148C0) */
     /* 0x7B */ u8 unk7B;
     /* 0x7C */ u8 pad7C[0x8C - 0x7C];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
@@ -4952,8 +4953,9 @@ void func_m003_16CB4(Object *obj, s32 updateRate) {
     }
 }
 
-extern u8 D_800F31E0[];
 extern s32 rl_m003_148C0(Object *home, s32 arg1);
+
+extern u8 D_800F31E0[];
 
 /* When memory is low, sends the waiting troops none of whose members can be seen or is busy away */
 void func_m003_16D78(void) {
@@ -5064,7 +5066,7 @@ s32 func_m003_16F44(f32 x, f32 z, M003Region *region) {
 }
 
 /* Where the line through (x1, z1) and (x2, z2) meets the line sCrossSlope/sCrossOffset */
-void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
+static void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
     f32 slope;
     f32 offset;
 
@@ -5079,14 +5081,12 @@ void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
     *z = *x * slope + offset;
 }
 
-#ifdef NON_MATCHING
 /*
  * The segment test on a node of the region's tree: at a leaf, the segment sCrossX1..Z2 against each of its
  * edges, keeping the nearest crossing (TRUE at the first one if no sCrossOut wants it); else (x1, z1)-(x2, z2)
  * goes down the side(s) of the node's line it lies on, split where it crosses the line.
- * NON_MATCHING: 56 diffs, ROM length and frame; t-register numbering in the split half, and the ROM keeps &sCrossDist in s3.
  */
-static s32 func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node) {
+static int func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node) {
     M003Edge *edge;
     s32 i;
     s16 hx;
@@ -5142,11 +5142,6 @@ static s32 func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node)
     return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) ||
            func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
-extern s32 rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node);
-#define func_m003_17174 rl_m003_17174
-#endif
 
 
 /*
