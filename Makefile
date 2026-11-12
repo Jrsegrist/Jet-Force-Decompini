@@ -54,6 +54,12 @@ CFLAGS   := -G 0 -non_shared -Xcpluscomm -nostdinc -Wab,-r4300_mul \
             -woff 516,608,649,838,712 $(DEFINES) $(INCLUDES)
 OPT_FLAGS := -O2
 MIPSISET  := -mips1
+# The sound player was built unoptimised with debug information, as MIPS II code
+$(BUILD_DIR)/src/audiosfx.o build_nm/src/audiosfx.o: OPT_FLAGS := -g
+$(BUILD_DIR)/src/audiosfx.o build_nm/src/audiosfx.o: MIPSISET := -mips2
+# ... and so was the n_audio library (src/naudio_*.c)
+$(BUILD_DIR)/src/naudio_%.o build_nm/src/naudio_%.o: OPT_FLAGS := -g
+$(BUILD_DIR)/src/naudio_%.o build_nm/src/naudio_%.o: MIPSISET := -mips2
 
 # libultra objects built from decompals/ultralib (src/ultra/*.c wrappers),
 # with ultralib's flags for SDK 2.0I; per-object levels in src/ultra/flags.mk
@@ -64,11 +70,16 @@ UL_CFLAGS := -G 0 -non_shared -Xcpluscomm -nostdinc -Wab,-r4300_mul \
              -I $(UL_DIR)/include/PR
 # Nintendo's optimisation levels for SDK 2.0I: os and io at -O1, the rest at
 # -O3; the long long helpers are -mips3 code.
-UL_OPT_FLAGS = $(if $(filter $(UL_O2_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-O2,$(if $(filter os io,$(word 4,$(subst /, ,$@)))$(filter ll llcvt,$(basename $(notdir $@))),-O1,-O3))
+UL_OPT_FLAGS = $(if $(filter $(UL_G_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-g,$(UL_SDK_OPT_FLAGS))
+UL_SDK_OPT_FLAGS = $(if $(filter $(UL_O2_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-O2,$(if $(filter os io,$(word 4,$(subst /, ,$@)))$(filter ll llcvt,$(basename $(notdir $@))),-O1,-O3))
 # A few objects are the later (2.0J) form, built at -O2 like 2.0J's libultra;
 # the PI and VI managers are -O2 too, and the PI manager is -mips1 code.
 UL_O2_OBJS   := io/pirawdma io/pigetcmdq io/pimgr io/vimgr
 UL_MIPS1_OBJS := io/pimgr
+# The game's n_audio library holds libultra audio objects built unoptimised with debug information (-g)
+UL_G_OBJS    := audio/cspsetvol audio/cspgettempo audio/cspsetchlvol audio/cspsettempo audio/cspsetpan \
+                audio/cspgetstate audio/cspsetseq audio/cspplay audio/cspstop audio/cents2ratio \
+                audio/heap audio/sl
 UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,$(if $(filter $(UL_MIPS1_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-mips1,-mips2))
 
 LDFLAGS := -T $(LD_SCRIPT) \

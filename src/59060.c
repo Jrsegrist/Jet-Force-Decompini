@@ -939,7 +939,149 @@ void menu_item_reset(s32 item) {
     dst->unk1F = src->unk1F;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: ROM length, same frame; the ROM schedules the item and object loads above the stack adjust and
+   register saves, and keeps the object in t0 (copied to a3 for render_object) where this has a3. */
+/* A display list command written as its two words (as in 5B700.c) */
+#define fast3d_cmd(pkt, word0, word1) \
+    {                                 \
+        Gfx *_g = (Gfx *) (pkt);      \
+        _g->words.w0 = word0;         \
+        _g->words.w1 = word1;         \
+    }
+
+/* JFG: the transform a menu item is drawn with (DKR's ObjectSegment start; the frame at 0x28) */
+typedef struct MenuDrawTrans {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 frame;
+    /* 0x2C */ u8 pad2C[4];
+} MenuDrawTrans;
+
+/* A menu object as menu_element_render sets it up */
+typedef struct MenuDrawObject {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x39 */ u8 opacity;
+} MenuDrawObject;
+
+typedef struct MenuDrawModelHeader {
+    /* 0x00 */ u8 pad0[0x4E];
+    /* 0x4E */ s8 unk4E;
+    /* 0x4F */ u8 pad4F[0x74 - 0x4F];
+    /* 0x74 */ u8 *dl;
+} MenuDrawModelHeader;
+
+typedef struct MenuDrawModel {
+    /* 0x00 */ MenuDrawModelHeader *header;
+    /* 0x04 */ u8 *vertices;
+    /* 0x08 */ u8 pad8[3];
+    /* 0x0B */ s8 frame;
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ u8 *frames[1];
+} MenuDrawModel;
+
+/* A menu item's loaded asset: an object or a model */
+typedef union MenuDrawAsset {
+    MenuDrawObject obj;
+    MenuDrawModel model;
+} MenuDrawAsset;
+
+extern u8 D_800A51B4;  // JFG: the menu colour (red)
+extern u8 D_800A51B8;  // (green)
+extern u8 D_800A51BC;  // (blue)
+extern s32 D_800A51C4; // JFG: the menu sprites' flags
+extern s32 D_800A51CC; // JFG: the menu opacity
+void render_object(void *dList, void *mtx, void *verts, void *obj);
+void render_ortho_triangle_image(void *dList, void *mtx, void *verts, MenuDrawTrans *trans, void *sprite, s32 flags,
+                                 s32 alpha);
+void mtx_cam_push(void *dList, void *mtx, void *trans, f32 scaleY, f32 offsetY);
+void func_80041DC0(void *dList); // the same as mtx_pop
+
+/**
+ * Render a menu item: an object, a sprite or a model, by the top bits of its type (textures are not drawn here).
+ * JFG: the item's transform is copied first; pipe syncs around the colour changes; models are drawn here.
+ * DKR: menu_element_render
+ */
+void func_8005A0D0(s32 item) {
+    MenuDrawObject *object;
+    void *sprite;
+    MenuDrawModel *model;
+    MenuDrawTrans trans;
+    MenuItem *entry;
+    s16 type;
+
+    entry = (MenuItem *) ((u32) D_800FF780 + (item << 5));
+    object = (MenuDrawObject *) D_800FF3F8[entry->unk6];
+    if (object != NULL) {
+        if ((D_800A51D0[entry->unk6] & 0xC000) != 0xC000) {
+            trans.rotation[0] = entry->unk0;
+            trans.rotation[1] = entry->unk2;
+            trans.rotation[2] = entry->unk4;
+            trans.x = entry->unkC;
+            trans.y = entry->unk10;
+            trans.z = entry->unk14;
+            trans.scale = entry->unk8;
+            type = D_800A51D0[entry->unk6];
+            if (type & 0x4000) {
+                object->rotation[0] = entry->unk0;
+                object->rotation[1] = entry->unk2;
+                object->rotation[2] = entry->unk4;
+                object->x = entry->unkC;
+                object->y = entry->unk10;
+                object->z = entry->unk14;
+                object->scale = entry->unk8;
+                object->opacity = D_800A51CC;
+                render_object(&D_800FF398, &D_800FF39C, &D_800FF3A0, object);
+            } else if (type & 0x8000) {
+                trans.frame = entry->unk18;
+                sprite = (void *) D_800FF3F8[entry->unk6];
+                gDPPipeSync(sMenuGfx++);
+                gDPSetPrimColor(sMenuGfx++, 0, 0, D_800A51B4, D_800A51B8, D_800A51BC, D_800A51CC);
+                gDPSetEnvColor(sMenuGfx++, 255, 255, 255, 0);
+                render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &trans,
+                                            sprite, D_800A51C4, D_800A51CC);
+                gDPPipeSync(sMenuGfx++);
+                gDPSetPrimColor(sMenuGfx++, 0, 0, 255, 255, 255, 255);
+            } else {
+                gDPPipeSync(sMenuGfx++);
+                if (D_800A51CC < 255) {
+                    gDPSetPrimColor(sMenuGfx++, 0, 0, 255, 255, 255, D_800A51CC);
+                } else {
+                    gDPSetPrimColor(sMenuGfx++, 0, 0, 255, 255, 255, 255);
+                }
+                gDPSetEnvColor(sMenuGfx++, 255, 255, 255, 0);
+                trans.frame = entry->unk18 * 0.0625f;
+                model = (MenuDrawModel *) D_800FF3F8[entry->unk6];
+                if (model->header->unk4E == 0) {
+                    mtx_cam_push(&D_800FF398, &D_800FF39C, &trans, 1.0f, 0.0f);
+                    fast3d_cmd(sMenuGfx++, ((u32) (model->frames[model->frame] + 0x80000000) & 0xFFFFFF) | 0xBF000000,
+                               (u32) (model->vertices + 0x80000000));
+                    gSPDisplayList(sMenuGfx++, model->header->dl + 0x80000000);
+                    fast3d_cmd(sMenuGfx++, 0xBF000000, 0);
+                    func_80041DC0(&D_800FF398);
+                }
+                if (D_800A51CC < 255) {
+                    gDPPipeSync(sMenuGfx++);
+                    gDPSetPrimColor(sMenuGfx++, 0, 0, 255, 255, 255, 255);
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/59060", func_8005A0D0);
+#endif
 
 extern u8 D_800A4FF0; // selects one of the three per-level replacement lists
 s32 get_ingame_map_id(void);

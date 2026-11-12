@@ -15,11 +15,11 @@ prints how much of it is built from C:
 
 | Part | Functions in C | Bytes in C |
 | --- | --- | --- |
-| main segment, game code | 1,086 / 1,320 | 283,996 / 539,832 |
-| main segment, libraries (libultra, n_audio, libc) | 81 / 341 | 12,428 / 102,408 |
+| main segment, game code | 1,087 / 1,320 | 284,156 / 539,832 |
+| main segment, libraries (libultra, n_audio, libc) | 220 / 337 | 46,088 / 102,408 |
 | runlink modules (157) | 949 / 1,275 (94 modules all C, 59 partly) | 419,728 / 850,816 |
 
-Of the game code's 1,086 C functions, 888 have a real name (DKR's, the SDK's
+Of the game code's 1,087 C functions, 889 have a real name (DKR's, the SDK's
 or one of our own, see [Naming](#naming)); the other 198 keep their address
 names until the code shows what they do (`make progress`, the `names` line).
 
@@ -29,9 +29,11 @@ names until the code shows what they do (`make progress`, the `names` line).
   [CREDITS.md](CREDITS.md)); the rest is written from the assembly and named
   by address or, where the code shows what it does, by a name of our own
   ([Naming](#naming)).
-- 57 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
-  (`src/ultra/`); the rest of the library region is still assembly
-  (hand-written `.s` routines, n_audio, and objects from SDK revisions
+- 70 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
+  (`src/ultra/`). The sound player (`src/audiosfx.c`, DKR's) and most of the
+  n_audio library (`src/naudio_*.c`, written from the assembly) are C too;
+  the rest of the library region is still assembly (hand-written `.s`
+  routines, a few large n_audio functions, and objects from SDK revisions
   ultralib does not model).
 - The 157 run-time linked modules are split into assembly and rebuilt by a
   relocation linker of our own (`tools/runlink_build.py`); see
@@ -201,8 +203,11 @@ DKR decompilation (a clone of it, `--dkr`) and ultralib do not have too.
 
 - Game code: IDO 5.3 with `-O2 -mips1`.
 - libultra: SDK 2.0I with Nintendo's flags (os and io at -O1, the rest -O3,
-  -mips2); a few objects are the 2.0J form. The n_audio library is not in
-  ultralib and stays assembly for now.
+  -mips2); a few objects are the 2.0J form.
+- The sound player and the n_audio library (with ten libultra audio objects
+  linked into it) were built unoptimised with debug information: `-g -mips2`
+  (Makefile: audiosfx, `naudio_%`, `UL_G_OBJS`). Probe them with
+  `probe.py FILE -O1 -g2 -mips2`; only the full build at `-g` is final.
 - Hand-written assembly: the entry point, the exception/interrupt code and
   maths at 0x49700, the inflate routines at 0x737F0, and parts of 0x74A80.
 

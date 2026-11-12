@@ -176,9 +176,6 @@ func_80001598 = sound_is_looped;
 func_8000160C = music_sequence_start;
 func_80001990 = sound_reverb_set;
 func_80001100 = 0x80001100; /* only a "j" in data that splat decodes as code (asm/9FE50.s) */
-alCSPSetChlPan = 0x80089960;
-alCSPSetChlVol = 0x80089860;
-alCSPSetVol = 0x800865A0;
 gBlockMusicChange = 0x800A0678;
 gBlockVoiceLimitChange = 0x800A06AC;
 gCanPlayJingle = 0x800A0674;
@@ -198,13 +195,9 @@ gSoundTable = 0x800E9508;
 gSoundTableSize = 0x800E9518;
 func_80000DD8 = music_tempo_set;
 func_80000EBC = sound_jingle_tempo_set;
-alCSPSetTempo = 0x800898D0;
-alCSPGetTempo = 0x800865F0;
 sMusicTempo = 0x800E9520;
 set_voice_limit = 0x80089844;
 sfxRelativeVolume = 0x800A066C;
-sndp_get_global_volume = 0x80086538;
-sndp_set_param = 0x80086388;
 func_80001050 = music_volume_config_set;
 func_800013FC = sound_volume_set_relative;
 func_80000FE4 = music_volume_set;
@@ -218,9 +211,7 @@ gMusicSequenceData = 0x800B0B50;
 gJingleSequenceData = 0x800B8B50;
 gJingleSequence = 0x800E9678;
 func_8000167C = music_sequence_init;
-sndp_set_group_volume = 0x80086430;
 gAudioVolumeSetting = 0x800A06A4;
-sndp_play = 0x80085EEC;
 
 /* ---- 40240.c ---- */
 func_8003F7C4 = cam_get_fov;
@@ -726,7 +717,45 @@ aspMainDataStart = 0x800AFC10;
 func_8008AD10 = 0x8008AD10;
 func_80054530_fi = 0x80054530;
 func_80054530_ppf = 0x80054530;
-sndp_set_active_sound_limit = 0x80086554;
+
+/* ---- audiosfx.c (the sound player; DKR's names) ---- */
+func_80084200 = sndp_init_player;
+func_80084468 = sndp_voice_handler;
+func_80085918 = sndp_remove_events;
+func_80085A1C = sndp_get_state_counts;
+func_80085B20 = sndp_allocate;
+func_80085D50 = sndp_deallocate;
+func_80085EEC = sndp_play;
+func_8008582C = sndp_end;
+func_8008589C = sndp_apply_pitch_slide;
+func_80085E94 = sndp_set_priority;
+func_80085EBC = sndp_get_state;
+func_800861D4 = sndp_stop;
+func_80086254 = sndp_stop_with_flags;
+func_80086310 = sndp_stop_all;
+func_80086338 = sndp_stop_all_retrigger;
+func_80086360 = sndp_stop_all_looped;
+func_80086388 = sndp_set_param;
+func_80086404 = sndp_get_group_volume;
+func_80086430 = sndp_set_group_volume;
+func_80086510 = sndp_set_global_volume;
+func_80086538 = sndp_get_global_volume;
+func_80086554 = sndp_set_active_sound_limit;
+
+/* ---- src/ultra/audio: libultra's audio objects in the n_audio library (built -g) ---- */
+func_800865A0 = alCSPSetVol;
+func_800865F0 = alCSPGetTempo;
+func_80089860 = alCSPSetChlVol;
+func_800898D0 = alCSPSetTempo;
+func_80089960 = alCSPSetChlPan;
+func_800899D0 = alCSPGetState;
+func_8008A3C0 = alCSPSetSeq;
+func_8008A410 = alCSPPlay;
+func_8008A450 = alCSPStop;
+alEvtqPostEvent = 0x8008B610;
+
+/* ---- src/ultra/mgu ---- */
+func_80048B60 = guMtxXFMF;
 
 /* ---- 59060.c .bss (0x800FF1B0-0x800FFE40): the asm's names for parts of its variables ---- */
 D_800FF1B5 = D_800FF1B4 + 1;

@@ -31,7 +31,9 @@ typedef struct ParticleBehaviour {
     /* 0x3C */ f32 emissionSpeed;
     /* 0x40 */ s16 spawnInterval;
     /* 0x42 */ s16 burstCount;
-    /* 0x44 */ u8 pad44[0x58 - 0x44];
+    /* 0x44 */ u8 pad44[0x50 - 0x44];
+    /* 0x50 */ f32 unk50; // JFG: line segment length scale
+    /* 0x54 */ u8 pad54[0x58 - 0x54];
     /* 0x58 */ f32 movementParam;
     /* 0x5C */ s32 randomizationFlags;
     /* 0x60 */ s32 sourceDistanceRange;
@@ -2439,7 +2441,160 @@ s32 particle_update(s32 particleAddr, s32 updateRate) {
 }
 #undef particle
 
+/* JFG: the part of a line particle description that a new segment takes */
+typedef struct LineSegDesc {
+    /* 0x00 */ s32 flags; // 0x400: colours from the colour list, 0x4000: along the velocity
+    /* 0x04 */ union {
+        u32 kind; // top 4 bits: kind (5 = line)
+        u16 axis; // low 4 bits: the axis the segment lies on
+    } u4;
+    /* 0x08 */ u8 pad8[2];
+    /* 0x0A */ s16 life;
+    /* 0x0C */ u8 padC[2];
+    /* 0x0E */ u8 alphaStart;
+    /* 0x0F */ u8 alphaEnd;
+    /* 0x10 */ s16 fadeDelay;
+    /* 0x12 */ s16 colourDelay;
+    /* 0x14 */ f32 length;
+    /* 0x18 */ u8 pad18;
+    /* 0x19 */ u8 r, g, b;
+    /* 0x1C */ u8 pad1C[3];
+    /* 0x1F */ u8 numColours;
+    /* 0x20 */ u32 *colours;
+} LineSegDesc;
+
+/* JFG: the parts of an emitting object a line segment needs */
+typedef struct LineSegObj {
+    /* 0x00 */ Vec3s rotation;
+    /* 0x06 */ u8 pad6[6];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[4];
+    /* 0x1C */ Vec3f velocity;
+} LineSegObj;
+
+extern f32 D_800AD840;
+extern f32 D_800AD844;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: ROM length; from the line-set address on the t-registers are numbered one lower (the ROM keeps the
+   emitter's behaviour in a1) and the second axis swap uses other FPRs. */
+/* JFG: add a segment to a line emitter's set (at most 9): its life, colour and fade from the description, its two
+   ends on either side of the emitter's position (rotated by the object), along an axis or the velocity. */
+#define obj ((LineSegObj *) objAddr)
+void func_80061698(ParticleObj *objAddr, ParticleEmitter *emitter) {
+    LineSegDesc *desc;
+    LineParticleSet *set;
+    LineSeg *seg;
+    f32 scale;
+    f32 size;
+    f32 lenSq;
+    Vec3f pos;
+    Vec3f dir;
+    s32 axis;
+    f32 t;
+
+    desc = (LineSegDesc *) D_800A5D9C[emitter->descriptorID];
+    if ((desc->u4.kind >> 28) == 5 && emitter->index != 0xFF) {
+        set = &D_800A5D84[emitter->index];
+        if (set->count == 9) {
+            return;
+        }
+        {
+            size = desc->length * emitter->behaviour->unk50;
+            seg = set->segs[set->count];
+            set->count++;
+            seg->life = desc->life;
+            if (desc->flags & 0x400) {
+                if (set->colours == NULL) {
+                    set->numColours = desc->numColours;
+                    set->colours = desc->colours;
+                }
+                seg->r = (set->colours[0] & 0xFF000000) >> 24;
+                seg->g = (set->colours[0] & 0xFF0000) >> 16;
+                seg->b = (set->colours[0] & 0xFF00) >> 8;
+            } else {
+                seg->r = desc->r;
+                seg->g = desc->g;
+                seg->b = desc->b;
+            }
+            seg->fadeDelay = desc->fadeDelay;
+            seg->colourIndex = 0;
+            seg->colourDelay = desc->colourDelay;
+            seg->alpha.value = desc->alphaStart << 8;
+            if (seg->fadeDelay < seg->life) {
+                seg->fadeRate = ((desc->alphaEnd - desc->alphaStart) << 8) / (seg->life - seg->fadeDelay);
+            } else {
+                seg->fadeRate = 0;
+            }
+            pos.x = emitter->posX;
+            pos.y = emitter->posY;
+            pos.z = emitter->posZ;
+            func_800496B0(1, &obj->rotation, &pos, &pos);
+            pos.x += obj->pos.x;
+            pos.y += obj->pos.y;
+            pos.z += obj->pos.z;
+            if (emitter->behaviour->flags & 0x1000) {
+                size = size *
+                       sqrtf(obj->velocity.x * obj->velocity.x + obj->velocity.y * obj->velocity.y +
+                             obj->velocity.z * obj->velocity.z) *
+                       D_800AD840;
+            }
+            axis = desc->u4.axis & 0xF;
+            if (!(desc->flags & 0x4000)) {
+                dir.y = 0.0f;
+                dir.z = 0.0f;
+                dir.x = 0.0f;
+                switch (axis) {
+                    default:
+                        dir.x = size;
+                        break;
+                    case 2:
+                        dir.z = size;
+                        break;
+                    case 1:
+                        dir.y = size;
+                        break;
+                }
+                func_800496B0(1, &obj->rotation, &dir, &dir);
+            } else {
+                dir.x = obj->velocity.x;
+                dir.y = obj->velocity.y;
+                dir.z = obj->velocity.z;
+                lenSq = dir.z * dir.z + (dir.x * dir.x + dir.y * dir.y);
+                if (lenSq < D_800AD844) {
+                    scale = 1.0f;
+                } else {
+                    scale = size / sqrtf(lenSq);
+                }
+                dir.x *= scale;
+                dir.y *= scale;
+                dir.z *= scale;
+                switch (axis) {
+                    case 0:
+                        t = dir.x;
+                        dir.x = -dir.z;
+                        dir.z = t;
+                        break;
+                    case 1:
+                        t = dir.y;
+                        dir.y = -dir.z;
+                        dir.z = t;
+                        break;
+                }
+            }
+            seg->x0 = dir.x + pos.x;
+            seg->y0 = dir.y + pos.y;
+            seg->z0 = dir.z + pos.z;
+            seg->x1 = pos.x - dir.x;
+            seg->y1 = pos.y - dir.y;
+            seg->z1 = pos.z - dir.z;
+        }
+    }
+}
+#undef obj
+#else
 INCLUDE_ASM("asm/nonmatchings/5B700", func_80061698);
+#endif
 
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 

@@ -464,7 +464,123 @@ void obj_init_col_vertices(u8 *obj, u8 *entry) {
     *(s32 *) (obj + 0x3C) = 0;
 }
 
+/* JFG: a shockwave ring's state (obj_init_col_vertices sets it up) */
+typedef struct ShockState {
+    /* 0x000 */ ColVertex verts[2][20]; // double-buffered: an inner and an outer vertex for each of 10 angles
+    /* 0x190 */ u8 *texture;
+    /* 0x194 */ f32 radius;
+    /* 0x198 */ f32 innerRadius;
+    /* 0x19C */ f32 speed;
+    /* 0x1A0 */ f32 innerSpeed;
+    /* 0x1A4 */ f32 decay;
+    /* 0x1A8 */ f32 innerDecay;
+    /* 0x1AC */ u8 cycle1[0x10];
+    /* 0x1BC */ u8 cycle2[0x10];
+    /* 0x1CC */ s32 texFrame;
+    /* 0x1D0 */ s32 texFlags;
+    /* 0x1D4 */ u16 alpha;
+    /* 0x1D6 */ u16 fade;
+    /* 0x1D8 */ s16 timer;
+    /* 0x1DA */ u8 buffer;
+} ShockState;
+
+/* JFG: a triangle with its texture coordinates (16 bytes) */
+typedef struct ShockTri {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0, vi1, vi2;
+    /* 0x04 */ s16 uv[3][2];
+} ShockTri;
+
+void tex_animate_texture(u8 *texture, s32 *frame, s32 *flags, s32 updateRate);
+extern s16 D_800F2D60;
+extern s16 D_800F2D64;
+extern ShockTri D_800F2D68[20];
+
+#ifdef NON_MATCHING
+/* JFG: update a shockwave ring: grow both radii (speeds decay per frame), count down or fade out (freed when
+   faded), colour cycles, the current buffer's inner/outer vertex rings, the texture u coordinates, the texture
+   animation, then swap buffers.
+   NON_MATCHING: 2 words long: the ROM keeps one register holding 10 for both the buffer offset multiply and the
+   uv loop bound (a3), so it doesn't hoist the texture call's arguments; here the 10s are separate. */
+void func_800291BC(u8 *obj, s32 updateRate) {
+    s32 i;
+    ColVertex *v;
+    f32 *table;
+    ShockState *state;
+    s32 n;
+    f32 size;
+    f32 ratio;
+    f32 mid;
+    s16 hi;
+    s16 lo;
+    s16 a;
+    s16 b;
+    s16 t;
+    ShockTri *tri;
+    ColVertex *outer;
+    s32 k;
+
+    state = *(ShockState **) (obj + 0x68);
+    state->radius += state->speed * updateRate;
+    state->innerRadius += state->innerSpeed * updateRate;
+    for (i = 0; i < updateRate; i++) {
+        state->speed *= state->decay;
+        state->innerSpeed *= state->innerDecay;
+    }
+    if (state->timer > 0) {
+        state->timer -= updateRate;
+    } else {
+        n = state->fade * updateRate;
+        if (n < state->alpha) {
+            state->alpha -= n;
+        } else {
+            free_object(obj);
+            return;
+        }
+    }
+    i = 0;
+    update_colour_cycle(state->cycle1, updateRate);
+    update_colour_cycle(state->cycle2, updateRate);
+    k = state->buffer * 20;
+    v = (ColVertex *) ((u8 *) state + k * 10);
+    outer = v + 1;
+    size = state->radius;
+    if (size < 0.0f) {
+        size = 0.0f;
+    }
+    table = D_800F6B10;
+    for (; i < 10; i++) {
+        outer->x = table[0] * size;
+        v->x = table[0] * state->innerRadius;
+        outer->z = table[1] * size;
+        v->z = table[1] * state->innerRadius;
+        table += 2;
+        outer += 2;
+        v += 2;
+    }
+    ratio = (state->radius / state->innerRadius) * ((state->texture[0] - 1) << 3);
+    mid = (state->texture[0] - 1) << 4;
+    D_800F2D60 = hi = mid + ratio;
+    D_800F2D64 = lo = mid - ratio;
+    D_800F2D68[0].uv[2][0] = hi;
+    a = lo;
+    b = hi;
+    tri = &D_800F2D68[1];
+    for (i = 1; i != 10; i++) {
+        tri[0].uv[1][0] = a;
+        tri[0].uv[2][0] = b;
+        tri[1].uv[2][0] = a;
+        tri += 2;
+        t = a;
+        a = b;
+        b = t;
+    }
+    tex_animate_texture(state->texture, &state->texFrame, &state->texFlags, updateRate);
+    state->buffer ^= 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/291B0", func_800291BC);
+#endif
 
 void *cam_get_active_camera(void);
 void mtx_cam_push(Gfx **dList, Mtx **mtx, void *trans, f32 scaleY, f32 offsetY);

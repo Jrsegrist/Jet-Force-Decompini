@@ -17,7 +17,11 @@ typedef struct AnimObject {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x3A - 0x18];
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ f32 vx; // JFG: velocity (its length sets a path sound's pitch)
+    /* 0x20 */ f32 vy;
+    /* 0x24 */ f32 vz;
+    /* 0x28 */ u8 pad28[0x3A - 0x28];
     /* 0x3A */ s8 unk3A;
     /* 0x3B */ u8 pad3B;
     /* 0x3C */ s32 unk3C;
@@ -742,7 +746,7 @@ void anim_paths_spawn_all(void) {
 
 void anim_path_restart(u8 index);
 void func_80054530(); // a module function (patched in by the runtime linker)
-extern s32 D_800A74D8;
+extern u32 D_800A74D8; // JFG: the sequence clock (ticks)
 extern f32 D_800A74DC;
 
 void func_800773EC(void) {
@@ -823,7 +827,102 @@ void sequence_paths_create(void) {
     }
 }
 
+void func_80077ABC(void);
+f32 sqrtf(f32 x);
+void audspat_point_set_position(void *audioPoint, f32 x, f32 y, f32 z);
+void audspat_point_set_pitch(void *audioPoint, u8 pitch);
+
+#ifdef NON_MATCHING
+/* JFG: advance the running sequence by updateRate ticks: run its next command when its time has come (0x7B: wait,
+   then set the sequence state), its clock, the paths and the positioned sounds of the paths' objects (pitch from the
+   object's speed).
+   NON_MATCHING: ROM length; the command block's a0-a3/t0 rotated and the state store written before the command
+   pointer's (the ROM reads the command's low byte before that store but stores it after). */
+void func_80077614(s32 updateRate) {
+    s32 i;
+    AnimPath *path;
+    s32 rate;
+    s32 frames;
+    u32 time;
+    AnimObject *obj;
+    f32 speed;
+    f32 frameTime;
+
+    if (D_800A74BC != NULL && D_800A74D4 != 0) {
+        if (osTvType == 0) {
+            frameTime = 0.02f;
+        } else {
+            frameTime = 1.0f / 60.0f;
+        }
+        rate = updateRate;
+        if (D_800A74E0 > 0) {
+            func_80054530(updateRate);
+        }
+        if (D_800A74CC != 0 && D_800A74D4 == 1) {
+            if ((((u16 *) D_800A74CC)[1] >> 8) == 0x7B) {
+                if (((u16 *) D_800A74CC)[0] / 100.0f < (D_800A74D8 + updateRate) * frameTime) {
+                    frames = ((u16 *) D_800A74CC)[0];
+                    if (osTvType == 0) {
+                        frames = ((u16 *) D_800A74CC)[0] >> 1;
+                    } else {
+                        frames = frames * 6 / 10;
+                    }
+                    updateRate = frames - D_800A74D8;
+                    D_800A74D4 = (s8) ((u16 *) D_800A74CC)[1];
+                    D_800A74CC += 4;
+                    if (D_800A74D4 == 0) {
+                        rate = updateRate;
+                    }
+                }
+            }
+        }
+        if (updateRate > 0) {
+            time = D_800A74D8 + updateRate;
+            for (i = 0; i < 4; i++) {
+                D_801045B8[i] = NULL;
+            }
+            if (D_800A74EC != 0) {
+                if (updateRate < D_800A74EC) {
+                    D_800A74E4 += D_800A74E8 * updateRate;
+                    D_800A74EC -= updateRate;
+                } else {
+                    D_800A74E4 += D_800A74E8 * D_800A74EC;
+                    D_800A74EC = 0;
+                }
+            }
+            D_800A74D8 = time;
+            D_800A74DC = time * frameTime;
+            for (i = 0; i < 256; i++) {
+                path = D_801045B0[i];
+                if (path != NULL && (path->flags & 5)) {
+                    func_80054530_f32(path, updateRate * frameTime, updateRate, rate);
+                }
+            }
+            if (D_800A74D4 == 1) {
+                func_80077ABC();
+            }
+            func_80054530(updateRate);
+            func_80054530(updateRate);
+            func_80054530(updateRate);
+            for (i = 0; i < 256; i++) {
+                path = D_801045B0[i];
+                if (path != NULL) {
+                    obj = path->obj;
+                    if (obj != NULL && obj->audioPoint != NULL) {
+                        audspat_point_set_position((void *) (s32) obj->audioPoint, obj->x, obj->y, obj->z);
+                        if (path->unk28 != 100 || path->unk29 != 0) {
+                            speed = sqrtf(obj->vx * obj->vx + obj->vy * obj->vy + obj->vz * obj->vz);
+                            audspat_point_set_pitch(obj->audioPoint, path->unk28 + path->unk29 * speed);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077614);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077ABC);
 
