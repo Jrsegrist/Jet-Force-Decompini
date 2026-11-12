@@ -17,7 +17,7 @@ prints how much of it is built from C:
 | --- | --- | --- |
 | main segment, game code | 1,076 / 1,320 | 274,300 / 539,832 |
 | main segment, libraries (libultra, n_audio, libc) | 81 / 341 | 12,428 / 102,408 |
-| runlink modules (157) | 882 / 1,275 (89 modules all C, 60 partly) | 348,496 / 850,816 |
+| runlink modules (157) | 915 / 1,275 (93 modules all C, 59 partly) | 375,936 / 850,816 |
 
 Of the game code's 1,076 C functions, 878 have a real name (DKR's, the SDK's
 or one of our own, see [Naming](#naming)); the other 198 keep their address
