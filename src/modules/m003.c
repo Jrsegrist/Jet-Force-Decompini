@@ -396,7 +396,7 @@ extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
 static s32 func_m003_04968(s32 index, s32 anim, s32 adjust);
-extern s32 rl_m003_04614(s32 anim, s32 arg1);
+static s32 func_m003_04614(s32 anim, s32 arg1);
 extern void rl_m003_044F4(Object *obj);
 
 /* An animation entry (8 bytes) */
@@ -484,13 +484,16 @@ static s32 sCrossX1;       /* the segment, in whole units */
 static s32 sCrossZ1;
 static s32 sCrossX2;
 static s32 sCrossZ2;
-static u8 sBssDC8[0xDD8 - 0xDC8];
+static s32 sCrossSideA;    /* which side of a node's line each end is on (17174) */
+static s32 sCrossSideB;
+static f32 sCrossHitX;     /* where the segment crosses that line */
+static f32 sCrossHitZ;
 static f32 sCrossSlope;    /* the line 170D0 meets: z = slope * x + offset */
 static f32 sCrossOffset;
 static struct M003Crossing *sCrossOut;
 static s32 sCrossX;        /* where it leaves the region */
 static s32 sCrossZ;
-static s32 sCrossEdge;     /* the edge it crosses, -1: none */
+static s32 sCrossDist;     /* the squared distance to the nearest crossing, -1 (unsigned: the most): none */
 static u8 sCrossPoint;     /* the region point it crosses near */
 static u8 sCrossRegion;    /* the region on the other side */
 static s16 sBssDF2;
@@ -2140,7 +2143,99 @@ static void func_m003_044F4(Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044F4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04614);
+/* Bits of the member's word at 0x4 (04614) */
+typedef struct M003Word4 {
+    u32 pad31 : 20;
+    u32 bit11 : 1;
+    u32 pad10 : 4;
+    u32 bit6 : 1;
+    u32 bit5 : 1;
+    u32 rest : 5;
+} M003Word4;
+
+/*
+ * Picks one of the current body's animation entries of kind `anim` at random, by weight; -1 if there is
+ * none. Kinds 5 and 6 follow the home's flags (0x2 / 0x8000), and kind 5 becomes 0xC or 0x34 by two of the
+ * member's bits. Unless `arg1`, the member's unkA records the kind.
+ */
+static s32 func_m003_04614(s32 anim, s32 arg1) {
+    M003Anim *a;
+    s32 count;
+    s32 first;
+    s32 forced;
+    u8 list[8]; /* (the frame fits 8 entries) */
+    s32 n;
+    s32 i;
+    s32 weights;
+
+    first = rl_m003_19278[sBodyIndex * 2];
+    count = rl_m003_19278[sBodyIndex * 2 + 1];
+    a = &rl_m003_17DB8[first];
+    i = 0;
+    n = 0;
+    weights = 0;
+    forced = 0;
+    if (sHomeData == NULL) {
+        return -1;
+    }
+    if (anim == 5 || anim == 6) {
+        if ((sHomeData->flags & 2) && (sHomeData->flags & 0x8000)) {
+            return -1;
+        }
+        if (sHomeData->flags & 2) {
+            anim = 6;
+            forced = 1;
+        }
+        if (sHomeData->flags & 0x8000) {
+            anim = 5;
+            forced = 1;
+        }
+    }
+    if (anim == 5 && arg1 == 0) {
+        if (((M003Word4 *) &sMember->unk4)->bit6 == 1 && !((M003Word4 *) &sMember->unk4)->bit5) {
+            anim = 0xC;
+        } else if (((M003Word4 *) &sMember->unk4)->bit6 == 0 && ((M003Word4 *) &sMember->unk4)->bit5 == 1) {
+            anim = 0x34;
+        }
+    }
+    for (; i < count; i++, a++) {
+        if (anim == a->anim || (!forced && anim == a->unk3)) {
+            if ((((M003Word4 *) &sMember->unk4)->bit11 == 0 && a->unk4_22 != 2) ||
+                (((M003Word4 *) &sMember->unk4)->bit11 != 0 && a->unk4_22 != 1)) {
+                if (a->unk3 != 0x3C || !((M003Interact *) sObj->interactObj)->unk8_29) {
+                    if (a->unk3 != 0x3D || ((M003Interact *) sObj->interactObj)->unk8_29) {
+                        list[n++] = i;
+                        weights += a->weight;
+                    }
+                }
+            }
+        }
+    }
+    switch (n) {
+        case 0:
+            return -1;
+        case 1:
+            if (arg1 == 0) {
+                sMember->unkA = anim;
+            }
+            return list[0];
+        default:
+            if (arg1 == 0) {
+                sMember->unkA = anim;
+            }
+            weights = func_80048E2C(1, weights);
+            i = n;
+            do { /* FAKE (permuter): a no-op loop around the pick; without it the dead counter copy takes v0 */
+                while (i--) {
+                    weights -= rl_m003_17DB8[list[i] + first].weight;
+                    if (weights <= 0) {
+                        return list[i];
+                    }
+                }
+                return list[func_80048E2C(0, n - 1)];
+            } while (0);
+    }
+}
 
 /*
  * Starts animation `index` of the member's body (asked for as kind `anim`); with `adjust`, some bodies
@@ -2186,7 +2281,7 @@ static s32 func_m003_04968(s32 index, s32 anim, s32 adjust) {
         }
     }
     if (anim == 1 && sHomeData->unk30 == 3) {
-        r = rl_m003_04614(0x3B, 1);
+        r = func_m003_04614(0x3B, 1);
         if (r != -1) {
             index = r;
         }
@@ -2256,7 +2351,7 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
             if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
                 return -1;
             }
-            index = rl_m003_04614(anim, 0);
+            index = func_m003_04614(anim, 0);
             last = anim;
         } while (i-- != 0 && index == -1 && anims[i] != 0);
     }
@@ -2346,7 +2441,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
         sMember->unkA = anim;
         index = rl_m003_19434;
     } else {
-        index = rl_m003_04614(anim, 0);
+        index = func_m003_04614(anim, 0);
     }
     if (index == -1) {
         return 0;
@@ -3725,7 +3820,7 @@ void func_m003_0CD34(Object *obj) {
     UNUSED s32 pad[2];
     s32 shotBy;
 
-    anim = rl_m003_04614(5, 1);
+    anim = func_m003_04614(5, 1);
     found = FALSE;
     i = 4;
     if (!(sMember->unk4 & 1)) {
@@ -4932,7 +5027,9 @@ typedef struct M003Edge {
     /* 0x04 */ f32 z0;
     /* 0x08 */ f32 x1;
     /* 0x0C */ f32 z1;
-    /* 0x10 */ u8 pad10[4];
+    /* 0x10 */ u8 point;  /* the region point it ends at (17174) */
+    /* 0x11 */ u8 region; /* the region on its other side */
+    /* 0x12 */ u8 pad12[2];
 } M003Edge;
 
 /* Whether a point is in a region (inside all the edges of its tree's leaf) */
@@ -4982,9 +5079,75 @@ void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
     *z = *x * slope + offset;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
+#ifdef NON_MATCHING
+/*
+ * The segment test on a node of the region's tree: at a leaf, the segment sCrossX1..Z2 against each of its
+ * edges, keeping the nearest crossing (TRUE at the first one if no sCrossOut wants it); else (x1, z1)-(x2, z2)
+ * goes down the side(s) of the node's line it lies on, split where it crosses the line.
+ * NON_MATCHING: 56 diffs, ROM length and frame; t-register numbering in the split half, and the ROM keeps &sCrossDist in s3.
+ */
+static s32 func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node) {
+    M003Edge *edge;
+    s32 i;
+    s16 hx;
+    s16 hz;
+    s32 found;
+    u32 d;
 
-extern void rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, void *node);
+    if (node->leaf == 1) {
+        edge = ((M003RegionLeaf *) node)->first + (M003Edge *) sCrossEdges;
+        i = ((M003RegionLeaf *) node)->count;
+        found = FALSE;
+        while (i--) {
+            if (func_m003_03E90(sCrossX1, sCrossZ1, sCrossX2, sCrossZ2, edge->x0, edge->z0, edge->x1, edge->z1, &hx,
+                                &hz)) {
+                d = (u32) (sCrossX1 - hx) * (sCrossX1 - hx) + (u32) (sCrossZ1 - hz) * (sCrossZ1 - hz);
+                if (d != 0 && d < (u32) sCrossDist) {
+                    sCrossDist = d;
+                    sCrossX = hx;
+                    sCrossZ = hz;
+                    sCrossPoint = edge->point;
+                    sCrossRegion = edge->region;
+                }
+                if (sCrossOut != NULL) {
+                    found = TRUE;
+                } else {
+                    return TRUE;
+                }
+            }
+            edge++;
+        }
+        return sCrossOut != NULL ? found : FALSE;
+    }
+    sCrossSideA = z1 < node->slope * x1 + node->offset;
+    sCrossSideB = z2 < node->slope * x2 + node->offset;
+    if (sCrossSideA == sCrossSideB) {
+        return func_m003_17174(x1, z1, x2, z2, sCrossSideA ? node->below : node->above);
+    }
+    sCrossOffset = node->offset;
+    sCrossSlope = node->slope;
+    func_m003_170D0(x1, z1, x2, z2, &sCrossHitX, &sCrossHitZ);
+    if (sCrossSideA) {
+        if (sCrossOut != NULL) {
+            return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->below) |
+                   func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->above);
+        }
+        return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->below) ||
+               func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->above);
+    }
+    if (sCrossOut != NULL) {
+        return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) |
+               func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
+    }
+    return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) ||
+           func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_17174);
+extern s32 rl_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node);
+#define func_m003_17174 rl_m003_17174
+#endif
+
 
 /*
  * Where the segment (x1, z1)-(x2, z2) leaves a region (into *out if out is not NULL); 0 if it doesn't. `point`
@@ -5005,10 +5168,10 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
     sCrossZ1 = z1;
     sCrossX2 = x2;
     sCrossZ2 = z2;
-    sCrossEdge = -1;
+    sCrossDist = -1;
     sCrossOut = out;
-    rl_m003_17174(x1, z1, x2, z2, sCrossData);
-    if (sCrossEdge == -1) {
+    func_m003_17174(x1, z1, x2, z2, sCrossData);
+    if (sCrossDist == -1) {
         return FALSE;
     }
     if (out != NULL) {
