@@ -14,15 +14,29 @@ typedef struct M068Setup {
 
 /* The boss's state (obj->unk68), as far as used here */
 typedef struct M068State {
-    /* 0x00 */ u8 pad0[0x18];
+    /* 0x00 */ Vec3f pos; /* where it goes */
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 unkF;
+    /* 0x10 */ f32 timer; /* counts down, in seconds */
+    /* 0x14 */ s32 unk14;
     /* 0x18 */ f32 unk18; /* > 0: the particle emitters run, in seconds */
     /* 0x1C */ s32 unk1C;
-    /* 0x20 */ u8 pad20[0x48 - 0x20];
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ f32 unk2C;
+    /* 0x30 */ f32 unk30;
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ f32 unk38; /* vertical speed */
+    /* 0x3C */ f32 unk3C;
+    /* 0x40 */ f32 unk40; /* the height it goes to */
+    /* 0x44 */ f32 unk44;
     /* 0x48 */ s32 flags; /* 0x20: (unknown) */
-    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x4C */ s32 events;
     /* 0x50 */ s32 unk50;
     /* 0x54 */ s16 unk54;
-    /* 0x56 */ u8 pad56[0x58 - 0x56];
+    /* 0x56 */ s16 soundPoint;
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
     /* 0x60 */ u16 unk60;
@@ -31,19 +45,39 @@ typedef struct M068State {
     /* 0x70 */ s32 sound70;
     /* 0x74 */ u8 pad74[0x76 - 0x74];
     /* 0x76 */ s16 hitByPlayer;
-    /* 0x78 */ u8 pad78[0x90 - 0x78];
+    /* 0x78 */ u8 pad78[0x7E - 0x78];
+    /* 0x7E */ s16 unk7E; /* the shake angle */
+    /* 0x80 */ s16 unk80;
+    /* 0x82 */ s8 unk82;
+    /* 0x83 */ s8 unk83;
+    /* 0x84 */ struct M068ColourCycle *cycle; /* the colour cycle running */
+    /* 0x88 */ s16 cycleKind; /* 1-4: which one to run, 0: none */
+    /* 0x8A */ s16 unk8A;
+    /* 0x8C */ s16 cycleFirst; /* the vertices it colours */
+    /* 0x8E */ s16 cycleEnd;
     /* 0x90 */ s16 unk90;
     /* 0x92 */ s16 unk92;
     /* 0x94 */ s16 unk94;
     /* 0x96 */ s16 unk96;
     /* 0x98 */ s16 unk98;
     /* 0x9A */ s16 unk9A;
-    /* 0x9C */ u8 pad9C[0xA8 - 0x9C];
+    /* 0x9C */ u8 pad9C[0x9E - 0x9C];
+    /* 0x9E */ s16 unk9E; /* the yaw unk9A turns to */
+    /* 0xA0 */ u8 padA0[0xA8 - 0xA0];
     /* 0xA8 */ s16 unkA8;
     /* 0xAA */ s16 unkAA;
-    /* 0xAC */ u8 padAC[0xB0 - 0xAC];
-    /* 0xB0 */ u16 unkB0;
-    /* 0xB2 */ u8 padB2[0xC8 - 0xB2];
+    /* 0xAC */ s16 unkAC;
+    /* 0xAE */ s16 unkAE;
+    /* 0xB0 */ s16 unkB0;
+    /* 0xB2 */ u8 padB2[0xB4 - 0xB2];
+    /* 0xB4 */ s16 unkB4;
+    /* 0xB6 */ s16 unkB6;
+    /* 0xB8 */ s16 unkB8;
+    /* 0xBA */ s16 unkBA;
+    /* 0xBC */ s16 unkBC;
+    /* 0xBE */ s16 unkBE;
+    /* 0xC0 */ f32 unkC0;
+    /* 0xC4 */ f32 unkC4;
     /* 0xC8 */ s32 unkC8; /* damage taken this frame */
 } M068State;
 
@@ -605,6 +639,8 @@ typedef struct M068Instance {
     /* 0x0B */ s8 frame;
     /* 0x0C */ u8 padC[0x10 - 0xC];
     /* 0x10 */ MtxF *frames[1];
+    /* 0x14 */ u8 pad14[0x68 - 0x14];
+    /* 0x68 */ Vec3f *points; /* where its sounds play */
 } M068Instance;
 
 extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
@@ -758,7 +794,13 @@ typedef struct M068Joint {
     /* 0x24 */ f32 radius;
     /* 0x28 */ u8 pad28[0x2C - 0x28];
     /* 0x2C */ s16 damage;
-    /* 0x2E */ u8 pad2E[0x34 - 0x2E];
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 unk2F;
+    /* 0x30 */ u8 bit7 : 1;
+    /* 0x30 */ u8 bit6 : 1;
+    /* 0x30 */ u8 off : 1; /* set: the joint can't be hit */
+    /* 0x30 */ u8 bits : 5;
+    /* 0x31 */ u8 pad31[0x34 - 0x31];
 } M068Joint;
 
 /* What the boss's obj->interactObj points at */
@@ -784,7 +826,7 @@ typedef struct M068PartState {
     /* 0x06 */ s16 angle[3];
     /* 0x0C */ f32 scale;
     /* 0x10 */ s16 hp;
-    /* 0x12 */ u8 hit; /* set: damaged this frame */
+    /* 0x12 */ s8 hit; /* set: damaged this frame */
     /* 0x13 */ s8 alive;
     /* 0x14 */ f32 rate[3]; /* how slowly each angle turns */
 } M068PartState;
@@ -941,30 +983,180 @@ extern void func_8003D21C(M068Instance *inst, void *model, Object *obj, f32 arg3
 extern void func_800221F0(Object *obj, M068Instance *inst, void *shading, MtxF *mtx);
 extern void obj_tex_animate(Object *obj, void *model, M068Instance *inst, s32 arg3);
 
-/* The boss's helpers (still assembly) */
-extern void rl_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate);
+/* The player's state (player object's unk68), as the boss's helpers use it */
+typedef struct M068Player {
+    /* 0x000 */ u8 pad0[0x18E];
+    /* 0x18E */ u8 unk18E;
+    /* 0x18F */ u8 pad18F[0x568 - 0x18F];
+    /* 0x568 */ u8 unk568;
+    /* 0x569 */ u8 pad569[0x5C8 - 0x569];
+    /* 0x5C8 */ s16 unk5C8;
+} M068Player;
+
+extern s32 func_800468CC(void);
+extern s32 menu_mode_get(void);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void func_m006_015E0(s32 hide);
+extern void chain_object_unlink_from_players(Object *obj);
+extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
+
+extern s32 rl_m068_125E0;      /* (.data) set: ... */
+extern s16 rl_m068_125E4;      /* (.data) */
+extern Object *rl_m068_12508;  /* (.data) */
+extern Vec3f rl_m068_13668;    /* (.bss) */
+extern Vec3f rl_m068_13678;    /* (.bss) */
+#ifdef NON_MATCHING
+static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate);
+#define rl_m068_05C8C func_m068_05C8C
+#else
+extern s32 rl_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate);
+#define rl_m068_0C7DC func_m068_0C7DC
+#else
+extern s16 rl_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate);
+#endif
+
+/* A colour cycle (main segment, as m107 uses it) */
+typedef struct M068ColourCycle {
+    /* 0x0 */ s32 unk0;
+    /* 0x4 */ u8 pad4[0x8 - 0x4];
+    /* 0x8 */ u8 r; /* the current colour */
+    /* 0x9 */ u8 g;
+    /* 0xA */ u8 b;
+    /* 0xB */ u8 padB;
+    /* 0xC */ s32 *unkC;
+} M068ColourCycle;
+
+extern void colour_cycle_reset(M068ColourCycle *cycle);
+extern void func_80057D58(M068ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
+extern M068ColourCycle rl_m068_1248C; /* (.data) the boss's four colour cycles */
+extern M068ColourCycle rl_m068_1249C;
+extern M068ColourCycle rl_m068_124AC;
+extern M068ColourCycle rl_m068_124BC;
+
+/* What func_80005F14 spawns the falling objects (0x13B) from */
+typedef struct M068DropEntry {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 unk10;
+} M068DropEntry;
+
+extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 strength);
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+extern Vec3f rl_m068_13510[4]; /* (.bss) where they fall */
+extern f32 rl_m068_13550[2][4]; /* (.bss) two planes (x, y, z, d) */
+
+/* The boss's helpers */
+#ifdef NON_MATCHING
+static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
 extern void rl_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_04600(Object *obj, M068State *s);
-extern void rl_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_04600(Object *obj, M068State *s);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_04938(Object *obj, M068State *s);
+#define rl_m068_04938 func_m068_04938
+#else
+extern void rl_m068_04938(Object *obj, M068State *s);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_047F8(Object *obj, M068State *s);
+#define rl_m068_047F8 func_m068_047F8
+#else
+extern void rl_m068_047F8(Object *obj, M068State *s);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_05028(Object *obj, M068State *s);
+#define rl_m068_05028 func_m068_05028
+#else
+extern void rl_m068_05028(Object *obj, M068State *s);
+#endif
+extern s32 rl_m068_125DC;      /* (.data) how many landing points */
+extern Vec3f rl_m068_135F0[];  /* (.bss) the landing points */
 extern void rl_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#define rl_m068_05100 func_m068_05100
+#else
 extern void rl_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_053AC(Object *obj, M068State *s);
+#define rl_m068_053AC func_m068_053AC
+#else
+extern void rl_m068_053AC(Object *obj, M068State *s);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_05570(Object *obj, M068State *s);
+#define rl_m068_05570 func_m068_05570
+#else
+extern void rl_m068_05570(Object *obj, M068State *s);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#define rl_m068_059F0 func_m068_059F0
+#else
 extern void rl_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_092F0(Object *obj, s32 arg1, s32 arg2);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_092F0(Object *obj, s32 index, s32 on);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame);
+#endif
 extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
 extern void rl_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -974,16 +1166,27 @@ extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *
 extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
+#ifdef NON_MATCHING
+static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_09088 func_m068_09088
+#else
 extern void rl_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
 extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
 
 /* The module's .data and .bss (still assembly) */
 extern s16 rl_m068_12610;       /* set: find the centre's height again */
@@ -999,8 +1202,7 @@ extern f32 rl_m068_12F30[3][4];
 #ifdef NON_MATCHING
 /*
  * The boss's control: its centre's height, its actions, its parts' damage and angles, and its joints.
- * 12 instructions too long; IDO keeps the constant 1 in a saved register in the original and the
- * saved registers of the command pointer and the 6 differ.
+ * Same length as the ROM; still differs in register choice (see the round 18 notes).
  */
 void func_m068_024EC(Object *obj, s32 updateRate) {
     M068Instance *inst;
@@ -1019,6 +1221,7 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     s16 sum;
     M068Joint *joint;
     s32 r;
+    f32 *dst;
     f32 *src;
     s32 k;
 
@@ -1064,23 +1267,23 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     if (s->flags & 0x20) {
         s->unk60 |= 0x10;
         if (((u8 *) player)[0x568] == 0x2A && !(s->flags & 0x200)) {
-            rl_m068_04600(obj, s);
+            func_m068_04600(obj, s);
         }
         switch (s->unkAA) {
             case 0:
                 rate = updateRate;
-                rl_m068_039D4(obj, s, updateRate, rate);
+                func_m068_039D4(obj, s, updateRate, rate);
                 break;
             case 10:
                 rate = updateRate;
                 break;
             case 11:
                 rate = updateRate;
-                rl_m068_03D58(obj, s, updateRate, rate);
+                func_m068_03D58(obj, s, updateRate, rate);
                 break;
             case 12:
                 rate = updateRate;
-                rl_m068_03F0C(obj, s, updateRate, rate);
+                func_m068_03F0C(obj, s, updateRate, rate);
                 break;
             case 13:
                 rate = updateRate;
@@ -1088,11 +1291,11 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
                 break;
             case 14:
                 rate = updateRate;
-                rl_m068_04590(obj, s, updateRate, rate);
+                func_m068_04590(obj, s, updateRate, rate);
                 break;
             case 15:
                 rate = updateRate;
-                rl_m068_046EC(obj, s, updateRate, rate);
+                func_m068_046EC(obj, s, updateRate, rate);
                 break;
             case 0xFF:
                 rate = updateRate;
@@ -1102,7 +1305,7 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
                 break;
         }
         if (s->unkA8 != 0 && s->unkA8 == 3) {
-            rl_m068_03A78(obj, s, updateRate, rate);
+            func_m068_03A78(obj, s, updateRate, rate);
         }
         switch (s->unkB0) {
             case 1:
@@ -1115,10 +1318,10 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
                 rl_m068_0758C(obj, s, model, inst, updateRate, rate);
                 break;
             case 6:
-                rl_m068_08674(obj, s, model, inst, updateRate, rate);
+                func_m068_08674(obj, s, model, inst, updateRate, rate);
                 break;
             case 7:
-                rl_m068_0873C(obj, s, model, inst, updateRate, rate);
+                func_m068_0873C(obj, s, model, inst, updateRate, rate);
                 break;
             case 0:
                 break;
@@ -1126,16 +1329,16 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     } else {
         s->unk60 |= 0x10;
         if (((u8 *) player)[0x568] == 0x2A) {
-            rl_m068_092F0(obj, 2, 0);
+            func_m068_092F0(obj, 2, 0);
         }
         switch (s->unkAA) {
             case 0:
                 rate = updateRate;
-                rl_m068_04878(obj, s, updateRate, rate);
+                func_m068_04878(obj, s, updateRate, rate);
                 break;
             case 1:
                 rate = updateRate;
-                rl_m068_048C0(obj, s, updateRate, rate);
+                func_m068_048C0(obj, s, updateRate, rate);
                 break;
             case 2:
                 rate = updateRate;
@@ -1143,7 +1346,7 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
                 break;
             case 3:
                 rate = updateRate;
-                rl_m068_054A0(obj, s, updateRate, rate);
+                func_m068_054A0(obj, s, updateRate, rate);
                 break;
             case 4:
                 rate = updateRate;
@@ -1155,27 +1358,27 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
                 break;
             case 6:
                 rate = updateRate;
-                rl_m068_05F60(obj, s, updateRate, rate);
+                func_m068_05F60(obj, s, updateRate, rate);
                 break;
             case 7:
                 rate = updateRate;
-                rl_m068_06180(obj, s, updateRate, rate);
+                func_m068_06180(obj, s, updateRate, rate);
                 break;
             case 8:
                 rate = updateRate;
-                rl_m068_05668(obj, s, updateRate, rate);
+                func_m068_05668(obj, s, updateRate, rate);
                 break;
             case 9:
                 rate = updateRate;
-                rl_m068_0577C(obj, s, updateRate, rate);
+                func_m068_0577C(obj, s, updateRate, rate);
                 break;
             case 15:
                 rate = updateRate;
-                rl_m068_046EC(obj, s, updateRate, rate);
+                func_m068_046EC(obj, s, updateRate, rate);
                 break;
             case 0xFF:
                 rate = updateRate;
-                rl_m068_06244(obj, s, updateRate, rate);
+                func_m068_06244(obj, s, updateRate, rate);
                 break;
             default:
                 rate = updateRate;
@@ -1185,10 +1388,10 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             case 0:
                 break;
             case 1:
-                rl_m068_06310(obj, s, updateRate, rate);
+                func_m068_06310(obj, s, updateRate, rate);
                 break;
             case 2:
-                rl_m068_06590(obj, s, updateRate, rate);
+                func_m068_06590(obj, s, updateRate, rate);
                 break;
         }
         switch (s->unkB0) {
@@ -1210,17 +1413,18 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             case 0:
                 break;
         }
-        rl_m068_087E0(obj, s, updateRate, rate);
+        func_m068_087E0(obj, s, updateRate, rate);
     }
     rl_m068_088DC(obj, s, model, inst, updateRate, rate);
     if (((M068Hits *) obj->interactObj)->hitPoints != 32000) {
-        for (i = 0, sec = rl_m068_1254C; i != 11; i++, sec++) {
+        for (i = 0; i != 11; i++) {
+            sec = &rl_m068_1254C[i];
             if (sec->first >= 0) {
                 part = &rl_m068_12F88[i];
                 if (part->alive) {
                     sum = 0;
-                    for (j = sec->first; j <= sec->last; j++) {
-                        joint = &((M068Hits *) obj->interactObj)->joints[j];
+                    for (k = sec->first; k <= sec->last; k++) {
+                        joint = &((M068Hits *) obj->interactObj)->joints[k];
                         sum += joint->damage;
                         joint->damage = 0;
                     }
@@ -1264,108 +1468,96 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     *rl_m068_12A30++ = s->unk98;
     *rl_m068_12A30++ = rl_m068_1254C[0].joint * 6 + 4;
     *rl_m068_12A30++ = s->unk96;
-    for (i = 0, part = rl_m068_12F88; i < 11; i++, part++) {
-        if (part->target[0] != part->angle[0]) {
-            part->angle[0] = angle_lerp(part->angle[0], part->target[0], 1.0f - func_80049BEC(part->rate[0], updateRate));
+    for (i = 0; i < 11; i++) {
+        if (rl_m068_12F88[i].target[0] != rl_m068_12F88[i].angle[0]) {
+            rl_m068_12F88[i].angle[0] = angle_lerp(rl_m068_12F88[i].angle[0], rl_m068_12F88[i].target[0], 1.0f - func_80049BEC(rl_m068_12F88[i].rate[0], updateRate));
         }
-        if (part->target[1] != part->angle[1]) {
-            part->angle[1] = angle_lerp(part->angle[1], part->target[1], 1.0f - func_80049BEC(part->rate[1], updateRate));
+        if (rl_m068_12F88[i].target[1] != rl_m068_12F88[i].angle[1]) {
+            rl_m068_12F88[i].angle[1] = angle_lerp(rl_m068_12F88[i].angle[1], rl_m068_12F88[i].target[1], 1.0f - func_80049BEC(rl_m068_12F88[i].rate[1], updateRate));
         }
-        if (part->target[2] != part->angle[2]) {
-            part->angle[2] = angle_lerp(part->angle[2], part->target[2], 1.0f - func_80049BEC(part->rate[2], updateRate));
+        if (rl_m068_12F88[i].target[2] != rl_m068_12F88[i].angle[2]) {
+            rl_m068_12F88[i].angle[2] = angle_lerp(rl_m068_12F88[i].angle[2], rl_m068_12F88[i].target[2], 1.0f - func_80049BEC(rl_m068_12F88[i].rate[2], updateRate));
         }
-        if (part->angle[0] != 0) {
+        if (rl_m068_12F88[i].angle[0] != 0) {
             *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6 + 2;
-            *rl_m068_12A30++ = part->angle[0];
+            *rl_m068_12A30++ = rl_m068_12F88[i].angle[0];
         }
-        if (part->angle[1] != 0) {
+        if (rl_m068_12F88[i].angle[1] != 0) {
             *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6;
-            *rl_m068_12A30++ = part->angle[1];
+            *rl_m068_12A30++ = rl_m068_12F88[i].angle[1];
         }
-        if (part->angle[2] != 0) {
+        if (rl_m068_12F88[i].angle[2] != 0) {
             *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6 + 4;
-            *rl_m068_12A30++ = part->angle[2];
+            *rl_m068_12A30++ = rl_m068_12F88[i].angle[2];
         }
-        if (part->scale != 1.0f) {
+        if (rl_m068_12F88[i].scale != 1.0f) {
             sec = &rl_m068_1254C[i];
             *rl_m068_12A30++ = (sec->joint * 6) | 0x4000;
-            *rl_m068_12A30++ = (u16) (part->scale * 32768.0f);
+            *rl_m068_12A30++ = (u16) (rl_m068_12F88[i].scale * 32768.0f);
             *rl_m068_12A30++ = (sec->joint * 6 + 2) | 0x4000;
-            *rl_m068_12A30++ = (u16) (part->scale * 32768.0f);
+            *rl_m068_12A30++ = (u16) (rl_m068_12F88[i].scale * 32768.0f);
             *rl_m068_12A30++ = (sec->joint * 6 + 4) | 0x4000;
-            *rl_m068_12A30++ = (u16) (part->scale * 32768.0f);
+            *rl_m068_12A30++ = (u16) (rl_m068_12F88[i].scale * 32768.0f);
         }
     }
     rl_m068_0BE14(obj, s, updateRate, rate);
     *rl_m068_12A30++ = 0x1000;
     rl_m068_09088(obj, s, model, inst, updateRate, rate);
-    rl_m068_0BB4C(obj, s, model, inst, updateRate, rate);
+    func_m068_0BB4C(obj, s, model, inst, updateRate, rate);
     func_8003D21C(inst, model, obj, 1.0f, 0.0f);
     func_800221F0(obj, inst, obj->shading, inst->frames[inst->frame]);
     obj_tex_animate(obj, model, inst, inst->hidden);
     inst->hidden = 0;
-    for (part = rl_m068_12F88; part < rl_m068_12F88 + 11; part++) {
-        part->hit = 0;
+    for (i = 0; i < 11; i++) {
+        rl_m068_12F88[i].hit = 0;
     }
-    for (j = 0; j < 42; j++) {
-        src = (f32 *) &inst->frames[inst->frame][j];
-        rl_m068_13318[j * 3 + 0] = src[12];
-        rl_m068_13318[j * 3 + 1] = src[13];
-        rl_m068_13318[j * 3 + 2] = src[14];
+    dst = rl_m068_13318;
+    for (i = 0; i < 42; i++) {
+        src = (f32 *) &inst->frames[inst->frame][i];
+        dst[0] = src[12];
+        dst[1] = src[13];
+        dst[2] = src[14];
+        dst += 3;
     }
     if (rl_m068_12F88[2].scale != 0.01f && !(s->flags & 0x20)) {
-        src = inst->frames[inst->frame][rl_m068_1254C[2].joint][0];
-        for (k = 0; k < 3; k++) {
-            rl_m068_12B70[k][0] = src[0];
-            rl_m068_12B70[k][1] = src[1];
-            rl_m068_12B70[k][2] = src[2];
-            rl_m068_12B70[k][3] = src[3];
-            src += 4;
+        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[2].joint];
+        for (k = 0; k < 12; k++) {
+            ((f32 *) rl_m068_12B70)[k] = src[k];
         }
     }
     if (rl_m068_12F88[3].scale != 0.01f && !(s->flags & 0x20)) {
-        src = inst->frames[inst->frame][rl_m068_1254C[3].joint][0];
-        for (k = 0; k < 3; k++) {
-            rl_m068_12BB0[k][0] = src[0];
-            rl_m068_12BB0[k][1] = src[1];
-            rl_m068_12BB0[k][2] = src[2];
-            rl_m068_12BB0[k][3] = src[3];
-            src += 4;
+        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[3].joint];
+        for (k = 0; k < 12; k++) {
+            ((f32 *) rl_m068_12BB0)[k] = src[k];
         }
     }
     if (rl_m068_12F88[6].scale != 0.01f && (s->flags & 0x20)) {
-        MtxF *m = &inst->frames[inst->frame][rl_m068_1254C[6].joint];
-
-        for (j = 0; j < 9; j++, m++) {
-            for (k = 0; k < 3; k++) {
-                rl_m068_12C18[j][k][0] = (*m)[k][0];
-                rl_m068_12C18[j][k][1] = (*m)[k][1];
-                rl_m068_12C18[j][k][2] = (*m)[k][2];
-                rl_m068_12C18[j][k][3] = (*m)[k][3];
+        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[6].joint];
+        dst = (f32 *) rl_m068_12C18;
+        for (i = 0; i < 9; i++) {
+            for (k = 0; k < 12; k++) {
+                dst[k] = src[k];
             }
+            dst += 16;
+            src += 16;
         }
     }
     if (rl_m068_12F88[5].scale != 0.01f && (s->flags & 0x20)) {
-        MtxF *m = &inst->frames[inst->frame][rl_m068_1254C[5].joint];
-
-        for (j = 0; j < 3; j++, m++) {
-            for (k = 0; k < 3; k++) {
-                rl_m068_12E68[j][k][0] = (*m)[k][0];
-                rl_m068_12E68[j][k][1] = (*m)[k][1];
-                rl_m068_12E68[j][k][2] = (*m)[k][2];
-                rl_m068_12E68[j][k][3] = (*m)[k][3];
+        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[5].joint];
+        dst = (f32 *) rl_m068_12E68;
+        for (i = 0; i < 3; i++) {
+            for (k = 0; k < 12; k++) {
+                dst[k] = src[k];
             }
+            dst += 16;
+            src += 16;
         }
     }
     if (rl_m068_12F88[4].scale != 0.01f) {
         if (s->flags & 0x20) {
-            src = inst->frames[inst->frame][rl_m068_1254C[4].joint][0];
-            for (k = 0; k < 3; k++) {
-                rl_m068_12F30[k][0] = src[0];
-                rl_m068_12F30[k][1] = src[1];
-                rl_m068_12F30[k][2] = src[2];
-                rl_m068_12F30[k][3] = src[3];
-                src += 4;
+            src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[4].joint];
+            for (k = 0; k < 12; k++) {
+                ((f32 *) rl_m068_12F30)[k] = src[k];
             }
         }
     }
@@ -1374,17 +1566,136 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_024EC);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_039D4);
+/* Phase 0 of the second form: when its event comes, parts 4-6 go and the player's control is handed back */
+#ifdef NON_MATCHING
+static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    M068Player *player;
 
+    if (s->events & 0x8000) {
+        func_m068_092F0(obj, 4, 1);
+        s->unkA8 = 3;
+        s->unkAA = 10;
+        if (s->unkF == 0) {
+            func_m068_092F0(obj, 6, 1);
+            func_m068_092F0(obj, 5, 1);
+            player = func_8000E4D0(0)->unk68;
+            player->unk18E = 0;
+            player->unk5C8 = updateRate;
+            func_m006_015E0(0);
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_039D4);
+#endif
+
+/* The second form's head (part 1) turns to the player; picks its next attack animation */
+#ifdef NON_MATCHING
+static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    Object *player;
+    Vec3f *head;
+    f32 dx;
+    f32 dz;
+    s32 anim;
+    M068PartState *parts;
+
+    player = func_8000E4D0(0);
+    head = (Vec3f *) &rl_m068_13318[rl_m068_1254C[1].joint * 3];
+    dx = player->trans.x_position - head->x;
+    dz = player->trans.z_position - head->z;
+    parts = rl_m068_12F88;
+    parts[1].rate[0] = 0.9f;
+    if (s->unkB0 == 1 || s->unkB0 == 6 || s->unkB0 == 7) {
+        parts[1].target[0] = 0;
+    } else {
+        parts[1].target[0] = func_80049C84(dx, dz) - s->unk9A + 0x8000;
+    }
+    if (s->unkB6 == 0 && ((s->events & 0x8000) || s->unkB0 == 0)) {
+        if (s->flags & 0x80) {
+            anim = func_80048E2C(10, 29);
+        } else {
+            anim = func_80048E2C(0, 29);
+        }
+        if (anim < 10) {
+            anim = 1;
+        } else if (anim < 20) {
+            anim = 2;
+        } else if (anim < 30) {
+            anim = 3;
+        }
+        s->unkBC = 0;
+        s->unkBE = 0;
+        s->unkB0 = anim;
+        s->timer = 0.0f;
+    } else if (s->unkB6 == 1 && ((s->events & 0x8000) || s->unkB0 == 0)) {
+        if ((s->flags & 0x80) && (s->flags & 0x40)) {
+            anim = 7;
+        } else {
+            anim = 6;
+        }
+        s->unkBC = 0;
+        s->unkBE = 0;
+        s->timer = 0.0f;
+        s->unkB0 = anim;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_03A78);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03C70);
 
+/* Phase 11 of the second form */
+#ifdef NON_MATCHING
+static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    M068Player *player;
+
+    rl_m068_12F88[1].target[0] = 0;
+    if (s->events & 0x800) {
+        rl_m068_12F88[6].hit = 1;
+    } else if (s->events & 0x8000) {
+        func_m068_092F0(obj, 4, 1);
+        if (!(s->flags & 0x80)) {
+            func_m068_092F0(obj, 5, 1);
+        }
+        s->unkA8 = 3;
+        s->unkAA = 10;
+        player = func_8000E4D0(0)->unk68;
+        player->unk18E = 0;
+        player->unk5C8 = updateRate;
+        func_m006_015E0(0);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03D58);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03E24);
 
+/* Phase 12 of the second form */
+#ifdef NON_MATCHING
+static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    M068Player *player;
+
+    rl_m068_12F88[1].target[0] = 0;
+    if (s->events & 0x1000) {
+        rl_m068_12F88[5].hit = 1;
+    } else if (s->events & 0x8000) {
+        func_m068_092F0(obj, 4, 1);
+        if (!(s->flags & 0x40)) {
+            func_m068_092F0(obj, 6, 1);
+        }
+        s->unkA8 = 3;
+        s->unkAA = 10;
+        player = func_8000E4D0(0)->unk68;
+        player->unk18E = 0;
+        player->unk5C8 = updateRate;
+        func_m006_015E0(0);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03F0C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03FD8);
 
@@ -1392,51 +1703,756 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_040EC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0447C);
 
+/* Phase 14 of the second form: its event ends the level */
+#ifdef NON_MATCHING
+static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    UNUSED s32 pad;
+
+    rl_m068_12F88[1].target[0] = 0;
+    if (s->events & 0x4000) {
+        level_goto(0x184, func_800468CC(), 0, menu_mode_get(), 1, 0);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04590);
+#endif
 
+/* The boss is beaten: parts 2 and 4-6 go and the cut camera looks at joint section 1 */
+#ifdef NON_MATCHING
+static void func_m068_04600(Object *obj, M068State *s) {
+    UNUSED s32 pad;
+    M068Player *player;
+
+    player = func_8000E4D0(0)->unk68;
+    s->unkAA = 15;
+    s->unkA8 = 0;
+    s->flags |= 0x200;
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 4, 0);
+    func_m068_092F0(obj, 6, 0);
+    func_m068_092F0(obj, 5, 0);
+    func_m068_092F0(obj, 2, 0);
+    player->unk18E = 1;
+    func_m006_015E0(1);
+    rl_m068_1261C = (Vec3f *) &rl_m068_13318[rl_m068_1254C[1].joint * 3];
+    func_m068_0BDC4(obj, s, 0x31, 0.0f);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04600);
+#endif
 
+/* Phase 15: parts 5 and 6 grow back to full size */
+#ifdef NON_MATCHING
+static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    M068PartState *parts = rl_m068_12F88;
+
+    parts[1].target[0] = 0;
+    if (parts[6].scale != 1.0f) {
+        parts[6].scale += (1.0f - parts[6].scale) * (1.0f - func_80049BEC(0.97f, updateRate));
+        if (parts[6].scale > 0.97f) {
+            parts[6].scale = 1.0f;
+        }
+    }
+    parts = rl_m068_12F88; /* (set again: the ROM rebuilds the base after the call) */
+    if (parts[5].scale != 1.0f) {
+        parts[5].scale += (1.0f - parts[5].scale) * (1.0f - func_80049BEC(0.97f, updateRate));
+        if (parts[5].scale > 0.97f) {
+            parts[5].scale = 1.0f;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_046EC);
+#endif
 
+#ifdef NON_MATCHING
+/* The player is caught: the cut camera looks at the boss, which jumps to its start */
+/* Matches; its only C caller is 059F0 (NON_MATCHING), so it stays asm until 059F0 is C. */
+static void func_m068_047F8(Object *obj, M068State *s) {
+    M068Player *player;
+
+    player = func_8000E4D0(0)->unk68;
+    s->flags |= 0x200;
+    player->unk18E = 1;
+    func_m006_015E0(1);
+    rl_m068_1261C = &s->pos;
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 2, 0);
+    rl_m068_05028(obj, s);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_047F8);
+#endif
 
+/* Phase 0 of the first form */
+#ifdef NON_MATCHING
+static void func_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    if (s->events & 0x8000) {
+        s->unkBE = 0;
+        s->unkBC = 0;
+        s->unkB0 = 5;
+        s->unkB4 = 1;
+        s->unkAA = 7;
+        s->timer = 0.0f;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04878);
+#endif
 
+/* Phase 1 of the first form */
+#ifdef NON_MATCHING
+static void func_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    if (s->unkAE == 0) {
+        s->unkA8 = 1;
+        s->unk40 = 500.0f;
+    } else if (s->unkAE == 3) {
+        rl_m068_04938(obj, s);
+        ((u8 *) obj->shadow)[0xC] = 0;
+    }
+    s->unk80 = 255;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_048C0);
+#endif
 
+#ifdef NON_MATCHING
+/* Phase 1 of the first form, step 3: it jumps to the nearer of two walls */
+/* 72 diffs: the ROM has an 8-word local block (frame 0x38, here 0x18), stores the second plane distance in it and loads both plane coordinates before negating. */
+static void func_m068_04938(Object *obj, M068State *s) {
+    f32 *plane;
+    f32 a;
+    f32 b;
+
+    plane = rl_m068_13550[0];
+    a = obj->trans.x_position * rl_m068_13550[0][0] + obj->trans.z_position * rl_m068_13550[0][2] + rl_m068_13550[0][3];
+    b = obj->trans.x_position * rl_m068_13550[1][0] + obj->trans.z_position * rl_m068_13550[1][2] + rl_m068_13550[1][3];
+    if (a < b) {
+        plane = rl_m068_13550[1];
+        s->unkBA = 1;
+        s->unkA8 = 1;
+        s->unkBC = 0;
+        s->unk34 = 10.0f;
+    } else {
+        s->unkBA = 0;
+        s->unkA8 = 2;
+        s->unkBC = 1;
+        s->unk34 = 20.0f;
+    }
+    s->unk24 = -plane[0];
+    s->unk28 = -plane[2];
+    s->unk20 = 1.0f;
+    func_m068_092F0(obj, 2, 1);
+    s->unk14 = 0;
+    s->unkAC = 2;
+    s->unkAA = 5;
+    s->unkB0 = 1;
+    s->timer = 0.0f;
+    s->unk40 = 310.0f;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04938);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_04A60);
 
+#ifdef NON_MATCHING
+/* Starts the first form's jump (phase 2); with flag 8 the player watches it from joint section 2 */
+/* Matches; its only C caller is 047F8 (only C with 059F0), so it stays asm until 059F0 is C. */
+static void func_m068_05028(Object *obj, M068State *s) {
+    M068Player *player;
+
+    s->unk40 = 500.0f;
+    func_m068_092F0(obj, 2, 0);
+    s->unkBC = 0;
+    s->unkAC = 2;
+    s->unkB0 = 0;
+    s->unkA8 = 1;
+    s->unkAA = 2;
+    s->unk34 = 20.0f;
+    if (s->flags & 8) {
+        s->unk9E = rl_m068_125E4;
+        player = func_8000E4D0(0)->unk68;
+        player->unk18E = 1;
+        player->unk5C8 = 0x7D00;
+        func_m006_015E0(1);
+        rl_m068_1261C = (Vec3f *) &rl_m068_13318[rl_m068_1254C[2].joint * 3];
+    } else {
+        s->unk9E = s->unkC;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05028);
+#endif
 
+#ifdef NON_MATCHING
+/* Phase 2 of the first form: slides to a stop, turning its body into the motion, then turns to unk9E */
+/* 20 diffs: from the else branch on the t-registers are two lower than here, and s->unk9E/unk9A load in the other order. */
+static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    f32 dir[2];
+    f32 rot[2];
+    f32 speed;
+    f32 dot;
+
+    speed = func_80097140(s->unk2C * s->unk2C + s->unk30 * s->unk30);
+    if (speed > 0.0f) {
+        dir[0] = s->unk2C / speed;
+        dir[1] = s->unk30 / speed;
+        s->unk20 = 1.0f;
+        s->unk24 = -dir[0];
+        s->unk28 = -dir[1];
+        if (speed <= rate) {
+            s->unk20 = 0.0f;
+            s->unk2C = 0.0f;
+            s->unk30 = 0.0f;
+            speed = 0.0f;
+        }
+        rot[0] = -func_80049C34(s->unk9A);
+        rot[1] = -func_80049C30(s->unk9A);
+        dot = rot[0] * dir[0] + rot[1] * dir[1];
+        s->unk98 = rl_m068_0C7DC(s->unk98, -204.8f * speed * dot, 0x100, updateRate);
+        rot[0] = -func_80049C34(s->unk9A + 0x4000);
+        rot[1] = -func_80049C30(s->unk9A + 0x4000);
+        dot = rot[0] * dir[0] + rot[1] * dir[1];
+        s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * dot, 0x100, updateRate);
+        s->unk80 = (s32) (7.75f * speed) + 100;
+    } else {
+        if (s->flags & 8) {
+            if (s->unk9E == s->unk9A) {
+                rl_m068_05570(obj, s);
+            }
+        } else if (s->unk9E == s->unk9A && obj->animationID == 0xD) {
+            rl_m068_053AC(obj, s);
+        }
+        s->unk80 = 100;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05100);
+#endif
 
+#ifdef NON_MATCHING
+/* Jumps towards the boss's own target point (pos), or straight up if it is there */
+/* Matches; its only C caller is 05100 (NON_MATCHING), so it stays asm until 05100 is C. */
+static void func_m068_053AC(Object *obj, M068State *s) {
+    f32 dx;
+    f32 dz;
+    f32 d;
+
+    dx = s->pos.x - obj->trans.x_position;
+    dz = s->pos.z - obj->trans.z_position;
+    d = func_80097140(dx * dx + dz * dz);
+    if (d > 0.0f) {
+        dx /= d;
+        dz /= d;
+        s->unkAC = 2;
+        s->unk20 = 1.0f;
+        s->unk24 = dx;
+        s->unkC0 = -dx;
+        s->unk28 = dz;
+        s->unkC4 = -dz;
+    } else {
+        s->unkAC = 1;
+    }
+    func_m068_092F0(obj, 2, 0);
+    s->unkBC = 0;
+    s->unkB0 = 0;
+    s->unkA8 = 1;
+    s->unkAA = 3;
+    s->unk40 = 500.0f;
+    s->unk34 = 20.0f;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_053AC);
+#endif
 
+/* Phase 3 of the first form */
+#ifdef NON_MATCHING
+static void func_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    s->unk60 |= 0xF;
+    if (s->unkAC == 1) {
+        ((u8 *) obj->shadow)[0xC] = s->unkE;
+        func_m068_0BDC4(obj, s, 0x12, 0.0f);
+        s->unkAA = 6;
+        s->unk80 = 100;
+    } else if (s->unkAC == 2) {
+        if (rl_m068_05C8C(obj, s, &s->pos, s->unkC, updateRate, rate) == 0) {
+            obj->trans.x_position = s->pos.x;
+            obj->trans.z_position = s->pos.z;
+            s->unkAC = 1;
+            s->unk20 = 0.0f;
+            s->unk2C = 0.0f;
+            s->unk30 = 0.0f;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_054A0);
+#endif
 
+#ifdef NON_MATCHING
+/* Jumps towards the drop point rl_m068_13668 (phase 8) */
+/* Matches; its only C caller is 05100 (NON_MATCHING), so it stays asm until 05100 is C. */
+static void func_m068_05570(Object *obj, M068State *s) {
+    f32 dx;
+    f32 dz;
+    f32 d;
+
+    dx = rl_m068_13668.x - obj->trans.x_position;
+    dz = rl_m068_13668.z - obj->trans.z_position;
+    d = func_80097140(dx * dx + dz * dz);
+    if (d > 0.0f) {
+        dx /= d;
+        dz /= d;
+    }
+    s->unk20 = 1.0f;
+    s->unk24 = dx;
+    s->unk28 = dz;
+    s->unkC0 = -dx;
+    s->unkC4 = -dz;
+    s->unk40 = rl_m068_13668.y;
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 2, 0);
+    s->unkBC = 0;
+    s->unkAC = 2;
+    s->unkB0 = 0;
+    s->unkA8 = 2;
+    s->unkAA = 8;
+    s->unk34 = 5.0f;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05570);
+#endif
 
+/* Phase 8 of the first form */
+#ifdef NON_MATCHING
+static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    if (s->unkAC == 1) {
+        if (s->events & 0x400) {
+            rl_m068_12F88[2].hit = 1;
+        } else if (obj->animationID == 0x23) {
+            ((u8 *) obj->shadow)[0xC] = s->unkE;
+            s->unkAA = 9;
+            s->unkAE = 0;
+            s->unkA8 = 0;
+            s->unkAC = 0;
+            s->unk80 = 100;
+            s->unk3C = 0.0f;
+            rl_m068_1261C = (Vec3f *) &rl_m068_12508->trans.x_position;
+        }
+    } else if (s->unkAC == 2) {
+        if (rl_m068_05C8C(obj, s, &rl_m068_13668, rl_m068_125E4, updateRate, rate) == 0) {
+            obj->trans.x_position = rl_m068_13668.x;
+            obj->trans.z_position = rl_m068_13668.z;
+            s->unkAC = 1;
+            s->unk20 = 0.0f;
+            s->unk2C = 0.0f;
+            s->unk30 = 0.0f;
+            func_m068_0BDC4(obj, s, 0x22, 0.0f);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05668);
+#endif
 
+/* Phase 9 of the first form: it falls; objects 0x13B drop at four points and the second form starts */
+#ifdef NON_MATCHING
+static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    Object *o;
+    Vec3f *p;
+    s32 i;
+    M068DropEntry entry;
+
+    if (s->unkB8 != 0) {
+        if ((o = rl_m068_12508) != NULL) {
+            s32 *st = o->unk68;
+
+            *st = 1;
+            rl_m068_12508 = NULL;
+            rl_m068_12610 = 1;
+        }
+        cam_shake_start(0, 0.0f, 0.0f, 4.0f, 25);
+        func_80003410(0x1CC, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        entry.common.objectID = 0x13B;
+        entry.unkA = 0;
+        entry.unkC = -0x4000;
+        entry.unkE = 30;
+        entry.unk10 = 0.5f;
+        for (i = 0, p = rl_m068_13510; i != 4; i++, p++) {
+            entry.common.x = p->x;
+            entry.common.y = p->y;
+            entry.common.z = p->z;
+            o = func_80005F14(&entry, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+        }
+        s->unk14 = 0;
+        s->unkBE = 0;
+        s->unkBC = 0;
+        s->unkA8 = 0;
+        s->unkB0 = 0;
+        s->unkAA = 0;
+        s->flags |= 0x20;
+        s->timer = 0.0f;
+        rl_m068_1261C = (Vec3f *) &rl_m068_13318[rl_m068_1254C[4].joint * 3];
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0577C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05964);
 
+#ifdef NON_MATCHING
+/* Phase 4 of the first form: jumps between the landing points; the player in reach is caught */
+/* 166 diffs: the ROM keeps dx in f20 (the same register later holds the 0.0f stores) and has an 8-word local block (frame 0x50, here 0x40). */
+static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    Object *player;
+    M068Player *pstate;
+    Vec3f *target;
+    s32 n;
+    f32 dx;
+    f32 dz;
+    f32 d;
+    s16 r;
+    s16 anim;
+
+    s->unk60 |= 0xF;
+    player = func_8000E4D0(0);
+    pstate = player->unk68;
+    if (s->unkAC == 1) {
+        if (s->unkB0 == 0) {
+            if (pstate->unk568 == 0x2A && !(s->flags & 0x200)) {
+                rl_m068_047F8(obj, s);
+            } else if (s->unk14 == 3) {
+                rl_m068_04938(obj, s);
+            } else {
+                do {
+                    n = func_80048E2C(0, rl_m068_125DC - 1);
+                } while (n == s->unkBA);
+                target = &rl_m068_135F0[n];
+                dx = target->x - obj->trans.x_position;
+                dz = target->z - obj->trans.z_position;
+                d = func_80097140(dx * dx + dz * dz);
+                dx /= d;
+                dz /= d;
+                s->unk20 = 1.0f;
+                s->unk24 = dx;
+                s->unkC0 = -dx;
+                s->unk28 = dz;
+                s->unkC4 = -dz;
+                s->unkAC = 2;
+                s->unk14++;
+                s->unkBA = n;
+                s->unk40 = target->y;
+            }
+        }
+        s->unk80 = 100;
+    } else if (s->unkAC == 2) {
+        target = &rl_m068_135F0[s->unkBA];
+        if (rl_m068_05C8C(obj, s, target,
+                            func_80049C84(player->trans.x_position - obj->trans.x_position,
+                                          player->trans.z_position - obj->trans.z_position) + 0x8000,
+                            updateRate, rate) == 0) {
+            s->unk20 = 0.0f;
+            s->unk2C = 0.0f;
+            s->unk30 = 0.0f;
+            anim = r = func_80048E2C(0, 29);
+            if (r < 10) {
+                anim = 2;
+            } else if (r < 20) {
+                anim = 3;
+            } else if (r < 30) {
+                anim = 4;
+            }
+            s->unkBC = 0;
+            s->unkBE = 0;
+            s->timer = 0.0f;
+            s->unkB0 = anim;
+            s->unkAC = 1;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
+#endif
 
+#ifdef NON_MATCHING
+/* Steers the first form towards target: slows to stop there, turns its body (unk98/unk96) into the motion; 1 while it moves */
+/* 5 diffs: the first dot product loads s->unkC4 before dir[1] in the ROM (operands of the multiply swapped). */
+static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate) {
+    f32 dir[2];
+    f32 rot[2];
+    f32 speed;
+    f32 dx;
+    f32 dz;
+    f32 dist;
+    s32 result;
+    UNUSED s32 pad;
+    UNUSED s32 pad2;
+    f32 along;
+
+    speed = func_80097140(s->unk2C * s->unk2C + s->unk30 * s->unk30);
+    if (speed > 0.0f) {
+        dir[0] = s->unk2C / speed;
+        dir[1] = s->unk30 / speed;
+    } else {
+        dir[0] = 0.0f;
+        dir[1] = 0.0f;
+    }
+    along = dir[0] * s->unkC0 + s->unkC4 * dir[1];
+    dx = obj->trans.x_position - target->x;
+    dz = obj->trans.z_position - target->z;
+    dist = func_80097140(dx * dx + dz * dz);
+    if (speed * along < 0.0f) {
+        along = s->unkC4 * s->unk28 + s->unk24 * s->unkC0;
+        if (dist <= -(speed * speed) / (along + along)) {
+            s->unk24 = -dir[0];
+            s->unk28 = -dir[1];
+            s->unk20 = 1.0f;
+        }
+        s->unk9E = yaw;
+        rot[0] = -func_80049C34(s->unk9A);
+        rot[1] = -func_80049C30(s->unk9A);
+        along = rot[0] * dir[0] + rot[1] * dir[1];
+        s->unk98 = rl_m068_0C7DC(s->unk98, -204.8f * speed * along, 0x100, updateRate);
+        rot[0] = -func_80049C34(s->unk9A + 0x4000);
+        rot[1] = -func_80049C30(s->unk9A + 0x4000);
+        along = rot[0] * dir[0] + rot[1] * dir[1];
+        s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * along, 0x100, updateRate);
+        result = 1;
+    } else {
+        result = 0;
+    }
+    s->unk80 = (s32) (7.75f * speed) + 100;
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05C8C);
+#endif
 
+/* Phase 6 of the first form: when it lands from its jump, objects 0x13B drop at four points */
+#ifdef NON_MATCHING
+static void func_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    Object *o;
+    Vec3f *p;
+    M068DropEntry entry;
+    s32 i;
+
+    if (s->events & 0x20) {
+        s->unk40 = s->pos.y + 269.0f;
+    } else if (s->unkB8 != 0 && s->unk82 != 0) {
+        s->unk82 = 0;
+        s->unk83 = 0;
+        s->unkA8 = 0;
+        s->unk3C = -10.0f;
+        cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
+        func_80003410(0x1CC, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        func_m068_0BDC4(obj, s, 0x13, 0.0f);
+        entry.common.objectID = 0x13B;
+        entry.unkA = 0;
+        entry.unkC = -0x4000;
+        entry.unkE = 30;
+        entry.unk10 = 0.5f;
+        for (i = 0, p = rl_m068_13510; i != 4; i++, p++) {
+            entry.common.x = p->x;
+            entry.common.y = p->y;
+            entry.common.z = p->z;
+            o = func_80005F14(&entry, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+        }
+    } else if (s->unkB8 != 0 && (s->events & 0x8000)) {
+        if (s->flags & 0x200) {
+            s->unkB0 = 0;
+            s->unk3C = 0.0f;
+            func_m068_04600(obj, s);
+        } else {
+            s->unkAA = 7;
+            s->unkB4 = 0;
+            s->unk3C = 0.0f;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05F60);
+#endif
 
+/* Phase 7 of the first form */
+#ifdef NON_MATCHING
+static void func_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    M068Player *player;
+
+    if (s->unkB4 == 0) {
+        s->unkBE = 0;
+        s->unkBC = 0;
+        s->unkB0 = 5;
+        s->unkB4 = 1;
+        s->timer = 0.0f;
+    } else if (s->unkB4 == 1 && s->unkB0 == 0) {
+        player = func_8000E4D0(0)->unk68;
+        if (player->unk568 == 0x2A && !(s->flags & 0x200)) {
+            s->unkB0 = 0;
+            func_m068_04600(obj, s);
+        } else {
+            s->unkAE = 0;
+            s->unkAC = 0;
+            s->unkAA = 1;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06180);
+#endif
 
+/* Phase 0xFF of the first form */
+#ifdef NON_MATCHING
+static void func_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    if (rl_m068_125E0 != 0) {
+        if (s->unkA8 == 0) {
+            obj->trans.x_position = rl_m068_13678.x;
+            obj->trans.z_position = rl_m068_13678.z;
+            s->unk40 = rl_m068_13678.y;
+            func_m068_0BDC4(obj, s, 13, 0.0f);
+            s->unk82 = 1;
+            ((u8 *) obj->shadow)[0xC] = 0;
+            s->unk9A = 0;
+            s->unkA8 = 2;
+            s->unk80 = 255;
+        } else {
+            s->unk9E = func_8000E4D0(0)->trans.rotation.y_rotation;
+            func_m068_092F0(obj, 2, 1);
+        }
+        s->unk60 |= 0x1F;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06244);
+#endif
 
+/* A jump of the first form: takes off on event 8 with the object's vertical speed, lands at unk40 */
+#ifdef NON_MATCHING
+static void func_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    f32 g;
+    f32 off;
+    f32 limit;
+    f32 d;
+
+    if (s->unkAE == 1 && s->unk38 <= 0.0f) {
+        s->unkAE = 3;
+    } else if (s->unkAE == 2 && 0.0f <= s->unk38) {
+        s->unkAE = 3;
+    }
+    if (s->unkAE == 0) {
+        if (obj->animationID != 0xE) {
+            func_m068_0BDC4(obj, s, 0xE, 0.0f);
+        } else {
+            if (s->events & 4) {
+                s->unk82 = 1;
+            }
+            if (s->events & 8) {
+                if (0.0f < obj->velocity.y) {
+                    s->unk38 = obj->velocity.y;
+                } else {
+                    s->unk38 = 0.0f;
+                }
+                s->unkAE = 1;
+            }
+        }
+    }
+    if (s->unkAE != 0) {
+        if (0.0f <= s->unk38) {
+            g = -1.0f;
+            off = 0.0f;
+        } else {
+            off = -s->unk44;
+            g = 0.20000005f;
+        }
+        limit = -(s->unk38 * s->unk38) / (g + g);
+        d = s->unk40 + off - obj->trans.y_position;
+        if (d <= limit) {
+            s->unk3C = 0.0f;
+        } else {
+            s->unk3C = 1.2f;
+        }
+    }
+    if (s->unk82 != 0) {
+        if (s->unk83 != 0) {
+            s->unk7E = 0x3300;
+        } else {
+            s->unk7E = 0;
+        }
+        s->unk83 ^= 1;
+    }
+    if (s->unk7E != 0) {
+        *rl_m068_12A30++ = rl_m068_1254C[2].joint * sizeof(Vec3s) + 2;
+        *rl_m068_12A30++ = s->unk7E;
+        *rl_m068_12A30++ = rl_m068_1254C[3].joint * sizeof(Vec3s) + 2;
+        *rl_m068_12A30++ = -s->unk7E;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06310);
+#endif
 
+/* Rises or falls to unk40 (speed unk38, acceleration factor unk3C); shakes joint sections 2 and 3 while unk82 is set */
+#ifdef NON_MATCHING
+static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    f32 limit;
+    f32 d;
+    f32 g;
+    f32 y;
+
+    if (obj->trans.y_position != s->unk40) {
+        if (0.0f < s->unk38) {
+            g = -1.0f;
+        } else {
+            g = 0.20000005f;
+        }
+        limit = -(s->unk38 * s->unk38) / (g + g);
+        d = s->unk40 - obj->trans.y_position;
+        if (d <= limit) {
+            s->unk3C = 0.0f;
+        } else {
+            s->unk3C = 1.2f;
+        }
+        y = s->unk3C + -1.0f;
+        g = obj->trans.y_position + s->unk38 * rate + y * 0.5f * rate * rate;
+        if (obj->trans.y_position <= s->unk40 && s->unk40 <= g) {
+            obj->trans.y_position = s->unk40;
+            s->unk38 = 0.0f;
+            s->unk3C = 1.0f;
+        } else if (s->unk40 <= obj->trans.y_position && g <= s->unk40) {
+            if (!obj->trans.y_position) { /* (fake: no code; puts y in f2 as in the ROM) */
+            }
+            obj->trans.y_position = s->unk40;
+            s->unk38 = 0.0f;
+            s->unk3C = 1.0f;
+        }
+    } else {
+        s->unk3C = 1.0f;
+    }
+    if (s->unk82 != 0) {
+        if (s->unk83 != 0) {
+            s->unk7E = 0x3300;
+        } else {
+            s->unk7E = 0;
+        }
+        s->unk83 ^= 1;
+    }
+    if (s->unk7E != 0) {
+        *rl_m068_12A30++ = rl_m068_1254C[2].joint * sizeof(Vec3s) + 2;
+        *rl_m068_12A30++ = s->unk7E;
+        *rl_m068_12A30++ = rl_m068_1254C[3].joint * sizeof(Vec3s) + 2;
+        *rl_m068_12A30++ = -s->unk7E;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06590);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_067B4);
 
@@ -1454,19 +2470,161 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_083C8);
 
+/* Animation 6 of the second form */
+#ifdef NON_MATCHING
+static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    if (s->unkAA != 10) {
+        s->unkB0 = 0;
+        s->unkB6 = 0;
+        s->timer = 0.0f;
+    } else {
+        if (s->unkBC == 0) {
+            func_m068_0BDC4(obj, s, 0x24, 0.0f);
+            s->unkBC |= 1;
+            s->timer = 5.0f;
+        }
+        if (s->unkBC != 0) {
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->unkB0 = 0;
+                s->unkB6 = 0;
+                s->timer = 0.0f;
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_08674);
+#endif
 
+/* Animation 7 of the second form */
+#ifdef NON_MATCHING
+static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    if (s->unkBC == 0) {
+        func_m068_0BDC4(obj, s, 0x2E, 0.0f);
+        s->unkBC |= 1;
+        s->timer = 5.0f;
+    }
+    if (s->unkBC != 0) {
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            s->unkB0 = 0;
+            s->unkB6 = 0;
+            s->timer = 0.0f;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0873C);
+#endif
 
+/* Turns the first form's yaw towards unk9E; snaps it there within 20 */
+#ifdef NON_MATCHING
+static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    s32 a;
+    s32 b;
+    f32 d;
+
+    if (s->unk9A != s->unk9E) {
+        s->unk9A = angle_lerp(s->unk9A, s->unk9E, 1.0f - func_80049BEC(0.97f, updateRate));
+        a = (u16) (s->unk9E - s->unk9A);
+        b = (u16) (s->unk9A - s->unk9E);
+        if (b < a) {
+            d = -(f32) b;
+        } else {
+            d = a;
+        }
+        if (-20.0f <= d && d <= 20.0f) {
+            s->unk9A = s->unk9E;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_087E0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_088DC);
 
+#ifdef NON_MATCHING
+/* Runs the colour cycle cycleKind picks over the model's vertices cycleFirst..cycleEnd, until it ends */
+/* 4 diffs: the end test loads cycle->unkC into t6 and cycle->unk0 into t7 in the ROM (swapped here). */
+static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    M068ColourCycle *cycle;
+    M068DrawModel *m;
+    s32 i;
+
+    switch (s->cycleKind) {
+        case 1:
+            cycle = &rl_m068_1248C;
+            break;
+        case 2:
+            cycle = &rl_m068_1249C;
+            break;
+        case 3:
+            cycle = &rl_m068_124AC;
+            break;
+        case 4:
+            cycle = &rl_m068_124BC;
+            break;
+        default:
+            cycle = NULL;
+            break;
+    }
+    if (cycle != NULL) {
+        if (obj->state[0x9F - 0x88] == 0) {
+            colour_cycle_reset(cycle);
+            obj->state[0x9F - 0x88] = 2;
+            s->cycle = cycle;
+        }
+        func_80057D58(cycle, updateRate);
+        m = obj->modelInstances[obj->modelIndex];
+        for (i = s->cycleFirst; i < s->cycleEnd; i++) {
+            ((Vertex *) m->vertices)[i].r = cycle->r;
+            ((Vertex *) m->vertices)[i].g = cycle->g;
+            ((Vertex *) m->vertices)[i].b = cycle->b;
+        }
+        s->unk8A = updateRate << 10;
+        if (*cycle->unkC == cycle->unk0 + 1) {
+            s->cycleKind = 0;
+            obj->state[0x9F - 0x88] = 0;
+            s->cycle = NULL;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_09088);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_09218);
 
+/* Turns joint section `index` on (it can be hit, 100 damage) or off */
+#ifdef NON_MATCHING
+static void func_m068_092F0(Object *obj, s32 index, s32 on) {
+    M068Section *sec = &rl_m068_1254C[index];
+    M068Hits *hits = (M068Hits *) obj->interactObj;
+    s32 damage;
+    s32 off;
+    s32 j;
+    M068Joint *joint;
+
+    if (on) {
+        damage = 100;
+        off = 0;
+        rl_m068_12F88[index].alive = 1;
+    } else {
+        damage = 0;
+        off = 1;
+        rl_m068_12F88[index].alive = 0;
+    }
+    for (j = sec->first; j <= sec->last; j++) {
+        joint = &hits->joints[j];
+        joint->unk2F = damage;
+        joint->off = off;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_092F0);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
 
@@ -1478,13 +2636,132 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0ADC4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0B4D0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BB4C);
+/* Starts the sound unk50's lowest set bit asks for at one of the model's points, or moves the one playing */
+#ifdef NON_MATCHING
+static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    s32 sound;
+    s32 volume;
 
+    if (s->sound58 == 0) {
+        sound = -1;
+        volume = 0;
+        if (s->unk50 & 1) {
+            s->soundPoint = 4;
+            sound = 0x1CE;
+            volume = 4;
+        } else if (s->unk50 & 2) {
+            s->soundPoint = 4;
+            sound = 0x1CF;
+            volume = 4;
+        } else if (s->unk50 & 4) {
+            s->soundPoint = 4;
+            sound = 0x1C9;
+            volume = 4;
+        } else if (s->unk50 & 8) {
+            s->soundPoint = 4;
+            sound = 0x1CA;
+            volume = 4;
+        } else if (s->unk50 & 0x10) {
+            s->soundPoint = 4;
+            sound = 0x1CB;
+            volume = 1;
+        } else if (s->unk50 & 0x20) {
+            s->soundPoint = 0x21;
+            sound = 0x1D1;
+            volume = 1;
+        } else if (s->unk50 & 0x40) {
+            s->soundPoint = 4;
+            sound = 0x222;
+            volume = 4;
+            s->unk18 = 1.0f;
+        } else if (s->unk50 & 0x80) {
+            s->soundPoint = 4;
+            sound = 0x223;
+            volume = 4;
+            s->unk18 = 1.0f;
+        } else if (s->unk50 & 0x100) {
+            s->soundPoint = 4;
+            sound = 0x207;
+            volume = 4;
+        } else if (s->unk50 & 0x200) {
+            s->soundPoint = 4;
+            sound = 0x224;
+            volume = 4;
+        } else if (s->unk50 & 0x400) {
+            s->soundPoint = 4;
+            sound = 0x225;
+            volume = 4;
+        } else if (s->unk50 & 0x800) {
+            s->soundPoint = 4;
+            sound = 0x226;
+            volume = 4;
+        } else if (s->unk50 & 0x1000) {
+            s->soundPoint = 4;
+            sound = 0x227;
+            volume = 4;
+        } else if (s->unk50 & 0x2000) {
+            s->soundPoint = 4;
+            sound = 0x22B;
+            volume = 4;
+        }
+        if (sound != -1) {
+            func_80003410(sound, inst->points[s->soundPoint].x, inst->points[s->soundPoint].y,
+                          inst->points[s->soundPoint].z, volume, &s->sound58);
+        }
+    } else if (s->unk54 != 0) {
+        func_80003614(s->sound58);
+    } else {
+        func_800035E8(s->sound58, inst->points[s->soundPoint].x, inst->points[s->soundPoint].y,
+                      inst->points[s->soundPoint].z);
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BB4C);
+#endif
+
+/* Starts animation `anim` unless it is playing already (and counts the change) */
+#ifdef NON_MATCHING
+static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame) {
+    if (anim != obj->animationID) {
+        obj_anim_set(obj, anim, frame);
+        rl_m068_12B38++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BDC4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0BE14);
 
+#ifdef NON_MATCHING
+/* Turns angle towards target by speed * updateRate the short way round */
+/* Matches; its only C callers are 05100 and 05C8C (NON_MATCHING), so it stays asm until one of them is C. */
+static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate) {
+    s32 up;
+    s32 down;
+    s32 result;
+
+    speed = speed * (u32) updateRate;
+    up = (u16) (target - angle);
+    down = (u16) (angle - target);
+    if (up <= down) {
+        if (up < speed) {
+            result = target;
+        } else {
+            result = angle + speed;
+        }
+    } else {
+        if (down < speed) {
+            result = target;
+        } else {
+            result = angle - speed;
+        }
+    }
+    return result & 0xFFFF;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0C7DC);
+#endif
 
 void func_m068_0C874(Object *obj, M068ShotSetup *setup) {
     M068Shot *s = obj->unk68;
@@ -2457,12 +3734,6 @@ void func_m068_0EF2C(Object *obj, M068RingSetup *setup) {
     ring->end = setup->end;
     ring->growth = 0.02f;
 }
-
-/* What the player keeps in obj->unk68, as far as used here */
-typedef struct M068Player {
-    /* 0x000 */ u8 pad0[0x5C8];
-    /* 0x5C8 */ s16 unk5C8;
-} M068Player;
 
 extern void func_8005F5A0(f32 arg0);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
