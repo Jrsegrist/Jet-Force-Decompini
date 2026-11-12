@@ -270,7 +270,71 @@ void func_m028_01798(Object *obj, s32 updateRate) {
     beam->trans.rotation.z_rotation = obj->trans.rotation.z_rotation;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_01840);
+/* A camera, as far as 01840 uses it (0x4C bytes) */
+typedef struct M028Camera {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x4C - 0x18];
+} M028Camera;
+
+extern s32 level_id(void);
+extern s32 func_80048548(void);       /* the number of cameras */
+extern M028Camera *func_80041E0C(void); /* the cameras */
+extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
+
+/* Plays the beams' sound at the lit beam nearest to a camera (not in level 0xD4) */
+void func_m028_01840(void) {
+    s32 i;
+    s32 j;
+    s32 first;
+    s32 count;
+    s32 n;
+    Object **objs;
+    Object *o;
+    Object *nearest;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 best;
+    M028BeamState *st;
+    UNUSED s32 pad;
+    M028Camera *cams;
+
+    best = 1e9f;
+    nearest = NULL;
+    if (level_id() != 0xD4) {
+        n = func_80048548();
+        cams = func_80041E0C();
+        objs = func_80005E98(&first, &count);
+        for (j = 0; j < n; j++) {
+            for (i = first; i < count; i++) {
+                o = objs[i];
+                if (o->behaviorId == 0x98 && (st = o->unk68)->strength > 0) {
+                    dx = cams[j].x - o->trans.x_position;
+                    dy = cams[j].y - o->trans.y_position;
+                    dz = cams[j].z - o->trans.z_position;
+                    if (dx * dx + dy * dy + dz * dz < best) {
+                        nearest = o;
+                        best = dx * dx + dy * dy + dz * dz;
+                    }
+                }
+            }
+        }
+        if (nearest != NULL) {
+            if (rl_m028_01BD4 == 0) {
+                func_80003410(0x9B, nearest->trans.x_position, nearest->trans.y_position,
+                              nearest->trans.z_position, 1, &rl_m028_01BD4);
+            } else {
+                func_800035E8(rl_m028_01BD4, nearest->trans.x_position, nearest->trans.y_position,
+                              nearest->trans.z_position);
+            }
+        } else if (rl_m028_01BD4 != 0) {
+            func_80003614(rl_m028_01BD4);
+        }
+    }
+}
 
 void func_m028_01B80(void) {
     if (rl_m028_01BD4 != 0) {
