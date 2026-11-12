@@ -618,7 +618,93 @@ void func_m067_03F08(Object *obj, M067ShotSetup *setup) {
     func_80079D1C(obj, s->strength << 8, 1, 4, 0, 0, 0, 10.0f, 10.0f, 100.0f, 1.0f, 0x11);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_03FF0);
+/* The level entry of a piece a rock breaks into */
+typedef struct M067PieceEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 pad2[0x4 - 0x2];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 yRotation;
+    /* 0x0C */ s16 xRotation;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ f32 scale;
+    /* 0x1C */ u8 unk1C;
+    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
+    /* 0x20 */ s32 unk20;
+} M067PieceEntry;
+
+extern void func_8005F5A0(f32 scale);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+
+/* A rock: flies and spins until its time is up; when it hits something it breaks into pieces */
+void func_m067_03FF0(Object *obj, s32 updateRate) {
+    s32 step;
+    M067Shot *s;
+    f32 radius;
+    s32 n;
+    Vec3f from;
+    HitResult hit;
+    M067PieceEntry entry;
+    Object *piece;
+    f32 rate;
+
+    s = obj->unk68;
+    rate = updateRate;
+    if (obj->interactObj->hitPoints <= 0) {
+        spawn_object_from_list(3, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 100, 0);
+        func_80003410(0x96, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        func_800079B8(obj);
+        return;
+    }
+    n = obj->interactObj->hitPoints >> 8;
+    if (s->unk7) {
+        if (n > 0) {
+            step = 0x10000 / n;
+        }
+        entry.objectID = 0x138;
+        entry.x = obj->trans.x_position;
+        entry.y = obj->trans.y_position;
+        entry.z = obj->trans.z_position;
+        entry.unkE = 0x3C;
+        entry.unk1C = 100;
+        entry.unk20 = 0;
+        entry.scale = 0.25f;
+        while (n--) {
+            entry.yRotation = func_80048E2C(-0x800, 0x800) + step * n;
+            entry.xRotation = func_80048E2C(0x2800, 0x3800);
+            entry.unk10 = func_80048E2C(50, 75) * 0.01f;
+            entry.unk14 = func_80048E2C(50, 75) * 0.1f;
+            piece = func_80005F14(&entry, 1);
+            if (piece != NULL) {
+                piece->level_entry = NULL;
+            }
+        }
+        func_80003410(0x195, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+        func_800079B8(obj);
+        return;
+    }
+    s->timer -= updateRate;
+    if (s->timer < 0 || obj->interactObj->hitPoints <= 0) {
+        func_800079B8(obj);
+        return;
+    }
+    obj->trans.rotation.z_rotation += updateRate << 10;
+    from.x = obj->trans.x_position;
+    from.y = obj->trans.y_position;
+    from.z = obj->trans.z_position;
+    func_80009A04(obj, obj->velocity.x * rate, obj->velocity.y * rate, obj->velocity.z * rate);
+    radius = ((M067HitShape *) obj->interactObj)->radius;
+    func_8001CE10(1, &from, (Vec3f *) &obj->trans.x_position, &radius, 0xCE002000, 0, 0);
+    if (func_80016208(obj, &from, (Vec3f *) &obj->trans.x_position, radius, 1, &hit)) {
+        s->unk7 = 1;
+    }
+    obj->particleEmittersEnabled = 1;
+    func_8005F5A0(obj->trans.scale / obj->header->scale);
+    func_8005F5AC(obj, updateRate);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", data);
 

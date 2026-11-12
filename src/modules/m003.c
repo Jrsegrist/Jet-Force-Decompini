@@ -3821,7 +3821,92 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_1398C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_13D94);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_13FE4);
+extern s32 D_800FE9F4; /* frames until a troop member next makes a sound */
+
+/* Now and then, a random troop member near the player makes one of its kind's sounds */
+static void func_m003_13FE4(s32 updateRate) {
+    Object *homeObj;
+    s32 sound;
+    Object *obj;
+    Object *found;
+    Object *player;
+    M003Member *m;
+    M003Home *home;
+    M003Home *rec;
+    s32 pick;
+    s32 done;
+    M003Member *mem;
+    s32 n;
+    s32 count;
+    Object **homes;
+
+    homes = func_80050F44(&count);
+    if (D_800FE9F4 < updateRate) {
+        D_800FE9F4 = func_80048E2C(0xF0, 0x168);
+        pick = func_80048E2C(0, 5);
+        found = NULL;
+        player = func_8000E4D0(0);
+        done = FALSE;
+        while (count--) {
+            homeObj = homes[count];
+            rec = homeObj->unk68;
+            obj = rec->first;
+            while (obj != NULL && !done) {
+                m = obj->unk68;
+                if (!obj->freed) {
+                    if (point_distance_squared(player->trans.x_position, player->trans.y_position,
+                                               player->trans.z_position, obj->trans.x_position,
+                                               obj->trans.y_position, obj->trans.z_position) < 500000.0f) {
+                        found = obj;
+                        home = rec;
+                        if (pick == 0) {
+                            count = 0;
+                            done = TRUE;
+                        } else {
+                            pick--;
+                        }
+                    }
+                }
+                obj = m->next;
+            }
+        }
+        if (found != NULL) {
+            mem = found->unk68;
+            if (mem->sound == 0 && mem->unkA6 > 0) {
+                switch (home->kind) {
+                    case 0x5F:
+                    case 0x78:
+                    case 0x83:
+                    case 0x8C:
+                    case 0x99:
+                    case 0x9C:
+                    case 0xBD:
+                    case 0xBE:
+                    case 0xEE:
+                    case 0xEF:
+                    case 0xF3:
+                    case 0x121:
+                    case 0x122:
+                    case 0x12F:
+                    case 0x143:
+                    case 0x269:
+                        sound = 0x186;
+                        n = 8;
+                        break;
+                    default:
+                        n = 0;
+                        break;
+                }
+                if (n != 0) {
+                    func_80003410(func_80048E2C(0, n - 1) + sound, found->trans.x_position,
+                                  found->trans.y_position, found->trans.z_position, 4, &mem->sound);
+                }
+            }
+        }
+    } else {
+        D_800FE9F4 -= updateRate;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_142F0);
 
@@ -4108,7 +4193,6 @@ extern s32 D_800FEA98;       /* the number of way points */
 extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_m154_00000(void);
 extern void func_m139_00030(void);
-extern void rl_m003_13FE4(s32 updateRate);
 
 /* The troops' per-frame update */
 void func_m003_16990(s32 updateRate) {
@@ -4177,7 +4261,7 @@ void func_m003_16990(s32 updateRate) {
     if (D_800FE9B0 & 0x10) {
         func_m003_168D8();
     }
-    rl_m003_13FE4(updateRate);
+    func_m003_13FE4(updateRate);
 }
 
 void func_m003_16C10(Object *obj) {
