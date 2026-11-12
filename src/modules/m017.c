@@ -204,8 +204,32 @@ typedef struct Racer {
     /* 0x5EF */ u8 pad5EF[0x5F0 - 0x5EF];
 } Racer;
 
+/* A texture (only the fields used here) */
+typedef struct M017Texture {
+    /* 0x00 */ u8 pad0[0x12];
+    /* 0x12 */ u16 unk12;
+    /* 0x14 */ u16 unk14;
+    /* 0x16 */ s16 unk16;
+} M017Texture;
+
+/* A model's animated texture entry */
+typedef struct M017TexAnim {
+    /* 0x00 */ s16 frame;
+    /* 0x02 */ s16 frame2;
+    /* 0x04 */ u32 flags; /* low byte: the texture index */
+} M017TexAnim;
+
+typedef struct M017ModelTexture {
+    M017Texture *texture;
+    u32 unk4;
+} M017ModelTexture;
+
 typedef struct M017Model {
-    /* 0x00 */ u8 pad0[0x2F];
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ M017ModelTexture *textures;
+    /* 0x1C */ u8 pad1C[0x2C - 0x1C];
+    /* 0x2C */ u8 numTexAnims;
+    /* 0x2D */ u8 pad2D[0x2F - 0x2D];
     /* 0x2F */ u8 unk2F;
 } M017Model;
 
@@ -218,6 +242,8 @@ typedef struct M017ModelInst {
     /* 0x010 */ void *unk10[2];
     /* 0x018 */ u8 pad18[0x70 - 0x18];
     /* 0x070 */ Vec3f *vertices;
+    /* 0x074 */ M017TexAnim *texAnims;
+    /* 0x078 */ s16 *texFrames[2];
 } M017ModelInst;
 
 #define MODEL_INST(obj, i) ((M017ModelInst *) (obj)->modelInstances[i])
@@ -408,7 +434,9 @@ static void func_m017_056D4(Object *obj, Racer *racer, s32 updateRate);
 /* The static functions, still assembly */
 static void func_m017_01A30(Object *obj, Racer *racer, s32 updateRate);
 static void func_m017_05F08(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate);
-extern void rl_m017_02564(M017Model *model, M017ModelInst *inst, Racer *racer, s32 updateRate);
+extern void func_80057A54(M017Texture *tex, u32 *flags, s32 *frame, s32 updateRate); /* tex_animate_texture */
+extern u8 D_800A4E78;
+static void func_m017_02564(M017Model *model, M017ModelInst *inst, Racer *racer, s32 updateRate);
 static void func_m017_02A40(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 static void func_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 extern void rl_m017_03258(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
@@ -847,7 +875,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
         if (racer->character == 2) {
             obj_tex_animate(obj, model, inst, inst->unkA);
         } else {
-            rl_m017_02564(model, inst, racer, inst->unkA);
+            func_m017_02564(model, inst, racer, inst->unkA);
         }
         inst->unkA = 0;
         if (model->unk2F >= 3) {
@@ -1166,7 +1194,65 @@ static void func_m017_01F7C(Object *obj, Racer *racer, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_02564);
+/* Animates the model's textures (two of them turn with the movement) and writes the frames */
+static void func_m017_02564(M017Model *model, M017ModelInst *inst, Racer *racer, s32 updateRate) {
+    M017TexAnim *anim;
+    s16 *out;
+    s32 frame;
+    s32 i;
+    s32 idx;
+    M017Texture *tex;
+    f32 ax;
+    f32 az;
+
+    anim = inst->texAnims;
+    out = inst->texFrames[inst->unkB];
+    for (i = 0; i < model->numTexAnims; i++) {
+        idx = anim->flags & 0xFF;
+        tex = model->textures[idx].texture;
+        switch (idx) {
+            case 2:
+                frame = anim->frame;
+                if ((anim->flags & 0x20000) && racer->state == 10) {
+                    D_800A4E78 = 3;
+                }
+                func_80057A54(tex, &anim->flags, &frame, updateRate);
+                anim->frame = frame;
+                break;
+            case 9:
+            case 11:
+                frame = anim->frame;
+                if (racer->unk576 == 0) {
+                    ax = racer->unk10;
+                    if (ax < 0.0f) {
+                        ax = -ax;
+                    }
+                    az = racer->unk4;
+                    if (az < 0.0f) {
+                        az = -az;
+                    }
+                    if (az < ax) {
+                        frame += (s32) (-racer->unk10 * 128.0f);
+                    } else {
+                        frame += (s32) (-racer->unk4 * 128.0f);
+                    }
+                }
+                while (frame >= tex->unk12) {
+                    frame -= tex->unk12;
+                }
+                while (frame < 0) {
+                    frame += tex->unk12;
+                }
+                anim->frame = frame;
+                break;
+        }
+        *out++ = (anim->frame >> 8) * tex->unk16;
+        if (anim->frame2 >= 0) {
+            *out++ = (anim->frame2 >> 8) * tex->unk16;
+        }
+        anim++;
+    }
+}
 
 /* Sideways movement on two of the buttons in the standing states; slows it down otherwise */
 static void func_m017_02848(Object *obj, Racer *racer, f32 updateRate) {
