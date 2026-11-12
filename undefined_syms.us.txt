@@ -212,7 +212,6 @@ gJingleSequenceData = 0x800B8B50;
 gJingleSequence = 0x800E9678;
 func_8000167C = music_sequence_init;
 gAudioVolumeSetting = 0x800A06A4;
-sndp_play = 0x80085EEC;
 
 /* ---- 40240.c ---- */
 func_8003F7C4 = cam_get_fov;
@@ -720,6 +719,13 @@ func_80054530_fi = 0x80054530;
 func_80054530_ppf = 0x80054530;
 
 /* ---- audiosfx.c (the sound player; DKR's names) ---- */
+func_80084200 = sndp_init_player;
+func_80084468 = sndp_voice_handler;
+func_80085918 = sndp_remove_events;
+func_80085A1C = sndp_get_state_counts;
+func_80085B20 = sndp_allocate;
+func_80085D50 = sndp_deallocate;
+func_80085EEC = sndp_play;
 func_8008582C = sndp_end;
 func_8008589C = sndp_apply_pitch_slide;
 func_80085E94 = sndp_set_priority;
