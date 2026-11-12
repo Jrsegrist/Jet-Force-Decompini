@@ -4,9 +4,7 @@
  */
 #ifdef NON_MATCHING
 /* The whole module in C, but the build uses the asm: func_m015_00000 is 4 instructions off (the joint loop's
-   counter k and its copy take a1/a0, the ROM a0/a1); 03740 (float temps one register off from the 400.0f
-   compare on), 05328 (ax spilled, the ROM keeps it in a register; 0x18 bytes longer), 05ED4 (inv in f2, the
-   ROM f0) and 068BC (rate copies' registers) still differ. */
+   counter k and its copy take a1/a0, the ROM a0/a1); every other function matches. */
 /* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
 #define obj_anim_set func_8001149C_void
 #include "module.h"
@@ -1897,8 +1895,8 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
                 racer->unk58C -= (s32) updateRate;
             }
             racer->unk591 += (s32) updateRate * 2;
-            q = func_80049BEC(0.95f, updateRate);
-            racer->unk594 += ((func_80049C34(racer->unk591 << 8) * 0.125f + 1.0f) - racer->unk594) * (1.0f - q);
+            q = 1.0f - func_80049BEC(0.95f, updateRate);
+            racer->unk594 += ((func_80049C34(racer->unk591 << 8) * 0.125f + 1.0f) - racer->unk594) * q;
             obj->velocity.y *= func_80049BEC(0.925f, updateRate);
             D_m015_089C0 |= 1;
             D_m015_089C4 |= 1;
@@ -1949,8 +1947,8 @@ static void func_m015_03740(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     racer->unk4 = (1.0f - func_80049BEC(1.0f - (racer->unk594 * -0.030000001f + 0.05f), updateRate)) *
                       (speed - racer->unk4) + racer->unk4;
-    racer->unk11C = angle_lerp(racer->unk11C, angle,
-                                  1.0f - func_80049BEC(1.0f - (racer->unk594 * -0.041f + 0.075f), updateRate));
+    q = 1.0f - (racer->unk594 * -0.041f + 0.075f);
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(q, updateRate));
     if (racer->unk14A != 0) {
         racer->unk128 = angle_lerp(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(0.975f, updateRate));
     }
@@ -2371,39 +2369,32 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
     f32 az;
     f32 ay;
     f32 big;
-    s32 anim;
+    M015ModelInst *inst;
     f32 animSpeed;
     f32 newFrame;
     f32 frame;
-    f32 vy;
-    f32 x;
-    f32 z;
-    M015ModelInst *inst;
+    s32 anim;
 
-    x = racer->unk4;
-    ax = x;
-    if (x < 0.0f) {
-        ax = -x;
+    ax = racer->unk4;
+    if (ax < 0.0f) {
+        ax = -ax;
     }
-    z = racer->unk10;
-    az = z;
-    if (z < 0.0f) {
-        az = -z;
+    az = racer->unk10;
+    if (az < 0.0f) {
+        az = -az;
     }
-    vy = obj->velocity.y;
-    ay = vy;
-    if (vy < 0.0f) {
+    ay = obj->velocity.y;
+    if (ay < 0.0f) {
         ay = -ay;
     }
+    big = ax;
     if (ax < az) {
         big = az;
-    } else {
-        big = ax;
     }
     anim = obj->animationID;
+    newFrame = obj->unk28;
     frame = obj->unk28;
     animSpeed = D_m015_0823C[anim];
-    newFrame = frame;
     switch (obj->animationID) {
         case 0:
         case 29:
@@ -2419,7 +2410,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
                 break;
             }
             if (ax < az) {
-                if (z < 0.0f) {
+                if (racer->unk10 < 0.0f) {
                     anim = 9;
                 } else {
                     anim = 10;
@@ -2436,7 +2427,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
         case 39:
             animSpeed *= big;
             if (ax < az) {
-                if (z < 0.0f) {
+                if (racer->unk10 < 0.0f) {
                     anim = 9;
                 } else {
                     anim = 10;
@@ -2457,7 +2448,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
         case 40:
             animSpeed *= big;
             if (ax < az) {
-                if (z < 0.0f) {
+                if (racer->unk10 < 0.0f) {
                     anim = 9;
                 } else {
                     anim = 10;
@@ -2473,13 +2464,13 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
         case 27:
         case 41:
             animSpeed *= big;
-            if (big < 0.1f && speed <= x) {
+            if (big < 0.1f && speed <= racer->unk4) {
                 IDLE_ANIM(racer, anim);
                 newFrame = 0.0f;
                 break;
             }
             if (ax < az) {
-                if (z < 0.0f) {
+                if (racer->unk10 < 0.0f) {
                     anim = 9;
                 } else {
                     anim = 10;
@@ -2613,10 +2604,10 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
                 newFrame = 0.0f;
             }
             if (big > 0.1f) {
-                if (racer->unk569 != 0) {
-                    anim = 3;
-                } else {
+                if (racer->unk569 == 0) {
                     anim = 0;
+                } else {
+                    anim = 3;
                 }
                 newFrame = 0.25f;
             }
@@ -2641,7 +2632,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
             break;
         case 44:
             inst = MODEL_INST(obj, obj->modelIndex);
-            if ((big > 0.85f || vy > 0.85f) && inst->unk5E == 0) {
+            if ((big > 0.85f || obj->velocity.y > 0.85f) && inst->unk5E == 0) {
                 anim = 0x2D;
                 newFrame = 0.0f;
                 break;
@@ -2657,7 +2648,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
             break;
         case 52:
             inst = MODEL_INST(obj, obj->modelIndex);
-            if ((big > 0.85f || vy > 0.85f) && inst->unk5E == 0) {
+            if ((big > 0.85f || obj->velocity.y > 0.85f) && inst->unk5E == 0) {
                 anim = 0x2D;
                 newFrame = 0.0f;
                 break;
@@ -2673,7 +2664,7 @@ static void func_m015_05328(Object *obj, Racer *racer, f32 speed, f32 updateRate
             break;
         case 45:
             inst = MODEL_INST(obj, obj->modelIndex);
-            if (big < 0.5f && vy < 0.5f && inst->unk5E == 0) {
+            if (big < 0.5f && obj->velocity.y < 0.5f && inst->unk5E == 0) {
                 if (racer->unk1FB == 0) {
                     anim = 0x2C;
                 } else {
@@ -2983,7 +2974,7 @@ static void func_m015_068BC(Object *obj, Racer *racer, f32 updateRate) {
         racer->unk149 = 8;
         racer->unk6C = func_80049C34(racer->unk11C) * 2.0f;
         racer->unk70 = func_80049C30(racer->unk11C) * 2.0f;
-        func_m015_05180(obj, racer, func_m015_05020(racer), 0);
+        func_m015_05180(obj, racer, func_m015_05020(racer), 0.0f);
         racer->state = 0;
         racer->unk58E = 0;
     } else if (racer->unk578 == 0 && (racer->pose->unk6 & racer->unk532)) {
