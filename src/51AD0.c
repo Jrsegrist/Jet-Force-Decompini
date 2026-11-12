@@ -390,7 +390,148 @@ void troop_member_colours_get(ColourObject *obj, u8 *r, u8 *g, u8 *b) {
     }
 }
 
+/* JFG: a way-point of the troop paths (0x34 bytes) */
+typedef struct TroopWaypoint {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ u8 padC[0x14 - 0xC];
+    /* 0x14 */ s32 flags;
+    /* 0x18 */ u8 type;
+    /* 0x19 */ u8 chance; // JFG: percent
+    /* 0x1A */ u8 pad1A[0x34 - 0x1A];
+} TroopWaypoint;
+
+/* JFG: the position of the object a troop member follows */
+typedef struct TroopTarget {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+} TroopTarget;
+
+/* JFG: the state of the troop member being processed (D_800FEA14) */
+typedef struct TroopMemberState {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 pad1[0x24 - 0x1];
+    /* 0x24 */ s8 speed;
+    /* 0x25 */ u8 pad25[0x28 - 0x25];
+    /* 0x28 */ u16 flags;
+    /* 0x2A */ u8 pad2A[0x2E - 0x2A];
+    /* 0x2E */ s16 unk2E;
+    /* 0x30 */ u8 pad30[0x33 - 0x30];
+    /* 0x33 */ u8 mode;
+    /* 0x34 */ u8 unk34;
+    /* 0x35 */ u8 pad35[0x3C - 0x35];
+    /* 0x3C */ s16 points; // JFG: the previous point << 8 | the current one
+    /* 0x3E */ s16 angle;
+    /* 0x40 */ s16 pointX;
+    /* 0x42 */ s16 pointY;
+    /* 0x44 */ s16 pointZ;
+    /* 0x46 */ u8 pad46[0x58 - 0x46];
+    /* 0x58 */ TroopTarget *target;
+    /* 0x5C */ u8 pad5C[0x66 - 0x5C];
+    /* 0x66 */ s16 fromX;
+    /* 0x68 */ s16 fromY;
+    /* 0x6A */ s16 fromZ;
+    /* 0x6C */ f32 progress;
+    /* 0x70 */ f32 step;
+} TroopMemberState;
+
+#define MEMBER ((TroopMemberState *) D_800FEA14)
+
+extern TroopWaypoint *D_800FEA9C;
+extern u8 D_800FE9EE;
+f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
+s32 rand_range(s32 min, s32 max);
+s32 func_80049C84(f32 x, f32 z);
+s32 func_80049D80(s16 a, s16 b);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: registers: the first points value in a2 (ROM v1); the ROM keeps the unmasked previous point for the
+   inner way-point index (shifts, not multu) and computes from/prev before the branch */
+/* JFG: move the current troop member on to way-point `point`: keep the previous one, its start and end points, the
+   step for its speed, and face it (mode 0x15) unless it is waiting. Returns 0 if it was already there. */
+s32 func_80051880(u8 point) {
+    TroopTarget *target;
+    TroopWaypoint *cur;
+    s16 points;
+    s16 diff;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 dist;
+    s32 idx;
+    u8 prev;
+    s32 from;
+
+    points = MEMBER->points;
+    target = MEMBER->target;
+    cur = &D_800FEA9C[idx = point];
+    if (point == (points & 0xFF)) {
+        return 0;
+    }
+    MEMBER->points = points << 8;
+    MEMBER->points |= point;
+    prev = (u16) MEMBER->points >> 8;
+    from = MEMBER->points & 0xFF;
+    if (cur->type == 5) {
+        if (D_800FEA9C[prev].type == 5) {
+            MEMBER->mode = 0x20;
+        } else {
+            MEMBER->mode = 0x1D;
+        }
+    }
+    if (prev) {
+        x = D_800FEA9C[from].x;
+        y = D_800FEA9C[from].y;
+        z = D_800FEA9C[from].z;
+    } else {
+        x = MEMBER->target->x;
+        y = MEMBER->target->y;
+        z = MEMBER->target->z;
+    }
+    MEMBER->fromX = x;
+    MEMBER->fromY = y;
+    MEMBER->fromZ = z;
+    MEMBER->pointX = cur->x;
+    MEMBER->pointY = cur->y;
+    MEMBER->pointZ = cur->z;
+    dist = point_distance(x, y, z, cur->x, cur->y, cur->z);
+    if (dist != 0.0f) {
+        MEMBER->progress = 0.0f;
+        MEMBER->step = MEMBER->speed / dist;
+    } else {
+        MEMBER->progress = 1.0f;
+        MEMBER->step = 0.0f;
+    }
+    if (cur->flags & 4) {
+        MEMBER->flags |= 0x1000;
+        if (cur->type == 8 && rand_range(1, 100) < cur->chance) {
+            MEMBER->flags &= ~0x1000;
+        }
+    } else {
+        MEMBER->flags &= ~0x1000;
+    }
+    if (MEMBER->mode != 0x1D && MEMBER->unk0 >= 2) {
+        MEMBER->angle = func_80049C84(target->x - cur->x, target->z - cur->z);
+        diff = (s16) func_80049D80(*D_800FEA10, MEMBER->angle) >> 9;
+        if (diff < 0) {
+            diff = -diff;
+        }
+        if (diff <= 0) {
+            diff = 1;
+        }
+        MEMBER->unk2E = diff;
+        MEMBER->mode = 0x15;
+        MEMBER->unk34 &= 0xFF03;
+        D_800FE9EE = 0x15;
+    }
+    return 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051880);
+#endif
 
 /* JFG: a troop leader's state (behaviour 0x17) */
 typedef struct LeaderState2 {
@@ -432,13 +573,12 @@ typedef struct TroopEntry {
 void func_800118F4(s32 *a, s32 *b, s32 index);
 LeaderObject **objGetObjList(s32 *arg0, s32 *cnt);
 s32 objflags_reserve_ids(u8 arg0);
-void obj_group_flag_first(u8 arg0, s32 arg1);
+s32 obj_group_flag_first(s32 id, u16 flag);
 s16 obj_header_field_get(s32 type);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target strength-reduces the object loop to i * 4 (compared with last * 4 each time) and its frame is 8 bytes bigger */
 /* JFG: for every live troop leader, number the members in both object entry lists (by troop id), and start it. */
 void func_80051CCC(void) {
+    UNUSED s32 pad[2];
     s32 first;
     s32 last;
     LeaderObject **objs;
@@ -456,32 +596,33 @@ void func_80051CCC(void) {
     objs = objGetObjList(&first, &last);
     for (i = first; i < last; i++) {
         obj = objs[i];
-        if (obj->freed == 0 && obj->behaviorId == 0x17) {
+        if (obj->freed != 0) {
+            continue;
+        }
+        if (obj->behaviorId == 0x17) {
             state = obj->state;
-            if (state->unk2C != 0x2CE) {
-                state->unk8C = state->unk88 = objflags_reserve_ids(state->unk1);
-                if (state->unk75) {
-                    obj_group_flag_first(state->unk75, 0x20);
-                }
-                for (j = 0; j < 2; j++) {
-                    entry = lists[j];
-                    for (offset = 0; offset < sizes[j]; offset += entry->size, entry = (TroopEntry *) ((u8 *) entry + entry->size)) {
-                        if (obj_header_field_get(entry->objectID) == 0x18 && state->unk64 == entry->troopId) {
-                            entry->memberIndex = state->unk8C;
-                            state->unk8C++;
-                        }
+            if (state->unk2C == 0x2CE) {
+                continue;
+            }
+            state->unk8C = state->unk88 = objflags_reserve_ids(state->unk1);
+            if (state->unk75) {
+                obj_group_flag_first(state->unk75, 0x20);
+            }
+            for (j = 0; j < 2; j++) {
+                entry = lists[j];
+                for (offset = 0; offset < sizes[j]; offset += entry->size, entry = (TroopEntry *) ((u8 *) entry + entry->size)) {
+                    if (obj_header_field_get(entry->objectID) == 0x18 && entry->troopId == state->unk64) {
+                        entry->memberIndex = state->unk8C;
+                        state->unk8C++;
                     }
                 }
-                if (state->unk63 >= state->unk1) {
-                    state->unk30 = 7;
-                }
+            }
+            if (state->unk63 >= state->unk1) {
+                state->unk30 = 7;
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051CCC);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051EA4);
 
@@ -495,7 +636,7 @@ void func_80052678(void) {
 extern s32 D_800FE9FC;
 extern u8 *D_800FEA00;
 extern s32 D_800FEA04;
-s32 func_80052CFC(); // JFG: load a runlink module (also applies relocations: four arguments)
+s32 func_80052CFC(); // JFG: load a runlink module (also applies relocations)
 
 /* JFG: keep a list of records (s16 id, u8 length); start event 3 if one has id 0x61, 5 or 0x4F. */
 void level_records_scan(u8 *data, s32 size) {
@@ -543,21 +684,23 @@ extern u8 runlink_names_ROM_START[];
 void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: same code and frame; the target loads the offset word into a0 (mine a3) and computes skew and the
- * aligned address in t1/t2 before the call; the buffer + skew addu has its operands swapped */
+/* NON_MATCHING: 2 words: the offset-table address is spilled to sp+0x18 (target 0x1C): the target has no word for
+ * offset (reading it into index instead puts it in a3, target a0) */
 /* JFG: the name of runlink symbol `index`: read its offset from the name offset table, then up to 0x60 bytes of
  * the name (ROM reads are 8-byte aligned). Note: returns a pointer into this function's own stack buffer. */
 char *func_800527F0(s32 index) {
     u8 *name;
     s32 skew;
     u8 buf[0x60];
+    s32 offset;
 
     name = buf;
     dmacopy((u32) (runlink_nameoffs_ROM_START + index * 4) & ~7, (u32) &buf, 8);
-    index = *(s32 *) (name + ((u32) (runlink_nameoffs_ROM_START + index * 4) & 7)) + (s32) runlink_names_ROM_START;
-    skew = index & 7;
-    index &= ~7;
-    dmacopy(index, (u32) name, 0x60);
+    offset = *(s32 *) &buf[(u32) (runlink_nameoffs_ROM_START + index * 4) & 7];
+    offset += (s32) runlink_names_ROM_START;
+    skew = offset & 7;
+    offset &= ~7;
+    dmacopy(offset, (u32) name, 0x60);
     return (char *) name + skew;
 }
 #else
@@ -763,8 +906,6 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module);
 /* JFG: load a module (unless loaded or in a slot): allocate its code, data and bss, copy them from ROM (clearing
    the bss), apply its relocations (the extra ones from a temporary buffer first), the loaded modules' relocations
    into it, then run its init entry point. Returns FALSE when it is in a slot or out of memory. */
-#ifdef NON_MATCHING
-/* NON_MATCHING: the module's code address and the counts land in a0/v0/v1 one register off from the ROM's */
 s32 func_80052CFC(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
@@ -794,7 +935,7 @@ s32 func_80052CFC(s32 module) {
     if (entry->unk0 == 0) {
         return FALSE;
     }
-    if (entry->unk16 != 0) {
+    if (entry->unk16) {
         extra = mempool_alloc_safe(entry->unk16, 0x7F7F7FFF);
         if (extra == NULL) {
             mempool_free((void *) entry->unk0);
@@ -849,14 +990,15 @@ s32 func_80052CFC(s32 module) {
                 D_800FEAB8[1] = (u32) sound_volume_change;
                 D_800FEAB8[2] = (u32) gMusicPlayer;
                 D_800FEAB8[3] = (u32) D_800B0B50;
+                D_800FEAB8[4] = (u32) D_800FEAA4;
                 reloc = D_800FEAA4;
-                D_800FEAB8[4] = (u32) reloc;
                 n = D_800FEAB0;
             } else {
                 D_800FEAB8[1] = entry->unk0;
                 D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
                 D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
-                reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
+                reloc = (ModuleReloc *) D_800FEAB8[4];
                 n = (u32) entry->unk14 >> 3;
             }
             while (n-- > 0) {
@@ -880,9 +1022,6 @@ s32 func_80052CFC(s32 module) {
     }
     return TRUE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80052CFC);
-#endif
 
 extern s32 gNumRunlinkModules; // JFG: the number of modules
 extern ModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
@@ -893,8 +1032,6 @@ extern u8 gMusicSequenceData[];
 void sound_volume_change(s32 behaviour);
 void func_80054530();
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: module->unk0 in v1 (target v0), temps numbered one lower in the search loop, and 3 is reloaded into a3 for the call */
 /* JFG: if a word still points at the module trap, find the relocation that wrote it and apply it again (TRUE if found). */
 s32 func_800531C8(u32 *addr) {
     ModuleEntry *module;
@@ -914,14 +1051,15 @@ s32 func_800531C8(u32 *addr) {
                 D_800FEAB8[1] = (u32) sound_volume_change;
                 D_800FEAB8[2] = (u32) gMusicPlayer;
                 D_800FEAB8[3] = (u32) gMusicSequenceData;
+                D_800FEAB8[4] = (u32) D_800FEAA4;
                 reloc = D_800FEAA4;
                 n = D_800FEAB0;
-                D_800FEAB8[4] = (u32) reloc;
             } else {
                 D_800FEAB8[1] = module->unk0;
                 D_800FEAB8[2] = D_800FEAB8[1] + module->unk8;
                 D_800FEAB8[3] = D_800FEAB8[2] + module->unkC;
-                reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + module->unk10);
+                D_800FEAB8[4] = D_800FEAB8[3] + module->unk10;
+                reloc = (ModuleReloc *) D_800FEAB8[4];
                 n = (u32) module->unk14 >> 3;
             }
             while (n--) {
@@ -931,8 +1069,7 @@ s32 func_800531C8(u32 *addr) {
                     if (symModule >= 0xFFC) {
                         symModule = 0;
                     }
-                    // JFG: the ROM passes three extra arguments, which the callee ignores
-                    ((s32 (*)()) func_80052CFC)(symModule, reloc, D_800FEAB8, 3);
+                    func_80052CFC(symModule);
                     return TRUE;
                 }
                 reloc++;
@@ -941,9 +1078,6 @@ s32 func_800531C8(u32 *addr) {
     }
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_800531C8);
-#endif
 
 extern ModuleSlot D_800FEAD8[16];
 extern s32 gNumRunlinkModules; // JFG: the number of modules
@@ -987,9 +1121,6 @@ typedef struct UnloadTimer {
 extern UnloadTimer *D_800FEB58;
 extern s32 D_800A38F0; // JFG: set while a module is unloaded into a slot
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: register allocation like func_8005372C: the code address and the module pointer in v0/a0
-   (target a0/a1), and the symbol-table loop's temps one lower */
 /* JFG: free a module (its code, or its slot's buffer) and point every loaded module's and the main segment's
    references to it back at the trap. */
 void func_8005342C(s32 module) {
@@ -999,14 +1130,17 @@ void func_8005342C(s32 module) {
     u32 n;
     s32 i;
     s32 found;
+    s32 code;
     s32 symModule;
     u32 addr;
     s32 type;
+    u32 target;
 
     if (D_800A38F0 == 0) {
         runlink_module_run(module);
     }
     found = FALSE;
+    code = entry->unk0;
     n = 15;
     if (entry->unk0 == 0) {
         slot = D_800FEAD8;
@@ -1022,30 +1156,32 @@ void func_8005342C(s32 module) {
             slot->module = 0xFFB;
         }
     } else {
-        mempool_free((void *) entry->unk0);
+        mempool_free((void *) code);
         entry->unk0 = 0;
         D_800FEB58[module].timer = 0;
         D_800FEB58[module].unk = 0;
         entry = gRunlinkModules;
         for (i = 0; i < gNumRunlinkModules; i++, entry++) {
-            if (entry->unk0 != 0 && i != module) {
+            code = entry->unk0;
+            if (code != 0 && i != module) {
                 if (i == 0) {
                     D_800FEAB8[1] = (u32) sound_volume_change;
                     D_800FEAB8[2] = (u32) gMusicPlayer;
                     D_800FEAB8[3] = (u32) D_800B0B50;
+                    D_800FEAB8[4] = (u32) D_800FEAA4;
                     reloc = D_800FEAA4;
-                    D_800FEAB8[4] = (u32) reloc;
                     n = D_800FEAB0;
                 } else {
-                    D_800FEAB8[1] = entry->unk0;
+                    D_800FEAB8[1] = code;
                     D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
                     D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
-                    reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                    D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
+                    reloc = (ModuleReloc *) D_800FEAB8[4];
                     n = (u32) entry->unk14 >> 3;
                 }
                 while (n--) {
-                    symModule = D_800FEAA8[reloc->symbol] >> 20;
                     type = reloc->type;
+                    symModule = D_800FEAA8[reloc->symbol] >> 20;
                     if (symModule >= 0xFFC) {
                         symModule = 0;
                     }
@@ -1056,7 +1192,8 @@ void func_8005342C(s32 module) {
                         } else {
                             addr = D_800FEAB8[1] + reloc->offset;
                         }
-                        runlink_reloc_apply((PatchWord *) addr, reloc->kind == 4 ? (u32) func_80054530 : 0, reloc->kind);
+                        target = reloc->kind == 4 ? (u32) func_80054530 : 0;
+                        runlink_reloc_apply((PatchWord *) addr, target, reloc->kind);
                     }
                     reloc->type = type;
                     reloc++;
@@ -1065,25 +1202,23 @@ void func_8005342C(s32 module) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005342C);
-#endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: register allocation: the code address is loaded into a0 (mine v0), the relocation word into a0 (mine v1), addr in a3 */
 /* JFG: unload a module: free its code (or its slot's buffer) and point the main segment's references to it back at the trap. */
 void func_8005372C(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
     ModuleReloc *reloc;
+    u32 target;
     u32 i;
     s32 found;
+    s32 code;
     s32 symModule;
     u32 addr;
     s32 type;
 
     runlink_module_run(module);
     found = FALSE;
+    code = entry->unk0;
     if (entry->unk0 == 0) {
         slot = D_800FEAD8;
         i = 15;
@@ -1099,35 +1234,33 @@ void func_8005372C(s32 module) {
             slot->module = 0xFFB;
         }
     } else {
-        mempool_free((void *) entry->unk0);
+        mempool_free((void *) code);
         entry->unk0 = 0;
         D_800FEB58[module].timer = 0;
         D_800FEB58[module].unk = 0;
         reloc = D_800FEAA4;
         i = D_800FEAB0;
         while (i--) {
-            symModule = D_800FEAA8[reloc->symbol] >> 20;
             type = reloc->type;
+            symModule = D_800FEAA8[reloc->symbol] >> 20;
             if (symModule >= 0xFFC) {
                 symModule = 0;
             }
             if (symModule == module) {
-                if (type == 3) {
+                if (reloc->type == 3) {
                     addr = (u32) gMusicPlayer + reloc->offset;
                     reloc->type = 0;
                 } else {
                     addr = reloc->offset + (u32) sound_volume_change;
                 }
-                runlink_reloc_apply((PatchWord *) addr, reloc->kind == 4 ? (u32) func_80054530 : 0, reloc->kind);
+                target = reloc->kind == 4 ? (u32) func_80054530 : 0;
+                runlink_reloc_apply((PatchWord *) addr, target, reloc->kind);
             }
             reloc->type = type;
             reloc++;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_8005372C);
-#endif
 
 /* JFG: unload every module (but 0), then free every used slot's buffer.
    (`i = 15; do {` on one line: IDO schedules by source line.) */
@@ -1241,8 +1374,6 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module);
 /* JFG: load a module back from its slot: free the slot's copy, reserve the code at the same address, copy the code
    from ROM, apply its own relocations (the extra ones only inside the code) and every loaded module's relocations
    into it, then free the slot. */
-#ifdef NON_MATCHING
-/* NON_MATCHING: the extra relocation count is loaded into a0 (target v0), and the symbol loop's temps are one lower */
 void func_80053D2C(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     UNUSED s32 pad;
@@ -1279,7 +1410,7 @@ void func_80053D2C(s32 module) {
     if (entry->unk0 == 0) {
         return;
     }
-    if (entry->unk16 != 0) {
+    if (entry->unk16) {
         extra = mempool_alloc_safe(entry->unk16, 0x7F7F7FFF);
         if (extra == NULL) {
             mempool_free((void *) entry->unk0);
@@ -1327,14 +1458,15 @@ void func_80053D2C(s32 module) {
                 D_800FEAB8[1] = (u32) sound_volume_change;
                 D_800FEAB8[2] = (u32) gMusicPlayer;
                 D_800FEAB8[3] = (u32) D_800B0B50;
+                D_800FEAB8[4] = (u32) D_800FEAA4;
                 reloc = D_800FEAA4;
-                D_800FEAB8[4] = (u32) reloc;
                 n = D_800FEAB0;
             } else {
                 D_800FEAB8[1] = entry->unk0;
                 D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
                 D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
-                reloc = (ModuleReloc *) (D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10);
+                D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
+                reloc = (ModuleReloc *) D_800FEAB8[4];
                 n = (u32) entry->unk14 >> 3;
             }
             while (n-- > 0) {
@@ -1354,9 +1486,6 @@ void func_80053D2C(s32 module) {
     }
     slot->module = 0xFFB;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80053D2C);
-#endif
 
 /* JFG: unload the module of every used slot (0xFFB = free). */
 void runlink_slots_unload_all(void) {
@@ -1420,11 +1549,15 @@ extern s32 D_800A38F8; // JFG: the number of symbols
 extern char D_800AD140[];
 char *func_800527F0(s32 index);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: same code shape; temps numbered one higher and the symbol word / module address in swapped registers */
+/* JFG: a runlink symbol table entry: its module and its offset in the module */
+typedef struct RunlinkSymbol {
+    u32 module : 12;
+    u32 offset : 20;
+} RunlinkSymbol;
+
 /* JFG: the module and offset of an address (TRUE if it is in a loaded module), and the name of the nearest symbol below it. */
 s32 func_80054368(u32 address, s32 *module, s32 *offset, char **name) {
-    u32 *sym = D_800FEAA8;
+    RunlinkSymbol *sym = (RunlinkSymbol *) D_800FEAA8;
     u32 best = 0;
     s32 n;
     ModuleEntry *m;
@@ -1443,12 +1576,12 @@ s32 func_80054368(u32 address, s32 *module, s32 *offset, char **name) {
     if (name != NULL) {
         n = D_800A38F8;
         while (n--) {
-            m = &gRunlinkModules[*sym >> 20];
-            if (m->unk0 != 0) {
-                off = *sym & 0xFFFFF;
+            m = &gRunlinkModules[sym->module];
+            if ((u32) m->unk0 != 0) {
+                off = sym->offset;
                 if ((u32) m->unk8 >= off && address >= m->unk0 + off && best < m->unk0 + off) {
                     best = m->unk0 + off;
-                    bestIndex = sym - D_800FEAA8;
+                    bestIndex = sym - (RunlinkSymbol *) D_800FEAA8;
                 }
             }
             sym++;
@@ -1469,6 +1602,3 @@ s32 func_80054368(u32 address, s32 *module, s32 *offset, char **name) {
     }
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80054368);
-#endif
