@@ -155,7 +155,7 @@ segments:
       - [0x91E60, c, naudio_91E60]
       - [0x91E80, c, naudio_91E80]
       - [0x92080, asm]
-      - [0x92570, asm]
+      - [0x92570, c, naudio_92570]
       - [0x928E0, c, naudio_928E0]
       - [0x93430, c, naudio_93430]
       - [0x93850, c, naudio_93850]
