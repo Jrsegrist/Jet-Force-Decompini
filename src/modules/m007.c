@@ -4,6 +4,9 @@
  */
 #include "module.h"
 
+/* the .rodata strings the data refers to (first in .rodata) */
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", rodata);
+
 static void *func_m007_00578(s32 hint, s32 kind);
 extern s32 rl_m007_00390(s32 condition);
 static void func_m007_00DF0(void);
@@ -162,8 +165,6 @@ extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 /* The module's .data: the hint box's outline, 9 bytes a box (still assembly) */
 extern s8 rl_m007_02960[];
 /* The module's .rodata (still assembly): the "more" marks */
-extern char rl_m007_02ADC[];
-extern char rl_m007_02AE0[];
 extern void func_8006FC14(s32 arg0);
 extern void func_8003B620(s16 x, s16 y, s16 z, s16 angle);
 extern s32 func_800468CC(void);
@@ -293,7 +294,7 @@ s32 func_m007_0032C(void) {
     return count;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00390);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00390);
 
 /*
  * Shows hint text `hint` (kind 1: pages, 2: special, else scrolling), pushing it on the stack of
@@ -472,7 +473,7 @@ static void *func_m007_00988(s32 id, s32 kind) {
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00988);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00B00);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00B00);
 
 #ifdef NON_MATCHING
 
@@ -655,9 +656,9 @@ static void func_m007_01214(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_012E0);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_012E0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01504);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_01504);
 
 /* A paged hint's A button: does the page's action if its condition holds, then shows its next hint */
 static void func_m007_016B4(void) {
@@ -697,7 +698,7 @@ static void func_m007_016B4(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_017E8);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_017E8);
 
 /* Every frame: the hint text's fade in and out, and its drawing */
 void func_m007_01CCC(Gfx **dl, s32 updateRate) {
@@ -773,16 +774,15 @@ static void func_m007_01F80(Gfx **dl) {
     func_8006FC8C(0, 0, 0, 0);
     func_8006FC68(0xFF, 0xC0, 0, 0xFF, (rl_m007_02A20 * 255) >> 8);
     if (rl_m007_02A3C) {
-        func_8006FCA8(dl, 0xC4, 0x14, rl_m007_02ADC, 0xC);
+        func_8006FCA8(dl, 0xC4, 0x14, "~", 0xC);
     }
     if (rl_m007_02A40 || (rl_m007_02A44 == 4 && rl_m007_02A4C >= 2) || (rl_m007_02A44 == 3 && rl_m007_02A74)) {
-        func_8006FCA8(dl, 0xC4, 0x6C, rl_m007_02AE0, 0xC);
+        func_8006FCA8(dl, 0xC4, 0x6C, "$", 0xC);
     }
 }
 
 extern void func_8006FC54(s32 font);
 extern u8 *func_8007216C(s32 font, u8 *text, s32 width, u8 **line); /* the next line of a text */
-extern char rl_m007_02AE4[]; /* (.rodata) the "more" mark for the pages */
 
 /* Draws a long hint's pages (the current one in white) and the "more" mark if they don't all fit */
 static void func_m007_020D4(Gfx **dl) {
@@ -836,11 +836,11 @@ static void func_m007_020D4(Gfx **dl) {
     func_8006FC8C(0, 0, 0, 0);
     func_8006FC68(0xFF, 0xC0, 0, 0xFF, alpha);
     if (i < rl_m007_02A5C->count || text != NULL) {
-        func_8006FCA8(dl, 0xC4, 0x6C, rl_m007_02AE4, 0xC);
+        func_8006FCA8(dl, 0xC4, 0x6C, "$", 0xC);
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_023D4);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_023D4);
 
 /* Loads the hint's object, if one is waiting */
 void func_m007_02704(f32 x, f32 y, f32 z, f32 angle, f32 scale) {
@@ -894,7 +894,7 @@ void func_m007_0284C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", bss);
 

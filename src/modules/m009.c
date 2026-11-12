@@ -3,6 +3,9 @@
  */
 #include "module.h"
 
+/* the .rodata strings the data refers to (first in .rodata) */
+INCLUDE_ASM("asm/nonmatchings/modules/m009/ro", rodata);
+
 extern void menu_assetgroup_free(void *images); /* frees a list of loaded images */
 
 extern void menu_assetgroup_load(void *images); /* loads a list of images */
@@ -141,7 +144,7 @@ void func_m009_0066C(void) {
     menu_assetgroup_free(rl_m009_04400);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_00690);
+INCLUDE_ASM("asm/nonmatchings/modules/m009/ro", func_m009_00690);
 
 extern s32 rl_m009_0490C; /* .data (still assembly): the place picked */
 extern f32 rl_m009_097A0; /* .bss (still assembly): where the map heads for */
@@ -528,7 +531,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_03D0C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m009", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", bss);
 

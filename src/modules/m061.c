@@ -5,6 +5,9 @@
 #include "module.h"
 #include "gfx.h"
 
+/* the .rodata strings the data refers to (first in .rodata) */
+INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", rodata);
+
 /* A player's multiplayer scores (D_800FED50, 0xA0 each) */
 typedef struct M061Stats {
     /* 0x00 */ u16 unk0[8]; /* indexed by unk8C */
@@ -282,7 +285,7 @@ void func_m061_010D4(s32 mode) {
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_010D4);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_01218);
+INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_01218);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_019E0);
 
@@ -389,7 +392,7 @@ void func_m061_01F14(Object *obj, UNUSED s32 arg1, UNUSED s32 arg2) {
     gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_023B8);
+INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_023B8);
 
 void func_m061_02E84(s32 count, Object **objs) {
     s32 i;
@@ -407,6 +410,6 @@ void func_m061_02E84(s32 count, Object **objs) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m061", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", bss);

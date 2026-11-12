@@ -33,9 +33,9 @@ static u16 sMarks[4]; /* the players' bonus marks (007F0) */
 static s32 sUnk58;
 static s32 sUnk5C;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m040/ro", func_m040_00000);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", func_m040_0019C);
+INCLUDE_ASM("asm/nonmatchings/modules/m040/ro", func_m040_0019C);
 
 void func_m040_007C8(void) {
     menu_assetgroup_free(sAssets);
@@ -71,7 +71,6 @@ extern Vertex *D_800FF3A0;
 extern void *D_800FF3F8[]; /* the menu's images */
 extern u8 D_800A4FD0;      /* the number of players */
 extern M040Stats D_800FED50[];
-extern char rl_m040_02528[]; /* "%d" (.rodata, still assembly) */
 extern void func_80055B80(Gfx **dl);
 extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M040Sprite *sprite, void *tex, s32 arg5,
                                         s32 alpha);
@@ -83,12 +82,9 @@ extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern s32 func_80043510(s32 player);               /* the buttons pressed */
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity); /* the text colour */
 extern char **gMenuText;
-extern char rl_m040_02518[]; /* "%d" (.rodata, still assembly) */
 
 extern M040Stats *D_800FF1C0[]; /* the players, sorted */
 extern s32 menu_mode_get();
-extern char rl_m040_02510[];    /* "%d" (.rodata, still assembly) */
-extern char rl_m040_02514[];    /* "+%d" */
 
 /* Slides the table of the players' places in or out, draws it, and counts up their bonus marks (called from 0019C) */
 void func_m040_007F0(s32 updateRate) {
@@ -178,11 +174,11 @@ void func_m040_007F0(s32 updateRate) {
         render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
         func_m006_0107C(&x, &y);
         x += 88;
-        func_800639E8(buf, rl_m040_02510, score);
+        func_800639E8(buf, "%d", score);
         func_8006FCA8(&D_800FF398, x - 2, rowY, buf, 1);
         func_8006FCA8(&D_800FF398, x + 2, rowY, gMenuText[334], 0);
         x += 42;
-        func_800639E8(buf, rl_m040_02514, sMarks[i]);
+        func_800639E8(buf, "+%d", sMarks[i]);
         func_8006FCA8(&D_800FF398, x, rowY, buf, 0);
         x += 28;
         y = rowY + 5;
@@ -283,7 +279,7 @@ void func_m040_00DF8(s32 updateRate) {
             } else {
                 func_8006FC68(255, 255, 255, 255, 255);
             }
-            func_800639E8(buf, rl_m040_02518, p->kills[j]);
+            func_800639E8(buf, "%d", p->kills[j]);
             func_8006FCA8(&D_800FF398, x, rowY, buf, 4);
             x += 30;
         }
@@ -300,9 +296,6 @@ void func_m040_00DF8(s32 updateRate) {
 }
 
 extern void func_m006_015EC(s32 time, char *a, char *b, char *c); /* a time as three two-digit strings */
-extern char rl_m040_0251C[]; /* ":" (.rodata, still assembly) */
-extern char rl_m040_02520[]; /* "." */
-extern char rl_m040_02524[]; /* "+%d" */
 
 /* Slides the table of the players' times in or out, draws it, and counts up their bonus marks (called from 0019C) */
 void func_m040_0124C(s32 updateRate) {
@@ -401,19 +394,19 @@ void func_m040_0124C(s32 updateRate) {
         x += 8;
         func_8006FCA8(&D_800FF398, x, rowY, min2, 4);
         x += 6;
-        func_8006FCA8(&D_800FF398, x, rowY, rl_m040_0251C, 4);
+        func_8006FCA8(&D_800FF398, x, rowY, ":", 4);
         x += 6;
         func_8006FCA8(&D_800FF398, x, rowY, sec, 4);
         x += 8;
         func_8006FCA8(&D_800FF398, x, rowY, sec2, 4);
         x += 6;
-        func_8006FCA8(&D_800FF398, x, rowY, rl_m040_02520, 4);
+        func_8006FCA8(&D_800FF398, x, rowY, ".", 4);
         x += 6;
         func_8006FCA8(&D_800FF398, x, rowY, cs, 4);
         x += 8;
         func_8006FCA8(&D_800FF398, x, rowY, cs2, 4);
         x += 34;
-        func_800639E8(buf, rl_m040_02524, sMarks[i]);
+        func_800639E8(buf, "+%d", sMarks[i]);
         func_8006FCA8(&D_800FF398, x, rowY, buf, 0);
         x += 28;
         y = rowY + 5;
@@ -507,7 +500,7 @@ void func_m040_0193C(s32 updateRate) {
         func_m006_0107C(&x, &y);
         x += 40;
         for (j = 0; j < D_800A4FD0; j++) {
-            func_800639E8(buf, rl_m040_02528, p->unk94[j]);
+            func_800639E8(buf, "%d", p->unk94[j]);
             func_8006FCA8(&D_800FF398, x, rowY - 6, buf, 4);
             x += 40;
         }
@@ -527,8 +520,6 @@ void func_m040_0193C(s32 updateRate) {
     }
 }
 
-extern char rl_m040_0252C[]; /* "%d" (.rodata, still assembly) */
-extern f32 rl_m040_02558;    /* 0.87f */
 
 /* Slides the table of the players' bonus marks in or out and draws them in rows of four (called from 0019C) */
 void func_m040_01D60(s32 updateRate) {
@@ -619,7 +610,7 @@ void func_m040_01D60(s32 updateRate) {
         render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x83], 0, 255);
         func_m006_0107C(&x, &y);
         x += 15;
-        func_800639E8(buf, rl_m040_0252C, sMarks[i]);
+        func_800639E8(buf, "%d", sMarks[i]);
         func_8006FCA8(&D_800FF398, x, rowY, buf, 0);
         rows = stats->bonus / 4;
         if (stats->bonus % 4) {
@@ -662,7 +653,7 @@ void func_m040_01D60(s32 updateRate) {
         if (sMarks[i] > 20) {
             sprite.trans.y_position -= 10.0f;
             sprite.trans.x_position -= 4.0f;
-            sprite.trans.scale = rl_m040_02558;
+            sprite.trans.scale = 0.87f;
             render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x86], 0, 255);
         }
         if (!done) {
@@ -684,4 +675,4 @@ s32 *func_m040_024C0(void) {
     return sTiltList;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m040", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

@@ -197,15 +197,6 @@ def find_functions(image, tsize, starts, jumps=None):
     return sorted(found), end
 
 
-def is_string(b):
-    """Whether b is one or more NUL-terminated printable strings (and NUL
-    padding), the first at least 4 characters long (a float such as
-    0x47435000 would otherwise pass)."""
-    if not b or b[-1] != 0 or 0 in b[:4]:
-        return False
-    return all(0x20 <= c < 0x7F or c in (0, 9, 10) for c in b)
-
-
 def write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames, lo_info, jtbl_los,
                  jentry, rel32, sub, labels, exported, emit_labels, text_line, nm_dir):
     """The module's .rodata split per function, in mNNN/ro/: for each
@@ -224,9 +215,16 @@ def write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames,
         return funcs[bisect.bisect_right(funcs, o) - 1]
 
     users = {}
+    loaded = set()  # items read as float literals (lwc1/ldc1) or as jump tables: IDO's "late" .rodata
+    addressed = set()  # items used any other way (strings, const arrays)
     for lo, (ho, t) in lo_info.items():
         if rodata_start <= t < rend and lo < tsize:
             users.setdefault(t, set()).add(func_of(lo))
+            if u32(image, lo) >> 26 in (0x31, 0x35) or lo in jtbl_los:
+                loaded.add(t)
+            else:
+                addressed.add(t)
+    loaded -= addressed
     for o, t in rel32.items():
         if rodata_start <= t < rend and o >= tsize:
             users.setdefault(t, set()).add(-1)  # a pointer in the data block
@@ -246,14 +244,18 @@ def write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames,
     if any(it[2] < 0 for it in items[k:]):
         return "an item only data refers to comes after the functions' items"
     head, owned = items[:k], items[k:]
-    strs = [is_string(image[a:b]) for a, b, _ in owned]
+    # IDO writes strings and const data first (an item the code takes the
+    # address of), then each function's float literals and jump tables (an
+    # item it loads with lwc1/ldc1 or jumps through)
+    late = [a in loaded for a, b, _ in owned]
+    split = late.index(True) if True in late else len(owned)
+    if not all(late[split:]):
+        return "an item whose address is taken comes after the literals"
 
     def ascending(seq):
         return all(seq[i][2] <= seq[i + 1][2] for i in range(len(seq) - 1))
 
-    split = next((s for s in range(len(owned) + 1)
-                  if ascending(owned[:s]) and ascending(owned[s:]) and not any(strs[s:])), None)
-    if split is None:
+    if not (ascending(owned[:split]) and ascending(owned[split:])):
         return "the items are not in function order"
     chunks = {}  # function -> {section: [start, end]}
     for i, (a, b, f) in enumerate(owned):

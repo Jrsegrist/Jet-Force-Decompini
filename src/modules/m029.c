@@ -245,15 +245,14 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
     func_m029_00C34(updateRate);
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m029", func_m029_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m029/ro", func_m029_00000);
 #endif
 
 #ifdef NON_MATCHING
 #define CAMERA_EASE 0.975f
 #else
 /* the .rodata is assembly: the constant through the section's start, as IDO refers to it */
-extern f32 rl_m029_00FB0[];
-#define CAMERA_EASE rl_m029_00FB0[6]
+#define CAMERA_EASE 0.975f
 #endif
 
 /* Starts the camera circling the object */
@@ -387,5 +386,5 @@ void func_m029_00E98(s32 *a, s32 *b, s32 *c) {
 }
 
 #ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m029", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 #endif

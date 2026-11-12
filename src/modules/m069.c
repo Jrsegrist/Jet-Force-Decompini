@@ -71,14 +71,6 @@ extern s8 rl_m069_01F50[12][2];       /* the crosshair vertices */
 extern Triangle rl_m069_01F68[4];     /* the crosshair triangles */
 
 /* .rodata, still assembly */
-extern char rl_m069_01FB0[]; /* "Shots : " */
-extern char rl_m069_01FBC[]; /* "%d\n" */
-extern char rl_m069_01FC0[]; /* "Ants : " */
-extern char rl_m069_01FC8[]; /* "%d\n" */
-extern char rl_m069_01FCC[]; /* "Bears : " */
-extern char rl_m069_01FD8[]; /* "%d\n" */
-extern char rl_m069_01FDC[]; /* "Ammo : " */
-extern char rl_m069_01FE4[]; /* "%d\n" */
 
 /* .bss, still assembly */
 extern Object *rl_m069_02000[4]; /* the targets */
@@ -110,7 +102,7 @@ void func_m069_00000(s32 count) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_000A8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_00A84);
+INCLUDE_ASM("asm/nonmatchings/modules/m069/ro", func_m069_00A84);
 
 /* The query that func_8007C2E8 takes, as used here */
 typedef struct M069Ray {
@@ -270,18 +262,18 @@ void func_m069_016F4(Gfx **dl, Mtx **mtx, Vertex **verts, s32 count) {
         score = obj->unk68;
         colour = (u8 *) &rl_m069_01D48[i];
         func_8006FC68(colour[0], colour[1], colour[2], 255, 240);
-        func_8006FCA8(dl, pos[0].x, pos[0].y, rl_m069_01FB0, 1);
-        func_800639E8(buf, rl_m069_01FBC, score->shots);
+        func_8006FCA8(dl, pos[0].x, pos[0].y, "Shots : ", 1);
+        func_800639E8(buf, "%d\n", score->shots);
         func_8006FCA8(dl, pos[0].x, pos[0].y, buf, 0);
-        func_8006FCA8(dl, pos[1].x, pos[1].y, rl_m069_01FC0, 1);
-        func_800639E8(buf, rl_m069_01FC8, score->ants);
+        func_8006FCA8(dl, pos[1].x, pos[1].y, "Ants : ", 1);
+        func_800639E8(buf, "%d\n", score->ants);
         func_8006FCA8(dl, pos[1].x, pos[1].y, buf, 0);
-        func_8006FCA8(dl, pos[2].x, pos[2].y, rl_m069_01FCC, 1);
-        func_800639E8(buf, rl_m069_01FD8, score->bears);
+        func_8006FCA8(dl, pos[2].x, pos[2].y, "Bears : ", 1);
+        func_800639E8(buf, "%d\n", score->bears);
         func_8006FCA8(dl, pos[2].x, pos[2].y, buf, 0);
         if (score->ammo >= 0) {
-            func_8006FCA8(dl, pos[2].x, pos[2].y + 10, rl_m069_01FDC, 1);
-            func_800639E8(buf, rl_m069_01FE4, score->ammo);
+            func_8006FCA8(dl, pos[2].x, pos[2].y + 10, "Ammo : ", 1);
+            func_800639E8(buf, "%d\n", score->ammo);
             func_8006FCA8(dl, pos[2].x, pos[2].y + 10, buf, 0);
         }
     }
@@ -289,6 +281,6 @@ void func_m069_016F4(Gfx **dl, Mtx **mtx, Vertex **verts, s32 count) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m069", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m069", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m069", bss);

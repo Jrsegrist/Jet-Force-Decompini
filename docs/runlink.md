@@ -262,18 +262,19 @@ the module's directory as before. m146 is the example (00350 stays
 assembly under NON_MATCHING with its floats and jump table, the rest is C).
 
 The splitter assigns each item (a run of words from one referenced offset to
-the next) to the one function that refers to it, and the split between the
-strings and the literals to the first item after which the functions come
-in order and nothing looks like a string. Where that cannot be done
+the next) to the one function that refers to it. An item the code only
+loads with `lwc1`/`ldc1` or jumps through is a literal or jump table (late);
+one whose address is taken is a string or `const` data (early). Where that
+does not give early items first and then literals, each in function order
 (`build/runlink/rodata_split.txt`: an item two functions or data share, or
 items out of function order, as in m006, which looks like several source
 files) the module has no `ro/`. A module without .data has no section
 start inside its data block, so the splitter writes the block as `data.s`;
 it is taken as .rodata for `ro/` when the code only loads floats and
 jump-table entries from it and it holds no other pointers (m124; such a C
-file then has no `INCLUDE_ASM(..., data)` either). The guess can be wrong for a `const` array
-that is not a string (it is then put among the literals): the build's SHA-1
-shows it, and such a module keeps its .rodata in one piece.
+file then has no `INCLUDE_ASM(..., data)` either). The guess can be wrong (a `static const`
+float read directly counts as a literal): the build's SHA-1 shows it, and
+such a module keeps its .rodata in one piece.
 
 The probe-style check of one function (compile, compare with the ROM module
 with relocated fields masked) does not see static functions on their own:
