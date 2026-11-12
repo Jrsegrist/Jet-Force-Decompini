@@ -4,6 +4,63 @@
  */
 #include "common.h"
 
+/* JFG: settings flags (the language and volume bytes below sit in the same block). Size: 0x80 bytes */
+typedef struct SettingsFlags {
+    /* 0x00 */ u8 pad0[0x6C];
+    /* 0x6C */ u32 unk6C_0 : 1;
+    /* 0x6C */ u32 unk6C_1 : 1; // JFG: screen mode bit 0 (also read by fb_init_vi)
+    /* 0x6C */ u32 unk6C_2 : 1; // JFG: screen mode bit 1
+    /* 0x6C */ u32 unk6C_3 : 1;
+    /* 0x6C */ u32 unk6C_4 : 28;
+    /* 0x70 */ u8 pad70[0x10];
+} SettingsFlags;
+
+/* Size: 0x20 bytes */
+typedef struct MenuItem {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ f32 unk8;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ s8 unk1C;
+    /* 0x1D */ s8 unk1D;
+    /* 0x1E */ s8 unk1E;
+    /* 0x1F */ s8 unk1F;
+} MenuItem;
+
+/************ .bss ************/
+
+s8 D_800FF1B0[4];          // JFG: per player: 0 out, 1 joined, 2 ready
+u8 D_800FF1B4[4];          // JFG: per player: the character picked
+UNUSED u8 D_800FF1B8[8];
+UNUSED u8 D_800FF1C0[0x10];
+UNUSED u8 D_800FF1D0[0x140];
+UNUSED u8 D_800FF310;
+u8 D_800FF311;
+SettingsFlags D_800FF318;  // JFG: the settings and unlock flags (saved)
+s32 D_800FF398;            // JFG: the menu display list (also the results' first value)
+s32 D_800FF39C;
+s32 D_800FF3A0;
+s32 D_800FF3A4;
+u8 *D_800FF3A8[3];         // JFG: three 0x538-byte buffers
+UNUSED s32 D_800FF3B4;
+s32 D_800FF3B8[4];         // JFG: each player's buttons held
+s32 D_800FF3C8[4];         // JFG: each player's buttons pressed this frame
+s8 D_800FF3D8[4];          // JFG: each player's stick x move (with auto-repeat)
+s8 D_800FF3DC[4];          // JFG: each player's stick y move (with auto-repeat)
+s8 D_800FF3E0[4];          // JFG: each player's stick x repeat timer
+s8 D_800FF3E4[4];          // JFG: each player's stick y repeat timer
+s32 D_800FF3E8[4];         // JFG: each player's buttons held last frame
+s32 D_800FF3F8[180];       // JFG: the menu items' loaded assets
+u8 D_800FF6C8[0xB8];       // JFG: whether each menu item is loaded
+MenuItem D_800FF780[54];   // JFG: the menu items
+
+/******************************/
+
 extern u8 gLanguage;
 
 extern s32 *D_800A51AC; // JFG: the menu text table (count, then one offset per language)
@@ -60,23 +117,19 @@ void load_menu_text(s32 language) {
 }
 
 void *mempool_alloc_safe(s32 size, u32 colourTag);
-extern u8 *D_800FF3A8[3]; // JFG: three 0x538-byte buffers
-extern s32 D_800FF3F8[180]; // JFG: the menu items' loaded assets
-extern u8 D_800FF6C8[];   // JFG: whether each menu item is loaded
 extern u8 D_800A51A0;
 extern s16 *D_800A51D0;   // JFG: the menu item types (ending with -1)
 extern s16 D_800A51D4;    // JFG: the number of menu items
 extern s16 D_800A51D8;    // JFG: the number of loaded menu items
-extern u8 D_800FF1B4[4];
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: only the last 4 stores: the target shares one lui for D_800FF1B4[0..3] (data defined in the file) */
 /* JFG: allocate the menu buffers and text, load the item table and mark every item unloaded. */
 void func_80058590(void) {
     s32 i;
 
     D_800FF3A8[0] = mempool_alloc_safe(0xFA8, -1);
-    for (i = 1; i < 3; i++) {
+    // As the ROM does: the loop starts at 0, so the first buffer becomes the word before the array
+    // (D_800FF3A4) + 0x538, not the allocation.
+    for (i = 0; i < 3; i++) {
         D_800FF3A8[i] = D_800FF3A8[i - 1] + 0x538;
     }
     gMenuText = mempool_alloc_safe(0x3000, -1);
@@ -93,13 +146,11 @@ void func_80058590(void) {
     for (i = 0; i < D_800A51D4; i++) {
         D_800FF6C8[i] = 0;
     }
-    for (i = 0; i < 4; i++) {
-        D_800FF1B4[i] = 2;
+    i = 0;
+    while (i < 4) {
+        D_800FF1B4[i++] = 2;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/59060", func_80058590);
-#endif
 
 s32 func_80054530(); // a module function (patched in by the runtime linker)
 s32 runlink_module_install();  // JFG: load a runlink module
@@ -652,10 +703,6 @@ void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
     fb_scale_coords(x2, y2);
 }
 
-extern s8 D_800FF3E0[4];  // JFG: each player's stick x repeat timer
-extern s8 D_800FF3E4[4];  // JFG: each player's stick y repeat timer
-extern s32 D_800FF3E8[4]; // JFG: each player's buttons held last frame
-
 /* JFG: reset the four players' entries. */
 void func_80059A04(void) {
     s32 i = 0;
@@ -671,10 +718,6 @@ void func_80059A04(void) {
 u16 input_held(s32 player);
 s32 input_clamp_stick_x(s32 player);
 s32 input_clamp_stick_y(s32 player);
-extern s32 D_800FF3B8[4]; // JFG: each player's buttons held
-extern s32 D_800FF3C8[4]; // JFG: each player's buttons pressed this frame
-extern s8 D_800FF3D8[4];  // JFG: each player's stick x move (with auto-repeat)
-extern s8 D_800FF3DC[4];  // JFG: each player's stick y move (with auto-repeat)
 
 /* JFG: read the four players' buttons for the menus, and turn the sticks into moves that repeat
    (after 20 frames, then every 15) while held. */
@@ -874,24 +917,7 @@ void menu_assetgroup_reset(s16 *assetGroup) {
     }
 }
 
-/* Size: 0x20 bytes */
-typedef struct MenuItem {
-    /* 0x00 */ s16 unk0;
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ s16 unk4;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ f32 unk8;
-    /* 0x0C */ f32 unkC;
-    /* 0x10 */ f32 unk10;
-    /* 0x14 */ f32 unk14;
-    /* 0x18 */ f32 unk18;
-    /* 0x1C */ s8 unk1C;
-    /* 0x1D */ s8 unk1D;
-    /* 0x1E */ s8 unk1E;
-    /* 0x1F */ s8 unk1F;
-} MenuItem;
 extern MenuItem D_800A51DC[];
-extern MenuItem D_800FF780[];
 
 /* JFG: reset an item to its default (0x8005A048). */
 void menu_item_reset(s32 item) {
@@ -1061,16 +1087,6 @@ void set_language(s32 language) {
     load_menu_text(language);
 }
 
-/* JFG: settings flags (the language and volume bytes below sit in the same block). */
-typedef struct SettingsFlags {
-    /* 0x00 */ u8 pad0[0x6C];
-    /* 0x6C */ u32 unk6C_0 : 1;
-    /* 0x6C */ u32 unk6C_1 : 1; // JFG: screen mode bit 0 (also read by fb_init_vi)
-    /* 0x6C */ u32 unk6C_2 : 1; // JFG: screen mode bit 1
-    /* 0x6C */ u32 unk6C_3 : 1;
-    /* 0x6C */ u32 unk6C_4 : 28;
-} SettingsFlags;
-extern SettingsFlags D_800FF318;
 
 /* JFG: the screen mode (0-3) from two settings bits (0x8005A804). */
 s32 options_screen_mode_get(void) {
@@ -1237,7 +1253,6 @@ void func_8005AAD0(s32 index, s32 value) {
     D_800FF38D[index & 3] = value & 1;
 }
 
-extern u8 D_800FF311;
 
 void func_8005AAE8(s32 arg0) {
     D_800FF311 = arg0;

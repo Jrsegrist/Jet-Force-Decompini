@@ -585,7 +585,6 @@ gN64FontCodes = 0x800A3404;
 gPakFileList = 0x800A3400;
 gRumblePresent = 0x800A3468;
 func_8005A7D0 = get_language;
-gLanguage = 0x800FF386;
 pfs = 0x800FDDB8;
 sControllerMesgQueue = 0x800FDDB0;
 
@@ -727,3 +726,27 @@ aspMainDataStart = 0x800AFC10;
 func_8008AD10 = 0x8008AD10;
 func_80054530_fi = 0x80054530;
 sndp_set_active_sound_limit = 0x80086554;
+
+/* ---- 59060.c .bss (0x800FF1B0-0x800FFE40): the asm's names for parts of its variables ---- */
+D_800FF1B5 = D_800FF1B4 + 1;
+D_800FF1B6 = D_800FF1B4 + 2;
+D_800FF1B7 = D_800FF1B4 + 3;
+D_800FF37C = D_800FF318 + 0x64;
+D_800FF384 = D_800FF318 + 0x6C;
+D_800FF386 = D_800FF318 + 0x6E;
+gLanguage = D_800FF318 + 0x6E;
+gOptionScreenOffset = D_800FF318 + 0x6F;
+D_800FF388 = D_800FF318 + 0x70;
+gOptionMusicVolume = D_800FF318 + 0x72;
+D_800FF38C = D_800FF318 + 0x74;
+D_800FF38D = D_800FF318 + 0x75;
+D_800FF391 = D_800FF318 + 0x79;
+D_800FF3E1 = D_800FF3E0 + 1;
+D_800FF3E2 = D_800FF3E0 + 2;
+D_800FF3E3 = D_800FF3E0 + 3;
+D_800FF3E5 = D_800FF3E4 + 1;
+D_800FF3E6 = D_800FF3E4 + 2;
+D_800FF3E7 = D_800FF3E4 + 3;
+D_800FF3EC = D_800FF3E8 + 4;
+D_800FF3F0 = D_800FF3E8 + 8;
+D_800FF3F4 = D_800FF3E8 + 0xC;
