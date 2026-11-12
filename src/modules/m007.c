@@ -1,11 +1,14 @@
 /*
  * Runlink module 7: the hint text shown on screen (normal hints and special
- * ones that interrupt them). Only its small state functions are in C so far.
+ * ones that interrupt them), and the long hints with their conditions and actions.
  */
 #include "module.h"
 
+/* the .rodata strings the data refers to (first in .rodata) */
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", rodata);
+
 static void *func_m007_00578(s32 hint, s32 kind);
-extern s32 rl_m007_00390(s32 condition);
+static s32 func_m007_00390(s32 condition);
 static void func_m007_00DF0(void);
 static void func_m007_0070C(void);
 #ifdef NON_MATCHING
@@ -144,9 +147,8 @@ static void func_m007_01214(s32 updateRate);
 static void func_m007_01F80(Gfx **dl);
 static void func_m007_020D4(Gfx **dl);
 static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha);
-extern s32 rl_m007_023D4(Gfx **dl, void *text, s32 line);
-extern s32 rl_m007_01504(s32 condition);
-extern void rl_m007_017E8(s32 action);
+static s32 func_m007_023D4(Gfx **dl, u8 *text, s32 skip);
+static void func_m007_017E8(s32 action);
 
 /* A box to fill (as m075's) */
 typedef struct M007Box {
@@ -162,8 +164,6 @@ extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 /* The module's .data: the hint box's outline, 9 bytes a box (still assembly) */
 extern s8 rl_m007_02960[];
 /* The module's .rodata (still assembly): the "more" marks */
-extern char rl_m007_02ADC[];
-extern char rl_m007_02AE0[];
 extern void func_8006FC14(s32 arg0);
 extern void func_8003B620(s16 x, s16 y, s16 z, s16 angle);
 extern s32 func_800468CC(void);
@@ -247,11 +247,11 @@ void func_m007_00148(s32 hint, s32 arg1) {
         n = p->count - 1;
         c = p->choices;
         while (n--) {
-            a = rl_m007_00390(c->cond1 & 0x7F);
+            a = func_m007_00390(c->cond1 & 0x7F);
             if (c->cond1 & 0x80) {
                 a = !a;
             }
-            b = rl_m007_00390(c->cond2 & 0x7F);
+            b = func_m007_00390(c->cond2 & 0x7F);
             if (c->cond2 & 0x80) {
                 b = !b;
             }
@@ -280,7 +280,7 @@ void func_m007_00148(s32 hint, s32 arg1) {
 extern s32 rl_m007_02A78[12]; /* .data (still assembly): game flags that 0032C counts */
 
 /* How many of the twelve flags are set (called from 00390) */
-s32 func_m007_0032C(void) {
+static s32 func_m007_0032C(void) {
     s32 i;
     s32 count = 0;
 
@@ -293,7 +293,106 @@ s32 func_m007_0032C(void) {
     return count;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00390);
+/* The player's data (its object's unk68), as 00390 uses it */
+typedef struct M007Player {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x189 - 0x2];
+    /* 0x189 */ s8 unk189;
+} M007Player;
+
+/* A character's items (what func_80047C1C returns) */
+typedef struct M007Items {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ u16 flags; /* bit per weapon owned */
+    /* 0x0C */ u8 padC[0x12 - 0xC];
+    /* 0x12 */ s16 count;
+    /* 0x14 */ u16 ammo[16];
+    /* 0x34 */ u16 maxAmmo[16];
+    /* 0x54 */ u8 pad54[0x59 - 0x54];
+    /* 0x59 */ u8 unk59;
+    /* 0x5A */ u8 pad5A[0x6F - 0x5A];
+    /* 0x6F */ u8 weapons; /* weapons owned */
+} M007Items;
+
+/* What weapon_info_get returns: a weapon's properties */
+typedef struct M007WeaponInfo {
+    /* 0x00 */ u8 pad0[3];
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u8 pad4[0x24 - 0x4];
+    /* 0x24 */ s16 maxAmmo;
+    /* 0x26 */ u8 pad26[2];
+    /* 0x28 */ s16 ammo;
+} M007WeaponInfo;
+
+extern M007Items *func_80047C1C(s32 player, s32 character);
+extern s32 character_has_item(s32 player, s32 character, s32 item);
+extern s32 player_chars_have_item(s32 item);
+extern void character_item_give(s32 player, s32 character, s32 item);
+extern void character_item_take(s32 player, s32 character, s32 item);
+extern M007WeaponInfo *weapon_info_get(s32 weapon);
+extern void func_80047EFC(s32 flag, s32 value); /* sets a game flag */
+extern void func_80000F2C(void);                /* stops the music */
+extern void func_80000510(s32 song);            /* plays a song */
+
+/* Whether hint condition `condition` holds (with no player, every one does) */
+static s32 func_m007_00390(s32 condition) {
+    M007Player *p;
+    Object *obj;
+    M007Items *items;
+
+    obj = func_8000E4D0(0);
+    if (obj == NULL) {
+        return TRUE;
+    }
+    p = obj->unk68;
+    items = func_80047C1C(p->player, p->character);
+    switch (condition) {
+        case 1:
+            return rl_m007_02A6C;
+        case 2:
+            return character_has_item(p->player, p->character, 1);
+        case 3:
+            return player_chars_have_item(0x15);
+        case 4:
+            return items->flags & 0x20;
+        case 6:
+            return game_flag_get(0x59);
+        case 5:
+            return game_flag_get(0x20);
+        case 7:
+            return game_flag_get(0x21);
+        case 8:
+            return game_flag_get(0x22);
+        case 9:
+            return game_flag_get(0x23);
+        case 17:
+            return game_flag_get(0x24);
+        case 10:
+            return func_m007_0032C() == 0;
+        case 11:
+            return func_m007_0032C() < 7;
+        case 12:
+            return func_m007_0032C() >= 7;
+        case 13:
+            return func_m007_0032C() == 12;
+        case 14:
+            return game_flag_get(0x58);
+        case 15:
+            return p->unk189 == 0;
+        case 16:
+            return p->unk189 == 2;
+        case 18:
+            return player_chars_have_item(0x16);
+        case 19:
+            return game_flag_get(0x2B);
+        case 20:
+            return player_chars_have_item(0x11);
+    }
+    return TRUE;
+}
 
 /*
  * Shows hint text `hint` (kind 1: pages, 2: special, else scrolling), pushing it on the stack of
@@ -472,7 +571,7 @@ static void *func_m007_00988(s32 id, s32 kind) {
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00988);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00B00);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00B00);
 
 #ifdef NON_MATCHING
 
@@ -655,9 +754,49 @@ static void func_m007_01214(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_012E0);
+INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_012E0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_01504);
+/*
+ * Whether a long hint's condition `condition` holds. With no player, p and items are read unset (as the
+ * original does).
+ */
+static int func_m007_01504(s32 condition) {
+    Object *obj;
+    M007Player *p;
+    M007Items *items;
+
+    obj = func_8000E4D0(0);
+    if (obj != NULL) {
+        p = obj->unk68;
+        if (p != NULL) {
+            items = func_80047C1C(p->player, p->character);
+        }
+    }
+    switch (condition) {
+        case 0:
+            return character_has_item(p->player, p->character, 0);
+        case 1:
+            return character_has_item(p->player, p->character, 0x10);
+        case 2:
+            if (game_flag_get(0x2C) && game_flag_get(0x2D) && game_flag_get(0x2E)) {
+                return TRUE;
+            }
+            return FALSE;
+        case 3:
+            return character_has_item(p->player, p->character, 0x14);
+        case 4:
+            return items->count >= 5;
+        case 5:
+            return items->count >= 10;
+        case 6:
+            return character_has_item(p->player, p->character, 0x17) &&
+                   character_has_item(p->player, p->character, 0x18) &&
+                   character_has_item(p->player, p->character, 0x19);
+        case 7:
+            return character_has_item(p->player, p->character, 0x1A);
+    }
+    return TRUE;
+}
 
 /* A paged hint's A button: does the page's action if its condition holds, then shows its next hint */
 static void func_m007_016B4(void) {
@@ -666,10 +805,10 @@ static void func_m007_016B4(void) {
 
     if (p != NULL) {
         rec = &p->recs[p->current];
-        if (rl_m007_01504(rec->cond2)) {
+        if (func_m007_01504(rec->cond2)) {
             switch (rec->action & 0xF000) {
                 case 0:
-                    rl_m007_017E8(rec->action);
+                    func_m007_017E8(rec->action);
                     break;
                 case 0x1000:
                     func_m007_00578(rec->action & 0xFFF, 4);
@@ -697,7 +836,133 @@ static void func_m007_016B4(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_017E8);
+/*
+ * Does a long hint's action `action`: gives or takes items, sets game flags, changes the music. With no player,
+ * p and items are read unset (as the original does).
+ */
+static void func_m007_017E8(s32 action) {
+    M007WeaponInfo *info;
+    Object *obj;
+    M007Player *p;
+    M007Items *items;
+    s32 i;
+
+    obj = func_8000E4D0(0);
+    if (obj != NULL) {
+        p = obj->unk68;
+        if (p != NULL) {
+            items = func_80047C1C(p->player, p->character);
+        }
+    }
+    switch (action) {
+        case 0:
+            character_item_give(p->player, p->character, 1);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x17D;
+            break;
+        case 1:
+            character_item_give(p->player, p->character, 0x10);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x18A;
+            break;
+        case 2:
+            character_item_give(p->player, p->character, 0x11);
+            character_item_take(p->player, p->character, 0x10);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x185;
+            break;
+        case 3:
+        case 4:
+            if (action == 4) {
+                character_item_take(p->player, p->character, 0x17);
+                character_item_take(p->player, p->character, 0x18);
+                character_item_take(p->player, p->character, 0x19);
+            }
+            info = weapon_info_get(5);
+            items->flags |= 0x20;
+            items->weapons++;
+            items->maxAmmo[5] = info->maxAmmo;
+            items->ammo[5] = info->ammo;
+            items->unk59 = info->unk3;
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x271;
+            break;
+        case 5:
+            character_item_give(p->player, p->character, 0x15);
+            character_item_take(p->player, p->character, 0x14);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x27D;
+            break;
+        case 6:
+            items->unk0 = items->unk2 * 5 + 4;
+            obj->interactObj->hitPoints = items->unk0 << 8;
+            items->count -= 5;
+            break;
+        case 7:
+            for (i = 0; i < 16; i++) {
+                if (items->flags & (1 << i)) {
+                    items->ammo[i] = items->maxAmmo[i];
+                }
+            }
+            items->count -= 10;
+            break;
+        case 8:
+            func_80047EFC(0x20, 1);
+            character_item_take(p->player, p->character, 0x1A);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x2E6;
+            break;
+        case 9:
+            func_80047EFC(0x21, 1);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x2E8;
+            break;
+        case 10:
+            func_80047EFC(0x22, 1);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x2E9;
+            break;
+        case 11:
+            func_80047EFC(0x23, 1);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x2EA;
+            break;
+        case 12:
+            func_80047EFC(0x24, 1);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x2EB;
+            break;
+        case 13:
+            character_item_give(p->player, p->character, 0x16);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x2C1;
+            break;
+        case 14:
+            func_80000F2C();
+            func_80000510(0x3C);
+            break;
+        case 15:
+            func_80000F2C();
+            func_80000510(0x3D);
+            break;
+        case 16:
+            func_80000F2C();
+            func_80000510(0x3E);
+            break;
+        case 17:
+            func_80000F2C();
+            func_80000510(0x41);
+            break;
+        case 18:
+            func_80047EFC(0x2B, 1);
+            sHintSpecial = 1;
+            rl_m007_02A64 = 0x6C;
+            break;
+        default:
+            func_m007_0070C();
+            break;
+    }
+}
 
 /* Every frame: the hint text's fade in and out, and its drawing */
 void func_m007_01CCC(Gfx **dl, s32 updateRate) {
@@ -769,20 +1034,19 @@ static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 a
 /* Draws a scrolling hint: its box, its text, and the marks for more text above and below */
 static void func_m007_01F80(Gfx **dl) {
     func_m007_01E34(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
-    rl_m007_02A40 = rl_m007_023D4(dl, rl_m007_02A58, rl_m007_02A3C);
+    rl_m007_02A40 = func_m007_023D4(dl, rl_m007_02A58, rl_m007_02A3C);
     func_8006FC8C(0, 0, 0, 0);
     func_8006FC68(0xFF, 0xC0, 0, 0xFF, (rl_m007_02A20 * 255) >> 8);
     if (rl_m007_02A3C) {
-        func_8006FCA8(dl, 0xC4, 0x14, rl_m007_02ADC, 0xC);
+        func_8006FCA8(dl, 0xC4, 0x14, "~", 0xC);
     }
     if (rl_m007_02A40 || (rl_m007_02A44 == 4 && rl_m007_02A4C >= 2) || (rl_m007_02A44 == 3 && rl_m007_02A74)) {
-        func_8006FCA8(dl, 0xC4, 0x6C, rl_m007_02AE0, 0xC);
+        func_8006FCA8(dl, 0xC4, 0x6C, "$", 0xC);
     }
 }
 
 extern void func_8006FC54(s32 font);
 extern u8 *func_8007216C(s32 font, u8 *text, s32 width, u8 **line); /* the next line of a text */
-extern char rl_m007_02AE4[]; /* (.rodata) the "more" mark for the pages */
 
 /* Draws a long hint's pages (the current one in white) and the "more" mark if they don't all fit */
 static void func_m007_020D4(Gfx **dl) {
@@ -836,11 +1100,128 @@ static void func_m007_020D4(Gfx **dl) {
     func_8006FC8C(0, 0, 0, 0);
     func_8006FC68(0xFF, 0xC0, 0, 0xFF, alpha);
     if (i < rl_m007_02A5C->count || text != NULL) {
-        func_8006FCA8(dl, 0xC4, 0x6C, rl_m007_02AE4, 0xC);
+        func_8006FCA8(dl, 0xC4, 0x6C, "$", 0xC);
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_023D4);
+/*
+ * Draws a scrolling hint's text from line `skip` on. The text is a list of commands: 1 a blank line
+ * (4 bytes), 2-5 a text (its address in the low 24 bits; 2 at the right, 3 plain, 4 at the far
+ * right, 5 with its first line indented), 6 the text colour and 7 the shadow colour (8 bytes);
+ * anything else ends it. Returns whether lines are left below.
+ */
+static s32 func_m007_023D4(Gfx **dl, u8 *text, s32 skip) {
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+    UNUSED s32 pad3;
+    s32 flags;
+    UNUSED s32 pad4;
+    s32 height;
+    s32 done;
+    s32 more;
+    s32 lines;
+    s32 y;
+    s32 x;
+    s32 width;
+    s32 indent;
+    u8 *str;
+    u8 c;
+    u8 *line;
+    UNUSED s32 pad5;
+    UNUSED s32 pad6;
+
+    more = 0;
+    done = 0;
+    height = func_8007230C(2);
+    lines = 88 / height - 1;
+    func_8006FC8C(0, 0, 0, 0);
+    func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, (rl_m007_02A20 * 255) >> 8);
+    func_8006FC54(2);
+    y = ((88 - lines * height) >> 1) + 20;
+    do {
+        flags = 0;
+        x = 0x60;
+        width = 200;
+        str = NULL;
+        indent = FALSE;
+        switch (*text) {
+            case 1:
+                if (skip == 0) {
+                    lines--;
+                    y += height;
+                } else {
+                    skip--;
+                }
+                text += 4;
+                break;
+            case 2:
+                str = (u8 *) ((*(u32 *) text & 0xFFFFFF) | 0x80000000);
+                text += 4;
+                flags = 4;
+                x = 0xC4;
+                break;
+            case 3:
+                str = (u8 *) ((*(u32 *) text & 0xFFFFFF) | 0x80000000);
+                text += 4;
+                break;
+            case 4:
+                str = (u8 *) ((*(u32 *) text & 0xFFFFFF) | 0x80000000);
+                text += 4;
+                flags = 1;
+                x = 0x127;
+                break;
+            case 5:
+                str = (u8 *) ((*(u32 *) text & 0xFFFFFF) | 0x80000000);
+                text += 4;
+                indent = TRUE;
+                break;
+            case 6:
+                /* (the command's bytes read after stepping over it) */
+                text += 8;
+                c = text[-2];
+                func_8006FC68(text[-7], text[-6], text[-5], text[-3], (c * rl_m007_02A20) >> 8);
+                break;
+            case 7:
+                text += 8;
+                func_8006FC8C(text[-7], text[-6], text[-5], text[-3]);
+                break;
+            default:
+                done = TRUE;
+                break;
+        }
+        while (str != NULL && lines >= 0) {
+            if (indent) {
+                x += 8;
+                width -= 8;
+            }
+            str = func_8007216C(2, str, width, &line);
+            if (str != NULL) {
+                if (skip == 0) {
+                    lines--;
+                    if (lines >= 0) {
+                        c = *str;
+                        *str = 0;
+                        func_8006FCA8(dl, x, y, (char *) line, flags);
+                        *str = c;
+                        y += height;
+                    }
+                } else {
+                    skip--;
+                }
+            }
+            if (indent) {
+                x -= 8;
+                width += 8;
+                indent = FALSE;
+            }
+        }
+        if (lines < 0) {
+            more = TRUE;
+            done = TRUE;
+        }
+    } while (!done);
+    return more;
+}
 
 /* Loads the hint's object, if one is waiting */
 void func_m007_02704(f32 x, f32 y, f32 z, f32 angle, f32 scale) {
@@ -894,7 +1275,7 @@ void func_m007_0284C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007", bss);
 

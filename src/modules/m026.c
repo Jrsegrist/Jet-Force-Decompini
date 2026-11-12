@@ -128,13 +128,13 @@ static M026List *particle_list_new(void *arg0, u8 (*arg1)[16], s32 arg2, s32 arg
 static M026LineSet *line_sets_new(s32 count);
 static M026PointSet *point_sets_new(s32 count);
 
-#ifdef NON_MATCHING
 /*
  * Builds the triangles and outline points of the 2- to 8-sided shapes.
- * The original kept &D_800A5F48 in a2 for the first store (a1 here).
+ * (`first` is a plain copy; with it IDO keeps &D_800A5F48 in a2 for the first store, as the original.)
  */
 static void build_particle_shapes(void) {
     Triangle *front;
+    Triangle *first;
     Triangle *back;
     f32 *coords;
     s32 i;
@@ -145,7 +145,8 @@ static void build_particle_shapes(void) {
     f32 y;
 
     D_800A5F48[0][0] = mempool_alloc_safe(0x880, COLOUR_TAG_SEMITRANS_GREY);
-    front = D_800A5F48[0][0];
+    first = D_800A5F48[0][0];
+    front = first;
     back = front + 68;
     for (sides = 2; sides < 9; sides++) {
         D_800A5F48[sides - 2][0] = front;
@@ -253,11 +254,6 @@ static void build_particle_shapes(void) {
         }
     }
 }
-#else
-void rl_m026_00000(void);
-#define build_particle_shapes rl_m026_00000
-INCLUDE_ASM("asm/nonmatchings/modules/m026", func_m026_00000);
-#endif
 
 /* Loads the particle and behaviour tables (DKR init_particle_assets) */
 void func_m026_002F8(void) {

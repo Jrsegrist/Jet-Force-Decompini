@@ -86,7 +86,7 @@ void func_m014_00074(s16 *angle, M014Player *p, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00220);
+INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_00220);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_00B30);
 
@@ -175,7 +175,7 @@ void func_m014_019F4(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01AD8);
+INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_01AD8);
 
 /* A filled box (59060.c's MenuBox) */
 typedef struct M014Box {
@@ -277,9 +277,9 @@ void func_m014_02CC0(void) {
     func_m006_00EFC();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_02CF4);
+INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_02CF4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_03418);
+INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_03418);
 
 /* A level's best result (size 8) */
 typedef struct M014Record {
@@ -415,7 +415,6 @@ extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 extern char *get_world_name(s32 world);
-extern char rl_m014_0487C[]; /* "%d %s\n" */
 
 /* Draws a box with the region's name, its world's name and a numbered line under it */
 void func_m014_03AD4(Gfx **dl, s32 region, s32 world, s32 number, s32 alpha) {
@@ -426,7 +425,7 @@ void func_m014_03AD4(Gfx **dl, s32 region, s32 world, s32 number, s32 alpha) {
 
     name = gMenuText[region + 407];
     width = func_800706D4(name, 2, 1) + 40;
-    func_800639E8(buf, rl_m014_0487C, number, gMenuText[458]);
+    func_800639E8(buf, "%d %s\n", number, gMenuText[458]);
     width2 = func_800706D4(buf, 2, 1) + 40;
     if (width < width2) {
         width = width2;
@@ -501,7 +500,7 @@ void func_m014_03C68(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alp
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014", bss);
 

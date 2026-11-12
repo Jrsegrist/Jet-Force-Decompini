@@ -70,7 +70,6 @@ extern u8 rl_m018_0692C[];
 extern u8 rl_m018_06930[];
 
 /* The module's .rodata (still assembly) */
-extern f32 rl_m018_06B68;
 
 /* The module's .bss (still assembly) */
 extern u8 rl_m018_06BB0[];
@@ -161,7 +160,7 @@ void func_m018_0015C(void) {
     func_m009_0066C();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_00188);
+INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_00188);
 
 extern u8 *get_settings(void);
 
@@ -277,7 +276,7 @@ void func_m018_01028(void) {
     rl_m018_06CA8 = 30;
     rl_m018_06BCC = 0;
     if (options_screen_mode_get() & 1) {
-        D_800FF780[24].unkC *= rl_m018_06B68;
+        D_800FF780[24].unkC *= 1.33f;
     }
     rl_m018_06C88 = 0xFF;
     rl_m018_06C8C = 0;
@@ -377,11 +376,6 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
 extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprite *sprite, void *tex, s32 arg5, s32 alpha);
-extern f32 rl_m018_06B6C;
-extern char rl_m018_06AF8[];
-extern char rl_m018_06B00[];
-extern char rl_m018_06B08[];
-extern char rl_m018_06B14[];
 void func_m018_00AEC(void);
 extern void rl_m018_040A8(f32 rate, s32 item); /* the static at 040A8 (still assembly) */
 
@@ -427,7 +421,7 @@ void func_m018_0130C(s32 updateRate) {
         obj = D_800FF3F8[rl_m018_066AC];
         model = *obj->modelInstances;
         if (rl_m018_066B0 == 10) {
-            if (rl_m018_06B6C < obj->unk28) {
+            if (0.1f < obj->unk28) {
                 D_800FF780[24].unk4 += (0x3000 - D_800FF780[24].unk4) >> 2;
             } else {
                 D_800FF780[24].unk4 += (0 - D_800FF780[24].unk4) >> 2;
@@ -486,9 +480,9 @@ void func_m018_0130C(s32 updateRate) {
         func_8006FCA8(&D_800FF398, 0x52, 0x4B, gMenuText[176], 4);
         func_8006FC68(255, 255, 0, 255, 255);
         weapon = rl_m018_066B0;
-        func_800639E8(buf, rl_m018_06AF8, ((u16 *) ((u8 *) record + 0x14))[weapon]);
+        func_800639E8(buf, "%03d", ((u16 *) ((u8 *) record + 0x14))[weapon]);
         func_8006FCA8(&D_800FF398, 0x52, 0x3A, buf, 4);
-        func_800639E8(buf, rl_m018_06B00, ((u16 *) ((u8 *) record + 0x34))[weapon]);
+        func_800639E8(buf, "%03d", ((u16 *) ((u8 *) record + 0x34))[weapon]);
         func_8006FCA8(&D_800FF398, 0x52, 0x58, buf, 4);
         func_8006FC68(255, 255, 255, 255, 255);
         if (rl_m018_066B0 == 0 || rl_m018_066B0 == 1 || rl_m018_066B0 == 5 || rl_m018_066B0 == 2 ||
@@ -502,13 +496,13 @@ void func_m018_0130C(s32 updateRate) {
                 pct = (100.0f * ((u32 *) (settings + 0x4B4))[rl_m018_066B0]) /
                       ((u32 *) (settings + 0x474))[rl_m018_066B0];
             }
-            func_800639E8(buf, rl_m018_06B08, &pct);
+            func_800639E8(buf, "%02.2f%%", &pct);
             func_8006FCA8(&D_800FF398, 0x52, 0x76, buf, 4);
         } else {
             func_8006FC68(255, 255, 255, 255, 255);
             func_8006FCA8(&D_800FF398, 0x52, 0x69, gMenuText[177], 4);
             func_8006FC68(255, 255, 0, 255, 255);
-            func_800639E8(buf, rl_m018_06B14, ((u16 *) (settings + 0x4F4))[weapon]);
+            func_800639E8(buf, "%03d", ((u16 *) (settings + 0x4F4))[weapon]);
             func_8006FCA8(&D_800FF398, 0x52, 0x76, buf, 4);
         }
         func_8006FCA8(&D_800FF398, 0x37, 0x96, gMenuText[179 + rl_m018_066B0 * 5], 0);
@@ -646,7 +640,6 @@ extern s32 rl_m018_06680;
 extern u8 rl_m018_06724[];
 extern f32 rl_m018_0675C[];
 extern M018Pair rl_m018_06774[8];
-extern f32 rl_m018_06B70;
 extern f32 rl_m018_06CD0[8];
 extern f32 rl_m018_06CF0;
 extern f32 rl_m018_06CF4;
@@ -713,7 +706,7 @@ void func_m018_020C0(void) {
     }
     rl_m018_06D04 = 0;
     rl_m018_06D05 = -1;
-    rl_m018_06CF0 = rl_m018_06B70;
+    rl_m018_06CF0 = 0.01f;
     rl_m018_06CF4 = 0.0f;
     rl_m018_06D07 = -1;
     rl_m018_06D0A = 0;
@@ -742,7 +735,7 @@ void func_m018_023E8(void) {
     func_8004AA80(rl_m018_06D10);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_02464);
+INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_02464);
 
 /* Steps from character i in direction dir to the next one that can be picked */
 s32 func_m018_03B44(s32 i, s32 dir) {
@@ -758,7 +751,7 @@ s32 func_m018_03B44(s32 i, s32 dir) {
     return i;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_03BB4);
+INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_03BB4);
 
 void *func_m018_0409C(void) {
     return rl_m018_06BB0;
@@ -839,7 +832,6 @@ void func_m018_043AC(void) {
 
 
 extern s8 rl_m018_06808[4];
-extern char rl_m018_06B1C[];
 
 void func_m018_04408(s32 updateRate) {
     s8 *state;
@@ -954,7 +946,7 @@ void func_m018_04408(s32 updateRate) {
     if (i >= 8) {
         i = 7;
     }
-    func_800639E8(buf, rl_m018_06B1C, gMenuText[i + 400], health, count * 5 + 4);
+    func_800639E8(buf, "%s    (%d/%d)", gMenuText[i + 400], health, count * 5 + 4);
     func_8006FCA8(&D_800FF398, 0x3E, 0xAF, buf, 0);
     if (func_80043510(D_m019_013D8) & 0x4000) {
         func_m019_001B0(1);
@@ -990,7 +982,6 @@ extern s8 rl_m018_06874[];
 extern s8 rl_m018_06898[][2];
 extern f32 rl_m018_068E0[];
 extern s8 rl_m018_06920[];
-extern f32 rl_m018_06B88;
 extern s8 rl_m018_06BD0;
 extern s8 rl_m018_06BD2;
 extern s8 rl_m018_06BD3;
@@ -1037,7 +1028,7 @@ void func_m018_048E4(void) {
     rl_m018_06BD8 = rl_m018_0682C[rl_m018_06BD1 * 3];
     D_800FF780[38].unk0 = rl_m018_06BD8;
     rl_m018_06BD2 = 0;
-    rl_m018_06BEC = rl_m018_06B88;
+    rl_m018_06BEC = -281.0f;
     rl_m018_06BE0 = rl_m018_06898[rl_m018_06BD0][0];
     if (rl_m018_06BE0 == -1) {
         rl_m018_06BE0 = 0;
@@ -1054,7 +1045,7 @@ void func_m018_048E4(void) {
     rl_m018_06BF6 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_04AF0);
+INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_04AF0);
 
 void func_m018_05788(void) {
     menu_assetgroup_free(rl_m018_06810);
@@ -1160,20 +1151,12 @@ extern s32 rl_m018_069D0[];
 extern s16 rl_m018_069EC[];
 extern Vertex rl_m018_069F0[];
 extern Triangle rl_m018_06A30[];
-extern char rl_m018_06B2C[];
-extern char rl_m018_06B30[];
-extern char rl_m018_06B34[];
-extern f32 rl_m018_06B90;
-extern f32 rl_m018_06B94;
-extern f32 rl_m018_06B98;
-extern f32 rl_m018_06B9C;
-extern f32 rl_m018_06BA0;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05C0C);
+INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_05C0C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", bss);
 

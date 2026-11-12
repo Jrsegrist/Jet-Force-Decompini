@@ -47,14 +47,6 @@ extern void mtx_pop(Gfx **dl);
 
 extern s32 D_m101_01130; /* the module's number */
 
-#ifdef NON_MATCHING
-/* The module's .rodata is C only with 00000's and 00B64's C bodies */
-#define M101_SCALE 0.01f
-#else
-extern f32 rl_m101_01174; /* .rodata: the scale factor (0.01) */
-#define M101_SCALE rl_m101_01174
-#endif
-
 /* A point of a shard: where it is from the shard's centre, and its texture coordinate (size 0xC) */
 typedef struct M101ShardPoint {
     /* 0x00 */ f32 x;
@@ -78,12 +70,8 @@ typedef struct M101Shard {
 
 extern u8 rl_m101_01040[40][6]; /* .data: the shards' corners on the pane, in 32nds of its size */
 
-#ifdef NON_MATCHING
 static void func_m101_0056C(Object *obj, M101Pane *pane, s32 updateRate);
-#endif
 
-#ifdef NON_MATCHING
-/* the same code but for register choice: the triangle/vertex index is in an s-register (the ROM keeps it in a0) */
 /* Breaks the pane: makes the 40 shards (their corners, texture coordinates, spin and speed) and their triangles */
 static void func_m101_00000(Object *obj, M101Pane *pane) {
     Triangle *tris;
@@ -99,6 +87,7 @@ static void func_m101_00000(Object *obj, M101Pane *pane) {
     s32 h8;
     s32 angle;
     f32 speed;
+    s32 k;
 
     if (pane->shardTris == NULL) {
         pane->shardTris = func_8004A57C(0x1720, 0xFFFF);
@@ -179,45 +168,41 @@ static void func_m101_00000(Object *obj, M101Pane *pane) {
             s++;
             corner += 6;
         }
-        angle = 0;
-        tris = pane->shardTris;
         i = 0;
+        tris = pane->shardTris;
+        k = 0;
         while (TRUE) {
-            tris->vi0 = i++;
-            tris->vi1 = i++;
-            tris->vi2 = i++;
+            tris->vi0 = k++;
+            tris->vi1 = k++;
+            tris->vi2 = k++;
             tris->flags = 0x40;
             tris++;
-            if (i + 3 > 24) {
-                i = 0;
+            if (k + 3 > 24) {
+                k = 0;
             }
-            angle++;
-            if (angle < 40) {
+            i++;
+            if (i < 40) {
                 continue;
             }
             break;
         }
         for (j = 0; j < 2; j++) {
             v = pane->shardVerts[j];
-            for (i = 0; i < 120; i++) {
-                v[i].r = 255;
-                v[i].g = 255;
-                v[i].b = 255;
-                v[i].a = 255;
+            for (k = 0; k < 120; k++) {
+                v->r = 255;
+                v->g = 255;
+                v->b = 255;
+                v->a = 255;
+                v++;
             }
         }
         func_m101_0056C(obj, pane, 1);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_00000);
-#endif
 
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern u8 D_800A4FC4;
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its floats) in C, and only 00000 and 00B64 call it */
 /*
  * Moves the shards on by `updateRate` frames (falling, and spinning), places their vertices and scrolls their
  * texture coordinates with the camera's angles.
@@ -325,9 +310,6 @@ static void func_m101_0056C(Object *obj, M101Pane *pane, s32 updateRate) {
         s++;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_0056C);
-#endif
 
 /* The pane's level entry */
 typedef struct M101Setup {
@@ -361,7 +343,7 @@ void func_m101_009F8(Object *obj, M101Setup *setup) {
     obj->trans.rotation.x_rotation = setup->xRotation;
     obj->trans.rotation.z_rotation = setup->zRotation;
     t = pane->tris[0];
-    obj->trans.scale = obj->header->scale * setup->scale * M101_SCALE;
+    obj->trans.scale = obj->header->scale * setup->scale * 0.01f;
     PANE_STATE(obj)->strength = setup->strength << 8;
     if (PANE_STATE(obj)->strength <= 0) {
         PANE_STATE(obj)->strength = 0x100;
@@ -397,8 +379,6 @@ typedef struct M101Hits {
 } M101Hits;
 
 
-#ifdef NON_MATCHING
-/* frame and length match; the texture, its width and height are in other registers (a1/a0/a2) */
 /*
  * Before it breaks: scrolls the quad's texture with the pane's and the camera's angles and takes
  * damage. Once broken: moves the shards and, after three seconds, frees itself or stops drawing.
@@ -411,7 +391,6 @@ void func_m101_00B64(Object *obj, s32 updateRate) {
     ObjectTransform *cam;
     M101Pane *pane;
     M101Hits *hits;
-    M101Texture *tex;
     Triangle *t;
     s16 yaw;
     s16 pitch;
@@ -438,10 +417,9 @@ void func_m101_00B64(Object *obj, s32 updateRate) {
         return;
     }
     t = pane->quadTris[PANE_STATE(obj)->buffer];
-    tex = pane->texture;
+    u = pane->texture->width;
+    v = pane->texture->height;
     yaw = -obj->trans.rotation.y_rotation;
-    u = tex->width;
-    v = tex->height;
     w = u << 4;
     h = v << 4;
     pitch = -obj->trans.rotation.x_rotation;
@@ -477,9 +455,6 @@ void func_m101_00B64(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_00B64);
-#endif
 
 void func_m101_00DCC(Gfx **dl, s32 arg1, Object *obj) {
     M101Pane *pane;
@@ -522,7 +497,3 @@ void func_m101_00DCC(Gfx **dl, s32 arg1, Object *obj) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m101", data);
-
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m101", rodata);
-#endif

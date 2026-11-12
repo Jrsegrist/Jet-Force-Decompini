@@ -6,6 +6,9 @@
  */
 #include "module.h"
 
+/* the .rodata strings the data refers to (first in .rodata) */
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", rodata);
+
 /* A checkpoint object's data (obj->unk68) */
 typedef struct M031Checkpoint {
     /* 0x00 */ u8 number;
@@ -216,9 +219,6 @@ typedef struct M031CheckpointSetup {
 } M031CheckpointSetup;
 
 /* The module's .rodata (still assembly) */
-extern f32 rl_m031_04458;
-extern f32 rl_m031_0445C;
-extern f32 rl_m031_04460; /* farther than any checkpoint (squared) */
 
 void func_m031_00364(Object *obj, M031CheckpointSetup *setup) {
     f32 s;
@@ -226,14 +226,14 @@ void func_m031_00364(Object *obj, M031CheckpointSetup *setup) {
     M031Checkpoint *c = obj->unk68;
     f32 k;
 
-    obj->trans.scale = setup->radius * rl_m031_04458;
+    obj->trans.scale = setup->radius * 0.04f;
     obj->trans.rotation.y_rotation = setup->yaw << 10;
     obj->trans.rotation.x_rotation = 0;
     obj->trans.rotation.z_rotation = 0;
     c->number = setup->number;
     c->unk1 = setup->unk12;
     c->unk2 = setup->unk13;
-    c->unk8 = setup->unkB * rl_m031_0445C;
+    c->unk8 = setup->unkB * 0.01f;
     c->radiusSq = setup->radius * 4;
     c->radiusSq = c->radiusSq * c->radiusSq;
     s = func_80049C34(obj->trans.rotation.y_rotation);
@@ -272,7 +272,7 @@ Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
     f32 sq;
     f32 dist;
 
-    bestDist = rl_m031_04460;
+    bestDist = 1.0e6f;
     p = sCheckpoints;
     best = NULL;
     i = 256;
@@ -297,7 +297,7 @@ Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
 }
 #else
 Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat);
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_005AC);
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_005AC);
 #endif
 
 /* The checkpoint before `index` in the ring */
@@ -445,9 +445,9 @@ void func_m031_0080C(void) {
     rl_m031_040F8 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_00A3C);
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_00A3C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_01150);
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_01150);
 
 extern u8 D_800A5040;
 extern f32 func_80097140(f32 x); /* square root */
@@ -846,7 +846,7 @@ void func_m031_0242C(s32 n, s32 step) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_026B8);
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_026B8);
 
 /* A coloured mark of the speed gauge (12 bytes; the colour's low byte is its alpha) */
 typedef struct M031GaugeMark {
@@ -864,7 +864,6 @@ typedef struct M031Speed {
 extern s32 rl_m031_04108[20];
 extern M031GaugeMark rl_m031_04158[20];
 extern M031GaugeMark rl_m031_04248[20];
-extern f32 rl_m031_04470; /* marks per unit of speed */
 extern void screen_line_add_raw(s32 x, s32 y, s32 value, s32 digits, s32 flag); /* draws a number */
 extern void menu_fill_boxes(s32 arg0, s32 count, M031GaugeMark *marks, s32 arg3);
 
@@ -881,7 +880,7 @@ void func_m031_029FC(s32 arg0, Object *obj) {
     u32 base;
 
     if (obj != NULL && (s = obj->unk68) != NULL) {
-        n = s->speed * rl_m031_04470;
+        n = s->speed * 0.86f;
         if (n < 0) {
             n = -n;
         }
@@ -911,10 +910,10 @@ void func_m031_029FC(s32 arg0, Object *obj) {
     menu_fill_boxes(arg0, 20, rl_m031_04158, 0);
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_029FC);
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_029FC);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_02B88);
+INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_02B88);
 
 /* Frees the race's sounds */
 void func_m031_0361C(void) {
@@ -1115,4 +1114,4 @@ void func_m031_03AF8(Object *a, Object *b) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

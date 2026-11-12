@@ -492,13 +492,13 @@ void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m041", func_m041_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m041/ro", func_m041_00000);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m041", func_m041_008B4);
+INCLUDE_ASM("asm/nonmatchings/modules/m041/ro", func_m041_008B4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m041", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m041", rodata);
+INCLUDE_ASM("asm/nonmatchings/modules/m041/ro", rodata);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m041", bss);
 #endif

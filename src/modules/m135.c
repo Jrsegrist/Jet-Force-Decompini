@@ -216,20 +216,8 @@ void func_m135_00000(Object *obj, LevelObjectEntryCommon *entry) {
     aim->target = NULL;
 }
 
-/*
- * The module's .rodata can only be C once 002BC matches (all of it is float literals of 00010, 002BC, 01A04 and
- * 021F8), so 00010 and 021F8 (which match with it in C) are C only under NON_MATCHING, and 01A04 reads its
- * float from the assembly .rodata in the matching build.
- */
-#ifdef NON_MATCHING
 #define SCREEN_TURN_RATE 0.98f
-#else
-extern f32 rl_m135_02AC4; /* 0.98f */
-#define SCREEN_TURN_RATE rl_m135_02AC4
-#endif
 
-#ifdef NON_MATCHING
-/* Matches (needs the module's .rodata in C: the 1e9 literal twice) */
 /* The aim point: finds the nearest object of kind 8 and follows it */
 void func_m135_00010(Object *obj, s32 updateRate) {
     M135Aim *aim;
@@ -272,9 +260,6 @@ void func_m135_00010(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m135", func_m135_00010);
-#endif
 
 void func_m135_00298(Object *obj, LevelObjectEntryCommon *entry) {
     M135Camera *cam = obj->unk68;
@@ -562,7 +547,7 @@ void func_m135_002BC(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m135", func_m135_002BC);
+INCLUDE_ASM("asm/nonmatchings/modules/m135/ro", func_m135_002BC);
 #endif
 
 /* Turns the camera to the next target that can be shown (dir 0: forwards); TRUE if it changed */
@@ -797,10 +782,8 @@ void func_m135_02188(Object *obj, M135SelectorEntry *entry) {
     obj->trans.rotation.y_rotation = sel->unk4;
 }
 
-#ifdef NON_MATCHING
 static void func_m135_02834(Object *obj, s32 frame, s32 frames);
 
-/* Matches (needs the module's .rodata in C: with the assembly 5000.0f its FPRs differ) */
 /* A player selector's control: turns it, plays its turning sound and sets its model and frame */
 void func_m135_021F8(Object *obj, s32 updateRate) {
     M135Selector *sel;
@@ -894,9 +877,6 @@ void func_m135_021F8(Object *obj, s32 updateRate) {
     sel->unk17 = 0;
     sel->unkE = sel->unk8;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m135", func_m135_021F8);
-#endif
 
 void func_m135_0270C(Object *obj, s32 mode, s32 arg2, s32 turn, s32 arg4) {
     M135Selector *sel = obj->unk68;
@@ -966,11 +946,8 @@ typedef struct M135Instance {
 } M135Instance;
 
 /* Sets the frames of the object's animated textures `texture` frames long to `frame` (the second one to
-   the next frame), and writes each batch's texture offsets (called from 021F8; global while 021F8 is asm) */
-#ifdef NON_MATCHING
-static
-#endif
-void func_m135_02834(Object *obj, s32 frame, s32 frames) {
+   the next frame), and writes each batch's texture offsets (called from 021F8) */
+static void func_m135_02834(Object *obj, s32 frame, s32 frames) {
     M135Instance *inst = obj->modelInstances[obj->modelIndex];
     M135Model *model = inst->model;
     M135TexAnim *a = inst->texAnims;
@@ -1027,7 +1004,3 @@ void func_m135_02998(Object *obj) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m135", data);
-
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m135", rodata);
-#endif

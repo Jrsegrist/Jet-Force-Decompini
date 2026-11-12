@@ -544,13 +544,12 @@ void func_m003_00328(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_00384);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_00384);
 
-extern f32 rl_m003_199EC; /* .rodata (still assembly): how much of its sideways speed it keeps */
 
 /* An object's position; slows it and counts down its way point, moving on at 0 */
 void func_m003_009C8(Object *obj, f32 *x, f32 *y, f32 *z) {
-    f32 k = rl_m003_199EC;
+    f32 k = 0.96f;
 
     *x = obj->trans.x_position;
     *y = obj->trans.y_position;
@@ -814,8 +813,6 @@ void func_m003_01608(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
 }
 
-extern f32 rl_m003_199F0; /* .rodata (still assembly): the least burn rate */
-extern f32 rl_m003_199F4; /* and the burn rate per unit of the troop's unk2A */
 extern void func_m146_00000(Object *obj, s32 arg1);
 extern void func_8002179C(s32 handle);
 extern void track_light_off(s32 light);
@@ -827,14 +824,14 @@ extern void track_light_off(s32 light);
  * goes back to its mission and the fire's spark, unkC4 and light go
  */
 void func_m003_01764(Object *obj, f32 *x, f32 *y, f32 *z) {
-    f32 min = rl_m003_199F0;
+    f32 min = 0.2f;
     f32 rate;
     s16 hp;
 
     *x = obj->trans.x_position;
     *y = obj->trans.y_position;
     *z = obj->trans.z_position;
-    rate = sHomeData->unk2A * rl_m003_199F4;
+    rate = sHomeData->unk2A * 0.002f;
     if (rate < min) {
         rate = min;
     }
@@ -870,7 +867,7 @@ void func_m003_01764(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01764);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_01764);
 #endif
 
 /* Keeps the facing; records the turn towards whoever shot the member (no one: the mission ends) */
@@ -1342,7 +1339,6 @@ void func_m003_03170(void) {
 
 f32 func_m003_03E20(f32 x1, f32 z1, f32 x2, f32 z2);
 extern void rl_m003_03CAC(Object *obj);
-extern f32 rl_m003_199F8; /* .rodata (still assembly) */
 
 #ifdef NON_MATCHING
 /* 7 diffs: the ROM's constant (a .rodata literal) takes f14, after dx, dy, dz (C: f0, first) */
@@ -1358,7 +1354,7 @@ void func_m003_0322C(void) {
     first = sHomeData->first;
     node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
     if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) < node->unk19) {
-        k = rl_m003_199F8;
+        k = 0.1f;
         sHomeData->unk33 = 30;
         sHomeData->unk3E = 10;
         dx = node->x - first->trans.x_position;
@@ -1371,7 +1367,7 @@ void func_m003_0322C(void) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0322C);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0322C);
 #endif
 
 /* Counts down the troop's wait, then sends it on from its way point (low byte) towards the next (high byte) */
@@ -1512,7 +1508,6 @@ void func_m003_03628(void) {
     }
 }
 
-extern f32 rl_m003_199FC; /* .rodata (still assembly): how fast the first member heads for the way point */
 
 /*
  * Puts the troop's first member back on the way point it came from (the high byte of unk3C), then heads it
@@ -1548,7 +1543,7 @@ void func_m003_038D4(void) {
             sHomeData->unk33 = 0;
         }
         if (func_m003_03E20(first->trans.x_position, first->trans.z_position, node->x, node->z) < node->unk19) {
-            k = rl_m003_199FC;
+            k = 0.1f;
             sHomeData->unk33 = 30;
             sHomeData->unk3E = 10;
             dx = node->x - first->trans.x_position;
@@ -1562,7 +1557,7 @@ void func_m003_038D4(void) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_038D4);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_038D4);
 #endif
 
 extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
@@ -1774,11 +1769,10 @@ M003Anim *func_m003_04428(Object *obj) {
     return rl_m003_17DB8;
 }
 
-extern f32 rl_m003_19A00; /* .rodata (still assembly): the unit of 044B4's speed */
 
 /* The current member's animation speed: its first animation entry's unk0, scaled */
 static f32 func_m003_044B4(void) {
-    return func_m003_04428(sObj)->unk0 * rl_m003_19A00;
+    return func_m003_04428(sObj)->unk0 * 0.0001f;
 }
 
 /* The level entry of a lost body part (size 0x14) */
@@ -2075,11 +2069,10 @@ typedef struct M003Player {
 } M003Player;
 
 extern Object **func_8000E464(s32 *count); /* the players */
-extern f32 rl_m003_19A04;                  /* .rodata (still assembly): the starting distance */
 
 /* The player (or the player's vehicle) nearest (x, y, z) */
 static s32 func_m003_0527C(f32 x, f32 y, f32 z) {
-    f32 best = rl_m003_19A04;
+    f32 best = 5.0e9f;
     Object *nearest = NULL;
     Object **players;
     s32 count;
@@ -2350,13 +2343,12 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06754);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_069B0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06D28);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_06D28);
 
-extern f32 rl_m003_19AAC; /* .rodata (still assembly): 07980's rate */
 
 /* The change from `speed` towards a speed for going from `from` to `to`, at most `max` either way */
 f32 func_m003_07980(f32 from, f32 to, f32 speed, f32 max) {
-    f32 d = (to - from) * rl_m003_19AAC - speed;
+    f32 d = (to - from) * 0.2f - speed;
 
     if (max < d) {
         d = max;
@@ -2503,7 +2495,7 @@ s16 func_m003_07C18(f32 x, f32 y, f32 z, f32 tx, f32 ty, f32 tz, f32 speed, f32 
     return 0x2000;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_07E88);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_07E88);
 
 /* The member's word at 0x4 as four 3-bit part numbers (7: none) */
 typedef struct M003Parts {
@@ -2709,7 +2701,6 @@ typedef struct M003PartEntry2 {
 
 extern void velocity_mass_weighted(Object *a, Object *b, f32 *x, f32 *y, f32 *z);
 extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32 arg7, f32 scale);
-extern f32 rl_m003_19D3C; /* .rodata (still assembly) */
 
 /*
  * The member coming apart: 32 drops around it, then every body part it has not lost yet flies off (while
@@ -2744,7 +2735,7 @@ void func_m003_09CE4(Object *obj) {
         } else {
             alpha = 0xFF;
         }
-        k = rl_m003_19D3C;
+        k = 0.01f;
         i = 31;
         do {
             dx = func_80048E2C(-20, 20);
@@ -2784,7 +2775,7 @@ void func_m003_09CE4(Object *obj) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09CE4);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_09CE4);
 #endif
 
 /* A member is killed */
@@ -2952,8 +2943,6 @@ void func_m003_0A5EC(void) {
     sObj->trans.rotation.y_rotation += sMember->unk4C;
 }
 
-extern f32 rl_m003_19D40; /* .rodata (still assembly): 0A850's factors */
-extern f32 rl_m003_19D44;
 
 /* The member's step speed: the smaller of sBssCC squared and the troop's speed, each scaled; doubled
    while it is busy, five times while unk0_17 or on fire; 0 in state 20 */
@@ -2965,8 +2954,8 @@ void func_m003_0A850(void) {
         sBss10 = 0.0f;
         return;
     }
-    near = sBssCC * sBssCC * rl_m003_19D40;
-    speed = sHomeData->speed * rl_m003_19D44;
+    near = sBssCC * sBssCC * 0.0001f;
+    speed = sHomeData->speed * 0.1f;
     if (speed < near) {
         sBss10 = speed;
     } else {
@@ -2981,22 +2970,20 @@ void func_m003_0A850(void) {
     }
 }
 
-extern f32 rl_m003_19D48; /* .rodata (still assembly): 0A948's scale */
 f32 func_m003_079D8(s32 dist, f32 speed, f32 accel);
 
 /* The member's next speed: 079D8's change for stopping sBssCC away, accelerating by the troop's speed */
 void func_m003_0A948(void) {
-    sBss10 = func_m003_079D8(sBssCC * 10.0f, sMember->unk20 * 10.0f, sHomeData->speed) * rl_m003_19D48;
+    sBss10 = func_m003_079D8(sBssCC * 10.0f, sMember->unk20 * 10.0f, sHomeData->speed) * 0.1f;
 }
 
-extern f32 rl_m003_19D4C; /* .rodata (still assembly): 0A9E8's scale */
 
 /* Changes the member's climb towards `height` above sBss18 */
 void func_m003_0A9E8(s32 height) {
     sObj->velocity.y +=
         func_m003_079D8((height + sBss18 - sObj->trans.y_position) * 10.0f, sObj->velocity.y * 10.0f,
                         sHomeData->speed) *
-        rl_m003_19D4C;
+        0.1f;
 }
 
 /* Scales the member's movement by `x` sideways and `z` forwards (in its own frame) */
@@ -3042,7 +3029,6 @@ void func_m003_0ABF4(void) {
     sObj->velocity.z = func_80049C30(sMember->unk1C) * sMember->unk20;
 }
 
-extern f32 rl_m003_19D50; /* .rodata (still assembly): 0AD38's slowing */
 
 /* Keeps the member's speed within its troop's limits (scaling it first while the body's distance is
    above 0 or sBssCC above 20) and sets its velocity from its heading */
@@ -3051,7 +3037,7 @@ void func_m003_0AD38(void) {
     f32 min = sHomeData->minSpeed;
 
     if (sBody->unk10 > 0.0f || sBssCC > 20.0f) {
-        sMember->unk20 *= rl_m003_19D50;
+        sMember->unk20 *= 0.98f;
     }
     if (max < sMember->unk20) {
         sMember->unk20 = max;
@@ -3073,13 +3059,12 @@ void func_m003_0AE80(f32 rate) {
 
 extern void rl_m003_03D44(s16 angle, f32 speed); /* still assembly */
 extern void rl_m003_0AE80(f32 rate);             /* still assembly */
-extern f32 rl_m003_19D54;                        /* .rodata (still assembly): 0AF34's rate */
 
 /* A member step: 0AE80 while the body's distance (0 for the troop's first member) is over sBssCC, else 03D44
    the way the member faces at sBss10 */
 void func_m003_0AF34(void) {
     if (sBssCC < ((sObj == sHomeData->first) ? 0.0f : sBody->unk10)) {
-        rl_m003_0AE80(rl_m003_19D54);
+        rl_m003_0AE80(0.8f);
     } else {
         rl_m003_03D44(sObj->trans.rotation.y_rotation, sBss10);
     }
@@ -3094,12 +3079,11 @@ void func_m003_0AFC4(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B040);
 
-extern f32 rl_m003_19D58; /* .rodata (still assembly): 0B468's rate */
 extern f32 rl_m003_07980(f32 from, f32 to, f32 speed, f32 max);
 
 /* Changes the member's climb towards sBss18 (twice as fast while it is busy) */
 void func_m003_0B468(void) {
-    f32 max = sHomeData->speed * rl_m003_19D58;
+    f32 max = sHomeData->speed * 0.2f;
 
     if (sMember->busy) {
         max *= 2.0f;
@@ -3159,7 +3143,6 @@ static f32 func_m003_0B50C(void) {
     return sHomeData->y;
 }
 
-extern f32 rl_m003_19D5C; /* .rodata (still assembly) */
 
 /*
  * The member's fall: towards the walking height 0B50C gives (while it rises, only slowing), landing on it
@@ -3192,7 +3175,7 @@ void func_m003_0B70C(void) {
                 sObj->velocity.y = 0.0f;
                 sMember->unk1E = 0;
             } else {
-                sObj->velocity.y *= rl_m003_19D5C;
+                sObj->velocity.y *= -0.3f;
             }
             sObj->trans.y_position = h;
             sMember->unk0_26 = 0;
@@ -3235,8 +3218,6 @@ void func_m003_0B9E0(void) {
 
 extern void rl_m003_0AABC(f32 a, f32 b); /* still assembly */
 extern void rl_m003_0AF34(void);
-extern f32 rl_m003_19D60;                /* .rodata (still assembly): 0BB50's factor */
-extern f32 rl_m003_19D68;                /* .rodata (still assembly): 0BFC4's factor */
 
 /* Another member update: walking at five times the troop's speed */
 void func_m003_0BA20(void) {
@@ -3274,12 +3255,12 @@ void func_m003_0BB50(void) {
     rl_m003_0AFC4();
     rl_m003_0A9E8(0);
     if (sObj->velocity.y < 0.0f) {
-        sObj->velocity.y *= rl_m003_19D60;
+        sObj->velocity.y *= 0.73f;
     }
     rl_m003_0AD38();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0BBC4);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0BBC4);
 
 /* As 0BB50, with another factor */
 void func_m003_0BFC4(void) {
@@ -3288,7 +3269,7 @@ void func_m003_0BFC4(void) {
     rl_m003_0AFC4();
     rl_m003_0A9E8(0);
     if (sObj->velocity.y < 0.0f) {
-        sObj->velocity.y *= rl_m003_19D68;
+        sObj->velocity.y *= 0.73f;
     }
     rl_m003_0AD38();
 }
@@ -3389,7 +3370,7 @@ s32 func_m003_0C1A0(Object *obj, Object *target, s16 *yaw, s16 *pitch, f32 *dist
     return TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0C324);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0C324);
 
 extern u8 D_800FE9EE;
 extern s32 obj_id_is_special(s16 id);
@@ -3426,7 +3407,6 @@ int func_m003_0CAA4(f32 dist, f32 arg1, s16 maxAngle) {
     return sHomeData->unk30 == 3 || D_800FE9EE == 7 || D_800FE9EE == 12 || D_800FE9EE == 9;
 }
 
-extern f32 rl_m003_19D70; /* .rodata (still assembly) */
 /* .data (still assembly; relocated against the .data start): the animation 0512C fires with, -1: none */
 #define sFireAnim (*(s32 *) (rl_m003_17A10 + 0x1A24))
 
@@ -3467,7 +3447,7 @@ void func_m003_0CD34(Object *obj) {
         }
     }
     if (found) {
-        dist = rl_m003_19D70;
+        dist = 275.0f;
         arg1 = 1200.0f;
     } else {
         dist = 0.0f;
@@ -3581,7 +3561,7 @@ s32 func_m003_0D2C0(Object *obj) {
     return (s32) sBody;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D360);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0D360);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D810);
 
@@ -3671,7 +3651,7 @@ void func_m003_0DF84(obj, entry)
     rl_m003_0D360(sHome);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0E3CC);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0E3CC);
 
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern void func_m149_01D20(Object *obj, f32 updateRate);
@@ -3835,13 +3815,13 @@ static void func_m003_105B8(Object *shotBy) {
     sHomeData->unk30 = 3;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_10600);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_10600);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_1398C);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_1398C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_13D94);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_13D94);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_13FE4);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_13FE4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_142F0);
 
@@ -3905,7 +3885,7 @@ void func_m003_147B8(LevelObjectEntryCommon *entry) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_148C0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_14D4C);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_14D4C);
 
 
 /* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
@@ -4445,6 +4425,6 @@ void func_m003_179E0(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", rodata);
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", rodata);
 
 

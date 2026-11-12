@@ -3352,7 +3352,7 @@ typedef struct Racer {
     /* 0x577 */ u8 pad577[0x5F0 - 0x577];
 } Racer;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_00000);
 
 /* Whether the character may fire now */
 s32 func_m015_01B98(Object *obj, Racer *racer) {
@@ -3381,61 +3381,61 @@ s32 func_m015_01B98(Object *obj, Racer *racer) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_01C80);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_01E14);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_01E14);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_020B4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_022C4);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_022C4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_025FC);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_025FC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_02B2C);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_02B2C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_03274);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_03274);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_03564);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_03564);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_03740);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_03740);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_04088);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_0418C);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_0418C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_04658);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_04658);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_04A58);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_04B4C);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_04B4C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_05020);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_05020);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_05180);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_05328);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_05328);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_05ED4);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_05ED4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_0663C);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_0663C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_068BC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_06B3C);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_06B3C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_06DDC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_06E40);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_06EBC);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_06EBC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_07724);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_07724);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_07890);
+INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_07890);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_07BC8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m015", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m015", bss);
 #endif

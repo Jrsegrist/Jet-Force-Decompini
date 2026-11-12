@@ -10,7 +10,11 @@ recreates them from the assembled objects. See docs/runlink.md.
 For work in C, every module is also split per function into
 asm/nonmatchings/modules/mNNN/func_mNNN_XXXXX.s (for INCLUDE_ASM), with
 data.s, rodata.s and bss.s (the module's sections, as far as it has them)
-and functions.txt (the function list) next to them.
+and functions.txt (the function list) next to them; and, where the
+module's .rodata can be split per function, mNNN/ro/: each function that
+uses .rodata together with its own items, so that functions still in
+assembly bring their .rodata while the rest is C (write_ro_dir;
+build/runlink/rodata_split.txt says which modules can't, and why).
 
 Symbol references in the generated assembly are by address, so that C written
 from it never contains a name from the ROM's name table:
@@ -32,7 +36,9 @@ written here is derived from the ROM and is not committed.
 Usage: runlink_split.py ROM [--version us]
 """
 import argparse
+import bisect
 import os
+import shutil
 import struct
 
 import rabbitizer
@@ -191,6 +197,135 @@ def find_functions(image, tsize, starts, jumps=None):
     return sorted(found), end
 
 
+def write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames, lo_info, jtbl_los,
+                 jentry, rel32, sub, labels, exported, emit_labels, text_line, nm_dir):
+    """The module's .rodata split per function, in mNNN/ro/: for each
+    function that refers to .rodata, func_mNNN_XXXXX.s with its own items
+    (strings in .rodata, floats and jump tables in .late_rodata, as IDO
+    places them), and rodata.s with the items before them that only data
+    refers to. Each item belongs to the one function that refers to it; a
+    function's items are labelled rl_mNNN_<offset of its first item> and its
+    code refers to them relative to that label. Returns None when done, or
+    why the module's .rodata cannot be split like that."""
+    rend = tsize + dsize
+    if any(rodata_start <= k < rend for k in exported):
+        return "an exported symbol in .rodata"
+
+    def func_of(o):
+        return funcs[bisect.bisect_right(funcs, o) - 1]
+
+    users = {}
+    loaded = set()  # items read as float literals (lwc1/ldc1) or as jump tables: IDO's "late" .rodata
+    addressed = set()  # items used any other way (strings, const arrays)
+    for lo, (ho, t) in lo_info.items():
+        if rodata_start <= t < rend and lo < tsize:
+            users.setdefault(t, set()).add(func_of(lo))
+            if u32(image, lo) >> 26 in (0x31, 0x35) or lo in jtbl_los:
+                loaded.add(t)
+            else:
+                addressed.add(t)
+    loaded -= addressed
+    for o, t in rel32.items():
+        if rodata_start <= t < rend and o >= tsize:
+            users.setdefault(t, set()).add(-1)  # a pointer in the data block
+    starts = sorted(users)
+    if not starts:
+        return "no references to .rodata"
+    items = []  # (start, end, owning function or -1)
+    if starts[0] > rodata_start:
+        items.append((rodata_start, starts[0], -1))
+    for i, s in enumerate(starts):
+        if len(users[s]) > 1:
+            return "0x%X is used by more than one function (or by data)" % s
+        items.append((s, starts[i + 1] if i + 1 < len(starts) else rend, next(iter(users[s]))))
+    k = 0
+    while k < len(items) and items[k][2] < 0:
+        k += 1
+    if any(it[2] < 0 for it in items[k:]):
+        return "an item only data refers to comes after the functions' items"
+    head, owned = items[:k], items[k:]
+    # IDO writes strings and const data first (an item the code takes the
+    # address of), then each function's float literals and jump tables (an
+    # item it loads with lwc1/ldc1 or jumps through)
+    late = [a in loaded for a, b, _ in owned]
+    split = late.index(True) if True in late else len(owned)
+    if not all(late[split:]):
+        return "an item whose address is taken comes after the literals"
+
+    def ascending(seq):
+        return all(seq[i][2] <= seq[i + 1][2] for i in range(len(seq) - 1))
+
+    if not (ascending(owned[:split]) and ascending(owned[split:])):
+        return "the items are not in function order"
+    chunks = {}  # function -> {section: [start, end]}
+    for i, (a, b, f) in enumerate(owned):
+        sec = ".rodata" if i < split else ".late_rodata"
+        c = chunks.setdefault(f, {}).setdefault(sec, [a, b])
+        if c[1] != a and c[0] != a:
+            return "the items of %s are not contiguous" % fnames[f]
+        c[1] = b
+
+    def chunk_of(t):
+        for sec in chunks[func_of_item(t)].values():
+            if sec[0] <= t < sec[1]:
+                return sec[0]
+        raise AssertionError
+
+    item_owner = {a: f for a, b, f in owned}
+
+    def func_of_item(t):
+        return item_owner[max(a for a in item_owner if a <= t)]
+
+    ro_sub = {}
+    for lo in sorted(lo_info):
+        ho, t = lo_info[lo]
+        if not (rodata_start <= t < rend and lo < tsize):
+            continue
+        c = chunk_of(t)
+        e = expr("rl_m%03d_%05X" % (me, c), t - c)
+        ro_sub[lo] = "%%lo(%s)" % e
+        if ho is not None:
+            if ho not in ro_sub:
+                ro_sub[ho] = ("%%hi(%s)" % e, c)
+            elif ro_sub[ho][1] != c:
+                return "a %%hi at 0x%X is shared by two functions' items" % ho
+    ro_sub = {o: (v[0] if isinstance(v, tuple) else v) for o, v in ro_sub.items()}
+
+    def chunk_lines(a, b, sec):
+        out = [".section %s" % sec, "dlabel rl_m%03d_%05X" % (me, a)]
+        for o in range(a, b, 4):
+            for nm in labels.get(o, []):
+                if nm != "rl_m%03d_%05X" % (me, a):
+                    out.append("dlabel %s" % nm)
+            e = jentry.get(o) or (sub[o][1] if o in sub else "0x%08X" % u32(image, o))
+            out.append("    /* %05X */ .word %s" % (o, e))
+        return out
+
+    ro_dir = os.path.join(nm_dir, "ro")
+    os.makedirs(ro_dir, exist_ok=True)
+    bounds = funcs + [code_end]
+    for a, b in zip(bounds, bounds[1:]):
+        if a not in chunks:
+            continue
+        out = []
+        for sec in (".rodata", ".late_rodata"):
+            if sec in chunks[a]:
+                out += chunk_lines(chunks[a][sec][0], chunks[a][sec][1], sec)
+        out += ["", ".section .text", "glabel %s" % fnames[a]]
+        for o in range(a, b, 4):
+            out += emit_labels(o, True, True)
+            out.append(text_line(o, True, ro_sub))
+        if b == code_end and code_end < tsize:
+            out.append("    /* padding to 16 bytes follows (IDO adds it) */")
+        out.append("endlabel %s" % fnames[a])
+        with open(os.path.join(ro_dir, fnames[a] + ".s"), "w") as f:
+            f.write("\n".join(out) + "\n")
+    if head:
+        with open(os.path.join(ro_dir, "rodata.s"), "w") as f:
+            f.write("\n".join(chunk_lines(head[0][0], head[-1][1], ".rodata")) + "\n")
+    return None
+
+
 def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     me = m + 1
     w0, off, tsize, dsize, bsize, r1, r2, init, fini = mods[m]
@@ -338,10 +473,12 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
         for i, c in enumerate(cases):
             jentry[t + 4 * i] = ".L%05X" % c
 
-    def text_line(o, macros=False):
+    def text_line(o, macros=False, ro_sub=None):
         w = u32(image, o)
         ins = rabbitizer.Instruction(w, o)
-        if macros and o in nm_sub:
+        if ro_sub and o in ro_sub:
+            s = ins.disassemble(immOverride=ro_sub[o])
+        elif macros and o in nm_sub:
             s = ins.disassemble(immOverride=nm_sub[o])
         elif o in sub:
             typ, e = sub[o][0], sub[o][1]
@@ -429,8 +566,27 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
     nm_dir = "%s/m%03d" % (nm_root, me)
     os.makedirs(nm_dir, exist_ok=True)
     for old in os.listdir(nm_dir):
-        os.remove(os.path.join(nm_dir, old))
+        p = os.path.join(nm_dir, old)
+        if os.path.isdir(p):
+            shutil.rmtree(p)
+        else:
+            os.remove(p)
     bounds = funcs + [code_end]
+    ro_note = None
+    ro_start = rodata_start
+    if ro_start is None and dsize:
+        # no section start inside the data block: it is all .data or all
+        # .rodata. Take it as .rodata when the code only loads floats and
+        # jump-table entries from it and it holds no other pointers
+        loads = [u32(image, lo) >> 26 in (0x31, 0x35) or lo in jtbl_los
+                 for lo, (ho, t) in lo_info.items() if lo < tsize and tsize <= t < tsize + dsize]
+        ptrs = [o for o, v in sub.items() if o >= tsize and v[0] == R_MIPS_32 and o not in jentry]
+        if loads and all(loads) and not ptrs:
+            ro_start = tsize
+    if ro_start is not None:
+        ro_note = write_ro_dir(me, image, tsize, dsize, ro_start, funcs, code_end, fnames, lo_info,
+                               jtbl_los, jentry, rel32, sub, labels, exported, emit_labels, text_line,
+                               nm_dir)
     flist = []
     for a, b in zip(bounds, bounds[1:]):
         out = ["glabel %s" % fnames[a]]
@@ -458,7 +614,7 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
         f.write("\n".join(flist) + ("\n" if flist else ""))
     if len(ro) > 1:
         print("m%03d: more than one section start in the data block: %s" % (me, [hex(k) for k in ro]))
-    return len(funcs), len(jtbls)
+    return len(funcs), len(jtbls), ro_note
 
 
 def main():
@@ -483,13 +639,22 @@ def main():
     with open(args.build_dir + "/symbols.txt", "w") as f:
         for i, (mod, off, name) in enumerate(syms):
             f.write("%d %d 0x%X %s\n" % (i, mod, off, name))
-    nfuncs = njtbls = 0
+    nfuncs = njtbls = nro = 0
+    ro_notes = []
     for m in range(len(mods)):
-        nf, nj = split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
-                              args.build_dir)
+        nf, nj, note = split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
+                                    args.build_dir)
         nfuncs += nf
         njtbls += nj
-    print("runlink_split: %d modules, %d functions, %d jump tables" % (len(mods), nfuncs, njtbls))
+        if os.path.isdir("%s/m%03d/ro" % (args.nonmatchings_dir, m + 1)):
+            nro += 1
+        if note:
+            ro_notes.append("m%03d: %s" % (m + 1, note))
+    # the modules whose .rodata has no per-function split, and why
+    with open(args.build_dir + "/rodata_split.txt", "w") as f:
+        f.write("\n".join(ro_notes) + ("\n" if ro_notes else ""))
+    print("runlink_split: %d modules, %d functions, %d jump tables; .rodata split per function in "
+          "%d modules" % (len(mods), nfuncs, njtbls, nro))
 
 
 if __name__ == "__main__":

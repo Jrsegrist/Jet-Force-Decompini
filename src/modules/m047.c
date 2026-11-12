@@ -5,16 +5,8 @@
  */
 #include "module.h"
 
-#ifdef NON_MATCHING
-/* The module's .rodata is C only with 0084C's C body */
+/* An unreferenced debug string at the start of the module's .rodata */
 static const char sDebugText[] = "x = %d, y = %d, width = %d, alpha = %d\n";
-#define M047_STATIC static
-#define M047_0_6 0.59999996f /* 0x3F199999 */
-#else
-#define M047_STATIC
-extern f32 rl_m047_0264C; /* .rodata: 0.6 (0x3F199999) */
-#define M047_0_6 rl_m047_0264C
-#endif
 
 /* A subtitle (size 0xC) */
 typedef struct M047Subtitle {
@@ -169,8 +161,6 @@ typedef struct M047Key {
     /* 0x28 */ struct M047Key *next;
 } M047Key;
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its jump table and floats) in C */
 /*
  * Evaluates channel `channel` of the spline through the previous key, the key, the next key and the one after
  * at `t` (0..1): 0-2 the position, 3-5 the rotation (angles unwrapped first), else the scale. Writes the
@@ -275,9 +265,6 @@ void func_m047_002C4(M047Key *key, f32 t, f32 *value, f32 *slope, s32 channel) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_002C4);
-#endif
 
 /* A cutscene actor: its object, the path it follows and how */
 typedef struct M047Actor {
@@ -325,11 +312,11 @@ extern f32 func_80097140(f32 x);                /* square root */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
-M047_STATIC void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate);
-M047_STATIC void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate);
+static void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate);
+static void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate);
 
 /* Turns angle `from` part `t` of the shorter way towards `to` (called from 0084C) */
-M047_STATIC s16 func_m047_007DC(f32 t, s16 from, s16 to) {
+static s16 func_m047_007DC(f32 t, s16 from, s16 to) {
     s32 d = (u16) (to - from);
     s32 back = (u16) (from - to);
 
@@ -339,8 +326,6 @@ M047_STATIC s16 func_m047_007DC(f32 t, s16 from, s16 to) {
     return from + (s32) (d * t);
 }
 
-#ifdef NON_MATCHING
-/* case 1 loads rotY one slot early (t5 vs the ROM's t8), so later temps are numbered differently; the rest matches */
 /* Moves the actor's object along its path by `time` seconds: position, speed, scale and rotation */
 void func_m047_0084C(M047Actor *a, f32 time, s32 updateRate, s32 arg3) {
     f32 nt;
@@ -496,9 +481,9 @@ void func_m047_0084C(M047Actor *a, f32 time, s32 updateRate, s32 arg3) {
                     dx = (key->next->spin[0] - key->spin[0]) * t + key->spin[0];
                     dy = (key->next->spin[1] - key->spin[1]) * t + key->spin[1];
                     dz = (key->next->spin[2] - key->spin[2]) * t + key->spin[2];
-                    rotY += (s32) (dx * frames);
-                    rotX += (s32) (dy * frames);
-                    rotZ += (s32) (dz * frames);
+                    rotY += (s16) (dx * frames);
+                    rotX += (s16) (dy * frames);
+                    rotZ += (s16) (dz * frames);
                     break;
                 case 2:
                     func_m047_002C4(key, t, NULL, &dx, 0);
@@ -546,9 +531,6 @@ void func_m047_0084C(M047Actor *a, f32 time, s32 updateRate, s32 arg3) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_0084C);
-#endif
 
 
 /* The parts of an object header 013D0 reads */
@@ -563,7 +545,7 @@ extern Object *D_801045B8;
 
 /* Animates the actor's object, fades its opacity from alphaFrom to alphaTo over fadeLength, and makes it the
    one to follow if flagged (called from 0084C) */
-M047_STATIC void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
+static void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
     if (!((M047Header *) obj->header)->noAnim) {
         if (a->backwards) {
             func_8001138C(obj, -a->animSpeed, updateRate);
@@ -620,7 +602,7 @@ extern void func_8000BC28(Object *obj, M047ActorInst *inst, M047ActorModel *mode
 extern void obj_tex_animate(Object *obj, M047ActorModel *model, M047ActorInst *inst, s32 updateRate);
 
 /* Animates the actor's sprite or model for this frame (called from 0084C) */
-M047_STATIC void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate) {
+static void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate) {
     UNUSED s32 pad0;
     s32 flags;
     UNUSED s32 pad;
@@ -703,7 +685,7 @@ void func_m047_01798(u8 *target, s32 r, s32 g, s32 b, s32 a, f32 time, s32 isLig
                 fade->g1 = g;
                 fade->b1 = b;
                 fade->a1 = a;
-                fade->timer = time * M047_0_6;
+                fade->timer = time * 0.59999996f; /* 0x3F199999 */
                 fade->duration = fade->timer;
                 return;
             }
@@ -834,8 +816,6 @@ extern void mtx_model_push(Gfx **dl, s32 arg1, MtxF *mtx);
 extern void mtx_model_rotate_translate_push(Gfx **dl, s32 arg1, void *arg2, MtxF *mtx);
 extern void func_80048F90(MtxF *out, ObjectTransform *trans); /* the matrix of a transform */
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its jump table) in C */
 /* Pushes the matrices for the effect drawn on the object, turned the way its kind needs */
 void func_m047_01BAC(Gfx **dl, s32 arg1, Object *obj) {
     ObjectTransform trans;
@@ -884,15 +864,10 @@ void func_m047_01BAC(Gfx **dl, s32 arg1, Object *obj) {
     func_80048F90(&m, &trans);
     mtx_model_rotate_translate_push(dl, arg1, data + 0x40, &m);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01BAC);
-#endif
 
 extern void func_m106_01C04(f32 x, f32 y, f32 z, s16 yRotation, s16 xRotation, f32 speed, f32 size);
 extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32 kind, f32 scale);
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its jump table and floats) in C */
 /*
  * Spawns `count` particles at actor `index`'s object, aimed (yRot, xRot) give or take (yRange, xRange) at
  * speed `speed` give or take `speedRange`: kind 0xFF one sort (bigger with game flag 0x59 clear), else
@@ -965,9 +940,6 @@ void func_m047_01D38(s32 index, s32 count, s32 kind, s32 yRot, s32 xRot, s32 yRa
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01D38);
-#endif
 
 /* Clears the subtitles */
 void func_m047_0206C(void) {
@@ -1057,6 +1029,3 @@ void func_m047_023FC(Gfx **dl) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", data);
 
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m047", rodata);
-#endif

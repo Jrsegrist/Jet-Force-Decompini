@@ -18,7 +18,9 @@ How a relocation's symbol becomes a runlink entry:
   local symbol defined in the object
   rl_mNNN_XXXXX (NNN = this module, defined or not)
       -> table 2, kind 1, word = module offset of the section start, symbol
-         or XXXXX; for R_MIPS_26, kind 2 instead: the jump field gets the
+         or XXXXX (an rl_ name that is not a section start is rebased: the
+         word is its section's start, the rest goes into the relocated
+         field); for R_MIPS_26, kind 2 instead: the jump field gets the
          target offset and the word repeats the previous kind-0 entry's
          (the loader ignores it; the original linker left it like that)
   func_XXXXXXXX / D_XXXXXXXX       main-segment symbol at that address
@@ -233,9 +235,13 @@ def build_module(path, me, symbols, order):
             else:
                 m = LOCAL_RE.match(name)
                 if m and int(m.group(1)) == me:
-                    local = int(m.group(2), 16)
-                    # an extern rl_ name in C: C reaching a variable inside assembly data
-                    rebase_it = not defined
+                    # an extern rl_ name in C (C reaching a variable inside
+                    # assembly data), or a defined one that is not a section
+                    # start (the .rodata of an assembly function, which
+                    # asm-processor puts among the C functions' .rodata):
+                    # rebased to the section start, as the original linker did
+                    local = secbase[s["shndx"]] + s["value"] if defined else int(m.group(2), 16)
+                    rebase_it = True
                 else:
                     idx = symbols.lookup(name)
                     if idx is None and defined:

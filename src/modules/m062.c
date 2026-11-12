@@ -117,11 +117,11 @@ void func_m062_00000(void) {
     sUnk18 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m062", func_m062_001E4);
+INCLUDE_ASM("asm/nonmatchings/modules/m062/ro", func_m062_001E4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m062", func_m062_01158);
+INCLUDE_ASM("asm/nonmatchings/modules/m062/ro", func_m062_01158);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m062", func_m062_01A48);
+INCLUDE_ASM("asm/nonmatchings/modules/m062/ro", func_m062_01A48);
 
 extern s8 D_800A500C;   /* the game mode picked */
 extern u8 D_800FF318[]; /* [0x6B]: the game modes that can be picked */
@@ -136,8 +136,6 @@ extern s32 gMenuTimer;
 extern s8 D_800A4FD8;
 extern s8 D_800A4FEC;
 extern Gfx *D_800FF398;
-extern char rl_m062_02940[]; /* "%s %s" (.rodata, still assembly) */
-extern char rl_m062_02948[]; /* "%3d %s" */
 extern void func_8006FCA8(Gfx **dl, s32 textX, s32 textY, char *text, s32 flags);
 extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void music_volume_fade(f32 volume, s32 arg1);
@@ -204,9 +202,9 @@ void func_m062_0228C(UNUSED s32 arg0) {
             }
             D_800A5018 = sTimeLimits[D_800A5010];
             if (D_800A5010 == 0) {
-                func_800639E8(buf, rl_m062_02940, SETTING(0x580), SETTING(0x584));
+                func_800639E8(buf, "%s %s", SETTING(0x580), SETTING(0x584));
             } else {
-                func_800639E8(buf, rl_m062_02948, D_800A5018, SETTING(0x584));
+                func_800639E8(buf, "%3d %s", D_800A5018, SETTING(0x584));
             }
             func_8006FCA8(&D_800FF398, sUnk20, sUnk14, buf, 4);
             break;
@@ -262,4 +260,4 @@ void func_m062_02784(void) {
     menu_assetgroup_free(sAssets2);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m062", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

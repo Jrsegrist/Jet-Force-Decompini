@@ -148,8 +148,6 @@ extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s
 extern void func_8003D21C(M032Inst *inst, M032Model *model, Object *obj, f32 arg3, f32 arg4);
 extern s32 rl_m032_01D2C(M032Speaker *st);
 extern s32 rl_m032_01DD8(M032Speaker *st);
-extern f32 rl_m032_031D0; /* .rodata (still assembly) */
-extern f32 rl_m032_031D4;
 
 /* The speaker's init: its place, reach and lines (by its object ID), animation and settings flag */
 #ifdef NON_MATCHING
@@ -168,7 +166,7 @@ void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     st->z = setup->z;
     st->radius = setup->radius;
     r = st->radius;
-    st->radiusSq = r * r * rl_m032_031D0;
+    st->radiusSq = r * r * 0.64f;
     st->unk18 = setup->unkD;
     st->unk1C = setup->unk12 * 2;
     st->unk20 = setup->unk13 * 2;
@@ -176,7 +174,7 @@ void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     st->unk24 = 0.0f;
     st->unk31 = setup->unkE;
     obj->trans.rotation.y_rotation = setup->yaw;
-    obj->trans.scale = ((M032Header *) obj->header)->scale * setup->scale * rl_m032_031D4;
+    obj->trans.scale = ((M032Header *) obj->header)->scale * setup->scale * 0.01f;
     l = rl_m032_02F24;
     while (l->objectID != setup->objectID && l->objectID >= 0) {
         l++;
@@ -210,10 +208,10 @@ void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     rl_m032_031CC = NULL;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_00000);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_002E8);
+INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_002E8);
 
 /* The byte of the object at 0x32: its bit in the settings' flags from 8 on */
 typedef struct M032FlagObj {
@@ -242,7 +240,7 @@ void func_m032_01D84(Object *obj) {
     get_settings()[byte + 8] |= bit;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_01DD8);
+INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_01DD8);
 
 #ifdef NON_MATCHING
 /* 14 diffs, registers only: the ROM has the two differences in v0/a3 and the step in v1 */
@@ -429,4 +427,4 @@ void func_m032_025F0(Object *obj, M032Walk *walk, M032Anim *anim) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

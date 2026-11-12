@@ -170,7 +170,7 @@ void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     OBJ_STATE(obj, s32)[0] = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_002A4);
+INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_002A4);
 
 void func_m022_00EA0(Object *obj) {
     M022Plate *plate;
@@ -220,9 +220,9 @@ void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
     func_800408C0(dl);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_0114C);
+INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_0114C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", func_m022_018AC);
+INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_018AC);
 
 struct M022Goals;
 extern struct M022Goals *rl_m022_03410;
@@ -584,7 +584,6 @@ void func_m022_02C0C(Object *obj, s32 yaw, s32 useAngle) {
 
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
-extern f32 rl_m022_03594; /* a .rodata float: how slowly the camera settles */
 
 /* The plate camera: circles the plate, settling at 200 units out and 75 up */
 void func_m022_02D14(Object *obj, s32 updateRate) {
@@ -595,7 +594,7 @@ void func_m022_02D14(Object *obj, s32 updateRate) {
     f32 f;
 
     if (sPlateCamUnk18) {
-        f = 1.0f - func_80049BEC(rl_m022_03594, updateRate);
+        f = 1.0f - func_80049BEC(0.95f, updateRate);
     } else {
         f = 1.0f;
     }
@@ -632,9 +631,6 @@ typedef struct M022PlayerData {
 } M022PlayerData;
 
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern f32 rl_m022_03598; /* .rodata floats */
-extern f32 rl_m022_0359C;
-extern f32 rl_m022_035A0;
 
 /* Moves the player onto the plate (behaviour 0x5D), at a height that depends on the character */
 void func_m022_02F38(Object *obj, M022PlayerData *player, s32 updateRate) {
@@ -676,14 +672,14 @@ void func_m022_02F38(Object *obj, M022PlayerData *player, s32 updateRate) {
         dx -= obj->trans.x_position;
         dy -= obj->trans.y_position;
         dz -= obj->trans.z_position;
-        f = func_80049BEC(rl_m022_03598, updateRate);
+        f = func_80049BEC(0.925f, updateRate);
         obj->velocity.y *= f;
         player->unk594 += (1.0f - player->unk594) * (1.0f - f);
-        f = 1.0f - func_80049BEC(rl_m022_0359C, updateRate);
+        f = 1.0f - func_80049BEC(0.98f, updateRate);
         dx *= f;
         dy *= f;
         dz *= f;
-        max = updateRate * rl_m022_035A0;
+        max = updateRate * 0.075f;
         if (max < dy) {
             dy = max;
         }
@@ -706,6 +702,6 @@ void func_m022_03150(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", bss);

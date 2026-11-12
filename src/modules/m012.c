@@ -182,7 +182,7 @@ void func_m012_00158(s32 enabled) {
     sEnabled = enabled;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_00164);
+INCLUDE_ASM("asm/nonmatchings/modules/m012/ro", func_m012_00164);
 
 extern LevelModelTextures *func_8001B650(void); /* the level model */
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
@@ -271,4 +271,4 @@ void func_m012_018F4(s32 level, s32 arg1, s32 arg2, s32 arg3) {
     sNewLevelArg3 = arg3;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m012", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

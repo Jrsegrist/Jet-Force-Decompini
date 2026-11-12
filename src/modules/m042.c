@@ -893,7 +893,7 @@ void func_m042_00178(s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m042", func_m042_00178);
+INCLUDE_ASM("asm/nonmatchings/modules/m042/ro", func_m042_00178);
 #endif
 
 s32 *func_m042_02C80(void) {
@@ -908,5 +908,5 @@ void func_m042_02C8C(UNUSED s32 arg0) {
 }
 
 #ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m042", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 #endif

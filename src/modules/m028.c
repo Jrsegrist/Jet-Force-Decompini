@@ -98,8 +98,6 @@ extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 extern void light_colour_cycle_set(s32 handle, s32 arg1);
 extern void func_800212D0(s32 handle);
-extern f32 rl_m028_01BE0; /* .rodata (still assembly) */
-extern f32 rl_m028_01BE4;
 extern u8 rl_m028_01BB0[]; /* .data (still assembly) */
 #define rl_m028_01BD8 ((s16 *) (rl_m028_01BB0 + 0x28)) /* per kind */
 
@@ -139,7 +137,7 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
         st->shape[2][i] = entry->shape[2][i];
         st->unkA3C[i] = 0;
     }
-    f = rl_m028_01BE0;
+    f = 0.1f;
     st->strength = 0;
     st->owner = owner;
     st->padA7C = entry->unk28;
@@ -150,7 +148,7 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     st->unkA81 = 0xFF;
     st->on = 0;
     st->unkA60 = f;
-    st->unkA5C = rl_m028_01BE4;
+    st->unkA5C = 0.05f;
     st->unkA82 = entry->unk29;
     st->unkA83 = entry->unk2A;
     vtx = (M028Vertex *) st->verts;
@@ -204,10 +202,10 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m028", func_m028_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_00000);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028", func_m028_0031C);
+INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_0031C);
 
 void func_m028_01624(Object *obj, M028Setup *setup) {
     M028BeamEntry entry;
@@ -272,7 +270,71 @@ void func_m028_01798(Object *obj, s32 updateRate) {
     beam->trans.rotation.z_rotation = obj->trans.rotation.z_rotation;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028", func_m028_01840);
+/* A camera, as far as 01840 uses it (0x4C bytes) */
+typedef struct M028Camera {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x4C - 0x18];
+} M028Camera;
+
+extern s32 level_id(void);
+extern s32 func_80048548(void);       /* the number of cameras */
+extern M028Camera *func_80041E0C(void); /* the cameras */
+extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
+
+/* Plays the beams' sound at the lit beam nearest to a camera (not in level 0xD4) */
+void func_m028_01840(void) {
+    s32 i;
+    s32 j;
+    s32 first;
+    s32 count;
+    s32 n;
+    Object **objs;
+    Object *o;
+    Object *nearest;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 best;
+    M028BeamState *st;
+    UNUSED s32 pad;
+    M028Camera *cams;
+
+    best = 1e9f;
+    nearest = NULL;
+    if (level_id() != 0xD4) {
+        n = func_80048548();
+        cams = func_80041E0C();
+        objs = func_80005E98(&first, &count);
+        for (j = 0; j < n; j++) {
+            for (i = first; i < count; i++) {
+                o = objs[i];
+                if (o->behaviorId == 0x98 && (st = o->unk68)->strength > 0) {
+                    dx = cams[j].x - o->trans.x_position;
+                    dy = cams[j].y - o->trans.y_position;
+                    dz = cams[j].z - o->trans.z_position;
+                    if (dx * dx + dy * dy + dz * dz < best) {
+                        nearest = o;
+                        best = dx * dx + dy * dy + dz * dz;
+                    }
+                }
+            }
+        }
+        if (nearest != NULL) {
+            if (rl_m028_01BD4 == 0) {
+                func_80003410(0x9B, nearest->trans.x_position, nearest->trans.y_position,
+                              nearest->trans.z_position, 1, &rl_m028_01BD4);
+            } else {
+                func_800035E8(rl_m028_01BD4, nearest->trans.x_position, nearest->trans.y_position,
+                              nearest->trans.z_position);
+            }
+        } else if (rl_m028_01BD4 != 0) {
+            func_80003614(rl_m028_01BD4);
+        }
+    }
+}
 
 void func_m028_01B80(void) {
     if (rl_m028_01BD4 != 0) {
@@ -283,4 +345,4 @@ void func_m028_01B80(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m028", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

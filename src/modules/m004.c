@@ -199,7 +199,7 @@ void func_m004_002B8(M004Copy *copy) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_0036C);
+INCLUDE_ASM("asm/nonmatchings/modules/m004/ro", func_m004_0036C);
 
 /* A matrix with two words after it */
 typedef struct M004Mtx {
@@ -323,11 +323,10 @@ void func_m004_00CB8(Object *obj, M004Mtx **mtxs, s32 count) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_00CB8);
+INCLUDE_ASM("asm/nonmatchings/modules/m004/ro", func_m004_00CB8);
 #endif
 
 extern void func_80049BA0(M004Mtx *mtx); /* identity */
-extern f32 rl_m004_01754;                /* .rodata (still assembly) */
 
 /*
  * Halves the rotation's tilt towards straight down and builds a matrix that shears along the direction it
@@ -357,7 +356,7 @@ void func_m004_012BC(Vec3s *rot, s32 arg1, M004Mtx *mtx) {
     y = dir.y;
     mtx->unk44 = arg1;
     func_80049BA0(mtx);
-    k = rl_m004_01754;
+    k = 1.2f;
     mtx->m[0][0] = k;
     mtx->m[1][0] = -(x / y);
     mtx->m[1][1] = 0.0f;
@@ -365,7 +364,7 @@ void func_m004_012BC(Vec3s *rot, s32 arg1, M004Mtx *mtx) {
     mtx->m[2][2] = k;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_012BC);
+INCLUDE_ASM("asm/nonmatchings/modules/m004/ro", func_m004_012BC);
 #endif
 
 /* Allocates a copy's buffers; FALSE (with nothing kept) when one cannot be had */
@@ -456,6 +455,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_015A8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m004", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m004", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m004", bss);

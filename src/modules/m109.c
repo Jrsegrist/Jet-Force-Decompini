@@ -351,9 +351,9 @@ void func_m109_00298(Object *obj, s32 updateRate) {
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m109", func_m109_00000);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m109", func_m109_00298);
+INCLUDE_ASM("asm/nonmatchings/modules/m109/ro", func_m109_00298);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m109", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 #endif
 

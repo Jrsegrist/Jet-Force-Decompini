@@ -235,8 +235,6 @@ extern s32 rl_m068_12614[2];
 extern s32 rl_m068_12618;
 
 /* The module's .rodata and .bss (still assembly) */
-extern f32 rl_m068_129F8;
-extern f32 rl_m068_129FC;
 extern u8 rl_m068_12A38[];
 
 /* A part's set-up: only its turn */
@@ -465,8 +463,6 @@ typedef struct M068BoxInstance {
     /* 0x10 */ MtxF *frames[1];
 } M068BoxInstance;
 
-extern f32 rl_m068_12730;
-extern f32 rl_m068_12734;
 
 #ifdef NON_MATCHING
 /*
@@ -499,7 +495,7 @@ static void func_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *
     inst = (M068BoxInstance *) obj->modelInstances[obj->modelIndex];
     model = inst->model;
     if (model->jointCount != 0 && inst->hidden == 0) {
-        min = rl_m068_12730;
+        min = 1.024e9f;
         for (i = 0; i < model->jointCount; i++) {
             m = inst->frames[inst->frame] + i;
             dx = light->x - (*m)[3][0];
@@ -549,7 +545,7 @@ static void func_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *
     bx = x0;
     by = y0;
     bz = z0;
-    min = rl_m068_12734;
+    min = 1.024e9f;
     c = corners[0];
     for (i = 0; i < 8; i++, c += 3) {
         dx = light->x - c[0];
@@ -567,7 +563,7 @@ static void func_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *
     *z = bz;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_004D8);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_004D8);
 #endif
 
 /* The boss's state fields its effects use (obj->unk68) */
@@ -652,7 +648,7 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0092C);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_00C70);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_00C70);
 
 /* What hit the boss */
 typedef struct M068HitSource {
@@ -778,7 +774,6 @@ typedef struct M068Blast {
 
 extern M068Section rl_m068_1254C[11];
 extern M068PartState rl_m068_12F88[11];
-extern f32 rl_m068_12748; /* a .rodata float: larger than any distance */
 extern f32 func_80049C30(s32 angle); /* cosine */
 
 /* An explosion: the joint nearest it in each live part takes damage falling off with distance */
@@ -803,7 +798,7 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
     f32 f;
     f32 limit;
 
-    limit = rl_m068_12748;
+    limit = 1.024e9f;
     for (i = 0; i < 11; i++) {
         sec = &rl_m068_1254C[i];
         if (sec->first >= 0) {
@@ -841,14 +836,13 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_01330);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_01330);
 #endif
 
 extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
 extern f32 rl_m068_12620;      /* its height over the centre */
 extern f32 rl_m068_12624;      /* its distance from the centre */
-extern f32 rl_m068_1274C;      /* a .rodata float: how slowly it settles */
 extern f32 rl_m068_13740;      /* the centre (.bss) */
 extern f32 rl_m068_13748;
 extern f32 rl_m068_1374C;
@@ -865,7 +859,7 @@ void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
     x = func_80049C34(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740;
     y = rl_m068_1374C + rl_m068_12620;
     z = func_80049C30(rl_m068_1260C) * rl_m068_12624 + rl_m068_13748;
-    f = 1.0f - func_80049BEC(rl_m068_1274C, updateRate);
+    f = 1.0f - func_80049BEC(0.97f, updateRate);
     cam->trans.x_position += (x - cam->trans.x_position) * f;
     cam->trans.y_position += (y - cam->trans.y_position) * f;
     cam->trans.z_position += (z - cam->trans.z_position) * f;
@@ -879,7 +873,7 @@ void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
     cam->trans.rotation.z_rotation = angle_lerp(cam->trans.rotation.z_rotation, 0, f);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_017EC);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_017EC);
 
 /* Stops the boss's sounds */
 void func_m068_023D4(Object *obj) {
@@ -915,11 +909,11 @@ void func_m068_0246C(void) {
 }
 #pragma weak __rl_fini = func_m068_0246C
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_024EC);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_024EC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_039D4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03A78);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_03A78);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03C70);
 
@@ -939,7 +933,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04590);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04600);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_046EC);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_046EC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_047F8);
 
@@ -949,11 +943,11 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_048C0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04938);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04A60);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_04A60);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05028);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05100);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05100);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_053AC);
 
@@ -969,31 +963,31 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05964);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05C8C);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05C8C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05F60);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05F60);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06180);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06244);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06310);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06310);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06590);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06590);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_067B4);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_067B4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06AE0);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06AE0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06E14);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0714C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0758C);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0758C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_078F4);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_078F4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_07D68);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_083C8);
 
@@ -1001,31 +995,31 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_08674);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0873C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_087E0);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_087E0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_088DC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_09088);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_09218);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_09218);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_092F0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_093B8);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0A208);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0A208);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0A5D8);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0A5D8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0ADC4);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0ADC4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0B4D0);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0B4D0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BB4C);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BDC4);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BE14);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0BE14);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0C7DC);
 
@@ -1061,7 +1055,6 @@ typedef struct M068Ball {
 extern s32 rl_m068_12608; /* set: the fire balls fade out */
 extern s32 rl_m068_12628; /* which of the two burst sounds is next */
 extern s32 rl_m068_1262C; /* set while a burst plays */
-extern f32 rl_m068_129E8; /* a .rodata float: how fast a fading ball slows */
 extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
 
@@ -1133,7 +1126,7 @@ void func_m068_0C944(Object *obj, s32 updateRate) {
                 if (b->fading) {
                     s16 alpha;
 
-                    b->speed *= func_80049BEC(rl_m068_129E8, updateRate);
+                    b->speed *= func_80049BEC(0.93f, updateRate);
                     alpha = obj->opacity - updateRate * 4;
                     if (alpha <= 0) {
                         obj->opacity = 0;
@@ -1171,7 +1164,6 @@ void func_m068_0C944(Object *obj, s32 updateRate) {
     }
 }
 
-extern f32 rl_m068_129EC; /* a .rodata float: the scale of the later frames */
 
 /* Draws a shot as a sprite: its first frame opaque, the later ones see-through and scaled */
 void func_m068_0CDD8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
@@ -1184,7 +1176,7 @@ void func_m068_0CDD8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         scale = obj->trans.scale;
     } else {
         func_8005600C(255, 255, 255, 150, 255, 150);
-        scale = obj->trans.scale * rl_m068_129EC;
+        scale = obj->trans.scale * 0.7f;
     }
     render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position,
                                obj->trans.z_position, 0, scale, obj->unk28, 12, obj->opacity);
@@ -1242,7 +1234,6 @@ extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 u
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
-extern f32 rl_m068_129F0; /* a .rodata float: the sparks' speed scale */
 extern void corona_free(s32 light);
 
 /* A beam: flies until it hits, then bursts into sparks (and leaves a mark where it hit), then plays out */
@@ -1289,7 +1280,7 @@ void func_m068_0D05C(Object *obj, s32 updateRate) {
         spark.unk20 = 0x8C0EF4FF;
         spark.x_rotation = 0x2000;
         angle = obj->trans.rotation.y_rotation - 0x4000;
-        rate = rl_m068_129F0;
+        rate = 0.1f;
         for (i = 0; i < 8; i++) {
             spark.y_rotation = angle;
             spark.speed = func_80048E2C(10, 50) * rate;
@@ -1462,7 +1453,6 @@ typedef struct M068LightHandle {
 
 extern Vec3f rl_m068_13730;  /* where the electric strips reach to (.bss) */
 extern u8 rl_m068_13754[3];  /* their light's colour (.bss) */
-extern f32 rl_m068_129F4;    /* a .rodata float: the sparks' speed scale */
 extern f32 rl_m068_12650[9]; /* the strips' widths along them (.data) */
 extern void func_800492DC(Object *obj, Vec3f *vec);
 
@@ -1528,7 +1518,7 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
         spark.unk20 = 0xFF64FF;
         spark.x_rotation = obj->trans.rotation.x_rotation;
         a = obj->trans.rotation.y_rotation - 0x4000;
-        r = rl_m068_129F4;
+        r = 0.1f;
         for (i = 0; i < 6; i++) {
             spark.y_rotation = a;
             spark.speed = func_80048E2C(80, 100) * r;
@@ -1649,7 +1639,7 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D828);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0D828);
 #endif
 
 /* The boss's electric effect (obj->unk68) */
@@ -1998,11 +1988,11 @@ typedef struct M068RingSetup {
 void func_m068_0EF2C(Object *obj, M068RingSetup *setup) {
     M068Ring *ring = obj->unk68;
 
-    ring->scale = rl_m068_129F8;
+    ring->scale = 0.1f;
     ring->damage = setup->damage;
     ring->fadeStart = setup->fadeStart;
     ring->end = setup->end;
-    ring->growth = rl_m068_129FC;
+    ring->growth = 0.02f;
 }
 
 /* What the player keeps in obj->unk68, as far as used here */
@@ -2238,10 +2228,6 @@ typedef struct M068DustEntry {
 
 extern s32 rl_m068_12600;        /* the boulders' rumble (a positioned sound) (.data) */
 extern Object *rl_m068_12604;    /* the boulder it follows (.data) */
-extern f32 rl_m068_12A00;        /* .rodata floats */
-extern f32 rl_m068_12A04;
-extern f32 rl_m068_12A08;
-extern f32 rl_m068_12A0C;
 extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 strength);
 extern void audspat_point_set_pitch(s32 sound, s32 pitch);
 
@@ -2324,7 +2310,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
                 if (b->unk70 == -1 || rl_m068_125E8 == b->unk70) {
                     flags = 0x1B;
                 }
-                if (rl_m068_12A00 <= b->hit.y) {
+                if (0.866f <= b->hit.y) {
                     flags |= 4;
                 }
                 a = func_80049C84(b->hit.x, b->hit.z) + 0x8000;
@@ -2367,7 +2353,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
                 spark.y_rotation = func_80048E2C(yaw[0], yaw[1]);
                 spark.x_rotation = func_80048E2C(pitch[0], pitch[1]);
                 spark.speed = b->speed;
-                spark.unk14 = func_80048E2C(25, 50) * rl_m068_12A04;
+                spark.unk14 = func_80048E2C(25, 50) * 0.1f;
                 func_m010_0000C(&spark);
             }
         }
@@ -2376,7 +2362,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             debris.unkE = 60;
             debris.unk1C = 100;
             debris.unk20 = 0;
-            debris.unk18 = rl_m068_12A08;
+            debris.unk18 = 0.15f;
             for (i = 0; i < 4; i++) {
                 debris.common.x = func_80048E2C(-15, 15) + (s32) obj->trans.x_position;
                 debris.common.y = func_80048E2C(-15, 15) + (s32) obj->trans.y_position;
@@ -2449,7 +2435,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         dx /= d;
         dy /= d;
         dz /= d;
-        k = 1.0f - func_80049BEC(rl_m068_12A0C, updateRate);
+        k = 1.0f - func_80049BEC(0.95f, updateRate);
         b->velocity.x += (dx - b->velocity.x) * k;
         b->velocity.y += (dy - b->velocity.y) * k;
         b->velocity.z += (dz - b->velocity.z) * k;
@@ -2521,7 +2507,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F7C8);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0F7C8);
 #endif
 
 /* Called when something hits the boss: notes a hit by the player */
@@ -2535,10 +2521,6 @@ void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
 
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern f32 func_8008B200(s32 x);
-extern f32 rl_m068_12A10; /* .rodata floats */
-extern f32 rl_m068_12A14;
-extern f32 rl_m068_12A18;
-extern f32 rl_m068_12A1C;
 
 #ifdef NON_MATCHING
 /*
@@ -2560,19 +2542,19 @@ static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate) {
     dz = obj->trans.z_position - cam->z_position;
     d = func_80097140(dx * dx + dy * dy + dz * dz);
     v = (b->lastDist - d) / rate;
-    v = func_8008B200((40.0f + v) / (40.0f - v) * rl_m068_12A10);
-    max = rl_m068_12A14;
-    b->pitch += (v - rl_m068_12A18 - b->pitch) * 0.5f;
+    v = func_8008B200((40.0f + v) / (40.0f - v) * 315.0f);
+    max = 0.8f;
+    b->pitch += (v - 1.2f - b->pitch) * 0.5f;
     if (b->pitch > max) {
         b->pitch = max;
-    } else if (b->pitch < rl_m068_12A1C) {
-        b->pitch = rl_m068_12A1C;
+    } else if (b->pitch < -0.8f) {
+        b->pitch = -0.8f;
     }
     b->lastDist = d;
     return (b->pitch + 1.0f) * 100.0f;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10758);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_10758);
 #endif
 
 void func_m068_108C8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
@@ -2786,7 +2768,6 @@ typedef struct M068Matrices {
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* transforms a point */
 extern Object *rl_m068_12F70[6]; /* the six pieces (.bss) */
 extern MtxF rl_m068_1250C;       /* (.data) */
-extern f32 rl_m068_12A20;        /* a .rodata float */
 
 /* Breaks the object up: sends each of the six pieces flying out from its point of the model, then frees it */
 #ifdef NON_MATCHING
@@ -2820,7 +2801,7 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
         entry.unk1C = 3.0f;
         entry.zRotation = obj->trans.rotation.z_rotation;
         entry.unk20 = 2.0f;
-        entry.unk28 = rl_m068_12A20;
+        entry.unk28 = 0.15f;
         for (i = 0; i < 6; i++) {
             v = &model->vertices[model->points[i].vertex];
             func_80048B60(mtx, v->x, v->y, v->z, &x, &y, &z);
@@ -2846,12 +2827,12 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_110E0);
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_110E0);
 #endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", bss);
 

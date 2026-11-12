@@ -150,7 +150,13 @@ as m2c expects (pass `rodata.s` to m2c with the function). gas turns these
 references into section-relative relocations, which give the same runlink
 entries as the section-start `rl_` names of `asm/modules/mNNN.s`. A jump
 table can only point into assembly through its labels, so a function with
-one in C needs the module's .rodata in C too (and vice versa).
+one in C needs the module's .rodata in C too (and vice versa), unless the
+assembly functions bring their own .rodata (`ro/`, below).
+
+The splitter also writes `asm/nonmatchings/modules/mNNN/ro/`, the module's
+.rodata split per function (see "Per-function .rodata" below), for every
+module whose .rodata allows it; `build/runlink/rodata_split.txt` lists the
+modules that don't, and why.
 
 `tools/runlink_build.py` then plays the original linker. For each module it
 takes one ELF object, either assembled from `asm/modules/mNNN.s` or compiled
@@ -159,7 +165,7 @@ from `src/modules/mNNN.c` (see below), lays out .text, .data, .rodata and
 
 | relocation against | entry |
 | --- | --- |
-| a section symbol, a local symbol, `rl_mNNN_XXXXX`, or this module's own unexported `func_`/`D_mNNN_` name | table 2, kind 1, word = module offset of the section, symbol or name; for R_MIPS_26 kind 2, with the target offset written into the jump field and the word copied from the previous kind-0 entry. An undefined (extern) `rl_mNNN_XXXXX` that is not a section start is rebased as the original linker wrote it: the word is the section start, and the rest of the offset goes into the relocated field (the %hi/%lo pair, or the word) |
+| a section symbol, a local symbol, `rl_mNNN_XXXXX`, or this module's own unexported `func_`/`D_mNNN_` name | table 2, kind 1, word = module offset of the section, symbol or name; for R_MIPS_26 kind 2, with the target offset written into the jump field and the word copied from the previous kind-0 entry. An `rl_mNNN_XXXXX` that is not a section start (an extern in C, or the label of an assembly function's own .rodata from `ro/`) is rebased as the original linker wrote it: the word is the section start, and the rest of the offset goes into the relocated field (the %hi/%lo pair, or the word) |
 | `func_XXXXXXXX`/`D_XXXXXXXX`, `func_mNNN_`/`D_mNNN_` of an exported symbol, a runlink name, a name that `undefined_syms.us.txt` gives an address or an address name, or a global defined in the object | kind 0, word = the runlink symbol index; table 2 if the symbol is this module's own, else table 1 |
 
 It takes the initialisation and shutdown offsets from the symbols `__rl_init`
@@ -231,6 +237,45 @@ table), `m025.c` and `m036.c` (DKR set-up code in JFG's form), and `m110.c`
 Equivalent C that does not match yet is kept under `#ifdef NON_MATCHING`
 with the INCLUDE_ASM lines in the `#else` branch (m089, m110).
 
+### Per-function .rodata
+
+IDO writes a file's .rodata as the strings and `const` data first, in
+source order, then each function's float and double literals and jump
+tables, in function order. `asm/nonmatchings/modules/mNNN/ro/` follows
+that: `ro/func_mNNN_XXXXX.s` is the function with the .rodata it uses (its
+strings in `.rodata`, its literals and jump tables in `.late_rodata`, under
+the label `rl_mNNN_<offset of its first item>`, its code referring to them
+relative to that label), and `ro/rodata.s` holds the items at the start
+that only data refers to (strings in data tables), if there are any.
+asm-processor puts an INCLUDE_ASM function's `.late_rodata` among the C
+functions' literals, where IDO would have put it, and the builder rebases
+the references to the `rl_` labels to the .rodata start as the original
+linker wrote them. So a module's .rodata no longer waits for all of its
+functions: the C functions use literals and `switch` as usual, and each
+function still in assembly is included from `ro/`:
+
+    INCLUDE_ASM("asm/nonmatchings/modules/m146/ro", func_m146_00350);
+
+with no `INCLUDE_ASM(..., rodata)` line (except `ro/rodata.s` where it
+exists). Functions that use no .rodata have no `ro/` file; include them from
+the module's directory as before. m146 is the example (00350 stays
+assembly under NON_MATCHING with its floats and jump table, the rest is C).
+
+The splitter assigns each item (a run of words from one referenced offset to
+the next) to the one function that refers to it. An item the code only
+loads with `lwc1`/`ldc1` or jumps through is a literal or jump table (late);
+one whose address is taken is a string or `const` data (early). Where that
+does not give early items first and then literals, each in function order
+(`build/runlink/rodata_split.txt`: an item two functions or data share, or
+items out of function order, as in m006, which looks like several source
+files) the module has no `ro/`. A module without .data has no section
+start inside its data block, so the splitter writes the block as `data.s`;
+it is taken as .rodata for `ro/` when the code only loads floats and
+jump-table entries from it and it holds no other pointers (m124; such a C
+file then has no `INCLUDE_ASM(..., data)` either). The guess can be wrong (a `static const`
+float read directly counts as a literal): the build's SHA-1 shows it, and
+such a module keeps its .rodata in one piece.
+
 The probe-style check of one function (compile, compare with the ROM module
 with relocated fields masked) does not see static functions on their own:
 IDO writes no symbol for them, so a module map or a symbol-based diff lists
@@ -283,9 +328,10 @@ lessons apply too):
 - A static function that only assembly calls is dropped by IDO; keep it as
   INCLUDE_ASM until its callers are C (m118). The other way round, C calls a
   static function that is still INCLUDE_ASM by its module offset name,
-  `rl_mNNN_XXXXX` (m110). Likewise a module's .rodata comes from all C or
-  all INCLUDE_ASM, so the functions that use it (jump tables, float
-  constants) go to C together.
+  `rl_mNNN_XXXXX` (m110). A module's .rodata comes either from all C and
+  `ro/` (per function) or from one INCLUDE_ASM `rodata` block; with the
+  block, the functions that use it (jump tables, float constants) go to C
+  together.
 - C that reaches assembly .data or .bss through an `extern u8
   rl_mNNN_<section start>[]` plus an offset gets the right relocations, but
   where one word is used twice IDO materialises the section's base and
@@ -307,7 +353,8 @@ lessons apply too):
   `extern` `D_mNNN_XXXXX` (the builder resolves the module's own offset), as
   m060 does for its object table. A float constant cannot: an `extern` or
   `static const` float is loaded differently from a literal, so functions
-  with float literals wait for the whole .rodata (m001).
+  with float literals need the module's .rodata in C, with the assembly
+  functions' own .rodata from `ro/` (m146).
 - Not every local gets a slot after all: locals that never live across a
   call can stay in registers. A frame that is too big usually means the
   original wrote some values inline instead of in named locals (m100,
@@ -352,14 +399,14 @@ such as m015 and m091, count as assembly here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 5 of 5 | 16/16 |
-| enemy behaviours | 11 of 19 | 229/304 |
+| enemy behaviours | 11 of 19 | 236/304 |
 | bosses | 3 of 4 | 49/124 |
-| weapons (character control) | 0 of 3 | 3/78 |
-| menus and screens | 4 of 14 | 95/136 |
+| weapons (character control) | 0 of 3 | 5/78 |
+| menus and screens | 5 of 14 | 97/136 |
 | effect libraries | 2 of 4 | 21/26 |
 | fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 54 of 96 | 446/568 |
+| other object behaviours | 57 of 96 | 468/568 |
 
 Other modules placed by what their code does (all in "other object
 behaviours" above unless a family row lists them):

@@ -6,6 +6,9 @@
 
 #include "gfx.h"
 
+/* the .rodata strings the data refers to (first in .rodata) */
+INCLUDE_ASM("asm/nonmatchings/modules/m037/ro", rodata);
+
 typedef struct M037Words4 {
     s32 w[4];
 } M037Words4;
@@ -65,13 +68,12 @@ u32 D_m037_01F40[3] = { 0x00FF00FF, 0xFFFF00FF, 0xFF0000FF }; /* the volume bar'
  * table and its local arrays' initial values are in them): reached from their first symbol.
  */
 extern s16 rl_m037_01EB0[]; /* .data */
-extern f32 rl_m037_01F70[]; /* .rodata */
 #define sAssets (&rl_m037_01EB0[0x18])      /* 0x01EE0 */
 #define sCheatAssets (&rl_m037_01EB0[0x1E]) /* 0x01EEC */
 #define sImages (&rl_m037_01EB0[0x22])      /* 0x01EF4 */
 #define sBarDL ((u8 *) rl_m037_01EB0 + 0x10) /* 0x01EC0 */
 extern u32 D_m037_01F40[3]; /* the volume bar's steps' colours (exported) */
-#define ITEM_SPEED rl_m037_01F70[0x14] /* 0.01f */
+#define ITEM_SPEED 0.01f /* 0.01f */
 #endif
 
 /* The page's state */
@@ -744,7 +746,7 @@ void func_m037_001A0(s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m037", func_m037_001A0);
+INCLUDE_ASM("asm/nonmatchings/modules/m037/ro", func_m037_001A0);
 #endif
 
 /* A colour cycle (55130.c's) */
@@ -829,5 +831,5 @@ s32 func_m037_01ACC(s32 value, s32 arg1, s32 top) {
 #ifndef NON_MATCHING
 INCLUDE_ASM("asm/nonmatchings/modules/m037", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m037", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 #endif

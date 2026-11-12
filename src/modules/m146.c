@@ -64,16 +64,6 @@ extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 extern s32 func_80049C84(f32 dx, f32 dz); /* angle of a vector */
 
-/*
- * NON_MATCHING: everything here matches except func_m146_00350 (8
- * instructions: in the `mission != 0` branch the store of sState and the
- * address of sNextState swap places around the branch delay slot, and k/d
- * get v0/v1 the other way round in the blocked-path loop). Since the
- * module's .rodata (jump tables and floats of 00000, 00350 and 00B34)
- * cannot be split between C and assembly, the matching build keeps the
- * whole module in assembly (the #else at the end).
- */
-#ifdef NON_MATCHING
 /* For each state, the states (bit n = state n) it can be entered from */
 static s32 sStateMasks[18] = {
     0x1001, 0x1FFF, 0x1BE3, 0x1003, 0x1009, 0x1003, 0x1021, 0x107B, 0x1081,
@@ -181,6 +171,12 @@ s32 func_m146_00000(Object *obj, s32 state) {
     return FALSE;
 }
 
+/*
+ * NON_MATCHING: 6 instructions: k/d get v0/v1 the other way round in the
+ * blocked-path loop. The assembly brings its own .rodata (its floats and
+ * jump table, from asm/nonmatchings/modules/m146/ro/).
+ */
+#ifdef NON_MATCHING
 /* The mover: picks the state, then where to go in it */
 void func_m146_00350(Object *obj) {
     M146Enemy *e;
@@ -371,6 +367,9 @@ void func_m146_00350(Object *obj) {
         obj->velocity.z = 0.0f;
     }
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m146/ro", func_m146_00350);
+#endif
 
 /* The facer: the angle the enemy turns to */
 s16 func_m146_00B34(Object *obj, f32 x, f32 z) {
@@ -430,22 +429,3 @@ s32 func_m146_00CD8(s32 event) {
     }
     return (1 << sState) & mask;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m146", func_m146_00000);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", func_m146_00350);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", func_m146_00B34);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", func_m146_00C34);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", func_m146_00C68);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", func_m146_00CD8);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", data);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", rodata);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m146", bss);
-#endif
