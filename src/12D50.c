@@ -56,7 +56,7 @@ typedef struct Triangle {
     /* 0x04 */ s16 uv[3][2];
 } Triangle;
 
-/* JFG: a segment's vertex colours (func_8001400C) */
+/* JFG: a segment's vertex colours (segment_vertex_colours_copy) */
 typedef struct SegmentColours {
     /* 0x00 */ u8 *colours; // three bytes per vertex
     /* 0x04 */ u16 *changed; // a bit per vertex, 16 per halfword
@@ -1181,7 +1181,7 @@ extern u8 D_800F31E1[]; // JFG: a flag per segment (whether it is drawn)
 
 /* JFG: copy the vertex colours of the drawn segments into their vertices (all of them while
    D_800A0D80 is set, else only the changed ones). */
-void func_8001400C(void) {
+void segment_vertex_colours_copy(void) {
     LevelModelSegment *segment;
     s32 count;
     u8 *visible;
@@ -1251,9 +1251,9 @@ extern u8 D_800A4FCC;  // JFG: the number of cameras
 extern s16 D_80104704; // the vertex colour level (m046)
 extern s16 D_801046FC; // its time left (m046)
 void func_8001D500(LevelModel *model, TrackLight *light, u8 *visible);
-void func_8001400C(void);
+void segment_vertex_colours_copy(void);
 
-/* JFG: flip the segments' double-buffered vertices, update their colours (a module's or func_8001400C)
+/* JFG: flip the segments' double-buffered vertices, update their colours (a module's or segment_vertex_colours_copy)
    and apply each lit track light; one camera at most. */
 void track_lighting_update(s32 arg0, s32 updateRate) {
     s32 i;
@@ -1290,7 +1290,7 @@ void track_lighting_update(s32 arg0, s32 updateRate) {
     } else if (D_80104704 != 0xFF || D_801046FC != 0 || runlink_module_loaded(0x17) || runlink_module_loaded(0x1D)) {
         func_80054530(D_800F31E1, gCurrentLevelModel, updateRate);
     } else {
-        func_8001400C();
+        segment_vertex_colours_copy();
     }
     i = gMaxTrackLights;
     light = gTrackLights;

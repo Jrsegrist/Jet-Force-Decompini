@@ -27,7 +27,7 @@ extern void level_effects_clear(void);
 extern void coronas_init(void);
 extern void func_m035_00000(void);
 extern void init_controller_paks(void);
-extern void func_80058590(void);
+extern void menu_buffers_init(void);
 extern void anim_system_init(void);
 extern void transition_buffers_init(void);
 extern void func_80052678(void);
@@ -119,7 +119,7 @@ void func_m036_00000(void) {
     check_reset_and_halt();
     init_controller_paks();
     check_reset_and_halt();
-    func_80058590();
+    menu_buffers_init();
     check_reset_and_halt();
     anim_system_init();
     transition_buffers_init();

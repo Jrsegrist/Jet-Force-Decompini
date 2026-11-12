@@ -168,7 +168,7 @@ extern void func_8006FC14(s32 arg0);
 extern void func_8003B620(s16 x, s16 y, s16 z, s16 angle);
 extern s32 func_800468CC(void);
 extern s32 menu_mode_get(void);
-extern void func_8004665C(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
+extern void level_goto(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
 extern Object *func_80005F14(void *entry, s32 arg1);
 
 /* Frees the hint texts and clears the hint state */
@@ -1268,7 +1268,7 @@ void func_m007_0284C(void) {
                           player->trans.rotation.y_rotation);
         }
         arg = func_800468CC();
-        func_8004665C(rl_m007_02A68, arg, 0, menu_mode_get(), 1, 0);
+        level_goto(rl_m007_02A68, arg, 0, menu_mode_get(), 1, 0);
         rl_m007_02A68 = -1;
     }
 }

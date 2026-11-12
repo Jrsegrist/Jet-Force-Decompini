@@ -123,7 +123,7 @@ extern s16 D_800A51D4;    // JFG: the number of menu items
 extern s16 D_800A51D8;    // JFG: the number of loaded menu items
 
 /* JFG: allocate the menu buffers and text, load the item table and mark every item unloaded. */
-void func_80058590(void) {
+void menu_buffers_init(void) {
     s32 i;
 
     D_800FF3A8[0] = mempool_alloc_safe(0xFA8, -1);
@@ -870,7 +870,7 @@ typedef struct MenuObject {
 void *load_texture(s32 assetIndex);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
 MenuObject *spawn_object(void *entry, s32 arg1);
-void *func_8003B9E8(s32 modelID, s32 arg1);
+void *object_model_init(s32 modelID, s32 arg1);
 
 /* JFG: load menu item's asset (a texture, sprite, object or model by the top bits of its type) unless it is loaded. */
 void menu_item_load(s32 item) {
@@ -900,7 +900,7 @@ void menu_item_load(s32 item) {
             }
             D_800FF3F8[item] = (s32) obj;
         } else {
-            D_800FF3F8[item] = (s32) func_8003B9E8(D_800A51D0[item] & 0x3FFF, 0);
+            D_800FF3F8[item] = (s32) object_model_init(D_800A51D0[item] & 0x3FFF, 0);
         }
         D_800FF6C8[item] = 1;
         D_800A51D8++;

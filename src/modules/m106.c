@@ -150,7 +150,7 @@ extern void music_stop(void);
 extern void func_80000510(s32 arg0);
 extern s32 func_800468CC(void);
 extern s32 menu_mode_get(void);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void music_volume_fade(f32 time, s32 volume);
 extern void func_800116BC(Object *obj, f32 arg1);
 extern s32 func_8004966C(s16 angle); /* sine */
@@ -472,7 +472,7 @@ void func_m106_00290(Object *obj, s32 updateRate) {
             if (t->unk28 < 0) {
                 t->unk0 = 4;
                 t->unk28 = 0;
-                func_8004665C(0x165, func_800468CC(), 0, menu_mode_get(), 0, 0);
+                level_goto(0x165, func_800468CC(), 0, menu_mode_get(), 0, 0);
                 music_volume_fade(0.5, 0);
             }
             D_800A32CC = t->unk28 * 0x1300 / 6000 + 0x600;

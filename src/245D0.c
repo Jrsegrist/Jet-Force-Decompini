@@ -358,7 +358,7 @@ INCLUDE_ASM("asm/nonmatchings/245D0", func_80024044);
 /**
  * JFG: of count RGBA colours, each channel of the one brightest in it (times alpha), and the top alpha.
  */
-void func_80024330(s32 count, u8 *colours, u8 *outRed, u8 *outGreen, u8 *outBlue, u8 *outAlpha) {
+void colours_brightest_channels(s32 count, u8 *colours, u8 *outRed, u8 *outGreen, u8 *outBlue, u8 *outAlpha) {
     s32 blue, green, red;
     s32 maxBlue, maxGreen, maxRed;
     s32 maxAlpha;

@@ -121,7 +121,7 @@ extern void update_colour_cycle(M026ColourCycle *cycle, s32 updateRate);
 extern void reset_particles(void);
 extern void *tex_load_sprite(s32 id, s32 arg1);
 extern void *load_texture(s32 id);
-extern void *func_8003B9E8(s32 model, s32 arg1); /* loads a model instance */
+extern void *object_model_init(s32 model, s32 arg1); /* loads a model instance */
 
 void func_m026_00518(void);
 static M026List *particle_list_new(void *arg0, u8 (*arg1)[16], s32 arg2, s32 arg3, s32 count);
@@ -399,7 +399,7 @@ void func_m026_006E8(s32 maxTriangles, s32 maxRectangles, s32 maxSprites, s32 ma
                     D_800A5D74[i] = load_texture(id & 0x3FFF);
                     break;
                 case 0:
-                    D_800A5D74[i] = func_8003B9E8(id, 0);
+                    D_800A5D74[i] = object_model_init(id, 0);
                     break;
             }
         }

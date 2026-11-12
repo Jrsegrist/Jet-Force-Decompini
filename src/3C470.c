@@ -117,17 +117,17 @@ struct Model3C7;
 struct ModelInstance3C;
 struct DrawModel3C;
 struct Instance3C *asset_instance_new(struct Asset3C *asset);
-struct InstanceC1 *func_8003C1B4(struct ModelC1 *model, s32 count);
+struct InstanceC1 *model_instance_init(struct ModelC1 *model, s32 count);
 void free_model_data(struct Model3C7 *mdl);
 s32 func_8003CB04(struct Model3C7 *model, s32 id);
 void model_instance_anim_reset(struct ModelInstance3C *inst);
-s32 func_8003DDD8(Gfx **out, struct DrawModel3C *model, s32 flags, s32 clearFlags, s32 minId, s32 maxId,
+s32 model_batches_build_dlist(Gfx **out, struct DrawModel3C *model, s32 flags, s32 clearFlags, s32 minId, s32 maxId,
                   s32 noTextures);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 
 /* DKR object_model_init: get model `modelID` from the cache, else load it (JFG: bit 0x8000 asks for an asset
  * instance, display lists built per id range, more failure cleanup), and make an instance of it. */
-void *func_8003B9E8(s32 modelID, s32 flags) {
+void *object_model_init(s32 modelID, s32 flags) {
     s32 i;
     s32 j;
     s32 cacheIndex;
@@ -164,7 +164,7 @@ void *func_8003B9E8(s32 modelID, s32 flags) {
             if (isAsset) {
                 instance = asset_instance_new((struct Asset3C *) objMdl);
             } else {
-                instance = func_8003C1B4((struct ModelC1 *) objMdl, flags & 3);
+                instance = model_instance_init((struct ModelC1 *) objMdl, flags & 3);
             }
             if (instance != NULL) {
                 objMdl->references++;
@@ -269,16 +269,16 @@ void *func_8003B9E8(s32 modelID, s32 flags) {
             start = 0;
             for (k = 0; k < objMdl->numBuffers; k++) {
                 end = objMdl->bufferEnds[k] - 1;
-                func_8003DDD8(&objMdl->buffers[k], (struct DrawModel3C *) objMdl, 0, 0, start, end, 0);
+                model_batches_build_dlist(&objMdl->buffers[k], (struct DrawModel3C *) objMdl, 0, 0, start, end, 0);
                 start = end + 1;
             }
-            func_8003DDD8(&objMdl->buffers[k], (struct DrawModel3C *) objMdl, 0, 0, start, 0xFF, 0);
+            model_batches_build_dlist(&objMdl->buffers[k], (struct DrawModel3C *) objMdl, 0, 0, start, 0xFF, 0);
         } else {
-            objMdl->numTexAnims = func_8003DDD8(&objMdl->dlist, (struct DrawModel3C *) objMdl, 0, 0, 0, 0xFF, 0);
+            objMdl->numTexAnims = model_batches_build_dlist(&objMdl->dlist, (struct DrawModel3C *) objMdl, 0, 0, 0, 0xFF, 0);
             if (objMdl->dlist == NULL) {
                 goto block_30;
             }
-            func_8003DDD8(&objMdl->dlist2, (struct DrawModel3C *) objMdl, 4, 0, 0, 0xFF, 0);
+            model_batches_build_dlist(&objMdl->dlist2, (struct DrawModel3C *) objMdl, 4, 0, 0, 0xFF, 0);
             if (objMdl->dlist2 == NULL) {
                 goto block_30;
             }
@@ -286,7 +286,7 @@ void *func_8003B9E8(s32 modelID, s32 flags) {
         if (isAsset) {
             instance = asset_instance_new((struct Asset3C *) objMdl);
         } else {
-            instance = func_8003C1B4((struct ModelC1 *) objMdl, flags & 3);
+            instance = model_instance_init((struct ModelC1 *) objMdl, flags & 3);
         }
         if (instance != NULL) {
             if (!isAsset) {
@@ -460,7 +460,7 @@ typedef struct InstanceC1 {
 
 /* JFG: make an instance of a model with `count` vertex buffers: its matrices (two sets when the model is
  * animated), the vertex copies, three point tables and two tables of 10 slots (DKR model_instance_init). */
-InstanceC1 *func_8003C1B4(ModelC1 *model, s32 count) {
+InstanceC1 *model_instance_init(ModelC1 *model, s32 count) {
     s32 j;
     Vec3fC1 *point;
     VertexC1 *src;
@@ -1096,7 +1096,7 @@ void func_8003E398(Gfx **dList, s8 *ids, s8 *slots, struct BatchModel3E *model, 
 
 /* JFG: build a display list for the model's batches whose first id is in [minId, maxId] into the D_800F6F58
  * buffer, then copy it to a new block (*out); returns the number of texture animation entries written. */
-s32 func_8003DDD8(Gfx **out, DrawModel3C *model, s32 flags, s32 clearFlags, s32 minId, s32 maxId, s32 noTextures) {
+s32 model_batches_build_dlist(Gfx **out, DrawModel3C *model, s32 flags, s32 clearFlags, s32 minId, s32 maxId, s32 noTextures) {
     s32 i;
     DrawBatch3C *batch;
     BatchTexture3C *tex;

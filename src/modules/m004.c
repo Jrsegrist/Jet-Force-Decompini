@@ -94,7 +94,7 @@ extern OSMesgQueue D_800FE8A8;
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 extern void free_3d_model(void *model);
-extern void func_8003DDD8(void *arg0, void *model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
+extern void model_batches_build_dlist(void *arg0, void *model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
 
 /* Sets up an object's shadow copy; returns FALSE when it cannot be made */
 s32 func_m004_00000(Object *obj) {
@@ -407,14 +407,14 @@ static void copy_models(Object *obj, M004Copy *copy, s32 arg2, s32 arg3) {
     void *model;
 
     model = *copy->model2;
-    func_8003DDD8(&copy->unk34, model, arg2, arg3, 0, 0xFF, 1);
+    model_batches_build_dlist(&copy->unk34, model, arg2, arg3, 0, 0xFF, 1);
     if (obj->behaviorId != 1 && ((s8 *) obj->header)[0x20] > 0) {
         i = 0;
         other = (*(M004Attached **) obj->pad60)->objs[0];
         copy->numBuffers = other->header->numberOfModelIds;
         for (; i < copy->numBuffers; i++) {
             inst = ((void ***) other->modelInstances)[i];
-            func_8003DDD8(&copy->buffers[i], *inst, arg2, arg3, 0, 0xFF, 1);
+            model_batches_build_dlist(&copy->buffers[i], *inst, arg2, arg3, 0, 0xFF, 1);
         }
     }
 }

@@ -359,7 +359,7 @@ extern f32 D_800ABDAC;
  * runtime linker), keep it at least 100 above the level's floor, record its level segment and the player's view
  * offset.
  */
-void func_8002B418(u8 *obj, Racer *racer, f32 updateRate) {
+void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
     LevelModel2B *model;
     f32 floorY;
     s32 segment;
@@ -802,7 +802,7 @@ typedef struct ZoneTrack {
 extern ZoneTrack D_800F6E58[4];
 
 void *cam_get_active_camera(void);
-void func_8002B418(u8 *obj, Racer *racer, f32 rate);
+void player_camera_update(u8 *obj, Racer *racer, f32 rate);
 
 /* JFG: set up the player camera behind obj: angles 0, distances 48/150/40, height obj + 80, white, then clear the
  * player's zone track and run the camera update eight times to settle it */
@@ -841,7 +841,7 @@ void player_camera_setup(u8 *obj, Racer *racer) {
     }
     racer->unk574 = 0;
     for (i = 0; i < 8; i++) {
-        func_8002B418(obj, racer, 1.0f);
+        player_camera_update(obj, racer, 1.0f);
     }
     racer->unk574 = 1;
 }
@@ -1816,7 +1816,7 @@ void func_800492DC(s16 *rotation, f32 *vec);
 /* JFG: step the pose points towards their target by `updateRate` steps (fewer when the pose ends), then place
  * them in the world: rotated by the object's angles (the racer's own pitch/roll in state 4) where the target
  * point asks for it (byte 0x11), plus the object's position */
-void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
+void pose_points_update(u8 *obj, PoseRacer *racer, f32 updateRate) {
     f32 *from;
     f32 *to;
     f32 *step;

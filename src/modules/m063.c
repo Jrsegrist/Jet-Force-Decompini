@@ -56,7 +56,7 @@ extern s32 get_settings(void);
 extern void game_settings_reset(s32 arg0);
 extern void func_800487B8(void);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
 extern void menu_assetgroup_free(s16 *assets); /* frees them */
 extern s32 fb_mode(void);
@@ -258,7 +258,7 @@ void func_m063_00140(s32 updateRate) {
                     }
                     sStage = 3;
                 } else if (sLastOption == D_800A5060) {
-                    func_8004665C(0, 0, 0, 4, 1, 0);
+                    level_goto(0, 0, 0, 4, 1, 0);
                     music_volume_fade(1.0f, 0);
                     sStage = 4;
                 } else {
@@ -309,7 +309,7 @@ void func_m063_00140(s32 updateRate) {
                 D_800A4FC4 = 1;
                 D_800A4FC8 = 0;
                 D_800A4FCC = 1;
-                func_8004665C(0xA1, 0, 0, 6, 1, 0);
+                level_goto(0xA1, 0, 0, 6, 1, 0);
                 sStage = 4;
             }
             break;

@@ -124,10 +124,10 @@ extern s32 func_80049C84(f32 dx, f32 dz);            /* the angle of a vector */
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern s16 angle_lerp(s16 from, s16 to, f32 rate);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern s32 *func_8003B9E8(s32 model, s32 arg1);      /* loads a model instance */
+extern s32 *object_model_init(s32 model, s32 arg1);      /* loads a model instance */
 extern void free_3d_model(s32 *inst);                /* frees a model instance */
 extern void func_8003D21C(s32 *inst, s32 model, Object *obj, s32 arg3, f32 arg4);
-extern void func_8003DDD8(void *arg0, s32 model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
+extern void model_batches_build_dlist(void *arg0, s32 model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 
 /* Screen flashes */
@@ -516,7 +516,7 @@ static void player_set_form(Object *player, s32 model, s32 shadowModel) {
     M129Shadow *sh;
     s32 *inst;
 
-    inst = func_8003B9E8(model, 1);
+    inst = object_model_init(model, 1);
     if (inst != NULL) {
         free_3d_model(player->modelInstances[0]);
         player->modelInstances[0] = inst;
@@ -537,12 +537,12 @@ static void player_set_form(Object *player, s32 model, s32 shadowModel) {
             }
             if (model != shadowModel) {
                 sh->unk60 = inst;
-                sh->unk64 = sh->unk68 = func_8003B9E8(shadowModel, 1);
-                func_8003DDD8(&sh->unk34, *sh->unk68, 0x400, 11, 0, 0xFF, 1);
+                sh->unk64 = sh->unk68 = object_model_init(shadowModel, 1);
+                model_batches_build_dlist(&sh->unk34, *sh->unk68, 0x400, 11, 0, 0xFF, 1);
             } else {
                 sh->unk60 = inst;
                 sh->unk64 = inst;
-                func_8003DDD8(&sh->unk34, base, 0x400, 11, 0, 0xFF, 1);
+                model_batches_build_dlist(&sh->unk34, base, 0x400, 11, 0, 0xFF, 1);
             }
         }
     }

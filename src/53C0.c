@@ -396,7 +396,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *load_texture(s32 id);
 void *tex_load_sprite(s32 id, s32 arg1);
-void *func_8003B9E8(s32 id, s32 arg1);
+void *object_model_init(s32 id, s32 arg1);
 void *asset_cache2_get(s32 id);
 
 /**
@@ -444,7 +444,7 @@ ObjectHeader *load_object_header(s32 index) {
             } else if (address->modelIds[i] & 0x8000) {
                 address->assets[i] = tex_load_sprite(address->modelIds[i] & 0x3FFF, 1);
             } else {
-                address->assets[i] = func_8003B9E8(address->modelIds[i], 0);
+                address->assets[i] = object_model_init(address->modelIds[i], 0);
             }
         }
         if (address->unkD8 != -1) {
@@ -677,7 +677,7 @@ extern s32 D_800F2C68;     // JFG: its size in bytes
  * table), with the level's 0x61 object as their target and a single player's companion when flag 3 is set, then
  * run the module set-up of the 0x6A objects.
  */
-void func_8000561C(s32 entranceID) {
+void players_spawn(s32 entranceID) {
     UNUSED s32 pad;
     LevelHeader53 *level;
     s32 numPlayers;
@@ -1434,7 +1434,7 @@ Object *obj_spawn_attachment(s32 objID) {
     failed = FALSE;
     for (; i < numModels; i++) {
         if (modelType == 0) {
-            obj->attachments[i] = func_8003B9E8(((s32 *) obj->header->unk30)[i], modelFlags);
+            obj->attachments[i] = object_model_init(((s32 *) obj->header->unk30)[i], modelFlags);
         } else {
             obj->attachments[i] = tex_load_sprite(((s32 *) obj->header->unk30)[i], 10);
         }

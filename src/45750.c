@@ -35,7 +35,7 @@ s32 leveltable_world(s32 level);
 s32 drm_check_rdram_a(void);
 s32 drm_check_rdram_b(void);
 void init_game(void);
-void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+void level_goto(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void check_reset_and_halt(void);
 void main_game_loop(void);
 void thread3_verify_stack(void);
@@ -62,7 +62,7 @@ void thread3_main(UNUSED void *unused) {
     gSaveDataFlags = input_update(gSaveDataFlags, 0);
     sBootDelayTimer = 0;
     gGameMode = 6;
-    func_8004665C(0, D_800A3260, 0, 0, 1, 0);
+    level_goto(0, D_800A3260, 0, 0, 1, 0);
     while (1) {
         check_reset_and_halt();
         main_game_loop();
@@ -1045,7 +1045,7 @@ void rumble_allow_set(s32 arg0);
 
 /* JFG: go to a level (with a few swaps by game flag): store it as the next one, mark the module 5 fade, start the
  * transition and the level's music if it changes, and stop all rumble. */
-void func_8004665C(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
+void level_goto(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
     u8 seq;
     u8 tune;
 
@@ -1490,7 +1490,7 @@ void load_first_unlocked_level(void) {
     while ((D_800FF391 & entry->flags) != entry->flags) {
         entry++;
     }
-    func_8004665C(entry->level, 0, 0, 3, 1, 0);
+    level_goto(entry->level, 0, 0, 3, 1, 0);
 }
 
 void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
@@ -1499,7 +1499,7 @@ void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
     if (D_800FD7BC == 0) {
         D_800FD7BC = 1;
     }
-    func_8004665C(level, D_800A3260, 0, arg0, 1, 0);
+    level_goto(level, D_800A3260, 0, arg0, 1, 0);
 }
 
 extern GameStats *gSettingsPtr;
