@@ -5,7 +5,8 @@ Without the ROM there is no asm/ directory, so asm-processor has nothing to
 put where a C file says INCLUDE_ASM. For the ROM-free compile check (CI),
 this writes a stand-in for each file those lines name:
 
-  func_XXXXXXXX (any function)   glabel, `jr $ra; nop`, endlabel
+  func_XXXXXXXX (any function)   glabel, `jr $ra; nop`, padding nops, endlabel
+                                 (long enough for asm-processor at -g as well as -O2)
   data / rodata / bss (a module's sections)   one word in that section
   INCLUDE_RODATA D_XXXXXXXX      dlabel and one word (.rodata)
 
@@ -25,6 +26,7 @@ import sys
 
 INCLUDE_RE = re.compile(r'^\s*INCLUDE_(ASM|RODATA)\(\s*"([^"]+)"\s*,\s*(\w+)\s*\);', re.M)
 MARKER = "asm/CI_STUBS"
+STUB_PAD = 62  # nops after `jr $ra; nop`: 64 words in all
 
 
 def stub(kind, name):
@@ -34,7 +36,9 @@ def stub(kind, name):
         return ".section .%s\n    .word 0\n" % name
     if name == "bss":
         return ".section .bss\n    .space 4\n"
-    return "glabel %s\n    jr $ra\n    nop\nendlabel %s\n" % (name, name)
+    # asm-processor refuses a block shorter than the dummy C it compiles in its
+    # place, and that dummy is longer at -g (the audio objects) than at -O2
+    return "glabel %s\n    jr $ra\n    nop\n%sendlabel %s\n" % (name, "    nop\n" * STUB_PAD, name)
 
 
 def main():
