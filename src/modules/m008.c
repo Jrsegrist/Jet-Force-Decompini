@@ -203,12 +203,12 @@ void func_m008_00334(f32 x, f32 y, f32 z, s32 arg3, s32 arg4) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m008", func_m008_0040C);
+INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_0040C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m008", func_m008_00AB4);
+INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_00AB4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m008", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m008", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m008", bss);

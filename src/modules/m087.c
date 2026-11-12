@@ -136,7 +136,6 @@ typedef struct M087State {
     /* 0x1C */ s32 unk1C;
 } M087State;
 
-extern f32 rl_m087_014B0; /* .rodata (still assembly): the smallest scale, 0.1 */
 extern s32 objflags_reserve_ids(s32 count);
 extern s32 objflag_get(s32 flag);
 extern s32 func_8001B078(f32 x, f32 z, s32 flags, f32 ***heights);
@@ -212,7 +211,7 @@ void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_001DC);
+INCLUDE_ASM("asm/nonmatchings/modules/m087/ro", func_m087_001DC);
 #endif
 
 #ifdef NON_MATCHING
@@ -460,7 +459,7 @@ void func_m087_00510(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m087", func_m087_00510);
+INCLUDE_ASM("asm/nonmatchings/modules/m087/ro", func_m087_00510);
 #endif
 
 void func_m087_01060(Object *obj, M087PieceSetup *setup) {
@@ -507,4 +506,4 @@ void func_m087_011DC(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m087", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m087", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

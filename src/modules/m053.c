@@ -5,21 +5,20 @@
 #include "module.h"
 
 /* The module's .rodata and .bss (still assembly) */
-extern f32 rl_m053_03710;
 extern f32 rl_m053_03828[4];
 extern f32 rl_m053_03838[4];
 extern f32 rl_m053_03848[4];
 
 /* Resets player `player`'s camera values */
 void func_m053_00000(s32 player) {
-    rl_m053_03828[player] = rl_m053_03710;
+    rl_m053_03828[player] = 0.15416667f;
     rl_m053_03838[player] = 0.0f;
     rl_m053_03848[player] = 0.0f;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_00038);
+INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_00038);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_00EA0);
+INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_00EA0);
 
 /* The part of the vehicle's state that 014F4 uses */
 typedef struct M053Steer {
@@ -53,10 +52,6 @@ extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_8004966C(s16 angle); /* sine */
 extern s16 *rl_m053_03820;          /* .bss (still assembly): the camera commands */
-extern f32 rl_m053_037A0;           /* .rodata (still assembly) */
-extern f32 rl_m053_037A4;
-extern f32 rl_m053_037A8;
-extern f32 rl_m053_037AC;
 
 /* Steering the vehicle and its camera while the button is held (called from 00038) */
 #ifdef NON_MATCHING
@@ -71,12 +66,12 @@ void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED s32 arg2, UNUSED s32 arg3
         s->unk104 = 0x8000 - angles[0];
         return;
     }
-    s->unk4 *= func_80049BEC(rl_m053_037A0, (s32) updateRateF);
-    if (rl_m053_037A4 < s->unk4 && s->unk4 < rl_m053_037A8) {
+    s->unk4 *= func_80049BEC(0.95f, (s32) updateRateF);
+    if (-0.1f < s->unk4 && s->unk4 < 0.1f) {
         s->unk4 = 0.0f;
     }
     func_8003AABC(angles, s, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &yaw, &pitch, updateRateF);
-    k = 1.0f - func_80049BEC(rl_m053_037AC, (s32) updateRateF);
+    k = 1.0f - func_80049BEC(0.8333f, (s32) updateRateF);
     s->unk1E0 = angle_lerp(s->unk1E0, pitch, k);
     pitch += s->unk1E2;
     s->unk1DC = angle_lerp(s->unk1DC, yaw, k);
@@ -107,7 +102,7 @@ void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED s32 arg2, UNUSED s32 arg3
     rl_m053_03820++;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_014F4);
+INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_014F4);
 #endif
 
 /* The part of the vehicle's state that 01850 uses */
@@ -131,9 +126,6 @@ typedef struct M053Slow {
 } M053Slow;
 
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
-extern f32 rl_m053_037B0; /* .rodata (still assembly) */
-extern f32 rl_m053_037B4;
-extern f32 rl_m053_037B8;
 
 /* Slows the vehicle down by the frame's rate (called from 00038) */
 void func_m053_01850(Object *obj, M053Slow *s, UNUSED s32 arg2, UNUSED s32 arg3, f32 updateRateF) {
@@ -142,7 +134,7 @@ void func_m053_01850(Object *obj, M053Slow *s, UNUSED s32 arg2, UNUSED s32 arg3,
 
     obj->interactObj->hitPoints = 0;
     updateRate = updateRateF;
-    f = func_80049BEC(rl_m053_037B0, updateRate);
+    f = func_80049BEC(0.85f, updateRate);
     s->unk4 *= f;
     s->unk541 &= ~0xF;
     s->unk10 *= f;
@@ -153,9 +145,9 @@ void func_m053_01850(Object *obj, M053Slow *s, UNUSED s32 arg2, UNUSED s32 arg3,
         if (s->unk594 > 1.5f) {
             s->unk594 = 1.5f;
         }
-        obj->velocity.y *= func_80049BEC(rl_m053_037B4, updateRate);
+        obj->velocity.y *= func_80049BEC(0.95f, updateRate);
     }
-    if (rl_m053_037B8 < obj->unk28) {
+    if (0.98f < obj->unk28) {
         if (s->unk19C + updateRate >= 0x80) {
             obj->trans.flags |= 0x400;
             s->unk193 = 1;
@@ -237,7 +229,7 @@ f32 func_m053_019B0(s16 *yaw, M053Turn *s, f32 speed, s16 target) {
     return speed;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_01BB4);
+INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_01BB4);
 
 /* A hit record (0x34 bytes) of the vehicle's interaction */
 typedef struct M053Hit {
@@ -335,8 +327,6 @@ typedef struct M053Water {
 } M053Water;
 
 extern void func_8006B090(Object *obj, s32 updateRate); /* moves a ripple */
-extern f32 rl_m053_037D0; /* .rodata (still assembly): 0230C's limits */
-extern f32 rl_m053_037D4;
 
 /* Updates the vehicle's ripple: on the water while it is in it, its child shown outside unk4's limits
    (called from 00038) */
@@ -351,7 +341,7 @@ void func_m053_0230C(Object *obj, M053Water *w, s32 updateRate) {
     if (w->depth > 0.0f) {
         ((M053RippleObj *) obj)->ripple->levelY = w->waterY;
         ((M053RippleObj *) obj)->ripple->unk75 = 1;
-        if (child != NULL && (w->unk4 < rl_m053_037D0 || rl_m053_037D4 < w->unk4)) {
+        if (child != NULL && (w->unk4 < -1.2f || 1.2f < w->unk4)) {
             *child |= 2;
         }
     }
@@ -380,10 +370,6 @@ typedef struct M053Cam {
 
 extern s32 func_8004966C(s16 angle); /* sine */
 extern s16 *rl_m053_03820;          /* .bss (still assembly): the camera commands */
-extern f32 rl_m053_037D8;           /* .rodata (still assembly) */
-extern f32 rl_m053_037DC;
-extern f32 rl_m053_037E0;
-extern f32 rl_m053_037E4;
 
 /* Eases the camera's offsets towards the vehicle's angles and writes them as camera commands (called from
    00038) */
@@ -419,13 +405,13 @@ void func_m053_023D0(s16 *angles, M053Cam *s, s32 updateRate) {
         b = 0;
     }
     /* (one line: IDO schedules by line) */
-    if (a < rl_m053_037D8) { a = -0x38E3; } if (rl_m053_037DC < a) {
+    if (a < -14563.553f) { a = -0x38E3; } if (14563.553f < a) {
         a = 0x38E3;
     }
-    if (b < rl_m053_037E0) {
+    if (b < -3640.8882f) {
         b = -0xE38;
     }
-    if (rl_m053_037E4 < b) {
+    if (3640.8882f < b) {
         b = 0xE38;
     }
     for (i = 0; i < updateRate; i++) {
@@ -467,28 +453,23 @@ typedef struct M053Anim {
     /* 0x58C */ s16 unk58C;
 } M053Anim;
 
-extern f32 rl_m053_037E8; /* .rodata (still assembly) */
-extern f32 rl_m053_037EC;
-extern f32 rl_m053_037F0;
-extern f32 rl_m053_037F4;
-extern f32 rl_m053_037F8;
 
 /* Plays the vehicle's two animations and eases unk14 towards 0, 1 or 2 (called from 00038) */
 void func_m053_0271C(Object *obj, M053Anim *s, UNUSED s32 arg2, f32 updateRateF) {
     f32 k;
 
-    k = 1.0f - func_80049BEC(rl_m053_037E8, updateRateF);
+    k = 1.0f - func_80049BEC(0.975f, updateRateF);
     switch (obj->animationID) {
         case 0:
             func_8001138C(obj, 0.005f, updateRateF);
-            if (s->unk4 < rl_m053_037EC || rl_m053_037F0 < s->unk4) {
+            if (s->unk4 < -1.2f || 1.2f < s->unk4) {
                 obj_anim_set(obj, 1, obj->unk28);
             }
             s->unk14 += (0.0f - s->unk14) * k;
             break;
         case 1:
             func_8001138C(obj, 0.01f, updateRateF);
-            if (rl_m053_037F4 < s->unk4 && s->unk4 < rl_m053_037F8) {
+            if (-0.8f < s->unk4 && s->unk4 < 0.8f) {
                 obj_anim_set(obj, 0, obj->unk28);
             }
             if (s->unk58C > 300) {
@@ -513,10 +494,10 @@ void func_m053_028CC(UNUSED s32 arg0, M053State *state, UNUSED s32 arg2) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_028DC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_02B48);
+INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_02B48);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", bss);

@@ -51,8 +51,7 @@ extern s32 D_m101_01130; /* the module's number */
 /* The module's .rodata is C only with 00000's and 00B64's C bodies */
 #define M101_SCALE 0.01f
 #else
-extern f32 rl_m101_01174; /* .rodata: the scale factor (0.01) */
-#define M101_SCALE rl_m101_01174
+#define M101_SCALE 0.01f
 #endif
 
 /* A point of a shard: where it is from the shard's centre, and its texture coordinate (size 0xC) */
@@ -210,7 +209,7 @@ static void func_m101_00000(Object *obj, M101Pane *pane) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m101/ro", func_m101_00000);
 #endif
 
 extern ObjectTransform *func_80041DE0(void); /* the camera */
@@ -326,7 +325,7 @@ static void func_m101_0056C(Object *obj, M101Pane *pane, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m101", func_m101_0056C);
+INCLUDE_ASM("asm/nonmatchings/modules/m101/ro", func_m101_0056C);
 #endif
 
 /* The pane's level entry */
@@ -524,5 +523,5 @@ void func_m101_00DCC(Gfx **dl, s32 arg1, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m101", data);
 
 #ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m101", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 #endif

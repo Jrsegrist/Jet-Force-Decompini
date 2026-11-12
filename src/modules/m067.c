@@ -219,7 +219,7 @@ void func_m067_0025C(void) {
     rl_m067_0456C += 2;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00300);
+INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_00300);
 
 extern void rl_m067_00300(Object *obj, M067State *s, s32 step);
 
@@ -289,7 +289,7 @@ void func_m067_00728(Object *obj, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_008C4);
+INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_008C4);
 
 #ifdef NON_MATCHING
 /* Registers: the ROM keeps the state in v1, the pair in v0 and the header in t0 (t0/t1 taken) */
@@ -335,7 +335,7 @@ void func_m067_00D70(Object *obj, M067Setup *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00D70);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00EF4);
+INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_00EF4);
 
 /* Sets the fog for drawing one of the enemy's parts: a flash colour, or the level's fog */
 void func_m067_02BF0(Gfx **dl, Object *obj, s32 part) {
@@ -420,7 +420,6 @@ typedef struct M067Model {
     /* 0x30 */ u16 *flameVertex; /* the vertex the flame comes from */
 } M067Model;
 
-extern f32 rl_m067_04E5C; /* the .rodata scale factor */
 extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8, s32 arg9);
 
 #ifdef NON_MATCHING
@@ -431,7 +430,7 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     M067Vertex *v;
     M067MissileState *m;
 
-    k = rl_m067_04E5C;
+    k = 0.1f;
     obj->trans.rotation.y_rotation = setup->yRotation;
     obj->trans.rotation.x_rotation = setup->xRotation;
     m = obj->unk68;
@@ -460,10 +459,10 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     m->unk1 = setup->unk1A * 6;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_02E38);
+INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02E38);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_02FDC);
+INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02FDC);
 
 /* Draws a missile's flame */
 void func_m067_03808(Gfx **dl, s32 arg1, Object *obj) {
@@ -619,9 +618,9 @@ void func_m067_03F08(Object *obj, M067ShotSetup *setup) {
     func_80079D1C(obj, s->strength << 8, 1, 4, 0, 0, 0, 10.0f, 10.0f, 100.0f, 1.0f, 0x11);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_03FF0);
+INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_03FF0);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 

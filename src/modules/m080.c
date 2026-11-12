@@ -119,10 +119,10 @@ void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
     s->unk114 = 0x100;
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m080", func_m080_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m080/ro", func_m080_00000);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m080", func_m080_002A0);
+INCLUDE_ASM("asm/nonmatchings/modules/m080/ro", func_m080_002A0);
 
 extern f32 func_80097140(f32 x); /* sqrtf */
 
@@ -159,4 +159,4 @@ Object *func_m080_01324(f32 x, f32 y, f32 z, f32 range, s32 flat) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m080", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m080", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */

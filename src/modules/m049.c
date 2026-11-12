@@ -436,7 +436,7 @@ static void func_m049_00A84(void) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m049", func_m049_00204);
+INCLUDE_ASM("asm/nonmatchings/modules/m049/ro", func_m049_00204);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m049", func_m049_00668);
 
@@ -452,7 +452,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m049", func_m049_00A84);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m049", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m049", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m049", bss);
 #endif

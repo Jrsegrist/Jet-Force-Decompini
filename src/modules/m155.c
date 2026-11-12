@@ -718,7 +718,7 @@ M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02BB0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02FD0);
+INCLUDE_ASM("asm/nonmatchings/modules/m155/ro", func_m155_02FD0);
 
 /* The way `obj` faces: at the enemy's target once it is alerted, else `yaw` */
 s16 func_m155_03B94(Object *obj, s16 yaw) {
@@ -743,6 +743,6 @@ void func_m155_03C4C(s16 x, s16 z) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", rodata);
+INCLUDE_ASM("asm/nonmatchings/modules/m155/ro", rodata);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155", bss);

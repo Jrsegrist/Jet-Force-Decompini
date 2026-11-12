@@ -123,7 +123,7 @@ static u8 sBurstKinds[2] = { 5, 1 };
 #else
 /* func_m113_002C8 is still asm and refers to the data (and its .rodata) by its own labels */
 INCLUDE_ASM("asm/nonmatchings/modules/m113", data);
-INCLUDE_ASM("asm/nonmatchings/modules/m113", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 #endif
 
 void func_m113_00000(Object *obj, M113Setup *setup) {
@@ -382,5 +382,5 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m113", func_m113_002C8);
+INCLUDE_ASM("asm/nonmatchings/modules/m113/ro", func_m113_002C8);
 #endif

@@ -191,7 +191,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m096", func_m096_00088);
+INCLUDE_ASM("asm/nonmatchings/modules/m096/ro", func_m096_00088);
 #endif
 
 /* Sets the flare off with the given direction and speed */
@@ -206,5 +206,5 @@ void func_m096_005D8(Object *obj, s16 y_rotation, s16 x_rotation, f32 speed) {
 }
 
 #ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m096", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 #endif

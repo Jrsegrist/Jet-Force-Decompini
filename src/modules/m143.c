@@ -114,7 +114,7 @@ void func_m143_00000(s32 dist, f32 *x, f32 *y, f32 *z) {
     *z = p->z;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_0007C);
+INCLUDE_ASM("asm/nonmatchings/modules/m143/ro", func_m143_0007C);
 
 extern void effect_slot_start(s32 arg0, void *tex);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
@@ -300,7 +300,7 @@ void func_m143_008C0(Object *obj, s32 speed) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00C2C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_01940);
+INCLUDE_ASM("asm/nonmatchings/modules/m143/ro", func_m143_01940);
 
 /* Follows its leader's position until its time is up or it is told to stop */
 void func_m143_02394(Object *obj) {
@@ -361,6 +361,6 @@ void func_m143_02B88(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", bss);

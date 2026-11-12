@@ -159,17 +159,17 @@ void func_m126_00000(Object *obj, M126Setup *setup) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m126", func_m126_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_00000);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m126", func_m126_003D0);
+INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_003D0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m126", func_m126_00E74);
+INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_00E74);
 
 #ifndef NON_MATCHING
 INCLUDE_ASM("asm/nonmatchings/modules/m126", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m126", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
 
 INCLUDE_ASM("asm/nonmatchings/modules/m126", bss);
 #endif

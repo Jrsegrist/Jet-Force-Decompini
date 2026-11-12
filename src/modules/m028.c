@@ -98,8 +98,6 @@ extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 extern void light_colour_cycle_set(s32 handle, s32 arg1);
 extern void func_800212D0(s32 handle);
-extern f32 rl_m028_01BE0; /* .rodata (still assembly) */
-extern f32 rl_m028_01BE4;
 extern u8 rl_m028_01BB0[]; /* .data (still assembly) */
 #define rl_m028_01BD8 ((s16 *) (rl_m028_01BB0 + 0x28)) /* per kind */
 
@@ -139,7 +137,7 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
         st->shape[2][i] = entry->shape[2][i];
         st->unkA3C[i] = 0;
     }
-    f = rl_m028_01BE0;
+    f = 0.1f;
     st->strength = 0;
     st->owner = owner;
     st->padA7C = entry->unk28;
@@ -150,7 +148,7 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     st->unkA81 = 0xFF;
     st->on = 0;
     st->unkA60 = f;
-    st->unkA5C = rl_m028_01BE4;
+    st->unkA5C = 0.05f;
     st->unkA82 = entry->unk29;
     st->unkA83 = entry->unk2A;
     vtx = (M028Vertex *) st->verts;
@@ -204,10 +202,10 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m028", func_m028_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_00000);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028", func_m028_0031C);
+INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_0031C);
 
 void func_m028_01624(Object *obj, M028Setup *setup) {
     M028BeamEntry entry;
@@ -272,7 +270,7 @@ void func_m028_01798(Object *obj, s32 updateRate) {
     beam->trans.rotation.z_rotation = obj->trans.rotation.z_rotation;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028", func_m028_01840);
+INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_01840);
 
 void func_m028_01B80(void) {
     if (rl_m028_01BD4 != 0) {
@@ -283,4 +281,4 @@ void func_m028_01B80(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m028", data);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m028", rodata);
+/* (.rodata: C, and the assembly functions' own from ro/) */
