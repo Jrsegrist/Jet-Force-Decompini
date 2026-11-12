@@ -274,3 +274,12 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | --- | --- |
 | `src/object_models.c` | object_model_init (JFG-extended: asset instances, model-id remaps, display lists per id range); model_instance_init (JFG-extended: matrices, vertex buffers, point and slot tables) (helper ma17h1) |
 | `src/tracks.c` | func_8002E904 and func_8002F440, as the NON_MATCHING bodies of JFG's func_8001E8B8 and func_8001FA24 (helper ma17h1) |
+
+### Round 20 (main20), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/audiosfx.c` | the sound player as JFG's `src/audiosfx.c` (0x84E00): sndp_end, sndp_apply_pitch_slide, sndp_set_priority, sndp_get_state, sndp_stop, sndp_stop_with_flags, sndp_stop_all, sndp_stop_all_retrigger, sndp_stop_all_looped, sndp_set_param, sndp_get_group_volume, sndp_set_group_volume, sndp_set_global_volume, sndp_get_global_volume, sndp_set_active_sound_limit (JFG: built -g -mips2, debug prints kept, larger sound states) |
+| `src/menu.c` | menu_element_render, as the NON_MATCHING body of JFG's func_8005A0D0 (helper mn20h1) |

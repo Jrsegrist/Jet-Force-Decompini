@@ -117,7 +117,7 @@ segments:
       - [0x84690, c]
       - [0x846F0, c]
       - [0x84DA0, c]
-      - [0x84E00, asm]
+      - [0x84E00, c, audiosfx]
       - [0x871A0, asm]
       - [0x871F0, asm]
       - [0x87240, asm]

@@ -54,6 +54,9 @@ CFLAGS   := -G 0 -non_shared -Xcpluscomm -nostdinc -Wab,-r4300_mul \
             -woff 516,608,649,838,712 $(DEFINES) $(INCLUDES)
 OPT_FLAGS := -O2
 MIPSISET  := -mips1
+# The sound player was built unoptimised with debug information, as MIPS II code
+$(BUILD_DIR)/src/audiosfx.o build_nm/src/audiosfx.o: OPT_FLAGS := -g
+$(BUILD_DIR)/src/audiosfx.o build_nm/src/audiosfx.o: MIPSISET := -mips2
 
 # libultra objects built from decompals/ultralib (src/ultra/*.c wrappers),
 # with ultralib's flags for SDK 2.0I; per-object levels in src/ultra/flags.mk
