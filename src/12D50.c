@@ -1179,10 +1179,8 @@ void track_light_set_position(f32 *light, f32 x, f32 y, f32 z) {
 
 extern u8 D_800F31E1[]; // JFG: a flag per segment (whether it is drawn)
 
-#ifdef NON_MATCHING
 /* JFG: copy the vertex colours of the drawn segments into their vertices (all of them while
-   D_800A0D80 is set, else only the changed ones).
-   NON_MATCHING: the t-registers are numbered one lower (target loads the drawn flag into a new temp). */
+   D_800A0D80 is set, else only the changed ones). */
 void func_8001400C(void) {
     LevelModelSegment *segment;
     s32 count;
@@ -1206,7 +1204,7 @@ void func_8001400C(void) {
         dir = -1;
     }
     while (count--) {
-        if (*visible++ && (segment->colourFlags & dir) && (colours = segment->colours) != NULL) {
+if (*visible && (segment->colourFlags & dir) && (colours = segment->colours) != NULL) {
             src = colours->colours;
             vert = segment->vertices;
             n = segment->numberOfVertices;
@@ -1244,12 +1242,10 @@ void func_8001400C(void) {
                 segment->colourFlags = 0;
             }
         }
-        segment++;
+segment++;
+        visible++;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001400C);
-#endif
 
 extern u8 D_800A4FCC;  // JFG: the number of cameras
 extern s16 D_80104704; // the vertex colour level (m046)

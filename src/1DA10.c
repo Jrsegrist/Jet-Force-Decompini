@@ -77,10 +77,6 @@ void func_8001D9D0(s32 flags, s32 *a, s32 *b, s32 *c) {
     *c = D_800A0EA0[index];
 }
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
-
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E17C);
-
 /* DKR include/structs.h, reduced (as in 12D50.c) */
 typedef struct ShadowBatch {
     /* 0x00 */ u8 pad0[0x6];
@@ -131,6 +127,9 @@ typedef struct ShadowPoly {
 typedef struct ShadowObjHeader {
     /* 0x00 */ u8 pad0[0x58];
     /* 0x58 */ f32 shadowScale;
+    /* 0x5C */ u8 pad5C[0x6C - 0x5C];
+    /* 0x6C */ s16 shadowBottom; // DKR: unk42
+    /* 0x6E */ s16 shadowTop;    // DKR: unk44
 } ShadowObjHeader;
 
 /* JFG: the object casting the shadow (DKR gNewShadowObj) */
@@ -140,8 +139,13 @@ typedef struct ShadowObj {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x40 - 0x18];
+    /* 0x18 */ u8 pad18[0x30 - 0x18];
+    /* 0x30 */ f32 distanceToCamera;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
     /* 0x40 */ ShadowObjHeader *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ s16 unk4A;
 } ShadowObj;
 
 /* JFG: the shadow texture (DKR gNewShadowTexture) */
@@ -161,7 +165,8 @@ typedef struct ShadowBuild {
     /* 0x18 */ f32 groundY;      // DKR D_8011D0D0
     /* 0x1C */ f32 unk1C;        // DKR D_8011D0F0
     /* 0x20 */ f32 fadeDistance; // DKR D_8011D0F4
-    /* 0x24 */ u8 pad24[0x2C - 0x24];
+    /* 0x24 */ f32 scale;          // DKR gNewShadowScale
+    /* 0x28 */ f32 area;           // DKR D_8011D0E4
     /* 0x2C */ f32 width;        // DKR gNewShadowWidth
     /* 0x30 */ f32 length;       // DKR gNewShadowLength
     /* 0x34 */ f32 unk34;
@@ -217,7 +222,119 @@ s32 func_80020890(f32 x1, f32 z1, f32 x2, f32 z2, s32 count, ShadowPoint *points
 void func_800209E4(ShadowBuild *shadow, ShadowPoint *points); // DKR: func_800304C8
 s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEdges, ShadowEdge *edges); // DKR: func_8002FF6C
 
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
+
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E17C);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 6 words longer: the target keeps the face loop's strength-reduced offsets (face * 8, face * 4) in v1/a0 and spills them once per face, mine keeps them on the stack (and the next-face bound in v1, target a2) */
+/* DKR func_8002E904 (tracks.c): clip the shadow against each upward-facing triangle of the segment that the mask
+ * selects and add the clipped polygons (JFG: the shadow struct and the clip edges passed in, the water flag a
+ * global, faces need a plane normal y above 0.5, at most 32 cached vertices). */
+void func_8001E8B8(ShadowBuild *shadow, ShadowEdge *edges, ShadowSegmentCol *seg, s32 mask) {
+    ShadowPoint sp100[8];
+    s32 spAC;
+    s32 curFacesOffset;
+    s32 nextFacesOffset;
+    ShadowTriangle *triangles;
+    ShadowVertex *vertices;
+    s32 yPos;
+    s32 minY;
+    s32 foundIndex;
+    s32 maxY;
+    s32 temp_t6;
+    s32 sp88;
+    s32 someCount;
+    s32 i2;
+    s32 i;
+    s32 tempIdx;
+    u32 batchFlags;
+
+    for (spAC = 0; spAC < seg->numberOfBatches; spAC++) {
+        batchFlags = seg->batches[spAC].flags;
+        if ((!D_800A0EFC && !(batchFlags & 0x3480)) ||
+            (D_800A0EFC && (batchFlags & 0x400))) {
+            curFacesOffset = seg->batches[spAC].facesOffset;
+            nextFacesOffset = seg->batches[spAC + 1].facesOffset;
+            vertices = &seg->vertices[seg->batches[spAC].verticesOffset];
+            sp88 = (seg->batches[spAC].flags >> 22) & 7;
+            for (; curFacesOffset < nextFacesOffset; curFacesOffset++) {
+                temp_t6 = seg->collisionFacets[curFacesOffset].basePlaneIndex * 4;
+                if (((seg->triangleMasks[curFacesOffset] & mask) & 0xFFFF) &&
+                    ((seg->triangleMasks[curFacesOffset] & mask) >> 16) &&
+                    seg->collisionPlanes[temp_t6 + 1] > 0.5f) {
+                    triangles = &seg->triangles[curFacesOffset];
+                    maxY = minY = vertices[triangles->verticesArray[1]].y;
+                    for (i = 1; i < 3; i++) {
+                        yPos = vertices[triangles->verticesArray[i + 1]].y;
+                        if (yPos < minY) {
+                            minY = yPos;
+                        } else if (maxY < yPos) {
+                            maxY = yPos;
+                        }
+                    }
+                    if (shadow->y2 >= minY) {
+                        if (maxY >= shadow->y1) {
+                            for (i = 0; i < 3; i++) {
+                                sp100[i].x = vertices[triangles->verticesArray[i + 1]].x;
+                                sp100[i].z = vertices[triangles->verticesArray[i + 1]].z;
+                                sp100[i].unkE = -1;
+                            }
+                            if (func_80020890(shadow->x1, shadow->z1, shadow->x2, shadow->z2, 3, sp100) != 0) {
+                                shadow->plane = &seg->collisionPlanes[temp_t6];
+                                if (shadow->unk1C > 0.0f) {
+                                    func_800209E4(shadow, sp100);
+                                }
+                                someCount = func_8001F4BC(shadow, 3, sp100, 4, edges);
+                                if (someCount >= 3) {
+                                    tempIdx = D_800F45E8;
+                                    D_800F45F0[tempIdx].sharedMask = 0;
+                                    for (i2 = 0; i2 < someCount; i2++) {
+                                        if (sp100[i2].unkE < 0) {
+                                            foundIndex = -1;
+                                            i = 0;
+                                            while ((i < D_800F33D0) && (foundIndex == -1)) {
+                                                if ((D_800F33D8[i].x == sp100[i2].x) &&
+                                                    (D_800F33D8[i].z == sp100[i2].z)) {
+                                                    foundIndex = i;
+                                                }
+                                                i++;
+                                            }
+                                            if (foundIndex == -1) {
+                                                if (D_800F33D0 >= 32) {
+                                                    D_800F33D0 = 31;
+                                                }
+                                                D_800F33D8[D_800F33D0].x = sp100[i2].x;
+                                                D_800F33D8[D_800F33D0].plane = shadow->plane;
+                                                D_800F33D8[D_800F33D0].z = sp100[i2].z;
+                                                D_800F45F0[tempIdx].verts[i2] = D_800F33D0++;
+                                            } else {
+                                                D_800F45F0[tempIdx].verts[i2] = foundIndex;
+                                            }
+                                        } else {
+                                            D_800F45F0[tempIdx].verts[i2] = sp100[i2].unkE;
+                                            D_800F45F0[tempIdx].sharedMask |= 1 << i2;
+                                        }
+                                    }
+                                    D_800F45F0[tempIdx].numVerts = someCount;
+                                    D_800F45F0[tempIdx].shade = sp88;
+                                    D_800F45E8 = tempIdx + 1;
+                                    if ((D_800F5AF8 >= 0) && (sp88 != D_800F5AF8)) {
+                                        D_800F5AFC = 0;
+                                    }
+                                    D_800F5AF8 = sp88;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E8B8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001EE1C);
 
