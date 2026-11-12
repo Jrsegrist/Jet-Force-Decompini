@@ -90,8 +90,8 @@ extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
  * (x and y kept in their stack words) but differs in register allocation and
  * spills (frame 0x60 vs 0x58; the ROM keeps the radius in a stack slot and
  * computes radius * 0.4f right after loading it; the `light` local gives the
- * ROM's v0 test; an `if (&radius) {}` costs more than it fixes). As .rodata has to come from all C or all asm,
- * the matching build keeps the whole module in asm for now.
+ * ROM's v0 test; an `if (&radius) {}` costs more than it fixes). The matching build includes its assembly
+ * from ro/, with its own .rodata.
  */
 #ifdef NON_MATCHING
 
@@ -130,6 +130,11 @@ static void update_beam_light(Object *obj, M124Light *l) {
         }
     }
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m124/ro", func_m124_00000);
+void rl_m124_00000(Object *obj, M124Light *l);
+#define update_beam_light rl_m124_00000
+#endif
 
 static s32 is_switched_on(M124Light *l) {
     switch (l->kind) {
@@ -323,16 +328,3 @@ void func_m124_00678(Object *obj, s32 updateRate) {
     }
     OBJ_STATE(obj, s32)[0] = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m124", func_m124_00000);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m124", func_m124_00150);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m124", func_m124_001C8);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m124", func_m124_002B0);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m124", func_m124_00678);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m124", data);
-#endif

@@ -127,9 +127,8 @@ static u8 sCloudColours[4][4] = {
  * NON_MATCHING: only func_m117_00154 matches. The static light spawner (the
  * original keeps the level entry in a3; the order of the entry stores differs),
  * func_m117_003F8 (the f20/f22 registers of base and range are swapped) and
- * func_m117_0070C (a first draft) do not. The module's .rodata floats are used by
- * all of them, so the default build takes every function and the .rodata from
- * assembly; only the .data is C.
+ * func_m117_0070C (a first draft) do not; the matching build includes them
+ * (003F8 and 0070C from ro/, with their .rodata floats).
  */
 #ifdef NON_MATCHING
 static void spawnLight(Object *obj) {
@@ -171,6 +170,9 @@ static void spawnLight(Object *obj) {
         }
     }
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m117", func_m117_00000);
+#endif
 
 void func_m117_00154(Object *obj, M117Setup *setup) {
     M117Cloud *cloud;
@@ -212,6 +214,7 @@ void func_m117_00154(Object *obj, M117Setup *setup) {
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 96.0f, obj->trans.scale * 96.0f, -1.0f, 1.0f, 1);
 }
 
+#ifdef NON_MATCHING
 void func_m117_003F8(Object *obj, s32 updateRate) {
     M117Cloud *cloud;
     M117Mote *mote;
@@ -371,13 +374,7 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m117", func_m117_00000);
+INCLUDE_ASM("asm/nonmatchings/modules/m117/ro", func_m117_003F8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m117", func_m117_00154);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m117", func_m117_003F8);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m117", func_m117_0070C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m117", rodata);
+INCLUDE_ASM("asm/nonmatchings/modules/m117/ro", func_m117_0070C);
 #endif

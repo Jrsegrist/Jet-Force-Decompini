@@ -267,7 +267,11 @@ strings and the literals to the first item after which the functions come
 in order and nothing looks like a string. Where that cannot be done
 (`build/runlink/rodata_split.txt`: an item two functions or data share, or
 items out of function order, as in m006, which looks like several source
-files) the module has no `ro/`. The guess can be wrong for a `const` array
+files) the module has no `ro/`. A module without .data has no section
+start inside its data block, so the splitter writes the block as `data.s`;
+it is taken as .rodata for `ro/` when the code only loads floats and
+jump-table entries from it and it holds no other pointers (m124; such a C
+file then has no `INCLUDE_ASM(..., data)` either). The guess can be wrong for a `const` array
 that is not a string (it is then put among the literals): the build's SHA-1
 shows it, and such a module keeps its .rodata in one piece.
 

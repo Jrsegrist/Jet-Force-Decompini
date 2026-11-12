@@ -571,8 +571,18 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
             os.remove(p)
     bounds = funcs + [code_end]
     ro_note = None
-    if rodata_start is not None:
-        ro_note = write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames, lo_info,
+    ro_start = rodata_start
+    if ro_start is None and dsize:
+        # no section start inside the data block: it is all .data or all
+        # .rodata. Take it as .rodata when the code only loads floats and
+        # jump-table entries from it and it holds no other pointers
+        loads = [u32(image, lo) >> 26 in (0x31, 0x35) or lo in jtbl_los
+                 for lo, (ho, t) in lo_info.items() if lo < tsize and tsize <= t < tsize + dsize]
+        ptrs = [o for o, v in sub.items() if o >= tsize and v[0] == R_MIPS_32 and o not in jentry]
+        if loads and all(loads) and not ptrs:
+            ro_start = tsize
+    if ro_start is not None:
+        ro_note = write_ro_dir(me, image, tsize, dsize, ro_start, funcs, code_end, fnames, lo_info,
                                jtbl_los, jentry, rel32, sub, labels, exported, emit_labels, text_line,
                                nm_dir)
     flist = []

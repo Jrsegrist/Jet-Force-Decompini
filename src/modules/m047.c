@@ -5,16 +5,16 @@
  */
 #include "module.h"
 
-#ifdef NON_MATCHING
-/* The module's .rodata is C only with 0084C's C body */
+/* An unused debug string at the start of the module's .rodata */
 static const char sDebugText[] = "x = %d, y = %d, width = %d, alpha = %d\n";
+
+#ifdef NON_MATCHING
 #define M047_STATIC static
-#define M047_0_6 0.59999996f /* 0x3F199999 */
 #else
+/* 0084C's assembly calls them, and IDO would drop them as static */
 #define M047_STATIC
-extern f32 rl_m047_0264C; /* .rodata: 0.6 (0x3F199999) */
-#define M047_0_6 rl_m047_0264C
 #endif
+#define M047_0_6 0.59999996f /* 0x3F199999 */
 
 /* A subtitle (size 0xC) */
 typedef struct M047Subtitle {
@@ -169,8 +169,6 @@ typedef struct M047Key {
     /* 0x28 */ struct M047Key *next;
 } M047Key;
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its jump table and floats) in C */
 /*
  * Evaluates channel `channel` of the spline through the previous key, the key, the next key and the one after
  * at `t` (0..1): 0-2 the position, 3-5 the rotation (angles unwrapped first), else the scale. Writes the
@@ -275,9 +273,6 @@ void func_m047_002C4(M047Key *key, f32 t, f32 *value, f32 *slope, s32 channel) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_002C4);
-#endif
 
 /* A cutscene actor: its object, the path it follows and how */
 typedef struct M047Actor {
@@ -547,7 +542,7 @@ void func_m047_0084C(M047Actor *a, f32 time, s32 updateRate, s32 arg3) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_0084C);
+INCLUDE_ASM("asm/nonmatchings/modules/m047/ro", func_m047_0084C);
 #endif
 
 
@@ -834,8 +829,6 @@ extern void mtx_model_push(Gfx **dl, s32 arg1, MtxF *mtx);
 extern void mtx_model_rotate_translate_push(Gfx **dl, s32 arg1, void *arg2, MtxF *mtx);
 extern void func_80048F90(MtxF *out, ObjectTransform *trans); /* the matrix of a transform */
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its jump table) in C */
 /* Pushes the matrices for the effect drawn on the object, turned the way its kind needs */
 void func_m047_01BAC(Gfx **dl, s32 arg1, Object *obj) {
     ObjectTransform trans;
@@ -884,15 +877,10 @@ void func_m047_01BAC(Gfx **dl, s32 arg1, Object *obj) {
     func_80048F90(&m, &trans);
     mtx_model_rotate_translate_push(dl, arg1, data + 0x40, &m);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01BAC);
-#endif
 
 extern void func_m106_01C04(f32 x, f32 y, f32 z, s16 yRotation, s16 xRotation, f32 speed, f32 size);
 extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32 kind, f32 scale);
 
-#ifdef NON_MATCHING
-/* matches; C only with the .rodata (its jump table and floats) in C */
 /*
  * Spawns `count` particles at actor `index`'s object, aimed (yRot, xRot) give or take (yRange, xRange) at
  * speed `speed` give or take `speedRange`: kind 0xFF one sort (bigger with game flag 0x59 clear), else
@@ -965,9 +953,6 @@ void func_m047_01D38(s32 index, s32 count, s32 kind, s32 yRot, s32 xRot, s32 yRa
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m047", func_m047_01D38);
-#endif
 
 /* Clears the subtitles */
 void func_m047_0206C(void) {
@@ -1056,7 +1041,3 @@ void func_m047_023FC(Gfx **dl) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m047", data);
-
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m047", rodata);
-#endif
