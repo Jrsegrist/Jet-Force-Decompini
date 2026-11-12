@@ -236,12 +236,14 @@ def build_module(path, me, symbols, order):
                 m = LOCAL_RE.match(name)
                 if m and int(m.group(1)) == me:
                     # an extern rl_ name in C (C reaching a variable inside
-                    # assembly data), or a defined one that is not a section
-                    # start (the .rodata of an assembly function, which
-                    # asm-processor puts among the C functions' .rodata):
-                    # rebased to the section start, as the original linker did
-                    local = secbase[s["shndx"]] + s["value"] if defined else int(m.group(2), 16)
-                    rebase_it = True
+                    # assembly data), or a defined one in .rodata (the .rodata
+                    # of an assembly function, which asm-processor puts among
+                    # the C functions' .rodata): rebased to the section start,
+                    # as the original linker did. A defined one elsewhere
+                    # keeps its own offset as the word.
+                    rodata_def = defined and s["shndx"] == ri
+                    local = secbase[s["shndx"]] + s["value"] if rodata_def else int(m.group(2), 16)
+                    rebase_it = rodata_def or not defined
                 else:
                     idx = symbols.lookup(name)
                     if idx is None and defined:
