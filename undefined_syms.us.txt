@@ -725,6 +725,7 @@ aspMainTextStart = 0x8009DA10;
 aspMainDataStart = 0x800AFC10;
 func_8008AD10 = 0x8008AD10;
 func_80054530_fi = 0x80054530;
+func_80054530_ppf = 0x80054530;
 sndp_set_active_sound_limit = 0x80086554;
 
 /* ---- 59060.c .bss (0x800FF1B0-0x800FFE40): the asm's names for parts of its variables ---- */

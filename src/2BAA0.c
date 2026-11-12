@@ -45,7 +45,9 @@ typedef struct Racer {
     /* 0x104 */ s16 unk104; // the chase camera's yaw
     /* 0x106 */ u8 pad106[0x10A - 0x106];
     /* 0x10A */ s16 unk10A;
-    /* 0x10C */ u8 pad10C[0x11C - 0x10C];
+    /* 0x10C */ u8 pad10C;
+    /* 0x10D */ u8 unk10D;
+    /* 0x10E */ u8 pad10E[0x11C - 0x10E];
     /* 0x11C */ s16 unk11C;
     /* 0x11E */ u8 pad11E[0x122 - 0x11E];
     /* 0x122 */ s16 unk122;
@@ -80,12 +82,16 @@ typedef struct Racer {
     /* 0x186 */ s8 squashTimer;
     /* 0x187 */ u8 squashEvent;
     /* 0x188 */ u8 squashCheck;
-    /* 0x189 */ u8 pad189[0x198 - 0x189];
+    /* 0x189 */ u8 pad189[0x18E - 0x189];
+    /* 0x18E */ u8 unk18E;
+    /* 0x18F */ u8 pad18F[0x198 - 0x18F];
     /* 0x198 */ u8 unk198;
     /* 0x199 */ u8 pad199[0x19C - 0x199];
     /* 0x19C */ s8 unk19C;
     /* 0x19D */ u8 unk19D;
-    /* 0x19E */ u8 pad19E[0x1A4 - 0x19E];
+    /* 0x19E */ u8 pad19E;
+    /* 0x19F */ u8 unk19F;
+    /* 0x1A0 */ u8 pad1A0[0x1A4 - 0x1A0];
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
     /* 0x1C0 */ u8 pad1C0[0x1D4 - 0x1C0];
@@ -97,7 +103,9 @@ typedef struct Racer {
     /* 0x1F5 */ u8 pad1F5[0x1F9 - 0x1F5];
     /* 0x1F9 */ u8 unk1F9;
     /* 0x1FA */ u8 unk1FA;
-    /* 0x1FB */ u8 pad1FB[0x360 - 0x1FB];
+    /* 0x1FB */ u8 pad1FB;
+    /* 0x1FC */ s16 unk1FC;
+    /* 0x1FE */ u8 pad1FE[0x360 - 0x1FE];
     /* 0x360 */ u8 *pose;
     /* 0x364 */ f32 points[8][3]; // the pose points (relative to the object)
     /* 0x3C4 */ u8 pad3C4[0x484 - 0x3C4];
@@ -129,7 +137,9 @@ typedef struct Racer {
     /* 0x578 */ s8 unk578;
     /* 0x579 */ s8 unk579;
     /* 0x57A */ u8 unk57A;
-    /* 0x57B */ u8 pad57B[0x5CC - 0x57B];
+    /* 0x57B */ u8 pad57B[0x5C0 - 0x57B];
+    /* 0x5C0 */ s32 unk5C0; // JFG: a module camera (run with the camera and this)
+    /* 0x5C4 */ u8 pad5C4[0x5CC - 0x5C4];
     /* 0x5CC */ u8 *held;
 } Racer;
 
@@ -291,8 +301,6 @@ f32 func_8002B3F0(s32 index) {
     return D_800F6E70[index].blend;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002B418);
-
 typedef struct Transform2BAA0 {
     /* 0x00 */ s16 rotation[3];
     /* 0x06 */ s16 flags;
@@ -303,12 +311,125 @@ typedef struct Transform2BAA0 {
     /* 0x28 */ f32 unk28;
     /* 0x2C */ u8 pad2C[0x3D - 0x2C];
     /* 0x3D */ u8 unk3D;
-    /* 0x3E */ u8 pad3E[2];
+    /* 0x3E */ s16 segment; // JFG: the level segment the camera is in
     /* 0x40 */ f32 unk40;
     /* 0x44 */ u8 colour[4];
     /* 0x48 */ u8 pad48;
     /* 0x49 */ u8 unk49;
 } Transform2BAA0;
+
+/* JFG: the parts of the level header and level model the player camera reads */
+typedef struct LevelHeader2B {
+    /* 0x000 */ u8 pad0[0xDF];
+    /* 0x0DF */ u8 unkDF;
+    /* 0x0E0 */ u8 padE0[0x10E - 0xE0];
+    /* 0x10E */ s16 unk10E;
+    /* 0x110 */ s16 unk110;
+} LevelHeader2B;
+typedef struct LevelModel2B {
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ s16 floorY; // JFG: the camera stays at least 100 above this
+} LevelModel2B;
+
+u8 func_80048548(void); // the number of cameras
+void func_8002F0DC(s32 player, f32 x, f32 y, f32 z);
+void *func_80079890(s32 index, void *camera);
+s32 func_8004271C(void);
+void view_override_copy_reversed(void *trans);
+s32 camera_follow_get(void);
+LevelModel2B *get_current_level_model(void);
+LevelHeader2B *level_header(void);
+s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
+void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate);
+void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate);
+void func_8002C070(u8 *obj, u8 *racer, f32 updateRate);
+void func_8002C118(u8 *obj, Racer *racer, f32 updateRate);
+void func_8002C908(u8 *obj, u8 *racer, f32 updateRate);
+void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate);
+void func_8002CF6C(u8 *obj, Racer *racer, f32 updateRate);
+void func_80054530();
+/* The module trap with a float third argument; needs `func_80054530_ppf = 0x80054530;` in undefined_syms.us.txt. */
+void func_80054530_ppf(void *arg0, void *arg1, f32 arg2);
+extern f32 D_800ABDAC;
+
+#define PLAYERCAM ((Transform2BAA0 *) D_800F6DC0)
+
+/**
+ * JFG: update the player's camera: pick the camera behaviour for the player's state (module ones through the
+ * runtime linker), keep it at least 100 above the level's floor, record its level segment and the player's view
+ * offset.
+ */
+void func_8002B418(u8 *obj, Racer *racer, f32 updateRate) {
+    LevelModel2B *model;
+    f32 floorY;
+    s32 segment;
+    LevelHeader2B *level;
+
+    if (racer->player < func_80048548()) {
+        func_8002F0DC(racer->player, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14));
+        if (func_80079890(0, D_800F6DC0) == NULL) {
+            if (racer->unk5C0 != 0) {
+                func_80054530(D_800F6DC0, racer->unk5C0, (s32) updateRate);
+            } else if (racer->unk1FA) {
+                func_80054530(D_800F6DC0, (s32) updateRate);
+            } else if (racer->unk198) {
+                func_80054530(D_800F6DC0, (s32) updateRate);
+            } else if (racer->unk1F9 == 2) {
+                func_80054530(D_800F6DC0, (s32) updateRate);
+            } else if (racer->unk1F9 != 0) {
+                chase_camera_update((s16 *) obj, racer, updateRate);
+            } else if (racer->unk19D >= 2) {
+                func_80054530(D_800F6DC0, racer, (s32) updateRate);
+            } else if (func_8004271C()) {
+                view_override_copy_reversed(D_800F6DC0);
+            } else if (racer->unk568 & 0x20) {
+                if (racer->unk18E) {
+                    func_80054530(obj, D_800F6DC0, (s32) updateRate);
+                } else {
+                    player_camera_eye_place((s16 *) obj, racer, updateRate);
+                }
+            } else if (racer->unk10D & 1) {
+                func_8002C070(obj, (u8 *) racer, updateRate);
+            } else if (racer->unk10D & 2) {
+                func_80054530(D_800F6DC0, (s32) updateRate);
+            } else if (racer->unk19F) {
+                func_80054530(D_800F6DC0, (s32) updateRate);
+            } else if (racer->unk568 == 11) {
+                func_8002C118(obj, racer, updateRate);
+            } else if ((racer->character & 3) == 3) {
+                func_80054530_ppf(D_800F6DC0, obj, updateRate);
+            } else if (racer->unk568 == 5) {
+                func_8002C118(obj, racer, updateRate);
+            } else if (camera_follow_get()) {
+                func_8002C908(obj, (u8 *) racer, updateRate);
+            } else if (racer->unk1FC >= 0) {
+                func_8002C9A0(obj, (u8 *) racer, updateRate);
+            } else {
+                func_8002CF6C(obj, racer, updateRate);
+            }
+        }
+        model = get_current_level_model();
+        if (model != NULL) {
+            floorY = model->floorY - 100.0f;
+            if (PLAYERCAM->position[1] < floorY) {
+                PLAYERCAM->position[1] += (floorY - PLAYERCAM->position[1]) * D_800ABDAC;
+            }
+        }
+        level = level_header();
+        segment = get_level_segment_index_from_position(PLAYERCAM->position[0], PLAYERCAM->position[1],
+                                                        PLAYERCAM->position[2]);
+        if (segment != -1 && segment != level->unk10E && segment != level->unk110) {
+            PLAYERCAM->segment = segment;
+        }
+        if (*(f32 **) (obj + 0x54) != NULL) {
+            if (level_header()->unkDF == 0) {
+                (*(f32 **) (obj + 0x54))[4] = PLAYERCAM->position[0] - *(f32 *) (obj + 0xC);
+                (*(f32 **) (obj + 0x54))[5] = PLAYERCAM->position[1] - *(f32 *) (obj + 0x10);
+                (*(f32 **) (obj + 0x54))[6] = PLAYERCAM->position[2] - *(f32 *) (obj + 0x14);
+            }
+        }
+    }
+}
 
 extern f32 D_800ABDB0;
 extern f32 D_800ABDB4;
@@ -448,7 +569,7 @@ void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
 s32 cam_get_active_camera_id(void);
 void func_8003FC60(s32 index, s32 value);
 
-void func_8002C070(UNUSED s32 arg0, u8 *racer, UNUSED s32 arg2) {
+void func_8002C070(UNUSED u8 *obj, u8 *racer, UNUSED f32 updateRate) {
     u8 *target = *(u8 **) (racer + 0x50C);
     u8 *state;
 
