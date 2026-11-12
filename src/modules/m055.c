@@ -138,9 +138,6 @@ void func_m055_0022C(M055Player *player) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Differs only in the t-registers of curBuffer, nextBuffer, cur and next (t3, t0, t1, t2 here;
-   t0, t1, t2, t3 in the original). */
 void func_m055_002A0(M055Player *player, s32 updateRate) {
     s32 last;
     s32 step;
@@ -159,7 +156,6 @@ void func_m055_002A0(M055Player *player, s32 updateRate) {
         } else {
             last = (def->frameCount - 1) << 8;
         }
-        curBuffer = -1;
         if (player->flags & 0x80) {
             player->flags &= ~0x80;
         } else {
@@ -194,6 +190,7 @@ void func_m055_002A0(M055Player *player, s32 updateRate) {
                 }
             } while (player->time < 0 || last < player->time);
         }
+        curBuffer = -1;
         cur = player->time >> 8;
         next = cur + 1;
         nextBuffer = -1;
@@ -237,9 +234,6 @@ void func_m055_002A0(M055Player *player, s32 updateRate) {
         player->nextBuffer = nextBuffer;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m055", func_m055_002A0);
-#endif
 
 #ifdef NON_MATCHING
 /* Not matched yet: the structure is right, but the order of the set-up computations, the
