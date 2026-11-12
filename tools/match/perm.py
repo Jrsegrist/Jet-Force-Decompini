@@ -162,6 +162,9 @@ def cmd_import(a):
         asm_path = C.path(inc.group(1), asm_name + ".s")
     else:
         hits = glob.glob(C.path("asm", "nonmatchings", "**", asm_name + ".s"), recursive=True)
+        if len(hits) > 1:
+            # a module function with .rodata also has a copy in mNNN/ro/ (with its own .rodata)
+            hits = [h for h in hits if os.sep + "ro" + os.sep not in h]
         if len(hits) != 1:
             sys.exit("perm.py: no INCLUDE_ASM line for %s in %s (use --asm NAME)" % (asm_name, src_path))
         asm_path = hits[0]
