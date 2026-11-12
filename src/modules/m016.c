@@ -63,9 +63,12 @@ INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_03464);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_03DB0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_03F20);
+/* Two empty exported functions */
+void func_m016_03F20(void) {
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_03F28);
+void func_m016_03F28(void) {
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_03F30);
 
