@@ -31,15 +31,14 @@ Acmd *func_80092D30(NResampler *r, s16 *outp, Acmd *p) {
     s32 inCount;
     s32 incr;
     f32 finCount;
-    Acmd *moveCmd;
-    Acmd *resampleCmd;
 
     if (r->noResample) {
         ptr = func_80091CE0(r, &inp, 184, p);
-        moveCmd = ptr++;
-        moveCmd->words.w0 = (inp & 0xFFFFFF) | 0x0A000000;
-        moveCmd->words.w1 = ((*outp & 0xFFFF) << 16) | 0x170;
-        ; // an empty statement: keeps the store out of the branch delay slot, as in the ROM
+        {
+            Acmd *moveCmd = ptr++;
+            moveCmd->words.w0 = (inp & 0xFFFFFF) | 0x0A000000;
+            moveCmd->words.w1 = ((*outp & 0xFFFF) << 16) | 0x170;
+        }
     } else {
         if (r->ratio > D_800AF990) {
             r->ratio = D_800AF998;
@@ -51,9 +50,11 @@ Acmd *func_80092D30(NResampler *r, s16 *outp, Acmd *p) {
         r->delta = finCount - (f32) inCount;
         ptr = func_80091CE0(r, &inp, inCount, p);
         incr = (s32) (r->ratio * 32768.0f);
-        resampleCmd = ptr++;
-        resampleCmd->words.w0 = (osVirtualToPhysical(r->state) & 0xFFFFFF) | 0x05000000;
-        resampleCmd->words.w1 = ((r->first & 3) << 30) | ((incr & 0xFFFF) << 14) | ((inp & 0xFFF) << 2);
+        {
+            Acmd *resampleCmd = ptr++;
+            resampleCmd->words.w0 = (osVirtualToPhysical(r->state) & 0xFFFFFF) | 0x05000000;
+            resampleCmd->words.w1 = ((r->first & 3) << 30) | ((incr & 0xFFFF) << 14) | ((inp & 0xFFF) << 2);
+        }
         r->first = 0;
     }
     return ptr;

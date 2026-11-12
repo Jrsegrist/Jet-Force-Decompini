@@ -393,8 +393,6 @@ SfxState *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8
     s32 duration;
     s32 totalDuration;
     s32 newPan;
-    SfxEvent playEvent;
-    SfxRetriggerEvent evtRetrigger;
 
     lastSoundState = NULL;
     retriggeredSoundID = 0;
@@ -404,6 +402,8 @@ SfxState *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8
             sound = bank->instArray[0]->soundArray[sndIndx - 1];
             soundState = sndp_allocate(bank, sound);
             if (soundState != NULL) {
+                SfxEvent playEvent;
+
                 D_800A95AC->lastSoundState = soundState;
                 playEvent.type = 1;
                 playEvent.state = soundState;
@@ -427,7 +427,6 @@ SfxState *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8
                     func_8008B610(&D_800A95AC->evtq, &playEvent, duration + 1);
                 }
                 lastSoundState = soundState;
-                ; // an empty statement: keeps the store out of the branch delay slot, as in the ROM
             } else {
                 osSyncPrintf(D_800AF4A4, sndIndx);
             }
@@ -439,6 +438,8 @@ SfxState *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8
             lastSoundState->flags |= 1;
             lastSoundState->userHandle = handlePtr;
             if (retriggeredSoundID != 0) {
+                SfxRetriggerEvent evtRetrigger;
+
                 lastSoundState->flags |= 0x10;
                 evtRetrigger.type = 0x200;
                 evtRetrigger.state = lastSoundState;
