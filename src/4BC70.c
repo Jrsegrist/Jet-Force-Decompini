@@ -579,16 +579,15 @@ OSMesgQueue *si_mesg(void);
 void save_flash_init(void);
 extern u8 D_800A3448; // JFG: controllers with a usable controller pak (one bit each)
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target keeps the loop bound 4 in a register and computes &pfs[i] with shifts; mine keeps
-   sizeof(OSPfs) in a register (multu) and compares with 4 each time, which shifts the saved registers */
-/* JFG: reset the rumble states, then find each controller's controller pak or rumble pak. */
+/* JFG: reset the rumble states, then find each controller's controller pak or rumble pak.
+   DKR: init_controller_paks */
 void func_8004C2BC(void) {
     RumbleData *rumble;
     s32 i;
     u8 bit;
     u8 pattern;
     s32 ret;
+    s8 maxControllers;
 
     sControllerMesgQueue = si_mesg();
     rumble = gRumble;
@@ -603,11 +602,9 @@ void func_8004C2BC(void) {
         rumble->unk8 = 0;
         rumble++;
     }
-    gRumblePresent = 0;
-    D_800A3448 = 0;
+    D_800A3448 = gRumblePresent = 0;
     osPfsIsPlug(sControllerMesgQueue, &pattern);
-    bit = 1;
-    for (i = 0; i < 4; i++) {
+    for (i = 0, bit = 1, maxControllers = MAXCONTROLLERS; (0, i) != maxControllers; i++, bit <<= 1) {
         if (pattern & bit) {
             ret = osPfsInit(sControllerMesgQueue, &pfs[i], i);
             if (ret == PFS_ERR_NEW_PACK) {
@@ -616,20 +613,17 @@ void func_8004C2BC(void) {
             if (ret == 0) {
                 D_800A3448 |= bit;
             } else if (ret == PFS_ERR_ID_FATAL) {
+                if (i) {} // as in DKR
                 if (osMotorInit(sControllerMesgQueue, &pfs[i], i) == 0) {
                     gRumblePresent |= bit;
                     gRumble[i].unk2 = 1;
                 }
             }
         }
-        bit <<= 1;
     }
     osContStartReadData(sControllerMesgQueue);
     save_flash_init();
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004C2BC);
-#endif
 
 SIDeviceStatus check_for_rumble_pak(s32 controllerIndex) {
     s32 ret;
