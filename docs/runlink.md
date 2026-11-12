@@ -401,7 +401,7 @@ such as m015 and m091, count as assembly here):
 | pickups | 5 of 5 | 16/16 |
 | enemy behaviours | 11 of 19 | 242/304 |
 | bosses | 3 of 4 | 49/124 |
-| weapons (character control) | 0 of 3 | 5/78 |
+| weapons (character control) | 0 of 3 | 25/78 |
 | menus and screens | 6 of 14 | 100/136 |
 | effect libraries | 2 of 4 | 21/26 |
 | fog and lighting | 2 of 2 | 11/11 |
