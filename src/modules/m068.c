@@ -1221,7 +1221,9 @@ extern s16 rl_m068_12610;       /* set: find the centre's height again */
 #ifdef NON_MATCHING
 /*
  * The boss's control: its centre's height, its actions, its parts' damage and angles, and its joints.
- * Same length as the ROM; still differs in register choice (see the round 18 notes).
+ * Same length and saved registers as the ROM; the unrolled joint-position loop (42) is scheduled
+ * differently (the ROM keeps i+1, i+2, i+3 in one register, t5), which renumbers the t-registers of
+ * the matrix copies after it.
  */
 void func_m068_024EC(Object *obj, s32 updateRate) {
     M068Instance *inst;
@@ -1342,7 +1344,9 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             case 7:
                 func_m068_0873C(obj, s, model, inst, updateRate, rate);
                 break;
-            case 0:
+case 0:
+                break;
+            default:
                 break;
         }
     } else {
@@ -1509,8 +1513,8 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             *sJointCmdNext++ = rl_m068_1254C[i].joint * 6 + 4;
             *sJointCmdNext++ = sParts[i].angle[2];
         }
+        sec = &rl_m068_1254C[i];
         if (sParts[i].scale != 1.0f) {
-            sec = &rl_m068_1254C[i];
             *sJointCmdNext++ = (sec->joint * 6) | 0x4000;
             *sJointCmdNext++ = (u16) (sParts[i].scale * 32768.0f);
             *sJointCmdNext++ = (sec->joint * 6 + 2) | 0x4000;
