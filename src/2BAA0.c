@@ -2022,7 +2022,7 @@ typedef struct HangParams {
     /* 0x04 */ f32 rangeZ;
     /* 0x08 */ f32 distance;
     /* 0x0C */ f32 edgeGap;
-    /* 0x10 */ u8 pad10[4];
+    /* 0x10 */ f32 height; // JFG: the ledge-leap test's height above the feet
     /* 0x14 */ s32 turnFrames;
     /* 0x18 */ s32 frames;
 } HangParams;
@@ -2184,7 +2184,136 @@ void func_80035E14(u8 *obj, Racer *racer, f32 arg2, f32 arg3, UNUSED s32 arg4, H
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
 #endif
 
+void func_8007EB6C(f32 *min, f32 *max, s32 arg2, s32 arg3, s32 arg4); // JFG: collects the objects in a box
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: ROM length and frame; the ROM loads the platform object once (the reload here shifts the
+   t-registers), spills the matrix pointer to 0x40 (here 0x4C) and stores the state 12 first. */
+/* JFG: while falling, look for a ledge ahead (on the track or a platform) that the jump can still reach: if one is
+ * crossed below the jump's height, enter the leap state (12) aimed at it, with the per-frame steps (0x170/0x174,
+ * 0x17C) to land there. */
+void func_800364D4(u8 *obj, Racer *racer, UNUSED f32 arg2, UNUSED f32 arg3, UNUSED s32 arg4, HangParams *params) {
+    f32 *seg;
+    s32 hit;
+    UNUSED s32 pad;
+    f32 from[3];
+    f32 to[3];
+    f32 point[3];
+    f32 min[3];
+    f32 max[3];
+    f32 g;
+    f32 vy;
+    f32 quad;
+    f32 t;
+    s32 result;
+    f32 ax;
+    f32 ay;
+    f32 az;
+    f32 bx;
+    f32 by;
+    f32 bz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    f32 range;
+    UNUSED s32 pad4;
+    s16 rot[3];
+    s16 pitch;
+    s16 yaw;
+    MtxF *mf;
+
+    if (*(f32 *) (obj + 0x20) < 0.0f && racer->velX <= 0.0f) {
+        range = (racer->velX / -5.0f) * 70.0f;
+        if (range < 20.0f) {
+            range = 20.0f;
+        }
+        from[0] = *(f32 *) (obj + 0xC);
+        from[1] = *(f32 *) (obj + 0x10) + params->height;
+        from[2] = *(f32 *) (obj + 0x14);
+        to[0] = from[0] - func_80049C34(racer->unk11C) * range;
+        to[1] = from[1];
+        to[2] = from[2] - func_80049C30(racer->unk11C) * range;
+        seg = racer->segStart;
+        hit = 0;
+        result = func_80019888(from, to, seg);
+        if (result == 0) {
+            min[0] = *(f32 *) (obj + 0xC) - range;
+            min[1] = *(f32 *) (obj + 0x10);
+            min[2] = *(f32 *) (obj + 0x14) - range;
+            max[0] = *(f32 *) (obj + 0xC) + range;
+            max[1] = *(f32 *) (obj + 0x10) + 80.0f;
+            max[2] = *(f32 *) (obj + 0x14) + range;
+            func_8007EB6C(min, max, -1, 0, 0);
+            result = func_80081658(from, to, seg, &hit);
+        }
+        if (result == 1) {
+            if (hit != 0) {
+                mf = &(*(PlatformData **) (hit + 0x5C))->toWorld[(*(PlatformData **) (hit + 0x5C))->cur];
+                func_80048B60(mf, seg[0], seg[1], seg[2], &ax, &ay, &az);
+                func_80048B60(mf, seg[3], seg[4], seg[5], &bx, &by, &bz);
+            } else {
+                ax = seg[0];
+                ay = seg[1];
+                az = seg[2];
+                bx = seg[3];
+                by = seg[4];
+                bz = seg[5];
+            }
+            dx = bx - ax;
+            dy = by - ay;
+            dz = bz - az;
+            point[0] = seg[6] * dx + ax;
+            point[1] = seg[6] * dy + ay;
+            point[2] = seg[6] * dz + az;
+            if (*(f32 *) (obj + 0x10) <= point[1] && point[1] < from[1]) {
+                dist = sqrtf(dx * dx + dz * dz);
+                yaw = func_80049C84(dx, dz) - 0x4000;
+                pitch = func_80049C84(dy, dist);
+                point[0] += params->distance * func_80049C34(yaw);
+                point[2] += params->distance * func_80049C30(yaw);
+                rot[0] = yaw;
+                rot[1] = 0;
+                rot[2] = pitch;
+                from[0] = 0.0f;
+                from[1] = -params->height;
+                from[2] = 0.0f;
+                func_800492DC(rot, from);
+                from[0] += point[0];
+                from[1] += point[1];
+                from[2] += point[2];
+                dx = from[0] - *(f32 *) (obj + 0xC);
+                dy = from[1] - *(f32 *) (obj + 0x10);
+                dz = from[2] - *(f32 *) (obj + 0x14);
+                vy = *(f32 *) (obj + 0x20);
+                g = -D_800F6DC4;
+                quad = vy * vy + (f32) 2 * g * dy;
+                if (quad > 0.0f) {
+                    t = (-sqrtf(quad) - vy) / g;
+                    if (t >= 1.0f) {
+                        racer->unk568 = 12;
+                        racer->unk578 = t;
+                        racer->unk17C = racer->unk11C - yaw;
+                        racer->unk174 = dz / racer->unk578;
+                        racer->unk170 = dx / racer->unk578;
+                        racer->unk17C /= racer->unk578;
+                        racer->unk182 = yaw;
+                        racer->unk17E = pitch;
+                        racer->unk178 = point[1];
+                        if (hit != 0) {
+                            racer->unk16C = hit;
+                        } else {
+                            racer->unk16C = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
+#endif
 
 void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
 void falling_objects_hit_box(f32 *min, f32 *max, void *ignore);
