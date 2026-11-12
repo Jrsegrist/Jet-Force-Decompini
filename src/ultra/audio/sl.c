@@ -4,20 +4,22 @@
  */
 #include <libaudio.h>
 
-void alLink(ALLink *ln, ALLink *to) {
-    ln->next = to->next;
-    ln->prev = to;
-    if (to->next) {
-        to->next->prev = ln;
+/* Insert element after the given one. */
+void alLink(ALLink *element, ALLink *after) {
+    element->next = after->next;
+    element->prev = after;
+    if (after->next) {
+        after->next->prev = element;
     }
-    to->next = ln;
+    after->next = element;
 }
 
-void alUnlink(ALLink *ln) {
-    if (ln->next) {
-        ln->next->prev = ln->prev;
+/* Take element out of its list. */
+void alUnlink(ALLink *element) {
+    if (element->next) {
+        element->next->prev = element->prev;
     }
-    if (ln->prev) {
-        ln->prev->next = ln->next;
+    if (element->prev) {
+        element->prev->next = element->next;
     }
 }

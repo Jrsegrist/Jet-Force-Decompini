@@ -57,6 +57,9 @@ MIPSISET  := -mips1
 # The sound player was built unoptimised with debug information, as MIPS II code
 $(BUILD_DIR)/src/audiosfx.o build_nm/src/audiosfx.o: OPT_FLAGS := -g
 $(BUILD_DIR)/src/audiosfx.o build_nm/src/audiosfx.o: MIPSISET := -mips2
+# ... and so was the n_audio library (src/naudio_*.c)
+$(BUILD_DIR)/src/naudio_%.o build_nm/src/naudio_%.o: OPT_FLAGS := -g
+$(BUILD_DIR)/src/naudio_%.o build_nm/src/naudio_%.o: MIPSISET := -mips2
 
 # libultra objects built from decompals/ultralib (src/ultra/*.c wrappers),
 # with ultralib's flags for SDK 2.0I; per-object levels in src/ultra/flags.mk
