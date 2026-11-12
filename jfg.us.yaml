@@ -137,7 +137,7 @@ segments:
       - [0x8B2B0, c, ultra/audio/sl]
       - [0x8B330, c, naudio_8B330]
       - [0x8BE00, c, ultra/audio/cents2ratio]
-      - [0x8BEA0, asm]
+      - [0x8BEA0, c, naudio_8BEA0]
       - [0x8C0B0, c, naudio_8C0B0]
       - [0x8CB70, asm]
       - [0x8CC40, asm]
