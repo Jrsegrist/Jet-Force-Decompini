@@ -176,9 +176,6 @@ func_80001598 = sound_is_looped;
 func_8000160C = music_sequence_start;
 func_80001990 = sound_reverb_set;
 func_80001100 = 0x80001100; /* only a "j" in data that splat decodes as code (asm/9FE50.s) */
-alCSPSetChlPan = 0x80089960;
-alCSPSetChlVol = 0x80089860;
-alCSPSetVol = 0x800865A0;
 gBlockMusicChange = 0x800A0678;
 gBlockVoiceLimitChange = 0x800A06AC;
 gCanPlayJingle = 0x800A0674;
@@ -198,8 +195,6 @@ gSoundTable = 0x800E9508;
 gSoundTableSize = 0x800E9518;
 func_80000DD8 = music_tempo_set;
 func_80000EBC = sound_jingle_tempo_set;
-alCSPSetTempo = 0x800898D0;
-alCSPGetTempo = 0x800865F0;
 sMusicTempo = 0x800E9520;
 set_voice_limit = 0x80089844;
 sfxRelativeVolume = 0x800A066C;
@@ -740,6 +735,18 @@ func_80086430 = sndp_set_group_volume;
 func_80086510 = sndp_set_global_volume;
 func_80086538 = sndp_get_global_volume;
 func_80086554 = sndp_set_active_sound_limit;
+
+/* ---- src/ultra/audio: libultra's audio objects in the n_audio library (built -g) ---- */
+func_800865A0 = alCSPSetVol;
+func_800865F0 = alCSPGetTempo;
+func_80089860 = alCSPSetChlVol;
+func_800898D0 = alCSPSetTempo;
+func_80089960 = alCSPSetChlPan;
+func_800899D0 = alCSPGetState;
+func_8008A3C0 = alCSPSetSeq;
+func_8008A410 = alCSPPlay;
+func_8008A450 = alCSPStop;
+alEvtqPostEvent = 0x8008B610;
 
 /* ---- 59060.c .bss (0x800FF1B0-0x800FFE40): the asm's names for parts of its variables ---- */
 D_800FF1B5 = D_800FF1B4 + 1;

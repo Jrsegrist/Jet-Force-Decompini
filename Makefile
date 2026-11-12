@@ -67,11 +67,15 @@ UL_CFLAGS := -G 0 -non_shared -Xcpluscomm -nostdinc -Wab,-r4300_mul \
              -I $(UL_DIR)/include/PR
 # Nintendo's optimisation levels for SDK 2.0I: os and io at -O1, the rest at
 # -O3; the long long helpers are -mips3 code.
-UL_OPT_FLAGS = $(if $(filter $(UL_O2_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-O2,$(if $(filter os io,$(word 4,$(subst /, ,$@)))$(filter ll llcvt,$(basename $(notdir $@))),-O1,-O3))
+UL_OPT_FLAGS = $(if $(filter $(UL_G_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-g,$(UL_SDK_OPT_FLAGS))
+UL_SDK_OPT_FLAGS = $(if $(filter $(UL_O2_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-O2,$(if $(filter os io,$(word 4,$(subst /, ,$@)))$(filter ll llcvt,$(basename $(notdir $@))),-O1,-O3))
 # A few objects are the later (2.0J) form, built at -O2 like 2.0J's libultra;
 # the PI and VI managers are -O2 too, and the PI manager is -mips1 code.
 UL_O2_OBJS   := io/pirawdma io/pigetcmdq io/pimgr io/vimgr
 UL_MIPS1_OBJS := io/pimgr
+# The game's n_audio library holds libultra audio objects built unoptimised with debug information (-g)
+UL_G_OBJS    := audio/cspsetvol audio/cspgettempo audio/cspsetchlvol audio/cspsettempo audio/cspsetpan \
+                audio/cspgetstate audio/cspsetseq audio/cspplay audio/cspstop audio/cents2ratio
 UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,$(if $(filter $(UL_MIPS1_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-mips1,-mips2))
 
 LDFLAGS := -T $(LD_SCRIPT) \
