@@ -66,7 +66,7 @@ extern void func_800221F0(Object *obj, M041Instance *inst, ObjectShading *shadin
 extern void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset);
 extern void func_80055B80(Gfx **dList); /* resets the render mode */
 extern void func_8005A0D0(s32 item);
-extern void func_8000DF00(Object *obj, s32 updateRate);
+extern void object_uv_offsets_update(Object *obj, s32 updateRate);
 extern Object *func_m135_0205C(void);
 extern void func_m058_00618(s32 updateRate);
 extern void sound_stop(s32 handle);
@@ -276,7 +276,7 @@ void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate) {
         sState = 4;
     }
     if (sState != 4) {
-        func_8000DF00(obj, updateRate);
+        object_uv_offsets_update(obj, updateRate);
     }
     inst = ((M041Instance **) obj->modelInstances)[obj->modelIndex];
     inst->unkA = updateRate;

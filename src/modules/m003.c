@@ -351,7 +351,7 @@ extern s32 D_800FEA00;
 extern s32 D_800FEA04;
 extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
 extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
-extern s32 func_80051880(u8 arg0);
+extern s32 troop_member_waypoint_set(u8 arg0);
 extern s32 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
 extern void func_m155_02BB0(Object *home);
 s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
@@ -1175,7 +1175,7 @@ void func_m003_027A4(void) {
             if (dist < rl_m003_02760(node) && !rl_m003_01C58(node, 1)) {
                 lo = sHomeData->unk3C;
                 hi = sHomeData->unk3C;
-                if (func_80051880(func_m154_00DFC(sHomeData->unk30, lo & 0xFF, (u16) hi >> 8))) {
+                if (troop_member_waypoint_set(func_m154_00DFC(sHomeData->unk30, lo & 0xFF, (u16) hi >> 8))) {
                     rl_m003_01C58(node, 0);
                 }
             }
@@ -1384,7 +1384,7 @@ void func_m003_0332C(void) {
         sHomeData->unk33 = 0x1F;
         lo = sHomeData->unk3C;
         hi = sHomeData->unk3C;
-        func_80051880(func_m154_00DFC(sHomeData->unk30, lo & 0xFF, hi >> 8));
+        troop_member_waypoint_set(func_m154_00DFC(sHomeData->unk30, lo & 0xFF, hi >> 8));
     }
 }
 
@@ -1396,7 +1396,7 @@ void func_m003_033B0(Object *obj) {
     if (func_m003_05450(obj)) {
         node = &D_800FEA9C[func_m154_00130(sHome->trans.x_position, sHome->trans.y_position, sHome->trans.z_position, 0)];
         sHomeData->unk3C = node->unk16;
-        func_80051880(func_m154_00DFC(sHomeData->unk30, sHomeData->unk3C & 0xFF, 0));
+        troop_member_waypoint_set(func_m154_00DFC(sHomeData->unk30, sHomeData->unk3C & 0xFF, 0));
         sHomeData->unk33 = 0x1F;
     }
     func_m003_05450(saved);
@@ -1600,7 +1600,7 @@ void func_m003_03AA8(void) {
                     !(NODEWORD14(node) & 2)) {
                     next = func_m154_00A10(sHomeData->unk3C & 0xFF);
                     if (next != (sHomeData->unk3C & 0xFF)) {
-                        func_80051880(next);
+                        troop_member_waypoint_set(next);
                         sMember->unk0_21 = TRUE;
                         return;
                     }

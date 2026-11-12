@@ -185,7 +185,7 @@ typedef struct M014Box {
 
 extern s32 func_800373E4(M014Weapons *w, s32 weapon); /* the weapon's ammo capacity */
 extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
-extern void func_80058EF0(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 arg5, s32 arg6); /* draws a number */
+extern void menu_digits_draw(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 arg5, s32 arg6); /* draws a number */
 extern void rl_m014_01AD8(M014Player *p, s32 updateRate, s32 image);
 #define rl_m014_04810 (*(s32 *) (rl_m014_03E70 + 0x9A0)) /* .data (still assembly): the weapon last shown */
 extern M014Box rl_m014_0447C[7]; /* the ammo bar's boxes */
@@ -267,8 +267,8 @@ void func_m014_0292C(s32 updateRate) {
     }
     func_8005A0D0(7);
     func_80056000(1);
-    func_80058EF0(weapons->unk14[weapons->weapon], D_800FF780[9].posX, D_800FF780[9].posY, 8, 3, 0xFFFF00A0, 0xFFFF0040);
-    func_80058EF0(weapons->unk34[weapons->weapon], D_800FF780[10].posX, D_800FF780[10].posY, 9, 3, -0x60, -0xC0);
+    menu_digits_draw(weapons->unk14[weapons->weapon], D_800FF780[9].posX, D_800FF780[9].posY, 8, 3, 0xFFFF00A0, 0xFFFF0040);
+    menu_digits_draw(weapons->unk34[weapons->weapon], D_800FF780[10].posX, D_800FF780[10].posY, 9, 3, -0x60, -0xC0);
 }
 
 void func_m014_02CC0(void) {

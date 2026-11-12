@@ -835,7 +835,7 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
 
 Camera *cam_get_active_camera(void);
 void func_80041168(Gfx **dList, Mtx **matrices); // DKR: mtx_world_origin
-void func_8000DF00(Object *obj, s32 updateRate);
+void object_uv_offsets_update(Object *obj, s32 updateRate);
 void render_object(Gfx **dList, Mtx **matrices, Vertex **verts, Object *obj);
 
 /**
@@ -856,7 +856,7 @@ void skydome_render(s32 updateRate) {
         gSkydomeSegment->trans.z_position = cam->trans.z_position + cam->unk38;
         gSkydomeSegment->trans.rotation[0] += D_800A0D64->skydomeSpin * updateRate;
         if (gSkydomeSegment->header->unkA2 != 0xFF) {
-            func_8000DF00(gSkydomeSegment, updateRate);
+            object_uv_offsets_update(gSkydomeSegment, updateRate);
         }
     } else {
         gSkydomeSegment->trans.x_position = cam->unk30;

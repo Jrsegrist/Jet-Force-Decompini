@@ -310,7 +310,7 @@ void level_music_start(f32 tempo);
 void set_active_camera(s32 index);
 void cam_set_fov(f32 camFieldOfView, s32 force);
 void glitch_effect_start(s32 arg0);
-void func_8005342C(s32 module);
+void runlink_module_release(s32 module);
 void sound_stop(s32 soundHandle);
 void sound_play(u16 soundID, s32 *handlePtr);
 extern s32 D_800A31B0[3]; // JFG: the handles of the looping level sounds
@@ -451,8 +451,8 @@ void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
         func_80054530_fi(12.0f, gCurrentLevelHeader->unk101 * 60);
     }
     check_reset_and_halt();
-    func_8005342C(0x18);
-    func_8005342C(0x1E);
+    runlink_module_release(0x18);
+    runlink_module_release(0x1E);
     for (i = 0; i < 3; i++) {
         missing = TRUE;
         for (j = 0; j < 3; j++) {

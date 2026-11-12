@@ -399,7 +399,7 @@ s32 func_80049C84(f32 x, f32 z);
 
 /* JFG: the chase camera: its yaw (racer 0x104) eases to behind the player, its distance to 120 and height to 50;
  * the camera eases to that point, then turns to look at a point 45 up and 80 ahead of the player */
-void func_8002BD04(s16 *obj, Racer *racer, f32 updateRate) {
+void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
     f32 dist;
     s16 angle;
     f32 dx;

@@ -30,7 +30,7 @@ extern u8 gMainMemoryPool[]; // the end of the game's .bss
 
 extern s32 gForcedColourTag;                // JFG: a forced colour tag (or -1)
 extern s32 gForcedColourTag2;                // JFG: a second forced colour tag (or -1)
-void func_80054368(s32 address, s32 *module, s32 *offset, s32 arg3);
+void runlink_symbol_nearest(s32 address, s32 *module, s32 *offset, s32 arg3);
 
 void mempool_free_queue(void *dataAddress);
 void mempool_free_timer(s32 state);
@@ -137,7 +137,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag) {
     } else if (gForcedColourTag2 != -1) {
         colourTag = gForcedColourTag2 | 0xFE000000;
     } else {
-        func_80054368(ra - 8, &module, &offset, 0);
+        runlink_symbol_nearest(ra - 8, &module, &offset, 0);
         colourTag = (module << 24) | offset;
     }
     addr = mempool_slot_find(POOL_MAIN, size, colourTag);
@@ -160,7 +160,7 @@ MemoryPoolSlot *mempool_alloc(s32 size, u32 colourTag) {
     } else if (gForcedColourTag2 != -1) {
         colourTag = gForcedColourTag2 | 0xFE000000;
     } else {
-        func_80054368(ra - 8, &module, &offset, 0);
+        runlink_symbol_nearest(ra - 8, &module, &offset, 0);
         colourTag = (module << 24) | offset;
     }
     addr = mempool_slot_find(POOL_MAIN, size, colourTag);
@@ -245,7 +245,7 @@ void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag) {
     } else if (gForcedColourTag2 != -1) {
         colourTag = gForcedColourTag2 | 0xFE000000;
     } else {
-        func_80054368(ra - 8, &module, &offset, 0);
+        runlink_symbol_nearest(ra - 8, &module, &offset, 0);
         colourTag = (module << 24) | offset;
     }
     if ((gMemoryPools[POOL_MAIN].curNumSlots + 1) == gMemoryPools[POOL_MAIN].maxNumSlots) {

@@ -150,7 +150,7 @@ INCLUDE_ASM("asm/nonmatchings/67780", func_80066EB0);
 
 void epc_clear_framebuffer(void);
 void epc_printf(s32 arg0, s32 x, const char *format, ...);
-s32 func_80054368(u32 address, s32 *module, s32 *offset, char *name);
+s32 runlink_symbol_nearest(u32 address, s32 *module, s32 *offset, char *name);
 
 /* JFG: clear the screen and print the address (and its module and offset), then hang (0x80067610). */
 void lockup_show_address(s32 address) {
@@ -162,7 +162,7 @@ void lockup_show_address(s32 address) {
         epc_clear_framebuffer();
     }
     epc_printf(30, 80, "Watchpoint exception at %x\n", address);
-    if (func_80054368(address, &module, &offset, NULL)) {
+    if (runlink_symbol_nearest(address, &module, &offset, NULL)) {
         epc_printf(30, 100, "Module %d at %08x", module, offset);
     }
     while (1) {
@@ -307,14 +307,14 @@ void crash_screen_draw(FaultThread *fault) {
     epc_printf(0x20, 0x18, "Fault in thread %d   (%s)", fault->thread.id, D_800A64C0);
     if (ctx->pc == 0) {
         epc_printf(0x20, 0x22, "epc NULL");
-    } else if (func_80054368(ctx->pc, &module, &offset, name)) {
+    } else if (runlink_symbol_nearest(ctx->pc, &module, &offset, name)) {
         epc_printf(0x20, 0x22, "epc %d,%x", module, offset);
     } else {
         epc_printf(0x20, 0x22, "epc %08x,?,?,?", ctx->pc);
     }
     if ((u32) ctx->ra == 0) {
         epc_printf(0x20, 0x28, "ra   NULL");
-    } else if (func_80054368((u32) ctx->ra, &module, &offset, name)) {
+    } else if (runlink_symbol_nearest((u32) ctx->ra, &module, &offset, name)) {
         epc_printf(0x20, 0x28, "ra   %d,%x", module, offset);
     } else {
         epc_printf(0x20, 0x28, "ra   %08x,?,?,?", (u32) ctx->ra);

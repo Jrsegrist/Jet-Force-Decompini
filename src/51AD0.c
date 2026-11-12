@@ -452,7 +452,7 @@ s32 func_80049D80(s16 a, s16 b);
    inner way-point index (shifts, not multu) and computes from/prev before the branch */
 /* JFG: move the current troop member on to way-point `point`: keep the previous one, its start and end points, the
    step for its speed, and face it (mode 0x15) unless it is waiting. Returns 0 if it was already there. */
-s32 func_80051880(u8 point) {
+s32 troop_member_waypoint_set(u8 point) {
     TroopTarget *target;
     TroopWaypoint *cur;
     s16 points;
@@ -560,7 +560,7 @@ typedef struct LeaderObject {
     /* 0xA0 */ u8 freed;
 } LeaderObject;
 
-/* JFG: a level object entry as func_80051CCC sees it */
+/* JFG: a level object entry as troop_members_number sees it */
 typedef struct TroopEntry {
     /* 0x00 */ s16 objectID;
     /* 0x02 */ u8 size;
@@ -577,7 +577,7 @@ s32 obj_group_flag_first(s32 id, u16 flag);
 s16 obj_header_field_get(s32 type);
 
 /* JFG: for every live troop leader, number the members in both object entry lists (by troop id), and start it. */
-void func_80051CCC(void) {
+void troop_members_number(void) {
     UNUSED s32 pad[2];
     s32 first;
     s32 last;
@@ -636,7 +636,7 @@ void func_80052678(void) {
 extern s32 D_800FE9FC;
 extern u8 *D_800FEA00;
 extern s32 D_800FEA04;
-s32 func_80052CFC(); // JFG: load a runlink module (also applies relocations)
+s32 runlink_module_install(); // JFG: load a runlink module (also applies relocations)
 
 /* JFG: keep a list of records (s16 id, u8 length); start event 3 if one has id 0x61, 5 or 0x4F. */
 void level_records_scan(u8 *data, s32 size) {
@@ -649,7 +649,7 @@ void level_records_scan(u8 *data, s32 size) {
     rec = data;
     for (offset = 0; offset < size; offset += rec[2], rec += rec[2]) {
         if (*(s16 *) rec == 0x61 || *(s16 *) rec == 5 || *(s16 *) rec == 0x4F) {
-            func_80052CFC(3);
+            runlink_module_install(3);
             return;
         }
     }
@@ -906,7 +906,7 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module);
 /* JFG: load a module (unless loaded or in a slot): allocate its code, data and bss, copy them from ROM (clearing
    the bss), apply its relocations (the extra ones from a temporary buffer first), the loaded modules' relocations
    into it, then run its init entry point. Returns FALSE when it is in a slot or out of memory. */
-s32 func_80052CFC(s32 module) {
+s32 runlink_module_install(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
     ModuleReloc *reloc;
@@ -1033,7 +1033,7 @@ void sound_volume_change(s32 behaviour);
 void func_80054530();
 
 /* JFG: if a word still points at the module trap, find the relocation that wrote it and apply it again (TRUE if found). */
-s32 func_800531C8(u32 *addr) {
+s32 runlink_load_target_module(u32 *addr) {
     ModuleEntry *module;
     ModuleReloc *reloc;
     s32 i;
@@ -1069,7 +1069,7 @@ s32 func_800531C8(u32 *addr) {
                     if (symModule >= 0xFFC) {
                         symModule = 0;
                     }
-                    func_80052CFC(symModule);
+                    runlink_module_install(symModule);
                     return TRUE;
                 }
                 reloc++;
@@ -1081,8 +1081,8 @@ s32 func_800531C8(u32 *addr) {
 
 extern ModuleSlot D_800FEAD8[16];
 extern s32 gNumRunlinkModules; // JFG: the number of modules
-void func_80053D2C(s32 module);
-void func_8005372C(s32 module);
+void runlink_module_load_from_slot(s32 module);
+void runlink_module_unload(s32 module);
 void mempool_free(void *data);
 
 /* Returns a module's load address (0 when not loaded) (0x80053370). */
@@ -1102,7 +1102,7 @@ void runlink_module_run(s32 module) {
             i = 15;
             do {
                 if (module == slot->module) {
-                    func_80053D2C(module);
+                    runlink_module_load_from_slot(module);
                     break;
                 }
                 slot++;
@@ -1123,7 +1123,7 @@ extern s32 D_800A38F0; // JFG: set while a module is unloaded into a slot
 
 /* JFG: free a module (its code, or its slot's buffer) and point every loaded module's and the main segment's
    references to it back at the trap. */
-void func_8005342C(s32 module) {
+void runlink_module_release(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
     ModuleReloc *reloc;
@@ -1204,7 +1204,7 @@ void func_8005342C(s32 module) {
 }
 
 /* JFG: unload a module: free its code (or its slot's buffer) and point the main segment's references to it back at the trap. */
-void func_8005372C(s32 module) {
+void runlink_module_unload(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     ModuleSlot *slot;
     ModuleReloc *reloc;
@@ -1269,7 +1269,7 @@ void runlink_unload_all(void) {
     ModuleSlot *slot = D_800FEAD8;
 
     for (i = gNumRunlinkModules - 1; i > 0; i--) {
-        func_8005372C(i);
+        runlink_module_unload(i);
     }
     i = 15; do {
         if (slot->module != 0xFFB) {
@@ -1335,7 +1335,7 @@ void module_system_init(void) {
 }
 
 s32 mempool_free_timer_get();
-void func_8005342C(s32 module);
+void runlink_module_release(s32 module);
 void mempool_free_timer(s32 state);
 void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag);
 extern s32 D_800A38F0; // JFG: set while a module is unloaded into a slot
@@ -1356,7 +1356,7 @@ void runlink_module_move_to_slot(s32 module) {
                 slot->module = module;
                 mempool_free_timer(0);
                 D_800A38F0 = 1;
-                func_8005342C(module);
+                runlink_module_release(module);
                 D_800A38F0 = 0;
                 mempool_free_timer(timer);
                 mempool_alloc_fixed(entry->unkC + entry->unk10 + entry->unk14, (u8 *) (slot->unk0 + entry->unk8),
@@ -1374,7 +1374,7 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module);
 /* JFG: load a module back from its slot: free the slot's copy, reserve the code at the same address, copy the code
    from ROM, apply its own relocations (the extra ones only inside the code) and every loaded module's relocations
    into it, then free the slot. */
-void func_80053D2C(s32 module) {
+void runlink_module_load_from_slot(s32 module) {
     ModuleEntry *entry = &gRunlinkModules[module];
     UNUSED s32 pad;
     ModuleSlot *slot;
@@ -1494,7 +1494,7 @@ void runlink_slots_unload_all(void) {
 
     do {
         if (slot->module != 0xFFB) {
-            func_80053D2C((u32) slot->module); // the cast loads it into v0
+            runlink_module_load_from_slot((u32) slot->module); // the cast loads it into v0
         }
         slot++;
     } while (i--);
@@ -1507,7 +1507,7 @@ void runlink_unload_timer_set(s32 index, u16 timer, u8 value) {
 }
 
 extern s32 D_800A38FC; // JFG: nonzero while the unload timers run
-void func_8005342C(s32 module);
+void runlink_module_release(s32 module);
 
 /* JFG: decrement every module's unload timer and unload the module when it reaches zero (0x80054204). */
 void runlink_unload_timers_update(void) {
@@ -1522,7 +1522,7 @@ void runlink_unload_timers_update(void) {
             }
             if (t->timer != 0) {
                 if (--t->timer == 0) {
-                    func_8005342C(i);
+                    runlink_module_release(i);
                 }
             }
         }
@@ -1537,7 +1537,7 @@ void runlink_unload_idle(void) {
     while (i--) {
         t = &D_800FEB58[i];
         if (t->timer != 0 && t->unk == 0) {
-            func_8005342C(i);
+            runlink_module_release(i);
             t->timer = 0;
             t->unk = 0;
         }
@@ -1556,7 +1556,7 @@ typedef struct RunlinkSymbol {
 } RunlinkSymbol;
 
 /* JFG: the module and offset of an address (TRUE if it is in a loaded module), and the name of the nearest symbol below it. */
-s32 func_80054368(u32 address, s32 *module, s32 *offset, char **name) {
+s32 runlink_symbol_nearest(u32 address, s32 *module, s32 *offset, char **name) {
     RunlinkSymbol *sym = (RunlinkSymbol *) D_800FEAA8;
     u32 best = 0;
     s32 n;

@@ -738,7 +738,7 @@ typedef struct RippleChild {
 void *mempool_alloc(s32 size, u32 colourTag);
 void *load_texture(s32 assetIndex);
 void mempool_free(void *data);
-RippleChild *func_8006A0C0(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed);
+RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: one word short (the ROM copies half and numVerts to v0/v1 before the alloc call); the registers of
@@ -746,7 +746,7 @@ RippleChild *func_8006A0C0(s32 type, f32 length, f32 start, f32 end, s32 texID, 
 /* JFG: allocate and set up a ripple's child effect: segments from length (60 per unit, two per pair), two
    triangle buffers, the strips and four (type 0) or two vertex buffers, all white; frees it if the texture
    doesn't load. */
-RippleChild *func_8006A0C0(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed) {
+RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed) {
     s32 frames;
     s32 half;
     s32 numVerts;
@@ -972,7 +972,7 @@ s32 ripple_data_init(RippleObj *obj, RippleInit *r) {
     track_height_at(obj->x, obj->z, &r->unk80, 0x2000);
     r->child = 0;
     if (hdr->childType != -1) {
-        r->child = func_8006A0C0(hdr->childType, hdr->unk88, hdr->unk80, hdr->unk84, hdr->unk8C, hdr->unk8E);
+        r->child = ripple_trail_create(hdr->childType, hdr->unk88, hdr->unk80, hdr->unk84, hdr->unk8C, hdr->unk8E);
     }
     return pad;
 }
@@ -1178,7 +1178,7 @@ void effect_slots_init(void);
 /* JFG: allocate the shape transitions' buffers once (DKR allocates them per transition in transition_init_shape):
    two triangle and two vertex buffers of 16 each and the three 16-point float arrays; then set up the effect slots.
    (The sizes in variables: with constants IDO forwards the stored pointers instead of reloading them.) */
-void func_8006B8C4(void) {
+void transition_buffers_init(void) {
     s32 sizeTris;
     s32 sizeVerts;
     s32 sizeF;
@@ -2411,7 +2411,7 @@ extern void *D_80102D78[4];
 extern u8 D_80102D9C[4];
 extern ScreenEffectFunc D_800A6E1C[4];
 void func_80054530();
-s32 func_800531C8(void *addr); /* returns a value (51AD0.c): that keeps IDO off v0 after the call */
+s32 runlink_load_target_module(void *addr); /* returns a value (51AD0.c): that keeps IDO off v0 after the call */
 
 /* JFG: clear the four effect slots; a slot is flagged when its handler is the unloaded-module trap. */
 void effect_slots_init(void) {
@@ -2432,7 +2432,7 @@ void effect_slots_update(void) {
 
     while (i--) {
         if ((1 << i) & D_80102D54) {
-            func_800531C8(D_800A6E1C + i);
+            runlink_load_target_module(D_800A6E1C + i);
             if (D_800A6E1C[i] != NULL) {
                 D_800A6E1C[i](i, D_80102D40[i], 0);
             }
@@ -2463,7 +2463,7 @@ void effect_slot_start(s32 slot, u8 *dims) {
             *buf1++ = 0;
             *buf2++ = 0;
         }
-        func_800531C8(D_800A6E1C + slot);
+        runlink_load_target_module(D_800A6E1C + slot);
         if (D_800A6E1C[slot] != NULL) {
             D_800A6E1C[slot](slot, D_80102D40[slot], 1);
         }

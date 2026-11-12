@@ -581,7 +581,7 @@ extern u8 D_800A3448; // JFG: controllers with a usable controller pak (one bit 
 
 /* JFG: reset the rumble states, then find each controller's controller pak or rumble pak.
    DKR: init_controller_paks */
-void func_8004C2BC(void) {
+void init_controller_paks(void) {
     RumbleData *rumble;
     s32 i;
     u8 bit;

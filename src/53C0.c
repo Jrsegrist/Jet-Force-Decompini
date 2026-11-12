@@ -1368,7 +1368,7 @@ void func_80029CFC(s32 updateRate);
 Object **collision_objects_get(s32 *count);
 void func_8000FBF0(Object *obj, s32 updateRate);
 void func_8007E504(void);
-void func_8000DF00(Object *obj, s32 updateRate);
+void object_uv_offsets_update(Object *obj, s32 updateRate);
 void func_8006B090(Object *obj, s32 updateRate);
 void func_80032A48(Object *obj, s32 updateRate);
 void light_update_all(s32 updateRate);
@@ -1427,7 +1427,7 @@ void obj_update(s32 updateRate) {
                     func_8000FBF0(obj, updateRate);
                 }
                 if (obj->header->unk1E == 0 && obj->header->scrollTexture != 0xFF) {
-                    func_8000DF00(obj, updateRate);
+                    object_uv_offsets_update(obj, updateRate);
                 }
                 if (obj->behaviorId != 1 && obj->unk58 != NULL) {
                     func_8006B090(obj, updateRate);
@@ -2334,7 +2334,7 @@ void render_object_parts(Object *obj) {
 /* JFG: scroll the texture coordinates of the triangles using the header's scroll texture, in one
    attachment's model or all of them (each axis only when it moves).
    DKR: func_80014090 */
-void func_8000DF00(Object *obj, s32 updateRate) {
+void object_uv_offsets_update(Object *obj, s32 updateRate) {
     ObjectHeader *objHeader;
     s16 width;
     s16 height;

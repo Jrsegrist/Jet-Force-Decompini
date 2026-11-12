@@ -161,7 +161,7 @@ void video_init(OSSched *sc);
 void pi_init(void);
 void gfxtask_init(OSSched *sc);
 void module_system_init(void);
-void func_8005342C(s32 module);
+void runlink_module_release(s32 module);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void func_80054530();
 
@@ -197,7 +197,7 @@ void init_game(void) {
     D_800A3290 = 1;
     func_80054530();
     check_reset_and_halt();
-    func_8005342C(0x24);
+    runlink_module_release(0x24);
     D_800A3530 = 0;
 }
 
@@ -1180,7 +1180,7 @@ s32 fb_mode(void);
 s32 func_80055208(void);
 void func_8005483C(s32 mode);
 s32 func_80043D08(s32 level);
-void func_8005342C(s32 module);
+void runlink_module_release(s32 module);
 void cam_init(s32 arg0);
 void init_dialogue_text(void);
 void level_load(s32 level, s32 arg1, s32 arg2, s32 arg3);
@@ -1412,7 +1412,7 @@ void level_load_pending(s32 updateRate) {
     mempool_free_timer(0);
     check_reset_and_halt();
     func_80054530(func_80043D08(gPlayableMapId));
-    func_8005342C(0x24);
+    runlink_module_release(0x24);
     check_reset_and_halt();
     mempool_free_queue_flush();
     mempool_free_timer(0);
@@ -1425,7 +1425,7 @@ void level_load_pending(s32 updateRate) {
     check_reset_and_halt();
     func_80054530(100, 100, 100, 10, 10, 15, 10);
     check_reset_and_halt();
-    func_8005342C(0x1A);
+    runlink_module_release(0x1A);
     check_reset_and_halt();
     level_load(gPlayableMapId, D_800A3244, D_800A3240, D_800A3248);
     check_reset_and_halt();
@@ -1946,7 +1946,7 @@ s8 is_game_paused(void) {
 }
 
 s32 runlink_module_loaded(s32 module);
-void func_8005342C(s32 module);
+void runlink_module_release(s32 module);
 void func_80000450(s32 mode);
 extern s8 gIsPaused;
 
@@ -1955,7 +1955,7 @@ void set_game_paused(s32 mode) {
     gIsPaused = mode;
     if (gIsPaused == 0) {
         if (runlink_module_loaded(0x13) != 0) {
-            func_8005342C(0x13);
+            runlink_module_release(0x13);
         }
         func_80000450(0);
         return;
