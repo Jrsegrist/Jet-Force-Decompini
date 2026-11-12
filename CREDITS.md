@@ -254,3 +254,14 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/main.c` | the stack check of the idle thread, with its stubbed report (boot.c) |
 | `src/camera.c` | the stubbed reports of cam_set_layout, set_active_camera, set_ortho_matrix_height, render_ortho_triangle_image, mtx_cam_push |
 | `src/textures_sprites.c` | the textures file's debug strings (560B0.c, split from 55130) |
+
+### Round 16 (main16), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/printf.c` | vsprintf (JFG: floats read by pointer, f32 arithmetic) |
+| `src/objects.c` | func_80014090, as JFG's object_uv_offsets_update (0x8000DF00); object_do_player_tumble now matches in DKR's statement order |
+| `src/save_data.c` | init_controller_paks (0x8004C2BC) |
+| `src/memory.c` | the memory pools' .bss, now defined in C |
