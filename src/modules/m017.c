@@ -342,7 +342,157 @@ typedef struct M017Anim {
     u8 pose;
     u8 alt1Pose;
 } M017Anim;
-extern M017Anim rl_m017_062C8[]; /* (.data) */
+
+/* A body part entry */
+typedef struct M017Part {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ f32 unk4;
+    /* 0x08 */ f32 unk8;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ u32 flags;
+} M017Part;
+
+/* A list of body parts with its settings */
+typedef struct M017PartSet {
+    /* 0x00 */ M017Part **parts;
+    /* 0x04 */ u32 unk4;
+    /* 0x08 */ s32 count;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+} M017PartSet;
+
+/* A damage/score event with its debug name */
+typedef struct M017Event {
+    /* 0x00 */ s16 unk0;
+    /* 0x02 */ s16 unk2;
+    /* 0x04 */ s16 unk4;
+    /* 0x06 */ char name[26];
+} M017Event;
+
+typedef struct M017Rate {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ f32 unk4;
+    /* 0x08 */ s32 unk8;
+    /* 0x0C */ s32 unkC;
+} M017Rate;
+
+/* Body part entries (0x14 each) */
+static M017Part D_m017_06240[4] = {
+    { 0.0f, 18.0f, -9.0f, 18.0f, 0x2010000 },
+    { 0.0f, 18.0f, 9.0f, 18.0f, 0x2010000 },
+    { -8.0f, 22.0f, -2.0f, 22.0f, 0x2010000 },
+    { 8.0f, 22.0f, -2.0f, 22.0f, 0x2010000 },
+};
+
+static M017Part *D_m017_06290[4] = {
+    &D_m017_06240[0], &D_m017_06240[1], &D_m017_06240[2], &D_m017_06240[3],
+};
+
+static M017PartSet D_m017_062A0[2] = {
+    { &D_m017_06290[0], 0x30000, 5, 36.0f, 54.0f },
+    { &D_m017_06290[2], 0x30000, 5, 44.0f, 60.0f },
+};
+
+/* The animation table: per animation, its variants and a pose index */
+static M017Anim D_m017_062C8[29] = {
+    { 0, 0, 0, 0, 0 },
+    { 1, 1, 1, 0, 0 },
+    { 2, 2, 2, 0, 0 },
+    { 3, 3, 3, 0, 0 },
+    { 4, 4, 4, 0, 0 },
+    { 5, 5, 5, 0, 0 },
+    { 6, 6, 6, 0, 0 },
+    { 7, 7, 7, 0, 0 },
+    { 8, 8, 8, 0, 0 },
+    { 9, 18, 9, 0, 0 },
+    { 10, 18, 10, 0, 0 },
+    { 11, 18, 11, 0, 0 },
+    { 12, 18, 12, 0, 0 },
+    { 13, 18, 13, 0, 0 },
+    { 14, 14, 14, 0, 0 },
+    { 15, 15, 15, 0, 0 },
+    { 16, 16, 16, 0, 0 },
+    { 17, 17, 17, 0, 0 },
+    { 9, 18, 9, 0, 0 },
+    { 19, 19, 19, 0, 0 },
+    { 20, 20, 20, 0, 0 },
+    { 21, 21, 21, 0, 0 },
+    { 22, 22, 22, 0, 0 },
+    { 23, 23, 23, 0, 0 },
+    { 24, 24, 24, 0, 0 },
+    { 25, 25, 25, 0, 0 },
+    { 26, 26, 26, 0, 0 },
+    { 27, 27, 27, 0, 0 },
+    { 28, 28, 28, 0, 0 },
+};
+
+/* animation speeds */
+static f32 D_m017_0635C[53] = {
+    0.014f, 0.011f, 0.007f, 0.014f, 0.012f, 0.02f,
+    0.0167f, 0.01f, 0.025f, 0.005f, 0.0075f, 0.005f,
+    0.005f, 0.02f, 0.02f, 0.005f, 0.01f, 0.0334f,
+    0.005f, 0.01f, 0.01f, 0.02f, 0.01f, 0.0067f,
+    0.015f, 0.0175f, 0.02f, 0.015f, 0.012f, 0.02f,
+    0.021f, 0.012f, 0.025f, 0.015f, 0.015f, 0.015f,
+    0.015f, 0.015f, 0.02f, 0.005f, 0.02f, 0.025f,
+    0.015f, 0.022f, 0.012f, 0.017f, 0.01f, 0.0067f,
+    0.02f, 0.05f, 0.05f, 0.02f, 0.0067f,
+};
+
+static s16 D_m017_06430[16] = {
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+};
+
+/* The particle emitters for each level kind */
+static u32 D_m017_06450[3] = { 0x2, 0x4, 0x2 };
+static s32 D_m017_0645C[3] = { 0x8, 0x10, 0x40 };
+
+/* Damage/score events with their debug names */
+static M017Event D_m017_06468[13] = {
+    { 500, -250, -250, "Player hit (soft)" },
+    { 1000, -500, -500, "Player hit (normal)" },
+    { 2000, -1000, -1000, "Player hit (hard)" },
+    { 400, 0, -32718, "Player Fired" },
+    { 800, 0, -32668, "Player Threw Grenade" },
+    { 0, 250, -32718, "Enemy hit (soft)" },
+    { 0, 500, -32668, "Enemy hit (normal)" },
+    { 0, 1000, -32568, "Enemy hit (hard)" },
+    { 0, 1500, -32368, "Killed Enemy" },
+    { -4000, 0, 2000, "Player Saved a Bear" },
+    { 2000, -1000, -1000, "Player hit a Bear" },
+    { 4000, -2000, -2000, "Player Killed a Bear" },
+    { 1000, 0, -500, "Enemy killed a Bear" },
+};
+
+static M017Rate D_m017_06608[19] = {
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.007f, 0.85f, 0, 0 },
+    { 0.01f, 0.85f, 0, 0 },
+    { 0.004f, 0.5f, 0, 0 },
+    { 0.01f, 0.5f, 0, 0 },
+    { 0.01f, 0.5f, 0, 0 },
+    { 0.01f, 0.5f, 0, 0 },
+    { 0.01f, 0.5f, 0, 0 },
+    { 0.01f, 0.5f, 0, 0 },
+    { 0.01f, 0.5f, 0, 0 },
+    { 0.004f, 0.5f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.004f, 0.84f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+    { 0.004f, 0.8f, 0, 0 },
+};
+
+/* func_m017_05930's per-step tables */
+static f32 D_m017_06738[4][8] = {
+    { 0.005f, 0.025f, 0.03f, 0.035f, 0.04f, 0.045f, 0.05f, 0.05f },
+    { 0.01f, 0.015f, 0.02f, 0.025f, 0.035f, 0.045f, 0.045f, 0.045f },
+    { 0.01f, 0.03f, 0.0375f, 0.0475f, 0.06f, 0.0725f, 0.0725f, 0.0725f },
+    { 0.015f, 0.02f, 0.0275f, 0.0375f, 0.05f, 0.0625f, 0.0625f, 0.0625f },
+};
 extern void func_80048518(s32 arg0);
 extern void func_80033920(Object *obj, Racer *racer);
 
@@ -448,8 +598,6 @@ static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame);
 extern void rl_m017_04C50(Object *obj, Racer *racer, f32 speed, f32 updateRate);
 extern void rl_m017_05930(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 
-/* .data: the particle emitters for each level kind */
-extern u32 rl_m017_06450[];
 
 /* The module's .bss */
 static s32 D_m017_069B0;
@@ -849,7 +997,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
     if (racer->unk576 != 0 ||
         (racer->unk188 != 0 && (racer->unk532 & racer->pose->unk5) &&
          (obj->velocity.x < -1.0f || obj->velocity.x > 1.0f || obj->velocity.z < -1.0f || obj->velocity.z > 1.0f))) {
-        obj->particleEmittersEnabled |= rl_m017_06450[func_8004470C()->unkE2];
+        obj->particleEmittersEnabled |= D_m017_06450[func_8004470C()->unkE2];
         if (racer->unkC8 == 0) {
             func_80001248(0x1C, (s32) &racer->unkC8);
         }
@@ -1606,11 +1754,11 @@ INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_04A44);
 /* Sets the animation: the armed or carrying variant of `anim` when that applies */
 static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame) {
     if (racer->unk1F4 != 0) {
-        anim = rl_m017_062C8[anim].alt1;
+        anim = D_m017_062C8[anim].alt1;
     } else if (weapon_usable_by_character(racer)) {
-        anim = rl_m017_062C8[anim].alt2;
+        anim = D_m017_062C8[anim].alt2;
     } else {
-        anim = rl_m017_062C8[anim].normal;
+        anim = D_m017_062C8[anim].normal;
     }
     if (anim != obj->animationID) {
         obj_anim_set(obj, anim, frame);
@@ -1866,6 +2014,5 @@ static void func_m017_05F08(Object *obj, Racer *racer, f32 speed, f32 angle, f32
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", data);
 
 /* (.rodata: C, and the assembly functions' own from ro/) */
