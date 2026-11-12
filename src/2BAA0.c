@@ -1813,8 +1813,6 @@ void racer_pose_begin(UNUSED s32 arg0, PoseRacer *racer, PoseTarget *poses, u8 i
 
 void func_800492DC(s16 *rotation, f32 *vec);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 4 words: the target keeps the new step count in a0 with a copy in v1 for the `< 0` test */
 /* JFG: step the pose points towards their target by `updateRate` steps (fewer when the pose ends), then place
  * them in the world: rotated by the object's angles (the racer's own pitch/roll in state 4) where the target
  * point asks for it (byte 0x11), plus the object's position */
@@ -1827,8 +1825,6 @@ void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
     s32 n;
     UNUSED s32 pad;
     s16 angles[3];
-    UNUSED s32 pad2;
-    UNUSED s32 pad3;
 
     angles[0] = *(s16 *) obj;
     if (racer->unk568 == 4 && (racer->character & 3) != 2) {
@@ -1843,7 +1839,7 @@ void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
     if (racer->numSteps > 0) {
         n = racer->numSteps - (s32) updateRate;
         if (n >= 0) {
-            racer->numSteps = n;
+            racer->numSteps -= (s32) updateRate;
             t = updateRate;
         } else if (n < 0) {
             t = racer->numSteps;
@@ -1873,9 +1869,6 @@ void func_80035628(u8 *obj, PoseRacer *racer, f32 updateRate) {
         step += 3;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035628);
-#endif
 
 void player_platform_segment_point(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
 void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
