@@ -92,7 +92,9 @@ typedef struct M031Player {
 typedef struct M031Slot {
     /* 0x00 */ u8 pad0[0x12];
     /* 0x12 */ u8 unk12;
-    /* 0x13 */ u8 pad13[0x1B - 0x13];
+    /* 0x13 */ u8 pad13;
+    /* 0x14 */ u8 unk14; /* its place at the end of a race, 1 to 4 (01150) */
+    /* 0x15 */ u8 pad15[0x1B - 0x15];
     /* 0x1B */ u8 pad1B_5 : 3;
     /* 0x1B */ u8 index : 5;
     /* 0x1C */ u8 pad1C[0x90 - 0x1C];
@@ -445,9 +447,260 @@ void func_m031_0080C(void) {
     rl_m031_040F8 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_00A3C);
+extern void rl_m031_021F0(s32 updateRate);
+static void func_m031_01150(s32 count, s32 updateRate);
+extern void rl_m031_0242C(s32 arg0, s32 updateRate);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_01150);
+/*
+ * The race's per-frame update: each racer passes its checkpoints (counting laps), then the racers' places, the
+ * countdown's beeps and the computer racers
+ */
+void func_m031_00A3C(s32 updateRate) {
+    s32 i;
+    M031Racer *r;
+    Object *player;
+    s32 side;
+    s32 count;
+    s32 j;
+    f32 d; /* the distance before, then how far it moved */
+    s32 pos;
+    Object **players;
+    UNUSED s32 pad;
+    M031Racer *o;
+    s32 t;
+    M031Checkpoint *data;
+
+    players = func_8000E464(&count);
+    i = 0;
+    if (count <= 0) {
+        return;
+    }
+    for (r = sRacers; i < count; i++, r++) {
+        player = *players++;
+        if (r->next != NULL && r->previous != NULL) {
+            side = func_m031_006F0(r->next, player->trans.x_position, player->trans.y_position,
+                                   player->trans.z_position, 1);
+            if (func_m031_006F0(r->previous, player->trans.x_position, player->trans.y_position,
+                                player->trans.z_position, 1) == 1) {
+                data = r->previous->unk68;
+                r->next = r->previous;
+                r->previous = func_m031_006AC(data->number);
+                r->unkC++;
+                if (r->unkC >= rl_m031_040DC) {
+                    if (r->unk14 == 0 && r->unk1E == 0) {
+                        r->unk8++;
+                    }
+                    r->unkC -= rl_m031_040DC;
+                    r->unk14 = 0;
+                }
+            } else if (side == -1) {
+                data = r->next->unk68;
+                r->previous = r->next;
+                r->next = func_m031_0066C(data->number);
+                r->unkC--;
+                if (r->unkC < 0) {
+                    r->unk14 = 1;
+                    r->unkC += rl_m031_040DC;
+                }
+            }
+            d = r->distance;
+            r->distance = func_m031_007B4(r->previous, player->trans.x_position, player->trans.y_position,
+                                          player->trans.z_position, 1);
+            d = r->distance - d;
+            if (sCountdown <= 0 && -0.075f < d && d < 0.075f) {
+                r->unk24 += updateRate;
+            } else {
+                r->unk24 = 0;
+            }
+        }
+        if (r->unk1B > 0) {
+            r->unk1B -= updateRate;
+        }
+    }
+    for (r = sRacers, i = 0; i < count; i++, r++) {
+        pos = 0;
+        j = 0;
+        o = sRacers;
+        for (; j < count; j++, o++) {
+            if (j != i) {
+                if (r->unk8 < o->unk8 || r->unk1E < o->unk1E) {
+                    pos++;
+                } else if (r->unk8 == o->unk8) {
+                    if (r->unk14 != 0 && o->unk14 == 0) {
+                        pos++;
+                    } else if (r->unk14 == o->unk14) {
+                        if (r->unkC < o->unkC) {
+                            pos++;
+                        } else if (r->unkC == o->unkC && o->distance < r->distance) {
+                            pos++;
+                        }
+                    }
+                }
+            }
+        }
+        if (pos == r->position) {
+            r->unk1C += updateRate;
+        } else {
+            r->unk1C = 0;
+        }
+        r->position = pos;
+        if (r->computer) {
+            data = r->next->unk68;
+            if (!r->unk16 && data->unk2) {
+                if (r->position == 0 && r->unk1C >= 360) {
+                    r->unk17 = 1;
+                } else if (r->position != 0 || r->unk1C < 360) {
+                    r->unk17 = 0;
+                }
+            }
+        }
+    }
+    if (sCountdown > 0) {
+        t = sCountdown;
+        sCountdown -= updateRate;
+        if (t >= 300 && sCountdown < 300) {
+            func_80001248(0x164, 0);
+        } else if (t >= 240 && sCountdown < 240) {
+            func_80001248(0x162, 0);
+        } else if (t >= 180 && sCountdown < 180) {
+            func_80001248(0x160, 0);
+        } else if (t >= 120 && sCountdown < 120) {
+            func_80001248(0xDA, 0);
+        }
+    }
+    if (sCountdown < 120) {
+        rl_m031_021F0(updateRate);
+        func_m031_01150(count, updateRate);
+    }
+    if (*(u8 *) &D_800A4FB4 != 0 && sRacers[0].unk1E != 0) {
+        rl_m031_0242C(0, updateRate);
+    }
+}
+
+extern s8 D_800A5028;  /* the race's time limit, in minutes (0: none) */
+extern s16 D_800A4FB8;
+extern u8 D_800A4FBC;
+extern void func_80001170(u8 sound);
+extern void music_volume_fade_scaled(f32 volume, s32 arg1);
+extern void music_volume_fade(f32 volume, s32 arg1);
+extern void func_80000510(s32 song);
+extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern void mark_write_eeprom_settings(void);
+extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void func_800468C0(s32 arg0);
+extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
+extern void func_80048518(s32 arg0);
+
+/*
+ * The race's end: times the racers (to the limit) until every one has finished (laps or time), then the end
+ * fade, and after a button the next screen
+ */
+static void func_m031_01150(s32 count, s32 updateRate) {
+    s32 i;
+    s32 limit;
+    s32 done;
+    M031Racer *r;
+
+    switch (*(u8 *) &D_800A4FEC) {
+        case 0:
+            limit = D_800A5028 * 3600;
+            gMenuTimer += updateRate;
+            for (i = 0; i < count; i++) {
+                if (sRacers[i].unk1E == 0) {
+                    D_800FED50[i].time += updateRate;
+                    if (D_800A5024 && (u32) D_800FED50[i].time > (u32) limit) {
+                        D_800FED50[i].time = limit;
+                    }
+                }
+            }
+            i = 0;
+            sBss0 = -1;
+            r = sRacers;
+            if (!D_800A5024) {
+                for (; i < count; i++, r++) {
+                    if (r->unk8 >= D_800A502C && r->unk1E == 0) {
+                        r->unk1E = 4 - r->position;
+                        if (!r->computer) {
+                            r->computer = 1;
+                            r->unk17 = func_80048E2C(0, 2);
+                        }
+                    }
+                }
+                r = sRacers;
+            } else if (gMenuTimer >= limit) {
+                gMenuTimer = limit;
+                for (; i < count; i++, r++) {
+                    r->unk1E = 4 - r->position;
+                    if (!r->computer) {
+                        r->computer = 1;
+                        r->unk17 = func_80048E2C(0, 2);
+                    }
+                }
+                r = sRacers;
+            }
+            done = TRUE;
+            i = count;
+            while (i--) {
+                if (r->unk1E == 0 && !r->computer) {
+                    done = FALSE;
+                }
+                r++;
+            }
+            if (done) {
+                i = count;
+                while (i--) {
+                    D_800FED50[i].unk14 = 5 - sRacers[i].unk1E;
+                }
+                *(u8 *) &D_800A4FEC = 1;
+                if (D_800A503C) {
+                    func_80001170(0x4E);
+                    music_volume_fade_scaled(0.34f, 0x20);
+                } else if (!*(u8 *) &D_800A4FB4 || sRacers[0].unk1E == 4) {
+                    func_80000510(0x57);
+                } else {
+                    func_80000510(0x58);
+                }
+            }
+            break;
+        case 1:
+            if ((((u16 *) D_800FF1B8)[0] += updateRate) >= 256) {
+                ((u16 *) D_800FF1B8)[0] = 255;
+                *(u8 *) &D_800A4FEC = 2;
+                if (D_800A503C) {
+                    music_volume_fade_scaled(2.0f, 0x7F);
+                }
+            }
+            break;
+        case 2:
+            for (i = 0; i < count; i++) {
+                if (func_80043510(i) & 0x9000) {
+                    if (rl_m031_040F4) {
+                        mark_write_eeprom_settings();
+                    }
+                    if (*(u8 *) &D_800A4FB4) {
+                        if (D_800A503C) {
+                            func_8004665C(D_800A4FB8, D_800A4FC0, D_800A4FBC, 0x10, 1, 0);
+                        } else if (sRacers[0].unk1E == 4 && !game_flag_get(0x25)) {
+                            func_8004665C(0x18A, 3, 0, 0x10, 1, 0);
+                        } else {
+                            func_8004665C(0x11D, 3, 0, 0x10, 1, 0);
+                        }
+                        *(u8 *) &D_800A4FEC = 3;
+                    } else {
+                        music_volume_fade(0.5f, 0);
+                        func_800468C0(1);
+                        func_80047608(0x15, 0, 0);
+                        *(u8 *) &D_800A4FEC = 3;
+                    }
+                    break;
+                }
+            }
+            break;
+    }
+    if (*(u8 *) &D_800A4FEC) {
+        func_80048518(10);
+    }
+}
 
 extern u8 D_800A5040;
 extern f32 func_80097140(f32 x); /* square root */

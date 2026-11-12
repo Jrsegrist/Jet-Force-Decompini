@@ -19,9 +19,18 @@ typedef struct M126Setup {
     /* 0x26 */ u16 scaleB; /* percent */
 } M126Setup;
 
+/* The colour cycle of 55130.c (colour_cycle_init) */
+typedef struct M126ColourCycle {
+    /* 0x0 */ u8 pad0[8];
+    /* 0x8 */ u8 r; /* the current colour */
+    /* 0x9 */ u8 g;
+    /* 0xA */ u8 b;
+    /* 0xB */ u8 padB[0x10 - 0xB];
+} M126ColourCycle;
+
 /* Kept in obj->unk68 */
 typedef struct M126State {
-    /* 0x000 */ u8 pad0[0xF00];
+    /* 0x000 */ Vertex verts[2][4][48]; /* two buffers of each beam's three bands */
     /* 0xF00 */ s16 unkF00[4];
     /* 0xF08 */ s16 unkF08[4];
     /* 0xF10 */ s16 unkF10[4];
@@ -30,7 +39,7 @@ typedef struct M126State {
     /* 0xF30 */ s32 lights[4];
     /* 0xF40 */ u8 unkF40[4];
     /* 0xF44 */ u8 unkF44[4];
-    /* 0xF48 */ u8 unkF48[4][0x10];
+    /* 0xF48 */ M126ColourCycle cycles[4];
     /* 0xF88 */ s16 angles[4];
     /* 0xF90 */ s16 halfHeight;
     /* 0xF92 */ u8 padF92[2];
@@ -39,8 +48,10 @@ typedef struct M126State {
     /* 0xF9C */ f32 unkF9C[4];
     /* 0xFAC */ f32 unkFAC[4];
     /* 0xFBC */ f32 unkFBC;
-    /* 0xFC0 */ u8 padFC0[0xFC9 - 0xFC0];
+    /* 0xFC0 */ u8 padFC0[0xFC8 - 0xFC0];
+    /* 0xFC8 */ u8 buffer; /* which of verts the beams use */
     /* 0xFC9 */ u8 unkFC9;
+    /* 0xFCA */ s16 unkFCA;
 } M126State;
 
 extern void colour_cycle_init(void *arg0, s32 arg1);
@@ -140,7 +151,7 @@ void func_m126_00000(Object *obj, M126Setup *setup) {
         s->unkF20[i] = (s16) (obj->trans.y_position + setup->height);
         s->unkFAC[i] = 1.0f;
         s->unkF9C[i] = s->scaleA - sConsts[0];
-        colour_cycle_init(s->unkF48[i], setup->unk1E[i]);
+        colour_cycle_init(&s->cycles[i], setup->unk1E[i]);
         light.type = 1;
         light.unk1 = 3;
         light.flags = 0x40;
@@ -164,7 +175,94 @@ INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_00000);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_003D0);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_00E74);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* sets a texture */
+extern void func_8004959C(MtxF *mtx, f32 x, f32 y, f32 z);                 /* translation */
+extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx);                 /* scale */
+extern void func_80049AE8(s32 angle, MtxF *mtx);                           /* rotation */
+extern void mtx_model_push(Gfx **dl, Mtx **mtx, MtxF *mtxf);
+extern void mtx_pop(Gfx **dl);
+extern void func_80054EA0(u32 *width, u32 *height);
+extern void menu_fill_box(Gfx **dl, s32 x, s32 y, s32 width, s32 height, u32 colour);
+extern Triangle rl_m126_012A0[3][16];
+
+/* Draws the beams, furthest first, then fades the screen while the effect starts */
+void func_m126_00E74(Gfx **dList, Mtx **mtxList, Vertex **vtxList, Object *obj) {
+    Gfx *dl;
+    Mtx *mtx;
+    Vertex *vtx;
+    MtxF mtxf;
+    M126State *s;
+    s32 i;
+    s32 j;
+    s32 swapped;
+    s32 alpha;
+    s32 tmp;
+    s32 order[4];
+    Vertex *verts;
+    f32 y;
+    u32 width;
+    u32 height;
+
+    dl = *dList;
+    mtx = *mtxList;
+    vtx = *vtxList;
+    s = obj->unk68;
+    if (s->unkFCA < 0x164) {
+        func_80055C00(&dl, obj->modelInstances[0], 0x207, 0);
+        y = obj->trans.y_position;
+        for (i = 0; i < 4; i++) {
+            order[i] = i;
+        }
+        do {
+            swapped = FALSE;
+            for (j = 0; j < 3; j++) {
+                tmp = order[j + 1];
+                if (s->unkF9C[tmp] < s->unkF9C[order[j]]) {
+                    swapped = order[j];
+                    order[j] = tmp;
+                    order[j + 1] = swapped;
+                    swapped = TRUE;
+                }
+            }
+        } while (swapped);
+        for (i = 0; i < 4; i++) {
+            s32 beam;
+
+            beam = order[i];
+            verts = s->verts[0][beam] + s->buffer * (4 * 48);
+            if (s->unkF40[beam] != 0) {
+                Triangle *tris;
+
+                obj->trans.rotation.y_rotation = s->unkF10[beam];
+                obj->trans.y_position = s->unkF20[beam] + y;
+                func_8004959C(&mtxf, obj->trans.x_position, s->unkF20[beam], obj->trans.z_position);
+                func_80049874(s->unkF9C[beam], s->scaleB, s->unkF9C[beam], &mtxf);
+                func_80049AE8(s->unkF10[beam], &mtxf);
+                mtx_model_push(&dl, &mtx, &mtxf);
+                gDPPipeSync(dl++);
+                gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, s->unkF40[beam]);
+                gDPSetEnvColor(dl++, s->cycles[beam].r, s->cycles[beam].g, s->cycles[beam].b, s->unkF40[beam]);
+                tris = rl_m126_012A0[0];
+                for (j = 0; j < 3; j++) {
+                    gSPVertexJFG(dl++, (u8 *) verts + 0x80000000, 17, 0);
+                    gSPPolygon(dl++, (u8 *) tris + 0x80000000, 16, 1);
+                    verts += 16;
+                    tris += 16;
+                }
+            }
+        }
+        mtx_pop(&dl);
+        obj->trans.y_position = y;
+        func_80054EA0(&width, &height);
+        if (!(s->unkFBC > 4.8f)) {
+            alpha = s->unkFBC * 255.0f / 10.0f;
+            menu_fill_box(&dl, 0, 0, width, height, alpha | ~0xFF);
+        }
+    }
+    *dList = dl;
+    *mtxList = mtx;
+    *vtxList = vtx;
+}
 
 #ifndef NON_MATCHING
 INCLUDE_ASM("asm/nonmatchings/modules/m126", data);
