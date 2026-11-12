@@ -75,7 +75,8 @@ UL_O2_OBJS   := io/pirawdma io/pigetcmdq io/pimgr io/vimgr
 UL_MIPS1_OBJS := io/pimgr
 # The game's n_audio library holds libultra audio objects built unoptimised with debug information (-g)
 UL_G_OBJS    := audio/cspsetvol audio/cspgettempo audio/cspsetchlvol audio/cspsettempo audio/cspsetpan \
-                audio/cspgetstate audio/cspsetseq audio/cspplay audio/cspstop audio/cents2ratio
+                audio/cspgetstate audio/cspsetseq audio/cspplay audio/cspstop audio/cents2ratio \
+                audio/heap audio/sl
 UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,$(if $(filter $(UL_MIPS1_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-mips1,-mips2))
 
 LDFLAGS := -T $(LD_SCRIPT) \
