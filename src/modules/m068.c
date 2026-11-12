@@ -289,8 +289,53 @@ extern s32 rl_m068_12600;
 extern s32 rl_m068_12614[2];
 extern s32 rl_m068_12618;
 
-/* The module's .rodata and .bss (still assembly) */
-extern u8 rl_m068_12A38[];
+/* A part's state (.bss, 11 of them) */
+typedef struct M068PartState {
+    /* 0x00 */ s16 target[3]; /* the angles it turns to */
+    /* 0x06 */ s16 angle[3];
+    /* 0x0C */ f32 scale;
+    /* 0x10 */ s16 hp;
+    /* 0x12 */ s8 hit; /* set: damaged this frame */
+    /* 0x13 */ s8 alive;
+    /* 0x14 */ f32 rate[3]; /* how slowly each angle turns */
+} M068PartState;
+
+/*
+ * The module's .bss, in address order (the assembly functions reach it by
+ * offset). IDO puts each variable of 8 bytes or more on an 8-byte boundary.
+ */
+static s16 *sJointCmdNext;       /* 12A30: the next joint command */
+static u8 sJointCmds[0x100];     /* 12A38: the joint (tilt) command list */
+static s32 sBss12B38;
+static Object *sBss12B40[6];
+static Object *sBss12B58[6];
+static f32 sMtx12B70[4][4];      /* copies of some joints' matrices */
+static f32 sMtx12BB0[4][4];
+static Object *sBss12BF0[9];
+static f32 sMtx12C18[9][4][4];
+static Object *sBss12E58[3];
+static f32 sMtx12E68[3][4][4];
+static Object *sBss12F28;
+static f32 sMtx12F30[4][4];
+static Object *sPieces[6];       /* 12F70: the six pieces */
+static M068PartState sParts[11]; /* 12F88 */
+static u8 sBss130E8[0x230];
+static f32 sJointPos[126];       /* 13318: the joints' positions, x y z each */
+static Vec3f sDropPoints[4];     /* 13510: where they fall */
+static Vec3f sBss13540;
+static f32 sPlanes[2][4];        /* 13550: two planes (x, y, z, d) */
+static u8 sBss13570[0x80];
+static Vec3f sLandPoints[10];    /* 135F0: the landing points */
+static Vec3f sDropPoint;         /* 13668 */
+static Vec3f sBss13678;
+static u8 sBss13688[0x68];
+static Vec3f sTrailStart[5];     /* 136F0: the trail's start */
+static Vec3f sStripEnd;          /* 13730: where the electric strips reach to */
+static s16 sBss1373C;
+static Vec3f sCentre;            /* 13740: the centre */
+static f32 sCentreY;             /* 1374C: the ground's height there */
+static f32 sBss13750;
+static u8 sLightColour[3];       /* 13754: the strips' light and the glow sprite's colour */
 
 /* A part's set-up: only its turn */
 typedef struct M068TurnSetup {
@@ -309,7 +354,7 @@ void func_m068_00014(Object *obj, M068Setup *setup) {
 
 /* The tilt list (in the module's .bss) */
 void *func_m068_0002C(s32 arg0) {
-    return rl_m068_12A38;
+    return sJointCmds;
 }
 
 /* A light source of the level (what func_800218A8 lists) */
@@ -820,16 +865,6 @@ typedef struct M068Section {
     /* 0x8 */ u8 pad8[0xC - 0x8];
 } M068Section;
 
-/* A part's state (.bss, 11 of them) */
-typedef struct M068PartState {
-    /* 0x00 */ s16 target[3]; /* the angles it turns to */
-    /* 0x06 */ s16 angle[3];
-    /* 0x0C */ f32 scale;
-    /* 0x10 */ s16 hp;
-    /* 0x12 */ s8 hit; /* set: damaged this frame */
-    /* 0x13 */ s8 alive;
-    /* 0x14 */ f32 rate[3]; /* how slowly each angle turns */
-} M068PartState;
 
 /* An explosion near the boss */
 typedef struct M068Blast {
@@ -841,7 +876,6 @@ typedef struct M068Blast {
 } M068Blast;
 
 extern M068Section rl_m068_1254C[11];
-extern M068PartState rl_m068_12F88[11];
 extern f32 func_80049C30(s32 angle); /* cosine */
 
 /* An explosion: the joint nearest it in each live part takes damage falling off with distance */
@@ -871,7 +905,7 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
         sec = &rl_m068_1254C[i];
         if (sec->first >= 0) {
             best = -1;
-            if (rl_m068_12F88[i].alive) {
+            if (sParts[i].alive) {
                 bestDist = limit;
                 for (j = sec->first; j <= sec->last; j++) {
                     joint = &hits->joints[j];
@@ -911,8 +945,6 @@ extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
 extern f32 rl_m068_12620;      /* its height over the centre */
 extern f32 rl_m068_12624;      /* its distance from the centre */
-extern Vec3f rl_m068_13740;    /* the centre (.bss) */
-extern f32 rl_m068_1374C;      /* the ground's height there */
 
 /* A cut-scene camera: moves towards its place round the centre and turns to its target */
 void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
@@ -923,9 +955,9 @@ void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
     s16 yaw;
     s16 pitch;
 
-    x = func_80049C34(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740.x;
-    y = rl_m068_1374C + rl_m068_12620;
-    z = func_80049C30(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740.z;
+    x = func_80049C34(rl_m068_1260C) * rl_m068_12624 + sCentre.x;
+    y = sCentreY + rl_m068_12620;
+    z = func_80049C30(rl_m068_1260C) * rl_m068_12624 + sCentre.z;
     f = 1.0f - func_80049BEC(0.97f, updateRate);
     cam->trans.x_position += (x - cam->trans.x_position) * f;
     cam->trans.y_position += (y - cam->trans.y_position) * f;
@@ -1003,8 +1035,6 @@ extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned
 extern s32 rl_m068_125E0;      /* (.data) set: ... */
 extern s16 rl_m068_125E4;      /* (.data) */
 extern Object *rl_m068_12508;  /* (.data) */
-extern Vec3f rl_m068_13668;    /* (.bss) */
-extern Vec3f rl_m068_13678;    /* (.bss) */
 #ifdef NON_MATCHING
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate);
 #define rl_m068_05C8C func_m068_05C8C
@@ -1047,8 +1077,6 @@ typedef struct M068DropEntry {
 
 extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 strength);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
-extern Vec3f rl_m068_13510[4]; /* (.bss) where they fall */
-extern f32 rl_m068_13550[2][4]; /* (.bss) two planes (x, y, z, d) */
 
 /* The boss's helpers */
 #ifdef NON_MATCHING
@@ -1098,7 +1126,6 @@ static void func_m068_05028(Object *obj, M068State *s);
 extern void rl_m068_05028(Object *obj, M068State *s);
 #endif
 extern s32 rl_m068_125DC;      /* (.data) how many landing points */
-extern Vec3f rl_m068_135F0[];  /* (.bss) the landing points */
 extern void rl_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #ifdef NON_MATCHING
 static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
@@ -1188,21 +1215,15 @@ extern void rl_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *
 static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #endif
 
-/* The module's .data and .bss (still assembly) */
+/* The module's .data (still assembly) */
 extern s16 rl_m068_12610;       /* set: find the centre's height again */
-extern s16 *rl_m068_12A30;      /* the next joint command */
-extern s32 rl_m068_12B38;
-extern f32 rl_m068_13318[];     /* the joints' positions, x y z each (.bss) */
-extern f32 rl_m068_12B70[3][4]; /* copies of some joints' matrices */
-extern f32 rl_m068_12BB0[3][4];
-extern f32 rl_m068_12C18[9][4][4];
-extern f32 rl_m068_12E68[3][4][4];
-extern f32 rl_m068_12F30[3][4];
 
 #ifdef NON_MATCHING
 /*
  * The boss's control: its centre's height, its actions, its parts' damage and angles, and its joints.
- * Same length as the ROM; still differs in register choice (see the round 18 notes).
+ * Same length and saved registers as the ROM; the unrolled joint-position loop (42) is scheduled
+ * differently (the ROM keeps i+1, i+2, i+3 in one register, t5), which renumbers the t-registers of
+ * the matrix copies after it.
  */
 void func_m068_024EC(Object *obj, s32 updateRate) {
     M068Instance *inst;
@@ -1228,8 +1249,8 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     inst = obj->modelInstances[obj->modelIndex];
     model = inst->model;
     s = obj->unk68;
-    rl_m068_12A30 = (s16 *) rl_m068_12A38;
-    rl_m068_12B38 = 0;
+    sJointCmdNext = (s16 *) sJointCmds;
+    sBss12B38 = 0;
     s->unk1C = 0;
     s->unk60 = 0;
     s->unk50 = 0;
@@ -1240,12 +1261,12 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     s->unk94 = s->unk9A;
     if (rl_m068_12610 != 0) {
         if (s->flags & 0x20) {
-            func_8001B078(rl_m068_13740.x, rl_m068_13740.z, 0x800, &heights);
+            func_8001B078(sCentre.x, sCentre.z, 0x800, &heights);
             h1 = **heights;
-            rl_m068_1374C = h1;
+            sCentreY = h1;
         } else {
-            r = func_80082D80(rl_m068_13740.x, rl_m068_13740.z, 0x800, &heights2);
-            if (func_8001B078(rl_m068_13740.x, rl_m068_13740.z, 0x800, &heights)) {
+            r = func_80082D80(sCentre.x, sCentre.z, 0x800, &heights2);
+            if (func_8001B078(sCentre.x, sCentre.z, 0x800, &heights)) {
                 h1 = **heights;
             } else {
                 h1 = -32000.0f;
@@ -1256,9 +1277,9 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
                 h2 = -32000.0f;
             }
             if (h1 < h2) {
-                rl_m068_1374C = h2;
+                sCentreY = h2;
             } else {
-                rl_m068_1374C = h1;
+                sCentreY = h1;
             }
         }
         rl_m068_12610 = 0;
@@ -1323,7 +1344,9 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             case 7:
                 func_m068_0873C(obj, s, model, inst, updateRate, rate);
                 break;
-            case 0:
+case 0:
+                break;
+            default:
                 break;
         }
     } else {
@@ -1420,7 +1443,7 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
         for (i = 0; i != 11; i++) {
             sec = &rl_m068_1254C[i];
             if (sec->first >= 0) {
-                part = &rl_m068_12F88[i];
+                part = &sParts[i];
                 if (part->alive) {
                     sum = 0;
                     for (k = sec->first; k <= sec->last; k++) {
@@ -1464,44 +1487,44 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
         obj->trans.rotation.z_rotation = 0;
     }
     obj->trans.rotation.y_rotation = s->unk9A;
-    *rl_m068_12A30++ = rl_m068_1254C[0].joint * 6;
-    *rl_m068_12A30++ = s->unk98;
-    *rl_m068_12A30++ = rl_m068_1254C[0].joint * 6 + 4;
-    *rl_m068_12A30++ = s->unk96;
+    *sJointCmdNext++ = rl_m068_1254C[0].joint * 6;
+    *sJointCmdNext++ = s->unk98;
+    *sJointCmdNext++ = rl_m068_1254C[0].joint * 6 + 4;
+    *sJointCmdNext++ = s->unk96;
     for (i = 0; i < 11; i++) {
-        if (rl_m068_12F88[i].target[0] != rl_m068_12F88[i].angle[0]) {
-            rl_m068_12F88[i].angle[0] = angle_lerp(rl_m068_12F88[i].angle[0], rl_m068_12F88[i].target[0], 1.0f - func_80049BEC(rl_m068_12F88[i].rate[0], updateRate));
+        if (sParts[i].target[0] != sParts[i].angle[0]) {
+            sParts[i].angle[0] = angle_lerp(sParts[i].angle[0], sParts[i].target[0], 1.0f - func_80049BEC(sParts[i].rate[0], updateRate));
         }
-        if (rl_m068_12F88[i].target[1] != rl_m068_12F88[i].angle[1]) {
-            rl_m068_12F88[i].angle[1] = angle_lerp(rl_m068_12F88[i].angle[1], rl_m068_12F88[i].target[1], 1.0f - func_80049BEC(rl_m068_12F88[i].rate[1], updateRate));
+        if (sParts[i].target[1] != sParts[i].angle[1]) {
+            sParts[i].angle[1] = angle_lerp(sParts[i].angle[1], sParts[i].target[1], 1.0f - func_80049BEC(sParts[i].rate[1], updateRate));
         }
-        if (rl_m068_12F88[i].target[2] != rl_m068_12F88[i].angle[2]) {
-            rl_m068_12F88[i].angle[2] = angle_lerp(rl_m068_12F88[i].angle[2], rl_m068_12F88[i].target[2], 1.0f - func_80049BEC(rl_m068_12F88[i].rate[2], updateRate));
+        if (sParts[i].target[2] != sParts[i].angle[2]) {
+            sParts[i].angle[2] = angle_lerp(sParts[i].angle[2], sParts[i].target[2], 1.0f - func_80049BEC(sParts[i].rate[2], updateRate));
         }
-        if (rl_m068_12F88[i].angle[0] != 0) {
-            *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6 + 2;
-            *rl_m068_12A30++ = rl_m068_12F88[i].angle[0];
+        if (sParts[i].angle[0] != 0) {
+            *sJointCmdNext++ = rl_m068_1254C[i].joint * 6 + 2;
+            *sJointCmdNext++ = sParts[i].angle[0];
         }
-        if (rl_m068_12F88[i].angle[1] != 0) {
-            *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6;
-            *rl_m068_12A30++ = rl_m068_12F88[i].angle[1];
+        if (sParts[i].angle[1] != 0) {
+            *sJointCmdNext++ = rl_m068_1254C[i].joint * 6;
+            *sJointCmdNext++ = sParts[i].angle[1];
         }
-        if (rl_m068_12F88[i].angle[2] != 0) {
-            *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6 + 4;
-            *rl_m068_12A30++ = rl_m068_12F88[i].angle[2];
+        if (sParts[i].angle[2] != 0) {
+            *sJointCmdNext++ = rl_m068_1254C[i].joint * 6 + 4;
+            *sJointCmdNext++ = sParts[i].angle[2];
         }
-        if (rl_m068_12F88[i].scale != 1.0f) {
-            sec = &rl_m068_1254C[i];
-            *rl_m068_12A30++ = (sec->joint * 6) | 0x4000;
-            *rl_m068_12A30++ = (u16) (rl_m068_12F88[i].scale * 32768.0f);
-            *rl_m068_12A30++ = (sec->joint * 6 + 2) | 0x4000;
-            *rl_m068_12A30++ = (u16) (rl_m068_12F88[i].scale * 32768.0f);
-            *rl_m068_12A30++ = (sec->joint * 6 + 4) | 0x4000;
-            *rl_m068_12A30++ = (u16) (rl_m068_12F88[i].scale * 32768.0f);
+        sec = &rl_m068_1254C[i];
+        if (sParts[i].scale != 1.0f) {
+            *sJointCmdNext++ = (sec->joint * 6) | 0x4000;
+            *sJointCmdNext++ = (u16) (sParts[i].scale * 32768.0f);
+            *sJointCmdNext++ = (sec->joint * 6 + 2) | 0x4000;
+            *sJointCmdNext++ = (u16) (sParts[i].scale * 32768.0f);
+            *sJointCmdNext++ = (sec->joint * 6 + 4) | 0x4000;
+            *sJointCmdNext++ = (u16) (sParts[i].scale * 32768.0f);
         }
     }
     rl_m068_0BE14(obj, s, updateRate, rate);
-    *rl_m068_12A30++ = 0x1000;
+    *sJointCmdNext++ = 0x1000;
     rl_m068_09088(obj, s, model, inst, updateRate, rate);
     func_m068_0BB4C(obj, s, model, inst, updateRate, rate);
     func_8003D21C(inst, model, obj, 1.0f, 0.0f);
@@ -1509,9 +1532,9 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
     obj_tex_animate(obj, model, inst, inst->hidden);
     inst->hidden = 0;
     for (i = 0; i < 11; i++) {
-        rl_m068_12F88[i].hit = 0;
+        sParts[i].hit = 0;
     }
-    dst = rl_m068_13318;
+    dst = sJointPos;
     for (i = 0; i < 42; i++) {
         src = (f32 *) &inst->frames[inst->frame][i];
         dst[0] = src[12];
@@ -1519,21 +1542,21 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
         dst[2] = src[14];
         dst += 3;
     }
-    if (rl_m068_12F88[2].scale != 0.01f && !(s->flags & 0x20)) {
+    if (sParts[2].scale != 0.01f && !(s->flags & 0x20)) {
         src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[2].joint];
         for (k = 0; k < 12; k++) {
-            ((f32 *) rl_m068_12B70)[k] = src[k];
+            ((f32 *) sMtx12B70)[k] = src[k];
         }
     }
-    if (rl_m068_12F88[3].scale != 0.01f && !(s->flags & 0x20)) {
+    if (sParts[3].scale != 0.01f && !(s->flags & 0x20)) {
         src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[3].joint];
         for (k = 0; k < 12; k++) {
-            ((f32 *) rl_m068_12BB0)[k] = src[k];
+            ((f32 *) sMtx12BB0)[k] = src[k];
         }
     }
-    if (rl_m068_12F88[6].scale != 0.01f && (s->flags & 0x20)) {
+    if (sParts[6].scale != 0.01f && (s->flags & 0x20)) {
         src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[6].joint];
-        dst = (f32 *) rl_m068_12C18;
+        dst = (f32 *) sMtx12C18;
         for (i = 0; i < 9; i++) {
             for (k = 0; k < 12; k++) {
                 dst[k] = src[k];
@@ -1542,9 +1565,9 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             src += 16;
         }
     }
-    if (rl_m068_12F88[5].scale != 0.01f && (s->flags & 0x20)) {
+    if (sParts[5].scale != 0.01f && (s->flags & 0x20)) {
         src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[5].joint];
-        dst = (f32 *) rl_m068_12E68;
+        dst = (f32 *) sMtx12E68;
         for (i = 0; i < 3; i++) {
             for (k = 0; k < 12; k++) {
                 dst[k] = src[k];
@@ -1553,11 +1576,11 @@ void func_m068_024EC(Object *obj, s32 updateRate) {
             src += 16;
         }
     }
-    if (rl_m068_12F88[4].scale != 0.01f) {
+    if (sParts[4].scale != 0.01f) {
         if (s->flags & 0x20) {
             src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[4].joint];
             for (k = 0; k < 12; k++) {
-                ((f32 *) rl_m068_12F30)[k] = src[k];
+                ((f32 *) sMtx12F30)[k] = src[k];
             }
         }
     }
@@ -1600,10 +1623,10 @@ static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate)
     M068PartState *parts;
 
     player = func_8000E4D0(0);
-    head = (Vec3f *) &rl_m068_13318[rl_m068_1254C[1].joint * 3];
+    head = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
     dx = player->trans.x_position - head->x;
     dz = player->trans.z_position - head->z;
-    parts = rl_m068_12F88;
+    parts = sParts;
     parts[1].rate[0] = 0.9f;
     if (s->unkB0 == 1 || s->unkB0 == 6 || s->unkB0 == 7) {
         parts[1].target[0] = 0;
@@ -1650,9 +1673,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03C70);
 static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068Player *player;
 
-    rl_m068_12F88[1].target[0] = 0;
+    sParts[1].target[0] = 0;
     if (s->events & 0x800) {
-        rl_m068_12F88[6].hit = 1;
+        sParts[6].hit = 1;
     } else if (s->events & 0x8000) {
         func_m068_092F0(obj, 4, 1);
         if (!(s->flags & 0x80)) {
@@ -1677,9 +1700,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03E24);
 static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068Player *player;
 
-    rl_m068_12F88[1].target[0] = 0;
+    sParts[1].target[0] = 0;
     if (s->events & 0x1000) {
-        rl_m068_12F88[5].hit = 1;
+        sParts[5].hit = 1;
     } else if (s->events & 0x8000) {
         func_m068_092F0(obj, 4, 1);
         if (!(s->flags & 0x40)) {
@@ -1708,7 +1731,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0447C);
 static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     UNUSED s32 pad;
 
-    rl_m068_12F88[1].target[0] = 0;
+    sParts[1].target[0] = 0;
     if (s->events & 0x4000) {
         level_goto(0x184, func_800468CC(), 0, menu_mode_get(), 1, 0);
     }
@@ -1734,7 +1757,7 @@ static void func_m068_04600(Object *obj, M068State *s) {
     func_m068_092F0(obj, 2, 0);
     player->unk18E = 1;
     func_m006_015E0(1);
-    rl_m068_1261C = (Vec3f *) &rl_m068_13318[rl_m068_1254C[1].joint * 3];
+    rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
     func_m068_0BDC4(obj, s, 0x31, 0.0f);
 }
 #else
@@ -1744,7 +1767,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04600);
 /* Phase 15: parts 5 and 6 grow back to full size */
 #ifdef NON_MATCHING
 static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate) {
-    M068PartState *parts = rl_m068_12F88;
+    M068PartState *parts = sParts;
 
     parts[1].target[0] = 0;
     if (parts[6].scale != 1.0f) {
@@ -1753,7 +1776,7 @@ static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate)
             parts[6].scale = 1.0f;
         }
     }
-    parts = rl_m068_12F88; /* (set again: the ROM rebuilds the base after the call) */
+    parts = sParts; /* (set again: the ROM rebuilds the base after the call) */
     if (parts[5].scale != 1.0f) {
         parts[5].scale += (1.0f - parts[5].scale) * (1.0f - func_80049BEC(0.97f, updateRate));
         if (parts[5].scale > 0.97f) {
@@ -1824,11 +1847,11 @@ static void func_m068_04938(Object *obj, M068State *s) {
     f32 a;
     f32 b;
 
-    plane = rl_m068_13550[0];
-    a = obj->trans.x_position * rl_m068_13550[0][0] + obj->trans.z_position * rl_m068_13550[0][2] + rl_m068_13550[0][3];
-    b = obj->trans.x_position * rl_m068_13550[1][0] + obj->trans.z_position * rl_m068_13550[1][2] + rl_m068_13550[1][3];
+    plane = sPlanes[0];
+    a = obj->trans.x_position * sPlanes[0][0] + obj->trans.z_position * sPlanes[0][2] + sPlanes[0][3];
+    b = obj->trans.x_position * sPlanes[1][0] + obj->trans.z_position * sPlanes[1][2] + sPlanes[1][3];
     if (a < b) {
-        plane = rl_m068_13550[1];
+        plane = sPlanes[1];
         s->unkBA = 1;
         s->unkA8 = 1;
         s->unkBC = 0;
@@ -1876,7 +1899,7 @@ static void func_m068_05028(Object *obj, M068State *s) {
         player->unk18E = 1;
         player->unk5C8 = 0x7D00;
         func_m006_015E0(1);
-        rl_m068_1261C = (Vec3f *) &rl_m068_13318[rl_m068_1254C[2].joint * 3];
+        rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
     } else {
         s->unk9E = s->unkC;
     }
@@ -1991,15 +2014,15 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_054A0);
 #endif
 
 #ifdef NON_MATCHING
-/* Jumps towards the drop point rl_m068_13668 (phase 8) */
+/* Jumps towards the drop point sDropPoint (phase 8) */
 /* Matches; its only C caller is 05100 (NON_MATCHING), so it stays asm until 05100 is C. */
 static void func_m068_05570(Object *obj, M068State *s) {
     f32 dx;
     f32 dz;
     f32 d;
 
-    dx = rl_m068_13668.x - obj->trans.x_position;
-    dz = rl_m068_13668.z - obj->trans.z_position;
+    dx = sDropPoint.x - obj->trans.x_position;
+    dz = sDropPoint.z - obj->trans.z_position;
     d = func_80097140(dx * dx + dz * dz);
     if (d > 0.0f) {
         dx /= d;
@@ -2010,7 +2033,7 @@ static void func_m068_05570(Object *obj, M068State *s) {
     s->unk28 = dz;
     s->unkC0 = -dx;
     s->unkC4 = -dz;
-    s->unk40 = rl_m068_13668.y;
+    s->unk40 = sDropPoint.y;
     chain_object_unlink_from_players(obj);
     func_m068_092F0(obj, 2, 0);
     s->unkBC = 0;
@@ -2029,7 +2052,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05570);
 static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     if (s->unkAC == 1) {
         if (s->events & 0x400) {
-            rl_m068_12F88[2].hit = 1;
+            sParts[2].hit = 1;
         } else if (obj->animationID == 0x23) {
             ((u8 *) obj->shadow)[0xC] = s->unkE;
             s->unkAA = 9;
@@ -2041,9 +2064,9 @@ static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate)
             rl_m068_1261C = (Vec3f *) &rl_m068_12508->trans.x_position;
         }
     } else if (s->unkAC == 2) {
-        if (rl_m068_05C8C(obj, s, &rl_m068_13668, rl_m068_125E4, updateRate, rate) == 0) {
-            obj->trans.x_position = rl_m068_13668.x;
-            obj->trans.z_position = rl_m068_13668.z;
+        if (rl_m068_05C8C(obj, s, &sDropPoint, rl_m068_125E4, updateRate, rate) == 0) {
+            obj->trans.x_position = sDropPoint.x;
+            obj->trans.z_position = sDropPoint.z;
             s->unkAC = 1;
             s->unk20 = 0.0f;
             s->unk2C = 0.0f;
@@ -2079,7 +2102,7 @@ static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate)
         entry.unkC = -0x4000;
         entry.unkE = 30;
         entry.unk10 = 0.5f;
-        for (i = 0, p = rl_m068_13510; i != 4; i++, p++) {
+        for (i = 0, p = sDropPoints; i != 4; i++, p++) {
             entry.common.x = p->x;
             entry.common.y = p->y;
             entry.common.z = p->z;
@@ -2096,7 +2119,7 @@ static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unkAA = 0;
         s->flags |= 0x20;
         s->timer = 0.0f;
-        rl_m068_1261C = (Vec3f *) &rl_m068_13318[rl_m068_1254C[4].joint * 3];
+        rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[4].joint * 3];
     }
 }
 #else
@@ -2132,7 +2155,7 @@ static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate)
                 do {
                     n = func_80048E2C(0, rl_m068_125DC - 1);
                 } while (n == s->unkBA);
-                target = &rl_m068_135F0[n];
+                target = &sLandPoints[n];
                 dx = target->x - obj->trans.x_position;
                 dz = target->z - obj->trans.z_position;
                 d = func_80097140(dx * dx + dz * dz);
@@ -2151,7 +2174,7 @@ static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
         s->unk80 = 100;
     } else if (s->unkAC == 2) {
-        target = &rl_m068_135F0[s->unkBA];
+        target = &sLandPoints[s->unkBA];
         if (rl_m068_05C8C(obj, s, target,
                             func_80049C84(player->trans.x_position - obj->trans.x_position,
                                           player->trans.z_position - obj->trans.z_position) + 0x8000,
@@ -2256,7 +2279,7 @@ static void func_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate)
         entry.unkC = -0x4000;
         entry.unkE = 30;
         entry.unk10 = 0.5f;
-        for (i = 0, p = rl_m068_13510; i != 4; i++, p++) {
+        for (i = 0, p = sDropPoints; i != 4; i++, p++) {
             entry.common.x = p->x;
             entry.common.y = p->y;
             entry.common.z = p->z;
@@ -2313,9 +2336,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06180);
 static void func_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     if (rl_m068_125E0 != 0) {
         if (s->unkA8 == 0) {
-            obj->trans.x_position = rl_m068_13678.x;
-            obj->trans.z_position = rl_m068_13678.z;
-            s->unk40 = rl_m068_13678.y;
+            obj->trans.x_position = sBss13678.x;
+            obj->trans.z_position = sBss13678.z;
+            s->unk40 = sBss13678.y;
             func_m068_0BDC4(obj, s, 13, 0.0f);
             s->unk82 = 1;
             ((u8 *) obj->shadow)[0xC] = 0;
@@ -2388,10 +2411,10 @@ static void func_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unk83 ^= 1;
     }
     if (s->unk7E != 0) {
-        *rl_m068_12A30++ = rl_m068_1254C[2].joint * sizeof(Vec3s) + 2;
-        *rl_m068_12A30++ = s->unk7E;
-        *rl_m068_12A30++ = rl_m068_1254C[3].joint * sizeof(Vec3s) + 2;
-        *rl_m068_12A30++ = -s->unk7E;
+        *sJointCmdNext++ = rl_m068_1254C[2].joint * sizeof(Vec3s) + 2;
+        *sJointCmdNext++ = s->unk7E;
+        *sJointCmdNext++ = rl_m068_1254C[3].joint * sizeof(Vec3s) + 2;
+        *sJointCmdNext++ = -s->unk7E;
     }
 }
 #else
@@ -2444,10 +2467,10 @@ static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unk83 ^= 1;
     }
     if (s->unk7E != 0) {
-        *rl_m068_12A30++ = rl_m068_1254C[2].joint * sizeof(Vec3s) + 2;
-        *rl_m068_12A30++ = s->unk7E;
-        *rl_m068_12A30++ = rl_m068_1254C[3].joint * sizeof(Vec3s) + 2;
-        *rl_m068_12A30++ = -s->unk7E;
+        *sJointCmdNext++ = rl_m068_1254C[2].joint * sizeof(Vec3s) + 2;
+        *sJointCmdNext++ = s->unk7E;
+        *sJointCmdNext++ = rl_m068_1254C[3].joint * sizeof(Vec3s) + 2;
+        *sJointCmdNext++ = -s->unk7E;
     }
 }
 #else
@@ -2610,11 +2633,11 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
     if (on) {
         damage = 100;
         off = 0;
-        rl_m068_12F88[index].alive = 1;
+        sParts[index].alive = 1;
     } else {
         damage = 0;
         off = 1;
-        rl_m068_12F88[index].alive = 0;
+        sParts[index].alive = 0;
     }
     for (j = sec->first; j <= sec->last; j++) {
         joint = &hits->joints[j];
@@ -2724,7 +2747,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BB4C);
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame) {
     if (anim != obj->animationID) {
         obj_anim_set(obj, anim, frame);
-        rl_m068_12B38++;
+        sBss12B38++;
     }
 }
 #else
@@ -3191,8 +3214,6 @@ typedef struct M068LightHandle {
     /* 0x4 */ M068LightData *data;
 } M068LightHandle;
 
-extern Vec3f rl_m068_13730;  /* where the electric strips reach to (.bss) */
-extern u8 rl_m068_13754[3];  /* their light's colour (.bss) */
 extern f32 rl_m068_12650[9]; /* the strips' widths along them (.data) */
 extern void func_800492DC(Object *obj, Vec3f *vec);
 
@@ -3241,9 +3262,9 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
         dy = s->target.y - obj->trans.y_position;
         dz = s->target.z - obj->trans.z_position;
     } else {
-        dx = rl_m068_13730.x - obj->trans.x_position;
-        dy = rl_m068_13730.y - obj->trans.y_position;
-        dz = rl_m068_13730.z - obj->trans.z_position;
+        dx = sStripEnd.x - obj->trans.x_position;
+        dy = sStripEnd.y - obj->trans.y_position;
+        dz = sStripEnd.z - obj->trans.z_position;
     }
     obj->trans.rotation.y_rotation = func_80049C84(dx, dz) + 0x8000;
     obj->trans.rotation.x_rotation = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
@@ -3349,13 +3370,13 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
         light->x = 0.0f;
         light->y = 0.0f;
         light->z = -radius;
-        rl_m068_13754[0] = light->r;
-        rl_m068_13754[1] = light->g;
-        rl_m068_13754[2] = light->b;
+        sLightColour[0] = light->r;
+        sLightColour[1] = light->g;
+        sLightColour[2] = light->b;
     }
-    s->target.x = obj->trans.x_position + (rl_m068_13730.x - obj->trans.x_position) * s->t;
-    s->target.y = obj->trans.y_position + (rl_m068_13730.y - obj->trans.y_position) * s->t;
-    s->target.z = obj->trans.z_position + (rl_m068_13730.z - obj->trans.z_position) * s->t;
+    s->target.x = obj->trans.x_position + (sStripEnd.x - obj->trans.x_position) * s->t;
+    s->target.y = obj->trans.y_position + (sStripEnd.y - obj->trans.y_position) * s->t;
+    s->target.z = obj->trans.z_position + (sStripEnd.z - obj->trans.z_position) * s->t;
     if (s->t == 1.0f) {
         dx = obj->trans.x_position;
         dy = obj->trans.y_position;
@@ -3398,7 +3419,6 @@ typedef struct M068Electro {
 extern Vertex rl_m068_12674[];   /* the effect's core (.data) */
 extern Triangle rl_m068_126C0[];
 extern u32 rl_m068_12720[2];     /* the effect's two colours */
-extern u8 rl_m068_13754[3];      /* the glow sprite's colour (.bss) */
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
 extern void func_80055C00(Gfx **dl, void *model, s32 flags, s32 arg3);
 extern void func_80041DC0(Gfx **dl);
@@ -3441,7 +3461,7 @@ void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             v += 18;
         }
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[2];
-        func_8005600C(255, 255, 255, rl_m068_13754[0], rl_m068_13754[1], rl_m068_13754[2]);
+        func_8005600C(255, 255, 255, sLightColour[0], sLightColour[1], sLightColour[2]);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, e->x, e->y, e->z, 0, e->scale * 3.0f, 0.0f, 12, 255);
         func_80056064();
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
@@ -3537,7 +3557,6 @@ typedef struct M068BoltModel {
     /* 0x70 */ Vec3f *points;
 } M068BoltModel;
 
-extern f32 rl_m068_13318[]; /* the joints' positions, x y z each (.bss) */
 
 #ifdef NON_MATCHING
 /*
@@ -3579,7 +3598,7 @@ void func_m068_0E668(Object *obj, s32 updateRate) {
     s = obj->unk68;
     model = *(M068BoltModel **) s->owner->modelInstances;
     sec = &rl_m068_1254C[s->section];
-    to = &rl_m068_13318[rl_m068_1254C[4].joint * 3];
+    to = &sJointPos[rl_m068_1254C[4].joint * 3];
     from = &model->points[func_80048E2C(sec->first, sec->last)];
     obj->trans.x_position = from->x;
     obj->trans.y_position = from->y;
@@ -3857,7 +3876,6 @@ typedef struct M068BoulderSetup {
 extern void func_80049394(Vec3s *rotation, Vec3f *vec);
 extern s32 rl_m068_125E8;       /* how many trail points (.data) */
 extern s32 rl_m068_125FC;       /* the boulders made (.data) */
-extern Vec3f rl_m068_136F0[];   /* the trail's start (.bss) */
 
 #ifdef NON_MATCHING
 /*
@@ -3888,7 +3906,7 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     obj->trans.x_position += v.x;
     obj->trans.y_position += v.y;
     obj->trans.z_position += v.z;
-    for (i = 0, t = b->trail, src = rl_m068_136F0; i < rl_m068_125E8; i++, t++, src++) {
+    for (i = 0, t = b->trail, src = sTrailStart; i < rl_m068_125E8; i++, t++, src++) {
         t->x = src->x;
         t->y = src->y;
         t->z = src->z;
@@ -4500,7 +4518,6 @@ typedef struct M068Matrices {
 } M068Matrices;
 
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* transforms a point */
-extern Object *rl_m068_12F70[6]; /* the six pieces (.bss) */
 extern MtxF rl_m068_1250C;       /* (.data) */
 
 /* Breaks the object up: sends each of the six pieces flying out from its point of the model, then frees it */
@@ -4546,7 +4563,7 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
             dy = y - obj->trans.y_position;
             dz = z - obj->trans.z_position;
             d = func_80097140(dx * dx + dy * dy + dz * dz);
-            piece = rl_m068_12F70[i];
+            piece = sPieces[i];
             dx /= d;
             dy /= d;
             dz /= d;
@@ -4567,6 +4584,3 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_110E0);
 INCLUDE_ASM("asm/nonmatchings/modules/m068", data);
 
 /* (.rodata: C, and the assembly functions' own from ro/) */
-
-INCLUDE_ASM("asm/nonmatchings/modules/m068", bss);
-
