@@ -3512,7 +3512,7 @@ s32 func_m003_0C1A0(Object *obj, Object *target, s16 *yaw, s16 *pitch, f32 *dist
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0C324);
 
 extern u8 D_800FE9EE;
-extern s32 obj_id_is_special(s16 id);
+extern s32 obj_id_is_special(s32 id);
 
 /* Whether the current member wants to fire at its target, `dist` away (and turned at most `maxAngle` off) */
 int func_m003_0CAA4(f32 dist, f32 arg1, s16 maxAngle) {
@@ -3700,8 +3700,101 @@ s32 func_m003_0D2C0(Object *obj) {
     return (s32) sBody;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0D360);
-extern void rl_m003_0D360(Object *home); /* still assembly */
+/* What a member's header (obj->header) gives its hit box */
+typedef struct M003Header {
+    /* 0x00 */ u8 pad0[0xB4];
+    /* 0xB4 */ s16 hitX;
+    /* 0xB6 */ s16 hitY;
+    /* 0xB8 */ s16 hitZ;
+    /* 0xBA */ u8 hitKind;
+    /* 0xBB */ u8 padBB;
+    /* 0xBC */ f32 hitRadius;
+    /* 0xC0 */ f32 hitHeight;
+} M003Header;
+
+extern void func_m002_00000(void);
+
+/* The member being set up joins the troop of `home` (once): its place in the troop's list, hit box and size */
+static void func_m003_0D360(Object *home) {
+    Object *first;
+    M003Member *m;
+    s32 n;
+    M003Header *header;
+    Object *next; /* only assigned: the original's register choice needs it */
+
+    if (!sMember->unk0_24) {
+        sMember->event = -1;
+        sMember->earPos[0] = sObj->trans.x_position;
+        sMember->earPos[1] = sObj->trans.y_position;
+        sMember->earPos[2] = sObj->trans.z_position;
+        sMember->unk9C = sObj->trans.rotation.y_rotation;
+        sMember->lastX = sObj->trans.x_position;
+        sMember->lastY = sObj->trans.y_position;
+        sMember->lastZ = sObj->trans.z_position;
+        n = 0;
+        sMember->headless = obj_id_is_special(sHomeData->kind);
+        if (home != NULL) {
+            sMember->unkA8 = NULL;
+            if (sHomeData->kind == 0xE6) {
+                func_m002_00000();
+            }
+            first = sHomeData->first;
+            if (first != NULL) {
+                m = first->unk68;
+                n = 1;
+                while ((next = m->next) != NULL) {
+                    if (m->unk15 >= n) {
+                        n = m->unk15 + 1;
+                    }
+                    m = m->next->unk68;
+                }
+                if (m->unk15 >= n) {
+                    n = m->unk15 + 1;
+                }
+                m->next = sObj;
+                sMember->next = NULL;
+            } else {
+                sHomeData->first = sObj;
+            }
+            sMember->unk15 = n;
+            sHomeData->unk0++;
+            sHomeData->arrived++;
+            sMember->unkA6 = sHomeData->unk2A;
+            sMember->home = home;
+            sMember->troop = sHomeData->unk64;
+            if (sHomeData->moveKind == 4 || sHomeData->moveKind == 5) {
+                sObj->trans.rotation.y_rotation = sMember->unk1C;
+                sMember->unk46 = func_80048E2C(-3000, 3000);
+            }
+            if (sHomeData->unk1D) {
+                sMember->unk17 = 10;
+                sMember->unk0_28 = TRUE;
+            }
+            sMember->unk4E = func_80048E2C(0, 0x7FFF);
+            if (sMember->placed) {
+                sObj->modelIndex = sHomeData->unk62;
+            }
+            func_m003_0D2C0(sObj);
+            if (sBody != NULL) {
+                func_m003_04D08(0, 0x3B, 1, 3);
+            }
+            if (sBody->unk2B == 5) {
+                ((M003Group *) &sMember->group)->fireproof = TRUE;
+            }
+            if (sHomeData->unk2 != 0) {
+                sObj->trans.scale = sHomeData->unk2 * 0.01f;
+            } else {
+                sObj->trans.scale = 1.0f;
+            }
+            header = (M003Header *) sObj->header;
+            func_80079D1C(sObj, sHomeData->unk2A, header->hitKind, 0x10, header->hitX, header->hitY, header->hitZ,
+                          header->hitRadius, header->hitHeight, -1.0f, 1.0f, 0x11);
+            /* the object's word at 0x34: its hit radius at its size */
+            *(f32 *) ((u8 *) sObj + 0x34) = ((M003Header *) sObj->header)->hitRadius * sObj->trans.scale;
+            sMember->unk0_24 = TRUE;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D810);
 
@@ -3787,7 +3880,7 @@ void func_m003_0DF84(obj, entry)
         sMember->unk57 = sHomeData->unk8C;
         sHomeData->unk8C++;
     }
-    rl_m003_0D360(sHome);
+    func_m003_0D360(sHome);
 }
 
 extern void audspat_point_set_volume(s32 handle, u8 volume);
