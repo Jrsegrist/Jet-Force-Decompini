@@ -102,12 +102,17 @@ typedef struct Racer {
     /* 0x186 */ s8 unk186;
     /* 0x187 */ u8 pad187[0x188 - 0x187];
     /* 0x188 */ u8 unk188;
-    /* 0x189 */ u8 pad189[0x190 - 0x189];
+    /* 0x189 */ u8 pad189;
+    /* 0x18A */ u8 unk18A;
+    /* 0x18B */ s8 unk18B;
+    /* 0x18C */ u8 pad18C[0x190 - 0x18C];
     /* 0x190 */ u8 unk190;
     /* 0x191 */ u8 pad191[0x198 - 0x191];
     /* 0x198 */ u8 unk198;
     /* 0x199 */ s8 unk199;
-    /* 0x19A */ u8 pad19A[0x19E - 0x19A];
+    /* 0x19A */ u8 pad19A[0x19C - 0x19A];
+    /* 0x19C */ u8 unk19C;
+    /* 0x19D */ u8 pad19D;
     /* 0x19E */ u8 unk19E;
     /* 0x19F */ u8 unk19F;
     /* 0x1A0 */ u8 pad1A0[0x1C6 - 0x1A0];
@@ -286,6 +291,35 @@ typedef struct M017LevelHeader {
     /* 0xE2 */ u8 unkE2;
 } M017LevelHeader;
 
+/* A level object entry built on the stack */
+typedef struct M017SpawnEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 angle;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+} M017SpawnEntry;
+
+extern Object *func_80005F14(void *entry, s32 arg1); /* spawn_object */
+extern u8 D_800A4FD0;
+extern s32 weapon_usable_by_character(Racer *racer);
+
+/* The animation table: per animation, its variants and a pose index */
+typedef struct M017Anim {
+    u8 normal;
+    u8 alt1;
+    u8 alt2;
+    u8 pose;
+    u8 alt1Pose;
+} M017Anim;
+extern M017Anim rl_m017_062C8[]; /* (.data) */
+extern void func_80048518(s32 arg0);
+extern void func_80033920(Object *obj, Racer *racer);
+
 extern M017WeaponInfo gWeaponInfo[];
 extern M017Buttons *D_800A18B0;
 extern u32 D_800A197C[4]; /* the button for each weapon slot */
@@ -372,19 +406,19 @@ static void func_m017_050BC(Object *obj, Racer *racer, f32 updateRate);
 static void func_m017_056D4(Object *obj, Racer *racer, s32 updateRate);
 
 /* The static functions, still assembly */
-extern void rl_m017_01A30(Object *obj, Racer *racer, s32 updateRate);
+static void func_m017_01A30(Object *obj, Racer *racer, s32 updateRate);
+static void func_m017_05F08(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate);
 extern void rl_m017_02564(M017Model *model, M017ModelInst *inst, Racer *racer, s32 updateRate);
-extern void rl_m017_02A40(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
-extern void rl_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
+static void func_m017_02A40(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
+static void func_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 extern void rl_m017_03258(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
-extern void rl_m017_02848(Object *obj, Racer *racer, f32 updateRate);
+static void func_m017_02848(Object *obj, Racer *racer, f32 updateRate);
 extern s32 rl_m017_04A44(Racer *racer, f32 *frame);
-extern void rl_m017_04178(Racer *racer, s16 roll, s16 pitch, s16 yaw);
-extern void rl_m017_04270(s16 pitch, s16 yaw);
-extern void rl_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame);
+static void func_m017_04178(Racer *racer, s16 roll, s16 pitch, s16 yaw);
+static void func_m017_04270(s16 pitch, s16 yaw);
+static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame);
 extern void rl_m017_04C50(Object *obj, Racer *racer, f32 speed, f32 updateRate);
 extern void rl_m017_05930(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
-extern void rl_m017_05F08(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate);
 
 /* .data: the particle emitters for each level kind */
 extern u32 rl_m017_06450[];
@@ -458,7 +492,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
     if (racer->unk19F != 0 || racer->unk10D != 0) {
         player_input_lock_set(1);
         if (obj->animationID != 0x16) {
-            rl_m017_04B84(obj, racer, 0x16, 0);
+            func_m017_04B84(obj, racer, 0x16, 0);
         }
     }
     if (racer->unk1FA >= 2) {
@@ -530,7 +564,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
         racer->unk185 += updateRate;
         if (racer->unk185 >= 16) {
             racer->unk57C = obj->trans.y_position;
-            rl_m017_04B84(obj, racer, 0x10, 0);
+            func_m017_04B84(obj, racer, 0x10, 0);
             racer->unk56A = racer->state;
             racer->state = 3;
             racer->unk58E = 0;
@@ -539,7 +573,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
         racer->unk185 += updateRate;
         if (racer->unk185 >= 16) {
             racer->unk57C = obj->trans.y_position;
-            rl_m017_04B84(obj, racer, 0x10, 0);
+            func_m017_04B84(obj, racer, 0x10, 0);
             racer->unk56A = 0;
             racer->state = 3;
             racer->unk58E = 0;
@@ -568,7 +602,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
         racer->unk2 = 1;
         racer->unk60 = racer->unk5C - obj->trans.y_position;
         if (racer->unk3 != 1 && racer->unk74 < 0.0f) {
-            rl_m017_01A30(obj, racer, updateRate);
+            func_m017_01A30(obj, racer, updateRate);
         }
         if ((racer->character == 6 && racer->unk60 > 12.5f) || (racer->character == 2 && racer->unk60 > 28.0f)) {
             deep = 1;
@@ -583,15 +617,15 @@ void func_m017_00000(Object *obj, s32 updateRate) {
         racer->unk12C = 0;
         racer->unk128 = racer->unk11C;
         if (racer->character == 6) {
-            rl_m017_04B84(obj, racer, 6, obj->unk28);
+            func_m017_04B84(obj, racer, 6, obj->unk28);
         } else {
             racer->unk53D = 0;
             racer->flags.bits.unk31 = 0;
             racer->unk538 = 0;
             if (racer->unk4 < -0.85f || racer->unk4 > 0.85f || obj->velocity.y > 0.85f) {
-                rl_m017_04B84(obj, racer, 0x14, obj->unk28);
+                func_m017_04B84(obj, racer, 0x14, obj->unk28);
             } else {
-                rl_m017_04B84(obj, racer, 0x15, obj->unk28);
+                func_m017_04B84(obj, racer, 0x15, obj->unk28);
             }
         }
     }
@@ -601,9 +635,9 @@ void func_m017_00000(Object *obj, s32 updateRate) {
             interact->hitPoints = 0x2200;
         } else {
             if (racer->character == 6 && racer->state == 4) {
-                rl_m017_04B84(obj, racer, 0x1C, 0);
+                func_m017_04B84(obj, racer, 0x1C, 0);
             } else {
-                rl_m017_04B84(obj, racer, 0x17, 0);
+                func_m017_04B84(obj, racer, 0x17, 0);
             }
             obj->interactObj->hitPoints = 0;
             if (D_800A4FC4 == 0) {
@@ -630,10 +664,10 @@ void func_m017_00000(Object *obj, s32 updateRate) {
             func_m017_02A54(obj, racer, speed, angle, updateRate);
             break;
         case 1:
-            rl_m017_0313C(obj, racer, speed, angle, updateRate);
+            func_m017_0313C(obj, racer, speed, angle, updateRate);
             break;
         case 2:
-            rl_m017_02A40(obj, racer, speed, angle, updateRate);
+            func_m017_02A40(obj, racer, speed, angle, updateRate);
             break;
         case 3:
             rl_m017_03258(obj, racer, speed, angle, updateRate);
@@ -645,7 +679,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
             rl_m017_05930(obj, racer, speed, angle, updateRate);
             break;
         case 10:
-            rl_m017_05F08(obj, racer, speed, angle, updateRate);
+            func_m017_05F08(obj, racer, speed, angle, updateRate);
             break;
         case 11:
             func_m017_04614(obj, racer, speed, angle, updateRate);
@@ -830,12 +864,12 @@ void func_m017_00000(Object *obj, s32 updateRate) {
             if (obj->animationID == 0x1B) {
                 obj_anim_set(obj, 0x1B, 0);
             } else {
-                rl_m017_04B84(obj, racer, 0x1B, 0);
+                func_m017_04B84(obj, racer, 0x1B, 0);
             }
         } else if (obj->animationID == 0xE) {
             obj_anim_set(obj, 0xE, 0);
         } else {
-            rl_m017_04B84(obj, racer, 0xE, 0);
+            func_m017_04B84(obj, racer, 0xE, 0);
         }
         racer->unk577 = 40;
     }
@@ -917,7 +951,53 @@ s32 func_m017_01990(Object *obj, Racer *racer) {
     return FALSE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_01A30);
+/* Entering water: the splash sound, and a splash object (or particles) */
+static void func_m017_01A30(Object *obj, Racer *racer, s32 updateRate) {
+    s32 volume;
+    u32 savedEmitters;
+    M017SpawnEntry entry;
+    f32 size;
+    s16 rotX;
+    s16 rotZ;
+    Object *spawned;
+
+    volume = -racer->unk74 * 15.0f;
+    if (volume > 0x7F) {
+        volume = 0x7F;
+    }
+    func_80001248(0xD, (s32) &racer->unkD4);
+    func_800013FC(0xD, racer->unkD4, volume);
+    if (racer->unk74 < -5.0f) {
+        entry.objectID = 0xC0;
+        entry.size = 0x10;
+        entry.x = obj->trans.x_position;
+        entry.y = racer->unk5C;
+        entry.z = obj->trans.z_position;
+        entry.angle = 0x100;
+        size = -(racer->unk74 + 5.0f);
+        if (size > 10.0f) {
+            size = 10.0f;
+        }
+        entry.unkC = size;
+        spawned = func_80005F14(&entry, 1);
+        if (spawned != NULL) {
+            spawned->level_entry = NULL;
+        }
+    } else {
+        savedEmitters = obj->particleEmittersEnabled;
+        rotZ = obj->trans.rotation.z_rotation;
+        rotX = obj->trans.rotation.x_rotation;
+        obj->trans.y_position += racer->unk60;
+        obj->trans.rotation.z_rotation = 0;
+        obj->trans.rotation.x_rotation = 0;
+        obj->particleEmittersEnabled = 0x40;
+        func_8005F5AC(obj, updateRate);
+        obj->trans.y_position -= racer->unk60;
+        obj->trans.rotation.x_rotation = rotX;
+        obj->trans.rotation.z_rotation = rotZ;
+        obj->particleEmittersEnabled = savedEmitters;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_01C44);
 
@@ -1088,9 +1168,41 @@ static void func_m017_01F7C(Object *obj, Racer *racer, s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_02564);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_02848);
+/* Sideways movement on two of the buttons in the standing states; slows it down otherwise */
+static void func_m017_02848(Object *obj, Racer *racer, f32 updateRate) {
+    racer->unk56C = 0;
+    if (racer->state == 0 || racer->state == 5 || racer->state == 11) {
+        if (D_800A18B0->unk14 & gPlayerButtonsHeld) {
+            racer->unk10 -= 0.175f * updateRate;
+            if (racer->unk10 < -2.25f) {
+                racer->unk10 = -2.25f;
+            }
+            if (racer->character == 6 && obj->animationID != 0x19) {
+                func_m017_04B84(obj, racer, 0x19, 0);
+            }
+            racer->unk56C = 1;
+        } else if (D_800A18B0->unk18 & gPlayerButtonsHeld) {
+            racer->unk10 += 0.175f * updateRate;
+            if (racer->unk10 > 2.25f) {
+                racer->unk10 = 2.25f;
+            }
+            if (racer->character == 6 && obj->animationID != 0x1A) {
+                func_m017_04B84(obj, racer, 0x1A, 0);
+            }
+            racer->unk56C = 1;
+        }
+    }
+    if (racer->unk56C == 0) {
+        racer->unk10 *= func_80049BEC(0.85f, updateRate);
+        if (racer->unk10 > -0.1f && racer->unk10 < 0.1f) {
+            racer->unk10 = 0.0f;
+        }
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_02A40);
+/* State 2: nothing to do */
+static void func_m017_02A40(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
+}
 
 /* State 0: on foot */
 static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
@@ -1106,7 +1218,7 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     }
     if (obj->animationID == 0x11 && racer->unk56B == 0) {
-        rl_m017_04B84(obj, racer, rl_m017_04A44(racer, &frame), 0);
+        func_m017_04B84(obj, racer, rl_m017_04A44(racer, &frame), 0);
     }
     if (gPlayerButtonsHeld & 0x10) {
         racer->unk11C -= racer->unk10A;
@@ -1131,7 +1243,7 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         return;
     }
     player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
-    rl_m017_02848(obj, racer, updateRate);
+    func_m017_02848(obj, racer, updateRate);
     if ((D_800A18B0->unkC & gPlayerButtonsPressed) && racer->unk534 == 0) {
         x = racer->unk4;
         if (x < 0.0f) {
@@ -1140,21 +1252,21 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         if (racer->unk569 != 0) {
             racer->unk57A = 20;
             racer->unk57B = 0;
-            rl_m017_04B84(obj, racer, 5, 0);
+            func_m017_04B84(obj, racer, 5, 0);
         } else if ((x > 1.25f && speed != 0) || racer->unk56C != 0) {
             racer->unk57A = 0;
             obj->velocity.y += 10.0f;
             if (racer->unk510 != NULL) {
                 obj->velocity.y -= racer->unk510->velocity.y;
             }
-            rl_m017_04B84(obj, racer, 5, 0);
+            func_m017_04B84(obj, racer, 5, 0);
             player_voice_play(obj, 0);
         } else {
             racer->unk57A = 24;
             racer->unk57B = 0;
             /* spelled 0.f: IDO shares a float literal only with the same spelling (0.0f would reuse the
                register of the x < 0.0f compare above) */
-            rl_m017_04B84(obj, racer, 4, 0.f);
+            func_m017_04B84(obj, racer, 4, 0.f);
         }
         racer->unk57C = obj->trans.y_position;
         racer->state = 3;
@@ -1165,10 +1277,10 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
             x = -x;
         }
         if (x > 2.0f) {
-            rl_m017_04B84(obj, racer, 8, 0);
+            func_m017_04B84(obj, racer, 8, 0);
             racer->unk576 = 40;
         } else {
-            rl_m017_04B84(obj, racer, 7, 0);
+            func_m017_04B84(obj, racer, 7, 0);
         }
         racer->unk56C = 0;
         racer->state = 1;
@@ -1183,7 +1295,7 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     player_quick_turn(obj, racer, &speed, &angle, 0x6AAA, 0x38E, &out, 0.0625f, updateRate);
     if (out != 0) {
-        rl_m017_04B84(obj, racer, 8, 0);
+        func_m017_04B84(obj, racer, 8, 0);
     }
     oldAngle = racer->unk11C;
     if (!camera_follow_get() && !func_8004271C()) {
@@ -1214,7 +1326,7 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (racer->state == 0 && x < -0.38f && obj->animationID != 0xE && obj->animationID != 0x1B &&
         obj->animationID != 0x11) {
         racer->unk576 = 4;
-        rl_m017_04B84(obj, racer, 8, 0);
+        func_m017_04B84(obj, racer, 8, 0);
     }
     x = racer->unk4;
     if (racer->unk4 < 0.0f) {
@@ -1226,13 +1338,65 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     racer->unk120 = oldAngle * x * 0.3333f;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_0313C);
+/* State 1 */
+static void func_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
+    func_m017_02848(obj, racer, updateRate);
+    if (racer->unk576 != 0) {
+        racer->unk576 -= (s32) updateRate;
+        if (racer->unk576 <= 0) {
+            racer->unk576 = 0;
+            racer->unk4 = 0.0f;
+            func_m017_04B84(obj, racer, 7, 0.0f);
+        }
+    } else if (1.0f == obj->unk28) {
+        func_m017_04B84(obj, racer, 0, 0.0f);
+        racer->state = 0;
+        racer->unk576 = 0;
+    }
+    racer->unk4 *= func_80049BEC(0.95f, updateRate);
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_03258);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_04178);
+/* Adds the commands that turn the body (character 6 uses other joints) */
+static void func_m017_04178(Racer *racer, s16 roll, s16 pitch, s16 yaw) {
+    if (racer->character == 6) {
+        *D_m017_069C4 = 0x36;
+        D_m017_069C4++;
+        *D_m017_069C4 = pitch;
+        D_m017_069C4++;
+        *D_m017_069C4 = 0x38;
+        D_m017_069C4++;
+        *D_m017_069C4 = yaw;
+        D_m017_069C4++;
+        return;
+    }
+    *D_m017_069C4 = 0x5A;
+    D_m017_069C4++;
+    *D_m017_069C4 = pitch;
+    D_m017_069C4++;
+    *D_m017_069C4 = 0x5C;
+    D_m017_069C4++;
+    *D_m017_069C4 = yaw;
+    D_m017_069C4++;
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_04270);
+/* Adds the head-turn commands, the first angle clamped to +-60 degrees */
+static void func_m017_04270(s16 pitch, s16 yaw) {
+    if (pitch > 0x2AAA) {
+        pitch = 0x2AAA;
+    } else if (pitch < -0x2AAA) {
+        pitch = -0x2AAA;
+    }
+    *D_m017_069C4 = 0x30;
+    D_m017_069C4++;
+    *D_m017_069C4 = pitch;
+    D_m017_069C4++;
+    *D_m017_069C4 = 0x32;
+    D_m017_069C4++;
+    *D_m017_069C4 = yaw;
+    D_m017_069C4++;
+}
 
 /* State 5: aiming */
 static void func_m017_0430C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
@@ -1250,7 +1414,7 @@ static void func_m017_0430C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         racer->unk104 = 0x8000 - obj->trans.rotation.y_rotation;
         return;
     }
-    rl_m017_02848(obj, racer, updateRate);
+    func_m017_02848(obj, racer, updateRate);
     racer->unk4 *= func_80049BEC(0.95f, updateRate);
     if (-0.1f < racer->unk4 && racer->unk4 < 0.1f) {
         racer->unk4 = 0.0f;
@@ -1278,8 +1442,8 @@ static void func_m017_0430C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (racer->unk1F6 != 0) {
         pitch += (racer->unk1F7 * func_8004966C(racer->unk1F6 << 12)) >> 8;
     }
-    rl_m017_04270(racer->unk1DE, racer->unk1DC);
-    rl_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, yaw);
+    func_m017_04270(racer->unk1DE, racer->unk1DC);
+    func_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, yaw);
 }
 
 /* State 11: aiming while strafing */
@@ -1298,7 +1462,7 @@ static void func_m017_04614(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         racer->unk104 = 0x8000 - obj->trans.rotation.y_rotation;
         return;
     }
-    rl_m017_02848(obj, racer, updateRate);
+    func_m017_02848(obj, racer, updateRate);
     if (func_8005AAB8(racer->player) && chr->weapon != 7 &&
         ((s32) (D_800A18B0->unk20 | D_800A18B0->unk1C) & gPlayerButtonsHeld)) {
         if (racer->unk199 != 0) {
@@ -1347,13 +1511,26 @@ static void func_m017_04614(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     if (racer->unk1F6 != 0) {
         pitch += (racer->unk1F7 * func_8004966C(racer->unk1F6 << 12)) >> 8;
     }
-    rl_m017_04270(racer->unk1DE, racer->unk1DC);
-    rl_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, yaw);
+    func_m017_04270(racer->unk1DE, racer->unk1DC);
+    func_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, yaw);
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_04A44);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017", func_m017_04B84);
+/* Sets the animation: the armed or carrying variant of `anim` when that applies */
+static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame) {
+    if (racer->unk1F4 != 0) {
+        anim = rl_m017_062C8[anim].alt1;
+    } else if (weapon_usable_by_character(racer)) {
+        anim = rl_m017_062C8[anim].alt2;
+    } else {
+        anim = rl_m017_062C8[anim].normal;
+    }
+    if (anim != obj->animationID) {
+        obj_anim_set(obj, anim, frame);
+        D_m017_069B8++;
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_04C50);
 
@@ -1532,14 +1709,76 @@ static void func_m017_056D4(Object *obj, Racer *racer, s32 updateRate) {
         if (racer->unk1F6 != 0) {
             pitch += (racer->unk1F7 * func_8004966C(racer->unk1F6 << 12)) >> 8;
         }
-        rl_m017_04270(racer->unk1DE, racer->unk1DC);
-        rl_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, racer->unk1CE);
+        func_m017_04270(racer->unk1DE, racer->unk1DC);
+        func_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, racer->unk1CE);
     }
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_05930);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_05F08);
+/* State 10: dead */
+static void func_m017_05F08(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate) {
+    f32 damp;
+    Vec3f *p;
+    Object *spawned;
+    M017SpawnEntry entry;
+    s32 pad;
+    s32 idx;
+    M017ModelInst *inst;
+    M017Model *model;
+
+    if (D_800A4FD0 == 1) {
+        func_80048518(10);
+    }
+    INTERACT(obj)->hitPoints = 0;
+    damp = func_80049BEC(0.85f, updateRate);
+    racer->unk4 *= damp;
+    if (-0.1f < racer->unk4 && racer->unk4 < 0.1f) {
+        racer->unk4 = 0.0f;
+    }
+    racer->unk10 *= damp;
+    if (-0.1f < racer->unk10 && racer->unk10 < 0.1f) {
+        racer->unk10 = 0.0f;
+    }
+    racer->flags.byte[1] &= ~0xF;
+    if (racer->unk2 == 0) {
+        racer->unk594 *= damp;
+    } else {
+        racer->unk594 = 0.875f;
+        obj->velocity.y *= func_80049BEC(0.8f, updateRate);
+        if (racer->unk18A < 0xF0) {
+            racer->unk18A++;
+        }
+        if (racer->unk18B <= (s32) updateRate) {
+            inst = MODEL_INST(obj, obj->modelIndex);
+            model = inst->model;
+            idx = func_80048E2C(0, model->unk2F - 1);
+            p = &inst->vertices[idx];
+            if (p->y < racer->unk5C) {
+                entry.objectID = 0xBA;
+                entry.size = 0x14;
+                entry.unk3 = 0;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.angle = func_80048E2C(-0x8000, 0x7FFF);
+                entry.unkC = func_80048E2C(0, 0x23) * 0.01f;
+                entry.unk10 = racer->unk5C;
+                spawned = func_80005F14(&entry, 1);
+                if (spawned != NULL) {
+                    spawned->level_entry = NULL;
+                }
+            }
+            racer->unk18B = racer->unk18A >> 2;
+        } else {
+            racer->unk18B -= (s32) updateRate;
+        }
+    }
+    racer->unk19C = 0;
+    if (obj->unk28 == 1.0f) {
+        func_80033920(obj, racer);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m017", data);
 
