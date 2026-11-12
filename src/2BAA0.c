@@ -397,9 +397,6 @@ s32 func_80049C84(f32 x, f32 z);
 
 #define CHASECAM ((Transform2BAA0 *) D_800F6DC0)
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 6 words: the target loads D_800ABDBC before reloading racer and puts the racer->unk104 store in
- * the next call's delay slot; mine stores it first */
 /* JFG: the chase camera: its yaw (racer 0x104) eases to behind the player, its distance to 120 and height to 50;
  * the camera eases to that point, then turns to look at a point 45 up and 80 ahead of the player */
 void func_8002BD04(s16 *obj, Racer *racer, f32 updateRate) {
@@ -420,8 +417,9 @@ void func_8002BD04(s16 *obj, Racer *racer, f32 updateRate) {
     dist = sqrtf(dx * dx + dz * dz);
     rate = updateRate;
     angle = 0x6000 - obj[0];
-    racer->unk104 = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(D_800ABDB8, rate));
+    angle = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(D_800ABDB8, rate));
     dz = D_800ABDBC;
+    racer->unk104 = angle;
     dist = (1.0f - func_80049BEC(dz, rate)) * (120.0f - dist) + dist;
     dy = (1.0f - func_80049BEC(dz, rate)) * (50.0f - dy) + dy;
     dx = *(f32 *) (obj + 6) + func_80049C34(racer->unk104) * dist;
@@ -445,9 +443,6 @@ void func_8002BD04(s16 *obj, Racer *racer, f32 updateRate) {
     CHASECAM->rotation[1] = angle_lerp(CHASECAM->rotation[1], pitch, t);
     CHASECAM->rotation[2] = angle_lerp(CHASECAM->rotation[2], 0, t);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002BD04);
-#endif
 
 
 s32 cam_get_active_camera_id(void);
