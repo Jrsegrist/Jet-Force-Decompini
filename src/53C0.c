@@ -2233,20 +2233,19 @@ void render_object(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj) {
     *verts = gObjectCurrVertexList;
 }
 
-#ifdef NON_MATCHING
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 
 /**
- * JFG: no vehicle check.
+ * JFG: no vehicle check (DKR's statement order; the clamp compares with an int 0 and goes through temp).
  * Official Name: objDoPlayerTumble
- * NON_MATCHING: the right length, but the cosine is kept at sp+0x18 (target 0x1C) and the
- * ternary's 0.0f reuses the compare's register (target: a second mtc1 into $f0).
  */
 void object_do_player_tumble(Object *this) {
     UNUSED s32 unused1;
     Object_Racer *sp_20;
     f32 tmp_f2;
     f32 offsetY;
+    f32 tmp_f0;
+    f32 temp;
 
     if (this->behaviorId == BHV_RACER) {
         sp_20 = this->racer;
@@ -2254,15 +2253,15 @@ void object_do_player_tumble(Object *this) {
         this->trans.x_rotation += sp_20->x_rotation_offset;
         this->trans.z_rotation += sp_20->z_rotation_offset;
         offsetY = func_80049C30(sp_20->z_rotation_offset);
-        tmp_f2 = func_80049C30(sp_20->x_rotation_offset - sp_20->unk146) * offsetY;
-        offsetY = (1.0f - ((tmp_f2 < 0.0f) ? 0.0f : tmp_f2 * tmp_f2)) * 24.0f + sp_20->unk64;
+        tmp_f2 = offsetY;
+        tmp_f0 = func_80049C30(sp_20->x_rotation_offset - sp_20->unk146) * tmp_f2;
+        temp = (tmp_f0 < 0) ? 0.0f : tmp_f0 * tmp_f0;
+        temp = (1.0f - temp) * 24.0f + sp_20->unk64;
+        offsetY = temp;
         this->trans.y_position = this->trans.y_position + offsetY;
         gObjectOffsetY = offsetY;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DC28);
-#endif
 
 /**
  * Official Name: objUndoPlayerTumble

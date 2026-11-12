@@ -9,20 +9,25 @@
 
 /************ .bss ************/
 
-extern MemoryPool gMemoryPools[POOL_COUNT];
-extern s32 gNumberOfMemoryPools;
-extern s32 gFreeQueueTimer;
-extern s32 gFreeQueueCount;
+MemoryPool gMemoryPools[POOL_COUNT];
+s32 gNumberOfMemoryPools;
+UNUSED s32 D_800FD884;
+void *gFreeQueueAddress[256];
+u8 gFreeQueueTimers[256];
+s32 gFreeQueueCount;
+s32 gFreeQueueTimer;
+s32 gMainPoolFreeBytes;        // JFG: free RAM in the main pool (bytes)
+UNUSED s32 D_800FDD94;
+s32 gPoolFreeBytes[POOL_COUNT]; // JFG: free bytes per pool
+s32 gRamEnd;
+
 extern u8 gExpansionPak;
-extern s32 gRamEnd;
 extern u8 gMainMemoryPool[]; // the end of the game's .bss
 
 #define RAM_END 0x80400000
 #define EXPANSION_RAM_END 0x80600000
 #define MAIN_POOL_SLOT_COUNT 1600
 
-extern s32 gMainPoolFreeBytes;                // JFG: free RAM in the main pool (bytes)
-extern s32 gPoolFreeBytes[POOL_COUNT];    // JFG: free bytes per pool
 extern s32 gForcedColourTag;                // JFG: a forced colour tag (or -1)
 extern s32 gForcedColourTag2;                // JFG: a second forced colour tag (or -1)
 void func_80054368(s32 address, s32 *module, s32 *offset, s32 arg3);
@@ -278,8 +283,6 @@ void mempool_free_timer(s32 state) {
     gFreeQueueTimer = state;
 }
 
-extern void *gFreeQueueAddress[256];
-
 /* DKR: the flush loop of mempool_free_timer - frees everything in the free queue now (0x8004AA14). */
 void mempool_free_queue_flush(void) {
     while (gFreeQueueCount > 0) {
@@ -302,8 +305,6 @@ void mempool_free(void *data) {
     }
 }
 
-extern void *gFreeQueueAddress[256];
-extern u8 gFreeQueueTimers[256];
 void runlink_unload_idle(void);
 s32 runlink_module_loaded(s32 module);
 void func_80054530(void); // a module function (patched in by the runtime linker)
@@ -463,8 +464,6 @@ INCLUDE_ASM("asm/nonmatchings/memory", func_8004AD2C);
 MemoryPoolSlot *get_memory_pool_address(MemoryPools poolIndex) {
     return gMemoryPools[poolIndex].slots;
 }
-
-extern s32 gFreeQueueTimer;
 
 /* Returns the free queue's tick timer (0x8004AEAC). */
 s32 mempool_free_timer_get(void) {
