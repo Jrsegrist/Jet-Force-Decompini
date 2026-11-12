@@ -1532,12 +1532,9 @@ void add_segment_to_order(s32 segmentIndex, s32 *segmentsOrderIndex, u8 *segment
  * Iterates through every existing segment to see which one the position is inside.
  * Uses mainly a two dimensional axis check here, instead of the function above.
  * Returns the segment currently inside.
- * JFG: inclusive bounds, a smaller starting distance.
+ * JFG: inclusive bounds, a smaller starting distance; x is converted once, before the loop.
  * Official Name: trackGetBlock
- * NON_MATCHING: same instructions, other registers (target: i in a3, the count in t0,
- * minVal in a1, x in v0).
  */
-#ifdef NON_MATCHING
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos) {
     LevelModelSegmentBoundingBox *bb;
     s32 i;
@@ -1545,18 +1542,23 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos) {
     s32 result;
     s32 heightDiff;
     s32 x1, x2, z1, z2;
+    s32 x;
+    LevelModel *model;
 
     result = -1;
     if (gCurrentLevelModel != NULL) {
+        model = gCurrentLevelModel;
         minVal = 0x7FFF;
-        for (i = 0, bb = gCurrentLevelModel->segmentsBoundingBoxes; i < gCurrentLevelModel->numberOfSegments;
-             i++, bb++) {
+        x = xPos;
+        bb = model->segmentsBoundingBoxes;
+        for (i = 0; i < model->numberOfSegments; i++, bb++) {
             x1 = bb->x1;
-            z1 = bb->z1;
             x2 = bb->x2;
+            z1 = bb->z1;
             z2 = bb->z2;
-            if ((s32) xPos <= x2 && (s32) xPos >= x1 && (s32) zPos <= z2 && (s32) zPos >= z1) {
-                heightDiff = ((bb->y1 + bb->y2) >> 1) - (s32) yPos;
+            if (x <= x2 && x >= x1 && (s32) zPos <= z2 && (s32) zPos >= z1) {
+                heightDiff = (bb->y1 + bb->y2) >> 1;
+                heightDiff -= (s32) yPos;
                 if (heightDiff < 0) {
                     heightDiff = -heightDiff;
                 }
@@ -1569,9 +1571,6 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos) {
     }
     return result;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80015510);
-#endif
 
 /* Writes the segments whose bounding box holds the point on the XZ plane; returns the count (0x8001563C). */
 /**

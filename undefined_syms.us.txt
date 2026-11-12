@@ -454,6 +454,7 @@ gObjectCurrVertexList = 0x800F2CD0;
 func_80012BA0 = set_skydome_visbility;
 func_80015228 = traverse_segments_bsp_tree;
 func_80015444 = add_segment_to_order;
+func_80015510 = get_level_segment_index_from_position;
 func_80015714 = get_inside_segment_count_xyz;
 func_8001587C = block_boundbox;
 func_8001B650 = get_current_level_model;
