@@ -8,7 +8,7 @@
 INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", rodata);
 
 static void *func_m007_00578(s32 hint, s32 kind);
-extern s32 rl_m007_00390(s32 condition);
+static s32 func_m007_00390(s32 condition);
 static void func_m007_00DF0(void);
 static void func_m007_0070C(void);
 #ifdef NON_MATCHING
@@ -248,11 +248,11 @@ void func_m007_00148(s32 hint, s32 arg1) {
         n = p->count - 1;
         c = p->choices;
         while (n--) {
-            a = rl_m007_00390(c->cond1 & 0x7F);
+            a = func_m007_00390(c->cond1 & 0x7F);
             if (c->cond1 & 0x80) {
                 a = !a;
             }
-            b = rl_m007_00390(c->cond2 & 0x7F);
+            b = func_m007_00390(c->cond2 & 0x7F);
             if (c->cond2 & 0x80) {
                 b = !b;
             }
@@ -281,7 +281,7 @@ void func_m007_00148(s32 hint, s32 arg1) {
 extern s32 rl_m007_02A78[12]; /* .data (still assembly): game flags that 0032C counts */
 
 /* How many of the twelve flags are set (called from 00390) */
-s32 func_m007_0032C(void) {
+static s32 func_m007_0032C(void) {
     s32 i;
     s32 count = 0;
 
@@ -294,7 +294,82 @@ s32 func_m007_0032C(void) {
     return count;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00390);
+/* The player's data (its object's unk68), as 00390 uses it */
+typedef struct M007Player {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x189 - 0x2];
+    /* 0x189 */ s8 unk189;
+} M007Player;
+
+/* A character's items, as 00390 uses them */
+typedef struct M007Items {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 flags;
+    /* 0x0C */ u8 padC[0x12 - 0xC];
+    /* 0x12 */ s16 count;
+} M007Items;
+
+extern M007Items *func_80047C1C(s32 player, s32 character);
+extern s32 character_has_item(s32 player, s32 character, s32 item);
+extern s32 player_chars_have_item(s32 item);
+
+/* Whether hint condition `condition` holds (with no player, every one does) */
+static s32 func_m007_00390(s32 condition) {
+    M007Player *p;
+    Object *obj;
+    M007Items *items;
+
+    obj = func_8000E4D0(0);
+    if (obj == NULL) {
+        return TRUE;
+    }
+    p = obj->unk68;
+    items = func_80047C1C(p->player, p->character);
+    switch (condition) {
+        case 1:
+            return rl_m007_02A6C;
+        case 2:
+            return character_has_item(p->player, p->character, 1);
+        case 3:
+            return player_chars_have_item(0x15);
+        case 4:
+            return items->flags & 0x20;
+        case 6:
+            return game_flag_get(0x59);
+        case 5:
+            return game_flag_get(0x20);
+        case 7:
+            return game_flag_get(0x21);
+        case 8:
+            return game_flag_get(0x22);
+        case 9:
+            return game_flag_get(0x23);
+        case 17:
+            return game_flag_get(0x24);
+        case 10:
+            return func_m007_0032C() == 0;
+        case 11:
+            return func_m007_0032C() < 7;
+        case 12:
+            return func_m007_0032C() >= 7;
+        case 13:
+            return func_m007_0032C() == 12;
+        case 14:
+            return game_flag_get(0x58);
+        case 15:
+            return p->unk189 == 0;
+        case 16:
+            return p->unk189 == 2;
+        case 18:
+            return player_chars_have_item(0x16);
+        case 19:
+            return game_flag_get(0x2B);
+        case 20:
+            return player_chars_have_item(0x11);
+    }
+    return TRUE;
+}
 
 /*
  * Shows hint text `hint` (kind 1: pages, 2: special, else scrolling), pushing it on the stack of

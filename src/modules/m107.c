@@ -178,8 +178,7 @@ void func_m107_00038(Object *obj, s32 updateRate) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Sets up the shield; the triangle-table loop's temporaries get other registers */
+/* Sets up the shield: its rings' parameters and lights (and, the first time, the shared triangles and circle) */
 void func_m107_0027C(Object *obj, M107Entry *entry) {
     M107Shield *shield = obj->unk68;
     s32 i;
@@ -228,8 +227,8 @@ void func_m107_0027C(Object *obj, M107Entry *entry) {
     shield->owner = entry->owner;
     if (!sTablesBuilt) {
         tri = sTriangles;
-        v = 0;
         u = 0x7E0;
+        v = 0;
         for (i = 0; i < 8; i++) {
             tri[0].flags = 0x40;
             tri[0].vi0 = v;
@@ -240,6 +239,7 @@ void func_m107_0027C(Object *obj, M107Entry *entry) {
             tri[0].uv[1][0] = u - 0xFC;
             tri[0].uv[1][1] = 0;
             tri[0].uv[2][0] = u;
+            if (u) {} /* a no-op (permuter): keeps u in v1 and the index in a0, as in the ROM */
             tri[0].uv[2][1] = 0x1E0;
             tri[1].flags = 0x40;
             tri[1].vi0 = v + 2;
@@ -264,9 +264,6 @@ void func_m107_0027C(Object *obj, M107Entry *entry) {
     }
     func_80003410(0xF9, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, &shield->sound);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_0027C);
-#endif
 
 /* A light as the shield moves it (func_800210A4's) */
 typedef struct M107Light {
@@ -287,11 +284,6 @@ extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves an objec
 extern void func_80057D58(M107ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
 
 /* The shield's control: follows its owner, fades out at the end, turns the rings and builds their vertices */
-#ifdef NON_MATCHING
-/*
- * Five instructions: in the vertex loop the height load and the y sum get other registers (ROM: y in v0).
- * The pad fills a frame word the ROM has (a temporary of the original?).
- */
 void func_m107_005C0(Object *obj, s32 updateRate) {
     M107Shield *shield = obj->unk68;
     Object *owner = shield->owner;
@@ -303,13 +295,12 @@ void func_m107_005C0(Object *obj, s32 updateRate) {
     s16 angle;
     s16 x;
     s16 z;
-    s16 y;
+    s32 y;
     s16 *c;
     f32 r;
     f32 h;
     Vertex *v;
     M107Light *light;
-    UNUSED s32 pad;
 
     if (shield->timer > 0) {
         shield->timer -= updateRate;
@@ -377,7 +368,7 @@ void func_m107_005C0(Object *obj, s32 updateRate) {
                     angle += shield->unk44E[i];
                     x = c[0] * r;
                     z = c[1] * r;
-                    y = (s32) (func_80049C34(angle) * h) + shield->height;
+                    y = (s16) (func_80049C34(angle) * h) + shield->height;
                     v[0].x = x;
                     v[0].y = y + 40;
                     v[0].z = z;
@@ -409,9 +400,6 @@ void func_m107_005C0(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m107", func_m107_005C0);
-#endif
 
 void func_m107_00D08(Object *obj, f32 scaleX, f32 scaleY, s32 height) {
     M107Shield *shield = obj->unk68;
