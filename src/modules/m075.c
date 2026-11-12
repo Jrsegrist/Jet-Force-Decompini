@@ -105,7 +105,7 @@ extern M075Character *func_80047C1C(s32 player, s32 character);
 extern void func_80001170(s32 arg0);
 extern void func_80048518(s32 arg0);
 extern u8 menu_mode_get(void);
-extern void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern Object *D_800A32B8; /* the cabinet whose screen is open */
 extern u8 D_800A4FBC;
 extern u32 D_800FF318[];
@@ -325,7 +325,7 @@ void func_m075_004FC(Object *obj, s32 updateRate) {
                     func_80001248(0x171, 0);
                     state->started = 1;
                     D_800A4FBC = state->gameArg;
-                    func_8004665C(state->game, 3, 0, menu_mode_get(), 1, 0);
+                    level_goto(state->game, 3, 0, menu_mode_get(), 1, 0);
                 }
             }
             state->open += updateRate;

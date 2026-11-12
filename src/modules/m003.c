@@ -4105,7 +4105,7 @@ extern u8 rl_m003_19448[4];  /* cleared every frame */
 extern s32 rl_m003_1944C;    /* flips every frame */
 extern u8 rl_m003_19430;     /* a countdown */
 extern s32 D_800FEA98;       /* the number of way points */
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_m154_00000(void);
 extern void func_m139_00030(void);
 extern void rl_m003_13FE4(s32 updateRate);
@@ -4124,7 +4124,7 @@ void func_m003_16990(s32 updateRate) {
     }
     if (sChangePending) {
         if (D_800FE9F8 >= sChangeArg1) {
-            func_8004665C(sChangeArg0, ((s8 *) ((Object *) sClosestPlayer)->unk68)[1], 0, 0x10, 1, 0);
+            level_goto(sChangeArg0, ((s8 *) ((Object *) sClosestPlayer)->unk68)[1], 0, 0x10, 1, 0);
             sChangePending = 0;
         } else {
             sChangeArg1 -= D_800FE9F8;

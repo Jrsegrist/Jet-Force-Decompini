@@ -77,10 +77,6 @@ void func_8001D9D0(s32 flags, s32 *a, s32 *b, s32 *c) {
     *c = D_800A0EA0[index];
 }
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
-
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E17C);
-
 /* DKR include/structs.h, reduced (as in 12D50.c) */
 typedef struct ShadowBatch {
     /* 0x00 */ u8 pad0[0x6];
@@ -131,6 +127,9 @@ typedef struct ShadowPoly {
 typedef struct ShadowObjHeader {
     /* 0x00 */ u8 pad0[0x58];
     /* 0x58 */ f32 shadowScale;
+    /* 0x5C */ u8 pad5C[0x6C - 0x5C];
+    /* 0x6C */ s16 shadowBottom; // DKR: unk42
+    /* 0x6E */ s16 shadowTop;    // DKR: unk44
 } ShadowObjHeader;
 
 /* JFG: the object casting the shadow (DKR gNewShadowObj) */
@@ -140,8 +139,13 @@ typedef struct ShadowObj {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x40 - 0x18];
+    /* 0x18 */ u8 pad18[0x30 - 0x18];
+    /* 0x30 */ f32 distanceToCamera;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
     /* 0x40 */ ShadowObjHeader *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ s16 unk4A;
 } ShadowObj;
 
 /* JFG: the shadow texture (DKR gNewShadowTexture) */
@@ -161,7 +165,8 @@ typedef struct ShadowBuild {
     /* 0x18 */ f32 groundY;      // DKR D_8011D0D0
     /* 0x1C */ f32 unk1C;        // DKR D_8011D0F0
     /* 0x20 */ f32 fadeDistance; // DKR D_8011D0F4
-    /* 0x24 */ u8 pad24[0x2C - 0x24];
+    /* 0x24 */ f32 scale;          // DKR gNewShadowScale
+    /* 0x28 */ f32 area;           // DKR D_8011D0E4
     /* 0x2C */ f32 width;        // DKR gNewShadowWidth
     /* 0x30 */ f32 length;       // DKR gNewShadowLength
     /* 0x34 */ f32 unk34;
@@ -217,7 +222,119 @@ s32 func_80020890(f32 x1, f32 z1, f32 x2, f32 z2, s32 count, ShadowPoint *points
 void func_800209E4(ShadowBuild *shadow, ShadowPoint *points); // DKR: func_800304C8
 s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEdges, ShadowEdge *edges); // DKR: func_8002FF6C
 
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
+
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E17C);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: 6 words longer: the target keeps the face loop's strength-reduced offsets (face * 8, face * 4) in v1/a0 and spills them once per face, mine keeps them on the stack (and the next-face bound in v1, target a2) */
+/* DKR func_8002E904 (tracks.c): clip the shadow against each upward-facing triangle of the segment that the mask
+ * selects and add the clipped polygons (JFG: the shadow struct and the clip edges passed in, the water flag a
+ * global, faces need a plane normal y above 0.5, at most 32 cached vertices). */
+void func_8001E8B8(ShadowBuild *shadow, ShadowEdge *edges, ShadowSegmentCol *seg, s32 mask) {
+    ShadowPoint sp100[8];
+    s32 spAC;
+    s32 curFacesOffset;
+    s32 nextFacesOffset;
+    ShadowTriangle *triangles;
+    ShadowVertex *vertices;
+    s32 yPos;
+    s32 minY;
+    s32 foundIndex;
+    s32 maxY;
+    s32 temp_t6;
+    s32 sp88;
+    s32 someCount;
+    s32 i2;
+    s32 i;
+    s32 tempIdx;
+    u32 batchFlags;
+
+    for (spAC = 0; spAC < seg->numberOfBatches; spAC++) {
+        batchFlags = seg->batches[spAC].flags;
+        if ((!D_800A0EFC && !(batchFlags & 0x3480)) ||
+            (D_800A0EFC && (batchFlags & 0x400))) {
+            curFacesOffset = seg->batches[spAC].facesOffset;
+            nextFacesOffset = seg->batches[spAC + 1].facesOffset;
+            vertices = &seg->vertices[seg->batches[spAC].verticesOffset];
+            sp88 = (seg->batches[spAC].flags >> 22) & 7;
+            for (; curFacesOffset < nextFacesOffset; curFacesOffset++) {
+                temp_t6 = seg->collisionFacets[curFacesOffset].basePlaneIndex * 4;
+                if (((seg->triangleMasks[curFacesOffset] & mask) & 0xFFFF) &&
+                    ((seg->triangleMasks[curFacesOffset] & mask) >> 16) &&
+                    seg->collisionPlanes[temp_t6 + 1] > 0.5f) {
+                    triangles = &seg->triangles[curFacesOffset];
+                    maxY = minY = vertices[triangles->verticesArray[1]].y;
+                    for (i = 1; i < 3; i++) {
+                        yPos = vertices[triangles->verticesArray[i + 1]].y;
+                        if (yPos < minY) {
+                            minY = yPos;
+                        } else if (maxY < yPos) {
+                            maxY = yPos;
+                        }
+                    }
+                    if (shadow->y2 >= minY) {
+                        if (maxY >= shadow->y1) {
+                            for (i = 0; i < 3; i++) {
+                                sp100[i].x = vertices[triangles->verticesArray[i + 1]].x;
+                                sp100[i].z = vertices[triangles->verticesArray[i + 1]].z;
+                                sp100[i].unkE = -1;
+                            }
+                            if (func_80020890(shadow->x1, shadow->z1, shadow->x2, shadow->z2, 3, sp100) != 0) {
+                                shadow->plane = &seg->collisionPlanes[temp_t6];
+                                if (shadow->unk1C > 0.0f) {
+                                    func_800209E4(shadow, sp100);
+                                }
+                                someCount = func_8001F4BC(shadow, 3, sp100, 4, edges);
+                                if (someCount >= 3) {
+                                    tempIdx = D_800F45E8;
+                                    D_800F45F0[tempIdx].sharedMask = 0;
+                                    for (i2 = 0; i2 < someCount; i2++) {
+                                        if (sp100[i2].unkE < 0) {
+                                            foundIndex = -1;
+                                            i = 0;
+                                            while ((i < D_800F33D0) && (foundIndex == -1)) {
+                                                if ((D_800F33D8[i].x == sp100[i2].x) &&
+                                                    (D_800F33D8[i].z == sp100[i2].z)) {
+                                                    foundIndex = i;
+                                                }
+                                                i++;
+                                            }
+                                            if (foundIndex == -1) {
+                                                if (D_800F33D0 >= 32) {
+                                                    D_800F33D0 = 31;
+                                                }
+                                                D_800F33D8[D_800F33D0].x = sp100[i2].x;
+                                                D_800F33D8[D_800F33D0].plane = shadow->plane;
+                                                D_800F33D8[D_800F33D0].z = sp100[i2].z;
+                                                D_800F45F0[tempIdx].verts[i2] = D_800F33D0++;
+                                            } else {
+                                                D_800F45F0[tempIdx].verts[i2] = foundIndex;
+                                            }
+                                        } else {
+                                            D_800F45F0[tempIdx].verts[i2] = sp100[i2].unkE;
+                                            D_800F45F0[tempIdx].sharedMask |= 1 << i2;
+                                        }
+                                    }
+                                    D_800F45F0[tempIdx].numVerts = someCount;
+                                    D_800F45F0[tempIdx].shade = sp88;
+                                    D_800F45E8 = tempIdx + 1;
+                                    if ((D_800F5AF8 >= 0) && (sp88 != D_800F5AF8)) {
+                                        D_800F5AFC = 0;
+                                    }
+                                    D_800F5AF8 = sp88;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E8B8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001EE1C);
 
@@ -353,7 +470,203 @@ s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEd
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001F4BC);
 #endif
 
+/* JFG: a shadow vertex, triangle and mesh entry in the shadow heaps (DKR Vertex, Triangle, ShadowHeapProperties) */
+typedef struct ShadowHeapVertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} ShadowHeapVertex;
+
+typedef struct ShadowHeapTriangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s32 uv0;
+    /* 0x08 */ s32 uv1;
+    /* 0x0C */ s32 uv2;
+} ShadowHeapTriangle;
+
+typedef struct ShadowHeapMesh {
+    /* 0x00 */ ShadowTexture *texture;
+    /* 0x04 */ s16 triCount;
+    /* 0x06 */ s16 vtxCount;
+} ShadowHeapMesh;
+
+/* JFG: an optional override of the shadow's angle and opacity */
+typedef struct ShadowParams {
+    /* 0x00 */ s16 angle;
+    /* 0x02 */ u8 pad2[2];
+    /* 0x04 */ s16 opacity;
+} ShadowParams;
+
+typedef struct ShadowFlags {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ u8 flags;
+} ShadowFlags;
+
+extern ShadowHeapVertex *D_800A0EB0;   // DKR: gCurrShadowVerts
+extern ShadowHeapTriangle *D_800A0EB4; // DKR: gCurrShadowTris
+extern ShadowHeapMesh *D_800A0EB8;     // DKR: gCurrShadowHeapData
+extern s32 D_800A0EBC;                 // DKR: gNewShadowVtxCount
+extern s32 D_800A0EC0;                 // DKR: gNewShadowTriCount
+extern s32 D_800A0EC4;                 // DKR: gShadowTail
+extern f32 D_800F5AF0;                 // DKR: gShadowOpacity
+f32 func_80049C30(s32 angle);          // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle);          // sine of a 16-bit angle
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: same shape, other registers: the target's FPRs are zero f20, scaleU/scaleV f22/f24, width/length f26/f28, sin f14, cos f16 (mine width/length f22/f24, sin/cos swapped) and its loop values in t-registers (poly t4, base t5) */
+/* DKR func_8002F440 (tracks.c): turn the clipped shadow polygons into vertices and triangles in the shadow heaps
+ * (JFG: an optional angle/opacity override, a flag for an unrotated shadow, packed s32 texture coordinates and
+ * the heap limits checked; returns 0 when a heap is full). */
+s32 func_8001FA24(ShadowBuild *shadow, ShadowParams *params, ShadowFlags *arg2) {
+    s32 spAC;
+    s32 var_t0;
+    ShadowHeapTriangle *tri;
+    ShadowHeapVertex *vert;
+    s32 uv[8];
+    s32 alpha;
+    s32 var_s2;
+    f32 alphaF;
+    f32 someY;
+    f32 scaleU;
+    f32 scaleV;
+    f32 width;
+    f32 length;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 yRotSin;
+    f32 yRotCos;
+    f32 objX;
+    f32 objZ;
+    f32 u;
+    f32 v;
+    s32 vtxCount;
+    s32 triCount;
+    s32 tail;
+    ShadowHeapMesh *mesh;
+    ShadowPoly *poly;
+    ShadowObj *obj;
+    s32 i;
+
+    if (arg2->flags & 0x20) {
+        yRotCos = 1;
+        yRotSin = 0.0f;
+    } else if (params != NULL) {
+        yRotSin = func_80049C34(params->angle);
+        yRotCos = func_80049C30(params->angle);
+    } else {
+        yRotSin = func_80049C34(shadow->obj->yRotation);
+        yRotCos = func_80049C30(shadow->obj->yRotation);
+    }
+    width = shadow->width;
+    length = shadow->length;
+    alphaF = 255;
+    scaleU = (f32) (shadow->texture->width << 4) / width;
+    var_s2 = 25;
+    scaleV = (f32) (shadow->texture->height << 5) / (length + shadow->unk34);
+    if (shadow->unk1C > 0.0f) {
+        someY = shadow->obj->y - shadow->groundY;
+        if (shadow->unk1C < someY) {
+            alphaF = 255.0f * (1.0f - ((someY - shadow->unk1C) / shadow->fadeDistance));
+            if (alphaF < 0.0f) {
+                alphaF = 0.0f;
+            }
+        }
+        if (someY > 0.0f) {
+            someY = (someY / shadow->obj->header->shadowScale) + 1.0f;
+            scaleU *= someY;
+            width /= someY;
+            scaleV *= someY;
+            length /= someY;
+        }
+    }
+    obj = shadow->obj;
+    alpha = alphaF * D_800F5AF0;
+    if (params != NULL) {
+        alpha = (s32) (params->opacity * (u32) alpha) >> 8;
+    }
+    vtxCount = D_800A0EBC;
+    triCount = D_800A0EC0;
+    vert = &D_800A0EB0[vtxCount];
+    tri = &D_800A0EB4[triCount];
+    tail = D_800A0EC4;
+    mesh = &D_800A0EB8[tail];
+    objX = obj->x;
+    objZ = obj->z;
+    for (spAC = 0; spAC < D_800F45E8; spAC++) {
+        poly = &D_800F45F0[spAC];
+        if ((poly->numVerts + var_s2) >= 24) {
+            mesh->vtxCount = vtxCount;
+            mesh->triCount = triCount;
+            mesh->texture = shadow->texture;
+            mesh++;
+            tail++;
+            var_s2 = 0;
+        }
+        if (tail >= D_800F5B08) {
+            return 0;
+        }
+        var_t0 = poly->sharedMask;
+        for (i = 0; i < poly->numVerts; i++) {
+            if (var_t0 & 1) {
+                x = D_800F35E8[poly->verts[i]].x;
+                y = D_800F35E8[poly->verts[i]].y;
+                z = D_800F35E8[poly->verts[i]].z;
+            } else {
+                x = D_800F33D8[poly->verts[i]].x;
+                y = D_800F33D8[poly->verts[i]].y;
+                z = D_800F33D8[poly->verts[i]].z;
+            }
+            var_t0 >>= 1;
+            vtxCount++;
+            vert->x = x;
+            vert->y = shadow->yOffset + y;
+            vert->z = z;
+            vert->r = 255;
+            vert->g = 255;
+            vert->b = 255;
+            vert->a = alpha;
+            vert++;
+            if (vtxCount >= D_800F5B00) {
+                return 0;
+            }
+            x = x - objX;
+            z = z - objZ;
+            u = (x * yRotCos) - (z * yRotSin);
+            v = (z * yRotCos) + (x * yRotSin);
+            uv[i] = ((s32) ((v + length) * scaleV) & 0xFFFF) | ((s32) (scaleU * (u + width)) << 16);
+        }
+        for (i = 1; i < poly->numVerts - 1; i++) {
+            tri->flags = 0;
+            tri->vi0 = var_s2 + i;
+            tri->vi1 = var_s2 + i + 1;
+            tri->vi2 = var_s2;
+            triCount++;
+            tri->uv0 = uv[i];
+            tri->uv1 = uv[i + 1];
+            tri->uv2 = uv[0];
+            tri++;
+            if (triCount >= D_800F5B04) {
+                return 0;
+            }
+        }
+        var_s2 += poly->numVerts;
+    }
+    D_800A0EBC = vtxCount;
+    D_800A0EC0 = triCount;
+    D_800A0EC4 = tail;
+    return 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001FA24);
+#endif
 
 
 typedef struct ShadowSegment {

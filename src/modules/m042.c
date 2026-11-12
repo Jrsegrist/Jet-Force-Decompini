@@ -82,7 +82,7 @@ extern M042Save *get_settings(void);
 extern void game_settings_reset(M042Save *settings);
 extern void force_mark_write_save_file(s32 file);
 extern void mark_save_file_to_erase(s32 file);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_8005AAE8(s32 arg0);
 extern void func_80049BA0(MtxF *mtx); /* identity */
 extern void func_80049A30(s16 angle, MtxF *mtx);
@@ -492,7 +492,7 @@ void func_m042_00178(s32 updateRate) {
                                 } else {
                                     D_800A4FC8 = 1;
                                 }
-                                func_8004665C(0x7F, 0, 0, 5, 1, 0);
+                                level_goto(0x7F, 0, 0, 5, 1, 0);
                                 func_8005AAE8(1);
                                 sState = 9;
                                 break;
@@ -741,7 +741,7 @@ void func_m042_00178(s32 updateRate) {
                                 sprintf(save->name, "%s", sName);
                                 force_mark_write_save_file(sFile);
                                 func_80001248(0x16C, 0);
-                                func_8004665C(0x142, 0, 0, 0, 1, 0);
+                                level_goto(0x142, 0, 0, 0, 1, 0);
                                 sState = 9;
                             } else {
                                 save = get_settings();

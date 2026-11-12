@@ -265,3 +265,12 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/objects.c` | func_80014090, as JFG's object_uv_offsets_update (0x8000DF00); object_do_player_tumble now matches in DKR's statement order |
 | `src/save_data.c` | init_controller_paks (0x8004C2BC) |
 | `src/memory.c` | the memory pools' .bss, now defined in C |
+
+### Round 17 (main17), main segment
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/object_models.c` | object_model_init (JFG-extended: asset instances, model-id remaps, display lists per id range); model_instance_init (JFG-extended: matrices, vertex buffers, point and slot tables) (helper ma17h1) |
+| `src/tracks.c` | func_8002E904 and func_8002F440, as the NON_MATCHING bodies of JFG's func_8001E8B8 and func_8001FA24 (helper ma17h1) |

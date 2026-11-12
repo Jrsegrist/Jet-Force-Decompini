@@ -326,6 +326,8 @@ segments:
       - { start: 0xB1750, type: bss, vram: 0x800FDDB0, name: bss_800FDDB0 }
       - { start: 0xB1750, type: .bss, vram: 0x800FE950, name: 50300 }
       - { start: 0xB1750, type: bss, vram: 0x800FE960, name: bss_800FE960 }
+      - { start: 0xB1750, type: .bss, vram: 0x800FF1B0, name: 59060 }
+      - { start: 0xB1750, type: bss, vram: 0x800FFE40, name: bss_800FFE40 }
       - { start: 0xB1750, type: .bss, vram: 0x80100960, name: printf }
       - { start: 0xB1750, type: bss, vram: 0x801012A0, name: bss_801012A0 }
       - { start: 0xB1750, type: .bss, vram: 0x80104200, name: ultra/io/pimgr }

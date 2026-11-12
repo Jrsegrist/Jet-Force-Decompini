@@ -149,7 +149,7 @@ extern void func_80040E64(Gfx **dl, Mtx **mtx);
 extern void func_8005A0D0(s32 item);          /* draws a menu item */
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity); /* the text colour */
 extern void func_8006FCA8(Gfx **dl, s32 textX, s32 textY, char *text, s32 flags);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 static void func_m040_007F0(s32 updateRate);
 static void func_m040_00DF8(s32 updateRate);
 static void func_m040_0124C(s32 updateRate);
@@ -297,7 +297,7 @@ void func_m040_0019C(s32 updateRate) {
     func_8006FC68(255, 255, 255, 255, 255);
     gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
     if (quit) {
-        func_8004665C(0, 0, 0, 8, 1, 0);
+        level_goto(0, 0, 0, 8, 1, 0);
     }
 }
 

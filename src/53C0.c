@@ -23,7 +23,9 @@ typedef struct Object_Racer {
     /* 0x064 */ f32 unk64; // DKR: unkD0
     /* 0x068 */ u8 pad68[0xA4 - 0x68];
     /* 0x0A4 */ u16 fogFlags; // JFG: a bit per player: draw with the flash fog colour
-    /* 0x0A6 */ u8 padA6[0x122 - 0xA6];
+    /* 0x0A6 */ u8 padA6[0xFC - 0xA6];
+    /* 0x0FC */ struct Object *target; // JFG: the level's 0x61 object
+    /* 0x100 */ u8 pad100[0x122 - 0x100];
     /* 0x122 */ s16 prevRotation[3]; // JFG: the angles at the start of the frame
     /* 0x128 */ u8 pad128[0x140 - 0x128];
     /* 0x140 */ s16 y_rotation_offset;
@@ -34,7 +36,9 @@ typedef struct Object_Racer {
     /* 0x197 */ u8 unk197;
     /* 0x198 */ u8 pad198[0x1FA - 0x198];
     /* 0x1FA */ u8 unk1FA;
-    /* 0x1FB */ u8 pad1FB[0x53C - 0x1FB];
+    /* 0x1FB */ u8 pad1FB[0x50C - 0x1FB];
+    /* 0x50C */ struct Object *companion; // JFG: a single player's companion (object 0x81)
+    /* 0x510 */ u8 pad510[0x53C - 0x510];
     /* 0x53C */ s8 unk53C;
     /* 0x53D */ u8 pad53D[0x544 - 0x53D];
     /* 0x544 */ u8 unk544[0x550 - 0x544];
@@ -182,7 +186,9 @@ typedef struct Object {
     /* 0x70 */ struct ParticleEmitter *particleEmitter;
     /* 0x74 */ u8 pad74[0x7C - 0x74];
     /* 0x7C */ u8 *unk7C;
-    /* 0x80 */ u8 pad80[0x90 - 0x80];
+    /* 0x80 */ u8 pad80[0x88 - 0x80];
+    /* 0x88 */ s32 setupIndex;    // JFG: a setup point's player
+    /* 0x8C */ s32 setupEntrance; // JFG: a setup point's entrance
     /* 0x90 */ u8 numSpriteSlots;
     /* 0x91 */ u8 pad91[0xA0 - 0x91];
     /* 0xA0 */ u8 freed; // JFG: already on the free list
@@ -390,7 +396,7 @@ void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *load_texture(s32 id);
 void *tex_load_sprite(s32 id, s32 arg1);
-void *func_8003B9E8(s32 id, s32 arg1);
+void *object_model_init(s32 id, s32 arg1);
 void *asset_cache2_get(s32 id);
 
 /**
@@ -438,7 +444,7 @@ ObjectHeader *load_object_header(s32 index) {
             } else if (address->modelIds[i] & 0x8000) {
                 address->assets[i] = tex_load_sprite(address->modelIds[i] & 0x3FFF, 1);
             } else {
-                address->assets[i] = func_8003B9E8(address->modelIds[i], 0);
+                address->assets[i] = object_model_init(address->modelIds[i], 0);
             }
         }
         if (address->unkD8 != -1) {
@@ -600,7 +606,216 @@ void track_spawn_objects(s32 mapID, s32 index) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000561C);
+/* JFG: a player's spawn entry (as a level object entry). Size: 0x12 bytes */
+typedef struct PlayerSpawnEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 angleY;
+    /* 0x10 */ s8 player;
+    /* 0x11 */ u8 character;
+} PlayerSpawnEntry;
+
+/* JFG: an attachment's spawn entry (its parent at 0xC). Size: 0x10 bytes */
+typedef struct AttachSpawnEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0C */ Object *parent;
+} AttachSpawnEntry;
+
+/* JFG: a setup point's level entry, reduced */
+typedef struct SetupPointEntry {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 angleY;
+} SetupPointEntry;
+
+typedef struct LevelHeader53 {
+    /* 0x00 */ u8 pad0[0x6C];
+    /* 0x6C */ s8 raceType;
+} LevelHeader53;
+
+typedef struct PlayerChar53 {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ u16 flags; // JFG: the low 5 bits select the spawn object table
+} PlayerChar53;
+
+LevelHeader53 *level_header(void);
+s8 *get_settings(void);
+s32 func_80048558(void); // the number of players
+s32 func_800485C8(s32 player);
+PlayerChar53 *func_80047C1C(s32 player, s32 character);
+s32 game_flag_get(s32 flag);
+s32 func_8003B660(s16 *x, s16 *y, s16 *z, s16 *angle);
+void func_80054530(); // a module function (patched in by the runtime linker)
+extern s32 D_800F2C90; // DKR: gEventCountdown
+extern s32 D_800F2D10;
+extern u8 D_800A4FC4;  // JFG: a multiplayer game
+extern u8 D_800A4FD8;  // JFG: the multiplayer game type
+extern u8 D_800A4FB4;
+extern u8 D_800A4FC0;
+extern s8 D_800A503C;
+extern s16 *D_800A0930[9]; // JFG: the player object IDs by character, per spawn table
+extern s16 D_800A0954[8];
+extern s16 D_800A0964[8];
+extern Object *D_800F2C64; // JFG: the buffer an attachment object is built in
+extern s32 D_800F2C68;     // JFG: its size in bytes
+
+/**
+ * JFG: spawn the players at the setup points of the entrance (one per player, the character's object from its
+ * table), with the level's 0x61 object as their target and a single player's companion when flag 3 is set, then
+ * run the module set-up of the 0x6A objects.
+ */
+void players_spawn(s32 entranceID) {
+    UNUSED s32 pad;
+    LevelHeader53 *level;
+    s32 numPlayers;
+    AttachSpawnEntry attach;
+    PlayerSpawnEntry entries[4];
+    s32 i;
+    s32 character;
+    PlayerChar53 *chr;
+    s8 *settings;
+    Object *obj;
+    Object *target;
+    UNUSED s32 pad2;
+    SetupPointEntry *point;
+    Object_Racer *racer;
+    s16 *table;
+    Object *savedBuf;
+
+    level = level_header();
+    D_800F2C90 = 0;
+    D_800F2D10 = 0;
+    settings = get_settings();
+    numPlayers = func_80048558();
+    target = NULL;
+    D_800F2D14 = 0;
+    if (D_800A4FC4 && D_800A4FD8 == 6) {
+        func_80054530(numPlayers);
+        return;
+    }
+    if (level->raceType == 1) {
+        return;
+    }
+    if (level->raceType == 2 || numPlayers <= 0) {
+        return;
+    }
+    for (i = 0; i < numPlayers; i++) {
+        character = func_800485C8(i);
+        chr = func_80047C1C(i, character);
+        if (D_800A4FC4 == 0 && game_flag_get(0x5F)) {
+            character |= 4;
+        }
+        if ((chr->flags & 0x1F) < 9) {
+            table = D_800A0930[chr->flags & 0x1F];
+        } else {
+            table = D_800A0930[0];
+        }
+        entries[i].objectID = table[character & 7];
+        if (D_800A4FC4 && D_800A4FD8 == 4) {
+            if (D_800A503C == 0) {
+                entries[i].objectID = D_800A0954[i];
+            } else {
+                entries[i].objectID = D_800A0954[i + 4];
+            }
+        } else if (D_800A4FB4) {
+            if (D_800A503C == 0) {
+                entries[i].objectID = D_800A0954[(D_800A4FC0 + i) & 3];
+            } else if (i == 0) {
+                entries[i].objectID = D_800A0954[(D_800A4FC0 & 1) + 4];
+            } else {
+                entries[i].objectID = D_800A0954[6];
+            }
+        } else if (D_800A4FC4 && numPlayers >= 3 && !(chr->flags & 0x1F)) {
+            entries[i].objectID = D_800A0964[character & 7];
+        }
+        entries[i].player = i;
+        entries[i].size = sizeof(PlayerSpawnEntry);
+        entries[i].x = 0;
+        entries[i].y = 0;
+        entries[i].z = 0;
+        entries[i].unkA = 0;
+        entries[i].unkC = 0;
+        entries[i].angleY = 0;
+        entries[i].character = character;
+    }
+    for (i = 0; i < D_800F2CA8; i++) {
+        obj = gObjPtrList[i];
+        if (obj->behaviorId == 6 && entranceID == obj->setupEntrance && obj->setupIndex < numPlayers) {
+            point = (SetupPointEntry *) obj->levelEntry;
+            entries[obj->setupIndex].x = point->x;
+            entries[obj->setupIndex].y = point->y;
+            entries[obj->setupIndex].z = point->z;
+            entries[obj->setupIndex].angleY = obj->trans.y_rotation;
+        }
+    }
+    for (i = 0; i < D_800F2CA8; i++) {
+        obj = gObjPtrList[i];
+        if (obj->behaviorId == 0x61) {
+            target = obj;
+            point = (SetupPointEntry *) obj->levelEntry;
+            entries[0].x = point->x;
+            entries[0].y = point->y;
+            entries[0].z = point->z;
+            entries[0].angleY = point->angleY;
+        }
+    }
+    func_8003B660(&entries[0].x, &entries[0].y, &entries[0].z, &entries[0].angleY);
+    for (i = 0; i < numPlayers; i++) {
+        obj = spawn_object((LevelObjectEntry53 *) &entries[i], 1);
+        (*gRacers)[i] = obj;
+        if (obj != NULL) {
+            racer = obj->racer;
+            obj->levelEntry = 0;
+            if (numPlayers == 1 && (entries[0].character & 3) != 3) {
+                *settings = racer->unk1;
+                if (game_flag_get(3)) {
+                    attach.objectID = 0x81;
+                    attach.size = 10;
+                    attach.unk3 = 0;
+                    attach.x = 0;
+                    attach.y = 0;
+                    attach.z = 0;
+                    attach.parent = obj;
+                    racer->companion = spawn_object((LevelObjectEntry53 *) &attach, 1);
+                    if (racer->companion != NULL) {
+                        racer->companion->levelEntry = 0;
+                    }
+                    D_800F2D14 = (s32) racer->companion;
+                }
+            }
+            racer->target = target;
+        }
+    }
+    D_800F2D10 = numPlayers;
+    for (i = 0; i < D_800F2CA8; i++) {
+        obj = gObjPtrList[i];
+        if (obj->behaviorId == 0x6A) {
+            savedBuf = D_800F2C64;
+            D_800F2C68 = 0x4000;
+            D_800F2C64 = mempool_alloc_safe(D_800F2C68, 0xFFFF);
+            func_80054530(obj);
+            mempool_free(D_800F2C64);
+            D_800F2C68 = 0x2000;
+            D_800F2C64 = savedBuf;
+        }
+    }
+    if ((D_800A4FC4 && D_800A4FD8 == 4) || D_800A4FB4) {
+        func_80054530();
+    }
+}
 
 /**
  * JFG: take every entry of the object and kind out of both lists (the second first).
@@ -1219,7 +1434,7 @@ Object *obj_spawn_attachment(s32 objID) {
     failed = FALSE;
     for (; i < numModels; i++) {
         if (modelType == 0) {
-            obj->attachments[i] = func_8003B9E8(((s32 *) obj->header->unk30)[i], modelFlags);
+            obj->attachments[i] = object_model_init(((s32 *) obj->header->unk30)[i], modelFlags);
         } else {
             obj->attachments[i] = tex_load_sprite(((s32 *) obj->header->unk30)[i], 10);
         }

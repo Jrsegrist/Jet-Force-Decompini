@@ -888,3 +888,15 @@ func_8004C2BC = init_controller_paks
 func_80051880 = troop_member_waypoint_set
 func_8006A0C0 = ripple_trail_create
 func_8006B8C4 = transition_buffers_init
+
+# main17 (round 17)
+func_80024330 = colours_brightest_channels
+func_8004665C = level_goto
+func_80058590 = menu_buffers_init
+func_8002B418 = player_camera_update
+func_80035628 = pose_points_update
+func_8000561C = players_spawn
+func_8003DDD8 = model_batches_build_dlist
+func_8003C1B4 = model_instance_init
+func_8003B9E8 = object_model_init
+func_8001400C = segment_vertex_colours_copy

@@ -35,7 +35,7 @@ s32 leveltable_world(s32 level);
 s32 drm_check_rdram_a(void);
 s32 drm_check_rdram_b(void);
 void init_game(void);
-void func_8004665C(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+void level_goto(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 void check_reset_and_halt(void);
 void main_game_loop(void);
 void thread3_verify_stack(void);
@@ -62,7 +62,7 @@ void thread3_main(UNUSED void *unused) {
     gSaveDataFlags = input_update(gSaveDataFlags, 0);
     sBootDelayTimer = 0;
     gGameMode = 6;
-    func_8004665C(0, D_800A3260, 0, 0, 1, 0);
+    level_goto(0, D_800A3260, 0, 0, 1, 0);
     while (1) {
         check_reset_and_halt();
         main_game_loop();
@@ -1034,7 +1034,7 @@ extern s8 D_800A329C;
 extern u8 D_800A32FC[];
 s32 game_flag_get(s32 flag);
 void func_8003B6BC(void);
-s16 leveltable_region(void);
+s32 leveltable_region(s32 level);
 void set_game_paused(s32 arg0);
 u8 music_current_sequence(void);
 u8 leveltable_tune(s32 level);
@@ -1043,13 +1043,11 @@ void music_volume_fade(f32 arg0, s32 arg1);
 void rumble_stop_all(s32 arg0);
 void rumble_allow_set(s32 arg0);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: temporaries only: the target stores the level through $a0 (reloaded from its home) and numbers
-   the later temporaries one higher; the music compare has its operands the other way round */
 /* JFG: go to a level (with a few swaps by game flag): store it as the next one, mark the module 5 fade, start the
  * transition and the level's music if it changes, and stop all rumble. */
-void func_8004665C(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
+void level_goto(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
     u8 seq;
+    u8 tune;
 
     if (D_800A3294 && level == D_800A3250 && arg1 == D_800A3260 && arg3 == D_800A3264) {
         return;
@@ -1068,7 +1066,7 @@ void func_8004665C(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) 
     D_800A3258 = arg2;
     D_800A3260 = arg1;
     D_800A3264 = arg3;
-    D_800A3268 = leveltable_region();
+    D_800A3268 = leveltable_region(level);
     if ((arg5 & 1) && D_800FD7A4 != 0 && D_800FD7A4 != 0xFF) {
         if ((D_800A3268 != D_800FD7A4 && D_800A3268 != 0xFF) || arg3 == 0x11) {
             D_800A329C = 1;
@@ -1093,15 +1091,13 @@ void func_8004665C(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) 
         D_800A3294 = 30;
     }
     seq = music_current_sequence();
-    if (leveltable_tune(D_800A3250) != seq && !is_game_paused()) {
+    tune = leveltable_tune(D_800A3250);
+    if (seq != tune && !is_game_paused()) {
         music_volume_fade(0.45f, 0);
     }
     rumble_stop_all(1);
     rumble_allow_set(0);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_8004665C);
-#endif
 
 extern s16 D_800A3254;
 
@@ -1494,7 +1490,7 @@ void load_first_unlocked_level(void) {
     while ((D_800FF391 & entry->flags) != entry->flags) {
         entry++;
     }
-    func_8004665C(entry->level, 0, 0, 3, 1, 0);
+    level_goto(entry->level, 0, 0, 3, 1, 0);
 }
 
 void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
@@ -1503,7 +1499,7 @@ void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
     if (D_800FD7BC == 0) {
         D_800FD7BC = 1;
     }
-    func_8004665C(level, D_800A3260, 0, arg0, 1, 0);
+    level_goto(level, D_800A3260, 0, arg0, 1, 0);
 }
 
 extern GameStats *gSettingsPtr;

@@ -166,7 +166,7 @@ extern u8 func_80048548(void);                    /* the number of cameras */
 extern void cam_set_layout(s32 layout);
 extern void track_spawn_objects(s32 mapID, s32 index); /* DKR track_spawn_objects */
 extern void sequence_table_load(s32 arg0);
-extern void func_8000561C(s32 arg0);
+extern void players_spawn(s32 arg0);
 extern void shadow_buffers_alloc(void *model, s32 waveBlocks, s32 arg2, s32 arg3, s32 arg4);
 extern void func_8001DA1C(s32 arg0, s32 arg1); /* DKR shadow_update */
 extern void func_8001D9B4(void);
@@ -190,7 +190,7 @@ void func_m024_00000(s32 geometry, s32 skybox, s32 arg2, s32 arg3, s32 arg4, s32
     track_spawn_objects(arg4, 0);
     track_spawn_objects(arg3, 1);
     sequence_table_load(arg5);
-    func_8000561C(arg2);
+    players_spawn(arg2);
     D_800F2FA0 = 0;
     shadow_buffers_alloc(D_800A0D60, D_800F31DC, 500, 200, 100);
     func_8001DA1C(2, 0);

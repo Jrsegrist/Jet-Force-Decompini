@@ -355,18 +355,13 @@ void func_80024044(void) {
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80024044);
 #endif
 
-#ifdef NON_MATCHING
 /**
  * JFG: of count RGBA colours, each channel of the one brightest in it (times alpha), and the top alpha.
- * NON_MATCHING: 22 of 64 words: the loop is one instruction short (the target copies the count in
- * the loop) and its registers differ.
  */
-void func_80024330(s32 count, u8 *colours, u8 *outRed, u8 *outGreen, u8 *outBlue, u8 *outAlpha) {
+void colours_brightest_channels(s32 count, u8 *colours, u8 *outRed, u8 *outGreen, u8 *outBlue, u8 *outAlpha) {
     s32 blue, green, red;
     s32 maxBlue, maxGreen, maxRed;
     s32 maxAlpha;
-    s32 value;
-    s32 alpha;
     s32 product;
 
     blue = 0;
@@ -377,38 +372,31 @@ void func_80024330(s32 count, u8 *colours, u8 *outRed, u8 *outGreen, u8 *outBlue
     maxRed = 0;
     maxAlpha = 0;
     while (count--) {
-        value = colours[0];
-        alpha = colours[3];
-        product = value * alpha;
+        product = colours[3] * colours[0];
         if (maxRed < product) {
             maxRed = product;
-            red = value;
+            red = colours[0];
         }
-        value = colours[1];
-        product = value * alpha;
+        product = colours[3] * colours[1];
         if (maxGreen < product) {
             maxGreen = product;
-            green = value;
+            green = colours[1];
         }
-        value = colours[2];
-        colours += 4;
-        product = value * alpha;
+        product = colours[3] * colours[2];
         if (maxBlue < product) {
             maxBlue = product;
-            blue = value;
+            blue = colours[2];
         }
-        if (maxAlpha < alpha) {
-            maxAlpha = alpha;
+        if (maxAlpha < colours[3]) {
+            maxAlpha = colours[3];
         }
+        colours += 4;
     }
     *outRed = red;
     *outGreen = green;
     *outBlue = blue;
     *outAlpha = maxAlpha;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/245D0", func_80024330);
-#endif
 
 /* JFG: one sprite of a flare (a list ends with size 0). Size: 0x10 bytes */
 typedef struct CoronaFlare {

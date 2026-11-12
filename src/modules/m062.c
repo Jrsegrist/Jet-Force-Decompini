@@ -141,7 +141,7 @@ extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void music_volume_fade(f32 volume, s32 arg1);
 extern void func_80047A20(void);
 extern void func_800468C0(s32 arg0);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_800468A4(s32 arg0);
 extern void func_80047580(s32 arg0);
 
@@ -237,7 +237,7 @@ void func_m062_0228C(UNUSED s32 arg0) {
                 D_800A4FEC = 0;
                 func_80047A20();
                 func_800468C0(1);
-                func_8004665C(D_800A4FE8, 0, 0, 16, 1, 0);
+                level_goto(D_800A4FE8, 0, 0, 16, 1, 0);
                 func_800468A4(0);
                 func_80047580(0);
             }

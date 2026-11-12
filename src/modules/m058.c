@@ -144,7 +144,7 @@ extern M058Settings *get_settings(void);
 extern void func_80047580(s32 arg0, s32 player);
 extern s32 leveltable_region(s32 arg0);
 extern void func_80046334(u32 *a, s32 *b, s32 *c);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern M058Level *func_8001B650(void);
 extern void set_active_camera(s32 camera); /* sets the active camera */
 extern ObjectTransform *func_80041DE0(void);
@@ -303,7 +303,7 @@ void func_m058_00134(s32 updateRate) {
                     player->unk74 = a;
                     player->unk74b = b;
                     player->character = c;
-                    func_8004665C(player->unk74, character, player->unk74b, 16, 1, 0);
+                    level_goto(player->unk74, character, player->unk74b, 16, 1, 0);
                 }
             }
         }
@@ -502,7 +502,7 @@ void func_m058_009B8(s32 updateRate) {
                         }
                         n = 0;
                         func_80043430(D_800FF1B0);
-                        func_8004665C(0, 0, 0, 8, 1, 0);
+                        level_goto(0, 0, 0, 8, 1, 0);
                     }
                 } else if (back) {
                     if (D_800FF1B4[i] == 0) {
