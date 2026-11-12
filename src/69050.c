@@ -692,7 +692,146 @@ void vertices_rotate_translate(s32 count, s16 x, s16 y, s16 z, s16 rotX, s16 rot
     }
 }
 
+/* JFG: a textured two-triangle quad with two vertex frames (ripple_quad_draw) */
+typedef struct RippleTexture {
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 height;
+    /* 0x02 */ u8 pad2[4];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ u8 pad8[0x12 - 0x8];
+    /* 0x12 */ u16 numFrames; // JFG: in 1/256 frame units, as texFrame
+} RippleTexture;
+
+/* JFG: one triangle strip set of a ripple's child effect: vertices, an optional second vertex set drawn with the
+   same triangles, and the triangles */
+typedef struct RippleStrip {
+    /* 0x00 */ u8 *vtx;
+    /* 0x04 */ u8 *vtx2;
+    /* 0x08 */ u8 *tris;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 numTris;
+} RippleStrip;
+
+/* JFG: a ripple's child effect (a trail of strips), 0x40 bytes followed by its buffers */
+typedef struct RippleChild {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 numSegments;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 numFrames;
+    /* 0x04 */ f32 unk4;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 texStep;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ RippleStrip *strips;
+    /* 0x14 */ u8 *unk14;
+    /* 0x18 */ Vertex *vtx[4];
+    /* 0x28 */ Triangle *tris[2];
+    /* 0x30 */ RippleTexture *tex;
+    /* 0x34 */ s16 texFrame;
+    /* 0x36 */ s16 texSpeed;
+    /* 0x38 */ u8 numStrips;
+    /* 0x39 */ u8 unk39;
+    /* 0x3A */ u8 unk3A;
+    /* 0x3B */ u8 unk3B;
+} RippleChild;
+
+void *mempool_alloc(s32 size, u32 colourTag);
+void *load_texture(s32 assetIndex);
+void mempool_free(void *data);
+RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed);
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: one word short (the ROM copies half and numVerts to v0/v1 before the alloc call); the registers of
+   frames/half at the top and the spill slots differ */
+/* JFG: allocate and set up a ripple's child effect: segments from length (60 per unit, two per pair), two
+   triangle buffers, the strips and four (type 0) or two vertex buffers, all white; frees it if the texture
+   doesn't load. */
+RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed) {
+    s32 frames;
+    s32 half;
+    s32 numVerts;
+    s32 numTris;
+    s32 count;
+    s32 i;
+    s32 j;
+    s32 trisSize;
+    s32 vtxSize;
+    s32 stripsSize;
+    s32 size14;
+    u8 *p;
+    RippleChild *child;
+    s32 numBufs;
+
+    frames = length * 60.0f;
+    half = (frames + 5) >> 1;
+    numVerts = numTris = half * 2;
+    count = 2;
+    numBufs = 2;
+    if (type == 0) {
+        count = 4;
+    }
+    vtxSize = numVerts * 10;
+    size14 = half * 20;
+    stripsSize = half * 16;
+    trisSize = numTris * 16;
+    child = mempool_alloc(stripsSize + size14 + count * vtxSize + trisSize * 2 + 0x40, 0xFFFF);
+    if (child != NULL) {
+        p = (u8 *) child + 0x40;
+        for (i = 0; i < numBufs; i++) {
+            child->tris[i] = (Triangle *) (p + i * trisSize);
+        }
+        p = (u8 *) child->tris[1] + trisSize;
+        child->vtx[2] = NULL;
+        child->strips = (RippleStrip *) p;
+        p += stripsSize;
+        child->vtx[3] = NULL;
+        child->unk14 = p;
+        p += size14;
+        for (i = 0; i < count; i++) {
+            child->vtx[i] = (Vertex *) (p + i * vtxSize);
+        }
+        child->tex = load_texture(texID);
+        if (child->tex != NULL) {
+            if (type) {
+                child->unk0 = 1;
+            } else {
+                child->unk0 = 0;
+            }
+            child->numSegments = half;
+            child->unk8 = 0;
+            child->unk2 = 0;
+            child->unk4 = start;
+            child->numFrames = frames;
+            child->texStep = ((child->tex->height - 1) << 8) / child->numFrames;
+            child->unkC = (end - start) / child->numFrames;
+            for (i = 0; i < count; i++) {
+                for (j = 0; j < numVerts; j++) {
+                    child->vtx[i][j].r = 255;
+                    child->vtx[i][j].g = 255;
+                    child->vtx[i][j].b = 255;
+                }
+            }
+            for (i = 0; i < numBufs; i++) {
+                for (j = 0; j < numTris; j++) {
+                    child->tris[i][j].flags = 0x40;
+                }
+            }
+            child->texFrame = 0;
+            child->numStrips = 0;
+            child->unk39 = 0;
+            child->unk3A = 0;
+            child->unk3B = 0;
+            child->texSpeed = (speed * 256.0f) / 60.0f;
+        } else {
+            mempool_free(child);
+            child = NULL;
+        }
+    }
+    return child;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A0C0);
+#endif
 
 /* JFG: a ripple effect's level object header (only the fields used here) */
 typedef struct RippleHeader {
@@ -702,9 +841,9 @@ typedef struct RippleHeader {
     /* 0x78 */ f32 unk78;
     /* 0x7C */ s16 textureID;
     /* 0x7E */ s16 unk7E;
-    /* 0x80 */ s32 unk80;
-    /* 0x84 */ s32 unk84;
-    /* 0x88 */ s32 unk88;
+    /* 0x80 */ f32 unk80;
+    /* 0x84 */ f32 unk84;
+    /* 0x88 */ f32 unk88;
     /* 0x8C */ s16 unk8C;
     /* 0x8E */ s16 unk8E;
 } RippleHeader;
@@ -754,7 +893,6 @@ typedef struct RippleInit {
 
 s32 align4(s32 value);
 s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags);
-void *func_8006A0C0(s32 type, s32 arg1, s32 arg2, s32 arg3, s32 arg4, f32 arg5);
 
 /* JFG: set up a ripple's data block at r (aligned up to 8): its texture, two triangles, white vertices and its
    child effect. Returns the bytes used (alignment included), 0 if the texture didn't load.
@@ -834,7 +972,7 @@ s32 ripple_data_init(RippleObj *obj, RippleInit *r) {
     track_height_at(obj->x, obj->z, &r->unk80, 0x2000);
     r->child = 0;
     if (hdr->childType != -1) {
-        r->child = func_8006A0C0(hdr->childType, hdr->unk88, hdr->unk80, hdr->unk84, hdr->unk8C, hdr->unk8E);
+        r->child = ripple_trail_create(hdr->childType, hdr->unk88, hdr->unk80, hdr->unk84, hdr->unk8C, hdr->unk8E);
     }
     return pad;
 }
@@ -860,14 +998,6 @@ void ripple_quad_free(u8 *ripple) {
 }
 
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006A924);
-
-/* JFG: a textured two-triangle quad with two vertex frames (ripple_quad_draw) */
-typedef struct RippleTexture {
-    /* 0x00 */ u8 pad0[6];
-    /* 0x06 */ s16 flags;
-    /* 0x08 */ u8 pad8[0x12 - 0x8];
-    /* 0x12 */ u16 numFrames; // JFG: in 1/256 frame units, as texFrame
-} RippleTexture;
 
 s16 func_80049C84(f32 x, f32 z);
 void func_8006A924(void *child, f32 x, f32 y, f32 z, s32 angle, s32 updateRate);
@@ -928,26 +1058,6 @@ void func_8006B090(RippleObj *obj, s32 updateRate) {
     }
 }
 
-
-/* JFG: one triangle strip set of a ripple's child effect: vertices, an optional second vertex set drawn with the
-   same triangles, and the triangles */
-typedef struct RippleStrip {
-    /* 0x00 */ u8 *vtx;
-    /* 0x04 */ u8 *vtx2;
-    /* 0x08 */ u8 *tris;
-    /* 0x0C */ s16 unkC;
-    /* 0x0E */ s16 numTris;
-} RippleStrip;
-
-typedef struct RippleChild {
-    /* 0x00 */ u8 pad0[0x10];
-    /* 0x10 */ RippleStrip *strips;
-    /* 0x14 */ u8 pad14[0x30 - 0x14];
-    /* 0x30 */ RippleTexture *tex;
-    /* 0x34 */ s16 texFrame;
-    /* 0x36 */ u8 pad36[2];
-    /* 0x38 */ u8 numStrips;
-} RippleChild;
 
 void func_80055C00(Gfx **dList, RippleTexture *tex, s32 flags, s32 frame);
 
@@ -1062,7 +1172,32 @@ void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void effect_slots_init(void);
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: 1 word longer: the target hoists the lui of gTransitionNextVtx above the sTransitionVtx[1] store
+   and shares one lui at for both sTransitionVtx stores */
+/* JFG: allocate the shape transitions' buffers once (DKR allocates them per transition in transition_init_shape):
+   two triangle and two vertex buffers of 16 each and the three 16-point float arrays; then set up the effect slots.
+   (The sizes in variables: with constants IDO forwards the stored pointers instead of reloading them.) */
+void transition_buffers_init(void) {
+    s32 sizeTris;
+    s32 sizeVerts;
+    s32 sizeF;
+
+    sizeTris = 16 * sizeof(Triangle);
+    sizeVerts = 16 * sizeof(Vertex);
+    sizeF = 16 * 3 * sizeof(f32);
+    sTransitionTris[0] = mempool_alloc_safe(0x580, 0xFFFF00FF);
+    sTransitionTris[1] = (Triangle *) ((u8 *) sTransitionTris[0] + sizeTris);
+    sTransitionVtx[0] = (Vertex *) ((u8 *) sTransitionTris[1] + sizeTris);
+    sTransitionVtx[1] = (Vertex *) ((u8 *) sTransitionVtx[0] + sizeVerts);
+    gTransitionNextVtx = (f32 *) ((u8 *) sTransitionVtx[1] + sizeVerts);
+    gTransitionVtxStep = (f32 *) ((u8 *) gTransitionNextVtx + sizeF);
+    gTransitionVertexTarget = (f32 *) ((u8 *) gTransitionVtxStep + sizeF);
+    effect_slots_init();
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
+#endif
 
 extern s32 gTransitionsDisabled;
 
@@ -2276,7 +2411,7 @@ extern void *D_80102D78[4];
 extern u8 D_80102D9C[4];
 extern ScreenEffectFunc D_800A6E1C[4];
 void func_80054530();
-s32 func_800531C8(void *addr); /* returns a value (51AD0.c): that keeps IDO off v0 after the call */
+s32 runlink_load_target_module(void *addr); /* returns a value (51AD0.c): that keeps IDO off v0 after the call */
 
 /* JFG: clear the four effect slots; a slot is flagged when its handler is the unloaded-module trap. */
 void effect_slots_init(void) {
@@ -2297,7 +2432,7 @@ void effect_slots_update(void) {
 
     while (i--) {
         if ((1 << i) & D_80102D54) {
-            func_800531C8(D_800A6E1C + i);
+            runlink_load_target_module(D_800A6E1C + i);
             if (D_800A6E1C[i] != NULL) {
                 D_800A6E1C[i](i, D_80102D40[i], 0);
             }
@@ -2328,7 +2463,7 @@ void effect_slot_start(s32 slot, u8 *dims) {
             *buf1++ = 0;
             *buf2++ = 0;
         }
-        func_800531C8(D_800A6E1C + slot);
+        runlink_load_target_module(D_800A6E1C + slot);
         if (D_800A6E1C[slot] != NULL) {
             D_800A6E1C[slot](slot, D_80102D40[slot], 1);
         }

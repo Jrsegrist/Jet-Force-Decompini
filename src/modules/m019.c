@@ -39,7 +39,7 @@ extern s32 leveltable_world(s32 level);
 extern s32 func_800468CC(void);
 extern s32 music_volume(void);
 extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
-extern void func_8005342C(s32 module);          /* unloads a runlink module */
+extern void runlink_module_release(s32 module);          /* unloads a runlink module */
 extern s32 runlink_module_loaded(s32 module);
 extern void dialogue_close(s32 arg0);
 extern void mempool_free_queue_flush(void);
@@ -226,7 +226,7 @@ s32 func_m019_001C8(void) {
 }
 
 static void free_module_38(void) {
-    func_8005342C(0x26);
+    runlink_module_release(0x26);
 }
 
 s32 func_m019_001F8(void) {
@@ -242,7 +242,7 @@ static void close_screen(s32 screen) {
     switch (sScreen) {
         case 2:
             func_m009_003A8();
-            func_8005342C(9);
+            runlink_module_release(9);
             func_m012_00158(1);
             break;
         case 1:
@@ -253,7 +253,7 @@ static void close_screen(s32 screen) {
             break;
         case 3:
             func_m018_0015C();
-            func_8005342C(9);
+            runlink_module_release(9);
             func_m012_00158(1);
             break;
         case 4:
@@ -262,11 +262,11 @@ static void close_screen(s32 screen) {
             break;
         case 6:
             func_m037_00160();
-            func_8005342C(0x25);
+            runlink_module_release(0x25);
             break;
         case 5:
             func_m018_043AC();
-            func_8005342C(0x29);
+            runlink_module_release(0x29);
             func_m012_00158(1);
             break;
         case 9:
@@ -334,7 +334,7 @@ void func_m019_00360(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 updateRate) {
                 mempool_free_timer(2);
                 func_m012_00108(2);
                 if (runlink_module_loaded(0x12)) {
-                    func_8005342C(0x12);
+                    runlink_module_release(0x12);
                 }
                 break;
             case 11:
@@ -344,7 +344,7 @@ void func_m019_00360(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 updateRate) {
                 mempool_free_timer(2);
                 func_m012_00108(2);
                 if (runlink_module_loaded(0x12)) {
-                    func_8005342C(0x12);
+                    runlink_module_release(0x12);
                 }
                 func_m012_018F4(sNewLevel, sNewLevelArg1, sNewLevelArg2, sNewLevelArg3);
                 break;

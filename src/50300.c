@@ -72,7 +72,13 @@ typedef struct OSSched {
 extern OSViMode D_800A9AB0;
 extern OSViMode D_800A9B00;
 extern OSViMode D_800A9B50;
-extern u64 D_800FE958;
+
+/************ .bss ************/
+
+s32 D_800FE950; // the SP was seen running last retrace (arms the hang report)
+s32 D_800FE954; // the same for the DP
+u64 D_800FE958; // the time the last graphics task was asked to yield
+
 extern s32 D_800A38C0;
 extern s32 D_800A38C4;
 extern s32 D_800A38CC;
@@ -450,8 +456,6 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
     return dl;
 }
 
-extern s32 D_800FE950; // the SP was seen running last retrace (arms the hang report)
-extern s32 D_800FE954; // the same for the DP
 extern u8 D_800A32D4;  // display list overflowed
 extern u8 D_800A32D8;  // matrix buffer overflowed
 extern u8 D_800A32DC;  // vertex buffer overflowed
@@ -807,8 +811,6 @@ void __scExec(OSSched *sc, SchedTask *sp, SchedTask *dp) {
     }
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the time's two words share one lui in the ROM: D_800FE958 is this file's .bss */
 /* Asks the running graphics task to yield (for audio), noting the time. */
 void __scYield(OSSched *sc) {
     SchedTask *t = sc->curRSPTask;
@@ -819,9 +821,6 @@ void __scYield(OSSched *sc) {
         osSpTaskYield();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/50300", func_80050C3C);
-#endif
 
 /*
  * Picks the next tasks for the free processors (availRCP: SC_NEEDS_RSP, SC_NEEDS_RDP): audio first when

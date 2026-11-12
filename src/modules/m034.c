@@ -33,7 +33,7 @@ extern s32 func_8004D5F8(s32 asset);                 /* DKR asset_table_size */
 extern void collision_buffers_alloc(void);
 extern void clear_object_pointers(void);
 extern void func_m033_00000(void);
-extern void func_8005342C(s32 module);               /* unloads a runlink module */
+extern void runlink_module_release(s32 module);               /* unloads a runlink module */
 
 static void decrypt_magic_codes(s32 *data, s32 length);
 
@@ -76,7 +76,7 @@ void func_m034_00000(void) {
     D_800F2C88 = 2.0f;
     clear_object_pointers();
     func_m033_00000();
-    func_8005342C(33);
+    runlink_module_release(33);
 }
 
 /* DKR's decrypt_magic_codes */

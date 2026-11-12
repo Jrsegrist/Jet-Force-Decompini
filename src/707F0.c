@@ -986,9 +986,6 @@ extern u32 D_800A6E68[]; // JFG: the draw modes (two commands) that end a font's
 extern u32 D_800A6E78[]; // JFG: the same for fonts of format 4
 extern u32 D_800A6E88[]; // JFG: the same for fonts of format 7
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 4 words: in case 4 the target schedules the addiu of D_800A6E78's address three
-   instructions later (the lui is right with the assignment on the macro's line). */
 /**
  * JFG: build a font's texture load commands (0x80 bytes, kept at font->loadCmds) for its format, loading
  * from the glyph cache (render_text_string patches each glyph's image address into the first command), and
@@ -1005,12 +1002,13 @@ void fontCreateDisplayList(FontData *font) {
         mode = D_800A6E68;
         switch (font->format) {
             case 4: // RGBA16 and I4
-                mode = D_800A6E78; gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_RGBA, G_IM_SIZ_16b, font->width, font->y, 0,
+                gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_RGBA, G_IM_SIZ_16b, font->width, font->y, 0,
                                      G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
                                      G_TX_NOLOD);
                 gDPLoadMultiBlock_4bS(dl++, D_801040F8, 0x100, 1, G_IM_FMT_I, font->width, font->y, 0,
                                       G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, 8, 8, G_TX_NOLOD,
                                       G_TX_NOLOD);
+                mode = D_800A6E78;
                 break;
             case 2: // RGBA32
                 gDPLoadTextureBlockS(dl++, D_801040F8, G_IM_FMT_RGBA, G_IM_SIZ_32b, font->width, font->y, 0,
@@ -1056,9 +1054,6 @@ void fontCreateDisplayList(FontData *font) {
         dl->words.w1 = mode[3];
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/707F0", func_800715E8);
-#endif
 
 extern u8 gFontConversionTable[]; // JFG: the font code of each ASCII character from ' '
 

@@ -36,7 +36,7 @@ extern void menu_assetgroup_reset(void *images);
 extern void menu_assetgroup_free(void *images); /* frees a list of loaded images */
 extern void menu_item_free(s32 arg0);
 extern void menu_item_load(s32 arg0);
-extern void func_8005342C(s32 module); /* unloads a runlink module */
+extern void runlink_module_release(s32 module); /* unloads a runlink module */
 extern void gParticlePtrList_flush(void);
 extern void func_8004AA80(void *data); /* frees */
 extern u8 *get_settings(void);       /* the players' saved settings (0x76 bytes each) */
@@ -702,7 +702,7 @@ void func_m018_020C0(void) {
         rl_m018_06774[i].unk6 = 0;
     }
     if (loaded == 0) {
-        func_8005342C(0x14);
+        runlink_module_release(0x14);
     }
     rl_m018_06D04 = 0;
     rl_m018_06D05 = -1;
@@ -1012,7 +1012,7 @@ void func_m018_048E4(void) {
     menu_assetgroup_reset(rl_m018_0681C);
     rl_m018_06BCC = 0;
     if (loaded == 0) {
-        func_8005342C(0x14);
+        runlink_module_release(0x14);
     }
     func_m018_057D8();
     obj = D_800FF3F8[0x7B];
@@ -1051,7 +1051,7 @@ void func_m018_05788(void) {
     menu_assetgroup_free(rl_m018_06810);
     menu_item_free(rl_m018_06BD1 + 0x6F);
     if (!rl_m018_06BF5) {
-        func_8005342C(0x2B);
+        runlink_module_release(0x2B);
     }
 }
 

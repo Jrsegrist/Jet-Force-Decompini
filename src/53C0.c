@@ -1368,7 +1368,7 @@ void func_80029CFC(s32 updateRate);
 Object **collision_objects_get(s32 *count);
 void func_8000FBF0(Object *obj, s32 updateRate);
 void func_8007E504(void);
-void func_8000DF00(Object *obj, s32 updateRate);
+void object_uv_offsets_update(Object *obj, s32 updateRate);
 void func_8006B090(Object *obj, s32 updateRate);
 void func_80032A48(Object *obj, s32 updateRate);
 void light_update_all(s32 updateRate);
@@ -1427,7 +1427,7 @@ void obj_update(s32 updateRate) {
                     func_8000FBF0(obj, updateRate);
                 }
                 if (obj->header->unk1E == 0 && obj->header->scrollTexture != 0xFF) {
-                    func_8000DF00(obj, updateRate);
+                    object_uv_offsets_update(obj, updateRate);
                 }
                 if (obj->behaviorId != 1 && obj->unk58 != NULL) {
                     func_8006B090(obj, updateRate);
@@ -2233,20 +2233,19 @@ void render_object(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj) {
     *verts = gObjectCurrVertexList;
 }
 
-#ifdef NON_MATCHING
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 
 /**
- * JFG: no vehicle check.
+ * JFG: no vehicle check (DKR's statement order; the clamp compares with an int 0 and goes through temp).
  * Official Name: objDoPlayerTumble
- * NON_MATCHING: the right length, but the cosine is kept at sp+0x18 (target 0x1C) and the
- * ternary's 0.0f reuses the compare's register (target: a second mtc1 into $f0).
  */
 void object_do_player_tumble(Object *this) {
     UNUSED s32 unused1;
     Object_Racer *sp_20;
     f32 tmp_f2;
     f32 offsetY;
+    f32 tmp_f0;
+    f32 temp;
 
     if (this->behaviorId == BHV_RACER) {
         sp_20 = this->racer;
@@ -2254,15 +2253,15 @@ void object_do_player_tumble(Object *this) {
         this->trans.x_rotation += sp_20->x_rotation_offset;
         this->trans.z_rotation += sp_20->z_rotation_offset;
         offsetY = func_80049C30(sp_20->z_rotation_offset);
-        tmp_f2 = func_80049C30(sp_20->x_rotation_offset - sp_20->unk146) * offsetY;
-        offsetY = (1.0f - ((tmp_f2 < 0.0f) ? 0.0f : tmp_f2 * tmp_f2)) * 24.0f + sp_20->unk64;
+        tmp_f2 = offsetY;
+        tmp_f0 = func_80049C30(sp_20->x_rotation_offset - sp_20->unk146) * tmp_f2;
+        temp = (tmp_f0 < 0) ? 0.0f : tmp_f0 * tmp_f0;
+        temp = (1.0f - temp) * 24.0f + sp_20->unk64;
+        offsetY = temp;
         this->trans.y_position = this->trans.y_position + offsetY;
         gObjectOffsetY = offsetY;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DC28);
-#endif
 
 /**
  * Official Name: objUndoPlayerTumble
@@ -2332,61 +2331,64 @@ void render_object_parts(Object *obj) {
     }
 }
 
-#ifdef NON_MATCHING
 /* JFG: scroll the texture coordinates of the triangles using the header's scroll texture, in one
-   attachment's model or all of them.
-   NON_MATCHING: the same logic, other register allocation (target keeps obj in s0). */
-void func_8000DF00(Object *obj, s32 updateRate) {
-    ObjectHeader *header;
-    s16 du, dv;
-    s32 first, last;
-    s32 texIndex;
-    s32 i, j, k;
-    ObjectModel53 *model;
-    ModelTexture *tex;
-    s16 maskU, maskV;
+   attachment's model or all of them (each axis only when it moves).
+   DKR: func_80014090 */
+void object_uv_offsets_update(Object *obj, s32 updateRate) {
+    ObjectHeader *objHeader;
+    s16 width;
+    s16 height;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 end;
+    s16 texIndex;
+    s16 first;
+    ObjectModel53 *objMdl;
+    ObjectAttachment *modInst;
     Triangle *tri;
-    s32 uv;
-    s32 d1, d2;
+    s16 du;
+    s16 dv;
+    s16 newU1;
+    s16 newU2;
+    s16 newV1;
+    s16 newV2;
 
-    header = obj->header;
-    du = header->scrollU * updateRate;
-    dv = header->scrollV * updateRate;
-    first = header->scrollModel;
-    texIndex = header->scrollTexture;
-    if (first == 0xFF || first < header->numAttachments) {
-        last = first + 1;
+    objHeader = obj->header;
+    du = objHeader->scrollU * updateRate;
+    dv = objHeader->scrollV * updateRate;
+    first = objHeader->scrollModel;
+    texIndex = objHeader->scrollTexture;
+    if ((first == 0xFF) || (first < objHeader->numAttachments)) {
         if (first == 0xFF) {
-            last = header->numAttachments;
+            end = objHeader->numAttachments;
             first = 0;
+        } else {
+            end = first + 1;
         }
-        for (i = first; i < last; i++) {
-            model = obj->attachments[i]->model;
-            if (texIndex < model->numberOfTextures) {
-                tex = model->textures[texIndex].texture;
-                maskU = tex->width << 5;
-                maskV = tex->height << 5;
-                for (j = 0; j < model->numberOfBatches; j++) {
-                    if (texIndex == model->batches[j].textureIndex) {
-                        for (k = model->batches[j].facesOffset; k < model->batches[j + 1].facesOffset; k++) {
-                            tri = &model->triangles[k];
+        for (i = first; i < end; i++) {
+            modInst = obj->attachments[i];
+            objMdl = modInst->model;
+            if (texIndex < objMdl->numberOfTextures) {
+                width = objMdl->textures[texIndex].texture->width << 5;
+                height = objMdl->textures[texIndex].texture->height << 5;
+                for (j = 0; j < objMdl->numberOfBatches; j++) {
+                    if (texIndex == objMdl->batches[j].textureIndex) {
+                        for (k = objMdl->batches[j].facesOffset; k < objMdl->batches[j + 1].facesOffset; k++) {
+                            tri = &objMdl->triangles[k];
                             if (du != 0) {
-                                uv = tri->uv[0][0];
-                                d2 = tri->uv[2][0] - uv;
-                                d1 = tri->uv[1][0] - uv;
-                                tri->uv[0][0] = (uv + du) & (maskU - 1);
-                                uv = tri->uv[0][0];
-                                tri->uv[1][0] = uv + d1;
-                                tri->uv[2][0] = uv + d2;
+                                newU1 = tri->uv[1][0] - tri->uv[0][0];
+                                newU2 = tri->uv[2][0] - tri->uv[0][0];
+                                tri->uv[0][0] = (tri->uv[0][0] + du) & (s16) (width - 1);
+                                tri->uv[1][0] = tri->uv[0][0] + newU1;
+                                tri->uv[2][0] = tri->uv[0][0] + newU2;
                             }
                             if (dv != 0) {
-                                uv = tri->uv[0][1];
-                                d2 = tri->uv[2][1] - uv;
-                                d1 = tri->uv[1][1] - uv;
-                                tri->uv[0][1] = (uv + dv) & (maskV - 1);
-                                uv = tri->uv[0][1];
-                                tri->uv[1][1] = uv + d1;
-                                tri->uv[2][1] = uv + d2;
+                                newV1 = tri->uv[1][1] - tri->uv[0][1];
+                                newV2 = tri->uv[2][1] - tri->uv[0][1];
+                                tri->uv[0][1] = (tri->uv[0][1] + dv) & (s16) (height - 1);
+                                tri->uv[1][1] = tri->uv[0][1] + newV1;
+                                tri->uv[2][1] = tri->uv[0][1] + newV2;
                             }
                         }
                     }
@@ -2395,9 +2397,6 @@ void func_8000DF00(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000DF00);
-#endif
 
 /**
  * Sort the object list so the objects whose header has flag 1 come first; returns where the
