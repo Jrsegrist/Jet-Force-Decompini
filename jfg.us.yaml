@@ -83,6 +83,8 @@ segments:
       - [0x44350, c]
       - [0x45750, c]
       - [0x49700, asm]
+      - [0x49760, c, ultra/mgu/mtxxfmf]
+      - [0x49800, asm]
       - [0x4A9C0, c]
       - [0x4AFD0, c, memory]
       - [0x4BC70, c]

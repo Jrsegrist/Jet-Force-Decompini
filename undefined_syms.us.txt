@@ -748,6 +748,9 @@ func_8008A410 = alCSPPlay;
 func_8008A450 = alCSPStop;
 alEvtqPostEvent = 0x8008B610;
 
+/* ---- src/ultra/mgu ---- */
+func_80048B60 = guMtxXFMF;
+
 /* ---- 59060.c .bss (0x800FF1B0-0x800FFE40): the asm's names for parts of its variables ---- */
 D_800FF1B5 = D_800FF1B4 + 1;
 D_800FF1B6 = D_800FF1B4 + 2;
