@@ -5,39 +5,72 @@
  */
 #include "module.h"
 
-/* A work buffer (size 0x10) */
+/* A work buffer: the path nodes kept for one target (size 0x10) */
 typedef struct M155Buffer {
-    /* 0x0 */ u8 pad0[8];
-    /* 0x8 */ void *data;
-    /* 0xC */ u8 padC[4];
+    /* 0x0 */ Object *obj; /* the target, or NULL: free */
+    /* 0x4 */ s16 x;       /* where it was when they were built */
+    /* 0x6 */ s16 z;
+    /* 0x8 */ void *data;  /* the nodes */
+    /* 0xC */ u8 unkC;
+    /* 0xD */ u8 unkD;
+    /* 0xE */ u8 count;    /* of nodes */
+    /* 0xF */ u8 padF;
 } M155Buffer;
 
-/* The current enemy's flags */
+/* The current enemy's flags (its orders, allocated by 01584; size 0x20) */
 typedef struct M155Flags {
     /* 0x0 */ u32 unk0 : 8;
-    /* 0x1 */ u32 unk1 : 8;
-    u32 pad : 13;
+    /* 0x1 */ u32 unk1 : 8; /* a delay: set by the troop's control when its side goes */
+    /* 0x2 */ u32 unk2 : 8; /* frames it has been held up (02FD0) */
+    u32 pad : 5;
     u32 alerted : 1;
-    u32 pad2 : 2;
-    /* 0x04 */ s32 unk4;
-    /* 0x08 */ u8 pad8[0x14 - 0x8];
+    u32 go : 1; /* it needs a new path */
+    u32 pad2 : 1;
+    /* 0x04 */ s32 unk4;     /* the path node it last reached (as node->unkC) */
+    /* 0x08 */ s16 unk8;     /* points of its path, (x, z) each */
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ s16 unk10;
+    /* 0x12 */ s16 unk12;
     /* 0x14 */ s16 nextX; /* the next point of its path */
     /* 0x16 */ s16 nextZ;
+    /* 0x18 */ u32 unk18; /* the distance (squared) to its next point when last checked */
 } M155Flags;
 
-/* The current enemy's state */
+/* The current enemy's state (its object's unk68) */
 typedef struct M155Enemy {
-    /* 0x00 */ u8 pad0[0x1A];
+    /* 0x00 */ u32 pad0 : 5;
+    /* 0x00 */ u32 unk0_4000000 : 1;
+    /* 0x00 */ u32 pad0b : 14;
+    /* 0x00 */ u32 unk0_800 : 1;
+    /* 0x00 */ u32 pad0c : 7;
+    /* 0x00 */ u32 leader : 1;
+    /* 0x00 */ u32 pad0d : 3;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u8 pad6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 pad8[0x15 - 0x8];
+    /* 0x15 */ u8 unk15; /* bit 0: its side of the troop */
+    /* 0x16 */ u8 pad16[0x18 - 0x16];
+    /* 0x18 */ u8 unk18;
+    /* 0x19 */ u8 pad19;
     /* 0x1A */ u8 state;
-    /* 0x1B */ u8 pad1B[0x38 - 0x1B];
+    /* 0x1B */ u8 pad1B[0x24 - 0x1B];
+    /* 0x24 */ Object *home; /* its troop's home */
+    /* 0x28 */ Object *next; /* the troop's next member */
+    /* 0x2C */ u8 pad2C[0x38 - 0x2C];
     /* 0x38 */ f32 goalX;
     /* 0x3C */ f32 goalY;
     /* 0x40 */ f32 goalZ;
     /* 0x44 */ u8 pad44[0x64 - 0x44];
     /* 0x64 */ Object *target;
+    /* 0x68 */ u8 pad68[0xB0 - 0x68];
+    /* 0xB0 */ M155Flags *flags;
 } M155Enemy;
 
 extern void func_8004AA80(void *data); /* DKR mempool_free */
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern s32 func_80049C84(f32 a, f32 b); /* the angle of (a, b) */
 
 /* .bss, still assembly */
@@ -51,9 +84,6 @@ extern M155Buffer rl_m155_04F98[4];
 #define sEnemy rl_m155_04F70
 #define sFlags rl_m155_04F7C
 #define sBuffers rl_m155_04F98
-
-/* still assembly */
-extern s32 rl_m155_01584(Object *obj, s32 arg1);
 
 /* The module's init: the player is where it was last spotted */
 void func_m155_00000(void) {
@@ -167,6 +197,10 @@ typedef struct M155Area {
     /* 0x14 */ u32 flags; /* 1: in use, 4: skip, 8: has its own nodes */
     /* 0x18 */ u8 pad18[0x20 - 0x18];
     /* 0x20 */ Object *obj;
+    /* 0x24 */ u8 pad24[4];
+    /* 0x28 */ u8 unk28; /* what module 3's 04260 gets when the enemy is inside */
+    /* 0x29 */ u8 unk29;
+    /* 0x2A */ u8 unk2A;
 } M155Area;
 
 extern M155Area *rl_m155_04F80; /* .bss (still assembly): the enemy's region */
@@ -380,12 +414,21 @@ static void func_m155_00644(s16 x, s16 z, M155Area *area) {
     }
 }
 
-/* A troop home's data and a member's, as far as 00FC4 uses them (module 3's) */
+/* A troop home's data and a member's, as far as 00FC4, 01274 and 02BB0 use them (module 3's) */
 typedef struct M155Home {
-    /* 0x00 */ u8 pad0[0x58];
+    /* 0x00 */ u8 pad0[0x28];
+    /* 0x28 */ u16 flags; /* 0x100: which side moves next */
+    /* 0x2A */ u8 pad2A[2];
+    /* 0x2C */ u16 kind;
+    /* 0x2E */ u8 pad2E[0x37 - 0x2E];
+    /* 0x37 */ u8 timer;
+    /* 0x38 */ u8 order[2]; /* for each side */
+    /* 0x3A */ u8 pad3A[0x58 - 0x3A];
     /* 0x58 */ Object *first;
     /* 0x5C */ u8 pad5C[0x64 - 0x5C];
     /* 0x64 */ u8 unk64;
+    /* 0x65 */ u8 pad65[0x7A - 0x65];
+    /* 0x7A */ s8 region;
 } M155Home;
 typedef struct M155MemberPath {
     /* 0x0 */ u8 pad0[4];
@@ -402,7 +445,7 @@ typedef struct M155Member {
     /* 0xB0 */ M155MemberPath *path;
 } M155Member;
 
-extern s8 *rl_m155_04F78;     /* .bss (still assembly): its byte at 0x7A is the region id */
+extern M155Home *rl_m155_04F78; /* .bss (still assembly): the current enemy's troop */
 extern M155Area *rl_m155_04F80;
 extern M155Area *func_m003_0569C(s32 id);
 extern s32 func_m003_056D4(M155Area *area);
@@ -424,7 +467,7 @@ void func_m155_00FC4(s16 x, s16 z, s32 troop) {
     s32 n;
 
     rl_m155_03C70 = 0;
-    a = rl_m155_04F80 = func_m003_0569C(rl_m155_04F78[0x7A]);
+    a = rl_m155_04F80 = func_m003_0569C(rl_m155_04F78->region);
     func_m155_00644(x, z, a);
     for (a = a->next; a != NULL; a = a->next) {
         if ((a->flags & 1) && !(a->flags & 4)) {
@@ -460,9 +503,93 @@ void func_m155_00FC4(s16 x, s16 z, s32 troop) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01274);
+/* What module 3 gives for a troop's first member */
+typedef struct M155TroopInfo {
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ u32 pad24 : 22;
+    /* 0x24 */ u32 unk24_200 : 1;
+    /* 0x24 */ u32 pad24c : 4;
+    /* 0x24 */ u32 unk24_10 : 1;
+    /* 0x24 */ u32 pad24b : 4;
+    /* 0x28 */ u8 pad28[0x2E - 0x28];
+    /* 0x2E */ u8 interval;
+} M155TroopInfo;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01584);
+extern M155TroopInfo *func_m003_0D2C0(Object *obj);
+
+extern s32 rl_m155_04F8C;
+extern M155Node *rl_m155_04D50;
+
+INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01274);
+extern void rl_m155_01274(Object *target);
+#define func_m155_01274 rl_m155_01274
+
+extern Object *rl_m155_04F74;        /* the current enemy's troop home */
+extern s32 rl_m155_04F94;
+extern M155TroopInfo *rl_m155_04FD8; /* what module 3 gives for the current enemy */
+extern s32 func_m003_056F4(s32 x, s32 z);
+extern s32 rl_m155_04F88;
+extern s16 rl_m155_04F68;
+extern s16 rl_m155_04F6A;
+extern M155Node *rl_m155_04F84;
+
+/*
+ * Makes obj the current enemy: its state, troop, region and flags (allocated the first time); with
+ * `full`, also the path nodes towards its target and the node it last reached. FALSE if module 3 has
+ * nothing for it
+ */
+static s32 func_m155_01584(Object *obj, s32 full) {
+    s32 n = rl_m155_03C70;
+    M155Node *node = rl_m155_04D50;
+
+    rl_m155_04F78 = (rl_m155_04F74 = (sEnemy = (rl_m155_04F6C = obj)->unk68)->home)->unk68;
+    rl_m155_04F88 = (rl_m155_04F78->unk64 << 16) + sEnemy->unk15 + 1;
+    rl_m155_04F80 = func_m003_0569C(rl_m155_04F78->region);
+    if ((rl_m155_04FD8 = func_m003_0D2C0(obj)) == NULL) {
+        return FALSE;
+    }
+    if (sEnemy->target != NULL) {
+        rl_m155_04F90 = func_80049C84(rl_m155_04F6C->trans.z_position - sEnemy->target->trans.z_position,
+                                      rl_m155_04F6C->trans.x_position - sEnemy->target->trans.x_position) -
+                        0x8000;
+    }
+    rl_m155_04F94 = 0;
+    rl_m155_04F84 = NULL;
+    if ((sFlags = sEnemy->flags) == NULL) {
+        sFlags = func_8004A57C(0x20, 0xFFFF);
+        sEnemy->flags = sFlags;
+        sFlags->unk8 = sFlags->nextX = sFlags->unk10 = sFlags->unkC = rl_m155_04F6C->trans.x_position;
+        sFlags->unkA = sFlags->nextZ = sFlags->unk12 = sFlags->unkE = rl_m155_04F6C->trans.z_position;
+        sFlags->go = 1;
+        sFlags->alerted = 0;
+        sFlags->unk1 = 0;
+        sFlags->unk18 = -1;
+        sFlags->unk4 = 0;
+    }
+    if (!full) {
+        return TRUE;
+    }
+    if (sEnemy->target == NULL) {
+        rl_m155_04F84 = NULL;
+        return TRUE;
+    }
+    func_m155_01274(sEnemy->target);
+    if (func_m003_056F4(sLastX, sLastZ)) {
+        rl_m155_04F68 = sLastX;
+        rl_m155_04F6A = sLastZ;
+    }
+    while (n-- > 0) {
+        if (node->unkC == sFlags->unk4) {
+            rl_m155_04F84 = node;
+            break;
+        }
+        node++;
+    }
+    if (rl_m155_04F84 == NULL) {
+        sFlags->go = 1;
+    }
+    return TRUE;
+}
 
 extern s32 rl_m155_04F88; /* the current search's stamp (.bss, still assembly) */
 
@@ -962,7 +1089,123 @@ M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
     return best;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_02BB0);
+/* A troop's control: every member is set up in turn; then the troop's orders for its two sides */
+void func_m155_02BB0(Object *obj) {
+    M155Home *troop = obj->unk68;
+    s32 ready = TRUE;
+    M155TroopInfo *info = NULL;
+    s32 side;
+    Object *o;
+    M155Enemy *m;
+    s32 found;
+    s32 none;
+    u8 *a;
+    u8 *b;
+
+    if (troop->timer != 0) {
+        troop->timer--;
+        return;
+    }
+    o = troop->first;
+    if (o != NULL) {
+        info = func_m003_0D2C0(o);
+    }
+    while (o != NULL) {
+        func_m155_01584(o, 0);
+        if (!sFlags->alerted && sEnemy->state == 0) {
+            ready = FALSE;
+            break;
+        }
+        o = sEnemy->next;
+    }
+    if (sEnemy->leader) {
+        if (ready) {
+            sEnemy->flags->go = 1;
+            sEnemy->flags->alerted = 0;
+        }
+        if (sEnemy->target == NULL) {
+            goto stop;
+        }
+        if (sEnemy->target->behaviorId == 1) {
+            if (!(sEnemy->unk4 & 1)) {
+                goto stop;
+            }
+            troop->order[0] = 5;
+        } else {
+            troop->order[0] = 4;
+        }
+        return;
+    }
+    if (info->unk24_10) {
+        if (ready) {
+            sEnemy->flags->go = 1;
+            sEnemy->flags->alerted = 0;
+        }
+        if (sEnemy->target == NULL || !(sEnemy->unk4 & 1)) {
+            goto stop;
+        }
+        troop->order[0] = 5;
+        return;
+    }
+    if (troop->kind == 0x8D) {
+        found = FALSE;
+        none = TRUE;
+        for (o = troop->first; o != NULL; o = m->next) {
+            m = o->unk68;
+            if (m->target != NULL) {
+                none = FALSE;
+                if (m->target->behaviorId == 0x18) {
+                    found = TRUE;
+                    if (m->flags->alerted) {
+                        m->flags->go = 1;
+                        m->flags->alerted = 0;
+                    }
+                }
+            }
+        }
+        if (found) {
+            troop->order[0] = 5;
+            troop->order[1] = 5;
+            return;
+        }
+        if (none) {
+            goto stop;
+        }
+    }
+    if (ready) {
+        troop->flags ^= 0x100;
+        if (troop->flags & 0x100) {
+            a = &troop->order[0];
+            b = &troop->order[1];
+            side = 0;
+        } else {
+            b = &troop->order[0];
+            a = &troop->order[1];
+            side = 1;
+        }
+        *a = 3;
+        *b = 2;
+        for (o = troop->first; o != NULL; o = m->next) {
+            m = o->unk68;
+            if (side == (m->unk15 & 1)) {
+                m->flags->go = 1;
+                m->flags->unk1 = func_80005064(func_80048E2C(10, 25));
+            }
+            m->flags->alerted = 0;
+        }
+        if (info != NULL) {
+            troop->timer = info->interval;
+        } else {
+            troop->timer = 50;
+        }
+    }
+    return;
+stop:
+    sEnemy->flags->go = 0;
+    sEnemy->flags->alerted = 1;
+    troop->order[0] = 8;
+    troop->order[1] = 8;
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m155/ro", func_m155_02FD0);
 
@@ -970,7 +1213,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155/ro", func_m155_02FD0);
 s16 func_m155_03B94(Object *obj, s16 yaw) {
     Object *target;
 
-    rl_m155_01584(obj, 0);
+    func_m155_01584(obj, 0);
     if (sFlags->alerted || sFlags->unk1 != 0) {
         target = sEnemy->target;
         if (target != NULL && sEnemy->state != 11) {
