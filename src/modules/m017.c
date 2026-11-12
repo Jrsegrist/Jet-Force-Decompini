@@ -186,9 +186,13 @@ typedef struct Racer {
     /* 0x57C */ f32 unk57C;
     /* 0x580 */ u8 pad580[0x585 - 0x580];
     /* 0x585 */ s8 unk585;
-    /* 0x586 */ u8 pad586[0x58E - 0x586];
+    /* 0x586 */ u8 pad586[0x58C - 0x586];
+    /* 0x58C */ s16 unk58C;
     /* 0x58E */ s8 unk58E;
-    /* 0x58F */ u8 pad58F[0x594 - 0x58F];
+    /* 0x58F */ s8 unk58F;
+    /* 0x590 */ s8 unk590;
+    /* 0x591 */ s8 unk591;
+    /* 0x592 */ s16 unk592;
     /* 0x594 */ f32 unk594;
     /* 0x598 */ u8 pad598[0x5BC - 0x598];
     /* 0x5BC */ void *unk5BC;
@@ -197,7 +201,8 @@ typedef struct Racer {
     /* 0x5C8 */ s16 unk5C8;
     /* 0x5CA */ u8 pad5CA[0x5D8 - 0x5CA];
     /* 0x5D8 */ s32 unk5D8; /* sound handle */
-    /* 0x5DC */ u8 pad5DC[0x5EC - 0x5DC];
+    /* 0x5DC */ s32 unk5DC; /* sound handle */
+    /* 0x5E0 */ u8 pad5E0[0x5EC - 0x5E0];
     /* 0x5EC */ u8 unk5EC;
     /* 0x5ED */ u8 unk5ED; /* that sound's volume */
     /* 0x5EE */ u8 unk5EE;
@@ -266,6 +271,12 @@ typedef struct M017Interact {
 } M017Interact;
 
 #define INTERACT(obj) ((M017Interact *) (obj)->interactObj)
+
+/* The two angles func_8004944C reads */
+typedef struct M017Angles {
+    s16 y_rotation;
+    s16 x_rotation;
+} M017Angles;
 
 /* A player's character record (func_80047C1C) */
 typedef struct M017Char {
@@ -427,11 +438,15 @@ static M017Anim D_m017_062C8[29] = {
 };
 
 /* animation speeds */
-static f32 D_m017_0635C[53] = {
+static f32 D_m017_0635C[24] = {
     0.014f, 0.011f, 0.007f, 0.014f, 0.012f, 0.02f,
     0.0167f, 0.01f, 0.025f, 0.005f, 0.0075f, 0.005f,
     0.005f, 0.02f, 0.02f, 0.005f, 0.01f, 0.0334f,
     0.005f, 0.01f, 0.01f, 0.02f, 0.01f, 0.0067f,
+};
+
+/* animation speeds (character 6) */
+static f32 D_m017_063BC[29] = {
     0.015f, 0.0175f, 0.02f, 0.015f, 0.012f, 0.02f,
     0.021f, 0.012f, 0.025f, 0.015f, 0.015f, 0.015f,
     0.015f, 0.015f, 0.02f, 0.005f, 0.02f, 0.025f,
@@ -486,13 +501,11 @@ static M017Rate D_m017_06608[19] = {
     { 0.004f, 0.8f, 0, 0 },
 };
 
-/* func_m017_05930's per-step tables */
-static f32 D_m017_06738[4][8] = {
-    { 0.005f, 0.025f, 0.03f, 0.035f, 0.04f, 0.045f, 0.05f, 0.05f },
-    { 0.01f, 0.015f, 0.02f, 0.025f, 0.035f, 0.045f, 0.045f, 0.045f },
-    { 0.01f, 0.03f, 0.0375f, 0.0475f, 0.06f, 0.0725f, 0.0725f, 0.0725f },
-    { 0.015f, 0.02f, 0.0275f, 0.0375f, 0.05f, 0.0625f, 0.0625f, 0.0625f },
-};
+/* Per-speed turn and speed rates while swimming (character 6 has its own) */
+static f32 D_m017_06738[8] = { 0.005f, 0.025f, 0.03f, 0.035f, 0.04f, 0.045f, 0.05f, 0.05f };
+static f32 D_m017_06758[8] = { 0.01f, 0.015f, 0.02f, 0.025f, 0.035f, 0.045f, 0.045f, 0.045f };
+static f32 D_m017_06778[8] = { 0.01f, 0.03f, 0.0375f, 0.0475f, 0.06f, 0.0725f, 0.0725f, 0.0725f };
+static f32 D_m017_06798[8] = { 0.015f, 0.02f, 0.0275f, 0.0375f, 0.05f, 0.0625f, 0.0625f, 0.0625f };
 extern void func_80048518(s32 arg0);
 extern void func_80033920(Object *obj, Racer *racer);
 
@@ -554,6 +567,8 @@ extern void func_8006B090(Object *obj, s32 updateRate);
 extern void multiplayer_score_kill(Object *obj, Object *obj2);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern s32 func_8004966C(s16 angle);
+extern void *func_m001_00188(f32 size, f32 x, f32 y, f32 z, f32 level, f32 vx, f32 vy, f32 vz);
+extern void anim_sound_events_play(Object *obj, f32 frame, f32 speed);
 extern void glitch_effect_skip_redraw(void);
 extern void menu_draw_layout_box(s32 arg0, s32 player, u32 colour);
 extern f32 D_800F6DC4; /* gravity */
@@ -580,6 +595,7 @@ static void func_m017_0430C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
 static void func_m017_04614(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 static void func_m017_050BC(Object *obj, Racer *racer, f32 updateRate);
 static void func_m017_056D4(Object *obj, Racer *racer, s32 updateRate);
+static void func_m017_01C44(Object *obj, Racer *racer, f32 frame, f32 speed);
 
 /* The static functions, still assembly */
 static void func_m017_01A30(Object *obj, Racer *racer, s32 updateRate);
@@ -591,12 +607,12 @@ static void func_m017_02A40(Object *obj, Racer *racer, f32 speed, s16 angle, f32
 static void func_m017_0313C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 extern void rl_m017_03258(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 static void func_m017_02848(Object *obj, Racer *racer, f32 updateRate);
-extern s32 rl_m017_04A44(Racer *racer, f32 *frame);
+static s32 func_m017_04A44(Racer *racer, f32 *frame);
 static void func_m017_04178(Racer *racer, s16 roll, s16 pitch, s16 yaw);
 static void func_m017_04270(s16 pitch, s16 yaw);
 static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame);
-extern void rl_m017_04C50(Object *obj, Racer *racer, f32 speed, f32 updateRate);
-extern void rl_m017_05930(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
+static void func_m017_04C50(Object *obj, Racer *racer, f32 speed, f32 updateRate);
+static void func_m017_05930(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
 
 
 /* The module's .bss */
@@ -852,7 +868,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
             func_m017_0430C(obj, racer, speed, angle, updateRate);
             break;
         case 4:
-            rl_m017_05930(obj, racer, speed, angle, updateRate);
+            func_m017_05930(obj, racer, speed, angle, updateRate);
             break;
         case 10:
             func_m017_05F08(obj, racer, speed, angle, updateRate);
@@ -899,7 +915,7 @@ void func_m017_00000(Object *obj, s32 updateRate) {
             racer->unk585 = character->weapon;
         }
     }
-    rl_m017_04C50(obj, racer, speed, updateRate);
+    func_m017_04C50(obj, racer, speed, updateRate);
     func_m017_050BC(obj, racer, updateRate);
     player_squash_update(obj, racer, updateRate);
     if ((racer->unk520 & 0x8000) && racer->state != 10 && racer->unk5C8 == 0) {
@@ -1175,7 +1191,63 @@ static void func_m017_01A30(Object *obj, Racer *racer, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_01C44);
+/* Footstep splashes: kicks up particles at two points of the walk cycle when wading */
+static void func_m017_01C44(Object *obj, Racer *racer, f32 frame, f32 speed) {
+    f32 from;
+    f32 to;
+    f32 sine;
+    f32 cosine;
+    f32 x;
+    f32 z;
+    s32 i;
+    f32 size;
+    f32 side;
+    f32 fwd;
+    s32 hit;
+    Vec3f vel;
+    M017Angles rot;
+
+    if (racer->state == 0 && racer->unk60 > 0.0f && racer->unk4 < -1.0f) {
+        hit = FALSE;
+        if (speed < 0.0f) {
+            from = obj->unk28;
+            to = frame;
+            if (frame < from) {
+                from -= 1.0f;
+            }
+        } else {
+            from = frame;
+            to = obj->unk28;
+            if (to < frame) {
+                to += 1.0f;
+            }
+        }
+        if (from < 0.4f && 0.4f <= to) {
+            hit = TRUE;
+            side = 4.0f;
+            fwd = 16.0f;
+        } else if (from < 0.9f && 0.9f < to) {
+            hit = TRUE;
+            side = -4.0f;
+            fwd = 16.0f;
+        }
+        if (hit) {
+            i = 2 - (s32) (racer->unk4 + 1.0f);
+            sine = func_80049C34(obj->trans.rotation.y_rotation);
+            cosine = func_80049C30(obj->trans.rotation.y_rotation);
+            x = obj->trans.x_position + (side * cosine + fwd * sine);
+            z = obj->trans.z_position + (fwd * cosine - side * sine);
+            while (i--) {
+                size = func_80048E2C(50, 100) * 0.01f;
+                rot.y_rotation = func_80048E2C(-0x2555, 0x2555) + obj->trans.rotation.y_rotation;
+                rot.x_rotation = func_80048E2C(0x2400, 0x3C00);
+                vel.z = func_80048E2C(12, 22) * -0.1f + racer->unk4 * 0.25f;
+                func_8004944C((Vec3s *) &rot, &vel);
+                func_m001_00188(size, x, racer->unk5C, z, racer->unk5C, vel.x, vel.y, vel.z);
+            }
+        }
+    }
+}
 
 /* Reacts to hits: the shake and roll of the body, damage, the voice and the red flash */
 static void func_m017_01F7C(Object *obj, Racer *racer, s32 updateRate) {
@@ -1452,7 +1524,7 @@ static void func_m017_02A54(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     }
     if (obj->animationID == 0x11 && racer->unk56B == 0) {
-        func_m017_04B84(obj, racer, rl_m017_04A44(racer, &frame), 0);
+        func_m017_04B84(obj, racer, func_m017_04A44(racer, &frame), 0);
     }
     if (gPlayerButtonsHeld & 0x10) {
         racer->unk11C -= racer->unk10A;
@@ -1749,7 +1821,47 @@ static void func_m017_04614(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     func_m017_04178(racer, -obj->trans.rotation.z_rotation, pitch, yaw);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_04A44);
+/* Picks the standing/walking/running animation for the current speed (an idle one when stopped) */
+static s32 func_m017_04A44(Racer *racer, f32 *frame) {
+    f32 x;
+    f32 z;
+    f32 big;
+    s32 anim;
+
+    x = racer->unk4;
+    if (x < 0.0f) {
+        x = -x;
+    }
+    z = racer->unk10;
+    if (z < 0.0f) {
+        z = -z;
+    }
+    big = x;
+    if (x < z) {
+        big = z;
+    }
+    if (big < 0.1f) {
+        if (racer->unk1FA != 0) {
+            anim = 9;
+        } else if (racer->unk1F9 != 0) {
+            anim = 9;
+        } else if (racer->unk198 != 0) {
+            anim = 9;
+        } else {
+            anim = func_80048E2C(9, 0xD);
+        }
+        *frame = 0.0f;
+    } else if (racer->unk569 != 0) {
+        anim = 3;
+    } else if (big > 3.5f) {
+        anim = 2;
+    } else if (big > 2.0f) {
+        anim = 1;
+    } else {
+        anim = 0;
+    }
+    return anim;
+}
 
 /* Sets the animation: the armed or carrying variant of `anim` when that applies */
 static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame) {
@@ -1766,7 +1878,131 @@ static void func_m017_04B84(Object *obj, Racer *racer, s32 anim, f32 frame) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_04C50);
+/* The animation state machine: moves on from the current animation, and advances it */
+static void func_m017_04C50(Object *obj, Racer *racer, f32 speed, f32 updateRate) {
+    f32 ax;
+    f32 az;
+    f32 big;
+    f32 animSpeed;
+    f32 newFrame;
+    f32 frame;
+    s32 anim;
+
+    ax = racer->unk4;
+    if (ax < 0) {
+        ax = -ax;
+    }
+    az = racer->unk10;
+    if (az < 0) {
+        az = -az;
+    }
+    big = ax;
+    if (ax < az) {
+        big = az;
+    }
+    anim = obj->animationID;
+    newFrame = obj->unk28;
+    frame = obj->unk28;
+    if (racer->character == 6) {
+        animSpeed = D_m017_063BC[obj->animationID];
+    } else {
+        animSpeed = D_m017_0635C[obj->animationID];
+    }
+    switch (obj->animationID) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+            animSpeed *= big;
+            anim = func_m017_04A44(racer, &newFrame);
+            break;
+        case 6:
+            if (racer->character == 6 && obj->unk28 == 1.0f) {
+                if (big > 0.85f || obj->velocity.y > 0.85f) {
+                    anim = 0x14;
+                } else {
+                    anim = 0x15;
+                }
+            }
+            break;
+        case 7:
+            if (D_m017_069BC != 0) {
+                anim = func_m017_04A44(racer, &newFrame);
+                newFrame = 0.0f;
+            }
+            break;
+        case 8:
+            if (racer->unk576 == 0) {
+                anim = 0;
+                newFrame = 0.0f;
+            }
+            break;
+        case 9:
+        case 10:
+        case 11:
+        case 12:
+        case 13:
+        case 18:
+            if (big > 0.1f) {
+                anim = func_m017_04A44(racer, &newFrame);
+                newFrame = 0.25f;
+            } else if (obj->unk28 + animSpeed * updateRate > 1.0f) {
+                if (racer->unk1FA != 0) {
+                    obj->animationID = -1;
+                    anim = 9;
+                } else if (racer->unk1F9 != 0) {
+                    obj->animationID = -1;
+                    anim = 9;
+                } else if (racer->unk198 != 0) {
+                    obj->animationID = -1;
+                    anim = 9;
+                } else {
+                    anim = func_80048E2C(9, 0xD);
+                }
+                newFrame = 0.0f;
+            }
+            break;
+        case 14:
+            if (obj->unk28 > 0.98f) {
+                anim = 0;
+                newFrame = 0.25f;
+            }
+            break;
+        case 21:
+            if (big > 0.85f || obj->velocity.y > 0.85f) {
+                anim = 0x14;
+            }
+            break;
+        case 20:
+            animSpeed *= big;
+            if (big < 0.7f && obj->velocity.y < 0.7f) {
+                anim = 0x15;
+            }
+            break;
+        case 22:
+            if (racer->unk19F == 0 && racer->unk10D == 0) {
+                anim = func_m017_04A44(racer, &newFrame);
+                newFrame = 0.0f;
+            }
+            break;
+        case 25:
+        case 26:
+            if (-0.1f < az && az < 0.1f) {
+                anim = func_m017_04A44(racer, &newFrame);
+            }
+            break;
+        case 27:
+            if (obj->unk28 > 0.98f) {
+                anim = 0x15;
+                newFrame = 0.25f;
+            }
+            break;
+    }
+    func_8001138C(obj, animSpeed, updateRate);
+    anim_sound_events_play(obj, frame, animSpeed);
+    func_m017_01C44(obj, racer, frame, animSpeed);
+    func_m017_04B84(obj, racer, anim, newFrame);
+}
 
 /* Moves the object by its velocity and works out the velocity it really got */
 static void func_m017_050BC(Object *obj, Racer *racer, f32 updateRate) {
@@ -1948,7 +2184,113 @@ static void func_m017_056D4(Object *obj, Racer *racer, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m017/ro", func_m017_05930);
+/* State 4: swimming */
+static void func_m017_05930(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
+    s32 roll;
+    f32 x;
+    s32 i;
+    s16 oldAngle;
+    s32 pad;
+    f32 v;
+    f32 depth;
+    f32 scale;
+    f32 rate;
+    f32 *turnTable;
+    f32 *speedTable;
+
+    if (racer->character == 6) {
+        depth = 8.0f;
+        scale = 0.1f;
+        rate = 0.03f;
+        turnTable = D_m017_06778;
+        speedTable = D_m017_06798;
+        speed *= 1.4f;
+    } else {
+        racer->flags.byte[1] &= ~0xF;
+        depth = 24.0f;
+        scale = 0.037037037f;
+        rate = 0.0175f;
+        turnTable = D_m017_06738;
+        speedTable = D_m017_06758;
+    }
+    if (racer->unk2 == 0 ||
+        (racer->unk60 < depth && ((racer->pose->unk5 & racer->unk532) || obj->velocity.y > 5.0f))) {
+        racer->unk57A = 0;
+        racer->unk57C = obj->trans.y_position;
+        racer->state = 3;
+        racer->unk58E = 0;
+        racer->unk594 = 0.0f;
+    }
+    player_turn_limit_update(obj, racer, &speed, angle, 0x5000, 0x6800, 5.0f, 3.0f);
+    func_m017_02848(obj, racer, updateRate);
+    if (D_800A18B0->unkC & gPlayerButtonsPressed) {
+        racer->unk57A = 0;
+        racer->unk57C = obj->trans.y_position;
+        obj->velocity.y += 12.0f;
+        if (obj->velocity.y > 12.0f) {
+            obj->velocity.y = 12.0f;
+        }
+        if (racer->character == 6) {
+            func_m017_04B84(obj, racer, 0x18, 0);
+        } else {
+            func_m017_04B84(obj, racer, 5, 0);
+        }
+        player_voice_play(obj, 0);
+    } else {
+        obj->velocity.y = func_80049BEC(0.915f, updateRate) * obj->velocity.y;
+    }
+    if (racer->unk569 == 0) {
+        speed = -speed;
+    } else {
+        angle += 0x8000;
+    }
+    if (racer->state == 4) {
+        racer->unk19E = 1;
+        racer->unk594 = racer->unk60 * scale;
+        if (racer->unk594 > 1.5f) {
+            racer->unk594 = 1.5f;
+        }
+    }
+    x = racer->unk4;
+    if (x < 0.0f) {
+        x = -x;
+    }
+    i = x;
+    if (i > 6) {
+        i = 6;
+    }
+    v = turnTable[i] + (x - i) * (turnTable[i + 1] - turnTable[i]);
+    oldAngle = racer->unk11C;
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(1.0f - v, updateRate));
+    racer->unk4 = (1.0f - func_80049BEC(1.0f - rate, updateRate)) * (speed - racer->unk4) + racer->unk4;
+    x = racer->unk4;
+    if (x < 0.0f) {
+        x = -x;
+    }
+    i = x;
+    if (i > 6) {
+        i = 6;
+    }
+    v = (x - i) * (speedTable[i + 1] - speedTable[i]) + speedTable[i];
+    racer->unk128 = angle_lerp(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(1.0f - v, updateRate));
+    oldAngle = racer->unk11C - oldAngle;
+    x = racer->unk4;
+    if (x < 0.0f) {
+        x = -x;
+    }
+    roll = oldAngle * 1.5f * x;
+    if (roll < -0x1000) {
+        roll = -0x1000;
+    }
+    if (roll > 0x1000) {
+        roll = 0x1000;
+    }
+    racer->unk12C = angle_lerp(racer->unk12C, roll, 1.0f - func_80049BEC(0.925f, updateRate));
+    *D_m017_069C4 = 4;
+    D_m017_069C4++;
+    *D_m017_069C4 = racer->unk12C;
+    D_m017_069C4++;
+}
 
 /* State 10: dead */
 static void func_m017_05F08(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate) {
