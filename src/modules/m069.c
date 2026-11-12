@@ -23,7 +23,8 @@ typedef struct M069Entry {
 
 /* A target's state (its object's unk68) */
 typedef struct M069Score {
-    /* 0x00 */ u8 pad0[2];
+    /* 0x00 */ u8 player;
+    /* 0x01 */ u8 pad1;
     /* 0x02 */ u16 shots;
     /* 0x04 */ u16 bears;
     /* 0x06 */ u16 ants;
@@ -64,7 +65,6 @@ extern u16 D_800FF1B8;
 /* .data, still assembly */
 extern u32 rl_m069_01D48[4];          /* the players' colours (RGBA) */
 extern M069Point *rl_m069_01DD0[4];   /* the score lines' positions, by the number of players */
-extern u8 rl_m069_01DE4[];            /* the banner image */
 extern u32 rl_m069_01EF8[4];          /* the crosshair colours */
 extern s8 rl_m069_01F08[14][5];       /* the crosshair lines: x0, y0, x1, y1, colour */
 extern s8 rl_m069_01F50[12][2];       /* the crosshair vertices */
@@ -100,7 +100,174 @@ void func_m069_00000(s32 count) {
     gMenuTimer = D_800A4FDC;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_000A8);
+/* The results of a player (D_800FED50, size 0xA0), as used here */
+typedef struct M069Player {
+    /* 0x00 */ u16 ants;
+    /* 0x02 */ u8 pad2[6];
+    /* 0x08 */ u16 bears;
+    /* 0x0A */ u8 padA[6];
+    /* 0x10 */ s16 points; /* ants - bears */
+    /* 0x12 */ u8 pad12[2];
+    /* 0x14 */ u8 rank;
+    /* 0x15 */ u8 pad15[0x8C - 0x15];
+    /* 0x8C */ u8 player;
+    /* 0x8D */ u8 pad8D[3];
+    /* 0x90 */ u32 accuracy; /* ants per 100 shots */
+    /* 0x94 */ u8 pad94[0xC];
+} M069Player;
+
+extern M069Player D_800FED50[4];
+extern M069Player *D_800FF1C0[4]; /* the players' results, best first */
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern void func_80079890(s32 arg0, ObjectTransform *cam);
+extern void *func_80055694(s32 id); /* loads a texture */
+extern void func_80055A00(void *tex); /* frees it */
+extern void func_800496B0(s32 arg0, s16 *angles, f32 *in, f32 *out);
+extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s8 input_stick_x_raw(s32 player); /* the stick, x */
+extern s8 input_stick_y_raw(s32 player); /* the stick, y */
+extern u16 func_800434E4(s32 player); /* the buttons held */
+extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern void music_volume_fade(f32 volume, s32 arg1);
+extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
+extern void rl_m069_00A84(Object *obj, M069Score *score, s32 x, s32 y, s32 held, s32 pressed, s32 updateRate);
+extern f32 *rl_m069_01D38[4]; /* the targets' positions in front of the camera, by the number of players */
+extern void *rl_m069_01DE4;   /* the banner image */
+extern s16 rl_m069_01DFC[4];  /* the banner images, by winner */
+
+/* Runs the game: moves the targets with the camera, then the results, the banner and the way out */
+void func_m069_000A8(s32 count, s32 updateRate) {
+    s32 i;
+    s32 rank;
+    s32 sorted;
+    s16 angles[3];
+    f32 *offsets;
+    M069Score *score;
+    M069Player *a;
+    M069Player *b;
+    M069Player *prev;
+    Object *obj;
+    Object **targets;
+    ObjectTransform *cam;
+    UNUSED s16 pad;
+    u16 held;
+    s8 stickY;
+    s8 stickX;
+
+    cam = func_80041DE0();
+    func_80079890(0, cam);
+    if (D_800A4FEC == 0) {
+            if (gMenuTimer != 0) {
+                gMenuTimer -= updateRate;
+                if (gMenuTimer <= 0) {
+                    gMenuTimer = 0;
+                    for (i = 0; i < count; i++) {
+                        score = rl_m069_02000[i]->unk68;
+                        D_800FED50[i].player = score->player;
+                        D_800FED50[i].ants = score->ants;
+                        D_800FED50[i].bears = score->bears;
+                        D_800FED50[i].points = score->ants - score->bears;
+                        a = &D_800FED50[i];
+                        if (score->shots != 0) {
+                            a->accuracy = score->ants * 100 / score->shots;
+                        } else {
+                            a->accuracy = 0;
+                        }
+                        D_800FF1C0[i] = a;
+                    }
+                    do {
+                        sorted = TRUE;
+                        for (i = 0; i < count - 1; i++) {
+                            a = D_800FF1C0[i];
+                            b = D_800FF1C0[i + 1];
+                            if (a->points < b->points || (a->points == b->points && a->accuracy < b->accuracy)) {
+                                D_800FF1C0[i] = b;
+                                D_800FF1C0[i + 1] = a;
+                                sorted = FALSE;
+                            }
+                        }
+                    } while (!sorted);
+                    prev = NULL;
+                    for (i = 0; i < count;) {
+                        a = D_800FF1C0[i];
+                        i++;
+                        if (prev == NULL) {
+                            rank = i;
+                        } else if (a->points != prev->points ||
+                                   (a->points == prev->points && a->accuracy != prev->accuracy)) {
+                            rank = i;
+                        }
+                        a->rank = rank;
+                        prev = a;
+                    }
+                    if (D_800FF1C0[0]->rank != D_800FF1C0[1]->rank) {
+                        rl_m069_02010 = D_800FF1C0[0]->player;
+                    } else {
+                        rl_m069_02010 = -1;
+                    }
+                    D_800A4FEC = 1;
+                    rl_m069_02014 = 0;
+                    if (rl_m069_02010 >= 0 && rl_m069_02010 < 4) {
+                        rl_m069_01DE4 = func_80055694(rl_m069_01DFC[rl_m069_02010]);
+                    }
+                } else {
+                    offsets = rl_m069_01D38[count - 1];
+                    angles[0] = -0x8000 - cam->rotation.y_rotation;
+                    angles[1] = -cam->rotation.x_rotation;
+                    i = 0;
+                    targets = rl_m069_02000;
+                    angles[2] = -cam->rotation.z_rotation;
+                    for (; i < count; i++) {
+                        obj = *targets++;
+                        func_800496B0(1, angles, offsets, &obj->trans.x_position);
+                        obj->trans.x_position += cam->x_position;
+                        obj->trans.y_position += cam->y_position;
+                        obj->trans.z_position += cam->z_position;
+                        obj->segmentID =
+                            func_80015510(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+                        stickX = input_stick_x_raw(i);
+                        stickY = input_stick_y_raw(i);
+                        held = func_800434E4(i);
+                        rl_m069_00A84(obj, obj->unk68, stickX, stickY, held, func_80043510(i), updateRate);
+                        offsets += 3;
+                    }
+                }
+            }
+    } else {
+    switch (D_800A4FEC) {
+        case 1:
+            rl_m069_02014 += updateRate;
+            if (rl_m069_02014 >= 255) {
+                rl_m069_02014 = 254;
+            }
+            D_800FF1B8 += updateRate;
+            if (D_800FF1B8 >= 256) {
+                D_800FF1B8 = 255;
+                D_800A4FEC = 2;
+            }
+            break;
+        case 2:
+            for (i = 0; i < count; i++) {
+                if (func_80043510(i) & 0x9000) {
+                    music_volume_fade(1.0f, 0);
+                    D_800A4FEC = 3;
+                    break;
+                }
+            }
+            break;
+        case 3:
+            rl_m069_02014 -= updateRate * 8;
+            if (rl_m069_02014 <= 0) {
+                rl_m069_02014 = 0;
+                func_80047608(0x16, 0, 0);
+                func_80055A00(rl_m069_01DE4);
+                rl_m069_01DE4 = NULL;
+                D_800A4FEC = 4;
+            }
+            break;
+    }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m069/ro", func_m069_00A84);
 
@@ -240,7 +407,7 @@ void func_m069_016F4(Gfx **dl, Mtx **mtx, Vertex **verts, s32 count) {
         if (rl_m069_02010 >= 0 && rl_m069_02010 < 4) {
             y = 64;
             text = gMenuText[520];
-            image = rl_m069_01DE4;
+            image = &rl_m069_01DE4;
             func_8004F02C(dl, image, 161.0f, 81.0f, 1.5f, 1.5f, rl_m069_02014, 1);
             func_8004F02C(dl, image, 160.0f, 80.0f, 1.5f, 1.5f,
                           (rl_m069_01D48[rl_m069_02010] & ~0xFF) | rl_m069_02014, 1);

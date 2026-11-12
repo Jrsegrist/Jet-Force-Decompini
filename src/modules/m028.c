@@ -63,12 +63,13 @@ typedef struct M028BeamState {
     /* 0x600 */ u8 verts[0xA38 - 0x600]; /* the model's vertices (M028Vertex; init's colour loop runs past the end) */
     /* 0xA38 */ Object *owner;
     /* 0xA3C */ s32 unkA3C[3];
-    /* 0xA48 */ u8 padA48[0xA58 - 0xA48];
+    /* 0xA48 */ Vec3f end; /* where the beam ends */
+    /* 0xA54 */ f32 unkA54;
     /* 0xA58 */ f32 unkA58;
     /* 0xA5C */ f32 unkA5C;
     /* 0xA60 */ f32 unkA60;
     /* 0xA64 */ s16 shape[3][3]; /* the entry's shape, by column */
-    /* 0xA76 */ u8 padA76[2];
+    /* 0xA76 */ s16 unkA76;
     /* 0xA78 */ s16 strength;
     /* 0xA7A */ s16 strength2;
     /* 0xA7C */ u8 padA7C;
@@ -205,7 +206,263 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
 INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_00000);
 #endif
 
+#ifdef NON_MATCHING
+/* 436 diffs: register allocation (the glow loop's counter is set before the call and spilled) and the stack temporaries below the declared block */
+/* What the object's pad78 handle points at, as far as the beam uses it */
+typedef struct M028Glow {
+    /* 0x00 */ u8 pad0[0x3B];
+    /* 0x3B */ u8 level;
+} M028Glow;
+
+#define M028_GLOW(obj) (**(M028Glow ***) (obj)->pad78)
+#define M028_RADII ((f32 *) rl_m028_01BB0) /* the rings' widths along the beam */
+
+extern void func_800212E4(s32 handle);
+extern void light_intensity_set(s32 handle, u8 alpha, s32 level);
+extern void func_80049DC0(Object *obj, f32 *mtx);
+extern void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern f32 func_80097140(f32 x); /* sqrtf */
+
+/* The beam object's control: grows or fades its strength, flickers, and rebuilds its model out to what it hits */
+void func_m028_0031C(Object *obj, s32 updateRate) {
+    s32 i;
+    HitResult hit;
+    M028BeamState *st;
+    s32 c;
+    s32 j;
+    s32 n;
+    s32 level;
+    s32 d;
+    M028Glow *glow;
+    s32 hitRes;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 pos[3];
+    f32 mtx[16];
+    f32 max;
+    f32 min;
+    f32 scale;
+    f32 r;
+    f32 h;
+    s32 rot;
+    f32 offsets[18];
+    s16 step;
+    s16 a;
+    s16 z;
+    s16 zStep;
+    M028Tri *t;
+    M028Vertex *v;
+    M028Vertex *v2;
+    M028Glow *child;
+
+    st = obj->unk68;
+    if (st->on) {
+        if (!st->unkA7E) {
+            child = M028_GLOW(obj);
+            if (child != NULL && child != NULL) {
+                child->level = 0x80;
+            }
+            st->unkA81 = 0xFF;
+        }
+        for (i = 0; i < updateRate; i++) {
+            st->unkA58 *= 1.1f;
+            st->strength += (st->strength2 - st->strength) / 4;
+        }
+        max = 3.0f;
+        if (st->unkA58 > max) {
+            st->unkA58 = max;
+        }
+        st->unkA7E = 1;
+        min = 0.1f;
+    } else if (st->unkA82 != 1 && (st->strength > 0 || 0.1f < st->unkA58)) {
+        min = 0.1f;
+        for (i = 0; i < updateRate; i++) {
+            st->strength = st->strength * 9 / 10;
+            st->unkA58 *= 0.95f;
+        }
+        if (st->unkA58 < min) {
+            st->unkA58 = min;
+        }
+        if (st->strength < 10) {
+            st->strength = 0;
+            if (min == st->unkA58) {
+                st->end.x = obj->trans.x_position;
+                st->end.y = obj->trans.y_position;
+                st->end.z = obj->trans.z_position;
+                return;
+            }
+        }
+        max = 3.0f;
+        st->unkA7E = 0;
+    } else {
+        st->unkA7E = 0;
+        if (*obj->light != 0) {
+            func_800212D0(*obj->light);
+        }
+        child = M028_GLOW(obj);
+        if (child != NULL && child != NULL) {
+            child->level = 0;
+        }
+        st->end.x = obj->trans.x_position;
+        st->end.y = obj->trans.y_position;
+        st->end.z = obj->trans.z_position;
+        return;
+    }
+    if (st->unkA7F == 0 && st->strength2 - 10 < st->strength && func_80048E2C(0, 2) == 0) {
+        st->unkA54 = (f32) func_80048E2C(0, 1000) / 1000.0f + 0.8f;
+        st->unkA76 = func_80048E2C(0, 0xFFFF);
+        st->unkA7F = func_80048E2C(4, 6);
+    } else {
+        st->unkA76 += updateRate << 8;
+        if (st->unkA7F < updateRate) {
+            st->unkA7F = 0;
+        } else {
+            st->unkA7F -= updateRate;
+        }
+    }
+    if (max == st->unkA58) {
+        st->unkA5C += st->unkA60 * updateRate;
+        if (st->unkA5C > 1.5f) {
+            st->unkA5C = max - st->unkA5C;
+            st->unkA60 = -st->unkA60;
+        } else if (st->unkA5C < 0.05f) {
+            st->unkA5C = min - st->unkA5C;
+            st->unkA60 = -st->unkA60;
+        }
+    } else {
+        st->unkA5C *= 0.9f;
+        if (st->unkA5C < 0.05f) {
+            st->unkA5C = 0.05f;
+        }
+    }
+    if (st->unkA81 > 100) {
+        st->unkA81 -= updateRate * 2;
+    }
+    glow = M028_GLOW(obj);
+    if (glow != NULL && glow != NULL && glow->level != 0) {
+        if (glow->level > 100) {
+            obj->particleEmittersEnabled = 2;
+            func_8005F5AC(obj, 8);
+        }
+        for (i = 0; i < updateRate; i++) {
+            glow->level = glow->level * 9 / 10;
+        }
+        if (glow->level < 10) {
+            glow->level = 0;
+        }
+    }
+    if (st->strength != 0) {
+        if (*obj->light != 0) {
+            func_800212E4(*obj->light);
+        }
+        level = st->strength * 255 / st->strength2;
+        if (*obj->light != 0) {
+            light_intensity_set(*obj->light, level, level);
+            ((f32 *) *obj->light)[4] = -(st->strength * 3) / 4;
+        }
+        d = updateRate << 5;
+        t = st->tris;
+        for (j = 0; j < 96; j++) {
+            t->uv[0][1] -= d;
+            t->uv[1][1] -= d;
+            t->uv[2][1] -= d;
+            t++;
+            if (t->uv[0][1] < -0x800) {
+                t->uv[0][1] += 0x1000;
+                t->uv[1][1] += 0x1000;
+                t->uv[2][1] += 0x1000;
+            }
+        }
+        func_80049DC0(obj, mtx);
+        func_80048B60(mtx, 0.0f, 0.0f, -st->strength, &st->end.x, &st->end.y, &st->end.z);
+        hitRes = func_80018808(obj, (Vec3f *) &obj->trans.x_position, &st->end, &hit, 0, 0);
+        if (hitRes) {
+            st->end.x = hit.pos.x;
+            st->end.y = hit.pos.y;
+            st->end.z = hit.pos.z;
+            dx = st->end.x - obj->trans.x_position;
+            dy = st->end.y - obj->trans.y_position;
+            dz = st->end.z - obj->trans.z_position;
+            h = func_80097140(dx * dx + dy * dy + dz * dz);
+        } else {
+            h = st->strength;
+        }
+        zStep = -h / (f32) 8;
+        if (st->unkA82 == 0) {
+            step = 0xE00;
+        } else {
+            step = 0x1000;
+        }
+        n = 0;
+        for (c = 0; c < 3; c++) {
+            v = (M028Vertex *) st->verts + c * 36;
+            v2 = (M028Vertex *) st->verts + c * 36 + 18;
+            rot = st->shape[0][c];
+            st->shape[0][c] = rot + updateRate * st->shape[1][c];
+            a = 0;
+            z = 0;
+            scale = (f32) st->strength / (f32) st->strength2;
+            for (i = 0; i < 9; i++) {
+                f32 w;
+                f32 ox;
+                f32 oy;
+
+                r =func_80049C34(a) * 20.0f * scale;
+                a += step;
+                pos[0] = func_80049C34(rot) * r;
+                pos[1] = func_80049C30(rot) * r;
+                pos[2] = 0.0f;
+                if (c == 0) {
+                    offsets[n++] = pos[0];
+                    offsets[n++] = pos[1];
+                    pos[0] = 0.0f;
+                    pos[1] = 0.0f;
+                }
+                w = M028_RADII[i] * scale;
+                ox = offsets[i * 2];
+                oy = offsets[i * 2 + 1];
+                h = 18.0f * w;
+                v[0].x = pos[0] - h + ox;
+                v[0].y = pos[1] + oy;
+                v[0].z = z;
+                v[1].x = pos[0] + h + ox;
+                v[1].y = pos[1] + oy;
+                v[1].z = z;
+                v2[0].x = pos[0] + ox;
+                v2[0].y = pos[1] - h + oy;
+                v2[0].z = z;
+                v2[1].x = pos[0] + ox;
+                v2[1].y = pos[1] + h + oy;
+                v2[1].z = z;
+                v += 2;
+                v2 += 2;
+                z += zStep;
+                rot += st->shape[2][c];
+            }
+        }
+        if (hitRes) {
+            pos[0] = obj->trans.x_position;
+            pos[1] = obj->trans.y_position;
+            pos[2] = obj->trans.z_position;
+            obj->trans.x_position = st->end.x;
+            obj->trans.y_position = st->end.y;
+            obj->particleEmittersEnabled = 3;
+            obj->trans.z_position = st->end.z;
+            func_8005F5AC(obj, updateRate);
+            obj->trans.x_position = pos[0];
+            obj->trans.y_position = pos[1];
+            obj->trans.z_position = pos[2];
+        }
+        if (obj->interactObj != NULL) {
+            obj->interactObj->hitPoints = st->padA7C * updateRate;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_0031C);
+#endif
 
 void func_m028_01624(Object *obj, M028Setup *setup) {
     M028BeamEntry entry;

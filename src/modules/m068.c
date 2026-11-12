@@ -14,16 +14,37 @@ typedef struct M068Setup {
 
 /* The boss's state (obj->unk68), as far as used here */
 typedef struct M068State {
-    /* 0x00 */ u8 pad0[0x48];
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ f32 unk18; /* > 0: the particle emitters run, in seconds */
+    /* 0x1C */ s32 unk1C;
+    /* 0x20 */ u8 pad20[0x48 - 0x20];
     /* 0x48 */ s32 flags; /* 0x20: (unknown) */
-    /* 0x4C */ u8 pad4C[0x58 - 0x4C];
+    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x50 */ s32 unk50;
+    /* 0x54 */ s16 unk54;
+    /* 0x56 */ u8 pad56[0x58 - 0x56];
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
-    /* 0x60 */ u8 pad60[0x6C - 0x60];
+    /* 0x60 */ u16 unk60;
+    /* 0x62 */ u8 pad62[0x6C - 0x62];
     /* 0x6C */ s32 sound6C;
     /* 0x70 */ s32 sound70;
     /* 0x74 */ u8 pad74[0x76 - 0x74];
     /* 0x76 */ s16 hitByPlayer;
+    /* 0x78 */ u8 pad78[0x90 - 0x78];
+    /* 0x90 */ s16 unk90;
+    /* 0x92 */ s16 unk92;
+    /* 0x94 */ s16 unk94;
+    /* 0x96 */ s16 unk96;
+    /* 0x98 */ s16 unk98;
+    /* 0x9A */ s16 unk9A;
+    /* 0x9C */ u8 pad9C[0xA8 - 0x9C];
+    /* 0xA8 */ s16 unkA8;
+    /* 0xAA */ s16 unkAA;
+    /* 0xAC */ u8 padAC[0xB0 - 0xAC];
+    /* 0xB0 */ u16 unkB0;
+    /* 0xB2 */ u8 padB2[0xC8 - 0xB2];
+    /* 0xC8 */ s32 unkC8; /* damage taken this frame */
 } M068State;
 
 /* A piece drawn with its own matrix (obj->unk68) */
@@ -578,7 +599,8 @@ typedef struct M068Effects {
 
 /* The boss's model instance */
 typedef struct M068Instance {
-    /* 0x00 */ u8 pad0[0xA];
+    /* 0x00 */ void *model;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
     /* 0x0A */ s8 hidden;
     /* 0x0B */ s8 frame;
     /* 0x0C */ u8 padC[0x10 - 0xC];
@@ -758,9 +780,13 @@ typedef struct M068Section {
 
 /* A part's state (.bss, 11 of them) */
 typedef struct M068PartState {
-    /* 0x00 */ u8 pad0[0x13];
+    /* 0x00 */ s16 target[3]; /* the angles it turns to */
+    /* 0x06 */ s16 angle[3];
+    /* 0x0C */ f32 scale;
+    /* 0x10 */ s16 hp;
+    /* 0x12 */ u8 hit; /* set: damaged this frame */
     /* 0x13 */ s8 alive;
-    /* 0x14 */ u8 pad14[0x20 - 0x14];
+    /* 0x14 */ f32 rate[3]; /* how slowly each angle turns */
 } M068PartState;
 
 /* An explosion near the boss */
@@ -843,9 +869,8 @@ extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
 extern f32 rl_m068_12620;      /* its height over the centre */
 extern f32 rl_m068_12624;      /* its distance from the centre */
-extern f32 rl_m068_13740;      /* the centre (.bss) */
-extern f32 rl_m068_13748;
-extern f32 rl_m068_1374C;
+extern Vec3f rl_m068_13740;    /* the centre (.bss) */
+extern f32 rl_m068_1374C;      /* the ground's height there */
 
 /* A cut-scene camera: moves towards its place round the centre and turns to its target */
 void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
@@ -856,9 +881,9 @@ void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
     s16 yaw;
     s16 pitch;
 
-    x = func_80049C34(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740;
+    x = func_80049C34(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740.x;
     y = rl_m068_1374C + rl_m068_12620;
-    z = func_80049C30(rl_m068_1260C) * rl_m068_12624 + rl_m068_13748;
+    z = func_80049C30(rl_m068_1260C) * rl_m068_12624 + rl_m068_13740.z;
     f = 1.0f - func_80049BEC(0.97f, updateRate);
     cam->trans.x_position += (x - cam->trans.x_position) * f;
     cam->trans.y_position += (y - cam->trans.y_position) * f;
@@ -909,7 +934,445 @@ void func_m068_0246C(void) {
 }
 #pragma weak __rl_fini = func_m068_0246C
 
+extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights);
+extern s32 func_80082D80(f32 x, f32 z, s32 arg2, f32 ***heights);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern void func_8003D21C(M068Instance *inst, void *model, Object *obj, f32 arg3, f32 arg4);
+extern void func_800221F0(Object *obj, M068Instance *inst, void *shading, MtxF *mtx);
+extern void obj_tex_animate(Object *obj, void *model, M068Instance *inst, s32 arg3);
+
+/* The boss's helpers (still assembly) */
+extern void rl_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_04600(Object *obj, M068State *s);
+extern void rl_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_092F0(Object *obj, s32 arg1, s32 arg2);
+extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
+extern void rl_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+extern void rl_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+
+/* The module's .data and .bss (still assembly) */
+extern s16 rl_m068_12610;       /* set: find the centre's height again */
+extern s16 *rl_m068_12A30;      /* the next joint command */
+extern s32 rl_m068_12B38;
+extern f32 rl_m068_13318[];     /* the joints' positions, x y z each (.bss) */
+extern f32 rl_m068_12B70[3][4]; /* copies of some joints' matrices */
+extern f32 rl_m068_12BB0[3][4];
+extern f32 rl_m068_12C18[9][4][4];
+extern f32 rl_m068_12E68[3][4][4];
+extern f32 rl_m068_12F30[3][4];
+
+#ifdef NON_MATCHING
+/*
+ * The boss's control: its centre's height, its actions, its parts' damage and angles, and its joints.
+ * 12 instructions too long; IDO keeps the constant 1 in a saved register in the original and the
+ * saved registers of the command pointer and the 6 differ.
+ */
+void func_m068_024EC(Object *obj, s32 updateRate) {
+    M068Instance *inst;
+    void *model;
+    M068State *s;
+    s32 i;
+    s32 j;
+    f32 rate;
+    f32 **heights;
+    f32 **heights2;
+    f32 h1;
+    f32 h2;
+    M068Section *sec;
+    M068PartState *part;
+    Object *player;
+    s16 sum;
+    M068Joint *joint;
+    s32 r;
+    f32 *src;
+    s32 k;
+
+    inst = obj->modelInstances[obj->modelIndex];
+    model = inst->model;
+    s = obj->unk68;
+    rl_m068_12A30 = (s16 *) rl_m068_12A38;
+    rl_m068_12B38 = 0;
+    s->unk1C = 0;
+    s->unk60 = 0;
+    s->unk50 = 0;
+    s->unk54 = 0;
+    s->unkC8 = 0;
+    s->unk90 = s->unk96;
+    s->unk92 = s->unk98;
+    s->unk94 = s->unk9A;
+    if (rl_m068_12610 != 0) {
+        if (s->flags & 0x20) {
+            func_8001B078(rl_m068_13740.x, rl_m068_13740.z, 0x800, &heights);
+            h1 = **heights;
+            rl_m068_1374C = h1;
+        } else {
+            r = func_80082D80(rl_m068_13740.x, rl_m068_13740.z, 0x800, &heights2);
+            if (func_8001B078(rl_m068_13740.x, rl_m068_13740.z, 0x800, &heights)) {
+                h1 = **heights;
+            } else {
+                h1 = -32000.0f;
+            }
+            if (r) {
+                h2 = **heights2;
+            } else {
+                h2 = -32000.0f;
+            }
+            if (h1 < h2) {
+                rl_m068_1374C = h2;
+            } else {
+                rl_m068_1374C = h1;
+            }
+        }
+        rl_m068_12610 = 0;
+    }
+    player = func_8000E4D0(0)->unk68;
+    if (s->flags & 0x20) {
+        s->unk60 |= 0x10;
+        if (((u8 *) player)[0x568] == 0x2A && !(s->flags & 0x200)) {
+            rl_m068_04600(obj, s);
+        }
+        switch (s->unkAA) {
+            case 0:
+                rate = updateRate;
+                rl_m068_039D4(obj, s, updateRate, rate);
+                break;
+            case 10:
+                rate = updateRate;
+                break;
+            case 11:
+                rate = updateRate;
+                rl_m068_03D58(obj, s, updateRate, rate);
+                break;
+            case 12:
+                rate = updateRate;
+                rl_m068_03F0C(obj, s, updateRate, rate);
+                break;
+            case 13:
+                rate = updateRate;
+                rl_m068_040EC(obj, s, updateRate, rate);
+                break;
+            case 14:
+                rate = updateRate;
+                rl_m068_04590(obj, s, updateRate, rate);
+                break;
+            case 15:
+                rate = updateRate;
+                rl_m068_046EC(obj, s, updateRate, rate);
+                break;
+            case 0xFF:
+                rate = updateRate;
+                break;
+            default:
+                rate = updateRate;
+                break;
+        }
+        if (s->unkA8 != 0 && s->unkA8 == 3) {
+            rl_m068_03A78(obj, s, updateRate, rate);
+        }
+        switch (s->unkB0) {
+            case 1:
+                rl_m068_067B4(obj, s, model, inst, updateRate, rate);
+                break;
+            case 2:
+                rl_m068_06E14(obj, s, model, inst, updateRate, rate);
+                break;
+            case 3:
+                rl_m068_0758C(obj, s, model, inst, updateRate, rate);
+                break;
+            case 6:
+                rl_m068_08674(obj, s, model, inst, updateRate, rate);
+                break;
+            case 7:
+                rl_m068_0873C(obj, s, model, inst, updateRate, rate);
+                break;
+            case 0:
+                break;
+        }
+    } else {
+        s->unk60 |= 0x10;
+        if (((u8 *) player)[0x568] == 0x2A) {
+            rl_m068_092F0(obj, 2, 0);
+        }
+        switch (s->unkAA) {
+            case 0:
+                rate = updateRate;
+                rl_m068_04878(obj, s, updateRate, rate);
+                break;
+            case 1:
+                rate = updateRate;
+                rl_m068_048C0(obj, s, updateRate, rate);
+                break;
+            case 2:
+                rate = updateRate;
+                rl_m068_05100(obj, s, updateRate, rate);
+                break;
+            case 3:
+                rate = updateRate;
+                rl_m068_054A0(obj, s, updateRate, rate);
+                break;
+            case 4:
+                rate = updateRate;
+                rl_m068_059F0(obj, s, updateRate, rate);
+                break;
+            case 5:
+                rate = updateRate;
+                rl_m068_04A60(obj, s, updateRate, rate);
+                break;
+            case 6:
+                rate = updateRate;
+                rl_m068_05F60(obj, s, updateRate, rate);
+                break;
+            case 7:
+                rate = updateRate;
+                rl_m068_06180(obj, s, updateRate, rate);
+                break;
+            case 8:
+                rate = updateRate;
+                rl_m068_05668(obj, s, updateRate, rate);
+                break;
+            case 9:
+                rate = updateRate;
+                rl_m068_0577C(obj, s, updateRate, rate);
+                break;
+            case 15:
+                rate = updateRate;
+                rl_m068_046EC(obj, s, updateRate, rate);
+                break;
+            case 0xFF:
+                rate = updateRate;
+                rl_m068_06244(obj, s, updateRate, rate);
+                break;
+            default:
+                rate = updateRate;
+                break;
+        }
+        switch (s->unkA8) {
+            case 0:
+                break;
+            case 1:
+                rl_m068_06310(obj, s, updateRate, rate);
+                break;
+            case 2:
+                rl_m068_06590(obj, s, updateRate, rate);
+                break;
+        }
+        switch (s->unkB0) {
+            case 1:
+                rl_m068_06AE0(obj, s, model, inst, updateRate, rate);
+                break;
+            case 2:
+                rl_m068_0714C(obj, s, model, inst, updateRate, rate);
+                break;
+            case 3:
+                rl_m068_078F4(obj, s, model, inst, updateRate, rate);
+                break;
+            case 4:
+                rl_m068_07D68(obj, s, model, inst, updateRate, rate);
+                break;
+            case 5:
+                rl_m068_083C8(obj, s, model, inst, updateRate, rate);
+                break;
+            case 0:
+                break;
+        }
+        rl_m068_087E0(obj, s, updateRate, rate);
+    }
+    rl_m068_088DC(obj, s, model, inst, updateRate, rate);
+    if (((M068Hits *) obj->interactObj)->hitPoints != 32000) {
+        for (i = 0, sec = rl_m068_1254C; i != 11; i++, sec++) {
+            if (sec->first >= 0) {
+                part = &rl_m068_12F88[i];
+                if (part->alive) {
+                    sum = 0;
+                    for (j = sec->first; j <= sec->last; j++) {
+                        joint = &((M068Hits *) obj->interactObj)->joints[j];
+                        sum += joint->damage;
+                        joint->damage = 0;
+                    }
+                    if (sum != 0) {
+                        part->hit = 1;
+                        part->hp -= sum;
+                        s->unkC8 += sum;
+                    }
+                }
+            }
+        }
+        ((M068Hits *) obj->interactObj)->hitPoints = 32000;
+    }
+    if (!(s->flags & 0x200)) {
+        if (s->flags & 0x20) {
+            rl_m068_0A5D8(obj, s, model, inst, updateRate, rate);
+            rl_m068_0ADC4(obj, s, model, inst, updateRate, rate);
+            rl_m068_0B4D0(obj, s, model, inst, updateRate, rate);
+            if (s->unkC8 > 500) {
+                s->unk50 |= 0x1000;
+            }
+        } else {
+            rl_m068_093B8(obj, s, model, inst, updateRate, rate);
+        }
+    }
+    rl_m068_0A208(obj, s, model, inst, updateRate, rate);
+    if (!(obj->trans.flags & 0x400)) {
+        s->unk18 -= rate / 60.0f;
+        if (s->unk18 > 0.0f) {
+            s->unk1C |= 1;
+        } else {
+            s->unk18 = 0.0f;
+        }
+        obj->particleEmittersEnabled = s->unk1C;
+        func_8005F5AC(obj, updateRate);
+        obj->trans.rotation.x_rotation = 0;
+        obj->trans.rotation.z_rotation = 0;
+    }
+    obj->trans.rotation.y_rotation = s->unk9A;
+    *rl_m068_12A30++ = rl_m068_1254C[0].joint * 6;
+    *rl_m068_12A30++ = s->unk98;
+    *rl_m068_12A30++ = rl_m068_1254C[0].joint * 6 + 4;
+    *rl_m068_12A30++ = s->unk96;
+    for (i = 0, part = rl_m068_12F88; i < 11; i++, part++) {
+        if (part->target[0] != part->angle[0]) {
+            part->angle[0] = angle_lerp(part->angle[0], part->target[0], 1.0f - func_80049BEC(part->rate[0], updateRate));
+        }
+        if (part->target[1] != part->angle[1]) {
+            part->angle[1] = angle_lerp(part->angle[1], part->target[1], 1.0f - func_80049BEC(part->rate[1], updateRate));
+        }
+        if (part->target[2] != part->angle[2]) {
+            part->angle[2] = angle_lerp(part->angle[2], part->target[2], 1.0f - func_80049BEC(part->rate[2], updateRate));
+        }
+        if (part->angle[0] != 0) {
+            *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6 + 2;
+            *rl_m068_12A30++ = part->angle[0];
+        }
+        if (part->angle[1] != 0) {
+            *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6;
+            *rl_m068_12A30++ = part->angle[1];
+        }
+        if (part->angle[2] != 0) {
+            *rl_m068_12A30++ = rl_m068_1254C[i].joint * 6 + 4;
+            *rl_m068_12A30++ = part->angle[2];
+        }
+        if (part->scale != 1.0f) {
+            sec = &rl_m068_1254C[i];
+            *rl_m068_12A30++ = (sec->joint * 6) | 0x4000;
+            *rl_m068_12A30++ = (u16) (part->scale * 32768.0f);
+            *rl_m068_12A30++ = (sec->joint * 6 + 2) | 0x4000;
+            *rl_m068_12A30++ = (u16) (part->scale * 32768.0f);
+            *rl_m068_12A30++ = (sec->joint * 6 + 4) | 0x4000;
+            *rl_m068_12A30++ = (u16) (part->scale * 32768.0f);
+        }
+    }
+    rl_m068_0BE14(obj, s, updateRate, rate);
+    *rl_m068_12A30++ = 0x1000;
+    rl_m068_09088(obj, s, model, inst, updateRate, rate);
+    rl_m068_0BB4C(obj, s, model, inst, updateRate, rate);
+    func_8003D21C(inst, model, obj, 1.0f, 0.0f);
+    func_800221F0(obj, inst, obj->shading, inst->frames[inst->frame]);
+    obj_tex_animate(obj, model, inst, inst->hidden);
+    inst->hidden = 0;
+    for (part = rl_m068_12F88; part < rl_m068_12F88 + 11; part++) {
+        part->hit = 0;
+    }
+    for (j = 0; j < 42; j++) {
+        src = (f32 *) &inst->frames[inst->frame][j];
+        rl_m068_13318[j * 3 + 0] = src[12];
+        rl_m068_13318[j * 3 + 1] = src[13];
+        rl_m068_13318[j * 3 + 2] = src[14];
+    }
+    if (rl_m068_12F88[2].scale != 0.01f && !(s->flags & 0x20)) {
+        src = inst->frames[inst->frame][rl_m068_1254C[2].joint][0];
+        for (k = 0; k < 3; k++) {
+            rl_m068_12B70[k][0] = src[0];
+            rl_m068_12B70[k][1] = src[1];
+            rl_m068_12B70[k][2] = src[2];
+            rl_m068_12B70[k][3] = src[3];
+            src += 4;
+        }
+    }
+    if (rl_m068_12F88[3].scale != 0.01f && !(s->flags & 0x20)) {
+        src = inst->frames[inst->frame][rl_m068_1254C[3].joint][0];
+        for (k = 0; k < 3; k++) {
+            rl_m068_12BB0[k][0] = src[0];
+            rl_m068_12BB0[k][1] = src[1];
+            rl_m068_12BB0[k][2] = src[2];
+            rl_m068_12BB0[k][3] = src[3];
+            src += 4;
+        }
+    }
+    if (rl_m068_12F88[6].scale != 0.01f && (s->flags & 0x20)) {
+        MtxF *m = &inst->frames[inst->frame][rl_m068_1254C[6].joint];
+
+        for (j = 0; j < 9; j++, m++) {
+            for (k = 0; k < 3; k++) {
+                rl_m068_12C18[j][k][0] = (*m)[k][0];
+                rl_m068_12C18[j][k][1] = (*m)[k][1];
+                rl_m068_12C18[j][k][2] = (*m)[k][2];
+                rl_m068_12C18[j][k][3] = (*m)[k][3];
+            }
+        }
+    }
+    if (rl_m068_12F88[5].scale != 0.01f && (s->flags & 0x20)) {
+        MtxF *m = &inst->frames[inst->frame][rl_m068_1254C[5].joint];
+
+        for (j = 0; j < 3; j++, m++) {
+            for (k = 0; k < 3; k++) {
+                rl_m068_12E68[j][k][0] = (*m)[k][0];
+                rl_m068_12E68[j][k][1] = (*m)[k][1];
+                rl_m068_12E68[j][k][2] = (*m)[k][2];
+                rl_m068_12E68[j][k][3] = (*m)[k][3];
+            }
+        }
+    }
+    if (rl_m068_12F88[4].scale != 0.01f) {
+        if (s->flags & 0x20) {
+            src = inst->frames[inst->frame][rl_m068_1254C[4].joint][0];
+            for (k = 0; k < 3; k++) {
+                rl_m068_12F30[k][0] = src[0];
+                rl_m068_12F30[k][1] = src[1];
+                rl_m068_12F30[k][2] = src[2];
+                rl_m068_12F30[k][3] = src[3];
+                src += 4;
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_024EC);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_039D4);
 
