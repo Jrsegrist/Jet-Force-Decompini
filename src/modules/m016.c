@@ -622,13 +622,13 @@ static f32 D_m016_080E4;
 
 /* The control function: called every frame */
 #ifdef NON_MATCHING
-/* 10 instructions off: the state switch before the joint loop keeps its value in a3, the ROM in a1 (so the float arguments' lui go into the other delay slots). Its statics below are C under NON_MATCHING only because IDO drops a static with no C caller; all but 03464, 03DB0 and 06E24 match once this does. */
+/* 4 instructions off (m015's 00000 has the same 4): j, the state switch's variable and the joint-loop counter, gets a1 in the loop and its copy a0, the ROM the other way round (a switch variable separate from the counter puts the switch in v0/a2/a3 instead of the ROM's a1). Its statics below are C under NON_MATCHING only because IDO drops a static with no C caller; all but 03464, 03DB0 and 06E24 match once this does. */
 void func_m016_00000(Object *obj, s32 updateRate) {
     s32 deep;
     Racer *racer;
     f32 speed;
     M016WeaponInfo *info;
-    ObjectInteraction *interact;
+    s32 j;
     Vec3f dir;
     s16 angle;
     Vec3s rot;
@@ -855,12 +855,11 @@ void func_m016_00000(Object *obj, s32 updateRate) {
             func_m016_04F78(obj, racer, 0x26, 0);
         }
     }
-    interact = obj->interactObj;
-    if (interact->hitPoints < 0x100 && racer->state != 10) {
+    if (obj->interactObj->hitPoints < 0x100 && racer->state != 10) {
         if (D_800A5070 != 0) {
-            interact->hitPoints = 0x2200;
+            obj->interactObj->hitPoints = 0x2200;
         } else {
-            interact->hitPoints = 0;
+            obj->interactObj->hitPoints = 0;
             if (D_800A4FC4 == 0) {
                 func_80000510(0x38);
             } else {
@@ -984,8 +983,7 @@ void func_m016_00000(Object *obj, s32 updateRate) {
         func_m016_06290(obj, racer, updateRate);
     }
     if (racer->unk5BC != NULL) {
-        i = racer->state;
-        switch (i) {
+        switch (j = racer->state) {
             case 2:
                 func_m107_00D08(racer->unk5BC, 1.5f, 0.5f, 40);
                 break;
@@ -1019,18 +1017,18 @@ void func_m016_00000(Object *obj, s32 updateRate) {
     if (D_800A5084 != 0 && racer->unk189 != 2) {
         u32 joints[6] = { 0, 6, 9, 10, 14, 18 };
         f32 amounts[6] = { 0.8f, 1.55f, 1.55f, 1.55f, 1.55f, 1.55f };
-        s32 k;
+        UNUSED s32 pad;
 
-        k = 5;
+        j = 5;
         do {
-            if (k) {}
-            *D_m016_080D8 = (joints[k] * 6) | 0x4000; D_m016_080D8++;
-            *D_m016_080D8 = (u16) (amounts[k] * 32768.0f); D_m016_080D8++;
-            *D_m016_080D8 = (joints[k] * 6 + 2) | 0x4000; D_m016_080D8++;
-            *D_m016_080D8 = (u16) (amounts[k] * 32768.0f); D_m016_080D8++;
-            *D_m016_080D8 = (joints[k] * 6 + 4) | 0x4000; D_m016_080D8++;
-            *D_m016_080D8 = (u16) (amounts[k] * 32768.0f); D_m016_080D8++;
-        } while (k--);
+            if (j) {}
+            *D_m016_080D8 = (joints[j] * 6) | 0x4000; D_m016_080D8++;
+            *D_m016_080D8 = (u16) (amounts[j] * 32768.0f); D_m016_080D8++;
+            *D_m016_080D8 = (joints[j] * 6 + 2) | 0x4000; D_m016_080D8++;
+            *D_m016_080D8 = (u16) (amounts[j] * 32768.0f); D_m016_080D8++;
+            *D_m016_080D8 = (joints[j] * 6 + 4) | 0x4000; D_m016_080D8++;
+            *D_m016_080D8 = (u16) (amounts[j] * 32768.0f); D_m016_080D8++;
+        } while (j--);
     }
     *D_m016_080D8 = 0x1000;
     D_m016_080D8++;
@@ -1692,7 +1690,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_0321C);
 #endif
 
 #ifdef NON_MATCHING
-/* 113 instructions: float temps one register off from the second 400.0f compare on (as m015 03740) */
+/* 5 instructions off (first at 0x3790); m015's twin 03740 matches with the same q at the end */
 /* State 3: in the air */
 static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     f32 fall;
@@ -1825,8 +1823,8 @@ static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     racer->unk4 = (1.0f - func_80049BEC(1.0f - (racer->unk594 * -0.030000001f + 0.05f), updateRate)) *
                       (speed - racer->unk4) + racer->unk4;
-    racer->unk11C = angle_lerp(racer->unk11C, angle,
-                               1.0f - func_80049BEC(1.0f - (racer->unk594 * -0.041f + 0.075f), updateRate));
+    q = 1.0f - (racer->unk594 * -0.041f + 0.075f);
+    racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(q, updateRate));
     if (racer->unk14A != 0) {
         racer->unk128 = angle_lerp(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(0.975f, updateRate));
     }
@@ -2982,7 +2980,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_06AEC);
 #endif
 
 #ifdef NON_MATCHING
-/* 7 instructions: the 0.0f the ROM keeps in $f2 is in $f0 here (the ROM gives $f0 to f) */
+/* Matches in the probe; C only under NON_MATCHING until its caller 00000 matches (the last call's
+   0.0f, not 0, gives the shared 0.0f $f2 as in the ROM) */
 /* State 6 */
 static void func_m016_06E24(Object *obj, Racer *racer, f32 updateRate) {
     s32 rate;
@@ -3038,7 +3037,7 @@ static void func_m016_06E24(Object *obj, Racer *racer, f32 updateRate) {
         racer->unk149 = 8;
         racer->unk6C = func_80049C34(racer->unk11C) * 2.0f;
         racer->unk70 = func_80049C30(racer->unk11C) * 2.0f;
-        func_m016_04F78(obj, racer, func_m016_04E08(racer), 0);
+        func_m016_04F78(obj, racer, func_m016_04E08(racer), 0.0f);
         racer->state = 0;
         racer->unk58E = 0;
     } else if (racer->unk578 == 0 && (racer->pose->unk6 & racer->unk532)) {
