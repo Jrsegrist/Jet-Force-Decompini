@@ -586,7 +586,7 @@ extern void music_volume_fade(f32 volume, s32 arg1);
 extern void func_80000510(s32 song);
 extern s32 func_80043510(s32 player); /* the buttons pressed */
 extern void mark_write_eeprom_settings(void);
-extern void func_8004665C(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_800468C0(s32 arg0);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
 extern void func_80048518(s32 arg0);
@@ -679,11 +679,11 @@ static void func_m031_01150(s32 count, s32 updateRate) {
                     }
                     if (*(u8 *) &D_800A4FB4) {
                         if (D_800A503C) {
-                            func_8004665C(D_800A4FB8, D_800A4FC0, D_800A4FBC, 0x10, 1, 0);
+                            level_goto(D_800A4FB8, D_800A4FC0, D_800A4FBC, 0x10, 1, 0);
                         } else if (sRacers[0].unk1E == 4 && !game_flag_get(0x25)) {
-                            func_8004665C(0x18A, 3, 0, 0x10, 1, 0);
+                            level_goto(0x18A, 3, 0, 0x10, 1, 0);
                         } else {
-                            func_8004665C(0x11D, 3, 0, 0x10, 1, 0);
+                            level_goto(0x11D, 3, 0, 0x10, 1, 0);
                         }
                         *(u8 *) &D_800A4FEC = 3;
                     } else {

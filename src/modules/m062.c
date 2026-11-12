@@ -685,7 +685,7 @@ static void func_m062_01158(UNUSED s32 updateRate) {
                 D_800A4FEC = 0;
                 func_80047A20();
                 func_800468C0(D_800A4FD0);
-                func_8004665C(D_800A4FE8, 0, 0, 16, 1, 0);
+                level_goto(D_800A4FE8, 0, 0, 16, 1, 0);
                 func_80047580(0);
             }
             break;
@@ -860,7 +860,7 @@ static void func_m062_01A48(UNUSED s32 updateRate) {
                     func_800468C0(D_800A4FD0);
                 }
                 D_800A4FD4 = 0;
-                func_8004665C(D_800A4FE8, 0, 0, 16, 1, 0);
+                level_goto(D_800A4FE8, 0, 0, 16, 1, 0);
                 func_800468A4(0);
                 func_80047580(0);
             }
