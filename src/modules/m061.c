@@ -247,14 +247,12 @@ void func_m061_00F50(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Sorts the players by one of their scores. IDO hoists the address of D_800FF1C0 out of the pass
-   loop, which the ROM recomputes on every pass (register numbering then differs) */
+/* Sorts the players by one of their scores (the pass loop's `continue; break;` shape keeps IDO
+   from unrolling it) */
 void func_m061_010D4(s32 mode) {
     s32 i;
     s32 sorted;
     s32 n;
-    M061Stats **p;
     M061Stats *a;
     M061Stats *b;
 
@@ -264,26 +262,25 @@ void func_m061_010D4(s32 mode) {
     n = D_800A4FD0 - 1;
     do {
         sorted = TRUE;
+        i = 0;
         if (n > 0) {
-            p = D_800FF1C0;
-            do {
-                a = p[0];
-                b = p[1];
+            while (TRUE) {
+                a = D_800FF1C0[i];
+                b = D_800FF1C0[i + 1];
                 if ((mode == 0 && a->kills < b->kills) || (mode == 1 && a->unk90 < b->unk90) ||
                     (mode == 2 && b->unk90 < a->unk90) || (mode == 3 && a->unk9C < b->unk9C) ||
                     (mode == 4 && b->rank < a->rank)) {
-                    p[0] = b;
-                    p[1] = a;
+                    D_800FF1C0[i] = b;
+                    D_800FF1C0[i + 1] = a;
                     sorted = FALSE;
                 }
-                p++;
-            } while (p < &D_800FF1C0[n]);
+                i++;
+                if (i < n) continue;
+                break;
+            }
         }
     } while (!sorted);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_010D4);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_01218);
 

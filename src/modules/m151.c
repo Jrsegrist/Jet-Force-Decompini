@@ -131,11 +131,10 @@ void func_m151_00000(Object *obj) {
     }
 }
 
-#ifdef NON_MATCHING
 /*
  * Picks a new wander point when the way ahead is blocked or the point is
- * reached. Equivalent; only the register of the dead copy that IDO makes for
- * `i--` differs (s0 in the original, v0 here), which moves two delay slots.
+ * reached. Both loops pass the counter's old value through d (`d = i, i--, d`),
+ * which puts IDO's copy of it in d's register as in the original.
  */
 void func_m151_00154(Object *obj) {
     M151Enemy *e;
@@ -174,7 +173,7 @@ void func_m151_00154(Object *obj) {
             blocked = TRUE;
             break;
         }
-    } while (i--);
+    } while (d = i, i--, d);
     if (func_m003_03E68(obj->trans.x_position, obj->trans.z_position, e->x, e->z) < 600.0f) {
         blocked = TRUE;
         e->wandering = 0;
@@ -199,7 +198,7 @@ void func_m151_00154(Object *obj) {
                     e->wandering = 1;
                     return;
                 }
-            } while (i--);
+            } while (d = i, i--, d);
             e->x = obj->trans.x_position;
             e->z = obj->trans.z_position;
         }
@@ -207,9 +206,6 @@ void func_m151_00154(Object *obj) {
         e->wandering = 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m151", func_m151_00154);
-#endif
 
 /* Goes to the food, eats it (with particles), then goes back to the player */
 void func_m151_00438(Object *obj, f32 *x, f32 *y, f32 *z) {

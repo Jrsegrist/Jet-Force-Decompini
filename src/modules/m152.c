@@ -103,11 +103,9 @@ static Object *sPlayer;
 
 /*
  * NON_MATCHING: func_m152_004AC and func_m152_00B8C are not matched yet (see the notes at them).
- * func_m152_00000 matches, but it uses a .rodata float, and .rodata must come all from C or all
- * from assembly; so the default build takes it, the two unmatched functions and the data from
- * assembly.
+ * The module has no .data of its own: the ROM's 0x10 bytes after .text are the .rodata floats, so
+ * there is no data INCLUDE_ASM; func_m152_004AC keeps its floats in ro/.
  */
-#ifdef NON_MATCHING
 void func_m152_00000(Object *obj, M152Chain *chain, s32 index, f32 *outX, f32 *outY, f32 *outZ) {
     f32 radius;
     s16 pitch;
@@ -131,9 +129,6 @@ void func_m152_00000(Object *obj, M152Chain *chain, s32 index, f32 *outX, f32 *o
     cosPitch = func_80049C30(pitch);
     *outZ = func_80049C30(chain->yaw) * cosPitch * radius + obj->trans.z_position;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m152", func_m152_00000);
-#endif
 
 void func_m152_00228(Object *obj, M152Chain *chain, s32 index, f32 *outX, f32 *outY, f32 *outZ) {
     M152Hydra *hydra;
@@ -384,7 +379,7 @@ void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 ar
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m152", func_m152_004AC);
+INCLUDE_ASM("asm/nonmatchings/modules/m152/ro", func_m152_004AC);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m152", func_m152_00B8C);
 #endif
@@ -396,6 +391,3 @@ f32 func_m152_00E34(s16 from, s16 to, u16 t) {
     return (func_80049C34((t >> 1) + 0xC000) + 1.0f) * 0.5f * diff + from;
 }
 
-#ifndef NON_MATCHING
-INCLUDE_ASM("asm/nonmatchings/modules/m152", data);
-#endif
