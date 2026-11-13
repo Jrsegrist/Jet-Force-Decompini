@@ -4770,13 +4770,12 @@ void func_m003_16750(u32 id) {
     }
 }
 
-#ifdef NON_MATCHING
 /* Adds an event the troops react to (or renews the one with this id) */
-/* (IDO keeps the extern counter's address in a register; the ROM addresses the .data word at each use) */
 void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
     M003Event *event;
     s32 found = FALSE;
     s32 i;
+    s32 *slot = &rl_m003_197F8; /* (a pointer to the counter: the ROM addresses the .data word at each use) */
 
     if (id != 0) {
         event = sEvents;
@@ -4792,9 +4791,9 @@ void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
     if (found) {
         event->active = 10;
     } else {
-        event = &sEvents[rl_m003_197F8++];
-        if (rl_m003_197F8 >= 16) {
-            rl_m003_197F8 = 0;
+        event = &sEvents[(*slot)++];
+        if (*slot >= 16) {
+            *slot = 0;
         }
         event->active = func_80048E2C(30, 40) * (u32) D_800FE9F8;
     }
@@ -4802,13 +4801,10 @@ void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
     event->y = y;
     event->z = z;
     event->unk6 = arg4;
-    event->id = id;
     event->unk7 = arg5;
+    event->id = id;
     event->unk9 = arg6;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_167A0);
-#endif
 
 /* Lists the objects with behaviour 0x9B (up to 32) */
 void func_m003_168D8(void) {
