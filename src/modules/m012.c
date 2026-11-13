@@ -164,15 +164,13 @@ void func_m012_000E4(s32 width, s32 height) {
     sFrame.soundPlayed = 0;
 }
 
-#ifdef NON_MATCHING
-/* IDO materialises the struct's address for the read-modify-write; the original used %lo twice */
 void func_m012_00108(s32 flags) {
+    M012Frame *frame = &sFrame; /* (set before the call: each access gets its own lui/%lo) */
+
     func_80001248(0x172, 0);
-    sFrame.flags = (sFrame.flags & ~1) | flags;
+    frame->flags &= ~1;
+    frame->flags |= flags;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_00108);
-#endif
 
 void func_m012_0014C(s32 fade) {
     sFrame.fade = fade;
@@ -182,7 +180,188 @@ void func_m012_00158(s32 enabled) {
     sEnabled = enabled;
 }
 
+extern void runlink_module_release(s32 module);
+extern void func_m005_00BF8(s32 arg0);
+extern void func_800433E0(void);
+extern void func_80048518(s32 arg0);
+extern void func_800468C0(s32 arg0);
+extern void load_first_unlocked_level(); /* (the ROM passes nothing) */
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void set_game_paused(s32 paused);
+extern void music_volume_fade_scaled(f32 rate, s32 volume);
+extern s32 runlink_module_loaded(s32 module);
+void func_m012_008A8(void);
+
+#ifdef NON_MATCHING
+/*
+ * The frame's update: opening, it spins in, grows to its width and then its height and fades the background
+ * in; closing, it frees the textures, starts the level change, shrinks and spins out.
+ * ROM length and frame; 15 words differ in the closing arm (the ROM loads the minimum width 10 into t1 once,
+ * before the unk2B test, and compares against it with slt; the `width >= -4` test ends in an empty-else jump)
+ */
+void func_m012_00164(s32 updateRate) {
+    s32 pad1;
+    s32 step;
+    s32 angle;
+    s32 width;
+    s32 flags;
+    s32 i;
+    s32 speed;
+    M012Frame *frame = &sFrame; /* (set before the calls: each access gets its own lui/%lo) */
+
+    if (!sEnabled) {
+        return;
+    }
+    if (!(sFrame.flags & 4)) { /* (sFrame here, frame below: the ROM loads the flags twice) */
+        return;
+    }
+    step = frame->fade * updateRate;
+    flags = frame->flags;
+    if (flags & 1) {
+        frame->unk28 += updateRate * 8;
+        if (frame->unk28 > 160) {
+            frame->unk28 = 160;
+        }
+        if (frame->distance < 8.0f) {
+            angle = frame->angle;
+            if (angle > 0) {
+                angle -= 0x8000;
+            }
+            angle += updateRate * 800;
+            if (angle > 0) {
+                angle = 0;
+            }
+            frame->angle = angle;
+            if (angle == 0) {
+                if (!frame->soundPlayed) {
+                    func_80001248(0x171, 0);
+                    frame->soundPlayed = 1;
+                }
+                speed = 3;
+            } else {
+                speed = 0;
+            }
+            if (frame->height == frame->targetHeight) {
+                frame->width += updateRate * 8;
+                if (frame->targetWidth < frame->width) {
+                    frame->width = frame->targetWidth;
+                    width = (frame->unk2B + updateRate) * 2;
+                    if (width >= 256) {
+                        frame->unk2B = 255;
+                    } else {
+                        frame->unk2B = width;
+                    }
+                }
+            }
+        } else {
+            frame->angle += updateRate * 800;
+            speed = 0;
+        }
+        for (i = 0; i < updateRate; i++) {
+            frame->distance -= frame->distance * 0.152f;
+        }
+        if (frame->height > 0) {
+            if (step > 0) {
+                if (frame->alpha < 255 - step) {
+                    frame->alpha += step;
+                } else {
+                    frame->alpha = 255;
+                }
+            } else if (-step < frame->alpha) {
+                frame->alpha += step;
+            } else {
+                frame->alpha = 0;
+            }
+        }
+        if (frame->width == frame->targetWidth && frame->texturesFreed) {
+            func_m012_008A8();
+        }
+    } else {
+        if (!frame->texturesFreed) {
+            free_textures();
+            if (runlink_module_loaded(0x13)) {
+                runlink_module_release(0x13);
+            }
+            if (sNewLevel == 1) {
+                if (runlink_module_loaded(5)) {
+                    func_m005_00BF8(1);
+                }
+                func_800433E0();
+                func_80048518(0x1E);
+                func_800468C0(1);
+                if (sNewLevelArg3 == 3) {
+                    load_first_unlocked_level();
+                } else {
+                    level_goto(sNewLevel, sNewLevelArg1, 0, sNewLevelArg3, 1, 0);
+                }
+            } else if (sNewLevel != -1) {
+                if (runlink_module_loaded(5)) {
+                    func_m005_00BF8(1);
+                }
+                func_800468C0(1);
+                if (sNewLevelArg3 == 3) {
+                    load_first_unlocked_level();
+                } else {
+                    level_goto(sNewLevel, sNewLevelArg1, sNewLevelArg2, sNewLevelArg3, 1, 0);
+                }
+            }
+        }
+        flags = frame->flags;
+        if (updateRate * 8 < frame->unk28) {
+            frame->unk28 -= updateRate * 8;
+        } else {
+            frame->unk28 = 0;
+        }
+        if (updateRate * 16 < frame->unk2B) {
+            frame->targetWidth = 10;
+            frame->unk2B -= updateRate * 16;
+            speed = 0;
+        } else {
+            frame->unk2B = 0;
+            frame->targetWidth = 10;
+            frame->width -= updateRate * 8;
+            if (frame->width < frame->targetWidth) {
+                frame->width = frame->targetWidth;
+            }
+            speed = 0;
+            width = frame->targetWidth - frame->width;
+            if (width >= -4) {
+                speed = -3;
+                frame->targetHeight = 0;
+            }
+            if (frame->height == 0) {
+                frame->angle += updateRate * 800;
+                for (i = 0; i < updateRate; i++) {
+                    frame->distance += (230.0f - frame->distance) * 0.152f;
+                }
+            }
+            if (updateRate * 4 < frame->alpha) {
+                frame->alpha -= updateRate * 4;
+            } else {
+                frame->alpha = 0;
+            }
+            if (230.0f - frame->distance < 3.0f) {
+                if (flags & 2) {
+                    set_game_paused(0);
+                    music_volume_fade_scaled(0.5f, 0x7F);
+                    flags = frame->flags & ~2;
+                }
+                frame->flags = flags & ~4;
+                if (runlink_module_loaded(5)) {
+                    func_m005_00BF8(1);
+                }
+            }
+        }
+    }
+    speed *= updateRate;
+    frame->height += speed * updateRate;
+    if ((speed > 0 && frame->targetHeight < frame->height) || (speed < 0 && frame->height < frame->targetHeight)) {
+        frame->height = frame->targetHeight;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m012/ro", func_m012_00164);
+#endif
 
 extern LevelModelTextures *func_8001B650(void); /* the level model */
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
@@ -367,14 +546,9 @@ u8 func_m012_01820(void) {
     return sFrame.alpha;
 }
 
-#ifdef NON_MATCHING
-/* the struct's address and the result swap v0 and v1 */
-s32 func_m012_01830(void) {
-    return sFrame.width == sFrame.targetWidth && sFrame.height == sFrame.targetHeight;
+int func_m012_01830(void) {
+    return sFrame.targetWidth == sFrame.width && sFrame.targetHeight == sFrame.height;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01830);
-#endif
 
 u8 func_m012_01870(void) {
     return sFrame.texturesFreed;
