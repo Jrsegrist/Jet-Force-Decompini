@@ -428,7 +428,12 @@ extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a 
 extern void *func_80055B40(M012Image *tex, s32 frame); /* set_animated_texture_header */
 extern void func_m006_0107C(s32 *x, s32 *y);
 extern void rl_m012_01018(void);
+#ifdef NON_MATCHING
+static void func_m012_01444(s32 x, s32 y, s16 angle, s16 front);
+#else
 extern void rl_m012_01444(s32 distance, s32 y, s16 angle, s32 side);
+#define func_m012_01444 rl_m012_01444
+#endif
 
 /* DKR include/f3ddkr.h: G_DMADL (7) runs numberOfCommands commands from address (the length as `<< 3`: IDO
    folds `(n - 1) * 8` into `n * 8 - 8`, the ROM shifts n - 1) */
@@ -478,10 +483,10 @@ void func_m012_00A64(void) {
             func_80040E64(&D_800FF398, &D_800FF39C);
             frame->vertices = D_800FF3A0;
             rl_m012_01018();
-            rl_m012_01444(frame->distance, frame->height >> 1, frame->angle, 1);
-            rl_m012_01444(frame->distance, frame->height >> 1, frame->angle + 0x8000, 1);
-            rl_m012_01444(frame->distance, -(frame->height >> 1), frame->angle, 0);
-            rl_m012_01444(frame->distance, -(frame->height >> 1), frame->angle + 0x8000, 0);
+            func_m012_01444(frame->distance, frame->height >> 1, frame->angle, 1);
+            func_m012_01444(frame->distance, frame->height >> 1, frame->angle + 0x8000, 1);
+            func_m012_01444(frame->distance, -(frame->height >> 1), frame->angle, 0);
+            func_m012_01444(frame->distance, -(frame->height >> 1), frame->angle + 0x8000, 0);
             x2 = frame->width >> 1;
             x1 = -x2;
             y1 = frame->height >> 1;
@@ -540,7 +545,81 @@ void func_m012_00A64(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01018);
 
+#ifdef NON_MATCHING
+extern s32 fb_mode(void);
+extern s32 func_800446CC(void);
+extern s32 func_8003FBCC(void);
+extern s32 func_8005AA7C(void);
+extern void func_80041CA0(Gfx **dl, Mtx **mtx, ObjectTransform *trans, f32 scale, f32 arg4);
+
+/*
+ * Draws the frame's border at (x, y) turned by `angle`: the front face or (mirrored, with the culling
+ * flipped) the back one (called from 00A64).
+ * ROM length; 15 words: the ROM loads the vertices pointer for the vertex command before reading
+ * D_800FF398 (its address, materialised by the int cast, already hoisted above the colour command).
+ */
+static void func_m012_01444(s32 x, s32 y, s16 angle, s16 front) {
+    ObjectTransform trans;
+    s32 flags;
+
+    flags = 0;
+    if (fb_mode() & 1) {
+        s32 v = func_800446CC();
+
+        if (v == 1 || (v & 0xFF) == 2) {
+            y -= y >> 2;
+        }
+    } else if (func_8003FBCC() == 1 && func_8005AA7C()) {
+        y += y / 3;
+    }
+    trans.x_position = x;
+    trans.y_position = y;
+    trans.rotation.z_rotation = 0;
+    trans.rotation.x_rotation = 0;
+    trans.scale = 1.0f;
+    trans.z_position = 0;
+    trans.rotation.y_rotation = angle;
+    if (sFrame.texturesFreed) {
+        flags = 1;
+    }
+    if (front) {
+        func_80041CA0(&D_800FF398, &D_800FF39C, &trans, 1.0f, 0.0f);
+    } else {
+        func_80041CA0(&D_800FF398, &D_800FF39C, &trans, -1.0f, 0.0f);
+        gSPClearGeometryMode(D_800FF398++, G_CULL_BACK);
+        gSPSetGeometryMode(D_800FF398++, G_CULL_FRONT);
+    }
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    /* (the int cast keeps the ROM's materialised &sFrame.vertices) */
+    gSPVertexJFG(D_800FF398++, *(u32 *) ((u32) &sFrame.vertices) + 0x80000000, 21, 0);
+    func_80055C00(&D_800FF398, D_800FF3F8[53], flags, 0);
+    if (angle == 0) {
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1998 + 0x80000000, 10, 1);
+    } else {
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1998 + 0x80000000, 8, 1);
+    }
+    if (front) {
+        func_80055C00(&D_800FF398, D_800FF3F8[55], flags, 0);
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1A38 + 0x80000000, 2, 1);
+        func_80055C00(&D_800FF398, D_800FF3F8[54], flags, 0);
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1A58 + 0x80000000, 4, 1);
+        func_80055C00(&D_800FF398, D_800FF3F8[56], flags, 0);
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1A98 + 0x80000000, 2, 1);
+    } else {
+        func_80055C00(&D_800FF398, D_800FF3F8[54], flags, 0);
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1AB8 + 0x80000000, 4, 1);
+        func_80055C00(&D_800FF398, D_800FF3F8[56], flags, 0);
+        gSPPolygon(D_800FF398++, (u8 *) sTriangles1AF8 + 0x80000000, 2, 1);
+    }
+    if (!front) {
+        gSPClearGeometryMode(D_800FF398++, G_CULL_FRONT);
+        gSPSetGeometryMode(D_800FF398++, G_CULL_BACK);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01444);
+#endif
 
 u8 func_m012_01820(void) {
     return sFrame.alpha;
