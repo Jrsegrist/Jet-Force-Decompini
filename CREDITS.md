@@ -297,3 +297,16 @@ Written from the game's assembly, not taken from any source: alLink and alUnlink
 same as ultralib's versions, because they are the same compiled library code. JFG's
 objects hold only part of the matching ultralib files, so they cannot be included
 from ultralib the way the other libultra objects are.
+
+### Round 21 (libaud21), the sound player and n_audio
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/audiosfx.c` | sndp_handle_event, as JFG's sndp_handle_event in `src/audiosfx.c` (JFG: no player argument, the voice started with all its settings in one call, the envelope level and phase end kept in the sound state, a preempt test on the playing flag) |
+
+The n_audio functions of this round (`src/naudio_8B330.c`, `naudio_8CB70.c`, `naudio_8CC40.c`,
+`naudio_8F740.c`, `naudio_90DF0.c`, `naudio_92080.c`, `naudio_928E0.c`) were written from the game's
+assembly; they are n_audio forms with no counterpart in ultralib, so none of them is the same as
+ultralib's code.

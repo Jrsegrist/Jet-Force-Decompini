@@ -714,13 +714,13 @@ D_800F2C68 = 0x800F2C68;
 D_800F2C78 = 0x800F2C78;
 aspMainTextStart = 0x8009DA10;
 aspMainDataStart = 0x800AFC10;
-func_8008AD10 = 0x8008AD10;
 func_80054530_fi = 0x80054530;
 func_80054530_ppf = 0x80054530;
 
 /* ---- audiosfx.c (the sound player; DKR's names) ---- */
 func_80084200 = sndp_init_player;
 func_80084468 = sndp_voice_handler;
+func_80084530 = sndp_handle_event;
 func_80085918 = sndp_remove_events;
 func_80085A1C = sndp_get_state_counts;
 func_80085B20 = sndp_allocate;
