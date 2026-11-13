@@ -307,4 +307,5 @@ ultralib's 2.0J sources built `-O2 -g3`, included from `lib/ultralib` by the
 Written from the game's assembly, not taken from any source: osMotorStop and
 osMotorStart (`src/motor_stop_start.c`). The game's 2.0J rumble pak object has
 only `__osMotorAccess` (2.0J makes the two names macros), so the game carries
-the two calls as functions of its own. They are not in ultralib's `motor.c`.
+the two calls as functions of its own (ultralib's `motor.c` has the two only
+in their older, different 2.0I form).

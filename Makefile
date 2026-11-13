@@ -89,7 +89,7 @@ UL_O2G3_OBJS := io/pfsfreeblocks io/pfsinit io/pfschecker io/pfsreformat io/pfsn
                 io/pfsfilestate io/pfssearchfile io/pfsreadwritefile io/pfsallocatefile \
                 io/pfsselectbank io/pfsgetstatus io/contramwrite io/pidma io/epirawdma \
                 io/epilinkhandle io/epiwrite io/epiread io/epidma io/epirawwrite io/epirawread \
-                io/pfsisplug io/motor io/contramread io/contpfs io/cartrominit io/devmgr
+                io/pfsisplug io/motor io/contramread io/contpfs io/cartrominit io/devmgr io/piacs
 $(addprefix $(BUILD_DIR)/src/ultra/,$(addsuffix .o,$(UL_O2G3_OBJS))): UL_OPT_FLAGS := -O2 -g3
 # osMotorStop/osMotorStart, written from the asm, sit in front of the 2.0J motor object
 $(BUILD_DIR)/src/motor_stop_start.o build_nm/src/motor_stop_start.o: OPT_FLAGS := -O2 -g3

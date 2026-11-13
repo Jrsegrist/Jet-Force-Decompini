@@ -671,8 +671,6 @@ D_80104F58 = 0x80104F58;
 /* ---- libultra globals still defined in asm (used by src/ultra) ---- */
 CartRomHandle = 0x80104110;
 LeoDiskHandle = 0x80104188;
-__osPiAccessQueue = 0x80105770;
-__osPiAccessQueueEnabled = 0x800A9E70;
 /* pirawdma is the 2.0J object (__osPiRawStartDma); the 2.0I pimgr calls the old names */
 osPiRawStartDma = __osPiRawStartDma;
 osEPiRawStartDma = __osEPiRawStartDma;

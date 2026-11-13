@@ -222,9 +222,9 @@ segments:
       - [0x9A190, c, ultra/io/viswapbuf]
       - [0x9A1E0, c, ultra/libc/ll]
       - [0x9A4A0, c, ultra/libc/string]
-      - [0x9A540, asm]
+      - [0x9A540, c, ultra/os/getactivequeue]
       - [0x9A550, asm]
-      - [0x9A860, asm]
+      - [0x9A860, c, ultra/io/piacs]
       - [0x9A920, c, ultra/os/getthreadpri]
       - [0x9A940, asm]
       - [0x9A980, c, ultra/io/pirawdma]
@@ -289,6 +289,7 @@ segments:
       - [0xAA680, .data, ultra/io/cartrominit]
       - [0xAA690, .data, ultra/io/vimgr]
       - [0xAA6B0, data, data_AA6B0]
+      - [0xAAA70, .data, ultra/io/piacs]
       - [0xAAA80, .data, ultra/os/thread]
       - [0xAAAA0, .data, ultra/io/siacs]
       - [0xAAAB0, data]
@@ -363,6 +364,8 @@ segments:
       - { start: 0xB1750, type: .bss, vram: 0x80105390, name: ultra/io/cartrominit }
       - { start: 0xB1750, type: .bss, vram: 0x80105410, name: ultra/io/vimgr }
       - { start: 0xB1750, type: bss, vram: 0x80105730, name: bss_80105730 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105770, name: ultra/io/piacs }
+      - { start: 0xB1750, type: bss, vram: 0x80105790, name: bss_80105790 }
       - { start: 0xB1750, type: .bss, vram: 0x80105940, name: ultra/io/siacs }
       - { start: 0xB1750, type: .bss, vram: 0x80105960, name: ultra/os/timerintr }
 
