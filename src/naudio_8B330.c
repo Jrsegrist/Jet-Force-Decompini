@@ -30,6 +30,8 @@ typedef struct NSynth {
     /* 0x38 */ void *outputFilter;
     /* 0x3C */ s32 numPVoices;
     /* 0x40 */ s32 outputRate;
+    /* 0x44 */ s32 maxOutSamples;
+    /* 0x48 */ s32 sv_dramout;
 } NSynth;
 
 extern NSynth *D_800A97C4; // the n_audio synthesizer
@@ -38,10 +40,43 @@ extern s32 D_800A97D4;      // JFG: the most parameters in use
 extern f32 D_800AF870;      // microseconds per second (.rodata)
 
 s32 func_8008B0C0(s32 micros);
+s32 func_8008B160(ALPlayer **client);
+void func_8008B014(void);
+Acmd *func_80090150(s32 sampleOffset, Acmd *p);
 
 INCLUDE_ASM("asm/nonmatchings/naudio_8B330", func_8008A730);
 
-INCLUDE_ASM("asm/nonmatchings/naudio_8B330", func_8008AD10);
+/* libultra alAudioFrame (n_audio form): run the players that are due, then build the command list */
+Acmd *func_8008AD10(Acmd *cmdList, s32 *cmdLen, s16 *outBuf, s32 outLen) {
+    ALPlayer *client;
+    s16 tmp = 0;
+    Acmd *cmdlEnd = cmdList;
+    Acmd *cmdPtr;
+    s32 nOut;
+    s16 *lOutBuf = outBuf;
+
+    if (D_800A97C4->head == 0) {
+        *cmdLen = 0;
+        return cmdList;
+    }
+    for (D_800A97C4->paramSamples = func_8008B160(&client); D_800A97C4->paramSamples - D_800A97C4->curSamples < outLen; D_800A97C4->paramSamples = func_8008B160(&client)) {
+        D_800A97C4->paramSamples &= ~0xF;
+        client->samplesLeft += func_8008B0C0((*client->handler)(client));
+    }
+    D_800A97C4->paramSamples &= ~0xF;
+    while (outLen > 0) {
+        nOut = (D_800A97C4->maxOutSamples < outLen) ? D_800A97C4->maxOutSamples : outLen;
+        cmdPtr = cmdlEnd;
+        D_800A97C4->sv_dramout = (s32) lOutBuf;
+        cmdlEnd = func_80090150(D_800A97C4->curSamples, cmdPtr);
+        outLen -= nOut;
+        lOutBuf += nOut << 1;
+        D_800A97C4->curSamples += nOut;
+    }
+    *cmdLen = (s32) (cmdlEnd - cmdList);
+    func_8008B014();
+    return cmdlEnd;
+}
 
 /* libultra __allocParam: take a parameter update from the pool */
 NParam *func_8008AF34(void) {
