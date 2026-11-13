@@ -318,3 +318,5 @@ the same as ultralib's do so because they are the same library code:
 | --- | --- | --- | --- |
 | `src/979F0.c` | osAiSetNextBuffer | hardware bug test `(end & 0x3FFF) == 0x2000` | none |
 | `src/99B40.c` | _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo | no loadable-microcode check for a yielded task | _VirtualToPhysicalTask, osSpTaskStartGo |
+| `src/98550.c` | osContInit, __osContGetInitData, __osPackRequestData | start-up wait computed from osClockRate at run time; PIF RAM cleared as 16 words | __osContGetInitData |
+| `src/98910.c` | osContStartReadData, osContGetReadData, __osPackReadData | PIF RAM cleared as 16 words; osContStartReadData fills it with 0xFF before the read | osContGetReadData |
