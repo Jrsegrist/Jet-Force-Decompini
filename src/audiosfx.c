@@ -19,8 +19,9 @@ typedef struct SfxState {
     /* 0x30 */ struct SfxState **userHandle;
     /* 0x34 */ s32 retries;
     /* 0x38 */ s16 volume;
-    /* 0x3A */ u8 pad3A[6];
-    /* 0x40 */ s8 priority;
+    /* 0x3A */ s16 envVolume; // JFG: the envelope level of the current phase
+    /* 0x3C */ s32 phaseEnd;  // JFG: the player time the current phase ends
+    /* 0x40 */ u8 priority;
     /* 0x41 */ u8 pan;
     /* 0x42 */ u8 fxmix;
     /* 0x43 */ u8 flags; // DKR SOUND_FLAG_*: 1 last in sequence, 2 looped, 4 playing, 0x10 retrigger, 0x20 slide
@@ -102,21 +103,36 @@ extern SfxPlayer *D_800A95AC; // DKR gSoundPlayerPtr
 extern s32 D_800A95B0;        // DKR gSoundGlobalVolume
 extern s16 D_800A95B4;        // DKR gNumActiveSounds
 extern u16 *D_80104FC8;       // DKR gSoundGroupVolume
-extern char D_800AF4A4[];     // JFG: the "sound state allocate failed" print (.rodata)
-extern char D_800AF4CC[];     // JFG: the warning for stopping a NULL sound (.rodata)
-extern char D_800AF4FC[];     // JFG: the warning for changing a NULL sound (.rodata)
+#define SFX_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define SFX_MIN(a, b) ((a) < (b) ? (a) : (b))
+/* A sound's volume: its group's volume times the envelope level, the sound's and the sample's volume (DKR) */
+#define SFX_VOLUME(state, sound, keyMap)                                                                        \
+    SFX_MAX(0, ((s16 *) D_80104FC8)[(keyMap)->keyMin & 0x3F] *                                                  \
+                       ((state)->envVolume * (state)->volume * (sound)->sampleVolume / 16129) / 0x7FFF -        \
+                   1)
 
 void func_8008B4B0(SfxEventQueue *evtq, SfxEventListItem *items, s32 count); // n_audio: new event queue (alEvtqNew)
 s32 func_8008B55C(SfxEventQueue *evtq, SfxEvent *evt);  // n_audio: next event (alEvtqNextEvent)
 void func_8008B610(void *evtq, void *evt, s32 delta);   // n_audio: post an event (alEvtqPostEvent)
 void func_8008BB80(SfxPlayer *player);                  // n_audio: add a sound player to the synthesizer
+s32 func_8008BC60(void *voice, ALVoiceConfig *config);  // n_audio: allocate a voice (alSynAllocVoice)
+void func_8008BF70(void *voice, s32 vol, s32 t);        // n_audio: ramp a voice's volume (alSynSetVol)
+void func_8008C040(void *voice, void *wave, f32 pitch, s32 vol, s32 pan, s32 fxmix, s32 lpGain, f32 lpCutoff,
+                   s32 lpRate, s32 t);                  // n_audio: start a voice with all its settings
+void func_8008C170(void *voice, s32 pan);               // n_audio: set a voice's pan (alSynSetPan)
+void func_8008C220(void *voice, f32 pitch);             // n_audio: set a voice's pitch (alSynSetPitch)
+void func_8008C2D0(void *voice, s32 fxmix);             // n_audio: set a voice's effect mix (alSynSetFXMix)
 void func_8008C380(void *voice);                        // n_audio: stop a voice (alSynStopVoice)
 void func_8008C420(void *voice);                        // n_audio: free a voice (alSynFreeVoice)
 void osSyncPrintf(const char *fmt, ...);
-void func_80084530(SfxEvent *event);
+void sndp_handle_event(SfxQueuedEvent *event);
+void sndp_end(SfxState *state);
+void sndp_apply_pitch_slide(SfxState *state);
 void sndp_remove_events(SfxEventQueue *evtq, SfxState *state, u16 eventTypeMask);
+u16 sndp_get_state_counts(u16 *numFree, u16 *numAllocated);
 void sndp_deallocate(SfxState *state);
 s32 sndp_voice_handler(void *node);
+SfxState *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxmix, SfxState **handlePtr);
 
 /**
  * Initialise a sound player and ready it for use with the sound event system.
@@ -169,7 +185,7 @@ s32 sndp_voice_handler(void *node) {
                 func_8008B610(&sndp->evtq, &evt, sndp->frameTime);
                 break;
             default:
-                func_80084530(&sndp->nextEvent);
+                sndp_handle_event((SfxQueuedEvent *) &sndp->nextEvent);
                 break;
         }
         sndp->nextDelta = func_8008B55C(&sndp->evtq, &sndp->nextEvent);
@@ -178,7 +194,249 @@ s32 sndp_voice_handler(void *node) {
     return sndp->nextDelta;
 }
 
-INCLUDE_ASM("asm/nonmatchings/audiosfx", func_80084530);
+/**
+ * Modified version of _handleEvent from libultra: processes the current event for the sound player (for a composite
+ * sound, for each sound in its sequence).
+ * DKR: sndp_handle_event; JFG's starts the voice with all its settings at once, keeps the envelope level and when
+ * its current phase ends (for volume changes), and has no player argument.
+ */
+void sndp_handle_event(SfxQueuedEvent *event) {
+    ALVoiceConfig config;
+    ALSound *sound;
+    ALKeyMap *keyMap;
+    u8 pan;
+    SfxEvent spAC;
+    SfxQueuedEvent nextStateEvent;
+    s32 delta;
+    s32 fxMix;
+    s32 volume;
+    s32 newPan;
+    s32 limitReached;
+    s32 isEventForSingleSound;
+    s32 lastInSequence;
+    s32 isVoiceAllocated;
+    SfxState *soundState;
+    SfxState *nextState;
+
+    lastInSequence = TRUE;
+    isVoiceAllocated = FALSE;
+    soundState = NULL;
+    nextState = NULL;
+
+    do {
+        if (nextState != NULL) {
+            nextStateEvent.state = soundState;
+            nextStateEvent.type = event->type;
+            nextStateEvent.param = event->param;
+            event = &nextStateEvent;
+        }
+        soundState = event->state;
+        sound = soundState->sound;
+        if (sound == NULL) {
+            u16 numFree, numAlloc;
+
+            sndp_get_state_counts(&numFree, &numAlloc);
+            osSyncPrintf("Bad soundState: voices =%d, states free =%d, states busy =%d, type %d data %x\n",
+                         D_800A95B4, numFree, numAlloc, event->type, event->param);
+            return;
+        }
+        keyMap = sound->keyMap;
+        nextState = soundState->next;
+        switch (event->type) {
+            case 1:
+                if (soundState->state != 5 && soundState->state != 4) {
+                    return;
+                }
+                if (soundState->state == 1) {
+                    osSyncPrintf("playing a playing sound\n");
+                }
+                config.fxBus = 0;
+                config.priority = soundState->priority;
+                config.unityPitch = 0;
+                limitReached = D_800A95B4 >= D_800A95AC->maxActiveSounds;
+                if (!limitReached || (soundState->flags & 0x10)) {
+                    isVoiceAllocated = func_8008BC60(soundState->voice, &config);
+                }
+                if (!isVoiceAllocated) {
+                    if ((soundState->flags & 0x12) || soundState->retries > 0) {
+                        soundState->state = 4;
+                        soundState->retries--;
+                        func_8008B610(&D_800A95AC->evtq, event, 33333);
+                    } else if (limitReached) {
+                        SfxState *iterState = D_800A95A4;
+
+                        do {
+                            if (iterState->priority <= soundState->priority && !(iterState->flags & 0x12) &&
+                                (iterState->flags & 4) && iterState->state != 3) {
+                                SfxEvent interruptEvent;
+
+                                limitReached = FALSE;
+                                interruptEvent.type = 0x80;
+                                interruptEvent.state = iterState;
+                                iterState->state = 3;
+                                func_8008B610(&D_800A95AC->evtq, &interruptEvent, 1000);
+                                func_8008BF70(iterState->voice, 0, 1000);
+                            }
+                            iterState = iterState->prev;
+                        } while (limitReached && iterState != NULL);
+                        if (!limitReached) {
+                            soundState->retries = 2;
+                            func_8008B610(&D_800A95AC->evtq, event, 1001);
+                        } else {
+                            sndp_end(soundState);
+                        }
+                    } else {
+                        sndp_end(soundState);
+                    }
+                    return;
+                }
+                soundState->flags |= 4;
+                soundState->envVolume = sound->envelope->attackVolume;
+                delta = sound->envelope->attackTime / soundState->pitch / soundState->slideMult;
+                soundState->phaseEnd = D_800A95AC->curTime + delta;
+                volume = SFX_VOLUME(soundState, sound, keyMap);
+                volume = (u32) (volume * D_800A95B0) >> 8;
+                newPan = soundState->pan + sound->samplePan - 0x40;
+                pan = SFX_MIN(SFX_MAX(newPan, 0), 127);
+                fxMix = (soundState->fxmix & 0x7F) + (keyMap->keyMax & 0xF) * 8;
+                fxMix = SFX_MIN(127, SFX_MAX(0, fxMix));
+                fxMix |= soundState->fxmix & 0x80;
+                func_8008C040(soundState->voice, sound->wavetable, soundState->pitch * soundState->slideMult, volume,
+                              pan, fxMix, 0, 0.0f, 0, delta);
+                soundState->state = 1;
+                D_800A95B4++;
+                if (!(soundState->flags & 2)) {
+                    if (!delta) {
+                        soundState->envVolume = sound->envelope->decayVolume;
+                        volume = SFX_VOLUME(soundState, sound, keyMap);
+                        volume = (u32) (volume * D_800A95B0) >> 8;
+                        delta = sound->envelope->decayTime / soundState->slideMult / soundState->pitch;
+                        soundState->phaseEnd = D_800A95AC->curTime + delta;
+                        func_8008BF70(soundState->voice, volume, delta);
+                        spAC.type = 2;
+                        spAC.state = soundState;
+                        func_8008B610(&D_800A95AC->evtq, &spAC, delta);
+                        if (soundState->flags & 0x20) {
+                            sndp_apply_pitch_slide(soundState);
+                        }
+                    } else {
+                        spAC.type = 0x40;
+                        spAC.state = soundState;
+                        delta = sound->envelope->attackTime / soundState->pitch / soundState->slideMult;
+                        func_8008B610(&D_800A95AC->evtq, &spAC, delta);
+                    }
+                }
+                break;
+            case 2:
+            case 0x400:
+            case 0x1000:
+                if (event->type != 0x1000 || (soundState->flags & 2)) {
+                    switch (soundState->state) {
+                        case 1:
+                            sndp_remove_events(&D_800A95AC->evtq, soundState, 0x40);
+                            delta = sound->envelope->releaseTime / soundState->slideMult / soundState->pitch;
+                            func_8008BF70(soundState->voice, 0, delta);
+                            if (delta) {
+                                spAC.type = 0x80;
+                                spAC.state = soundState;
+                                func_8008B610(&D_800A95AC->evtq, &spAC, delta);
+                                soundState->state = 2;
+                            } else {
+                                sndp_end(soundState);
+                            }
+                            break;
+                        case 4:
+                        case 5:
+                            sndp_end(soundState);
+                            break;
+                        default:
+                            break;
+                    }
+                    if (event->type == 2) {
+                        event->type = 0x1000;
+                    }
+                }
+                break;
+            case 4:
+                soundState->pan = event->param;
+                if (soundState->state == 1) {
+                    newPan = soundState->pan + sound->samplePan - 0x40;
+                    pan = SFX_MIN(SFX_MAX(newPan, 0), 127);
+                    func_8008C170(soundState->voice, pan);
+                }
+                break;
+            case 0x10:
+                soundState->pitch = *(f32 *) &event->param;
+                if (soundState->state == 1) {
+                    func_8008C220(soundState->voice, soundState->pitch * soundState->slideMult);
+                    if (soundState->flags & 0x20) {
+                        sndp_apply_pitch_slide(soundState);
+                    }
+                }
+                break;
+            case 0x100:
+                soundState->fxmix = event->param;
+                if (soundState->state == 1) {
+                    fxMix = (soundState->fxmix & 0x7F) + (keyMap->keyMax & 0xF) * 8;
+                    fxMix = SFX_MIN(127, SFX_MAX(0, fxMix));
+                    fxMix |= soundState->fxmix & 0x80;
+                    func_8008C2D0(soundState->voice, fxMix);
+                }
+                break;
+            case 8:
+                soundState->volume = event->param;
+                if (soundState->state == 1) {
+                    volume = SFX_VOLUME(soundState, sound, keyMap);
+                    volume = (u32) (volume * D_800A95B0) >> 8;
+                    func_8008BF70(soundState->voice, volume,
+                                  SFX_MAX(1000, soundState->phaseEnd - D_800A95AC->curTime));
+                }
+                break;
+            case 0x800:
+                if (soundState->state == 1) {
+                    delta = sound->envelope->releaseTime / soundState->slideMult / soundState->pitch;
+                    volume = SFX_VOLUME(soundState, sound, keyMap);
+                    volume = (u32) (volume * D_800A95B0) >> 8;
+                    func_8008BF70(soundState->voice, volume, delta);
+                }
+                break;
+            case 0x40:
+                if (!(soundState->flags & 2)) {
+                    soundState->envVolume = sound->envelope->decayVolume;
+                    volume = SFX_VOLUME(soundState, sound, keyMap);
+                    volume = (u32) (volume * D_800A95B0) >> 8;
+                    delta = sound->envelope->decayTime / soundState->slideMult / soundState->pitch;
+                    soundState->phaseEnd = D_800A95AC->curTime + delta;
+                    func_8008BF70(soundState->voice, volume, delta);
+                    spAC.type = 2;
+                    spAC.state = soundState;
+                    func_8008B610(&D_800A95AC->evtq, &spAC, delta);
+                    if (soundState->flags & 0x20) {
+                        sndp_apply_pitch_slide(soundState);
+                    }
+                }
+                break;
+            case 0x80:
+                sndp_end(soundState);
+                break;
+            case 0x200:
+                if (soundState->flags & 0x10) {
+                    SfxState *newSound = sndp_play(((SfxRetriggerEvent *) event)->bank,
+                                                   ((SfxRetriggerEvent *) event)->soundIndex, soundState->volume,
+                                                   soundState->pan, soundState->pitch, soundState->fxmix,
+                                                   soundState->userHandle);
+                }
+                break;
+            default:
+                osSyncPrintf("Nonsense sndp event\n");
+                break;
+        }
+        isEventForSingleSound = event->type & (1 | 0x10 | 0x40 | 0x80 | 0x200);
+        if ((soundState = nextState) != NULL && !isEventForSingleSound) {
+            lastInSequence = soundState->flags & 1;
+        }
+    } while (!lastInSequence && soundState != NULL && !isEventForSingleSound);
+}
 
 /**
  * Immediately stop the sound and release all associated resources.
@@ -428,7 +686,7 @@ SfxState *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8
                 }
                 lastSoundState = soundState;
             } else {
-                osSyncPrintf(D_800AF4A4, sndIndx);
+                osSyncPrintf("Sound state allocate failed - sndId %d\n", sndIndx);
             }
             totalDuration += duration;
             keyMap = sound->keyMap;
@@ -468,7 +726,7 @@ void sndp_stop(SfxState *state) {
         evt.state->flags &= ~0x10;
         func_8008B610(&D_800A95AC->evtq, &evt, 0);
     } else {
-        osSyncPrintf(D_800AF4CC);
+        osSyncPrintf("WARNING: Attempt to stop NULL sound aborted\n");
     }
 }
 
@@ -532,7 +790,7 @@ void sndp_set_param(SfxState *state, s16 type, u32 param) {
     if (state != NULL) {
         func_8008B610(&D_800A95AC->evtq, &evt, 0);
     } else {
-        osSyncPrintf(D_800AF4FC);
+        osSyncPrintf("WARNING: Attempt to modify NULL sound aborted\n");
     }
 }
 

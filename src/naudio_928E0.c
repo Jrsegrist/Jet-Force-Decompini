@@ -24,7 +24,133 @@ typedef struct NLoadFilter {
     /* 0x3C */ s32 memin;
 } NLoadFilter;
 
-INCLUDE_ASM("asm/nonmatchings/naudio_928E0", func_80091CE0);
+Acmd *func_80092674(Acmd *ptr, NLoadFilter *f, s32 tsam, s32 nbytes, s16 outp, s16 inp, u32 flags);
+
+/* libultra alAdpcmPull (n_audio form): decode outCount samples of the voice's wave, through its loop, padding
+   past the end of the wave with silence */
+Acmd *func_80091CE0(NLoadFilter *filter, s16 *outp, s32 outCount, Acmd *p) {
+    Acmd *ptr = p;
+    s16 inp;
+    s32 tsam;
+    s32 nframes;
+    s32 nbytes;
+    s32 overFlow;
+    s32 startZero;
+    s32 nOver;
+    s32 nSam;
+    s32 op;
+    s32 nLeft;
+    s32 bEnd;
+    s32 decoded = 0;
+    s32 looped = 0;
+    NLoadFilter *f = filter;
+
+    if (!outCount) {
+        return ptr;
+    }
+    inp = 0;
+    {
+        Acmd *_a = ptr++;
+
+        _a->words.w0 = _SHIFTL(A_LOADADPCM, 24, 8) | _SHIFTL(f->bookSize, 0, 24);
+        _a->words.w1 = (u32) f->table->waveInfo.adpcmWave.book->book & 0x1FFFFFFF;
+    }
+    looped = (f->sample + outCount > f->loopEnd) && (f->loopCount != 0);
+    if (looped) {
+        nSam = f->loopEnd - f->sample;
+    } else {
+        nSam = outCount;
+    }
+    if (f->lastsam) {
+        nLeft = 16 - f->lastsam;
+    } else {
+        nLeft = 0;
+    }
+    tsam = nSam - nLeft;
+    if (tsam < 0) {
+        tsam = 0;
+    }
+    nframes = (tsam + 15) >> 4;
+    nbytes = nframes * 9;
+    if (looped) {
+        ptr = func_80092674(ptr, f, tsam, nbytes, *outp, inp, f->first);
+        if (f->lastsam) {
+            *outp += f->lastsam << 1;
+        } else {
+            *outp += 32;
+        }
+        f->lastsam = f->loopStart & 0xF;
+        f->memin = (s32) f->table->base + 9 * ((s32) (f->loopStart >> 4) + 1);
+        f->sample = f->loopStart;
+        bEnd = *outp;
+        while (outCount > nSam) {
+            outCount -= nSam;
+            op = (((nframes + 1) << 5) + bEnd + 16) & ~0x1F;
+            bEnd += nSam << 1;
+            if (f->loopCount != -1 && f->loopCount != 0) {
+                f->loopCount--;
+            }
+            nSam = (outCount < f->loopEnd - f->loopStart) ? outCount : f->loopEnd - f->loopStart;
+            tsam = nSam - 16 + f->lastsam;
+            if (tsam < 0) {
+                tsam = 0;
+            }
+            nframes = (tsam + 15) >> 4;
+            nbytes = nframes * 9;
+            ptr = func_80092674(ptr, f, tsam, nbytes, op, inp, f->first | 2);
+            {
+                Acmd *_a = ptr++;
+
+                _a->words.w0 = _SHIFTL(A_DMEMMOVE, 24, 8) | _SHIFTL((f->lastsam << 1) + op, 0, 24);
+                _a->words.w1 = _SHIFTL(bEnd, 16, 16) | _SHIFTL(nSam << 1, 0, 16);
+            }
+        }
+        f->lastsam = (f->lastsam + outCount) & 0xF;
+        f->sample += outCount;
+        f->memin += nframes * 9;
+        return ptr;
+    }
+    nSam = nframes << 4;
+    overFlow = f->memin + nbytes - ((s32) f->table->base + f->table->len);
+    if (overFlow < 0) {
+        overFlow = 0;
+    }
+    nOver = (overFlow / 9) << 4;
+    if (nOver > nSam + nLeft) {
+        nOver = nSam + nLeft;
+    }
+    nbytes -= overFlow;
+    if ((nOver - (nOver & 0xF)) < outCount) {
+        decoded = 1;
+        ptr = func_80092674(ptr, f, nSam - nOver, nbytes, *outp, inp, f->first);
+        if (f->lastsam) {
+            *outp += f->lastsam << 1;
+        } else {
+            *outp += 32;
+        }
+        f->lastsam = (f->lastsam + outCount) & 0xF;
+        f->sample += outCount;
+        f->memin += nframes * 9;
+    } else {
+        f->lastsam = 0;
+        f->memin += nframes * 9;
+    }
+    if (nOver) {
+        f->lastsam = 0;
+        if (decoded) {
+            startZero = (nLeft + nSam - nOver) << 1;
+        } else {
+            startZero = 0;
+        }
+        {
+            Acmd *_a = ptr++;
+
+            _a->words.w0 = _SHIFTL(A_CLEARBUFF, 24, 8) | _SHIFTL(*outp + startZero, 0, 24);
+            _a->words.w1 = nOver << 1;
+        }
+    }
+    return ptr;
+}
 
 /* libultra alLoadParam: set the wave table (5) or reset (4) */
 void func_8009238C(void *filter, s32 paramID, void *param) {
