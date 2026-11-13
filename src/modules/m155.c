@@ -520,9 +520,74 @@ extern M155TroopInfo *func_m003_0D2C0(Object *obj);
 extern s32 rl_m155_04F8C;
 extern M155Node *rl_m155_04D50;
 
+#ifdef NON_MATCHING
+/*
+ * Picks the path nodes for heading at `target`: none when it is a troop leader of kind 0x18, else the
+ * nodes of the work buffer kept for it (built from scratch in a free buffer the first time).
+ * ROM length; 43 words: the ROM materialises &rl_m155_04D50 in v0 at each store (the int casts give the
+ * materialised address, in a t-register), keeps 4 in a1 for the order tests, and loads z earlier.
+ */
+static void func_m155_01274(Object *target) {
+    s32 n;
+    M155Buffer *buf;
+    s32 d;
+
+    if (target->behaviorId == 0x18 && ((M155Enemy *) target->unk68)->leader) {
+        *(M155Node **) (u32) &rl_m155_04D50 = NULL;
+        rl_m155_03C70 = 0;
+        return;
+    }
+    buf = sBuffers;
+    n = 4;
+    while (d = n, n--, d) {
+        if (target == buf->obj) {
+            *(M155Node **) (u32) &rl_m155_04D50 = buf->data;
+            buf->x = target->trans.x_position;
+            buf->z = target->trans.z_position;
+            if (rl_m155_04F78->order[0] == 4 || rl_m155_04F78->order[1] == 4) {
+                rl_m155_04F8C = 1;
+            } else {
+                rl_m155_04F8C = 0;
+            }
+            buf->unkD = rl_m155_04F8C;
+            func_m155_00FC4(target->trans.x_position, target->trans.z_position, (s32) target);
+            buf->count = rl_m155_03C70;
+            return;
+        }
+        buf++;
+    }
+    buf = sBuffers;
+    n = 4;
+    while (d = n, n--, d) {
+        if (buf->obj == NULL) {
+            buf->obj = target;
+            buf->unkC = 30;
+            if (buf->data == NULL) {
+                buf->data = func_8004A57C(0x500, -1);
+            }
+            if ((*(M155Node **) (u32) &rl_m155_04D50 = buf->data) == NULL) {
+                return;
+            }
+            buf->x = target->trans.x_position;
+            buf->z = target->trans.z_position;
+            if (rl_m155_04F78->order[0] == 4 || rl_m155_04F78->order[1] == 4) {
+                rl_m155_04F8C = 1;
+            } else {
+                rl_m155_04F8C = 0;
+            }
+            buf->unkD = rl_m155_04F8C;
+            func_m155_00FC4(target->trans.x_position, target->trans.z_position, (s32) target);
+            buf->count = rl_m155_03C70;
+            return;
+        }
+        buf++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01274);
 extern void rl_m155_01274(Object *target);
 #define func_m155_01274 rl_m155_01274
+#endif
 
 extern Object *rl_m155_04F74;        /* the current enemy's troop home */
 extern s32 rl_m155_04F94;

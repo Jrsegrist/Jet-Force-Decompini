@@ -70,15 +70,14 @@ extern s32 rl_m008_02D38;
 #define sUnk2D38 rl_m008_02D38
 
 /*
- * NON_MATCHING (00000 and 000C4): IDO unrolls the 64-drop clearing loop four times
- * and tests the pointer, where the ROM keeps a plain loop on the counter (`slti`);
- * no spelling tried keeps both (a `while (i++ < 64)` condition stops the unrolling
- * but moves the increment; `goto` gives `bne`).
+ * The 64-drop clearing loops (00000 and 000C4): `while (TRUE) { ...; if (i < 64) continue; break; }`
+ * keeps the ROM's plain loop on the counter (a `for` is unrolled four times), the store after
+ * `p++` gives its negative offset, and `i = 0; p = sDrops;` on one line its register order.
  */
-#ifdef NON_MATCHING
 /* Loads the textures and clears the pools */
 static void func_m008_00000(void) {
     s32 i;
+    M008Drop *p;
 
     sTextures[0] = func_80055694(0x170);
     sTextures[1] = func_80055694(0x171);
@@ -86,8 +85,15 @@ static void func_m008_00000(void) {
     sTextures[3] = func_80055694(0x173);
     sTextures[4] = func_80055694(0x174);
     sSprite = func_80056798(0x43, 1);
-    for (i = 0; i < 64; i++) {
-        sDrops[i].state = 0;
+    i = 0; p = sDrops;
+    while (TRUE) {
+        i++;
+        p++;
+        p[-1].state = 0;
+        if (i < 64) {
+            continue;
+        }
+        break;
     }
     sHits[0].state = 0;
     sLoaded = 1;
@@ -98,6 +104,7 @@ static void func_m008_00000(void) {
 
 void func_m008_000C4(void) {
     s32 i;
+    M008Drop *p;
 
     if (sLoaded) {
         if (sTextures[0] != NULL) {
@@ -118,8 +125,15 @@ void func_m008_000C4(void) {
         if (sSprite != NULL) {
             func_80056C14(sSprite);
         }
-        for (i = 0; i < 64; i++) {
-            sDrops[i].state = 0;
+        i = 0; p = sDrops;
+        while (TRUE) {
+            i++;
+            p++;
+            p[-1].state = 0;
+            if (i < 64) {
+                continue;
+            }
+            break;
         }
         sHits[0].state = 0;
     }
@@ -127,13 +141,6 @@ void func_m008_000C4(void) {
     sDropCount = 0;
     sHitCount = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m008", func_m008_00000);
-extern void rl_m008_00000(void);
-#define func_m008_00000 rl_m008_00000
-
-INCLUDE_ASM("asm/nonmatchings/modules/m008", func_m008_000C4);
-#endif
 
 void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 angle, s32 colour, f32 scale) {
     M008Drop *p;

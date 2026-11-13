@@ -1104,11 +1104,9 @@ s32 func_m003_01B44(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
 
 extern void func_m154_01110(Object *home, M003Node *node); /* starts the way point's command */
 
-#ifdef NON_MATCHING
-/* 22 diffs: the ROM computes the final && straight into v0 (the cmd reload in v1), one instruction shorter */
 /* Whether the member goes on past way point `node`: its command (not kinds 3/9 and 1) is started on
-   reaching it; `arrive` tells which of the two calls this is */
-s32 func_m003_01C58(M003Node *node, s32 arrive) {
+   reaching it; `arrive` tells which of the two calls this is (an int return: s32 is long, which costs a move) */
+int func_m003_01C58(M003Node *node, s32 arrive) {
     u8 cmd = node->cmd;
 
     if ((1 << cmd) & 0x208) {
@@ -1128,9 +1126,6 @@ s32 func_m003_01C58(M003Node *node, s32 arrive) {
     sHomeData->unk35 = 0;
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
-#endif
 
 /* An animation path (D_801045B0; 76C20.c's AnimPath, 0x34 bytes) */
 typedef struct M003AnimPath {
@@ -1646,8 +1641,6 @@ void func_m003_03170(void) {
 f32 func_m003_03E20(f32 x1, f32 z1, f32 x2, f32 z2);
 extern void rl_m003_03CAC(Object *obj);
 
-#ifdef NON_MATCHING
-/* 7 diffs: the ROM's constant (a .rodata literal) takes f14, after dx, dy, dz (C: f0, first) */
 /* When the troop's first member is near its way point, sends it there (state 30) */
 void func_m003_0322C(void) {
     M003Node *node;
@@ -1672,9 +1665,6 @@ void func_m003_0322C(void) {
         rl_m003_03CAC(first);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0322C);
-#endif
 
 /* Counts down the troop's wait, then sends it on from its way point (low byte) towards the next (high byte) */
 void func_m003_0332C(void) {
@@ -1819,8 +1809,6 @@ void func_m003_03628(void) {
  * Puts the troop's first member back on the way point it came from (the high byte of unk3C), then heads it
  * for the next one (the low byte) if that is still out of reach
  */
-#ifdef NON_MATCHING
-/* 7 diffs, float registers only: the ROM's multiplier looks like a literal (CSE'd, f14), which needs m003's .rodata in C */
 void func_m003_038D4(void) {
     s32 prev;
     M003Home *h;
@@ -1862,9 +1850,6 @@ void func_m003_038D4(void) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_038D4);
-#endif
 
 extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
@@ -3104,8 +3089,6 @@ extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alp
  * The member coming apart: 32 drops around it, then every body part it has not lost yet flies off (while
  * the main pool has over 48 KiB free) with the hit's velocity (called from 10600)
  */
-#ifdef NON_MATCHING
-/* Two instructions: k is a .rodata literal in the ROM (hoisted after the loop's 1.0f); needs .rodata in C */
 void func_m003_09CE4(Object *obj) {
     M003Member *m;
     s32 alpha;
@@ -3172,9 +3155,6 @@ void func_m003_09CE4(Object *obj) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_09CE4);
-#endif
 
 /* A member is killed */
 void func_m003_09FF0(Object *obj) {
@@ -4770,13 +4750,12 @@ void func_m003_16750(u32 id) {
     }
 }
 
-#ifdef NON_MATCHING
 /* Adds an event the troops react to (or renews the one with this id) */
-/* (IDO keeps the extern counter's address in a register; the ROM addresses the .data word at each use) */
 void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
     M003Event *event;
     s32 found = FALSE;
     s32 i;
+    s32 *slot = &rl_m003_197F8; /* (a pointer to the counter: the ROM addresses the .data word at each use) */
 
     if (id != 0) {
         event = sEvents;
@@ -4792,9 +4771,9 @@ void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
     if (found) {
         event->active = 10;
     } else {
-        event = &sEvents[rl_m003_197F8++];
-        if (rl_m003_197F8 >= 16) {
-            rl_m003_197F8 = 0;
+        event = &sEvents[(*slot)++];
+        if (*slot >= 16) {
+            *slot = 0;
         }
         event->active = func_80048E2C(30, 40) * (u32) D_800FE9F8;
     }
@@ -4802,13 +4781,10 @@ void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6) {
     event->y = y;
     event->z = z;
     event->unk6 = arg4;
-    event->id = id;
     event->unk7 = arg5;
+    event->id = id;
     event->unk9 = arg6;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_167A0);
-#endif
 
 /* Lists the objects with behaviour 0x9B (up to 32) */
 void func_m003_168D8(void) {

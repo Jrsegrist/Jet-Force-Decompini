@@ -201,11 +201,9 @@ static s32 sMarkerTime;
 static s32 sTime;
 static Object *sPlayerObjects[4];
 
-#ifdef NON_MATCHING
-/* Matches but for one thing: IDO keeps the address of D_800FF780[11].unk10 in v1 for its load and
-   store, where the ROM addresses it with %hi/%lo twice */
 void func_m058_00000(void) {
     M058Asset *asset;
+    M058MenuItem *item = &D_800FF780[11]; /* (set before the calls: each access gets its own %hi/%lo) */
 
     func_8003DDBC(0);
     menu_assetgroup_load(sAssets);
@@ -223,16 +221,13 @@ void func_m058_00000(void) {
     sMarkers[1] = func_80005F14(sMarkerEntry, 1);
     sMarkers[0]->trans.flags |= 0x400;
     sMarkers[1]->trans.flags |= 0x400;
-    asset = D_800FF3F8[D_800FF780[11].unk6];
+    asset = D_800FF3F8[item->unk6];
     asset->unk28 = 1.0f;
     if (fb_mode() & 1) {
-        D_800FF780[11].unk10 += 20.0f;
+        item->unk10 += 20.0f;
     }
     sTime = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m058", func_m058_00000);
-#endif
 
 void func_m058_00134(s32 updateRate) {
     M058Level *level;
