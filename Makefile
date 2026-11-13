@@ -81,6 +81,28 @@ UL_G_OBJS    := audio/cspsetvol audio/cspgettempo audio/cspsetchlvol audio/cspse
                 audio/cspgetstate audio/cspsetseq audio/cspplay audio/cspstop audio/cents2ratio \
                 audio/heap audio/sl
 UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,$(if $(filter $(UL_MIPS1_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-mips1,-mips2))
+# ---- round 21 (libother21): libultra objects built -O2 -g3 ----
+# The controller pak, EPI and PI DMA objects were built optimised with full
+# debug information: -g3 keeps -O2's code but schedules less (prologue saves in
+# source order, an unfilled `jr ra` delay slot). Their wrappers select 2.0J.
+UL_O2G3_OBJS := io/pfsfreeblocks io/pfsinit io/pfschecker io/pfsreformat io/pfsnumfiles \
+                io/pfsfilestate io/pfssearchfile io/pfsreadwritefile io/pfsallocatefile \
+                io/pfsselectbank io/pfsgetstatus io/contramwrite io/pidma io/epirawdma \
+                io/epilinkhandle io/epiwrite io/epiread io/epidma io/epirawwrite io/epirawread \
+                io/pfsisplug io/motor io/contramread io/contpfs io/cartrominit io/devmgr io/piacs
+$(addprefix $(BUILD_DIR)/src/ultra/,$(addsuffix .o,$(UL_O2G3_OBJS))): UL_OPT_FLAGS := -O2 -g3
+# Written from the asm, built like those objects: osMotorStop/osMotorStart (in front of
+# the 2.0J motor object) and osInitialize (2.0J code without osViClock)
+UL_O2G3_SRCS := motor_stop_start 98120
+$(foreach f,$(UL_O2G3_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): OPT_FLAGS := -O2 -g3
+$(foreach f,$(UL_O2G3_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): MIPSISET := -mips2
+# libultra 2.0I os/io objects of an older form than ultralib's, written from the asm (-O1 -mips2)
+UL_OLD_SRCS := 979F0 99B40 98550 98910 99000 9B780
+$(foreach f,$(UL_OLD_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): OPT_FLAGS := -O1
+$(foreach f,$(UL_OLD_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): MIPSISET := -mips2
+# osSyncPrintf (game form, from the asm) is -O2 -mips2
+$(BUILD_DIR)/src/9B310.o build_nm/src/9B310.o: MIPSISET := -mips2
+# ---- end of round 21 (libother21) block ----
 
 LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \

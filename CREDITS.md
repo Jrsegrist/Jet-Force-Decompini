@@ -297,3 +297,37 @@ Written from the game's assembly, not taken from any source: alLink and alUnlink
 same as ultralib's versions, because they are the same compiled library code. JFG's
 objects hold only part of the matching ultralib files, so they cannot be included
 from ultralib the way the other libultra objects are.
+
+### Round 21 (libother21), main-segment libraries
+
+No DKR code. The controller pak, rumble pak, EPI and PI DMA objects are
+ultralib's 2.0J sources built `-O2 -g3`, included from `lib/ultralib` by the
+`src/ultra/io` wrappers (Makefile `UL_O2G3_OBJS`); nothing is copied.
+
+Written from the game's assembly, not taken from any source: osMotorStop and
+osMotorStart (`src/motor_stop_start.c`). The game's 2.0J rumble pak object has
+only `__osMotorAccess` (2.0J makes the two names macros), so the game carries
+the two calls as functions of its own (ultralib's `motor.c` has the two only
+in their older, different 2.0I form).
+
+Also written from the assembly: libultra objects that no ultralib version
+builds as the game has them (earlier or game-specific forms), so they cannot
+be included. Functions in them that come out the same as ultralib's do so
+because they are the same library code:
+
+| JFG file | Functions | How the game's object differs | Same as ultralib's |
+| --- | --- | --- | --- |
+| `src/979F0.c` | osAiSetNextBuffer | hardware bug test `(end & 0x3FFF) == 0x2000` | none |
+| `src/99B40.c` | _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo | no loadable-microcode check for a yielded task | _VirtualToPhysicalTask, osSpTaskStartGo |
+| `src/98550.c` | osContInit, __osContGetInitData, __osPackRequestData | start-up wait computed from osClockRate at run time; PIF RAM cleared as 16 words | __osContGetInitData |
+| `src/98910.c` | osContStartReadData, osContGetReadData, __osPackReadData | PIF RAM cleared as 16 words; osContStartReadData fills it with 0xFF before the read | osContGetReadData |
+| `src/99000.c` | osPfsDeleteFile, __osPfsReleasePages, __osBlockSum | __osPfsReleasePages frees the page after the chain whatever its bank | osPfsDeleteFile, __osBlockSum (2.0I) |
+| `src/9B780.c` | __osViInit | sets osViClock for the TV type (the object defines it); leaves the frame buffer pointers alone | none |
+| `src/9B310.c` | osSyncPrintf and its output function | the game's form: formats through _Printf into an output function that discards the text | none |
+| `src/74A70.c` | __osLeoInterrupt | a stub that returns 0 (no 64DD support) | none |
+| `src/765D0.c` | osCreateThread | the game's form: threads start with SR_FR set; a negative id clears it | none |
+| `src/98120.c` | osInitialize, createSpeedParam | 2.0J code, but the object does not define osViClock, so ultralib's file cannot be included | both (2.0J) |
+
+`src/ultra/os/destroythread.c` includes ultralib's `destroythread.c` with
+`__GNUC__` defined after the headers, which selects the older active-queue walk
+that the game has (ultralib keeps it for its GCC builds).
