@@ -1646,8 +1646,6 @@ void func_m003_03170(void) {
 f32 func_m003_03E20(f32 x1, f32 z1, f32 x2, f32 z2);
 extern void rl_m003_03CAC(Object *obj);
 
-#ifdef NON_MATCHING
-/* 7 diffs: the ROM's constant (a .rodata literal) takes f14, after dx, dy, dz (C: f0, first) */
 /* When the troop's first member is near its way point, sends it there (state 30) */
 void func_m003_0322C(void) {
     M003Node *node;
@@ -1672,9 +1670,6 @@ void func_m003_0322C(void) {
         rl_m003_03CAC(first);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0322C);
-#endif
 
 /* Counts down the troop's wait, then sends it on from its way point (low byte) towards the next (high byte) */
 void func_m003_0332C(void) {
@@ -1819,8 +1814,6 @@ void func_m003_03628(void) {
  * Puts the troop's first member back on the way point it came from (the high byte of unk3C), then heads it
  * for the next one (the low byte) if that is still out of reach
  */
-#ifdef NON_MATCHING
-/* 7 diffs, float registers only: the ROM's multiplier looks like a literal (CSE'd, f14), which needs m003's .rodata in C */
 void func_m003_038D4(void) {
     s32 prev;
     M003Home *h;
@@ -1862,9 +1855,6 @@ void func_m003_038D4(void) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_038D4);
-#endif
 
 extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
@@ -3104,8 +3094,6 @@ extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alp
  * The member coming apart: 32 drops around it, then every body part it has not lost yet flies off (while
  * the main pool has over 48 KiB free) with the hit's velocity (called from 10600)
  */
-#ifdef NON_MATCHING
-/* Two instructions: k is a .rodata literal in the ROM (hoisted after the loop's 1.0f); needs .rodata in C */
 void func_m003_09CE4(Object *obj) {
     M003Member *m;
     s32 alpha;
@@ -3172,9 +3160,6 @@ void func_m003_09CE4(Object *obj) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_09CE4);
-#endif
 
 /* A member is killed */
 void func_m003_09FF0(Object *obj) {

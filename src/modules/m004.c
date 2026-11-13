@@ -332,8 +332,6 @@ extern void func_80049BA0(M004Mtx *mtx); /* identity */
  * Halves the rotation's tilt towards straight down and builds a matrix that shears along the direction it
  * then points in (called from 0036C)
  */
-#ifdef NON_MATCHING
-/* f0/f2 swapped (y and the constant): the ROM's k is a .rodata literal; needs .rodata in C */
 void func_m004_012BC(Vec3s *rot, s32 arg1, M004Mtx *mtx) {
     f32 k;
     Vec3f dir;
@@ -363,9 +361,6 @@ void func_m004_012BC(Vec3s *rot, s32 arg1, M004Mtx *mtx) {
     mtx->m[1][2] = -(z / y);
     mtx->m[2][2] = k;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m004/ro", func_m004_012BC);
-#endif
 
 /* Allocates a copy's buffers; FALSE (with nothing kept) when one cannot be had */
 static s32 copy_alloc(Object *obj, M004Copy *copy) {
