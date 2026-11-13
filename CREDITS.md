@@ -291,3 +291,9 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | --- | --- |
 | `src/audiosfx.c` | the sound player as JFG's `src/audiosfx.c` (0x84E00): sndp_init_player, sndp_voice_handler, sndp_remove_events, sndp_get_state_counts, sndp_allocate, sndp_deallocate, sndp_play_with_priority (as JFG's sndp_play), sndp_end, sndp_apply_pitch_slide, sndp_set_priority, sndp_get_state, sndp_stop, sndp_stop_with_flags, sndp_stop_all, sndp_stop_all_retrigger, sndp_stop_all_looped, sndp_set_param, sndp_get_group_volume, sndp_set_group_volume, sndp_set_global_volume, sndp_get_global_volume, sndp_set_active_sound_limit (JFG: built -g -mips2, debug prints kept, larger sound states) |
 | `src/menu.c` | menu_element_render, as the NON_MATCHING body of JFG's func_8005A0D0 (helper mn20h1) |
+
+Written from the game's assembly, not taken from any source: alLink and alUnlink
+(`src/ultra/audio/sl.c`) and __alCSeqNextDelta (`src/naudio_8F500.c`) come out the
+same as ultralib's versions, because they are the same compiled library code. JFG's
+objects hold only part of the matching ultralib files, so they cannot be included
+from ultralib the way the other libultra objects are.
