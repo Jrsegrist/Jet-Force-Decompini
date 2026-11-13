@@ -676,10 +676,7 @@ osPiRawStartDma = __osPiRawStartDma;
 osEPiRawStartDma = __osEPiRawStartDma;
 __OSGlobalIntMask = 0x800A9A6C;
 __libm_qnan_f = 0x800AFAA0;
-__osViCurr = 0x800A9F10;
-__osViNext = 0x800A9F14;
 osRomBase = 0x80000308;
-osViClock = 0x800A9F18;
 
 /* ---- asm references into data that C/ultralib objects now define ---- */
 D_800A6F70 = __osPiDevMgr;
@@ -781,3 +778,8 @@ D_800FF3F4 = D_800FF3E8 + 0xC;
 
 /* ---- round 21 (libother21): libultra globals still defined in asm, used by new C ---- */
 osClockRate = 0x800A9A60;
+osViModeMpalLan1 = 0x800A9C90;
+osViModeNtscLan1 = 0x800A9BA0;
+osViModePalLan1 = 0x800A9D80;
+/* asm references into data that the new C defines */
+D_800A9F18 = osViClock;

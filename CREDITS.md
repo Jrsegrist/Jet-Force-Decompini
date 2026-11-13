@@ -320,3 +320,10 @@ the same as ultralib's do so because they are the same library code:
 | `src/99B40.c` | _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo | no loadable-microcode check for a yielded task | _VirtualToPhysicalTask, osSpTaskStartGo |
 | `src/98550.c` | osContInit, __osContGetInitData, __osPackRequestData | start-up wait computed from osClockRate at run time; PIF RAM cleared as 16 words | __osContGetInitData |
 | `src/98910.c` | osContStartReadData, osContGetReadData, __osPackReadData | PIF RAM cleared as 16 words; osContStartReadData fills it with 0xFF before the read | osContGetReadData |
+| `src/99000.c` | osPfsDeleteFile, __osPfsReleasePages, __osBlockSum | __osPfsReleasePages frees the page after the chain whatever its bank | osPfsDeleteFile, __osBlockSum (2.0I) |
+| `src/9B780.c` | __osViInit | sets osViClock for the TV type (the object defines it); leaves the frame buffer pointers alone | none |
+| `src/9B310.c` | osSyncPrintf and its output function | the game's form: formats through _Printf into an output function that discards the text | none |
+
+`src/ultra/os/destroythread.c` includes ultralib's `destroythread.c` with
+`__GNUC__` defined after the headers, which selects the older active-queue walk
+that the game has (ultralib keeps it for its GCC builds).
