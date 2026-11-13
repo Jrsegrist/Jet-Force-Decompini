@@ -94,6 +94,10 @@ $(addprefix $(BUILD_DIR)/src/ultra/,$(addsuffix .o,$(UL_O2G3_OBJS))): UL_OPT_FLA
 # osMotorStop/osMotorStart, written from the asm, sit in front of the 2.0J motor object
 $(BUILD_DIR)/src/motor_stop_start.o build_nm/src/motor_stop_start.o: OPT_FLAGS := -O2 -g3
 $(BUILD_DIR)/src/motor_stop_start.o build_nm/src/motor_stop_start.o: MIPSISET := -mips2
+# libultra 2.0I os/io objects of an older form than ultralib's, written from the asm (-O1 -mips2)
+UL_OLD_SRCS := 979F0 99B40
+$(foreach f,$(UL_OLD_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): OPT_FLAGS := -O1
+$(foreach f,$(UL_OLD_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): MIPSISET := -mips2
 # ---- end of round 21 (libother21) block ----
 
 LDFLAGS := -T $(LD_SCRIPT) \

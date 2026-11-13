@@ -184,7 +184,7 @@ segments:
       - [0x977B0, c, ultra/os/createmesgqueue]
       - [0x977E0, c, ultra/os/startthread]
       - [0x97930, c, ultra/os/stopthread]
-      - [0x979F0, asm]
+      - [0x979F0, c, 979F0]
       - [0x97AA0, c, ultra/os/virtualtophysical]
       - [0x97B20, c, ultra/os/sendmesg]
       - [0x97C70, c, ultra/io/aigetlen]
@@ -213,6 +213,7 @@ segments:
       - [0x999C0, c, ultra/io/viblack]
       - [0x99A30, c, ultra/io/visetevent]
       - [0x99AA0, asm]
+      - [0x99B40, c, 99B40]
       - [0x99E00, c, ultra/io/sptaskyielded]
       - [0x99E80, c, ultra/io/vigetcurrframebuf]
       - [0x99EC0, c, ultra/io/vigetnextframebuf]
@@ -363,7 +364,7 @@ segments:
       - { start: 0xB1750, type: bss, vram: 0x80105300, name: bss_80105300 }
       - { start: 0xB1750, type: .bss, vram: 0x80105390, name: ultra/io/cartrominit }
       - { start: 0xB1750, type: .bss, vram: 0x80105410, name: ultra/io/vimgr }
-      - { start: 0xB1750, type: bss, vram: 0x80105730, name: bss_80105730 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105730, name: 99B40 }
       - { start: 0xB1750, type: .bss, vram: 0x80105770, name: ultra/io/piacs }
       - { start: 0xB1750, type: bss, vram: 0x80105790, name: bss_80105790 }
       - { start: 0xB1750, type: .bss, vram: 0x80105940, name: ultra/io/siacs }

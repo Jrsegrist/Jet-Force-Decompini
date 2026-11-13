@@ -309,3 +309,12 @@ osMotorStart (`src/motor_stop_start.c`). The game's 2.0J rumble pak object has
 only `__osMotorAccess` (2.0J makes the two names macros), so the game carries
 the two calls as functions of its own (ultralib's `motor.c` has the two only
 in their older, different 2.0I form).
+
+Also written from the assembly: libultra objects in an earlier form than any
+ultralib builds, so they cannot be included. Functions in them that come out
+the same as ultralib's do so because they are the same library code:
+
+| JFG file | Functions | Earlier form | Same as ultralib's |
+| --- | --- | --- | --- |
+| `src/979F0.c` | osAiSetNextBuffer | hardware bug test `(end & 0x3FFF) == 0x2000` | none |
+| `src/99B40.c` | _VirtualToPhysicalTask, osSpTaskLoad, osSpTaskStartGo | no loadable-microcode check for a yielded task | _VirtualToPhysicalTask, osSpTaskStartGo |
