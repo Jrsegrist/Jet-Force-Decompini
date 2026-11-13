@@ -81,6 +81,16 @@ UL_G_OBJS    := audio/cspsetvol audio/cspgettempo audio/cspsetchlvol audio/cspse
                 audio/cspgetstate audio/cspsetseq audio/cspplay audio/cspstop audio/cents2ratio \
                 audio/heap audio/sl
 UL_MIPSISET  = $(if $(filter ll llcvt,$(basename $(notdir $@))),-mips3 -32,$(if $(filter $(UL_MIPS1_OBJS),$(patsubst $(BUILD_DIR)/src/ultra/%.o,%,$@)),-mips1,-mips2))
+# ---- round 21 (libother21): libultra objects built -O2 -g3 ----
+# The controller pak, EPI and PI DMA objects were built optimised with full
+# debug information: -g3 keeps -O2's code but schedules less (prologue saves in
+# source order, an unfilled `jr ra` delay slot). Their wrappers select 2.0J.
+UL_O2G3_OBJS := io/pfsfreeblocks io/pfsinit io/pfschecker io/pfsreformat io/pfsnumfiles \
+                io/pfsfilestate io/pfssearchfile io/pfsreadwritefile io/pfsallocatefile \
+                io/pfsselectbank io/pfsgetstatus io/contramwrite io/pidma io/epirawdma \
+                io/epilinkhandle io/epiwrite io/epiread io/epidma io/epirawwrite io/epirawread
+$(addprefix $(BUILD_DIR)/src/ultra/,$(addsuffix .o,$(UL_O2G3_OBJS))): UL_OPT_FLAGS := -O2 -g3
+# ---- end of round 21 (libother21) block ----
 
 LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \
