@@ -782,6 +782,4 @@ D_800FF3F0 = D_800FF3E8 + 8;
 D_800FF3F4 = D_800FF3E8 + 0xC;
 
 /* ---- round 21 (libother21): libultra globals still defined in asm, used by the -O2 -g3 objects ---- */
-__osPfsInodeCacheBank = 0x800A9A44;
-__osPfsLastChannel = 0x800A9A30;
-__osPfsPifRam = 0x80105030;
+__osMaxControllers = 0x80105341;

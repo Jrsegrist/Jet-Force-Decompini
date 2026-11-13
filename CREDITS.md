@@ -297,3 +297,14 @@ Written from the game's assembly, not taken from any source: alLink and alUnlink
 same as ultralib's versions, because they are the same compiled library code. JFG's
 objects hold only part of the matching ultralib files, so they cannot be included
 from ultralib the way the other libultra objects are.
+
+### Round 21 (libother21), main-segment libraries
+
+No DKR code. The controller pak, rumble pak, EPI and PI DMA objects are
+ultralib's 2.0J sources built `-O2 -g3`, included from `lib/ultralib` by the
+`src/ultra/io` wrappers (Makefile `UL_O2G3_OBJS`); nothing is copied.
+
+Written from the game's assembly, not taken from any source: osMotorStop and
+osMotorStart (`src/motor_stop_start.c`). The game's 2.0J rumble pak object has
+only `__osMotorAccess` (2.0J makes the two names macros), so the game carries
+the two calls as functions of its own. They are not in ultralib's `motor.c`.

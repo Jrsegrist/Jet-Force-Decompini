@@ -160,9 +160,10 @@ segments:
       - [0x93430, c, naudio_93430]
       - [0x93850, c, naudio_93850]
       - [0x93930, c, naudio_93930]
-      - [0x93DE0, asm]
-      - [0x940E0, asm]
       # libultra objects built -O2 -g3 (Makefile UL_O2G3_OBJS), the SDK 2.0J forms
+      - [0x93DE0, c, ultra/io/pfsisplug]
+      - [0x940E0, c, motor_stop_start]
+      - [0x94120, c, ultra/io/motor]
       - [0x944F0, c, ultra/io/pfsfreeblocks]
       - [0x94690, c, ultra/io/pfsinit]
       - [0x94730, c, ultra/io/pfschecker]
@@ -173,8 +174,8 @@ segments:
       - [0x95900, c, ultra/io/pfsreadwritefile]
       - [0x95D60, c, ultra/io/pfsallocatefile]
       - [0x961E0, c, ultra/io/pfsselectbank]
-      - [0x96260, asm]
-      - [0x96490, asm]
+      - [0x96260, c, ultra/io/contramread]
+      - [0x96490, c, ultra/io/contpfs]
       - [0x97030, c, ultra/io/pfsgetstatus]
       - [0x97270, c, ultra/io/contramwrite]
       - [0x974C0, asm]
@@ -202,7 +203,7 @@ segments:
       - [0x98C40, c, ultra/io/dpsetstat]
       - [0x98C50, asm]
       - [0x98CD0, asm]
-      - [0x98D50, asm]
+      - [0x98D50, c, ultra/io/cartrominit]
       - [0x98EB0, asm]
       - [0x98F60, asm]
       - [0x99000, asm]
@@ -228,7 +229,7 @@ segments:
       - [0x9A940, asm]
       - [0x9A980, c, ultra/io/pirawdma]
       - [0x9AA50, c, ultra/io/epirawdma]
-      - [0x9AC30, asm]
+      - [0x9AC30, c, ultra/io/devmgr]
       - [0x9B040, c, ultra/os/thread]
       - [0x9B080, asm]
       - [0x9B180, c, ultra/io/epilinkhandle]
@@ -282,6 +283,10 @@ segments:
       # Labelled .data so that it stays ahead of the libultra .data at 0xAAB80:
       # splat groups pieces by section, and this region holds both.
       - [0xA8080, data, data_A8080]
+      - [0xAA630, .data, ultra/io/contramread]
+      - [0xAA640, .data, ultra/io/contpfs]
+      - [0xAA650, data, data_AA650]
+      - [0xAA680, .data, ultra/io/cartrominit]
       - [0xAA690, .data, ultra/io/vimgr]
       - [0xAA6B0, data, data_AA6B0]
       - [0xAAA80, .data, ultra/os/thread]
@@ -332,6 +337,8 @@ segments:
       - [0xB05A0, .rodata, ultra/gu/sinf]
       - [0xB05F0, .rodata, ultra/libc/llcvt]
       - [0xB0600, rodata]
+      - [0xB0680, .rodata, ultra/io/devmgr]
+      - [0xB06A0, rodata]
       - [0xB07B0, .rodata, ultra/libc/xldtob]
       - [0xB0810, rodata]
       - { start: 0xB1750, type: bss, vram: 0x800B0B50, name: main }
@@ -347,8 +354,13 @@ segments:
       - { start: 0xB1750, type: bss, vram: 0x801012A0, name: bss_801012A0 }
       - { start: 0xB1750, type: .bss, vram: 0x80104200, name: ultra/io/pimgr }
       - { start: 0xB1750, type: bss, vram: 0x80104550, name: bss_80104550 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105030, name: ultra/io/pfsisplug }
+      - { start: 0xB1750, type: .bss, vram: 0x80105070, name: ultra/io/motor }
+      - { start: 0xB1750, type: .bss, vram: 0x80105170, name: ultra/io/contpfs }
+      - { start: 0xB1750, type: bss, vram: 0x80105270, name: bss_80105270 }
       - { start: 0xB1750, type: .bss, vram: 0x80105280, name: ultra/os/seteventmesg }
       - { start: 0xB1750, type: bss, vram: 0x80105300, name: bss_80105300 }
+      - { start: 0xB1750, type: .bss, vram: 0x80105390, name: ultra/io/cartrominit }
       - { start: 0xB1750, type: .bss, vram: 0x80105410, name: ultra/io/vimgr }
       - { start: 0xB1750, type: bss, vram: 0x80105730, name: bss_80105730 }
       - { start: 0xB1750, type: .bss, vram: 0x80105940, name: ultra/io/siacs }
