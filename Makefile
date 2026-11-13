@@ -91,9 +91,11 @@ UL_O2G3_OBJS := io/pfsfreeblocks io/pfsinit io/pfschecker io/pfsreformat io/pfsn
                 io/epilinkhandle io/epiwrite io/epiread io/epidma io/epirawwrite io/epirawread \
                 io/pfsisplug io/motor io/contramread io/contpfs io/cartrominit io/devmgr io/piacs
 $(addprefix $(BUILD_DIR)/src/ultra/,$(addsuffix .o,$(UL_O2G3_OBJS))): UL_OPT_FLAGS := -O2 -g3
-# osMotorStop/osMotorStart, written from the asm, sit in front of the 2.0J motor object
-$(BUILD_DIR)/src/motor_stop_start.o build_nm/src/motor_stop_start.o: OPT_FLAGS := -O2 -g3
-$(BUILD_DIR)/src/motor_stop_start.o build_nm/src/motor_stop_start.o: MIPSISET := -mips2
+# Written from the asm, built like those objects: osMotorStop/osMotorStart (in front of
+# the 2.0J motor object) and osInitialize (2.0J code without osViClock)
+UL_O2G3_SRCS := motor_stop_start 98120
+$(foreach f,$(UL_O2G3_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): OPT_FLAGS := -O2 -g3
+$(foreach f,$(UL_O2G3_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): MIPSISET := -mips2
 # libultra 2.0I os/io objects of an older form than ultralib's, written from the asm (-O1 -mips2)
 UL_OLD_SRCS := 979F0 99B40 98550 98910 99000 9B780
 $(foreach f,$(UL_OLD_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): OPT_FLAGS := -O1

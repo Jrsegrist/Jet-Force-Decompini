@@ -323,6 +323,8 @@ the same as ultralib's do so because they are the same library code:
 | `src/99000.c` | osPfsDeleteFile, __osPfsReleasePages, __osBlockSum | __osPfsReleasePages frees the page after the chain whatever its bank | osPfsDeleteFile, __osBlockSum (2.0I) |
 | `src/9B780.c` | __osViInit | sets osViClock for the TV type (the object defines it); leaves the frame buffer pointers alone | none |
 | `src/9B310.c` | osSyncPrintf and its output function | the game's form: formats through _Printf into an output function that discards the text | none |
+| `src/765D0.c` | osCreateThread | the game's form: threads start with SR_FR set; a negative id clears it | none |
+| `src/98120.c` | osInitialize, createSpeedParam | 2.0J code, but the object does not define osViClock, so ultralib's file cannot be included | both (2.0J) |
 
 `src/ultra/os/destroythread.c` includes ultralib's `destroythread.c` with
 `__GNUC__` defined after the headers, which selects the older active-queue walk
