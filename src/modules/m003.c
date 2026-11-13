@@ -1104,11 +1104,9 @@ s32 func_m003_01B44(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
 
 extern void func_m154_01110(Object *home, M003Node *node); /* starts the way point's command */
 
-#ifdef NON_MATCHING
-/* 22 diffs: the ROM computes the final && straight into v0 (the cmd reload in v1), one instruction shorter */
 /* Whether the member goes on past way point `node`: its command (not kinds 3/9 and 1) is started on
-   reaching it; `arrive` tells which of the two calls this is */
-s32 func_m003_01C58(M003Node *node, s32 arrive) {
+   reaching it; `arrive` tells which of the two calls this is (an int return: s32 is long, which costs a move) */
+int func_m003_01C58(M003Node *node, s32 arrive) {
     u8 cmd = node->cmd;
 
     if ((1 << cmd) & 0x208) {
@@ -1128,9 +1126,6 @@ s32 func_m003_01C58(M003Node *node, s32 arrive) {
     sHomeData->unk35 = 0;
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_01C58);
-#endif
 
 /* An animation path (D_801045B0; 76C20.c's AnimPath, 0x34 bytes) */
 typedef struct M003AnimPath {
