@@ -472,7 +472,6 @@ typedef struct M016SpawnEntry {
 } M016SpawnEntry;
 
 /* The module's static functions */
-#ifdef NON_MATCHING
 static s32 func_m016_04E08(Racer *racer);
 static void func_m016_04F78(Object *obj, Racer *racer, s32 anim, f32 frame);
 static void func_m016_04840(Object *obj, Racer *racer, s32 updateRate);
@@ -493,20 +492,9 @@ static void func_m016_01D58(Object *obj, Racer *racer, f32 frame, f32 speed);
 static void func_m016_02220(Object *obj, Racer *racer, s32 updateRate);
 static void func_m016_05BB8(Object *obj, Racer *racer, f32 updateRate);
 static void func_m016_05120(Object *obj, Racer *racer, f32 speed, f32 updateRate);
-#endif
-#ifdef NON_MATCHING
 static void func_m016_03DB0(s16 a, s16 b, s16 c, s16 d);
 static void func_m016_06E24(Object *obj, Racer *racer, f32 updateRate);
 static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
-#else
-/* Still in assembly: called by their rl_ names */
-extern void rl_m016_03DB0(s16 a, s16 b, s16 c, s16 d);
-extern void rl_m016_06E24(Object *obj, Racer *racer, f32 updateRate);
-extern void rl_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate);
-#define func_m016_03DB0 rl_m016_03DB0
-#define func_m016_06E24 rl_m016_06E24
-#define func_m016_03464 rl_m016_03464
-#endif
 
 /* Body part entries (0x14 each), grouped by the lists below */
 static M016Part D_m016_075F0[18] = {
@@ -620,9 +608,9 @@ static s16 D_m016_080DE;
 static s32 sAnimChanges; /* 0x080E0 */
 static f32 D_m016_080E4;
 
-/* The control function: called every frame */
-#ifdef NON_MATCHING
-/* 4 instructions off (m015's 00000 has the same 4): j, the state switch's variable and the joint-loop counter, gets a1 in the loop and its copy a0, the ROM the other way round (a switch variable separate from the counter puts the switch in v0/a2/a3 instead of the ROM's a1). Its statics below are C under NON_MATCHING only because IDO drops a static with no C caller; all of them match once this does. */
+/* The control function: called every frame.
+   The joint loop's empty ifs only add blocks to the loop: they lower the priority of the loop's other values so
+   that j (the state switch's variable, and the counter's dead copy in the loop condition) gets a1 as in the ROM. */
 void func_m016_00000(Object *obj, s32 updateRate) {
     s32 deep;
     Racer *racer;
@@ -1017,18 +1005,20 @@ void func_m016_00000(Object *obj, s32 updateRate) {
     if (D_800A5084 != 0 && racer->unk189 != 2) {
         u32 joints[6] = { 0, 6, 9, 10, 14, 18 };
         f32 amounts[6] = { 0.8f, 1.55f, 1.55f, 1.55f, 1.55f, 1.55f };
-        UNUSED s32 pad;
+        s32 k;
 
-        j = 5;
+        k = 5;
         do {
-            if (j) {}
-            *D_m016_080D8 = (joints[j] * 6) | 0x4000; D_m016_080D8++;
-            *D_m016_080D8 = (u16) (amounts[j] * 32768.0f); D_m016_080D8++;
-            *D_m016_080D8 = (joints[j] * 6 + 2) | 0x4000; D_m016_080D8++;
-            *D_m016_080D8 = (u16) (amounts[j] * 32768.0f); D_m016_080D8++;
-            *D_m016_080D8 = (joints[j] * 6 + 4) | 0x4000; D_m016_080D8++;
-            *D_m016_080D8 = (u16) (amounts[j] * 32768.0f); D_m016_080D8++;
-        } while (j--);
+            if (k) {}
+            if (racer) {}
+            if (racer) {}
+            *D_m016_080D8 = (joints[k] * 6) | 0x4000; D_m016_080D8++;
+            *D_m016_080D8 = (u16) (amounts[k] * 32768.0f); D_m016_080D8++;
+            *D_m016_080D8 = (joints[k] * 6 + 2) | 0x4000; D_m016_080D8++;
+            *D_m016_080D8 = (u16) (amounts[k] * 32768.0f); D_m016_080D8++;
+            *D_m016_080D8 = (joints[k] * 6 + 4) | 0x4000; D_m016_080D8++;
+            *D_m016_080D8 = (u16) (amounts[k] * 32768.0f); D_m016_080D8++;
+        } while (j = k, k--, j);
     }
     *D_m016_080D8 = 0x1000;
     D_m016_080D8++;
@@ -1118,13 +1108,6 @@ void func_m016_00000(Object *obj, s32 updateRate) {
     func_8003733C(racer->player, D_m016_080D0, D_m016_080D4, result, racer->unk536 / updateRate);
     racer->unk536 = 0;
 }
-#else
-/* func_m016_00000's local arrays (their initialisers are in .data) */
-static u32 D_m016_07D4C[6] = { 0, 6, 9, 10, 14, 18 };
-static f32 D_m016_07D64[6] = { 0.8f, 1.55f, 1.55f, 1.55f, 1.55f, 1.55f };
-
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_00000);
-#endif
 
 /* Tables the assembly functions 04934 and 0650C read (after 00000's local arrays in .data) */
 static f32 D_m016_07D7C[12] = { 0.0f, 2.0f, 5.0f, 9.0f, 11.0f, 15.0f, 19.0f, 23.0f, 27.0f, 30.0f, 32.0f, 32.0f };
@@ -1158,7 +1141,6 @@ s32 func_m016_01A60(Object *obj, Racer *racer) {
 }
 
 /* Entering water: the splash sound, and a splash object (or particles) */
-#ifdef NON_MATCHING
 static void func_m016_01B48(Object *obj, Racer *racer, s32 updateRate) {
     s32 volume;
     u32 savedEmitters;
@@ -1205,12 +1187,8 @@ static void func_m016_01B48(Object *obj, Racer *racer, s32 updateRate) {
         obj->particleEmittersEnabled = savedEmitters;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_01B48);
-#endif
 
 /* Footstep splashes when a foot comes down in shallow water */
-#ifdef NON_MATCHING
 static void func_m016_01D58(Object *obj, Racer *racer, f32 frame, f32 speed) {
     s32 n;
     s32 count[2];
@@ -1281,12 +1259,8 @@ static void func_m016_01D58(Object *obj, Racer *racer, f32 frame, f32 speed) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_01D58);
-#endif
 
 /* Hits taken: camera shakes, the hit flash, and damage from the level (hit points >= 0x100) */
-#ifdef NON_MATCHING
 static void func_m016_02220(Object *obj, Racer *racer, s32 updateRate) {
     s32 i;
     s32 hit;
@@ -1426,12 +1400,8 @@ static void func_m016_02220(Object *obj, Racer *racer, s32 updateRate) {
         menu_draw_layout_box(0, racer->player, 0xFF0000FF);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_02220);
-#endif
 
 /* State 0: on foot */
-#ifdef NON_MATCHING
 static void func_m016_02708(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s32 out;
     f32 x;
@@ -1575,12 +1545,8 @@ static void func_m016_02708(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     racer->unk120 = oldAngle * x * 0.3333f;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_02708);
-#endif
 
 /* State 1 */
-#ifdef NON_MATCHING
 static void func_m016_02EB4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s32 deep;
 
@@ -1648,12 +1614,8 @@ static void func_m016_02EB4(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     racer->unk4 *= func_80049BEC(0.95f, updateRate);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_02EB4);
-#endif
 
 /* State 2 */
-#ifdef NON_MATCHING
 static void func_m016_0321C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s32 unused;
     s32 rate; /* also the "stuck in deep water" flag */
@@ -1685,12 +1647,7 @@ static void func_m016_0321C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     racer->unk4 = (1.0f - func_80049BEC(0.96f, rate)) * (speed - racer->unk4) + racer->unk4;
     racer->unk11C = angle_lerp(racer->unk11C, angle, 1.0f - func_80049BEC(0.975f, rate));
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_0321C);
-#endif
 
-#ifdef NON_MATCHING
-/* Matches in the probe; C only under NON_MATCHING until its caller 00000 matches */
 /* State 3: in the air */
 static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     f32 fall;
@@ -1829,12 +1786,7 @@ static void func_m016_03464(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         racer->unk128 = angle_lerp(racer->unk128, racer->unk11C, 1.0f - func_80049BEC(0.975f, updateRate));
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_03464);
-#endif
 
-#ifdef NON_MATCHING
-/* Matches in the probe; C only under NON_MATCHING until its caller 00000 matches */
 static void func_m016_03DB0(s16 a, s16 b, s16 c, s16 d) {
     s16 half;
 
@@ -1871,9 +1823,6 @@ static void func_m016_03DB0(s16 a, s16 b, s16 c, s16 d) {
     *D_m016_080D8 = d;
     D_m016_080D8++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_03DB0);
-#endif
 
 /* Two empty exported functions */
 void func_m016_03F20(void) {
@@ -1883,7 +1832,6 @@ void func_m016_03F28(void) {
 }
 
 /* State 5: aiming */
-#ifdef NON_MATCHING
 static void func_m016_03F30(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s16 yaw;
     s16 pitch;
@@ -1970,12 +1918,8 @@ static void func_m016_03F30(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         func_m016_04F78(obj, racer, func_m016_04E08(racer), 0);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_03F30);
-#endif
 
 /* State 11: aiming while strafing */
-#ifdef NON_MATCHING
 static void func_m016_04440(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s16 yaw;
     s16 pitch;
@@ -2036,11 +1980,7 @@ static void func_m016_04440(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     }
     func_m016_03DB0(pitch, yaw, racer->unk1DE, racer->unk1DC);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_04440);
-#endif
 
-#ifdef NON_MATCHING
 static void func_m016_04840(Object *obj, Racer *racer, s32 updateRate) {
     f32 x;
     f32 z;
@@ -2069,12 +2009,8 @@ static void func_m016_04840(Object *obj, Racer *racer, s32 updateRate) {
     *D_m016_080D8 = racer->unk580;
     D_m016_080D8++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_04840);
-#endif
 
 /* Sidesteps and rolls (mode 0: sidestep, 1 and 2: rolls) on the shoulder buttons */
-#ifdef NON_MATCHING
 static void func_m016_04934(Object *obj, Racer *racer, s32 mode, f32 updateRate) {
     s32 anim;
     f32 z;
@@ -2200,11 +2136,7 @@ static void func_m016_04934(Object *obj, Racer *racer, s32 mode, f32 updateRate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_04934);
-#endif
 
-#ifdef NON_MATCHING
 static s32 func_m016_04E08(Racer *racer) {
     f32 x;
     f32 z;
@@ -2250,11 +2182,7 @@ static s32 func_m016_04E08(Racer *racer) {
     }
     return anim;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_04E08);
-#endif
 
-#ifdef NON_MATCHING
 static void func_m016_04F78(Object *obj, Racer *racer, s32 anim, f32 frame) {
     u8 pose;
 
@@ -2277,9 +2205,6 @@ static void func_m016_04F78(Object *obj, Racer *racer, s32 anim, f32 frame) {
     }
     racer_pose_begin(obj, racer, D_m016_077E4, pose);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_04F78);
-#endif
 
 /* Picks a random idle animation (or the plain one while carrying, aiming or hurt) */
 #define IDLE_ANIM(racer, anim)                            \
@@ -2294,7 +2219,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_04F78);
     }
 
 /* The animation state machine: moves on from the current animation, and advances it */
-#ifdef NON_MATCHING
 static void func_m016_05120(Object *obj, Racer *racer, f32 speed, f32 updateRate) {
     f32 ax;
     f32 az;
@@ -2597,12 +2521,8 @@ static void func_m016_05120(Object *obj, Racer *racer, f32 speed, f32 updateRate
     func_m016_01D58(obj, racer, frame, animSpeed);
     func_m016_04F78(obj, racer, anim, newFrame);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_05120);
-#endif
 
 /* Moves the character: gravity, slopes, the speeds turned into a velocity, the move and its collision */
-#ifdef NON_MATCHING
 static void func_m016_05BB8(Object *obj, Racer *racer, f32 updateRate) {
     f32 dx;
     f32 dz;
@@ -2750,11 +2670,7 @@ static void func_m016_05BB8(Object *obj, Racer *racer, f32 updateRate) {
         racer->unk199 = 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_05BB8);
-#endif
 
-#ifdef NON_MATCHING
 static void func_m016_06290(Object *obj, Racer *racer, s32 updateRate) {
     s16 i;
     s16 pitch;
@@ -2807,12 +2723,8 @@ static void func_m016_06290(Object *obj, Racer *racer, s32 updateRate) {
         func_m016_03DB0(pitch, yaw, racer->unk1DE, racer->unk1DC);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_06290);
-#endif
 
 /* State 4: swimming */
-#ifdef NON_MATCHING
 static void func_m016_0650C(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s32 roll;
     s32 pitch;
@@ -2906,12 +2818,8 @@ static void func_m016_0650C(Object *obj, Racer *racer, f32 speed, s16 angle, f32
     *D_m016_080D8 = racer->unk12A;
     D_m016_080D8++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_0650C);
-#endif
 
 /* State 10: dead */
-#ifdef NON_MATCHING
 static void func_m016_06AEC(Object *obj, Racer *racer, f32 speed, f32 angle, f32 updateRate) {
     f32 damp;
     Vec3f *p;
@@ -2974,14 +2882,8 @@ static void func_m016_06AEC(Object *obj, Racer *racer, f32 speed, f32 angle, f32
         func_80033920(obj, racer);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_06AEC);
-#endif
 
-#ifdef NON_MATCHING
-/* Matches in the probe; C only under NON_MATCHING until its caller 00000 matches (the last call's
-   0.0f, not 0, gives the shared 0.0f $f2 as in the ROM) */
-/* State 6 */
+/* State 6 (the last call's 0.0f, not 0, gives the shared 0.0f $f2 as in the ROM) */
 static void func_m016_06E24(Object *obj, Racer *racer, f32 updateRate) {
     s32 rate;
     s32 v;
@@ -3043,12 +2945,8 @@ static void func_m016_06E24(Object *obj, Racer *racer, f32 updateRate) {
         racer->state = 8;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_06E24);
-#endif
 
 /* State 8 */
-#ifdef NON_MATCHING
 static void func_m016_070A4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     f32 zero;
     f32 s1;
@@ -3091,23 +2989,15 @@ static void func_m016_070A4(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016/ro", func_m016_070A4);
-#endif
 
-#ifdef NON_MATCHING
 static void func_m016_07344(Object *obj, Racer *racer, f32 updateRate) {
     if (racer->pose->unk5 & racer->unk532) {
         func_m016_04F78(obj, racer, func_m016_04E08(racer), 0);
         racer->state = 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_07344);
-#endif
 
 /* State 12 */
-#ifdef NON_MATCHING
 static void func_m016_073A8(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate) {
     s32 v;
     f32 f;
@@ -3157,6 +3047,3 @@ static void func_m016_073A8(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m016", func_m016_073A8);
-#endif
