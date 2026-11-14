@@ -2,9 +2,6 @@
  * Runlink module 15: a player character's behaviour (the control function
  * called every frame, the firing check, and the movement states it runs).
  */
-#ifdef NON_MATCHING
-/* The whole module in C, but the build uses the asm: func_m015_00000 is 4 instructions off (the joint loop's
-   counter k and its copy take a1/a0, the ROM a0/a1); every other function matches. */
 /* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
 #define obj_anim_set func_8001149C_void
 #include "module.h"
@@ -723,13 +720,15 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_8006B090(Object *obj, s32 updateRate);
 extern void func_m107_00D08(void *arg0, f32 a, f32 b, s32 c);
 
-/* The control function: called every frame */
+/* The control function: called every frame.
+   The joint loop's empty ifs only add blocks to the loop: they lower the priority of the loop's other values so
+   that j (the state switch's variable, and the counter's dead copy in the loop condition) gets a1 as in the ROM. */
 void func_m015_00000(Object *obj, s32 updateRate) {
     s32 deep;
     Racer *racer;
     f32 speed;
     M015WeaponInfo *info;
-    ObjectInteraction *interact;
+    s32 j;
     Vec3f dir;
     u32 hit;
     s16 angle;
@@ -943,12 +942,11 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             func_m015_05180(obj, racer, 0x2D, 0);
         }
     }
-    interact = obj->interactObj;
-    if (interact->hitPoints < 0x100 && racer->state != 10) {
+    if (obj->interactObj->hitPoints < 0x100 && racer->state != 10) {
         if (D_800A5070 != 0) {
-            interact->hitPoints = 0x2200;
+            obj->interactObj->hitPoints = 0x2200;
         } else {
-            interact->hitPoints = 0;
+            obj->interactObj->hitPoints = 0;
             if (D_800A4FC4 == 0) {
                 func_80000510(0x38);
             } else {
@@ -1072,10 +1070,8 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     if ((racer->unk520 & 0x8000) && racer->state != 10 && racer->unk5C8 == 0) {
         func_80001248(0x214, (s32) &racer->unkD4);
         player_voice_play(obj, 3);
-        interact = obj->interactObj;
-        interact->hitPoints -= 0x900;
-        interact = obj->interactObj;
-        if (interact->hitPoints >= 0) {
+        obj->interactObj->hitPoints -= 0x900;
+        if (obj->interactObj->hitPoints >= 0) {
             racer->state = 3;
             obj->velocity.y = 6.0f;
             racer->unk594 = 0.7f;
@@ -1086,7 +1082,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             D_m015_089C4 |= 1;
             obj_anim_set(obj, 6, 0);
         } else {
-            interact->hitPoints = 0;
+            obj->interactObj->hitPoints = 0;
             if (D_800A4FC4 != 0) {
                 multiplayer_score_kill(obj, obj);
             }
@@ -1100,8 +1096,8 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         func_m015_0663C(obj, racer, updateRate);
     }
     if (racer->unk5BC != NULL) {
-        k = racer->state;
-        switch (k) {
+        j = racer->state;
+        switch (j) {
             case 2:
                 func_m107_00D08(racer->unk5BC, 1.5f, 0.5f, 40);
                 break;
@@ -1139,13 +1135,15 @@ void func_m015_00000(Object *obj, s32 updateRate) {
         k = 5;
         do {
             if (k) {}
+            if (racer) {}
+            if (racer) {}
             *D_m015_089C8 = (joints[k] * 6) | 0x4000; D_m015_089C8++;
             *D_m015_089C8 = (u16) (amounts[k] * 32768.0f); D_m015_089C8++;
             *D_m015_089C8 = (joints[k] * 6 + 2) | 0x4000; D_m015_089C8++;
             *D_m015_089C8 = (u16) (amounts[k] * 32768.0f); D_m015_089C8++;
             *D_m015_089C8 = (joints[k] * 6 + 4) | 0x4000; D_m015_089C8++;
             *D_m015_089C8 = (u16) (amounts[k] * 32768.0f); D_m015_089C8++;
-        } while (k--);
+        } while (j = k, k--, j);
     }
     *D_m015_089C8 = 0x1000;
     D_m015_089C8++;
@@ -3325,108 +3323,3 @@ static void func_m015_07BC8(Object *obj, Racer *racer, f32 speed, s16 angle, f32
         }
     }
 }
-#else
-#include "module.h"
-
-/* A player's state block (the object's unk68); see 2BAA0.c */
-typedef struct Racer {
-    /* 0x000 */ u8 pad0[0x13E];
-    /* 0x13E */ u8 unk13E;
-    /* 0x13F */ u8 pad13F[0x14A - 0x13F];
-    /* 0x14A */ s8 unk14A;
-    /* 0x14B */ u8 pad14B[0x53D - 0x14B];
-    /* 0x53D */ s8 unk53D;
-    /* 0x53E */ u8 pad53E[0x568 - 0x53E];
-    /* 0x568 */ u8 state;
-    /* 0x569 */ u8 pad569[0x576 - 0x569];
-    /* 0x576 */ s8 unk576;
-    /* 0x577 */ u8 pad577[0x5F0 - 0x577];
-} Racer;
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_00000);
-
-/* Whether the character may fire now */
-s32 func_m015_01B98(Object *obj, Racer *racer) {
-    s32 anim;
-    s32 state;
-    s16 *model;
-
-    if (racer->unk576 == 0 && racer->unk13E == 0) {
-        anim = obj->animationID;
-        if (anim != 8) {
-            state = racer->state & ~0x20;
-            if (state == 0 || state == 5 || state == 0xB || state == 0xA || (state == 3 && racer->unk14A != 0)) {
-                return TRUE;
-            }
-            model = obj->modelInstances[0];
-            if ((anim == 0x16 || anim == 0x31) && racer->unk53D != 0) {
-                return TRUE;
-            }
-            if ((anim == 0xE || anim == 0x22) && model[0x5E / 2] == 0) {
-                return TRUE;
-            }
-        }
-    }
-    return FALSE;
-}
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_01C80);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_01E14);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_020B4);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_022C4);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_025FC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_02B2C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_03274);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_03564);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_03740);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_04088);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_0418C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_04658);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_04A58);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_04B4C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_05020);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_05180);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_05328);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_05ED4);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_0663C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_068BC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_06B3C);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_06DDC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_06E40);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_06EBC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_07724);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015/ro", func_m015_07890);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", func_m015_07BC8);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", data);
-
-/* (.rodata: C, and the assembly functions' own from ro/) */
-
-INCLUDE_ASM("asm/nonmatchings/modules/m015", bss);
-#endif
