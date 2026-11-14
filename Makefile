@@ -103,6 +103,14 @@ $(foreach f,$(UL_OLD_SRCS),$(BUILD_DIR)/src/$(f).o build_nm/src/$(f).o): MIPSISE
 # osSyncPrintf (game form, from the asm) is -O2 -mips2
 $(BUILD_DIR)/src/9B310.o build_nm/src/9B310.o: MIPSISET := -mips2
 # ---- end of round 21 (libother21) block ----
+# ---- round 22 (printf22): _Printf and its field formatter ----
+# The game's libc xprintf object (written from the asm; an older form than
+# ultralib's) is -O3 -mips2 like ultralib's libc. asm-processor has no -O3 and
+# the file has no INCLUDE_ASM, so it is compiled directly.
+$(BUILD_DIR)/src/9CA20.o build_nm/src/9CA20.o: src/9CA20.c
+	@mkdir -p $(dir $@)
+	$(CC) -c $(CFLAGS) -O3 -mips2 -o $@ $<
+# ---- end of round 22 (printf22) block ----
 
 LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \

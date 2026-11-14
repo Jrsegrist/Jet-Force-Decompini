@@ -344,3 +344,12 @@ The n_audio functions of this round (`src/naudio_8B330.c`, `naudio_8CB70.c`, `na
 `naudio_8F740.c`, `naudio_90DF0.c`, `naudio_92080.c`, `naudio_928E0.c`) were written from the game's
 assembly; they are n_audio forms with no counterpart in ultralib, so none of them is the same as
 ultralib's code.
+
+### Round 22 (printf22), the formatted-output engine
+
+Written from the game's assembly under the user's 2026-11-13 ruling (the game's
+object is not ultralib's xprintf.o, so ultralib's file cannot be included):
+
+| JFG file | Functions | How the game's object differs | Same as ultralib's |
+| --- | --- | --- | --- |
+| `src/9CA20.c` | _Printf, _Putfld | older text scan: each run of literal text is handed out up to a `%` or through its terminating NUL; a larger frame | _Putfld (compiles to the same code as ultralib's at -O3) |
