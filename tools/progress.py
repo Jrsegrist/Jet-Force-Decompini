@@ -4,7 +4,8 @@
 A function counts as decompiled when it is compiled from C: a function in
 src/ that is not pulled in with INCLUDE_ASM, or an ultralib object. Everything
 assembled from asm/ (or INCLUDE_ASM'd) counts as not decompiled, including
-hand-written assembly. Reads build/jfg.us.elf and build/jfg.us.map, and for
+hand-written assembly. Reads build/jfg.us.elf and build/jfg.us.map (plus the
+.mdebug of each C object, for its static functions), and for
 the runlink modules build/runlink/modules.map (see module_progress). The
 "names" line counts the C functions that have a real name instead of their
 address name func_XXXXXXXX (names.txt, DKR's names, libultra's).
@@ -15,6 +16,7 @@ import argparse
 import collections
 import os
 import re
+import struct
 import subprocess
 import sys
 
@@ -41,6 +43,50 @@ def functions(elf):
         if addr not in funcs or size > funcs[addr][0]:
             funcs[addr] = (size, name)
     return funcs
+
+
+def static_functions(obj):
+    """[(offset, size, name)] of the static functions in an IDO object.
+
+    IDO writes no ELF symbol for a static function, so the linked ELF does not
+    list a static once it is C (an asm static is a global label there). The
+    object's .mdebug (ECOFF symbolic header, file offsets) still has it: a
+    stStaticProc symbol whose value is its offset in .text, closed by a
+    stEnd symbol whose value is its length."""
+    try:
+        data = open(obj, "rb").read()
+    except OSError:
+        return []
+    if data[:4] != b"\x7fELF" or data[4] != 1 or data[5] != 2:
+        return []  # not a 32-bit big-endian ELF
+    shoff = struct.unpack_from(">I", data, 0x20)[0]
+    shentsize, shnum, shstrndx = struct.unpack_from(">HHH", data, 0x2E)
+    secs = [struct.unpack_from(">IIIIII", data, shoff + i * shentsize) for i in range(shnum)]
+    names = secs[shstrndx][4]
+
+    def cstr(off):
+        return data[off:data.index(b"\0", off)].decode("latin-1")
+
+    md = next((s for s in secs if cstr(names + s[0]) == ".mdebug"), None)
+    if md is None or md[5] < 96:
+        return []
+    hdr = struct.unpack_from(">HH23I", data, md[4])
+    if hdr[0] != 0x7009:
+        return []
+    sym_off, ss_off, nfd, fd_off = hdr[10], hdr[16], hdr[19], hdr[20]
+    out = []
+    for f in range(nfd):
+        iss_base, isym_base, csym = struct.unpack_from(">8xI4xII", data, fd_off + f * 72)
+        syms = []
+        for i in range(csym):
+            iss, value, bits = struct.unpack_from(">III", data, sym_off + (isym_base + i) * 12)
+            syms.append((iss, value, bits >> 26, (bits >> 21) & 0x1F, bits & 0xFFFFF))
+        for iss, value, st, sc, index in syms:
+            # stEnd (8) in scText (1) whose index is its stStaticProc (14)
+            if st == 8 and sc == 1 and index < len(syms) and syms[index][2] == 14:
+                b = syms[index]
+                out.append((b[1], value, cstr(ss_off + iss_base + b[0])))
+    return out
 
 
 def text_objects(mapfile):
@@ -129,6 +175,13 @@ def main():
 
     funcs = functions(elf)
     objs = text_objects(mapfile)
+    # C statics have no ELF symbol: take them from each C object's .mdebug, so
+    # a static moved from asm to C stays in the totals and counts as C.
+    for start, end, obj in objs:
+        if obj.startswith("build/src/"):
+            for off, size, name in static_functions(obj):
+                if size and start + off < end and start + off not in funcs:
+                    funcs[start + off] = (size, name)
     asm_cache = {}
 
     def classify(addr):
