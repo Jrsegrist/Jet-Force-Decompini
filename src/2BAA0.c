@@ -912,8 +912,8 @@ void func_8002F04C(s32 obj) {
 }
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: float registers: the target keeps z and y in $f20/$f22 (dz in $f14), mine z stays in $f14 and
-   only y gets a saved register */
+/* NON_MATCHING: 8 words: the target walks the list in a1 and keeps the list object in a2; here they are swapped
+   (declaration order, a pointer walk, a separate zone local, while/for: no change) */
 /* JFG: for a player at (x, y, z): leaves its current zone object when outside its exit circle (or height range),
  * then if it has none, takes the last listed zone object whose entry circle (and height range) contains it. */
 void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
@@ -923,6 +923,8 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     s32 i;
     f32 dx;
     f32 dz;
+    f32 r;
+    u8 *o;
 
     if (player < 0 || player >= 4) {
         return;
@@ -930,9 +932,11 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     track = &D_800F6E58[player];
     obj = track->obj;
     if (obj != NULL && (zone = track->zone) != NULL) {
+        r = zone->exitRadius;
+        r *= r;
         dx = *(f32 *) (obj + 0xC) - x;
         dz = *(f32 *) (obj + 0x14) - z;
-        if (zone->exitRadius * zone->exitRadius < dx * dx + dz * dz) {
+        if (r < dx * dx + dz * dz) {
             track->obj = NULL;
             obj = NULL;
         } else if (zone->flags & 0x8000) {
@@ -944,12 +948,14 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     }
     if (obj == NULL) {
         for (i = 0; i < D_800A2D38; i++) {
-            obj = (u8 *) D_800F6DF8[i];
-            zone = *(TrackZone **) (obj + 0x68);
-            dx = *(f32 *) (obj + 0xC) - x;
-            dz = *(f32 *) (obj + 0x14) - z;
-            if (dx * dx + dz * dz < zone->enterRadius * zone->enterRadius) {
-                track->obj = obj;
+            o = (u8 *) D_800F6DF8[i];
+            zone = *(TrackZone **) (o + 0x68);
+            r = zone->enterRadius;
+            r *= r;
+            dx = *(f32 *) (o + 0xC) - x;
+            dz = *(f32 *) (o + 0x14) - z;
+            if (dx * dx + dz * dz < r) {
+                track->obj = o;
                 track->zone = zone;
                 if (zone->flags & 0x4000) {
                     if (y < zone->enterBottom || zone->enterTop < y) {
