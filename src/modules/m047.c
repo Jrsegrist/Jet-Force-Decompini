@@ -312,11 +312,11 @@ extern f32 func_80097140(f32 x);                /* square root */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
-static void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate);
-static void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate);
+static void cutscene_actor_fade(M047Actor *a, Object *obj, s32 updateRate);
+static void cutscene_actor_animate(M047Actor *a, Object *obj, s32 updateRate);
 
-/* Turns angle `from` part `t` of the shorter way towards `to` (called from 0084C) */
-static s16 func_m047_007DC(f32 t, s16 from, s16 to) {
+/* Turns angle `from` part `t` of the shorter way towards `to` (called from 0084C) (module m047, 0x007DC). */
+static s16 cutscene_angle_turn_part(f32 t, s16 from, s16 to) {
     s32 d = (u16) (to - from);
     s32 back = (u16) (from - to);
 
@@ -370,9 +370,9 @@ void func_m047_0084C(M047Actor *a, f32 time, s32 updateRate, s32 arg3) {
                 u->z_rotation = obj->trans.rotation.z_rotation;
                 u->saved = 1;
             }
-            func_m047_013D0(a, obj, arg3);
+            cutscene_actor_fade(a, obj, arg3);
             if ((a->flags & 4) || D_800A74D4 < 0) {
-                func_m047_01560(a, obj, arg3);
+                cutscene_actor_animate(a, obj, arg3);
                 func_8005F5AC(obj, updateRate);
                 return;
             }
@@ -518,15 +518,15 @@ void func_m047_0084C(M047Actor *a, f32 time, s32 updateRate, s32 arg3) {
             }
             if (a->smoothing != 1.0f) {
                 t = 1.0f - func_80049BEC(1.0f - a->smoothing, updateRate);
-                obj->trans.rotation.y_rotation = func_m047_007DC(t, obj->trans.rotation.y_rotation, rotY);
-                obj->trans.rotation.x_rotation = func_m047_007DC(t, obj->trans.rotation.x_rotation, rotX);
-                obj->trans.rotation.z_rotation = func_m047_007DC(t, obj->trans.rotation.z_rotation, rotZ);
+                obj->trans.rotation.y_rotation = cutscene_angle_turn_part(t, obj->trans.rotation.y_rotation, rotY);
+                obj->trans.rotation.x_rotation = cutscene_angle_turn_part(t, obj->trans.rotation.x_rotation, rotX);
+                obj->trans.rotation.z_rotation = cutscene_angle_turn_part(t, obj->trans.rotation.z_rotation, rotZ);
             } else {
                 obj->trans.rotation.y_rotation = rotY;
                 obj->trans.rotation.x_rotation = rotX;
                 obj->trans.rotation.z_rotation = rotZ;
             }
-            func_m047_01560(a, obj, updateRate);
+            cutscene_actor_animate(a, obj, updateRate);
             func_8005F5AC(obj, updateRate);
         }
     }
@@ -544,8 +544,8 @@ typedef struct M047Header {
 extern Object *D_801045B8;
 
 /* Animates the actor's object, fades its opacity from alphaFrom to alphaTo over fadeLength, and makes it the
-   one to follow if flagged (called from 0084C) */
-static void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
+   one to follow if flagged (called from 0084C) (module m047, 0x013D0). */
+static void cutscene_actor_fade(M047Actor *a, Object *obj, s32 updateRate) {
     if (!((M047Header *) obj->header)->noAnim) {
         if (a->backwards) {
             func_8001138C(obj, -a->animSpeed, updateRate);
@@ -601,8 +601,8 @@ extern void func_8000BC28(Object *obj, M047ActorInst *inst, M047ActorModel *mode
                           void *arg6, void *arg7);
 extern void obj_tex_animate(Object *obj, M047ActorModel *model, M047ActorInst *inst, s32 updateRate);
 
-/* Animates the actor's sprite or model for this frame (called from 0084C) */
-static void func_m047_01560(M047Actor *a, Object *obj, s32 updateRate) {
+/* Animates the actor's sprite or model for this frame (called from 0084C) (module m047, 0x01560). */
+static void cutscene_actor_animate(M047Actor *a, Object *obj, s32 updateRate) {
     UNUSED s32 pad0;
     s32 flags;
     UNUSED s32 pad;

@@ -207,8 +207,8 @@ void func_m082_00114(ObjectTransform *camera, s32 updateRate) {
     camera->rotation.x_rotation = angle_lerp(camera->rotation.x_rotation, pitch, rate);
 }
 
-/* Sets where the player must stand to open the object, from the view of its kind */
-static void func_m082_00340(Object *obj, M082State *state, u32 kind) {
+/* Sets where the player must stand to open the object, from the view of its kind (module m082, 0x00340). */
+static void opener_stand_point_set(Object *obj, M082State *state, u32 kind) {
     f32 dist;
     Vec3f *view;
 
@@ -251,7 +251,7 @@ static void func_m082_00340(Object *obj, M082State *state, u32 kind) {
     }
 }
 
-static s32 func_m082_013C0(u32 kind);
+static s32 opener_reward_owned(u32 kind);
 
 void func_m082_00478(Object *obj, M082Setup *setup) {
     M082State *state = obj->unk68;
@@ -259,9 +259,9 @@ void func_m082_00478(Object *obj, M082Setup *setup) {
     state->timer = 0;
     obj->trans.scale = 0.01f * (setup->scale * obj->header->scale);
     obj->trans.rotation.y_rotation = setup->yaw;
-    func_m082_00340(obj, state, 0);
+    opener_stand_point_set(obj, state, 0);
     state->kind = setup->kind;
-    if (func_m082_013C0(state->kind)) {
+    if (opener_reward_owned(state->kind)) {
         state->phase = 5;
     } else {
         state->phase = 0;
@@ -303,9 +303,9 @@ typedef struct M082Inst {
     /* 0x78 */ s16 *out[2];
 } M082Inst;
 
-static void func_m082_00E6C(M082Model *model, M082Inst *inst, M082State *state, UNUSED s32 arg3);
-static s32 func_m082_00F8C(u32 kind, f32 x, f32 y, f32 z, f32 h);
-static void func_m082_01778(void);
+static void opener_batches_write(M082Model *model, M082Inst *inst, M082State *state, UNUSED s32 arg3);
+static s32 opener_reward_give(u32 kind, f32 x, f32 y, f32 z, f32 h);
+static void opener_link_release(void);
 
 /* The object's control */
 void func_m082_005D4(Object *obj, s32 updateRate) {
@@ -332,7 +332,7 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
         switch (state->phase) {
             case 0:
                 if ((func_80043510(0) & 0x8000) && racer->unk568 == 0 && player->interactObj->hitPoints >= 0x100) {
-                    func_m082_00340(obj, state, racer->character);
+                    opener_stand_point_set(obj, state, racer->character);
                     dx = (obj->trans.x_position + state->offset.x) - player->trans.x_position;
                     dy = player->trans.y_position - (obj->trans.y_position + state->offset.y);
                     dz = (obj->trans.z_position + state->offset.z) - player->trans.z_position;
@@ -399,7 +399,7 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
                 prevFrame = obj->unk28;
                 if (func_8001138C(obj, 0.008333334f, updateRate)) {
                     state->phase = 3;
-                    if (func_m082_00F8C(state->kind, obj->trans.x_position,
+                    if (opener_reward_give(state->kind, obj->trans.x_position,
                                         obj->trans.y_position + 480.0f * obj->trans.scale, obj->trans.z_position,
                                         480.0f * obj->trans.scale)) {
                         func_80001170(15);
@@ -433,7 +433,7 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
                 }
                 if (func_80043510(0) & 0xD000) {
                     state->phase = 4;
-                    func_m082_01778();
+                    opener_link_release();
                     racer->unk1FA = 2;
                     func_m007_00D6C();
                     func_80001248(0xF4, 0);
@@ -461,7 +461,7 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
         inst = obj->modelInstances[obj->modelIndex];
         if (inst != NULL && inst->dirty) {
             func_8003D21C(inst, inst->model, obj, 1.0f, 0.0f);
-            func_m082_00E6C(inst->model, inst, state, updateRate);
+            opener_batches_write(inst->model, inst, state, updateRate);
             inst->dirty = FALSE;
         }
         if (obj->light != NULL && (light = *obj->light) != 0) {
@@ -475,8 +475,8 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
     }
 }
 
-/* Writes each batch's scaled values into the instance's current buffer (kinds 3, 4 and 8 open or shut by state) */
-static void func_m082_00E6C(M082Model *model, M082Inst *inst, M082State *state, UNUSED s32 arg3) {
+/* Writes each batch's scaled values into the instance's current buffer (kinds 3, 4 and 8 open or shut by state) (module m082, 0x00E6C). */
+static void opener_batches_write(M082Model *model, M082Inst *inst, M082State *state, UNUSED s32 arg3) {
     M082Anim *a;
     s16 *out;
     s32 i;
@@ -502,10 +502,10 @@ static void func_m082_00E6C(M082Model *model, M082Inst *inst, M082State *state, 
     }
 }
 
-static void func_m082_0165C(s16 id, f32 x, f32 y, f32 z, f32 a, f32 b, f32 c);
+static void opener_pickup_spawn(s16 id, f32 x, f32 y, f32 z, f32 a, f32 b, f32 c);
 
-/* Gives the player the weapon or item of the object's kind, and spawns its pickup (returns TRUE if it did) */
-static s32 func_m082_00F8C(u32 kind, f32 x, f32 y, f32 z, f32 h) {
+/* Gives the player the weapon or item of the object's kind, and spawns its pickup (returns TRUE if it did) (module m082, 0x00F8C). */
+static s32 opener_reward_give(u32 kind, f32 x, f32 y, f32 z, f32 h) {
     s32 weapon;
     s32 id;
     s32 hint;
@@ -650,14 +650,14 @@ static s32 func_m082_00F8C(u32 kind, f32 x, f32 y, f32 z, f32 h) {
             weapons->maxAmmo[weapon] = info->maxAmmo;
             weapons->ammo[weapon] = info->ammo;
             weapons->unk54[weapon] = info->unk3;
-            func_m082_0165C(id, x, y, z, 8.0f, h, 1.0f);
+            opener_pickup_spawn(id, x, y, z, 8.0f, h, 1.0f);
             func_m007_00148(hint, 0);
             return TRUE;
         }
     }
     if (isItem && !character_has_item(0, racer->character, weapon)) {
         character_item_give(0, racer->character, weapon);
-        func_m082_0165C(id, x, y, z, 8.0f, h, 1.0f);
+        opener_pickup_spawn(id, x, y, z, 8.0f, h, 1.0f);
         func_m007_00148(hint, 0);
         return TRUE;
     }
@@ -665,8 +665,8 @@ static s32 func_m082_00F8C(u32 kind, f32 x, f32 y, f32 z, f32 h) {
     return FALSE;
 }
 
-/* Whether the player already has the weapon or item of a kind */
-static s32 func_m082_013C0(u32 kind) {
+/* Whether the player already has the weapon or item of a kind (module m082, 0x013C0). */
+static s32 opener_reward_owned(u32 kind) {
     M082Weapons *weapons = func_80047C1C(0, func_800468CC());
 
     switch (kind) {
@@ -784,8 +784,8 @@ typedef struct M082Entry {
     /* 0x0C */ f32 unkC;
 } M082Entry;
 
-/* Spawns object `id` at (x, y, z) and keeps it (the pickup 00F8C gives) */
-static void func_m082_0165C(s16 id, f32 x, f32 y, f32 z, f32 a, f32 b, f32 c) {
+/* Spawns object `id` at (x, y, z) and keeps it (the pickup 00F8C gives) (module m082, 0x0165C). */
+static void opener_pickup_spawn(s16 id, f32 x, f32 y, f32 z, f32 a, f32 b, f32 c) {
     M082Entry entry;
 
     func_m007_02824();
@@ -810,8 +810,8 @@ typedef struct M082Linked {
     /* 0x88 */ s32 unk88;
 } M082Linked;
 
-/* Sets the linked thing's flag at 0x88 and forgets it (when the object shuts) */
-static void func_m082_01778(void) {
+/* Sets the linked thing's flag at 0x88 and forgets it (when the object shuts) (module m082, 0x01778). */
+static void opener_link_release(void) {
     if (rl_m082_017A0 != NULL) {
         rl_m082_017A0->unk88 = 1;
         rl_m082_017A0 = NULL;

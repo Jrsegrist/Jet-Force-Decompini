@@ -70,10 +70,10 @@ typedef struct M101Shard {
 
 extern u8 rl_m101_01040[40][6]; /* .data: the shards' corners on the pane, in 32nds of its size */
 
-static void func_m101_0056C(Object *obj, M101Pane *pane, s32 updateRate);
+static void pane_shards_move(Object *obj, M101Pane *pane, s32 updateRate);
 
-/* Breaks the pane: makes the 40 shards (their corners, texture coordinates, spin and speed) and their triangles */
-static void func_m101_00000(Object *obj, M101Pane *pane) {
+/* Breaks the pane: makes the 40 shards (their corners, texture coordinates, spin and speed) and their triangles (module m101, 0x00000). */
+static void pane_shatter(Object *obj, M101Pane *pane) {
     Triangle *tris;
     M101Texture *tex;
     M101Shard *s;
@@ -196,7 +196,7 @@ static void func_m101_00000(Object *obj, M101Pane *pane) {
                 v++;
             }
         }
-        func_m101_0056C(obj, pane, 1);
+        pane_shards_move(obj, pane, 1);
     }
 }
 
@@ -205,9 +205,9 @@ extern u8 D_800A4FC4;
 
 /*
  * Moves the shards on by `updateRate` frames (falling, and spinning), places their vertices and scrolls their
- * texture coordinates with the camera's angles.
+ * texture coordinates with the camera's angles (module m101, 0x0056C).
  */
-static void func_m101_0056C(Object *obj, M101Pane *pane, s32 updateRate) {
+static void pane_shards_move(Object *obj, M101Pane *pane, s32 updateRate) {
     ObjectTransform *cam;
     M101Texture *tex;
     Triangle *tris;
@@ -412,7 +412,7 @@ void func_m101_00B64(Object *obj, s32 updateRate) {
                 func_800079B8(obj);
             }
         } else {
-            func_m101_0056C(obj, pane, updateRate);
+            pane_shards_move(obj, pane, updateRate);
         }
         return;
     }
@@ -447,7 +447,7 @@ void func_m101_00B64(Object *obj, s32 updateRate) {
         if (PANE_STATE(obj)->strength <= 0) {
             PANE_STATE(obj)->strength = 0;
             obj->interactObj->flags &= ~1;
-            func_m101_00000(obj, pane);
+            pane_shatter(obj, pane);
             func_80003410(0xD3, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
             if (pane->shards == NULL) {
                 func_800079B8(obj);

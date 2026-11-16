@@ -396,6 +396,18 @@ func_m036_00564 = default_alloc_displaylist_heap
 D_m038_000F0 = sScreenQuadVerts
 D_m038_00118 = sScreenQuadTris
 
+# src/modules/m040.c
+func_m040_007F0 = mpstats_places_table
+func_m040_00DF8 = mpstats_kills_table
+func_m040_0124C = mpstats_times_table
+func_m040_0193C = mpstats_scores_table
+func_m040_01D60 = mpstats_bonus_table
+
+# src/modules/m047.c
+func_m047_007DC = cutscene_angle_turn_part
+func_m047_01560 = cutscene_actor_animate
+func_m047_013D0 = cutscene_actor_fade
+
 # src/modules/m050.c
 func_m050_00C40 = m050_on_ground
 func_m050_01108 = m050_in_air
@@ -437,8 +449,25 @@ func_m054_00140 = craft_weapon_fire
 D_m055_00B80 = sDrawModeFull
 D_m055_00BA8 = sDrawModeScaled
 
+# src/modules/m062.c
+func_m062_01158 = mpmode_settings_page_first
+func_m062_01A48 = mpmode_settings_page_second
+func_m062_0228C = mpmode_setting_pick
+
+# src/modules/m082.c
+func_m082_00340 = opener_stand_point_set
+func_m082_00E6C = opener_batches_write
+func_m082_00F8C = opener_reward_give
+func_m082_013C0 = opener_reward_owned
+func_m082_0165C = opener_pickup_spawn
+func_m082_01778 = opener_link_release
+
 # src/modules/m093.c
 D_m093_002B0 = sFlagMessages
+
+# src/modules/m101.c
+func_m101_00000 = pane_shatter
+func_m101_0056C = pane_shards_move
 
 # src/modules/m117.c
 D_m117_00B80 = sCloudColours
