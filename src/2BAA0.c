@@ -911,9 +911,6 @@ void func_8002F04C(s32 obj) {
     }
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 8 words: the target walks the list in a1 and keeps the list object in a2; here they are swapped
-   (declaration order, a pointer walk, a separate zone local, while/for: no change) */
 /* JFG: for a player at (x, y, z): leaves its current zone object when outside its exit circle (or height range),
  * then if it has none, takes the last listed zone object whose entry circle (and height range) contains it. */
 void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
@@ -925,6 +922,7 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     f32 dz;
     f32 r;
     u8 *o;
+    s32 *entry;
 
     if (player < 0 || player >= 4) {
         return;
@@ -948,7 +946,8 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     }
     if (obj == NULL) {
         for (i = 0; i < D_800A2D38; i++) {
-            o = (u8 *) D_800F6DF8[i];
+            entry = &D_800F6DF8[i];
+            o = (u8 *) *entry;
             zone = *(TrackZone **) (o + 0x68);
             r = zone->enterRadius;
             r *= r;
@@ -966,9 +965,6 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F0DC);
-#endif
 
 f32 func_80049BEC(f32 rate, s32 updateRate);
 
