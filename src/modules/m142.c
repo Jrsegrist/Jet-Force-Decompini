@@ -126,8 +126,8 @@ static s32 sLineY2;
 static f32 sSlope; /* the current splitting line */
 static f32 sIntercept;
 
-/* 1 if the node's segments already form a convex chain (no further split) */
-static s32 func_m142_00000(M142Node *node) {
+/* 1 if the node's segments already form a convex chain (no further split) (module m142, 0x00000). */
+static s32 linetree_node_is_convex(M142Node *node) {
     M142Seg *seg;
     M142Seg *next;
     s32 n;
@@ -161,8 +161,8 @@ static s32 func_m142_00000(M142Node *node) {
     return 1;
 }
 
-/* Adds a segment (none if it has no length) */
-static void func_m142_001BC(f32 x1, f32 y1, f32 x2, f32 y2, u8 edge, u8 kind) {
+/* Adds a segment (none if it has no length) (module m142, 0x001BC). */
+static void linetree_segment_add(f32 x1, f32 y1, f32 x2, f32 y2, u8 edge, u8 kind) {
     if (x1 == x2 && y1 == y2) {
         return;
     }
@@ -187,8 +187,8 @@ static s32 func_m142_002DC(s32 x) {
     return (x >= 0) ? x : -x;
 }
 
-/* 1 if the point lies on the splitting segment's line (within rounding) */
-static s32 func_m142_002F4(s32 x, s32 y) {
+/* 1 if the point lies on the splitting segment's line (within rounding) (module m142, 0x002F4). */
+static s32 linetree_point_on_split_line(s32 x, s32 y) {
     s32 limit;
     s32 dx;
     s32 dist;
@@ -201,8 +201,8 @@ static s32 func_m142_002F4(s32 x, s32 y) {
     return !(dist >= limit);
 }
 
-/* Where a segment's line crosses the splitting line */
-static void func_m142_003B0(f32 x1, f32 y1, f32 x2, f32 y2, f32 *outX, f32 *outY) {
+/* Where a segment's line crosses the splitting line (module m142, 0x003B0). */
+static void linetree_split_crossing(f32 x1, f32 y1, f32 x2, f32 y2, f32 *outX, f32 *outY) {
     f32 slope;
     f32 intercept;
 
@@ -217,8 +217,8 @@ static void func_m142_003B0(f32 x1, f32 y1, f32 x2, f32 y2, f32 *outX, f32 *outY
     *outY = *outX * slope + intercept;
 }
 
-/* Chooses the node's splitting line: the line of the segment that best balances the sides */
-static void func_m142_00444(M142Node *node) {
+/* Chooses the node's splitting line: the line of the segment that best balances the sides (module m142, 0x00444). */
+static void linetree_split_line_choose(M142Node *node) {
     M142Seg *seg;
     M142Seg *other;
     s32 i;
@@ -308,8 +308,8 @@ static void func_m142_00444(M142Node *node) {
     sLineY2 = sSegs[sBest].y2;
 }
 
-/* Fills `out` with the parts of the node's segments on one side of the splitting line */
-static void func_m142_00930(M142Node *node, M142Node *out, s32 side) {
+/* Fills `out` with the parts of the node's segments on one side of the splitting line (module m142, 0x00930). */
+static void linetree_side_segments_fill(M142Node *node, M142Node *out, s32 side) {
     M142Seg *seg;
     s32 n;
     s32 side1;
@@ -324,10 +324,10 @@ static void func_m142_00930(M142Node *node, M142Node *out, s32 side) {
     while (n--) {
         side1 = seg->y1 < sSlope * seg->x1 + sIntercept;
         side2 = seg->y2 < sSlope * seg->x2 + sIntercept;
-        if (func_m142_002F4(seg->x1, seg->y1)) {
+        if (linetree_point_on_split_line(seg->x1, seg->y1)) {
             side1 = side2;
         }
-        if (func_m142_002F4(seg->x2, seg->y2)) {
+        if (linetree_point_on_split_line(seg->x2, seg->y2)) {
             side2 = side1;
         }
         if (sBest == seg - sSegs) {
@@ -335,40 +335,40 @@ static void func_m142_00930(M142Node *node, M142Node *out, s32 side) {
             x = func_80049C34(angle) * 100.0f + seg->x1;
             y = func_80049C30(angle) * 100.0f + seg->y1;
             if (side == (y < sSlope * x + sIntercept)) {
-                func_m142_001BC(seg->x1, seg->y1, seg->x2, seg->y2, seg->edge, seg->kind);
+                linetree_segment_add(seg->x1, seg->y1, seg->x2, seg->y2, seg->edge, seg->kind);
             }
         } else if (side1 != side2) {
-            func_m142_003B0(seg->x1, seg->y1, seg->x2, seg->y2, &x, &y);
+            linetree_split_crossing(seg->x1, seg->y1, seg->x2, seg->y2, &x, &y);
             if (side1 == side) {
-                func_m142_001BC(seg->x1, seg->y1, x, y, seg->edge, seg->kind);
+                linetree_segment_add(seg->x1, seg->y1, x, y, seg->edge, seg->kind);
             } else {
-                func_m142_001BC(x, y, seg->x2, seg->y2, seg->edge, seg->kind);
+                linetree_segment_add(x, y, seg->x2, seg->y2, seg->edge, seg->kind);
             }
         } else if (side1 == side) {
-            func_m142_001BC(seg->x1, seg->y1, seg->x2, seg->y2, seg->edge, seg->kind);
+            linetree_segment_add(seg->x1, seg->y1, seg->x2, seg->y2, seg->edge, seg->kind);
         }
         seg++;
     }
     out->count = sSegCount - out->first;
 }
 
-/* Splits the node until its segments are convex; `prev` is the node it was split from */
-static void func_m142_00CFC(M142Node *prev, M142Node *node) {
-    if (func_m142_00000(node)) {
+/* Splits the node until its segments are convex; `prev` is the node it was split from (module m142, 0x00CFC). */
+static void linetree_node_split(M142Node *prev, M142Node *node) {
+    if (linetree_node_is_convex(node)) {
         return;
     }
-    func_m142_00444(node);
+    linetree_split_line_choose(node);
     if (prev != NULL && prev->slope == node->slope && prev->intercept == node->intercept) {
         return;
     }
     node->front = &sNodes[sNodeCount];
     sNodeCount++;
-    func_m142_00930(node, node->front, 1);
+    linetree_side_segments_fill(node, node->front, 1);
     node->back = &sNodes[sNodeCount];
     sNodeCount++;
-    func_m142_00930(node, node->back, 0);
-    func_m142_00CFC(node, node->front);
-    func_m142_00CFC(node, node->back);
+    linetree_side_segments_fill(node, node->back, 0);
+    linetree_node_split(node, node->front);
+    linetree_node_split(node, node->back);
 }
 
 /* Builds the shape's tree: from its outline, and if `all`, from the flagged shapes after it */
@@ -411,7 +411,7 @@ void func_m142_00E40(M142Shape *shape, s32 all) {
         } else {
             next = first;
         }
-        func_m142_001BC(p->x, p->y, next->x, next->y, p - first, kind);
+        linetree_segment_add(p->x, p->y, next->x, next->y, p - first, kind);
         p = next;
     }
     root->count = sSegCount;
@@ -429,14 +429,14 @@ void func_m142_00E40(M142Shape *shape, s32 all) {
                     } else {
                         next = first;
                     }
-                    func_m142_001BC(p->x, p->y, next->x, next->y, p - first, kind);
+                    linetree_segment_add(p->x, p->y, next->x, next->y, p - first, kind);
                     p = next;
                 }
                 root->count = sSegCount;
             }
         }
     }
-    func_m142_00CFC(NULL, root);
+    linetree_node_split(NULL, root);
     shape->tree = func_8004A57C(sNodeCount * sizeof(M142TreeNode) + sSegCount * sizeof(M142Seg), -1);
     shape->segs = (M142Seg *) ((u8 *) shape->tree + sNodeCount * sizeof(M142TreeNode));
     src = sNodes;

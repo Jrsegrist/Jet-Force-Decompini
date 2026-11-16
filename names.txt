@@ -446,6 +446,30 @@ D_m117_00B80 = sCloudColours
 # src/modules/m118.c
 func_m118_00000 = robot_find
 
+# src/modules/m142.c
+func_m142_00000 = linetree_node_is_convex
+func_m142_001BC = linetree_segment_add
+func_m142_002F4 = linetree_point_on_split_line
+func_m142_003B0 = linetree_split_crossing
+func_m142_00444 = linetree_split_line_choose
+func_m142_00930 = linetree_side_segments_fill
+func_m142_00CFC = linetree_node_split
+
+# src/modules/m154.c
+func_m154_00410 = wpgraph_open_entry_lowest
+func_m154_004B0 = wpgraph_entry_expand
+func_m154_00720 = wpgraph_search_result
+func_m154_00920 = wpgraph_search
+func_m154_00D68 = wpgraph_link_check
+
+# src/modules/m155.c
+func_m155_000C8 = soldier_path_node_add
+func_m155_001B4 = region_point_inside
+func_m155_00268 = soldier_node_beside_object
+func_m155_00644 = soldier_nodes_round_corners
+func_m155_01584 = soldier_enemy_select
+func_m155_019A4 = soldier_ring_entry_copy
+
 # src/modules/m157.c
 D_m157_00180 = sWindowPieces
 D_m157_00224 = sWindowShapes

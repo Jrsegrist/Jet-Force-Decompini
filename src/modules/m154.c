@@ -217,8 +217,8 @@ u8 func_m154_002A8(f32 x, f32 y, f32 z, s32 part) {
     return bestIndex;
 }
 
-/* The open entry with the lowest score */
-static M154Entry *func_m154_00410(void) {
+/* The open entry with the lowest score (module m154, 0x00410). */
+static M154Entry *wpgraph_open_entry_lowest(void) {
     M154Entry *e;
     M154Entry *best;
     f32 bestScore;
@@ -239,8 +239,8 @@ static M154Entry *func_m154_00410(void) {
     return best;
 }
 
-/* Expands an entry: adds an entry for each link that gets a point more cheaply; 1 if out of entries */
-static s32 func_m154_004B0(M154Entry *entry) {
+/* Expands an entry: adds an entry for each link that gets a point more cheaply; 1 if out of entries (module m154, 0x004B0). */
+static s32 wpgraph_entry_expand(M154Entry *entry) {
     M154Node *node;
     M154Node *next;
     s32 i;
@@ -285,8 +285,8 @@ static s32 func_m154_004B0(M154Entry *entry) {
     return 0;
 }
 
-/* The search result: 0x100 | the first step when the target was reached, else the best step */
-static s32 func_m154_00720(void) {
+/* The search result: 0x100 | the first step when the target was reached, else the best step (module m154, 0x00720). */
+static s32 wpgraph_search_result(void) {
     M154Entry *e;
     M154Entry *best;
     s32 i;
@@ -342,8 +342,8 @@ static void func_m154_00810(u8 start) {
     sCursor->score = func_m003_03E20(D_800FEA9C[start].x, D_800FEA9C[start].z, sTargetX, sTargetZ);
 }
 
-/* Searches from `from` to `to` */
-static u16 func_m154_00920(u8 from, u8 to) {
+/* Searches from `from` to `to` (module m154, 0x00920). */
+static u16 wpgraph_search(u8 from, u8 to) {
     s32 e;
     u16 result;
 
@@ -354,18 +354,18 @@ static u16 func_m154_00920(u8 from, u8 to) {
     sTargetZ = D_800FEA9C[to].z;
     sTargetNode = to;
     func_m154_00810(from);
-    e = func_m154_004B0(sCursor);
+    e = wpgraph_entry_expand(sCursor);
     while (TRUE) {
         if (e == 0) {
-            e = (s32) func_m154_00410();
+            e = (s32) wpgraph_open_entry_lowest();
         }
         if (e == 0) {
-            result = func_m154_00720();
+            result = wpgraph_search_result();
             break;
         }
-        e = func_m154_004B0((M154Entry *) e);
+        e = wpgraph_entry_expand((M154Entry *) e);
         if (e == 1) {
-            result = func_m154_00720();
+            result = wpgraph_search_result();
             break;
         }
     }
@@ -435,16 +435,16 @@ u8 func_m154_00A10(u8 from) {
         if (points[i] == 0) {
             break;
         }
-        k = func_m154_00920(from, points[i]);
+        k = wpgraph_search(from, points[i]);
         if (k & 0x100) {
             return k;
         }
     }
-    return func_m154_00920(from, points[3]);
+    return wpgraph_search(from, points[3]);
 }
 
-/* 0 if the enemy can take the link to `n`; -1 back to `prev`, -2 none, -3 closed, else the group there */
-static s32 func_m154_00D68(u8 n, u8 prev) {
+/* 0 if the enemy can take the link to `n`; -1 back to `prev`, -2 none, -3 closed, else the group there (module m154, 0x00D68). */
+static s32 wpgraph_link_check(u8 n, u8 prev) {
     if (n == prev) {
         return -1;
     }
@@ -483,7 +483,7 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
         part = 0;
     }
     if (sEnemy->kind == 0x13) {
-        pick = func_m154_00920(cur, func_m154_002A8(sPlayer->trans.x_position, sPlayer->trans.y_position,
+        pick = wpgraph_search(cur, func_m154_002A8(sPlayer->trans.x_position, sPlayer->trans.y_position,
                                                     sPlayer->trans.z_position, part));
         if (pick == cur) {
             sEnemy->flags |= 0x400;
@@ -491,7 +491,7 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
         return pick;
     }
     if (mode == 3) {
-        pick = func_m154_00920(cur, func_m154_00130(sPlayer->trans.x_position, sPlayer->trans.y_position,
+        pick = wpgraph_search(cur, func_m154_00130(sPlayer->trans.x_position, sPlayer->trans.y_position,
                                                     sPlayer->trans.z_position, part));
         if (pick == cur) {
             sEnemy->flags |= 0x400;
@@ -499,7 +499,7 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
         return pick;
     }
     while (i--) {
-        r = func_m154_00D68(node->links[i], prev);
+        r = wpgraph_link_check(node->links[i], prev);
         if (r == 0) {
             open++;
             total += node->linkInfo[i] & 0x1F;
@@ -517,7 +517,7 @@ u8 func_m154_00DFC(u8 mode, u8 cur, u8 prev) {
     total = 0;
     i = 6;
     while (i--) {
-        if (func_m154_00D68(node->links[i], prev) == 0) {
+        if (wpgraph_link_check(node->links[i], prev) == 0) {
             total += node->linkInfo[i] & 0x1F;
             if (total >= pick) {
                 if (node->linkInfo[i] & 0x20) {
