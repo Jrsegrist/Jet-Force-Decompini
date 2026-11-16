@@ -3,7 +3,203 @@
 /* Unreferenced debug strings at the start of this file's .rodata: kept as asm. */
 INCLUDE_RODATA("asm/nonmatchings/66B80", D_800ADAC0);
 
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80065F80);
+s32 func_80066620();
+s32 func_80066650();
+s32 func_80066680();
+s32 func_800666B0();
+s32 func_800666C0();
+s32 func_800666F0();
+s32 func_80066720();
+s32 func_80066750();
+s32 func_80066764();
+s32 func_80066770();
+s32 func_80066784();
+s32 func_80066790();
+s32 func_80066830();
+s32 func_80066860();
+s32 dl_cmd_print_geometry_mode();
+
+/*
+ * JFG: the display-list printer: walks `count` commands and hands each to its printer by opcode (the signed
+ * F3D opcodes in a second switch), stepping by the size each printer returns. The prints themselves were
+ * compiled out of the retail build.
+ */
+void func_80065F80(u8 *dl, UNUSED s32 arg1, s32 count) {
+    u8 *cmd;
+    s32 i;
+
+    cmd = dl;
+    for (i = 0; i < count; i++) {
+        switch (*cmd) {
+            case 4:
+                cmd += func_80066620(cmd);
+                break;
+            case 5:
+                cmd += func_80066650(cmd);
+                break;
+            case 0:
+                cmd += func_80066830(cmd, "G_SPNOOP");
+                break;
+            case 1:
+                cmd += func_80066680(cmd);
+                break;
+            case 2:
+                cmd += func_800666B0(cmd, "G_TEXDMA");
+                break;
+            case 3:
+                cmd += func_800666F0(cmd);
+                break;
+            case 6:
+                cmd += func_80066720(cmd);
+                break;
+            case 7:
+                cmd += func_800666C0(cmd);
+                break;
+            case 8:
+                cmd += func_80066830(cmd, "G_RESERVED3");
+                break;
+            case 9:
+                cmd += func_80066830(cmd, "G_RESERVED4");
+                break;
+            case 0xC0:
+                cmd += func_80066750(cmd, "G_NOOP", "gDPNoOp");
+                break;
+            case 0xFF:
+                cmd += func_80066830(cmd, "G_SETCIMG");
+                break;
+            case 0xFE:
+                cmd += func_80066830(cmd, "G_SETZIMG");
+                break;
+            case 0xFD:
+                cmd += func_80066830(cmd, "G_SETTIMG");
+                break;
+            case 0xFC:
+                cmd += func_80066830(cmd, "G_SETCOMBINE");
+                break;
+            case 0xFB:
+                cmd += func_80066770(cmd, "G_SETENVCOLOR", "gDPSetEnvColor");
+                break;
+            case 0xFA:
+                cmd += func_80066764(cmd);
+                break;
+            case 0xF9:
+                cmd += func_80066770(cmd, "G_SETBLENDCOLOR", "gDPSetBlendColor");
+                break;
+            case 0xF8:
+                cmd += func_80066770(cmd, "G_SETFOGCOLOR", "gDPSetFogColor");
+                break;
+            case 0xF7:
+                cmd += func_80066770(cmd, "G_SETFILLCOLOR", "gDPSetFillColor");
+                break;
+            case 0xF6:
+                cmd += func_80066830(cmd, "G_FILLRECT");
+                break;
+            case 0xF5:
+                cmd += func_80066830(cmd, "G_SETTILE");
+                break;
+            case 0xF4:
+                cmd += func_80066830(cmd, "G_LOADTILE");
+                break;
+            case 0xF3:
+                cmd += func_80066830(cmd, "G_LOADBLOCK");
+                break;
+            case 0xF2:
+                cmd += func_80066830(cmd, "G_SETTILESIZE");
+                break;
+            case 0xF0:
+                cmd += func_80066830(cmd, "G_LOADTLUT");
+                break;
+            case 0xEF:
+                cmd += func_80066830(cmd, "G_RDPSETOTHERMODE");
+                break;
+            case 0xEE:
+                cmd += func_80066830(cmd, "G_SETPRIMDEPTH");
+                break;
+            case 0xED:
+                cmd += func_80066830(cmd, "G_SETSCISSOR");
+                break;
+            case 0xEC:
+                cmd += func_80066830(cmd, "G_SETCONVERT");
+                break;
+            case 0xEB:
+                cmd += func_80066830(cmd, "G_SETKEYR");
+                break;
+            case 0xEA:
+                cmd += func_80066830(cmd, "G_SETKEYGB");
+                break;
+            case 0xE9:
+                cmd += func_80066750(cmd, "G_RDPFULLSYNC", "gDPFullSync");
+                break;
+            case 0xE8:
+                cmd += func_80066750(cmd, "G_RDPTILESYNC", "gDPTileSync");
+                break;
+            case 0xE7:
+                cmd += func_80066750(cmd, "G_RDPPIPESYNC", "gDPPipeSync");
+                break;
+            case 0xE6:
+                cmd += func_80066750(cmd, "G_RDPLoadSYNC", "gDPLoadSync");
+                break;
+            case 0xE5:
+                cmd += func_80066830(cmd, "G_TEXRECTFLIP");
+                break;
+            case 0xE4:
+                cmd += func_80066830(cmd, "G_TEXRECT");
+                break;
+            default:
+                switch ((s8) *cmd) {
+                    case -65:
+                        cmd += func_80066784(cmd, "G_DMAOFFSETS");
+                        break;
+                    case -66:
+                        cmd += func_80066830(cmd, "G_CULLDL");
+                        break;
+                    case -67:
+                        cmd += func_80066830(cmd, "G_POPMTX");
+                        break;
+                    case -68:
+                        cmd += func_80066790(cmd);
+                        break;
+                    case -69:
+                        cmd += func_80066830(cmd, "G_TEXTURE");
+                        break;
+                    case -70:
+                        cmd += func_80066830(cmd, "G_SETOTHERMODE_H");
+                        break;
+                    case -71:
+                        cmd += func_80066860(cmd, "G_SETOTHERMODE_L");
+                        break;
+                    case -72:
+                        cmd += func_80066830(cmd, "G_ENDDL");
+                        break;
+                    case -73:
+                        cmd += dl_cmd_print_geometry_mode(cmd, "G_SETGEOMETRYMODE", "gSPSetGeometryMode");
+                        break;
+                    case -74:
+                        cmd += dl_cmd_print_geometry_mode(cmd, "G_CLEARGEOMETRYMODE", "gSPClearGeometryMode");
+                        break;
+                    case -75:
+                        cmd += func_80066830(cmd, "G_LINE3D");
+                        break;
+                    case -76:
+                        cmd += func_80066830(cmd, "G_PERSPNORMALIZE");
+                        break;
+                    case -77:
+                        cmd += func_80066830(cmd, "G_RDPHALF_1");
+                        break;
+                    case -78:
+                        cmd += func_80066830(cmd, "G_RDPHALF_2");
+                        break;
+                    case -79:
+                        cmd += func_80066830(cmd, "G_RDPHALF_CONT");
+                        break;
+                    default:
+                        cmd += func_80066830(cmd, "UNKNOWN COMMAND");
+                        break;
+                }
+                break;
+        }
+    }
+}
 
 /* JFG: unpack a two-word command: the top byte, the next byte, the low half and the second word. */
 void dl_cmd_unpack_bbh(void *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
@@ -25,6 +221,22 @@ s32 func_80066620(void *arg0) {
     s32 a, b, c, d;
     s32 pad[4];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
+    stubbed_printf("%20s: gSPVertex(0x%x, 0x%x, %d, %d);\n", "G_VTX");
+    stubbed_printf("%20s: gSPPolygon(0x%x, 0x%x, %d, %d);\n", "G_POL");
+    stubbed_printf("GARBAGE");
+    stubbed_printf("NOMTXMULT");
+    stubbed_printf("MTXMULT");
+    stubbed_printf("%20s: gSPMatrix2(0x%x, 0x%x, %d, %s, %d);\n", "G_MTX");
+    stubbed_printf("%20s: gSPLoadTextureOffsets(%d, %08x);\n");
+    stubbed_printf("%20s: gSPDPBlock(0x%x, 0x%x, %d);\n", "G_DP_BLOCK");
+    stubbed_printf("%20s: gSPViewport(0x%x, 0x%x);\n", "G_MOVEMEM");
+    stubbed_printf("%20s: gSPDisplayList(0x%x, 0x%x);\n", "G_DL");
+    stubbed_printf("%20s: gSPBranchList(0x%x, 0x%x);\n", "G_DL");
+    stubbed_printf("%20s: Unknown G_DL command\n", "G_DL");
+    stubbed_printf("%20s: %s(0x%08x);\n");
+    stubbed_printf("%20s: gDPSetPrimColor(0x%08x, %d, %d, %d, %d, %d, %d);\n", "G_SETPRIMCOLOR");
+    stubbed_printf("%20s: %s(0x%08x, %2d, %2d, %2d, %2d);\n");
+    stubbed_printf("%20s: gSPSetDMAOffsets(%08x, %08x)\n");
     return 8;
 }
 
