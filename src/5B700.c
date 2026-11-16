@@ -784,9 +784,9 @@ f32 func_80049C34(s32 angle); // sine of a 16-bit angle
  * as a growing textured quad.
  * JFG: 16 splashes, a ripple kind, the floor and hit heights instead of the wave heights.
  * DKR: rain_render_splashes
- * NON_MATCHING: 71 words: splash and onHit swap s1/s2 (and loop 2's 0xFF with them), the fp/s3
- * set-up order before the search and one FPR pair in the ripple vertices; the three empty ifs
- * on always-set values (i, intensity) are levers that got it from 492 words to 71.
+ * NON_MATCHING: 69 words: splash and onHit swap s1/s2 (and loop 2's 0xFF with them) and one FPR pair
+ * in the ripple vertices; the three empty ifs on always-set values (i, intensity) are levers that got
+ * it from 492 words to 71.
  */
 void func_8005C188(s32 updateRate) {
     s32 intensity;
@@ -814,8 +814,8 @@ void func_8005C188(s32 updateRate) {
             gRainSplashDelay -= updateRate;
             if (intensity) {}
             if (gRainSplashDelay <= 0) {
-                i = 16;
                 do {
+                    i = 16;
                     found = FALSE;
                     splash = D_800A5A14;
                     do {
@@ -860,7 +860,6 @@ void func_8005C188(s32 updateRate) {
                             gRainSplashDelay = 0;
                         }
                     }
-                    i = 16;
                 } while (gRainSplashDelay <= 0);
             }
         }
