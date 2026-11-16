@@ -368,6 +368,27 @@ func_m016_070A4 = m016_state_8
 func_m016_07344 = m016_state_7
 func_m016_073A8 = m016_state_12
 
+# src/modules/m017.c
+func_m017_01A30 = m017_water_enter
+func_m017_01C44 = m017_wade_splashes
+func_m017_01F7C = m017_hit_react
+func_m017_02564 = m017_tex_anims_update
+func_m017_02848 = m017_side_move
+func_m017_02A40 = m017_state_2
+func_m017_02A54 = m017_state_on_foot
+func_m017_0313C = m017_state_1
+func_m017_04178 = m017_body_turn_commands
+func_m017_04270 = m017_head_turn_commands
+func_m017_0430C = m017_state_aiming
+func_m017_04614 = m017_state_strafe_aiming
+func_m017_04A44 = m017_move_anim_pick
+func_m017_04B84 = m017_anim_start
+func_m017_04C50 = m017_anim_state_machine
+func_m017_050BC = m017_move
+func_m017_056D4 = m017_head_turn
+func_m017_05930 = m017_state_swimming
+func_m017_05F08 = m017_state_dead
+
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap
 
