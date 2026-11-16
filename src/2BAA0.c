@@ -699,8 +699,9 @@ s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags
 s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the last (empty) search loop: the target guards it with n > 0 and builds &heights[i] from an i
-   still in $zero; all else matches */
+/* NON_MATCHING: 9 words: the heights pointer of the last loop is in a1 (target t6) and the pos[1]/yOrig
+   compare uses f4/f8 (target f6/f10); `if (heights[i]) {}` gives the target's strength-reduced loop and
+   `if (mode) {}` keeps mode in s1 */
 /* JFG: move pos to where the track stops the way from `from` (passing through objects 0x30/0x31 once), then out
    of the floors and ceilings around it; on a clear way also not below its starting height. The int copies of x
    and z are unused (the target keeps only their rounding-mode switches). */
@@ -767,10 +768,11 @@ void func_8002CC70(f32 *from, f32 *pos, UNUSED s32 arg2) {
         n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 0, &heights);
         if (n != 0) {
             done = FALSE;
-            i = 0;
-            for (p = &heights[i] + 1; p < &heights[n] && !done; p++) {
+            for (i = 0; i < n && !done; i++) {
+                if (heights[i]) {}
             }
         }
+        if (mode) {}
         if (pos[1] < yOrig) {
             pos[1] = yOrig;
         }
