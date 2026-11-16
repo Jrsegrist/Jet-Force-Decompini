@@ -1,4 +1,7 @@
-/* Runlink module 88: a looping sound source whose pitch follows the camera's approach (a Doppler effect). */
+/*
+ * Runlink module 88: a looping sound source whose pitch follows the camera's approach (a Doppler effect).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M088Setup {

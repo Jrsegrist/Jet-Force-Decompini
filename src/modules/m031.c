@@ -3,6 +3,7 @@
  * (each with a plane and a radius), up to four racers' records (whether a
  * racer is computer-driven, its boosts and its pick-up), and the countdown;
  * the race logic and drawing are still in assembly.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

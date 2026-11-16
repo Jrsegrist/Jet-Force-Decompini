@@ -1,4 +1,7 @@
-/* Runlink module 144: a check that always passes. */
+/*
+ * Runlink module 144: a check that always passes.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 /* Always returns 1 */

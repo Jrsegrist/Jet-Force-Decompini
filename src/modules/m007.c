@@ -1,6 +1,7 @@
 /*
  * Runlink module 7: the hint text shown on screen (normal hints and special
  * ones that interrupt them), and the long hints with their conditions and actions.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

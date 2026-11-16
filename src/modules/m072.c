@@ -3,6 +3,7 @@
  * (or the capacity) of a weapon that the player already has, then respawns
  * after a delay or is freed. One kind (0xE7, a capacity upgrade) is taken
  * only once: it sets a game flag, and is freed at once if that flag is set.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

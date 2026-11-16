@@ -1,6 +1,7 @@
 /*
  * Runlink module 115: a pad that switches night vision on or off when the
  * player presses the button on it, showing a cut-scene camera meanwhile.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -4,6 +4,7 @@
  * parameters); the update recolours the vertices of the flagged model
  * segments from that table, by a phase that advances each frame, either
  * modulating their base colours or taking the brighter of the two.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

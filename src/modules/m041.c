@@ -4,6 +4,7 @@
  * its bounding box, slides it towards its place, and shows four counting
  * numbers and a scrolling string of digits next to it, with a flickering light
  * and its sound.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
  */
 #include "common.h"
 #include "object.h"

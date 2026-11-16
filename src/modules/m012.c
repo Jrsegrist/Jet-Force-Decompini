@@ -4,6 +4,7 @@
  * then the height), fades the background behind it, and closes the same way
  * in reverse; while it is open it loads the menu textures, and once it has
  * closed it frees them and can start a level change.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

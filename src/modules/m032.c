@@ -2,6 +2,7 @@
  * Runlink module 32: characters that talk to the player (lines picked from a
  * table by the character's object ID), and a bobbing object that turns,
  * moves its light with it and fades out once it is told to.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

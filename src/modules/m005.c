@@ -5,6 +5,7 @@
  * rectangle, darker the further away it is. The second is a field of
  * coloured streaks spread through a box around the camera, moved by a wind
  * and by the camera's own movement, and drawn by main-segment code.
+ * Family: effect libraries (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

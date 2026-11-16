@@ -1,6 +1,7 @@
 /*
  * Runlink module 62: the multiplayer mode select of the front end (the
  * choice of game mode and its settings).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

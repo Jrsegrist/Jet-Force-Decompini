@@ -5,6 +5,7 @@
  * plays a sound, then is freed or switches to its second model. A
  * collectable whose conditions (game flags or the player's items) say it
  * was already taken goes away when it is first run.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

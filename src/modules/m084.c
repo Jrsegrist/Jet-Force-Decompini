@@ -1,4 +1,7 @@
-/* Runlink module 84: an object that shrinks away and then fades out. */
+/*
+ * Runlink module 84: an object that shrinks away and then fades out.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M084Setup {

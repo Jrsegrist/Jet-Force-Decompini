@@ -2,6 +2,7 @@
  * Runlink module 110: a box that marks the level's vertices inside it as
  * exceptions to the track fade, saving their colours so that they can be
  * put back.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -2,6 +2,7 @@
  * Runlink module 47: the cutscene sequencer's helpers - scrolling textures,
  * colour fades, curves and paths, effects - and the subtitle boxes shown
  * during cutscenes (up to five, fading in while their timer runs and out after).
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

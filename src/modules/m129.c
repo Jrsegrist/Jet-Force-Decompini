@@ -4,6 +4,7 @@
  * the player), dims the fog, raises a ring of beams of light (a module 64
  * object), flashes the screen, swaps the player's model (and the shadow's) for
  * the one the pad gives, flashes again and gives the camera back.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

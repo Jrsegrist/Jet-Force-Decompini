@@ -1,6 +1,7 @@
 /*
  * Runlink module 53: a vehicle the players ride (its init, control and camera; still mostly
  * assembly).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

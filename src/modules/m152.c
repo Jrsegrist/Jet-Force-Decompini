@@ -4,6 +4,7 @@
  * player (blending between the two by distance); the module keeps the chain
  * points, updates the creature's hit spheres from them and renders them back
  * to front.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

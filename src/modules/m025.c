@@ -5,6 +5,7 @@
  * creates the audio manager, the two sequence players and the sound player,
  * and starts the audio thread. This is Diddy Kong Racing's audio_init and
  * sound_seqplayer_init (DKR decomp, src/audio.c, CC0) in JFG's form.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

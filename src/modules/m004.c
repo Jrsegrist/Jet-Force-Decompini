@@ -1,6 +1,7 @@
 /*
  * Runlink module 4: copies of a model (its vertex and triangle buffers and
  * their shadows), built and freed for other modules.
+ * Family: effect libraries (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

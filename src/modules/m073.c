@@ -2,6 +2,7 @@
  * Runlink module 73: the engine glows of a moving craft. A table gives, per
  * object, glow flares to place at points of the craft's model; they fade in,
  * pulse, and are rendered sorted by distance from the camera.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

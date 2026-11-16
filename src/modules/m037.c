@@ -1,6 +1,7 @@
 /*
  * Runlink module 37: the options page of the front end (sound, music, screen
  * and the cheats), with its volume bars.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

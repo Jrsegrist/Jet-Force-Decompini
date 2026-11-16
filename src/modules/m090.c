@@ -3,6 +3,7 @@
  * slowing under gravity; at the top of its climb it bursts into coloured
  * sparks (module 10) over two frames, then fades its light out and either
  * goes away or relaunches from where it started after its interval.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -1,4 +1,7 @@
-/* Runlink module 108: a key that the player picks up. */
+/*
+ * Runlink module 108: a key that the player picks up.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M108Setup {

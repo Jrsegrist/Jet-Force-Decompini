@@ -1,4 +1,7 @@
-/* Runlink module 100: a pad that tops up the players standing on it, a limited number of times. */
+/*
+ * Runlink module 100: a pad that tops up the players standing on it, a limited number of times.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M100Setup {

@@ -1,4 +1,7 @@
-/* Runlink module 20: two object behaviours (a swaying object and a glowing object). */
+/*
+ * Runlink module 20: two object behaviours (a swaying object and a glowing object).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M020Setup {

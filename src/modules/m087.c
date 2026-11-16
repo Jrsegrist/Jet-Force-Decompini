@@ -4,6 +4,7 @@
  * small tumbling pieces it throws (init 01060, control 010DC), which fly
  * under gravity until their timer runs out. 011B0 changes one setting of a
  * type's entry, 011DC resets an object's state from its entry.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

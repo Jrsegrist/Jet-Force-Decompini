@@ -1,4 +1,7 @@
-/* Runlink module 85: cut-scene cameras that other objects switch to for a while. */
+/*
+ * Runlink module 85: cut-scene cameras that other objects switch to for a while.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M085Setup {

@@ -3,6 +3,7 @@
  * for a while. The first kind just shows and hides; the second kind (a
  * pop-up target) swings up into view, swings down again when its time is
  * up, and falls flat (with a sound) when it has been shot.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

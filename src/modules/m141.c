@@ -1,6 +1,7 @@
 /*
  * Runlink module 141: a flying insect enemy that bobs up and down around
  * its home and sways as it flies.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

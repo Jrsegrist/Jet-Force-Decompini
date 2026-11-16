@@ -1,4 +1,7 @@
-/* Runlink module 92: fish food, a pellet that drifts along a line and shrinks away. */
+/*
+ * Runlink module 92: fish food, a pellet that drifts along a line and shrinks away.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M092Setup {

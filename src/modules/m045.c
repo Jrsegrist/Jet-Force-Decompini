@@ -1,4 +1,7 @@
-/* Runlink module 45: the 6105 CIC challenge exchanged over the serial interface. */
+/*
+ * Runlink module 45: the 6105 CIC challenge exchanged over the serial interface.
+ * Family: copy-protection checks (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 extern u8 *D_800A3324; /* 64-byte serial interface buffer */

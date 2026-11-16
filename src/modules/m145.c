@@ -1,6 +1,7 @@
 /*
  * Runlink module 145: a floating enemy that drifts up and down inside a
  * column around its home object, firing when it can.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -1,4 +1,7 @@
-/* Runlink module 128: a pole that the player sets off by walking up to it. */
+/*
+ * Runlink module 128: a pole that the player sets off by walking up to it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M128Setup {

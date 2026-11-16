@@ -4,6 +4,7 @@
  * previous frame's image back over the screen in strips of four lines,
  * textured and faded by the environment alpha; a second function sends it
  * to the RSP as its own task.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

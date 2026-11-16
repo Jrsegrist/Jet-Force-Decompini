@@ -4,6 +4,7 @@
  * (three rings of particles that orbit the player, each with a light and a
  * colour cycle) for the pick-up's duration, and the pick-up comes back after
  * its respawn time.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

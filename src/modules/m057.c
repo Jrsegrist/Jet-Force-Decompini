@@ -4,6 +4,7 @@
  * and music cue), the text "presented in", two textured logos one after the
  * other, a second full-screen image, then plays module 55's animated logo
  * with the copyright line, and goes back to the menus.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

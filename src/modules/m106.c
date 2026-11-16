@@ -3,6 +3,7 @@
  * near; its control pulls some objects towards it) and the gems it drops: a gem object that
  * spins, fades out over its last 64 frames and sparkles at random, and the
  * function that spawns one with a given position, direction and speed.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

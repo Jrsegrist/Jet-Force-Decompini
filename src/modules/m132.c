@@ -2,6 +2,7 @@
  * Runlink module 132: a weapon pickup. It spins, fades in, and gives the
  * player who touches it the weapon (or that weapon's ammunition), then
  * either respawns after a delay or is freed.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

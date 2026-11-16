@@ -1,6 +1,7 @@
 /*
  * Runlink module 68: a large boss and the objects it uses (still mostly
  * assembly).
+ * Family: bosses (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

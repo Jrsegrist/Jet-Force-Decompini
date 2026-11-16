@@ -3,6 +3,7 @@
  * and changes its speed, a button boosts it, and another fires its weapon
  * (with a cooldown) as a projectile from its nose. Two attached models
  * pulse with the bank.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

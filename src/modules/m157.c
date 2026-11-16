@@ -1,4 +1,7 @@
-/* Runlink module 157: draws a window frame as a set of rectangles from a shape table. */
+/*
+ * Runlink module 157: draws a window frame as a set of rectangles from a shape table.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
+ */
 #include "module.h"
 
 /*

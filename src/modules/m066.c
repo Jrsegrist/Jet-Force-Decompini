@@ -3,6 +3,7 @@
  * nearest light source every frame. It can follow another object along an
  * animation path; it keeps two copies of the model's vertices and writes one
  * while the other is rendered.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

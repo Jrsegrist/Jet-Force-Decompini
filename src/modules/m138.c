@@ -1,6 +1,7 @@
 /*
  * Runlink module 138: the movement of a flying enemy that circles the
  * player at a distance, closes in, and fires when it is near.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

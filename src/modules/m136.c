@@ -5,6 +5,7 @@
  * fixed cameras, doors and door switches, fog, sky, sound points and lines,
  * scrolling textures, lights, lens flares, spline camera nodes, static hit
  * objects, position overrides, AI points and junctions, and troops.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

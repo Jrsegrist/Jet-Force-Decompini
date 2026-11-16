@@ -3,6 +3,7 @@
  * its own light. Init builds (once) a shared table of textured triangles for
  * a ring of 16 vertices in three bands, sets each beam's angles, heights,
  * scale and light, control animates them, and the draw function draws them.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

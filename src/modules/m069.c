@@ -2,6 +2,7 @@
  * Runlink module 69: a target-range minigame. It spawns one target object per
  * player, draws each player's crosshair and the score lines (shots, ants,
  * bears and ammo), and at the end a banner in the winner's colour.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

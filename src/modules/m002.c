@@ -3,6 +3,7 @@
  * buffers and each frame builds a display list that clears one of them, sets
  * up fog, and draws into it only the objects (behaviour 0x18) whose linked
  * object has kind 0xE6; then it runs the list as a task and swaps buffers.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

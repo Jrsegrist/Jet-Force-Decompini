@@ -2,6 +2,7 @@
  * Runlink module 22: the control plate (a level object that hands the player
  * control of a helper character) and the helper's task: its states, its goals,
  * the pause screen with its letterbox, and the plate's camera.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

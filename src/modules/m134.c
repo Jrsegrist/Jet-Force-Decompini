@@ -1,4 +1,7 @@
-/* Runlink module 134: an area that sets the weather while the player is inside it. */
+/*
+ * Runlink module 134: an area that sets the weather while the player is inside it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M134Setup {

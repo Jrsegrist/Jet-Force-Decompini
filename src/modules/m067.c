@@ -1,5 +1,6 @@
 /*
  * Runlink module 67: an enemy and its missiles (still mostly assembly).
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

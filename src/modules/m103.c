@@ -1,4 +1,7 @@
-/* Runlink module 103: a small creature that shrinks while it is hurt and dies at zero health. */
+/*
+ * Runlink module 103: a small creature that shrinks while it is hurt and dies at zero health.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M103Setup {

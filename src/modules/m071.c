@@ -1,4 +1,7 @@
-/* Runlink module 71: checks 16 bytes of the cartridge at 0xF80 (a 6105 CIC check). */
+/*
+ * Runlink module 71: checks 16 bytes of the cartridge at 0xF80 (a 6105 CIC check).
+ * Family: copy-protection checks (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 extern u8 *D_800A3324; /* buffer for the check */

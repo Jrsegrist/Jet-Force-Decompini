@@ -3,6 +3,7 @@
  * Racing's init_track and generate_track (DKR decomp, src/tracks.c, CC0):
  * allocates the track buffers, loads and relocates the level model, builds each
  * segment's collision data and vertex colour block, and spawns the level.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

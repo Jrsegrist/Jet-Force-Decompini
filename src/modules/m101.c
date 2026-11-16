@@ -5,6 +5,7 @@
  * (each point of the pane keeps its texture coordinate) for a few seconds,
  * after which the object frees itself or, if its level entry says so, just
  * stops drawing.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

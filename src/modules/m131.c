@@ -3,6 +3,7 @@
  * launch direction until it hits something or runs out of time, swinging two
  * coloured sprites around itself; its strength (1..4) picks the swing radius
  * and hit box size.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

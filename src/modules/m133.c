@@ -1,4 +1,7 @@
-/* Runlink module 133: reads one cartridge word through the PI (a 6105 CIC check). */
+/*
+ * Runlink module 133: reads one cartridge word through the PI (a 6105 CIC check).
+ * Family: copy-protection checks (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 extern void func_80099CB0(void); /* takes the PI */

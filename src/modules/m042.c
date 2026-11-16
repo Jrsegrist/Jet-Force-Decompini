@@ -1,6 +1,7 @@
 /*
  * Runlink module 42: the front end's save file screen and its on-screen
  * keyboard (choosing, copying and erasing a save file, and entering a name).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

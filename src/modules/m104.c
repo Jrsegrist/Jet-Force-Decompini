@@ -3,6 +3,7 @@
  * they are placed, give the player health (or, kind 0xE9, a health upgrade,
  * once: a game flag remembers it), then respawn after a delay or are freed.
  * Pickups dropped with a lifetime fade out and are freed when it runs out.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

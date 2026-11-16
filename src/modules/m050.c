@@ -5,6 +5,7 @@
  * animations from a move table, landing on the floor and staying inside its
  * arena, and a command list of joint angles for the model. Modules 50 and 52
  * are the same source.
+ * Family: bosses (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

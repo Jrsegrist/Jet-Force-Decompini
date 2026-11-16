@@ -1,4 +1,7 @@
-/* Runlink module 97: a fragment that flies off when something is hit, tumbling and bouncing until it fades. */
+/*
+ * Runlink module 97: a fragment that flies off when something is hit, tumbling and bouncing until it fades.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M097Setup {

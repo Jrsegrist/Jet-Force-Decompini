@@ -1,6 +1,7 @@
 /*
  * Runlink module 127: a terminal object that the player can use, with a
  * camera that swings round to look at it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -1,4 +1,7 @@
-/* Runlink module 150: an enemy with a hand that follows one of its points, and its laser beam. */
+/*
+ * Runlink module 150: an enemy with a hand that follows one of its points, and its laser beam.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 #include "gfx.h"
 

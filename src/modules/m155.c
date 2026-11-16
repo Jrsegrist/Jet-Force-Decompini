@@ -2,6 +2,7 @@
  * Runlink module 155: the enemy AI shared by the soldier enemies: where the
  * player was last spotted, paths between nodes, the enemies' states and
  * which way they face.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

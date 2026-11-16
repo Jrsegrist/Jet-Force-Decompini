@@ -1,4 +1,7 @@
-/* Runlink module 74: a switch that turns an animation on and off. */
+/*
+ * Runlink module 74: a switch that turns an animation on and off.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M074Setup {

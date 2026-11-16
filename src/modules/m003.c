@@ -3,6 +3,7 @@
  * member being processed (and its troop's home object) in module state, moves
  * members between way points (module 154's graph), keeps the level's regions,
  * and handles hits, deaths and missions. Most of it is still in assembly.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

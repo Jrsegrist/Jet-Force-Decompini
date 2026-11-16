@@ -1,6 +1,7 @@
 /*
  * Runlink module 18: front-end screens (character, weapon and health
  * screens; still mostly assembly).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

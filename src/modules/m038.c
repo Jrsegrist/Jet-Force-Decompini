@@ -1,4 +1,7 @@
-/* Runlink module 38: draws the dark full-screen backdrop behind the pause menu. */
+/*
+ * Runlink module 38: draws the dark full-screen backdrop behind the pause menu.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
+ */
 #include "module.h"
 #include "gfx.h"
 

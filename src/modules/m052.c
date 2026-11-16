@@ -2,6 +2,7 @@
  * Runlink module 52: a boss that is driven like a player character, the
  * same source as module 50 (see m050.c) built for another character: its
  * animation numbers, joint numbers and shape and move tables differ.
+ * Family: bosses (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

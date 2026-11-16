@@ -3,6 +3,7 @@
  * points (objects with three links each) are collected into up to 8 lists of
  * 31 nodes; the module finds the node nearest the player, interpolates the
  * curve through the nodes and places the player and the camera along it.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

@@ -5,6 +5,7 @@
  * Those two are Diddy Kong Racing's alloc_displaylist_heap and
  * default_alloc_displaylist_heap (DKR decomp, src/thread3_main.c, CC0), and
  * the tables are DKR's gNumF3dCmdsPerPlayer etc., here with a second row.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

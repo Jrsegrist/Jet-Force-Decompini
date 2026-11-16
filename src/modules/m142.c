@@ -5,6 +5,7 @@
  * of the edge that best balances the two sides, and the finished tree (inner
  * nodes and leaves of segments) is copied into one compact allocation hung
  * on the shape. The table of part names is not used by the code.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

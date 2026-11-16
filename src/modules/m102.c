@@ -4,6 +4,7 @@
  * spot checked against the scenery. It spins and tumbles as it rolls, and
  * goes off when its time runs out: it spawns an object from the level's list
  * where it lies and plays a sound.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

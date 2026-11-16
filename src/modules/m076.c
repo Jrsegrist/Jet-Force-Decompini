@@ -3,6 +3,7 @@
  * it. The panel is a rectangle of the setup's size (scaled), drawn as two
  * triangles; when the panel is big enough the glow extends its corners away
  * from a point, drawn as two strips of eight triangles whose texture scrolls.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

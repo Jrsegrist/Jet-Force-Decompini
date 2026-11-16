@@ -3,6 +3,7 @@
  * to and fro, carries an object light and (optionally) a light at the end of
  * its beam, and can be shot out: then it goes dark (setting a flag for some
  * kinds) and comes back on after a while with a shower of sparks (module 10).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

@@ -1,4 +1,7 @@
-/* Runlink module 148: a gun turret enemy (its fire decision and its movement). */
+/*
+ * Runlink module 148: a gun turret enemy (its fire decision and its movement).
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 /* The part of module 3's enemy record that the turret uses */

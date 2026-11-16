@@ -3,6 +3,7 @@
  * the offset table in asset 0x3F), turns their offsets into pointers and
  * sets their headers, then builds the triangles of the explosion's ring
  * mesh: a band of 20 vertices (two per step) closed into a loop.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

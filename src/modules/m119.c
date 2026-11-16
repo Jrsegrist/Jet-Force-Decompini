@@ -1,4 +1,7 @@
-/* Runlink module 119: a pickup that is collected when the player comes close. */
+/*
+ * Runlink module 119: a pickup that is collected when the player comes close.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M119Counter {

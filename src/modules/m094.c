@@ -1,4 +1,7 @@
-/* Runlink module 94: a trigger that runs one action once its game flag is set. */
+/*
+ * Runlink module 94: a trigger that runs one action once its game flag is set.
+ * Family: switches and targets (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M094Setup {

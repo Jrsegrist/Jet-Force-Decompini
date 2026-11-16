@@ -3,6 +3,7 @@
  * turns at its own speed, leaves a fading trail of up to eight past positions
  * that is drawn as a strip of triangles, can carry a light, and has a glow
  * sprite drawn at its end.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

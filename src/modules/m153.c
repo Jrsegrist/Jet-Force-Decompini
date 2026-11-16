@@ -2,6 +2,7 @@
  * Runlink module 153: a blob thrown by an enemy: it flies and spins, sticks
  * to its thrower's model while held, leaves blood where it lands, and fades
  * out when its time is up.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

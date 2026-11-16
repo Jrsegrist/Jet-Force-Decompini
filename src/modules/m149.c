@@ -4,6 +4,7 @@
  * flags in the enemy record's parts word), it picks its attacks through
  * module 3, flies between random points of its arena, and fires homing
  * bolts and lobbed bombs (each with its own init and control function).
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

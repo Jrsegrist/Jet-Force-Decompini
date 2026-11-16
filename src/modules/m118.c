@@ -2,6 +2,7 @@
  * Runlink module 118: objects for the robot sections: a target that runs an
  * action when it is shot, a collectable that the robot picks up, and a
  * checkpoint plane that the robot crosses.
+ * Family: switches and targets, and pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

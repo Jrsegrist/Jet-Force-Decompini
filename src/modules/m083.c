@@ -6,6 +6,7 @@
  * gravity (damped once they are in water, where entering spawns an effect at the surface) until
  * they hit something, then spawn an impact effect and pieces, play a sound
  * and free the object.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

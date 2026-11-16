@@ -1,4 +1,7 @@
-/* Runlink module 79: a floating object that turns slowly. */
+/*
+ * Runlink module 79: a floating object that turns slowly.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M079Object {

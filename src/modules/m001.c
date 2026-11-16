@@ -1,6 +1,7 @@
 /*
  * Runlink module 1: a pool of 32 small particles (drops) that fall, land and
  * spread out as a fading splash, each drawn as two textured quads.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

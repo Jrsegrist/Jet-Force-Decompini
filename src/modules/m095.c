@@ -8,6 +8,7 @@
  * function hurts what a player's flames touch; the draw function draws the
  * flames as sprites; the fini function removes the light of each player user
  * and frees it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

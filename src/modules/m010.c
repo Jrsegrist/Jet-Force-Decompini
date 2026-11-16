@@ -4,6 +4,7 @@
  * falls under a settable downward acceleration and fades out over its life.
  * The draw function sorts them by camera depth before drawing them as
  * streaks from their previous to their current position.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -1,4 +1,7 @@
-/* Runlink module 93: a target that sets a game flag when it is shot. */
+/*
+ * Runlink module 93: a target that sets a game flag when it is shot.
+ * Family: switches and targets (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M093Setup {

@@ -2,6 +2,7 @@
  * Runlink module 130: a glowing shot that flies straight with its own light
  * until it hits something, runs out of time or is shot down. Where it hits a
  * suitable surface it leaves another object behind; otherwise it bursts.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

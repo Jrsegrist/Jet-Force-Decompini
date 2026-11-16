@@ -1,4 +1,7 @@
-/* Runlink module 123: a rotating light (a model with an attached light and a light beam). */
+/*
+ * Runlink module 123: a rotating light (a model with an attached light and a light beam).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M123Setup {

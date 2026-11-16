@@ -3,6 +3,7 @@
  * along its facing; it starts apart when its condition (a level state or a
  * player stat) holds, and other code can tell every barrier with an id to
  * part or shut. While shut it blocks (interaction flag 1).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

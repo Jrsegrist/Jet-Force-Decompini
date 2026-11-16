@@ -2,6 +2,7 @@
  * Runlink module 17: a player character's behaviour (the control function
  * called every frame, the firing check, and the movement states it runs).
  * A sibling of modules 15 and 16.
+ * Family: weapons, i.e. character control (docs/runlink.md, "Module families").
  */
 /* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
 #define obj_anim_set func_8001149C_void

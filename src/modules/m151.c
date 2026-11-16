@@ -4,6 +4,7 @@
  * wanders inside its zone; its spit projectile; and the spit's animated
  * texture, drawn by drops that run down an 8-bit buffer that is blurred
  * into the other of two buffers every frame and converted to IA16.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

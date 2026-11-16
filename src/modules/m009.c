@@ -1,5 +1,6 @@
 /*
  * Runlink module 9: a front-end map screen (still mostly assembly).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

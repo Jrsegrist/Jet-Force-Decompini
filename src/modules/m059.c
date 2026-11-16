@@ -3,6 +3,7 @@
  * slide in from alternate sides, stay for a while (or until the script lets
  * them go) and slide out again; a small script of commands decides which
  * texts come next.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

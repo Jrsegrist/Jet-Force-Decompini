@@ -1,4 +1,7 @@
-/* Runlink module 70: sets up an object's state from the screen size and two counters. */
+/*
+ * Runlink module 70: sets up an object's state from the screen size and two counters.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M070Setup {

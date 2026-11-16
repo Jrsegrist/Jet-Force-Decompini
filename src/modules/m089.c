@@ -2,6 +2,7 @@
  * Runlink module 89: electrocution: arcs that crawl over the vertices of
  * the model of the object being electrocuted, and a lookup of a model
  * vertex's world position.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

@@ -6,6 +6,7 @@
  * screen shows the game's best time and, every so often, the five fastest
  * times with initials; a cabinet with no game shows a test card and "OUT OF
  * ORDER". B (or Z) walks away.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

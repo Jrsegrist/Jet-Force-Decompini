@@ -3,6 +3,7 @@
  * bounce off the level (with a sound) and leave a mark, and a pool of 5
  * sprites drawn at hit points; other modules add to the pools, and the
  * module updates and draws them.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -3,6 +3,7 @@
  * (they come back after a while); its model blends through five shapes as
  * it is worn down, and when it is fully down it sets its game flag, plays
  * a sound and may trigger module 85.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

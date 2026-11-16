@@ -3,6 +3,7 @@
  * tables, decodes the cheat codes, then runs module 33 (the explosion
  * set-up) and unloads it. This is DKR's allocate_object_pools and
  * decrypt_magic_codes (DKR decomp, src/objects.c, CC0) with JFG's pools.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

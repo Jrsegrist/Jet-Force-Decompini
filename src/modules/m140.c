@@ -4,6 +4,7 @@
  * when the home asks for that), notices the player inside its view cone and
  * range when there is a clear line, and goes for the player once it has
  * noticed it and the player is clearly nearer.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -5,6 +5,7 @@
  * random among the open links, runs a best-first search to a target point
  * (24 search entries) and a fall-back point away from the player, and runs a
  * point's command.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

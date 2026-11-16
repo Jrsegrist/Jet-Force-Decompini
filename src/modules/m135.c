@@ -2,6 +2,7 @@
  * Runlink module 135: the object behaviours of the multiplayer menu room: the
  * room camera and the point it aims at, the second camera on the screen, and
  * the player selectors (their mode, sounds and joint angles).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

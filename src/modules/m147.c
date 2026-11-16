@@ -3,6 +3,7 @@
  * at a random angle around and above the player, flies there (rolling), then
  * closes in, fires a burst of six shots, picks a second point further out and
  * finally flies back to its home.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

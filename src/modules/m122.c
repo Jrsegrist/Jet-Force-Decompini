@@ -4,6 +4,7 @@
  * model and sets its hit box; control flies it at its target (aimed at by
  * 00374); the matrix function puts it in its target's hand or at its own
  * rotation, and the bounce function knocks it back with a random spin.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

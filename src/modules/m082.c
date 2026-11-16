@@ -3,6 +3,7 @@
  * camera that swings round to look at it while it does (m075's cabinet camera
  * works the same way). Opening it gives the player the weapon or item its kind
  * names.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

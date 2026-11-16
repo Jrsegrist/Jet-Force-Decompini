@@ -1,5 +1,6 @@
 /*
  * Runlink module 40: the multiplayer statistics screen of the front end.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -4,6 +4,7 @@
  * player's object; in the multiplayer select each controller joins, picks a
  * character with the stick and confirms, and the game starts when everyone
  * who joined is ready.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

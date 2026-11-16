@@ -3,6 +3,7 @@
  * until it hits something, runs out of time or is shot down. Where it hits a
  * suitable surface it leaves another object behind; otherwise it bursts.
  * (Module 130 is the same shot pointing along its flight.)
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

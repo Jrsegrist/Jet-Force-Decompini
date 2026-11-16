@@ -4,6 +4,7 @@
  * state 0 or 2, and every object of kind 0x4D), rebuilt from the active
  * objects, with queries for the nearest one, whether one is in a zone and
  * whether an object is on the list.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -5,6 +5,7 @@
  * the list (a zero duration ends it and wraps to the start) and blends
  * towards the next keyframe. Getters hand the fog and the track colour to
  * the renderer (as module 23 does for its day-night cycle).
+ * Family: fog and lighting (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -1,4 +1,7 @@
-/* Runlink module 78: an object that switches its triggers on at random. */
+/*
+ * Runlink module 78: an object that switches its triggers on at random.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M078Setup {

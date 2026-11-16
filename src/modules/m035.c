@@ -1,6 +1,7 @@
 /*
  * Runlink module 35: sets up the text windows and text entries (as DKR's
  * load_fonts does) and the font tables.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

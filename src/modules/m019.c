@@ -4,6 +4,7 @@
  * one drawn by another module: 9, 18, 37), loading the next screen while the
  * current one fades out. It also has the multiplayer version and a small
  * screen of its own that asks for confirmation before leaving the level.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

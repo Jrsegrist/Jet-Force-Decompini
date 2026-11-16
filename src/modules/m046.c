@@ -5,6 +5,7 @@
  * overlay whose alpha moves to a target over time; and a scaling of a
  * model's vertex colours by a level that moves the same way, tinted by the
  * lighting colour from modules 39, 23 and 29.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

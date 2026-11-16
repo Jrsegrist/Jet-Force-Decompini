@@ -7,6 +7,7 @@
  * - A lingering flame (0080C/008CC) with a light that dims and shrinks at the
  *   end of its life.
  * - A halo (009D0/00A24) that grows and fades out.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

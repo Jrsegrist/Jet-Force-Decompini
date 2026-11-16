@@ -5,6 +5,7 @@
  * update advances the time and blends from the current step to the next.
  * Getters hand the fog and the fade to the renderer, and the cycle can be
  * told to stop when it reaches step 6 (midday).
+ * Family: fog and lighting (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

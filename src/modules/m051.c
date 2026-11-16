@@ -4,6 +4,7 @@
  * slow-down helpers, the dying helper and the movement and landing code are
  * the same; its animation tables are smaller, it has no armed animations,
  * and its head and neck commands differ.
+ * Family: bosses (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

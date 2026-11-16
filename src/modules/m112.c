@@ -3,6 +3,7 @@
  * launched (then it flies off in the direction of its setup angles). It has
  * its own transform matrix for drawing (pushed by 013B4); 00000 stops its
  * sound and switches it to the finished state.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
