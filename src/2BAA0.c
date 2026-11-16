@@ -1,5 +1,8 @@
 #include "common.h"
 
+// The unreferenced debug strings at the start of this file's .rodata.
+INCLUDE_RODATA("asm/nonmatchings/2BAA0", D_800ABD10);
+
 extern f32 D_800F6DC4;
 extern void *D_800F6DC0;
 extern s32 D_800A2D38;
@@ -41,7 +44,9 @@ typedef struct Racer {
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
     /* 0x0C0 */ s32 sound;
-    /* 0x0C4 */ u8 padC4[0x104 - 0xC4];
+/* 0x0C4 */ u8 padC4[0xFC - 0xC4];
+    /* 0x0FC */ s32 unkFC;
+    /* 0x100 */ u8 pad100[0x104 - 0x100];
     /* 0x104 */ s16 unk104; // the chase camera's yaw
     /* 0x106 */ u8 pad106[0x10A - 0x106];
     /* 0x10A */ s16 unk10A;
@@ -94,11 +99,19 @@ typedef struct Racer {
     /* 0x1A0 */ u8 pad1A0[0x1A4 - 0x1A0];
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
-    /* 0x1C0 */ u8 pad1C0[0x1D4 - 0x1C0];
+/* 0x1C0 */ u8 pad1C0[0x1CA - 0x1C0];
+    /* 0x1CA */ s16 unk1CA;
+    /* 0x1CC */ s16 unk1CC;
+    /* 0x1CE */ s16 unk1CE;
+    /* 0x1D0 */ u8 pad1D0[0x1D4 - 0x1D0];
     /* 0x1D4 */ s32 unk1D4;
-    /* 0x1D8 */ u8 pad1D8[0x1E2 - 0x1D8];
+    /* 0x1D8 */ u8 pad1D8[0x1E0 - 0x1D8];
+    /* 0x1E0 */ s16 unk1E0;
     /* 0x1E2 */ s16 unk1E2;
-    /* 0x1E4 */ u8 pad1E4[0x1F4 - 0x1E4];
+    /* 0x1E4 */ f32 unk1E4;
+    /* 0x1E8 */ f32 unk1E8;
+    /* 0x1EC */ f32 unk1EC; // JFG: aiming zoom (1..5)
+    /* 0x1F0 */ f32 unk1F0; // JFG: and its rate
     /* 0x1F4 */ s8 unk1F4;
     /* 0x1F5 */ u8 pad1F5[0x1F9 - 0x1F5];
     /* 0x1F9 */ u8 unk1F9;
@@ -117,16 +130,19 @@ typedef struct Racer {
     /* 0x524 */ f32 prevPos[3];
     /* 0x530 */ s8 numPoints;
     /* 0x531 */ u8 pointMask;
-    /* 0x532 */ u8 pad532[0x53A - 0x532];
+/* 0x532 */ u8 pad532[0x538 - 0x532];
+    /* 0x538 */ u8 unk538;
+    /* 0x539 */ u8 pad539;
     /* 0x53A */ u16 soundId;
-    /* 0x53C */ u8 pad53C[0x540 - 0x53C];
+/* 0x53C */ u8 pad53C[2];
+    /* 0x53E */ s16 unk53E;
     /* 0x540 */ RacerFlags flags;
     /* 0x544 */ f32 overridePos[3];
     /* 0x550 */ u8 pad550[0x558 - 0x550];
     /* 0x558 */ void *light;
     /* 0x55C */ u8 pad55C[0x560 - 0x55C];
     /* 0x560 */ u8 *attachment;
-    /* 0x564 */ u8 pad564[0x568 - 0x564];
+/* 0x564 */ void *unk564;
     /* 0x568 */ u8 unk568;
     /* 0x569 */ u8 unk569;
     /* 0x56A */ u8 pad56A[0x574 - 0x56A];
@@ -159,7 +175,6 @@ typedef struct SoundSet {
 } SoundSet;
 
 extern SoundSet D_800A26C4[];
-extern f32 D_800ABDA8;
 s32 rand_range(s32 min, s32 max);
 f32 sqrtf(f32 x);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
@@ -207,7 +222,7 @@ void obj_play_move_sound(u8 *obj, u8 index) {
     set = &D_800A26C4[index];
     sounds = set->count * (racer->character & 3) + set->sounds;
     sound = sounds[rand_range(0, set->count - 1)];
-    if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24) + *(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C))) {
+    if (0.7f < sqrtf(*(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24) + *(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C))) {
         audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4, NULL);
         enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     }
@@ -350,7 +365,6 @@ void func_8002CF6C(u8 *obj, Racer *racer, f32 updateRate);
 void func_80054530();
 /* The module trap with a float third argument; needs `func_80054530_ppf = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_ppf(void *arg0, void *arg1, f32 arg2);
-extern f32 D_800ABDAC;
 
 #define PLAYERCAM ((Transform2BAA0 *) D_800F6DC0)
 
@@ -412,7 +426,7 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
         if (model != NULL) {
             floorY = model->floorY - 100.0f;
             if (PLAYERCAM->position[1] < floorY) {
-                PLAYERCAM->position[1] += (floorY - PLAYERCAM->position[1]) * D_800ABDAC;
+                PLAYERCAM->position[1] += (floorY - PLAYERCAM->position[1]) * 0.175f;
             }
         }
         level = level_header();
@@ -431,8 +445,6 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
     }
 }
 
-extern f32 D_800ABDB0;
-extern f32 D_800ABDB4;
 void *cam_get_active_camera(void);
 s16 angle_lerp(s16 from, s16 to, f32 t);
 f32 func_80049BEC(f32 rate, s32 updateRate);
@@ -469,10 +481,10 @@ void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     }
     tilt = 0.0f;
     if (racer->unk1E2 > 0x38E) {
-        tilt = (racer->unk1E2 - 0x38E) / D_800ABDB0;
+        tilt = (racer->unk1E2 - 0x38E) / 4551.11f;
     }
     if (racer->unk1E2 < -0x38E) {
-        tilt = (-0x38E - racer->unk1E2) / D_800ABDB4;
+        tilt = (-0x38E - racer->unk1E2) / 4551.11f;
     }
     if (tilt > 1.0f) {
         tilt = 1.0f;
@@ -507,10 +519,6 @@ void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * tilt;
 }
 
-extern f32 D_800ABDB8;
-extern f32 D_800ABDBC;
-extern f32 D_800ABDC0;
-extern f32 D_800ABDC4;
 f32 sqrtf(f32 x);
 f32 func_80049C34(s32 angle);
 f32 func_80049C30(s32 angle);
@@ -538,15 +546,15 @@ void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
     dist = sqrtf(dx * dx + dz * dz);
     rate = updateRate;
     angle = 0x6000 - obj[0];
-    angle = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(D_800ABDB8, rate));
-    dz = D_800ABDBC;
+    angle = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(0.9f, rate));
+    dz = 0.925f;
     racer->unk104 = angle;
     dist = (1.0f - func_80049BEC(dz, rate)) * (120.0f - dist) + dist;
     dy = (1.0f - func_80049BEC(dz, rate)) * (50.0f - dy) + dy;
     dx = *(f32 *) (obj + 6) + func_80049C34(racer->unk104) * dist;
     y = *(f32 *) (obj + 8) + dy;
     dz = *(f32 *) (obj + 10) - func_80049C30(racer->unk104) * dist;
-    t = 1.0f - func_80049BEC(D_800ABDC0, rate);
+    t = 1.0f - func_80049BEC(0.9334f, rate);
     CHASECAM->position[0] += (dx - CHASECAM->position[0]) * t;
     CHASECAM->position[1] += (y - CHASECAM->position[1]) * t;
     CHASECAM->position[2] += (dz - CHASECAM->position[2]) * t;
@@ -559,7 +567,7 @@ void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
     dz = CHASECAM->position[2] - (*(f32 *) (obj + 10) + look[2]);
     angle = 0x8000 - func_80049C84(dx, dz);
     pitch = func_80049C84(y, sqrtf(dx * dx + dz * dz));
-    t = 1.0f - func_80049BEC(D_800ABDC4, rate);
+    t = 1.0f - func_80049BEC(0.9f, rate);
     CHASECAM->rotation[0] = angle_lerp(CHASECAM->rotation[0], angle, t);
     CHASECAM->rotation[1] = angle_lerp(CHASECAM->rotation[1], pitch, t);
     CHASECAM->rotation[2] = angle_lerp(CHASECAM->rotation[2], 0, t);
@@ -774,7 +782,38 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CC70);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CF6C);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002EB6C);
+extern s32 gPlayerButtonsHeld;
+
+/* JFG: an overhead player camera: buttons 8/4 lower/raise the height level at 0x3D (0..80), the camera follows the
+   object's x and z and eases its y towards 512 * (level + 40) / 40 above the object, looking straight down. */
+void func_8002EB6C(u8 *obj, UNUSED s32 arg1, f32 updateRate) {
+    f32 target;
+    s32 i;
+    s32 n;
+
+    if (gPlayerButtonsHeld & 8) {
+        PLAYERCAM->unk3D -= (s32) updateRate;
+        if (PLAYERCAM->unk3D > 80) {
+            PLAYERCAM->unk3D = 0;
+        }
+    }
+    n = updateRate;
+    if (gPlayerButtonsHeld & 4) {
+        PLAYERCAM->unk3D += n;
+        if (PLAYERCAM->unk3D > 80) {
+            PLAYERCAM->unk3D = 80;
+        }
+    }
+    target = *(f32 *) (obj + 0x10) + 512.0f * (PLAYERCAM->unk3D + 40) * 0.025f;
+    PLAYERCAM->position[0] = *(f32 *) (obj + 0xC);
+    for (i = n; i > 0; i--) {
+        PLAYERCAM->position[1] += (target - PLAYERCAM->position[1]) * 0.1f;
+    }
+    PLAYERCAM->position[2] = *(f32 *) (obj + 0x14);
+    PLAYERCAM->rotation[0] = 0;
+    PLAYERCAM->rotation[1] = 0x4000;
+    PLAYERCAM->rotation[2] = 0;
+}
 
 /* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
  * range that applies when the flag is set */
@@ -872,9 +911,6 @@ void func_8002F04C(s32 obj) {
     }
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: float registers: the target keeps z and y in $f20/$f22 (dz in $f14), mine z stays in $f14 and
-   only y gets a saved register */
 /* JFG: for a player at (x, y, z): leaves its current zone object when outside its exit circle (or height range),
  * then if it has none, takes the last listed zone object whose entry circle (and height range) contains it. */
 void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
@@ -884,6 +920,9 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     s32 i;
     f32 dx;
     f32 dz;
+    f32 r;
+    u8 *o;
+    s32 *entry;
 
     if (player < 0 || player >= 4) {
         return;
@@ -891,9 +930,11 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     track = &D_800F6E58[player];
     obj = track->obj;
     if (obj != NULL && (zone = track->zone) != NULL) {
+        r = zone->exitRadius;
+        r *= r;
         dx = *(f32 *) (obj + 0xC) - x;
         dz = *(f32 *) (obj + 0x14) - z;
-        if (zone->exitRadius * zone->exitRadius < dx * dx + dz * dz) {
+        if (r < dx * dx + dz * dz) {
             track->obj = NULL;
             obj = NULL;
         } else if (zone->flags & 0x8000) {
@@ -905,12 +946,15 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
     }
     if (obj == NULL) {
         for (i = 0; i < D_800A2D38; i++) {
-            obj = (u8 *) D_800F6DF8[i];
-            zone = *(TrackZone **) (obj + 0x68);
-            dx = *(f32 *) (obj + 0xC) - x;
-            dz = *(f32 *) (obj + 0x14) - z;
-            if (dx * dx + dz * dz < zone->enterRadius * zone->enterRadius) {
-                track->obj = obj;
+            entry = &D_800F6DF8[i];
+            o = (u8 *) *entry;
+            zone = *(TrackZone **) (o + 0x68);
+            r = zone->enterRadius;
+            r *= r;
+            dx = *(f32 *) (o + 0xC) - x;
+            dz = *(f32 *) (o + 0x14) - z;
+            if (dx * dx + dz * dz < r) {
+                track->obj = o;
                 track->zone = zone;
                 if (zone->flags & 0x4000) {
                     if (y < zone->enterBottom || zone->enterTop < y) {
@@ -921,11 +965,7 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F0DC);
-#endif
 
-extern f32 D_800ABE3C;
 f32 func_80049BEC(f32 rate, s32 updateRate);
 
 /* JFG: eases the player's zone offset towards its current zone's (x/z offsets by flags 1/2), adds it to *x and
@@ -963,7 +1003,7 @@ void player_zone_offset_update(s32 player, f32 *z, f32 *x, s32 *hasPos, f32 *pos
         }
         t = 1.0f;
         if (ease) {
-            t = 1.0f - func_80049BEC(D_800ABE3C, updateRate);
+            t = 1.0f - func_80049BEC(0.9f, updateRate);
         }
         track->offsetX += (offsetX - track->offsetX) * t;
         track->offsetZ += (offsetZ - track->offsetZ) * t;
@@ -996,8 +1036,6 @@ void func_8002F450(s32 index, f32 scale) {
 }
 
 extern f32 D_800A2D40;
-extern f32 D_800ABE40;
-extern f32 D_800ABE44;
 f32 func_80049BEC(f32 rate, s32 updateRate);
 
 void func_8002F50C(UNUSED s32 arg0, u8 *arg1, s32 updateRate) {
@@ -1009,10 +1047,10 @@ void func_8002F50C(UNUSED s32 arg0, u8 *arg1, s32 updateRate) {
         racer = *(u8 **) (*(u8 **) (arg1 + 0x24) + 0x68);
         if (racer[0x568] == 2 || racer[0x568] == 10) {
             target = 0.5f;
-            rate = D_800ABE40;
+            rate = 0.95f;
         } else if (racer[0x568] == 1 || (racer[0x568] == 2 && (s8) racer[1] != 2)) {
             target = 0.75f;
-            rate = D_800ABE44;
+            rate = 0.95f;
         } else {
             target = 1.0f;
             rate = 0.875f;
@@ -1064,7 +1102,6 @@ typedef struct ModelEntry {
     /* 0x4 */ s32 unk4;
 } ModelEntry;
 
-extern f32 D_800ABEA4;
 
 void func_800319C0(u8 *obj, u8 *arg1, u8 *racer, s32 updateRate) {
     s16 value = 0x300;
@@ -1076,7 +1113,7 @@ void func_800319C0(u8 *obj, u8 *arg1, u8 *racer, s32 updateRate) {
     *(s16 *) (arg1 + 0x92) += updateRate;
     if ((*(u16 *) (racer + 0x540) & 0xF) && (*(s16 *) (arg1 + 0x92) & 0x20)) {
         value = 0;
-    } else if (**(f32 **) (obj + 0x54) < D_800ABEA4) {
+    } else if (**(f32 **) (obj + 0x54) < 0.6f) {
         value = 0x100;
     }
     model = **(u8 ****) (obj + 0x6C);
@@ -1469,7 +1506,25 @@ void player_turn_limit_update(UNUSED s32 arg0, Racer *racer, f32 *out, s16 angle
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033ED4);
+/* The module trap called for a result (`func_80054530_ret` in undefined_syms.us.txt). */
+s32 func_80054530_ret();
+
+/* JFG: calls the character's module handler (0/4, 1/5 and 2/6 each their own) and returns its result; 1 for
+   any other character (0x80033ED4). */
+s32 func_80033ED4(u8 *obj, u8 *racer) {
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            return func_80054530_ret(obj, racer);
+        case 1:
+        case 5:
+            return func_80054530_ret(obj, racer);
+        case 2:
+        case 6:
+            return func_80054530_ret(obj, racer);
+    }
+    return 1;
+}
 
 s32 func_80033F4C(s32 weapon) {
     if (weapon == 8 || weapon == 10 || weapon == 11 || weapon == 12 || weapon == 13 || weapon == 14) {
@@ -1631,7 +1686,63 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800344B4);
+/* JFG: turns the angles at obj[2] and obj[1] towards pos (rotated by -obj[0]) when the character is in an aiming
+   state (characters 0/1: state 0x568 is 2 or 10; 2/3: a pose flag bit), plus the offsets at 0x120/0x11E, eased
+   with 0.96 per frame. */
+void func_800344B4(s16 *obj, u8 *racer, f32 *pos, s32 updateRate) {
+    UNUSED s32 pad[2];
+    f32 sinA;
+    f32 cosA;
+    f32 x;
+    f32 y;
+    f32 z;
+    s16 yaw;
+    s16 pitch;
+    s32 aim;
+
+    aim = 0;
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            if (racer[0x568] == 2 || racer[0x568] == 10) {
+                aim = 1;
+            }
+            break;
+        case 1:
+        case 5:
+            if (racer[0x568] == 2 || racer[0x568] == 10) {
+                aim = 1;
+            }
+            break;
+        case 2:
+        case 6:
+            if (racer[0x532] & (*(u8 **) (racer + 0x360))[5]) {
+                aim = 1;
+            }
+            break;
+        case 3:
+        case 7:
+            if (racer[0x532] & (*(u8 **) (racer + 0x360))[5]) {
+                aim = 1;
+            }
+            break;
+    }
+    yaw = 0;
+    pitch = 0;
+    if (aim) {
+        sinA = func_80049C34(-obj[0]);
+        cosA = func_80049C30(-obj[0]);
+        y = pos[1];
+        x = pos[0] * cosA + pos[2] * sinA;
+        z = pos[2] * cosA - pos[0] * sinA;
+        yaw = func_80049C84(-x, y);
+        pitch = func_80049C84(z, y);
+    }
+    yaw += *(s16 *) (racer + 0x120);
+    pitch += *(s16 *) (racer + 0x11E);
+    obj[2] = angle_lerp(obj[2], yaw, 1.0f - func_80049BEC(0.96f, updateRate));
+    obj[1] = angle_lerp(obj[1], pitch, 1.0f - func_80049BEC(0.96f, updateRate));
+}
 
 extern u8 *D_800A18B0;
 extern s32 gPlayerStickX;
@@ -1705,9 +1816,7 @@ void player_quick_turn(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide,
     }
 }
 
-extern f32 D_800ABF68; // JFG: how fast the breathing level rises
-extern f32 D_800ABF6C; // and falls
-extern f32 D_800ABF70; // JFG: the breath length per breath period
+// JFG: 0.0013f/0.0025f are how fast the breathing level rises and falls; 0.2f is the breath length per breath period.
 
 /* JFG: the player's breathing: the level eases towards the speed (the larger of |velX| and |velZ|, 1 from 4 up), the
    phase advances by one breath every 180 - 130 * level frames, and a breath starts (breathNow, breathTimer) each
@@ -1737,14 +1846,14 @@ void player_breath_update(Racer *racer, f32 updateRate) {
         speed *= 0.25f;
     }
     if (racer->breathLevel < speed) {
-        vz = D_800ABF68;
+        vz = 0.0013f;
     } else {
-        vz = D_800ABF6C;
+        vz = 0.0025f;
     }
     racer->breathLevel += (speed - racer->breathLevel) * (1.0f - func_80049BEC(1.0f - vz, (s32) updateRate));
     racer->breathPhase += updateRate / (180.0f + -130.0f * racer->breathLevel);
     if (racer->breathPhase >= 1.0f) {
-        racer->breathTimer = (180.0f + -130.0f * racer->breathLevel) * D_800ABF70;
+        racer->breathTimer = (180.0f + -130.0f * racer->breathLevel) * 0.2f;
         racer->breathNow = 1;
         racer->breathPhase -= 1.0f;
     } else {
@@ -2495,24 +2604,23 @@ void player_squash_update(u8 *obj, Racer *racer, s32 updateRate) {
     }
 }
 
-extern f32 D_800ABF74;
-extern f32 D_800ABF78;
 
 /* JFG: ease the value at 0x48 towards the target at 0x4C; on arrival the target becomes 1.0.
    (The (f32) casts set the add.s operand order.) */
 void racer_ease_to_target(u8 *obj, f32 rate) {
-    f32 cur = *(f32 *) (obj + 0x48);
+f32 *p = (f32 *) (obj + 0x48);
+    f32 cur = *p;
     f32 target = *(f32 *) (obj + 0x4C);
 
     if (cur < target) {
-        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f + D_800ABF74) * rate;
-        if (target <= *(f32 *) (obj + 0x48)) {
+        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f + 0.02f) * rate;
+        if (target <= *p) {
             *(f32 *) (obj + 0x48) = target;
             *(f32 *) (obj + 0x4C) = 1.0f;
         }
     } else {
-        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f - D_800ABF78) * rate;
-        if (*(f32 *) (obj + 0x48) <= target) {
+        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f - 0.02f) * rate;
+        if (*p <= target) {
             *(f32 *) (obj + 0x48) = target;
             *(f32 *) (obj + 0x4C) = 1.0f;
         }
@@ -2796,7 +2904,187 @@ void func_80038630(UNUSED s32 arg0, Racer *racer) {
     racer->flags.unk25 = 1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800386B0);
+void func_80038F7C(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void weapon_fire_standard(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+                   s32 arg10);
+void weapon_fire_triple_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void weapon_fire_chain_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8,
+                   u32 arg9);
+void player_attachment_spawn(s32 owner, Racer *racer, UNUSED s32 arg2);
+void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
+                  UNUSED s32 arg9);
+void func_80039918(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
+                  UNUSED s32 arg9);
+void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+                   u8 type, u8 argB);
+s32 weapon_throw_or_hold(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8);
+void func_8003B418(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void func_8003B590(u8 *obj, s32 index);
+void *mempool_alloc_safe(s32 size, u32 colour);
+/* The module trap with a pointer and three floats (`func_80054530_pfff` in undefined_syms.us.txt). */
+void func_80054530_pfff(void *arg0, f32 x, f32 y, f32 z, s32 arg4, s32 arg5, s32 arg6);
+
+/* JFG: fires the character's current weapon (chr[0x70]) with the weapon info: returns 1 when it has no ammo;
+   spreads the aim (0x1CA/0x1CC) randomly, dispatches by weapon type and uses one round of ammo. Returns 1 when
+   weapon 13's weapon_throw_or_hold returned 0, else 0. */
+s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
+    s16 pitch;
+    UNUSED s32 pad;
+    s32 type;
+    s32 arg;
+    s32 grenade;
+    s32 fired;
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 count;
+    u8 *chr;
+    s32 saved;
+    u8 *target;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    if (D_800A5074 != 0) {
+        if (((u16 *) (chr + 0x14))[chr[0x70]] == 0) {
+            ((u16 *) (chr + 0x14))[chr[0x70]] = 100;
+        }
+    }
+    if (!weapon_has_ammo((u8 *) racer, chr)) {
+        return 1;
+    }
+    racer->unk1CA += rand_range(-*(s16 *) (info + 8), *(s16 *) (info + 8));
+    racer->unk1CC += rand_range(-*(s16 *) (info + 0xA), *(s16 *) (info + 0xA));
+    target = **(u8 ***) (obj + 0x6C);
+    if (target != NULL && *(f32 **) (target + 0x68) != NULL && chr[0x70] == 2 &&
+        !(((u16 *) (chr + 0x14))[chr[0x70]] & 3)) {
+        x = *(f32 *) (obj + 0xC);
+        y = *(f32 *) (obj + 0x10);
+        z = *(f32 *) (obj + 0x14);
+        saved = *(s32 *) (obj + 0x84);
+        *(s32 *) (obj + 0x84) = 1;
+        *(f32 *) (obj + 0xC) = (*(f32 **) (target + 0x68))[0];
+        *(f32 *) (obj + 0x10) = (*(f32 **) (target + 0x68))[1] + 3.0f;
+        *(f32 *) (obj + 0x14) = (*(f32 **) (target + 0x68))[2];
+        obj_spawn_particle(obj, 2);
+        *(s32 *) (obj + 0x84) = saved;
+        *(f32 *) (obj + 0xC) = x;
+        *(f32 *) (obj + 0x10) = y;
+        *(f32 *) (obj + 0x14) = z;
+    }
+    func_8003B418(obj, racer, &x, &y, &z);
+    grenade = 0;
+    fired = 0;
+    racer->unk538 = info[5];
+    switch (chr[0x70]) {
+        case 13:
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x2000;
+            }
+            if (weapon_throw_or_hold((s32) obj, racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3],
+                                     info[7])) {
+                if (racer->character != 2 && racer->character != 6) {
+                    return 0;
+                }
+            } else {
+                fired = 1;
+            }
+            break;
+        case 11:
+            type = 1;
+            arg = (racer->unk53E - 0x20) >> 4;
+            if (arg == 0) {
+                type = 0;
+            }
+            grenade = 1;
+            break;
+        case 12:
+            type = 2;
+            arg = 0;
+            grenade = 1;
+            break;
+        case 10:
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x1800;
+            }
+            func_800397E0((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7]);
+            break;
+        case 9:
+            func_80039A38((s32) obj, (s32) racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10), info[3],
+                          info[7]);
+            break;
+        case 8:
+            func_8003B590(obj, 4);
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x1800;
+            }
+            func_80039918((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7]);
+            break;
+        case 6:
+            if (racer->unk564 == NULL) {
+                racer->unk564 = mempool_alloc_safe(0x624, 0xFFFF);
+                func_80054530(obj, racer->unk564);
+            }
+            func_80054530_pfff(racer->unk564, x, y, z, racer->unk1CA, racer->unk1CC, updateRate);
+            break;
+        case 5:
+            weapon_fire_triple_shot((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10),
+                                    info[3], info[7]);
+            break;
+        case 1:
+            weapon_fire_chain_shot((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10),
+                                   info[3], info[7]);
+            break;
+        case 4:
+            player_attachment_spawn((s32) obj, racer, updateRate);
+            break;
+        case 3:
+            func_80038F7C((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10),
+                          racer->unk53E >> 5, info[7]);
+            break;
+        case 14:
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x1800;
+            }
+            func_80039ECC((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[7]);
+            break;
+        default:
+            func_8003B590(obj, 3);
+            if ((s8) info[6] < 0) {
+                count = racer->unk53E >> 5;
+            } else if (chr[0x70] == 0 && ((u16 *) (chr + 0x14))[chr[0x70]] == 0) {
+                count = 0;
+            } else {
+                count = info[3];
+            }
+            weapon_fire_standard((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10), count,
+                                 info[7], info[1]);
+            break;
+    }
+    if (grenade) {
+        if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+            pitch = racer->unk1CC;
+        } else {
+            pitch = 0x1000;
+        }
+        func_80039B98((s32) obj, racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7], type, arg);
+    }
+    if (((u16 *) (chr + 0x14))[chr[0x70]] > 0) {
+        ((u16 *) (chr + 0x14))[chr[0x70]]--;
+    }
+    if (fired) {
+        return 1;
+    }
+    return 0;
+}
 
 u8 **get_racer_objects(s32 *numRacers);
 void mempool_free(void *data);
@@ -3126,7 +3414,8 @@ typedef struct SpawnF0 {
 s32 rand_range(s32 min, s32 max);
 
 /* JFG: spawn two objects 0xF0 at (x, y, z) with randomised angles. */
-void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7) {
+void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
+                  UNUSED s32 arg9) {
     s32 i;
     u8 *obj;
     SpawnF0 setup;
@@ -3203,7 +3492,8 @@ f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
 /* JFG: spawn object 0x39 at (x, y, z), moving at `speed` along (yaw, pitch). */
-void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed) {
+void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
+                  UNUSED s32 arg9) {
     Spawn39 setup;
     u8 *obj;
 
@@ -3388,7 +3678,135 @@ void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039FCC);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003AABC);
+extern s32 D_800F6DB4;
+extern s32 D_800F6DB8;
+extern u8 *D_800A18B0;
+extern s32 gPlayerButtonsHeld;
+extern f32 D_800A2E60[20];
+
+/* JFG: stick aiming for character type 7 (when 0x18E is clear): two buttons change the zoom (0x1EC, 1..5); the
+   stick is clamped to +-40, and past +-45 it turns the view (0x1E4/0x1E8 eased towards a rate from D_800A2E60,
+   limited by 0x1CE/0x1E0), which turns the yaw at 0x11C and the pitch at 0x1E2 (clamped to minPitch..maxPitch).
+   Writes the aim offset scaled by rangeX/rangeY; returns whether it is aiming. */
+s32 func_8003AABC(UNUSED s32 arg0, Racer *racer, s16 rangeX, s16 rangeY, s32 minPitch, s32 maxPitch, s16 *outX,
+                  s16 *outY, f32 updateRate) {
+    s32 x;
+    s32 y;
+    u8 *chr;
+    s32 manual;
+    f32 aimX;
+    f32 aimY;
+    f32 zoom;
+    f32 recip;
+    f32 speed;
+    f32 scale;
+    f32 t;
+    s32 i;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    manual = 0;
+    aimY = 0.0f;
+    aimX = 0.0f;
+
+    if (chr != NULL && chr[0x70] == 7 && racer->unk18E == 0) {
+        manual = 1;
+    }
+    x = -D_800F6DB4;
+    y = -D_800F6DB8;
+    if (manual) {
+        if (*(s32 *) (D_800A18B0 + 0x1C) & gPlayerButtonsHeld) {
+            speed = 0.05f;
+        } else if (*(s32 *) (D_800A18B0 + 0x20) & gPlayerButtonsHeld) {
+            speed = -0.05f;
+        } else {
+            speed = 0.0f;
+        }
+        speed = racer->unk1F0 + (1.0f - func_80049BEC(0.875f, updateRate)) * (speed - racer->unk1F0);
+        zoom = racer->unk1EC + speed * updateRate;
+
+        if (zoom < 1.0f) {
+            zoom = 1.0f;
+            if (speed < 0.0f) {
+                speed = 0.0f;
+            }
+        }
+        if (zoom > 5.0f) {
+            zoom = 5.0f;
+            if (speed > 0.0f) {
+                speed = 0.0f;
+            }
+        }
+        racer->unk1EC = zoom;
+        racer->unk1F0 = speed;
+    } else {
+        racer->unk1F0 = 0.0f;
+        zoom = 1.0f;
+    }
+    recip = 1.0f / zoom;
+    scale = 1.0f / ((zoom - 1.0f) * (zoom * 0.5f) + 1.0f);
+    rangeX = rangeX * scale;
+    rangeY = rangeY * scale;
+    if (x < -40) {
+        if (x < -45 && racer->unk1CE < 0x2D8 - rangeX) {
+            i = -45 - x;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimX = -D_800A2E60[i] * recip;
+        }
+        x = -40;
+    }
+    if (x > 40) {
+        if (x > 45 && rangeX - 0x2D8 < racer->unk1CE) {
+            i = x - 45;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimX = D_800A2E60[i] * recip;
+        }
+        x = 40;
+    }
+    if (y < -40) {
+        if (y < -45 && racer->unk1E0 < 0x2D8 - rangeY) {
+            i = -45 - y;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimY = -D_800A2E60[i] * recip;
+        }
+        y = -40;
+    }
+    if (y > 40) {
+        if (y > 45 && rangeY - 0x2D8 < racer->unk1E0) {
+            i = y - 45;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimY = D_800A2E60[i] * recip;
+        }
+        y = 40;
+    }
+    t = 1.0f - func_80049BEC(0.8334f, updateRate);
+    racer->unk1E4 += (aimX - racer->unk1E4) * t;
+    racer->unk1E8 += (aimY - racer->unk1E8) * t;
+    if (aimX == 0.0f && racer->unk1E4 > -1.0f && racer->unk1E4 < 1.0f) {
+        racer->unk1E4 = 0.0f;
+    }
+    if (aimY == 0.0f && racer->unk1E8 > -1.0f && racer->unk1E8 < 1.0f) {
+        racer->unk1E8 = 0.0f;
+    }
+    *outX = (rangeX * x) / 40;
+    *outY = (rangeY * y) / 40;
+    racer->unk11C += (s32) (racer->unk1E4 * updateRate);
+    racer->unk1E2 += (s32) (racer->unk1E8 * updateRate);
+    if (racer->unk1E2 < minPitch) {
+        racer->unk1E2 = minPitch;
+    }
+    if (racer->unk1E2 > maxPitch) {
+        racer->unk1E2 = maxPitch;
+    }
+    return manual;
+}
 
 extern u8 gWeaponInfo[][0x30];
 
@@ -3551,9 +3969,59 @@ void func_8003B6BC(void) {
     D_800A2EB0 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B6C8);
+s32 obj_anim_set(void *obj, s32 anim, f32 frame);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B740);
+/* JFG: starts the character's animation 0x30, 0x2B or 7 (characters 0/4, 1/5, 2/6) at frame 0. */
+void func_8003B6C8(u8 *obj, u8 *racer) {
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            obj_anim_set(obj, 0x30, 0.0f);
+            break;
+        case 1:
+        case 5:
+            obj_anim_set(obj, 0x2B, 0.0f);
+            break;
+        case 2:
+        case 6:
+            obj_anim_set(obj, 7, 0.0f);
+            break;
+    }
+}
+
+/* JFG: while the character's animation (0x30 or 0x2B, as in func_8003B6C8) plays: 2 before frame 0.15, 1 before
+   0.53, else 0; 0 for any other animation or character. */
+s32 func_8003B740(u8 *obj, u8 *racer) {
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            if (*(s8 *) (obj + 0x3B) == 0x30) {
+                if (*(f32 *) (obj + 0x28) < 0.15f) {
+                    return 2;
+                }
+                if (*(f32 *) (obj + 0x28) < 0.53f) {
+                    return 1;
+                }
+            }
+            break;
+        case 1:
+        case 5:
+            if (*(s8 *) (obj + 0x3B) == 0x2B) {
+                if (*(f32 *) (obj + 0x28) < 0.15f) {
+                    return 2;
+                }
+                if (*(f32 *) (obj + 0x28) < 0.53f) {
+                    return 1;
+                }
+            }
+            break;
+        case 2:
+        case 3:
+        case 6:
+            break;
+    }
+    return 0;
+}
 
 /* JFG: empty a player's hand (the held object at 0x5CC); a held object 0x59 is also stopped and reset (0x8003B820). */
 void player_drop_held_object(u8 *obj) {
