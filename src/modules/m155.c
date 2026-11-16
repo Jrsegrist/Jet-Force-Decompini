@@ -712,10 +712,11 @@ M155Entry *func_m155_01900(void) {
 
 extern s32 *rl_m155_01900(void); /* 01900 by its offset, as 33 words */
 
-#ifdef NON_MATCHING
-/* 7 diffs: the copy's destination and counter take a1/v1 the other way round */
-/* Copies an entry (33 words) into the next free one of the ring; that one, or NULL */
-s32 *func_m155_019A4(s32 *src) {
+/*
+ * Copies an entry (33 words) into the next free one of the ring; that one, or NULL.
+ * (The empty ifs on n and dst, both set, give the ROM's registers for the copy loop.)
+ */
+static M155Entry *func_m155_019A4(M155Entry *e) {
     s32 *entry;
     s32 *dst;
     s32 *s;
@@ -726,16 +727,17 @@ s32 *func_m155_019A4(s32 *src) {
         return NULL;
     }
     dst = entry;
-    s = src;
+    s = (s32 *) e;
     n = 33;
     while (n--) {
+        if (n) {
+        }
         *dst++ = *s++;
     }
-    return entry;
+    if (dst) {
+    }
+    return (M155Entry *) entry;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_019A4);
-#endif
 
 /* A point a search has reached, and the shortest path length to it so far (8 bytes) */
 typedef struct M155Visit {
@@ -862,7 +864,6 @@ typedef struct M155Exit {
 } M155Exit;
 
 extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, void *region, void *out, s32 point, u8 index);
-extern M155Entry *rl_m155_019A4(M155Entry *e);
 extern void rl_m155_01BE0(M155Entry *e, s16 x, s16 z, u8 from, u8 to);
 
 /*
@@ -898,7 +899,7 @@ s32 func_m155_01F9C(M155Entry *e) {
         }
     }
     if (exit.point != exit.other1 && rl_m155_04F60 == 0) {
-        copy = rl_m155_019A4(e);
+        copy = func_m155_019A4(e);
         if (copy != NULL) {
             rl_m155_01BE0(copy, zone->points[exit.other1].x, zone->points[exit.other1].z, exit.other1,
                           exit.region);
@@ -906,7 +907,7 @@ s32 func_m155_01F9C(M155Entry *e) {
         }
     }
     if (exit.point != exit.other2 && rl_m155_04F60 == 0) {
-        copy = rl_m155_019A4(e);
+        copy = func_m155_019A4(e);
         if (copy != NULL) {
             rl_m155_01BE0(copy, zone->points[exit.other2].x, zone->points[exit.other2].z, exit.other2,
                           exit.region);

@@ -258,10 +258,9 @@ void func_m031_00364(Object *obj, M031CheckpointSetup *setup) {
     c->corners[3].z = obj->trans.z_position - k * s;
 }
 
-#ifdef NON_MATCHING
 /*
  * The nearest checkpoint to (x, y, z) (flat: by x and z only; otherwise the height difference is
- * added, unsquared). NON_MATCHING: the sum and the distance swap f16 and f18.
+ * added, unsquared).
  */
 Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
     Object *best;
@@ -283,8 +282,7 @@ Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
         if (obj != NULL) {
             dx = obj->trans.x_position - x;
             dz = obj->trans.z_position - z;
-            sq = dx * dx + dz * dz;
-            dist = sq;
+            sq = dist = dx * dx + dz * dz;
             if (!flat) {
                 f32 dy = obj->trans.y_position - y;
                 dist = sq + dy;
@@ -297,10 +295,6 @@ Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat) {
     }
     return best;
 }
-#else
-Object *func_m031_005AC(f32 x, f32 y, f32 z, s32 flat);
-INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_005AC);
-#endif
 
 /* The checkpoint before `index` in the ring */
 Object *func_m031_0066C(s32 index) {

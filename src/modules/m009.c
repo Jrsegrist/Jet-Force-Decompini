@@ -29,7 +29,12 @@ typedef struct M009Icon {
     /* 0x26 */ u8 pad26[0x30 - 0x26];
 } M009Icon;
 
+#ifdef NON_MATCHING
+static void func_m009_03D0C(M009Icon *icon);
+#define rl_m009_03D0C func_m009_03D0C
+#else
 extern void rl_m009_03D0C(M009Icon *icon);
+#endif
 
 /* The module's .data (still assembly) */
 extern u8 rl_m009_043F8[];
@@ -648,7 +653,127 @@ void func_m009_039F0(void) {
     func_80055B80(&D_800FF398);
 }
 
+#ifdef NON_MATCHING
+extern u8 rl_m009_043C8[24]; /* the shade of each vertex of a world model's disc */
+extern u8 rl_m009_043E0[24]; /* and of its glow */
+
+/*
+ * Sets up the next world model: a disc of 23 triangles round a centre vertex for the icon, and one for
+ * its glow. Same length, frame and stores; the four triangle and vertex pointers get other s-registers,
+ * the glow radius is spilled where the ROM keeps it in f30, and the hoisted uv terms take other slots.
+ * (glowSize is read even when there is no glow texture, as the ROM does.)
+ */
+static void func_m009_03D0C(M009Icon *icon) {
+    M009Model *model;
+    Triangle *tri;
+    Triangle *glowTri;
+    Vertex *v;
+    s32 glowSize;
+    Vertex *glowV;
+    s32 size;
+    s32 i;
+    s32 angle;
+    s32 u;
+    s32 w;
+    f32 glowRadius;
+    f32 sine;
+    f32 cosine;
+    UNUSED s32 pad;
+    UNUSED s32 pad2;
+    UNUSED s32 pad3;
+    UNUSED s32 pad4;
+
+    model = &rl_m009_04990[rl_m009_097B4++];
+    model->x = icon->x;
+    model->timer = 0;
+    model->unk4D2 = 0;
+    model->y = icon->y;
+    model->tex = (u8 *) D_800FF3F8[icon->image];
+    if (icon->glowImage != -1) {
+        model->glowTex = (u8 *) D_800FF3F8[icon->glowImage];
+    } else {
+        model->glowTex = NULL;
+    }
+    model->icon = icon;
+    model->unk4D6 = icon->unk22;
+    model->unk4D8 = icon->unk24;
+    size = (model->tex[0] >> 1) - 1;
+    if (model->glowTex != NULL) {
+        glowSize = (model->glowTex[0] >> 1) - 1;
+    }
+    glowRadius = icon->radius + 3.0f;
+    model->glowVerts[0].x = 0;
+    model->glowVerts[0].y = 0;
+    model->glowVerts[0].z = 0;
+    model->verts[0].x = model->glowVerts[0].x;
+    model->verts[0].y = model->glowVerts[0].y;
+    model->verts[0].z = model->glowVerts[0].z;
+    model->verts[0].r = rl_m009_043C8[0];
+    model->glowVerts[0].r = rl_m009_043E0[0];
+    model->verts[0].g = rl_m009_043C8[0];
+    model->glowVerts[0].g = rl_m009_043E0[0];
+    model->verts[0].b = rl_m009_043C8[0];
+    model->glowVerts[0].b = rl_m009_043E0[0];
+    model->verts[0].a = 0xFF;
+    model->glowVerts[0].a = 0xFF;
+    tri = model->tris;
+    glowTri = model->glowTris;
+    v = &model->verts[1];
+    glowV = &model->glowVerts[1];
+    angle = 0;
+    u = func_80048E2C(0, 32) << 5;
+    w = func_80048E2C(0, 32) << 5;
+    for (i = 1; i != 24; i++) {
+        sine = func_80049C34(angle);
+        cosine = func_80049C30(angle);
+        v->x = icon->radius * sine;
+        v->y = icon->radius * cosine;
+        glowV->z = 0;
+        v->z = glowV->z;
+        glowV->x = glowRadius * sine;
+        glowV->y = glowRadius * cosine;
+        v->r = rl_m009_043C8[i];
+        v->g = rl_m009_043C8[i];
+        v->b = rl_m009_043C8[i];
+        glowV->a = 0xFF;
+        v->a = 0xFF;
+        glowV->r = rl_m009_043E0[i];
+        glowV->g = rl_m009_043E0[i];
+        glowV->b = rl_m009_043E0[i];
+        v++;
+        glowV++;
+        glowTri->flags = 0x40;
+        tri->flags = 0x40;
+        glowTri->vi0 = 0;
+        tri->vi0 = 0;
+        glowTri->vi1 = i;
+        tri->vi1 = i;
+        glowTri->vi2 = i + 1;
+        tri->vi2 = i + 1;
+        tri->uv[0][0] = (size + 1) << 5;
+        tri->uv[0][1] = (size + 1) << 5;
+        tri->uv[1][0] = ((size + 1) << 5) + (size << 5) * sine;
+        tri->uv[1][1] = ((size + 1) << 5) + (size << 5) * cosine;
+        tri->uv[2][0] = func_80049C34(angle + 0xB21) * (size << 5) + ((size + 1) << 5);
+        tri->uv[2][1] = func_80049C30(angle + 0xB21) * (size << 5) + ((size + 1) << 5);
+        tri++;
+        glowTri->uv[0][0] = ((glowSize + 1) << 5) + u;
+        glowTri->uv[0][1] = ((glowSize + 1) << 5) + w;
+        glowTri->uv[1][0] = ((glowSize + 1) << 5) + (glowSize << 3) * sine + u;
+        glowTri->uv[1][1] = ((glowSize + 1) << 5) + (glowSize << 5) * cosine + w;
+        glowTri->uv[2][0] = func_80049C34(angle + 0xB21) * (glowSize << 3) + ((glowSize + 1) << 5) + u;
+        glowTri->uv[2][1] = func_80049C30(angle + 0xB21) * (glowSize << 5) + ((glowSize + 1) << 5) + w;
+        glowTri++;
+        angle += 0xB21;
+    }
+    glowTri--;
+    tri--;
+    glowTri->vi2 = 1;
+    tri->vi2 = 1;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_03D0C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009", data);
 
