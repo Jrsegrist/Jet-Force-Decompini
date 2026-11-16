@@ -368,3 +368,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 from the Diddy Kong Racing decompilation's `src/weather.c`, and the new `src/5DA60.c` the code from its
 `src/particles.c` (CC0), each with its own .rodata. The functions credited to those files above for
 `src/5B700.c` are now in whichever of the two files matches their DKR file.
+
+| DKR file | Functions |
+| --- | --- |
+| `src/weather.c` | rain_render_splashes, as JFG's func_8005C188 in `src/5B700.c` (NON_MATCHING; JFG: 16 splashes, a ripple kind drawn as a textured quad, the floor and hit heights instead of the wave heights) |

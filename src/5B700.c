@@ -737,7 +737,194 @@ void rain_update(s32 updateRate) {
     }
 }
 
+/* JFG: a rain splash or ripple, size 0x2C */
+typedef struct RainSplash {
+    /* 0x00 */ s16 y_rotation, x_rotation, z_rotation;
+    /* 0x06 */ s16 flags; // 0: free, 1: a splash sprite, 2: a ripple on water
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+    /* 0x18 */ s16 opacity;
+    /* 0x1A */ u8 pad1A[0x28 - 0x1A];
+    /* 0x28 */ f32 animFrame;
+} RainSplash;
+
+/* JFG: a floor or hit height entry: the height first */
+typedef struct SplashHeight {
+    /* 0x00 */ f32 y;
+    /* 0x04 */ u8 pad4[0x13 - 4];
+    /* 0x13 */ s8 surfaceType; // 2: water
+} SplashHeight;
+
+typedef struct SplashRacer {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+} SplashRacer;
+
+extern RainSplash D_800A5A14[16];
+/* JFG: the ripple's corner offsets, x then z */
+extern f32 D_800A5CF8, D_800A5CFC, D_800A5D00, D_800A5D04;
+extern f32 D_800A5D08, D_800A5D0C, D_800A5D10, D_800A5D14;
+extern u8 D_800A5CD8[];   // JFG: the ripple's two triangles
+SplashRacer *get_racer_object_by_port(s32 port);
+s32 func_8001B078(f32 x, f32 z, s32 flags, SplashHeight ***heights);
+s32 func_80082D80(f32 x, f32 z, s32 flags, SplashHeight ***heights);
+void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, RainSplash *splash, SpriteAsset *sprite, s32 flags,
+                             s32 alpha);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+
+#ifdef NON_MATCHING
+/**
+ * If it's raining hard enough, start new rain splashes at random spots near the player: a splash sprite on
+ * the ground, or a ripple on water. Every live splash is then drawn, a sprite as a billboard and a ripple
+ * as a growing textured quad.
+ * JFG: 16 splashes, a ripple kind, the floor and hit heights instead of the wave heights.
+ * DKR: rain_render_splashes
+ * NON_MATCHING: 71 words: splash and onHit swap s1/s2 (and loop 2's 0xFF with them), the fp/s3
+ * set-up order before the search and one FPR pair in the ripple vertices; the three empty ifs
+ * on always-set values (i, intensity) are levers that got it from 492 words to 71.
+ */
+void func_8005C188(s32 updateRate) {
+    s32 intensity;
+    SplashRacer *racer;
+    RainSplash *splash;
+    s32 i;
+    s32 found;
+    s32 angle;
+    f32 dist;
+    f32 x;
+    f32 z;
+    s32 onFloor;
+    s32 onHit;
+    s32 pad[2];
+    SplashHeight **floorHeights;
+    SplashHeight **hitHeights;
+
+    if (gRainSplashGfx == NULL || D_800A5D48 == NULL) {
+        return;
+    }
+    intensity = (s32) ((gRainOpacity >> 2) * D_800A5D1C) >> 14;
+    if (intensity > 0x4000) {
+        racer = get_racer_object_by_port(0);
+        if (racer != NULL) {
+            gRainSplashDelay -= updateRate;
+            if (intensity) {}
+            if (gRainSplashDelay <= 0) {
+                i = 16;
+                do {
+                    found = FALSE;
+                    splash = D_800A5A14;
+                    do {
+                        i--;
+                        if (splash->flags == 0) {
+                            found = TRUE;
+                        } else {
+                            splash++;
+                        }
+                    } while (i > 0 && !found);
+                    if (found) {
+                        angle = rand_range(0, 0x10000);
+                        dist = rand_range(30, 300);
+                        x = func_80049C34(angle) * dist + racer->x_position;
+                        z = func_80049C30(angle) * dist + racer->z_position;
+                        onFloor = func_8001B078(x, z, 0x400, &floorHeights);
+                        onHit = func_80082D80(x, z, 0x400, &hitHeights);
+                        if (onFloor || onHit) {
+                            splash->x_position = x;
+                            splash->z_position = z;
+                            splash->flags = 1;
+                            splash->animFrame = 0.0f;
+                            splash->opacity = rand_range(0x40, (intensity >> 10) + 0x60);
+                            if (onFloor && onHit) {
+                                onFloor = 0;
+                                if (i) {}
+                            }
+                            if (onFloor) {
+                                splash->y_position = floorHeights[0]->y;
+                                if (floorHeights[0]->surfaceType == 2) {
+                                    splash->flags++;
+                                }
+                            } else {
+                                splash->y_position = hitHeights[0]->y;
+                            }
+                        }
+                    }
+                    gRainSplashDelay += 2;
+                    if (gRainSplashDelay >= 0) {
+                        gRainSplashDelay = gRainSplashDelay - (intensity >> 10) + 0x40;
+                        if (gRainSplashDelay < 0) {
+                            gRainSplashDelay = 0;
+                        }
+                    }
+                    i = 16;
+                } while (gRainSplashDelay <= 0);
+            }
+        }
+    }
+
+    gDPSetEnvColor(gCurrWeatherDisplayList++, 255, 255, 255, 0);
+    splash = D_800A5A14;
+    for (i = 0; i < 16; i++, splash++) {
+        if (i) {}
+        if (splash->flags != 0) {
+            splash->animFrame += updateRate * 0.175f;
+            if (splash->animFrame < 4.0f) {
+                if (splash->flags == 1) {
+                    gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 255, 255, 255, splash->opacity);
+                    render_sprite_billboard(&gCurrWeatherDisplayList, &gCurrWeatherMatrix, &gCurrWeatherVertexList,
+                                            splash, gRainSplashGfx, 0xE, 0);
+                } else {
+                    func_80055C00(&gCurrWeatherDisplayList, D_800A5D48, 0xE, 0);
+                    gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 192, 224, 255, 255);
+                    gSPVertexN1(gCurrWeatherDisplayList++, (u8 *) gCurrWeatherVertexList + 0x80000000, 4);
+                    gSPPolygon(gCurrWeatherDisplayList++, D_800A5CD8 + 0x80000000, 2, 1);
+                    gCurrWeatherVertexList->x = D_800A5CF8 * splash->animFrame + splash->x_position;
+                    gCurrWeatherVertexList->y = splash->y_position;
+                    gCurrWeatherVertexList->z = D_800A5D08 * splash->animFrame + splash->z_position;
+                    gCurrWeatherVertexList->r = 255;
+                    gCurrWeatherVertexList->g = 255;
+                    gCurrWeatherVertexList->b = 255;
+                    gCurrWeatherVertexList->a = 255;
+                    gCurrWeatherVertexList++;
+                    gCurrWeatherVertexList->x = D_800A5CFC * splash->animFrame + splash->x_position;
+                    gCurrWeatherVertexList->y = splash->y_position;
+                    gCurrWeatherVertexList->z = D_800A5D0C * splash->animFrame + splash->z_position;
+                    gCurrWeatherVertexList->r = 255;
+                    gCurrWeatherVertexList->g = 255;
+                    gCurrWeatherVertexList->b = 255;
+                    gCurrWeatherVertexList->a = 255;
+                    gCurrWeatherVertexList++;
+                    gCurrWeatherVertexList->x = D_800A5D00 * splash->animFrame + splash->x_position;
+                    gCurrWeatherVertexList->y = splash->y_position;
+                    gCurrWeatherVertexList->z = D_800A5D10 * splash->animFrame + splash->z_position;
+                    gCurrWeatherVertexList->r = 255;
+                    gCurrWeatherVertexList->g = 255;
+                    gCurrWeatherVertexList->b = 255;
+                    gCurrWeatherVertexList->a = 255;
+                    gCurrWeatherVertexList++;
+                    gCurrWeatherVertexList->x = D_800A5D04 * splash->animFrame + splash->x_position;
+                    gCurrWeatherVertexList->y = splash->y_position;
+                    gCurrWeatherVertexList->z = D_800A5D14 * splash->animFrame + splash->z_position;
+                    gCurrWeatherVertexList->r = 255;
+                    gCurrWeatherVertexList->g = 255;
+                    gCurrWeatherVertexList->b = 255;
+                    gCurrWeatherVertexList->a = 255;
+                    gCurrWeatherVertexList++;
+                }
+            } else {
+                splash->flags = 0;
+            }
+        }
+    }
+    gDPSetPrimColor(gCurrWeatherDisplayList++, 0, 0, 255, 255, 255, 255);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
+#endif
 
 extern u8 gThunderTransition[];
 extern s32 D_800A6784;
