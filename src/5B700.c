@@ -1552,8 +1552,7 @@ typedef struct LineDesc {
     /* 0x08 */ s16 unk8;
 } LineDesc;
 
-extern f32 D_800AD81C; // 0.01f
-extern f32 D_800AD820; // 0.01f
+extern f32 D_800AD81C; // 0.01f, ahead of this file's .rodata split
 extern f32 *D_800A5F78[]; // JFG: point shapes, (x, y) pairs
 
 /* JFG: give an emitter a point particle set: reuse the one it let go of, or claim a free one (index, 0xFF if none).
@@ -1665,7 +1664,7 @@ s32 line_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour) {
             if (behaviour->flags & 0x800) {
                 set->frame = rand_range(0, numFrames - 1);
             } else if ((set->unk138 & 1) == 2) {
-                set->frame = numFrames - D_800AD820;
+                set->frame = numFrames - 0.01f;
             } else {
                 set->frame = 0.0f;
             }
@@ -2472,9 +2471,6 @@ typedef struct LineSegObj {
     /* 0x1C */ Vec3f velocity;
 } LineSegObj;
 
-extern f32 D_800AD840;
-extern f32 D_800AD844;
-
 #ifdef NON_MATCHING
 /* NON_MATCHING: ROM length; from the line-set address on the t-registers are numbered one lower (the ROM keeps the
    emitter's behaviour in a1) and the second axis swap uses other FPRs. */
@@ -2537,7 +2533,7 @@ void func_80061698(ParticleObj *objAddr, ParticleEmitter *emitter) {
                 size = size *
                        sqrtf(obj->velocity.x * obj->velocity.x + obj->velocity.y * obj->velocity.y +
                              obj->velocity.z * obj->velocity.z) *
-                       D_800AD840;
+                       0.1f;
             }
             axis = desc->u4.axis & 0xF;
             if (!(desc->flags & 0x4000)) {
@@ -2561,7 +2557,7 @@ void func_80061698(ParticleObj *objAddr, ParticleEmitter *emitter) {
                 dir.y = obj->velocity.y;
                 dir.z = obj->velocity.z;
                 lenSq = dir.z * dir.z + (dir.x * dir.x + dir.y * dir.y);
-                if (lenSq < D_800AD844) {
+                if (lenSq < 0.01f) {
                     scale = 1.0f;
                 } else {
                     scale = size / sqrtf(lenSq);
@@ -3000,8 +2996,6 @@ typedef struct ParticleHit {
     /* 0x1C */ u8 pad1C[0x28 - 0x1C];
 } ParticleHit;
 
-extern f32 D_800AD848;
-extern f32 D_800AD84C;
 void line_particle_set_update(LineParticleSet *set, s32 updateRate);
 void point_particle_set_update(PointParticleSet *set, s32 updateRate);
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
@@ -3011,7 +3005,7 @@ f32 sqrtf(f32 x);
 /*
  * JFG: update every particle (the four particle lists, the line sets and the point sets), then sweep each
  * particle queued in D_80100908 against the level: one that hits bounces off (reflected about the hit's
- * vector, scaled by D_800AD84C), or comes to rest (flag 0x20000) when slow on a floor.
+ * vector, scaled by 0.66), or comes to rest (flag 0x20000) when slow on a floor.
  */
 void particles_update_all(s32 updateRate) {
     s32 i;
@@ -3074,7 +3068,7 @@ void particles_update_all(s32 updateRate) {
                     particle->velocity.y /= -len;
                     particle->velocity.z /= -len;
                 }
-                if (len < D_800AD848 && hit.pos[1] > 0.75f) {
+                if (len < 0.8f && hit.pos[1] > 0.75f) {
                     particle->velocity.x = 0.0f;
                     particle->velocity.y = 0.0f;
                     particle->velocity.z = 0.0f;
@@ -3082,7 +3076,7 @@ void particles_update_all(s32 updateRate) {
                 } else {
                     dot = hit.pos[0] * particle->velocity.x + hit.pos[1] * particle->velocity.y +
                           hit.pos[2] * particle->velocity.z;
-                    len *= D_800AD84C;
+                    len *= 0.66f;
                     two = (f32) 2 * dot;
                     particle->velocity.x = (hit.pos[0] * two - particle->velocity.x) * len;
                     particle->velocity.y = (hit.pos[1] * two - particle->velocity.y) * len;

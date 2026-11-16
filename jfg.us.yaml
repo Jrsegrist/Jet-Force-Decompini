@@ -327,6 +327,7 @@ segments:
       - [0xADF50, rodata]
       - [0xADF70, .rodata, 59060]
       - [0xAE1D0, rodata]
+      - [0xAE420, .rodata, 5B700]
       - [0xAE450, .rodata, printf]
       - [0xAE6C0, rodata]
       - [0xAF350, .rodata, 67780]
