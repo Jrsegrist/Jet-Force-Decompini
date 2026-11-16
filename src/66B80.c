@@ -1,5 +1,8 @@
 #include "common.h"
 
+/* Unreferenced debug strings at the start of this file's .rodata: kept as asm. */
+INCLUDE_RODATA("asm/nonmatchings/66B80", D_800ADAC0);
+
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80065F80);
 
 /* JFG: unpack a two-word command: the top byte, the next byte, the low half and the second word. */
@@ -88,14 +91,14 @@ s32 func_80066784(s32 arg0, UNUSED s32 arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80066790);
 
-extern char D_800AE158[]; // JFG: a format string (.rodata)
-
-/* JFG: format the command's argument into a local buffer (the result is unused); 8 bytes long. */
+/* JFG: format the command's argument into a local buffer (the print of the command was compiled out);
+   8 bytes long. */
 s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
     char buffer[0x50];
     UNUSED s32 pad[2];
 
-    sprintf(buffer, D_800AE158, arg1);
+    sprintf(buffer, "%20s", arg1);
+    stubbed_printf("%s: 0x%08x  0x%08x\n");
     return 8;
 }
 
@@ -153,8 +156,6 @@ s32 func_80066860(u32 *cmd, s32 arg1) {
 INCLUDE_ASM("asm/nonmatchings/66B80", func_80066860);
 #endif
 
-extern char D_800AE594[]; // JFG: a format string (.rodata)
-
 /* JFG: walks the geometry mode bits set in the command's second word (the prints were compiled out). */
 s32 dl_cmd_print_geometry_mode(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
     char buffer[0x50];
@@ -166,37 +167,52 @@ s32 dl_cmd_print_geometry_mode(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
     bit = 1;
     first = TRUE;
     flags = cmd[1];
-    sprintf(buffer, D_800AE594, arg1, flags);
+    sprintf(buffer, "%20s", arg1, flags);
+    stubbed_printf("%20s: %s(");
     for (; bit <= 0x100000; bit <<= 1) {
         if (flags & bit) {
             if (first) {
                 first = FALSE;
+            } else {
+                stubbed_printf("|");
             }
             switch (bit) {
                 case 0x1:
+                    stubbed_printf("G_ZBUFFER");
                     break;
                 case 0x2:
+                    stubbed_printf("G_TEXTURE_ENABLE");
                     break;
                 case 0x4:
+                    stubbed_printf("G_SHADE");
                     break;
                 case 0x200:
+                    stubbed_printf("G_SHADING_SMOOTH");
                     break;
                 case 0x1000:
+                    stubbed_printf("G_CULL_FRONT");
                     break;
                 case 0x2000:
+                    stubbed_printf("G_CULL_BACK");
                     break;
                 case 0x10000:
+                    stubbed_printf("G_FOG");
                     break;
                 case 0x20000:
+                    stubbed_printf("G_LIGHTING");
                     break;
                 case 0x40000:
+                    stubbed_printf("G_TEXTURE_GEN");
                     break;
                 case 0x80000:
+                    stubbed_printf("G_TEXTURE_GEN_LINEAR");
                     break;
                 case 0x100000:
+                    stubbed_printf("G_LOD");
                     break;
             }
         }
     }
+    stubbed_printf(");\n");
     return 8;
 }
