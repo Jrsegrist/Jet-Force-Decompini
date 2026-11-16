@@ -304,8 +304,7 @@ void free_all_objects(void) {
 }
 
 extern Object *D_800A0834; // JFG: an object the searches skip
-extern f32 D_800AA3FC;     // the search's starting distance, in .rodata
-extern f32 D_800AA400;     // the search's starting distance, in .rodata
+extern f32 D_800AA3FC;     // the search's starting distance (5000000000.0f), ahead of this file's .rodata split
 Object **objGetObjList(s32 *arg0, s32 *cnt);
 f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
@@ -362,7 +361,7 @@ Object *obj_find_nearest_in_category(f32 x, f32 y, f32 z, u8 category) {
     f32 dist;
 
     list = objGetObjList(&start, &count);
-    best = D_800AA400;
+    best = 5000000000.0f;
     nearest = NULL;
     for (i = start; i < count; i++) {
         obj = list[i];
@@ -1875,7 +1874,6 @@ LevelModel *get_current_level_model(void);
 LevelModelSegmentBoundingBox *block_boundbox(s32 segmentID);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
 void player_restart(Object *obj, Object_Racer *racer); // JFG: restart a player
-extern f32 D_800AA840; // 3000.0f, in .rodata (not split out yet)
 
 /**
  * Sets the new position of the object using the differences given.
@@ -1914,7 +1912,7 @@ s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos) {
     if (obj->trans.x_position < x1) {
         outOfBounds = TRUE;
     }
-    y2 = levelModel->upperYBounds + D_800AA840;
+    y2 = levelModel->upperYBounds + 3000.0f;
     if (obj->trans.y_position > y2) {
         outOfBounds = TRUE;
     }
@@ -2805,7 +2803,7 @@ INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 /* JFG: an animation event (6 bytes) */
 typedef struct AnimTrigger {
     /* 0x00 */ u16 animId;
-    /* 0x02 */ u16 frame; // times D_800AB508: 0..1
+    /* 0x02 */ u16 frame; // divided by 65535: 0..1
     /* 0x04 */ u16 event;
 } AnimTrigger;
 
@@ -2822,7 +2820,6 @@ typedef struct ObjectKind53 {
     /* 0x4C */ s16 kind;
 } ObjectKind53;
 
-extern f32 D_800AB508; // JFG: the event frame scale, in .rodata
 void func_80027120(Object *obj, s32 event);
 void func_800271A0(Object *obj, s32 event);
 void func_80027220(Object *obj, s32 event);
@@ -2862,7 +2859,7 @@ void obj_anim_triggers_fire(Object *obj) {
     }
     for (i = 0; i < list->count; i++, event++) {
         if (animId == event->animId) {
-            t = event->frame * D_800AB508;
+            t = event->frame * 1.5259022e-05f; // 1 / 65535
             if (wrapped && t <= prevFrame) {
                 t += 1.0f;
             }
@@ -3001,13 +2998,11 @@ typedef struct LevelBlock28 {
     /* 0x28 */ f32 level;
 } LevelBlock28;
 
-extern f32 D_800AB50C; // the highest level
-
-/* JFG: set the block's level, clamped to 0..D_800AB50C.
+/* JFG: set the block's level, clamped to 0..0.999.
    NON_MATCHING: 2 words: the limit is a float literal (needs this file's .rodata), loaded before the mtc1. */
 s32 func_800116BC(LevelBlock28 *block, f32 level) {
-    if (level > D_800AB50C) {
-        level = D_800AB50C;
+    if (level > 0.999f) {
+        level = 0.999f;
     } else if (level < 0.0f) {
         level = 0.0f;
     }
@@ -3333,7 +3328,6 @@ typedef struct ObjectSoundSource53 {
 } ObjectSoundSource53;
 
 extern void *D_800A089C; // JFG: the sound of the nearest type 0xA7 object
-extern f32 D_800AB510;   // JFG: the search's starting distance, in .rodata
 ObjectCamera53 *cam_get_cameras(void);
 u8 func_80048548(void);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
@@ -3358,7 +3352,7 @@ void sound_nearest_emitter_update(void) {
     f32 dz;
     ObjectSoundSource53 *src;
 
-    best = D_800AB510;
+    best = 1e10f;
     nearest = NULL;
     cams = cam_get_cameras();
     numCams = func_80048548();
