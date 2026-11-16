@@ -285,6 +285,25 @@ D_m001_01C70 = sDropsLoaded
 func_m001_00000 = drop_pool_init
 func_m001_00678 = drop_render
 
+# src/modules/m003.c
+func_m003_01D3C = troop_path_node_next
+func_m003_021C8 = troop_group_path_follow
+func_m003_043FC = troop_anim_kind_allowed
+func_m003_044B4 = troop_anim_speed
+func_m003_04614 = troop_anim_pick
+func_m003_04968 = troop_anim_start
+func_m003_0527C = troop_player_nearest
+func_m003_053D4 = troop_blame_set
+func_m003_0556C = troop_select
+func_m003_07B38 = troop_member_counted
+func_m003_0B50C = troop_walk_height
+func_m003_0D360 = troop_member_join
+func_m003_0E3CC = troop_member_level_move
+func_m003_105B8 = troop_blame_all
+func_m003_13FE4 = troop_ambient_sound
+func_m003_170D0 = troop_lines_cross_point
+func_m003_17174 = troop_region_tree_test
+
 # src/modules/m007.c
 func_m007_0032C = hint_flags_count
 func_m007_00390 = hint_condition_holds
