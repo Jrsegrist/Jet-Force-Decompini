@@ -166,9 +166,9 @@ typedef struct M003Home {
     /* 0x15 */ u8 pad15[0x1A - 0x15];
     /* 0x1A */ u16 kind2 : 4;
     /* 0x1A */ u16 moveKind : 4; /* 4, 5: members start facing their way (0D360) */
-    /* 0x1A */ u16 unk1A : 8;
-    /* 0x1C */ u8 pad1C;
-    /* 0x1D */ s8 unk1D;
+    /* 0x1B */ s16 unk1B : 8; /* the way its members are thrown, in 256ths of a turn (0D810) */
+    /* 0x1C */ s8 unk1C;     /* and how steeply */
+    /* 0x1D */ s8 unk1D;     /* and how fast (0: they are not thrown) */
     /* 0x1E */ u8 spacing; /* how many trail steps apart its members follow the leader (0237C) */
     /* 0x1F */ u8 pad1F[0x21 - 0x1F];
     /* 0x21 */ u8 unk21; /* how loud an event its members notice must be */
@@ -211,7 +211,7 @@ typedef struct M003Home {
     /* 0x70 */ u8 pad70[0x74 - 0x70];
     /* 0x74 */ u8 unk74; /* the last way point with flag 2 it reached (03AA8) */
     /* 0x75 */ u8 unk75;
-    /* 0x76 */ u8 pad76;
+    /* 0x76 */ u8 unk76; /* how much the throw varies (0D810) */
     /* 0x77 */ u8 unk77; /* its D_800FEA18 slot, 0xFF: none */
     /* 0x78 */ s8 group; /* its path group, 0 to 31 (061FC) */
     /* 0x79 */ u8 unk79; /* the node count of its group's path last seen (021C8), 0-3 */
@@ -304,7 +304,7 @@ typedef struct M003Body {
     /* 0x29 */ u8 numParts;
     /* 0x2A */ u8 pad2A;
     /* 0x2B */ u8 unk2B; /* 5: does not burn */
-    /* 0x2C */ u8 pad2C;
+    /* 0x2C */ u8 unk2C; /* 1: its thrown members start level (0D810) */
     /* 0x2D */ u8 headPart; /* 0x1F: none */
     /* 0x2E */ u8 pad2E;
     /* 0x2F */ u8 hitPart; /* the body part the last hit took off, 7: none */
@@ -4035,7 +4035,152 @@ static void func_m003_0D360(Object *home) {
     }
 }
 
+#ifdef NON_MATCHING
+/* The level entry 0D810 spawns a member from (0x12 bytes) */
+typedef struct M003SpawnEntry {
+    /* 0x00 */ u16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 yaw;
+    /* 0x10 */ u8 unk10;
+} M003SpawnEntry;
+
+extern void troop_member_colours_get(Object *obj, u8 *r, u8 *g, u8 *b);
+
+/*
+ * Spawns a member at the troop's home, thrown the home's way (when its ring gives none).
+ * ROM length and stack; from the `blue == 5` block on the FPRs are numbered differently (the ROM
+ * evaluates the home's position before the converted offset, as a comma expression would make IDO do).
+ */
+static Object *func_m003_0D810(void) {
+    M003SpawnEntry entry;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 ox;
+    f32 oy;
+    f32 oz;
+    s16 yaw;
+    u8 n;
+    M003Node *node;
+    u8 rg;
+    u8 blue; /* the home's blue, a code here */
+    f32 tmp;
+
+    troop_member_colours_get(sHome, &rg, &rg, &blue);
+    if (sHomeData->moveKind == 1 && (blue == 9 || blue == 8)) {
+        sHomeData->moveKind = 2;
+        ((u8 *) sHome->level_entry)[0x24] = 2;
+        troop_member_colours_get(sHome, &rg, &rg, &blue);
+    }
+    sHomeData = sHome->unk68;
+    entry.objectID = sHomeData->kind;
+    entry.size = 0x12;
+    entry.x = 0;
+    entry.y = 0;
+    entry.z = 0;
+    entry.unkA = 0;
+    entry.unkC = 0;
+    entry.yaw = sHome->trans.rotation.y_rotation;
+    entry.unk10 = 0;
+    sObj = func_80005F14(&entry, 1);
+    if (sObj != NULL) {
+        sObj->level_entry = NULL;
+        sMember = sObj->unk68;
+    } else {
+        return NULL;
+    }
+    if (sHomeData->unk1D != 0) {
+        tmp = func_80049C30(sHomeData->unk1C << 8);
+        sObj->velocity.x = func_80049C30(sHomeData->unk1B << 8) * tmp * sHomeData->unk1D;
+        sObj->velocity.y = func_80049C34(sHomeData->unk1C << 8) * sHomeData->unk1D;
+        tmp = func_80049C30(sHomeData->unk1C << 8);
+        sObj->velocity.z = func_80049C34(sHomeData->unk1B << 8) * tmp * sHomeData->unk1D;
+        if ((n = sHomeData->unk76) != 0) {
+            sObj->velocity.x += func_80048E2C(-n, n);
+            sObj->velocity.y += func_80048E2C(-sHomeData->unk76, sHomeData->unk76);
+            sObj->velocity.z += func_80048E2C(-sHomeData->unk76, sHomeData->unk76);
+        }
+        sMember->unk1C = func_80049C84(sObj->velocity.x, sObj->velocity.z) - 0x8000;
+    } else {
+        sObj->velocity.x = 0.0f;
+        sObj->velocity.y = 0.0f;
+        sObj->velocity.z = 0.0f;
+        sMember->unk1C = 0xC000 - (sHomeData->unk1B << 8);
+    }
+    x = sObj->velocity.x * sObj->velocity.x;
+    if (sHomeData->kind2 == 2 || sBody->unk2C == 1) {
+        sMember->unk1E = 0;
+    } else {
+        sMember->unk1E = func_80049C84(func_80097140(x), sObj->velocity.y) - 0x8000;
+    }
+    sMember->unk20 = func_80097140(sObj->velocity.y * sObj->velocity.y + x);
+    sObj->trans.rotation.y_rotation = sMember->unk1C;
+    sObj->trans.rotation.x_rotation = sMember->unk1E;
+    sObj->trans.rotation.z_rotation = 0;
+    switch (sHomeData->moveKind) {
+        case 1:
+            x = sHomeData->x;
+            y = sHomeData->y;
+            z = sHomeData->z;
+            yaw = sHome->trans.rotation.y_rotation;
+            troop_member_colours_get(sHome, &rg, &rg, &blue);
+            if (blue == 5) {
+                sHomeData->x = sHome->trans.x_position + (sHomeData->offset[0] << 4);
+                sHomeData->y = sHome->trans.y_position + (sHomeData->offset[1] << 4);
+                sHomeData->z = sHome->trans.z_position + (sHomeData->offset[2] << 4);
+                sHome->trans.rotation.y_rotation =
+                    func_80049C84(sHomeData->x - ((Object *) sClosestPlayer)->trans.x_position,
+                                  sHomeData->z - ((Object *) sClosestPlayer)->trans.z_position);
+                sObj->velocity.x = 0.0f;
+                sObj->velocity.y = 0.0f;
+                sObj->velocity.z = 0.0f;
+                sObj->trans.rotation.y_rotation = sHome->trans.rotation.y_rotation;
+            } else {
+                sHomeData->x = sHome->trans.x_position;
+                sHomeData->y = sHome->trans.y_position;
+                sHomeData->z = sHome->trans.z_position;
+            }
+            func_m003_06D28(sHome, sMember->unk15, (s32) &ox, (s32) &oy, (s32) &oz);
+            sHomeData->x = x;
+            sHomeData->y = y;
+            sHomeData->z = z;
+            sHome->trans.rotation.y_rotation = yaw;
+            sObj->trans.x_position = ox;
+            sObj->trans.y_position = oy;
+            sObj->trans.z_position = oz;
+            break;
+        case 6:
+            node = &D_800FEA9C[func_m154_00130(sHome->trans.x_position, sHome->trans.y_position,
+                                               sHome->trans.z_position, 0)];
+            if (node != NULL) {
+                sObj->trans.x_position = node->x;
+                sObj->trans.y_position = node->y;
+                sObj->trans.z_position = node->z;
+            } else {
+                sObj->trans.x_position = sHome->trans.x_position;
+                sObj->trans.y_position = sHome->trans.y_position;
+                sObj->trans.z_position = sHome->trans.z_position;
+            }
+            break;
+        default:
+            sObj->trans.x_position = sHome->trans.x_position;
+            sObj->trans.y_position = sHome->trans.y_position;
+            sObj->trans.z_position = sHome->trans.z_position;
+    }
+    sMember->lastX = sObj->trans.x_position;
+    sMember->lastY = sObj->trans.y_position;
+    sMember->lastZ = sObj->trans.z_position;
+    return sObj;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D810);
+#endif
 
 /* A member's level entry */
 typedef struct M003MemberEntry {
@@ -4553,7 +4698,11 @@ typedef struct M003RingEntry {
 } M003RingEntry;
 
 extern M003RingEntry *troop_ring_take(s32 id);
+#ifdef NON_MATCHING
+#define rl_m003_0D810 func_m003_0D810
+#else
 extern Object *rl_m003_0D810(void); /* still assembly */
+#endif
 
 /* Spawns the troop's next member from the ring (or 0D810's way); counts the ones whose flag is set */
 Object *func_m003_14694(void) {
