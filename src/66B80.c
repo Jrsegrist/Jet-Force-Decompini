@@ -355,13 +355,9 @@ s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
     return 8;
 }
 
-extern char D_800AE174[]; // JFG: a format string (.rodata)
-
-#ifdef NON_MATCHING
-/* NON_MATCHING: the ROM keeps the case constants 2 and 3 in registers and the mode in two registers */
 /*
- * JFG: the "set other mode" command: tells the render modes (the second word's low half) apart; the
- * prints of their names were compiled out. 8 bytes long.
+ * JFG: the "set other mode" command: the alpha compare, depth source, render mode (named when it is one of
+ * the standard modes, else spelt out bit by bit) or blender; the prints were compiled out. 8 bytes long.
  */
 s32 func_80066860(u32 *cmd, s32 arg1) {
     char buffer[0x50];
@@ -371,43 +367,167 @@ s32 func_80066860(u32 *cmd, s32 arg1) {
 
     type = (cmd[0] >> 8) & 0xFF;
     w1 = cmd[1];
-    sprintf(buffer, D_800AE174, arg1);
+    sprintf(buffer, "%20s", arg1);
     switch (type) {
-    case 0:
-    case 2:
-        break;
-    case 3:
-        w1 &= 0xFFFF;
-        if (w1 == 0x2078 || w1 == 0x2038 || w1 == 0x49D8 || w1 == 0x2D58 || w1 == 0x2D18 ||
-            w1 == 0x4DD8 || w1 == 0x2478 || w1 == 0x45D8 || w1 == 0x7858 || w1 == 0x7F58 ||
-            w1 == 0x3078 || w1 == 0x3478 || w1 == 0x2278) {
-        } else if (w1 == 0x7B || w1 == 0x2078 || w1 == 0x3078) {
-        } else if (w1 == 0x2278 || w1 == 0x2048 || w1 == 0x2008 || w1 == 0x41C8 || w1 == 0x7048 ||
-                   w1 == 0x7248 || w1 == 0x3048 || w1 == 0x2248) {
-        } else if (w1 == 0x4B || w1 == 0x2048 || w1 == 0x3048) {
-        } else if (w1 == 0x2248 || w1 == 0x2230 || w1 == 0x4A50 || w1 == 0x2E10 || w1 == 0x4E50 ||
-                   w1 == 0x4B50 || w1 == 0x4F50 || w1 == 0x233 || w1 == 0x4000 || w1 == 0x4240 ||
-                   w1 == 0x7008 || w1 == 0x4340) {
-        } else if (w1 == 0x4203 || w1 == 0x4340) {
-        } else if (w1 == 0) {
-        } else if (w1 == 0x4040) {
-        } else if (w1 != 0) {
-            if (((w1 >> 8) & 3) == 0) {
-            } else if (((w1 >> 8) & 3) == 1) {
+        case 0:
+            stubbed_printf("%20s: gSetAlphaCompare(%x)\n");
+            break;
+        case 2:
+            stubbed_printf("%20s: gSetDepthSource(%x)\n");
+            break;
+        case 3:
+            stubbed_printf("%20s: gSetRenderMode(");
+            w1 &= 0xFFFF;
+            if (w1 == 0x2078) {
+                stubbed_printf("RM_AA_ZB_OPA_SURF");
+            } else if (w1 == 0x2038) {
+                stubbed_printf("RM_RA_ZB_OPA_SURF");
+            } else if (w1 == 0x49D8) {
+                stubbed_printf("RM_AA_ZB_XLU_SURF");
+            } else if (w1 == 0x2D58) {
+                stubbed_printf("RM_AA_ZB_OPA_DECAL");
+            } else if (w1 == 0x2D18) {
+                stubbed_printf("RM_RA_ZB_OPA_DECAL");
+            } else if (w1 == 0x4DD8) {
+                stubbed_printf("RM_AA_ZB_XLU_DECAL");
+            } else if (w1 == 0x2478) {
+                stubbed_printf("RM_AA_ZB_OPA_INTER");
+            } else if (w1 == 0x45D8) {
+                stubbed_printf("RM_AA_ZB_XLU_INTER");
+            } else if (w1 == 0x7858) {
+                stubbed_printf("RM_AA_ZB_XLU_LINE");
+            } else if (w1 == 0x7F58) {
+                stubbed_printf("RM_AA_ZB_DEC_LINE");
+            } else if (w1 == 0x3078) {
+                stubbed_printf("RM_AA_ZB_TEX_EDGE");
+            } else if (w1 == 0x3478) {
+                stubbed_printf("RM_AA_ZB_TEX_INTER");
+            } else if (w1 == 0x2278) {
+                stubbed_printf("RM_AA_ZB_SUB_SURF");
+            } else if (w1 == 0x7B) {
+                stubbed_printf("RM_AA_ZB_PCL_SURF");
+            } else if (w1 == 0x2078) {
+                stubbed_printf("RM_AA_ZB_OPA_TERR");
+            } else if (w1 == 0x3078) {
+                stubbed_printf("RM_AA_ZB_TEX_TERR");
+            } else if (w1 == 0x2278) {
+                stubbed_printf("RM_AA_ZB_SUB_TERR");
+            } else if (w1 == 0x2048) {
+                stubbed_printf("RM_AA_OPA_SURF");
+            } else if (w1 == 0x2008) {
+                stubbed_printf("RM_RA_OPA_SURF");
+            } else if (w1 == 0x41C8) {
+                stubbed_printf("RM_AA_XLU_SURF");
+            } else if (w1 == 0x7048) {
+                stubbed_printf("RM_AA_XLU_LINE");
+            } else if (w1 == 0x7248) {
+                stubbed_printf("RM_AA_DEC_LINE");
+            } else if (w1 == 0x3048) {
+                stubbed_printf("RM_AA_TEX_EDGE");
+            } else if (w1 == 0x2248) {
+                stubbed_printf("RM_AA_SUB_SURF");
+            } else if (w1 == 0x4B) {
+                stubbed_printf("RM_AA_PCL_SURF");
+            } else if (w1 == 0x2048) {
+                stubbed_printf("RM_AA_OPA_TERR");
+            } else if (w1 == 0x3048) {
+                stubbed_printf("RM_AA_TEX_TERR");
+            } else if (w1 == 0x2248) {
+                stubbed_printf("RM_AA_SUB_TERR");
+            } else if (w1 == 0x2230) {
+                stubbed_printf("RM_ZB_OPA_SURF");
+            } else if (w1 == 0x4A50) {
+                stubbed_printf("RM_ZB_XLU_SURF");
+            } else if (w1 == 0x2E10) {
+                stubbed_printf("RM_ZB_OPA_DECAL");
+            } else if (w1 == 0x4E50) {
+                stubbed_printf("RM_ZB_XLU_DECAL");
+            } else if (w1 == 0x4B50) {
+                stubbed_printf("RM_ZB_CLD_SURF");
+            } else if (w1 == 0x4F50) {
+                stubbed_printf("RM_ZB_OVL_SURF");
+            } else if (w1 == 0x233) {
+                stubbed_printf("RM_ZB_PCL_SURF");
+            } else if (w1 == 0x4000) {
+                stubbed_printf("RM_OPA_SURF");
+            } else if (w1 == 0x4240) {
+                stubbed_printf("RM_XLU_SURF");
+            } else if (w1 == 0x7008) {
+                stubbed_printf("RM_TEX_EDGE");
+            } else if (w1 == 0x4340) {
+                stubbed_printf("RM_CLD_SURF");
+            } else if (w1 == 0x4203) {
+                stubbed_printf("RM_PCL_SURF");
+            } else if (w1 == 0x4340) {
+                stubbed_printf("RM_ADD");
+            } else if (w1 == 0x0) {
+                stubbed_printf("RM_NOOP");
+            } else if (w1 == 0x4040) {
+                stubbed_printf("RM_VISCVG");
+            } else if (w1 == 0x0) {
+                stubbed_printf("RM_OPA_CI");
+            } else {
+                if (w1 & 0x8) {
+                    stubbed_printf("AA | ");
+                }
+                if (w1 & 0x10) {
+                    stubbed_printf("Z_CMP | ");
+                }
+                if (w1 & 0x20) {
+                    stubbed_printf("Z_UPD | ");
+                }
+                if (w1 & 0x40) {
+                    stubbed_printf("IM_RD | ");
+                }
+                if (w1 & 0x80) {
+                    stubbed_printf("CLR_ON_CVG | ");
+                }
+                switch ((w1 >> 8) & 3) {
+                    case 0:
+                        stubbed_printf("CVG_CLAMP | ");
+                        break;
+                    case 1:
+                        stubbed_printf("CVG_WRAP | ");
+                        break;
+                    case 2:
+                        stubbed_printf("CVG_FULL | ");
+                        break;
+                    case 3:
+                        stubbed_printf("CVG_SAVE | ");
+                        break;
+                }
+                switch ((w1 >> 10) & 3) {
+                    case 0:
+                        stubbed_printf("OPA | ");
+                        break;
+                    case 1:
+                        stubbed_printf("INTER | ");
+                        break;
+                    case 2:
+                        stubbed_printf("XLU | ");
+                        break;
+                    case 3:
+                        stubbed_printf("DECAL | ");
+                        break;
+                }
+                if (w1 & 0x1000) {
+                    stubbed_printf("CVG_X_ALPHA | ");
+                }
+                if (w1 & 0x2000) {
+                    stubbed_printf("ALPHA_CVG_SEL | ");
+                }
+                if (w1 & 0x4000) {
+                    stubbed_printf("FORCE_BL | ");
+                }
             }
-            if (((w1 >> 10) & 3) == 0) {
-            } else if (((w1 >> 10) & 3) == 1) {
-            }
-        }
-        break;
-    case 0x10:
-        break;
+            stubbed_printf(");\n");
+            break;
+        case 0x10:
+            stubbed_printf("%20s: gSetBlender() - UNSUPPORTED\n");
+            break;
     }
     return 8;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80066860);
-#endif
 
 /* JFG: walks the geometry mode bits set in the command's second word (the prints were compiled out). */
 s32 dl_cmd_print_geometry_mode(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
