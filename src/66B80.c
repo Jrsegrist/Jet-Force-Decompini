@@ -1,6 +1,205 @@
 #include "common.h"
 
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80065F80);
+/* Unreferenced debug strings at the start of this file's .rodata: kept as asm. */
+INCLUDE_RODATA("asm/nonmatchings/66B80", D_800ADAC0);
+
+s32 func_80066620();
+s32 func_80066650();
+s32 func_80066680();
+s32 func_800666B0();
+s32 func_800666C0();
+s32 func_800666F0();
+s32 func_80066720();
+s32 func_80066750();
+s32 func_80066764();
+s32 func_80066770();
+s32 func_80066784();
+s32 func_80066790();
+s32 func_80066830();
+s32 func_80066860();
+s32 dl_cmd_print_geometry_mode();
+
+/*
+ * JFG: the display-list printer: walks `count` commands and hands each to its printer by opcode (the signed
+ * F3D opcodes in a second switch), stepping by the size each printer returns. The prints themselves were
+ * compiled out of the retail build.
+ */
+void func_80065F80(u8 *dl, UNUSED s32 arg1, s32 count) {
+    u8 *cmd;
+    s32 i;
+
+    cmd = dl;
+    for (i = 0; i < count; i++) {
+        switch (*cmd) {
+            case 4:
+                cmd += func_80066620(cmd);
+                break;
+            case 5:
+                cmd += func_80066650(cmd);
+                break;
+            case 0:
+                cmd += func_80066830(cmd, "G_SPNOOP");
+                break;
+            case 1:
+                cmd += func_80066680(cmd);
+                break;
+            case 2:
+                cmd += func_800666B0(cmd, "G_TEXDMA");
+                break;
+            case 3:
+                cmd += func_800666F0(cmd);
+                break;
+            case 6:
+                cmd += func_80066720(cmd);
+                break;
+            case 7:
+                cmd += func_800666C0(cmd);
+                break;
+            case 8:
+                cmd += func_80066830(cmd, "G_RESERVED3");
+                break;
+            case 9:
+                cmd += func_80066830(cmd, "G_RESERVED4");
+                break;
+            case 0xC0:
+                cmd += func_80066750(cmd, "G_NOOP", "gDPNoOp");
+                break;
+            case 0xFF:
+                cmd += func_80066830(cmd, "G_SETCIMG");
+                break;
+            case 0xFE:
+                cmd += func_80066830(cmd, "G_SETZIMG");
+                break;
+            case 0xFD:
+                cmd += func_80066830(cmd, "G_SETTIMG");
+                break;
+            case 0xFC:
+                cmd += func_80066830(cmd, "G_SETCOMBINE");
+                break;
+            case 0xFB:
+                cmd += func_80066770(cmd, "G_SETENVCOLOR", "gDPSetEnvColor");
+                break;
+            case 0xFA:
+                cmd += func_80066764(cmd);
+                break;
+            case 0xF9:
+                cmd += func_80066770(cmd, "G_SETBLENDCOLOR", "gDPSetBlendColor");
+                break;
+            case 0xF8:
+                cmd += func_80066770(cmd, "G_SETFOGCOLOR", "gDPSetFogColor");
+                break;
+            case 0xF7:
+                cmd += func_80066770(cmd, "G_SETFILLCOLOR", "gDPSetFillColor");
+                break;
+            case 0xF6:
+                cmd += func_80066830(cmd, "G_FILLRECT");
+                break;
+            case 0xF5:
+                cmd += func_80066830(cmd, "G_SETTILE");
+                break;
+            case 0xF4:
+                cmd += func_80066830(cmd, "G_LOADTILE");
+                break;
+            case 0xF3:
+                cmd += func_80066830(cmd, "G_LOADBLOCK");
+                break;
+            case 0xF2:
+                cmd += func_80066830(cmd, "G_SETTILESIZE");
+                break;
+            case 0xF0:
+                cmd += func_80066830(cmd, "G_LOADTLUT");
+                break;
+            case 0xEF:
+                cmd += func_80066830(cmd, "G_RDPSETOTHERMODE");
+                break;
+            case 0xEE:
+                cmd += func_80066830(cmd, "G_SETPRIMDEPTH");
+                break;
+            case 0xED:
+                cmd += func_80066830(cmd, "G_SETSCISSOR");
+                break;
+            case 0xEC:
+                cmd += func_80066830(cmd, "G_SETCONVERT");
+                break;
+            case 0xEB:
+                cmd += func_80066830(cmd, "G_SETKEYR");
+                break;
+            case 0xEA:
+                cmd += func_80066830(cmd, "G_SETKEYGB");
+                break;
+            case 0xE9:
+                cmd += func_80066750(cmd, "G_RDPFULLSYNC", "gDPFullSync");
+                break;
+            case 0xE8:
+                cmd += func_80066750(cmd, "G_RDPTILESYNC", "gDPTileSync");
+                break;
+            case 0xE7:
+                cmd += func_80066750(cmd, "G_RDPPIPESYNC", "gDPPipeSync");
+                break;
+            case 0xE6:
+                cmd += func_80066750(cmd, "G_RDPLoadSYNC", "gDPLoadSync");
+                break;
+            case 0xE5:
+                cmd += func_80066830(cmd, "G_TEXRECTFLIP");
+                break;
+            case 0xE4:
+                cmd += func_80066830(cmd, "G_TEXRECT");
+                break;
+            default:
+                switch ((s8) *cmd) {
+                    case -65:
+                        cmd += func_80066784(cmd, "G_DMAOFFSETS");
+                        break;
+                    case -66:
+                        cmd += func_80066830(cmd, "G_CULLDL");
+                        break;
+                    case -67:
+                        cmd += func_80066830(cmd, "G_POPMTX");
+                        break;
+                    case -68:
+                        cmd += func_80066790(cmd);
+                        break;
+                    case -69:
+                        cmd += func_80066830(cmd, "G_TEXTURE");
+                        break;
+                    case -70:
+                        cmd += func_80066830(cmd, "G_SETOTHERMODE_H");
+                        break;
+                    case -71:
+                        cmd += func_80066860(cmd, "G_SETOTHERMODE_L");
+                        break;
+                    case -72:
+                        cmd += func_80066830(cmd, "G_ENDDL");
+                        break;
+                    case -73:
+                        cmd += dl_cmd_print_geometry_mode(cmd, "G_SETGEOMETRYMODE", "gSPSetGeometryMode");
+                        break;
+                    case -74:
+                        cmd += dl_cmd_print_geometry_mode(cmd, "G_CLEARGEOMETRYMODE", "gSPClearGeometryMode");
+                        break;
+                    case -75:
+                        cmd += func_80066830(cmd, "G_LINE3D");
+                        break;
+                    case -76:
+                        cmd += func_80066830(cmd, "G_PERSPNORMALIZE");
+                        break;
+                    case -77:
+                        cmd += func_80066830(cmd, "G_RDPHALF_1");
+                        break;
+                    case -78:
+                        cmd += func_80066830(cmd, "G_RDPHALF_2");
+                        break;
+                    case -79:
+                        cmd += func_80066830(cmd, "G_RDPHALF_CONT");
+                        break;
+                    default:
+                        cmd += func_80066830(cmd, "UNKNOWN COMMAND");
+                        break;
+                }
+                break;
+        }
+    }
+}
 
 /* JFG: unpack a two-word command: the top byte, the next byte, the low half and the second word. */
 void dl_cmd_unpack_bbh(void *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
@@ -22,6 +221,22 @@ s32 func_80066620(void *arg0) {
     s32 a, b, c, d;
     s32 pad[4];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
+    stubbed_printf("%20s: gSPVertex(0x%x, 0x%x, %d, %d);\n", "G_VTX");
+    stubbed_printf("%20s: gSPPolygon(0x%x, 0x%x, %d, %d);\n", "G_POL");
+    stubbed_printf("GARBAGE");
+    stubbed_printf("NOMTXMULT");
+    stubbed_printf("MTXMULT");
+    stubbed_printf("%20s: gSPMatrix2(0x%x, 0x%x, %d, %s, %d);\n", "G_MTX");
+    stubbed_printf("%20s: gSPLoadTextureOffsets(%d, %08x);\n");
+    stubbed_printf("%20s: gSPDPBlock(0x%x, 0x%x, %d);\n", "G_DP_BLOCK");
+    stubbed_printf("%20s: gSPViewport(0x%x, 0x%x);\n", "G_MOVEMEM");
+    stubbed_printf("%20s: gSPDisplayList(0x%x, 0x%x);\n", "G_DL");
+    stubbed_printf("%20s: gSPBranchList(0x%x, 0x%x);\n", "G_DL");
+    stubbed_printf("%20s: Unknown G_DL command\n", "G_DL");
+    stubbed_printf("%20s: %s(0x%08x);\n");
+    stubbed_printf("%20s: gDPSetPrimColor(0x%08x, %d, %d, %d, %d, %d, %d);\n", "G_SETPRIMCOLOR");
+    stubbed_printf("%20s: %s(0x%08x, %2d, %2d, %2d, %2d);\n");
+    stubbed_printf("%20s: gSPSetDMAOffsets(%08x, %08x)\n");
     return 8;
 }
 
@@ -86,26 +301,63 @@ s32 func_80066784(s32 arg0, UNUSED s32 arg1) {
     return 8;
 }
 
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80066790);
+/*
+ * JFG: the "move word" command: names the index (the middle half of the first word), or formats an
+ * unknown one into a local buffer; the print of the command was compiled out. 8 bytes long.
+ * (`if (name) {}` keeps the case blocks apart as in the ROM; name is set on every path.)
+ */
+s32 func_80066790(u32 *cmd) {
+    s32 a;
+    s32 index;
+    s32 offset;
+    s32 data;
+    char *name;
+    char buffer[0x28];
 
-extern char D_800AE158[]; // JFG: a format string (.rodata)
+    dl_cmd_unpack_bhb(cmd, &a, &offset, &index, &data);
+    switch (index) {
+        case 6:
+            name = "G_MW_SEGMENT";
+            break;
+        case 4:
+            name = "G_MW_CLIP";
+            break;
+        case 10:
+            name = "G_MW_MTXOFFSET";
+            break;
+        case 12:
+            name = "G_MW_POINTS";
+            break;
+        case 2:
+            name = "G_MW_SPRITEMODE";
+            break;
+        case 8:
+            name = "G_MW_FOG";
+            break;
+        default:
+            sprintf(buffer, "UNKNOWN INDEX %d", index);
+            name = buffer;
+            break;
+    }
+    if (name) {}
+    stubbed_printf("%20s: %s offset = %d, data = 0x%08x\n", "G_MOVEWORD", name, offset, data);
+    return 8;
+}
 
-/* JFG: format the command's argument into a local buffer (the result is unused); 8 bytes long. */
+/* JFG: format the command's argument into a local buffer (the print of the command was compiled out);
+   8 bytes long. */
 s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
     char buffer[0x50];
     UNUSED s32 pad[2];
 
-    sprintf(buffer, D_800AE158, arg1);
+    sprintf(buffer, "%20s", arg1);
+    stubbed_printf("%s: 0x%08x  0x%08x\n");
     return 8;
 }
 
-extern char D_800AE174[]; // JFG: a format string (.rodata)
-
-#ifdef NON_MATCHING
-/* NON_MATCHING: the ROM keeps the case constants 2 and 3 in registers and the mode in two registers */
 /*
- * JFG: the "set other mode" command: tells the render modes (the second word's low half) apart; the
- * prints of their names were compiled out. 8 bytes long.
+ * JFG: the "set other mode" command: the alpha compare, depth source, render mode (named when it is one of
+ * the standard modes, else spelt out bit by bit) or blender; the prints were compiled out. 8 bytes long.
  */
 s32 func_80066860(u32 *cmd, s32 arg1) {
     char buffer[0x50];
@@ -115,45 +367,167 @@ s32 func_80066860(u32 *cmd, s32 arg1) {
 
     type = (cmd[0] >> 8) & 0xFF;
     w1 = cmd[1];
-    sprintf(buffer, D_800AE174, arg1);
+    sprintf(buffer, "%20s", arg1);
     switch (type) {
-    case 0:
-    case 2:
-        break;
-    case 3:
-        w1 &= 0xFFFF;
-        if (w1 == 0x2078 || w1 == 0x2038 || w1 == 0x49D8 || w1 == 0x2D58 || w1 == 0x2D18 ||
-            w1 == 0x4DD8 || w1 == 0x2478 || w1 == 0x45D8 || w1 == 0x7858 || w1 == 0x7F58 ||
-            w1 == 0x3078 || w1 == 0x3478 || w1 == 0x2278) {
-        } else if (w1 == 0x7B || w1 == 0x2078 || w1 == 0x3078) {
-        } else if (w1 == 0x2278 || w1 == 0x2048 || w1 == 0x2008 || w1 == 0x41C8 || w1 == 0x7048 ||
-                   w1 == 0x7248 || w1 == 0x3048 || w1 == 0x2248) {
-        } else if (w1 == 0x4B || w1 == 0x2048 || w1 == 0x3048) {
-        } else if (w1 == 0x2248 || w1 == 0x2230 || w1 == 0x4A50 || w1 == 0x2E10 || w1 == 0x4E50 ||
-                   w1 == 0x4B50 || w1 == 0x4F50 || w1 == 0x233 || w1 == 0x4000 || w1 == 0x4240 ||
-                   w1 == 0x7008 || w1 == 0x4340) {
-        } else if (w1 == 0x4203 || w1 == 0x4340) {
-        } else if (w1 == 0) {
-        } else if (w1 == 0x4040) {
-        } else if (w1 != 0) {
-            if (((w1 >> 8) & 3) == 0) {
-            } else if (((w1 >> 8) & 3) == 1) {
+        case 0:
+            stubbed_printf("%20s: gSetAlphaCompare(%x)\n");
+            break;
+        case 2:
+            stubbed_printf("%20s: gSetDepthSource(%x)\n");
+            break;
+        case 3:
+            stubbed_printf("%20s: gSetRenderMode(");
+            w1 &= 0xFFFF;
+            if (w1 == 0x2078) {
+                stubbed_printf("RM_AA_ZB_OPA_SURF");
+            } else if (w1 == 0x2038) {
+                stubbed_printf("RM_RA_ZB_OPA_SURF");
+            } else if (w1 == 0x49D8) {
+                stubbed_printf("RM_AA_ZB_XLU_SURF");
+            } else if (w1 == 0x2D58) {
+                stubbed_printf("RM_AA_ZB_OPA_DECAL");
+            } else if (w1 == 0x2D18) {
+                stubbed_printf("RM_RA_ZB_OPA_DECAL");
+            } else if (w1 == 0x4DD8) {
+                stubbed_printf("RM_AA_ZB_XLU_DECAL");
+            } else if (w1 == 0x2478) {
+                stubbed_printf("RM_AA_ZB_OPA_INTER");
+            } else if (w1 == 0x45D8) {
+                stubbed_printf("RM_AA_ZB_XLU_INTER");
+            } else if (w1 == 0x7858) {
+                stubbed_printf("RM_AA_ZB_XLU_LINE");
+            } else if (w1 == 0x7F58) {
+                stubbed_printf("RM_AA_ZB_DEC_LINE");
+            } else if (w1 == 0x3078) {
+                stubbed_printf("RM_AA_ZB_TEX_EDGE");
+            } else if (w1 == 0x3478) {
+                stubbed_printf("RM_AA_ZB_TEX_INTER");
+            } else if (w1 == 0x2278) {
+                stubbed_printf("RM_AA_ZB_SUB_SURF");
+            } else if (w1 == 0x7B) {
+                stubbed_printf("RM_AA_ZB_PCL_SURF");
+            } else if (w1 == 0x2078) {
+                stubbed_printf("RM_AA_ZB_OPA_TERR");
+            } else if (w1 == 0x3078) {
+                stubbed_printf("RM_AA_ZB_TEX_TERR");
+            } else if (w1 == 0x2278) {
+                stubbed_printf("RM_AA_ZB_SUB_TERR");
+            } else if (w1 == 0x2048) {
+                stubbed_printf("RM_AA_OPA_SURF");
+            } else if (w1 == 0x2008) {
+                stubbed_printf("RM_RA_OPA_SURF");
+            } else if (w1 == 0x41C8) {
+                stubbed_printf("RM_AA_XLU_SURF");
+            } else if (w1 == 0x7048) {
+                stubbed_printf("RM_AA_XLU_LINE");
+            } else if (w1 == 0x7248) {
+                stubbed_printf("RM_AA_DEC_LINE");
+            } else if (w1 == 0x3048) {
+                stubbed_printf("RM_AA_TEX_EDGE");
+            } else if (w1 == 0x2248) {
+                stubbed_printf("RM_AA_SUB_SURF");
+            } else if (w1 == 0x4B) {
+                stubbed_printf("RM_AA_PCL_SURF");
+            } else if (w1 == 0x2048) {
+                stubbed_printf("RM_AA_OPA_TERR");
+            } else if (w1 == 0x3048) {
+                stubbed_printf("RM_AA_TEX_TERR");
+            } else if (w1 == 0x2248) {
+                stubbed_printf("RM_AA_SUB_TERR");
+            } else if (w1 == 0x2230) {
+                stubbed_printf("RM_ZB_OPA_SURF");
+            } else if (w1 == 0x4A50) {
+                stubbed_printf("RM_ZB_XLU_SURF");
+            } else if (w1 == 0x2E10) {
+                stubbed_printf("RM_ZB_OPA_DECAL");
+            } else if (w1 == 0x4E50) {
+                stubbed_printf("RM_ZB_XLU_DECAL");
+            } else if (w1 == 0x4B50) {
+                stubbed_printf("RM_ZB_CLD_SURF");
+            } else if (w1 == 0x4F50) {
+                stubbed_printf("RM_ZB_OVL_SURF");
+            } else if (w1 == 0x233) {
+                stubbed_printf("RM_ZB_PCL_SURF");
+            } else if (w1 == 0x4000) {
+                stubbed_printf("RM_OPA_SURF");
+            } else if (w1 == 0x4240) {
+                stubbed_printf("RM_XLU_SURF");
+            } else if (w1 == 0x7008) {
+                stubbed_printf("RM_TEX_EDGE");
+            } else if (w1 == 0x4340) {
+                stubbed_printf("RM_CLD_SURF");
+            } else if (w1 == 0x4203) {
+                stubbed_printf("RM_PCL_SURF");
+            } else if (w1 == 0x4340) {
+                stubbed_printf("RM_ADD");
+            } else if (w1 == 0x0) {
+                stubbed_printf("RM_NOOP");
+            } else if (w1 == 0x4040) {
+                stubbed_printf("RM_VISCVG");
+            } else if (w1 == 0x0) {
+                stubbed_printf("RM_OPA_CI");
+            } else {
+                if (w1 & 0x8) {
+                    stubbed_printf("AA | ");
+                }
+                if (w1 & 0x10) {
+                    stubbed_printf("Z_CMP | ");
+                }
+                if (w1 & 0x20) {
+                    stubbed_printf("Z_UPD | ");
+                }
+                if (w1 & 0x40) {
+                    stubbed_printf("IM_RD | ");
+                }
+                if (w1 & 0x80) {
+                    stubbed_printf("CLR_ON_CVG | ");
+                }
+                switch ((w1 >> 8) & 3) {
+                    case 0:
+                        stubbed_printf("CVG_CLAMP | ");
+                        break;
+                    case 1:
+                        stubbed_printf("CVG_WRAP | ");
+                        break;
+                    case 2:
+                        stubbed_printf("CVG_FULL | ");
+                        break;
+                    case 3:
+                        stubbed_printf("CVG_SAVE | ");
+                        break;
+                }
+                switch ((w1 >> 10) & 3) {
+                    case 0:
+                        stubbed_printf("OPA | ");
+                        break;
+                    case 1:
+                        stubbed_printf("INTER | ");
+                        break;
+                    case 2:
+                        stubbed_printf("XLU | ");
+                        break;
+                    case 3:
+                        stubbed_printf("DECAL | ");
+                        break;
+                }
+                if (w1 & 0x1000) {
+                    stubbed_printf("CVG_X_ALPHA | ");
+                }
+                if (w1 & 0x2000) {
+                    stubbed_printf("ALPHA_CVG_SEL | ");
+                }
+                if (w1 & 0x4000) {
+                    stubbed_printf("FORCE_BL | ");
+                }
             }
-            if (((w1 >> 10) & 3) == 0) {
-            } else if (((w1 >> 10) & 3) == 1) {
-            }
-        }
-        break;
-    case 0x10:
-        break;
+            stubbed_printf(");\n");
+            break;
+        case 0x10:
+            stubbed_printf("%20s: gSetBlender() - UNSUPPORTED\n");
+            break;
     }
     return 8;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80066860);
-#endif
-
-extern char D_800AE594[]; // JFG: a format string (.rodata)
 
 /* JFG: walks the geometry mode bits set in the command's second word (the prints were compiled out). */
 s32 dl_cmd_print_geometry_mode(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
@@ -166,37 +540,52 @@ s32 dl_cmd_print_geometry_mode(u32 *cmd, s32 arg1, UNUSED s32 arg2) {
     bit = 1;
     first = TRUE;
     flags = cmd[1];
-    sprintf(buffer, D_800AE594, arg1, flags);
+    sprintf(buffer, "%20s", arg1, flags);
+    stubbed_printf("%20s: %s(");
     for (; bit <= 0x100000; bit <<= 1) {
         if (flags & bit) {
             if (first) {
                 first = FALSE;
+            } else {
+                stubbed_printf("|");
             }
             switch (bit) {
                 case 0x1:
+                    stubbed_printf("G_ZBUFFER");
                     break;
                 case 0x2:
+                    stubbed_printf("G_TEXTURE_ENABLE");
                     break;
                 case 0x4:
+                    stubbed_printf("G_SHADE");
                     break;
                 case 0x200:
+                    stubbed_printf("G_SHADING_SMOOTH");
                     break;
                 case 0x1000:
+                    stubbed_printf("G_CULL_FRONT");
                     break;
                 case 0x2000:
+                    stubbed_printf("G_CULL_BACK");
                     break;
                 case 0x10000:
+                    stubbed_printf("G_FOG");
                     break;
                 case 0x20000:
+                    stubbed_printf("G_LIGHTING");
                     break;
                 case 0x40000:
+                    stubbed_printf("G_TEXTURE_GEN");
                     break;
                 case 0x80000:
+                    stubbed_printf("G_TEXTURE_GEN_LINEAR");
                     break;
                 case 0x100000:
+                    stubbed_printf("G_LOD");
                     break;
             }
         }
     }
+    stubbed_printf(");\n");
     return 8;
 }

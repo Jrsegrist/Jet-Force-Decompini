@@ -620,7 +620,8 @@ void effect_mesh_update(EffectMesh *mesh, s16 depth, s32 brightness) {
 #ifdef NON_MATCHING
 void func_80055C00();
 
-/* NON_MATCHING: 8 words: in the segments branch numPoints and its * 8 sit in a0/a1 (target v1/a0), segments in v0 (target a2) */
+/* NON_MATCHING: 3 words: segments in v0 (target a2); `if (hasTex) {}` before the strip's gSPPolygon (hasTex is
+   always set) put numPoints and its * 8 in the target's v1/a0 */
 /* JFG: draw an effect mesh: one textured fan of 18 points (segments 0) or a strip of segments triangles. */
 void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
     s32 hasTex;
@@ -647,6 +648,7 @@ void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
             gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]),
                    mesh->numPoints * 8 + 8 + mesh->numPoints * 2,
                    (mesh->numPoints * 8) | ((u32) OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]) & 6));
+            if (hasTex) {}
             gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), mesh->segments, hasTex);
         }
         gDPPipeSync((*dList)++);

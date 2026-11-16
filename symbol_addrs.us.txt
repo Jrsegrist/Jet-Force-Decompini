@@ -13,3 +13,5 @@ D_800AE858 = 0x800AE858; // type:asciz force_migration:True
 D_800ABDC8 = 0x800ABDC8; // type:f32
 D_800ABDCC = 0x800ABDCC; // type:f32 function_owner:func_8002C118
 D_800ABDD0 = 0x800ABDD0; // type:f32 function_owner:func_8002C118
+// 66B80.c: the index names of func_80066790 (main24)
+D_800AE0BC = 0x800AE0BC; // type:asciz function_owner:func_80066790

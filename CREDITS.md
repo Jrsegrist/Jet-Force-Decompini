@@ -361,3 +361,14 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | DKR file | Functions |
 | --- | --- |
 | `src/objects.c` | get_object_property_size (JFG 0x8000E680: JFG's object types and sizes, 8- and 16-byte aligned data, sizes from the model and the level entry); run_object_init_func and run_object_loop_func (JFG 0x8000F028 and 0x8000FBF0: JFG's types, most handlers in runlink modules, the crash screen's update markers) |
+
+### Round 24 (main24), the 5B700 split
+
+`src/5B700.c` was split at 0x8005CE60 into the two original objects: `src/5B700.c` now holds the code
+from the Diddy Kong Racing decompilation's `src/weather.c`, and the new `src/5DA60.c` the code from its
+`src/particles.c` (CC0), each with its own .rodata. The functions credited to those files above for
+`src/5B700.c` are now in whichever of the two files matches their DKR file.
+
+| DKR file | Functions |
+| --- | --- |
+| `src/weather.c` | rain_render_splashes, as JFG's func_8005C188 in `src/5B700.c` (NON_MATCHING; JFG: 16 splashes, a ripple kind drawn as a textured quad, the floor and hit heights instead of the wave heights) |
