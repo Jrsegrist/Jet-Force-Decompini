@@ -906,3 +906,5 @@ func_800116BC = anim_phase_clamp
 func_800610CC = particle_free
 func_8000E680 = get_object_property_size
 func_8000F978 = obj_type_model_flags
+func_8000F028 = run_object_init_func
+func_8000FBF0 = run_object_loop_func

@@ -78,7 +78,7 @@ typedef struct ObjHeaderParticleEntry {
 /* JFG: the object header, reduced */
 typedef struct ObjectHeader {
     /* 0x00 */ f32 scale;
-    /* 0x04 */ u8 pad4[0x14 - 0x4];
+    /* 0x04 */ char name[0x10]; // JFG: the crash screen shows it
     /* 0x14 */ u16 flags;
     /* 0x16 */ u8 pad16[0x1B - 0x16];
     /* 0x1B */ u8 category; // JFG: obj_find_nearest_in_category searches by it
@@ -1581,7 +1581,7 @@ extern s32 D_800F2EE0[16];
 void func_8007A534(void);
 void func_80029CFC(s32 updateRate);
 Object **collision_objects_get(s32 *count);
-void func_8000FBF0(Object *obj, s32 updateRate);
+void run_object_loop_func(Object *obj, s32 updateRate);
 void func_8007E504(void);
 void object_uv_offsets_update(Object *obj, s32 updateRate);
 void func_8006B090(Object *obj, s32 updateRate);
@@ -1631,7 +1631,7 @@ void obj_update(s32 updateRate) {
     func_80029CFC(updateRate);
     objs = collision_objects_get(&j);
     for (i = 0; i < j; i++) {
-        func_8000FBF0(objs[i], updateRate);
+        run_object_loop_func(objs[i], updateRate);
     }
     func_8007E504();
     i = gObjectCount;
@@ -1639,7 +1639,7 @@ void obj_update(s32 updateRate) {
         obj = gObjPtrList[j];
         if (obj->behaviorId != 0x1E && obj->behaviorId != 9 && obj->behaviorId != 0x25) {
                 if (obj->unk4C == NULL || (obj->unk4C != NULL && !(obj->unk4C->flags9 & 8))) {
-                    func_8000FBF0(obj, updateRate);
+                    run_object_loop_func(obj, updateRate);
                 }
                 if (obj->header->unk1E == 0 && obj->header->scrollTexture != 0xFF) {
                     object_uv_offsets_update(obj, updateRate);
@@ -1676,7 +1676,7 @@ void obj_update(s32 updateRate) {
     for (j = gObjectListStart; j < i; j++) {
         obj = gObjPtrList[j];
         if (obj->behaviorId == 9 || obj->behaviorId == 0x25) {
-            func_8000FBF0(obj, updateRate);
+            run_object_loop_func(obj, updateRate);
         }
     }
     light_update_all(updateRate);
@@ -3159,7 +3159,464 @@ s32 get_object_property_size(Object *obj, void *entry) {
     return (size & ~3) + 4;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000F028);
+void func_8002F5F0(Object *obj, void *entry);
+void func_80032130(Object *obj, void *entry);
+void func_800252EC(Object *obj, void *entry);
+void obj_init_torch_mist(Object *obj, void *entry);
+void func_80024F40(Object *obj, void *entry);
+void func_800274FC(Object *obj, void *entry);
+void obj_init_light_object(Object *obj, void *entry);
+void func_800275CC(Object *obj, void *entry);
+void obj_init_col_vertices(Object *obj, void *entry);
+void func_8002993C(Object *obj, void *entry);
+void corona_from_level_entry(Object *obj, void *entry);
+void func_800275E8(Object *obj, void *entry);
+void func_80027DA0(Object *obj, void *entry);
+void func_80027F90(Object *obj, void *entry);
+void drift_object_init(Object *obj, void *entry);
+void func_80028414(Object *obj, void *entry);
+void obj_init_model_swap(Object *obj, void *entry);
+void func_800270D4(Object *obj, void *entry);
+void func_8007E4A0(Object *obj);
+
+/**
+ * Run when an object is created: its type's init function (DKR run_object_init_func; JFG's types, most of
+ * them in runlink modules), then set up its collision if it has any.
+ */
+void run_object_init_func(Object *obj, void *entry) {
+    obj->behaviorId = obj->header->unk1C;
+    switch (obj->behaviorId) {
+        case 2:
+            func_8002F5F0(obj, entry);
+            break;
+        case 1:
+            func_80032130(obj, entry);
+            break;
+        case 3: case 4: case 5:
+            func_80054530(obj, entry);
+            break;
+        case 20:
+            func_80054530(obj, entry);
+            break;
+        case 77:
+            func_80054530(obj, entry);
+            break;
+        case 34:
+            func_800252EC(obj, entry);
+            break;
+        case 8:
+            func_80054530(obj, entry);
+            break;
+        case 45:
+            func_80054530(obj, entry);
+            break;
+        case 148:
+            func_80054530(obj, entry);
+            break;
+        case 17:
+            func_80054530(obj, entry);
+            break;
+        case 6:
+            func_80054530(obj, entry);
+            break;
+        case 7:
+            func_80054530(obj, entry);
+            break;
+        case 67:
+            func_80054530(obj, entry);
+            break;
+        case 60:
+            func_80054530(obj, entry);
+            break;
+        case 9:
+            func_80054530(obj, entry);
+            break;
+        case 10:
+            func_80054530(obj, entry);
+            break;
+        case 57: case 62:
+            obj_init_torch_mist(obj, entry);
+            break;
+        case 58:
+            func_80024F40(obj, entry);
+            break;
+        case 35:
+            func_80054530(obj, entry);
+            break;
+        case 30:
+            func_80054530(obj, entry);
+            break;
+        case 16:
+            func_80054530(obj, entry);
+            break;
+        case 11:
+            func_80054530(obj, entry);
+            break;
+        case 12:
+            func_80054530(obj, entry);
+            break;
+        case 13:
+            func_80054530(obj, entry);
+            break;
+        case 14:
+            func_80054530(obj, entry);
+            break;
+        case 22:
+            func_80054530(obj, entry);
+            break;
+        case 48: case 49:
+            func_800274FC(obj, entry);
+            break;
+        case 54:
+            func_80054530(obj, entry);
+            break;
+        case 55:
+            func_80054530(obj, entry);
+            break;
+        case 32:
+            func_80054530(obj, entry);
+            break;
+        case 21:
+            func_80054530(obj, entry);
+            break;
+        case 18:
+            func_80054530(obj, entry);
+            break;
+        case 39:
+            obj_init_light_object(obj, entry);
+            break;
+        case 162:
+            func_80054530(obj, entry);
+            break;
+        case 63:
+            func_800275CC(obj, entry);
+            break;
+        case 152:
+            func_80054530(obj, entry);
+            break;
+        case 69:
+            func_80054530(obj, entry);
+            break;
+        case 158:
+            func_80054530(obj, entry);
+            break;
+        case 159:
+            func_80054530(obj, entry);
+            break;
+        case 160:
+            func_80054530(obj, entry);
+            break;
+        case 155:
+            func_80054530(obj, entry);
+            break;
+        case 161:
+            func_80054530(obj, entry);
+            break;
+        case 153:
+            func_80054530(obj, entry);
+            break;
+        case 135:
+            func_80054530(obj, entry);
+            break;
+        case 154:
+            func_80054530(obj, entry);
+            break;
+        case 157:
+            func_80054530(obj, entry);
+            break;
+        case 156:
+            func_80054530(obj, entry);
+            break;
+        case 23:
+            func_80054530(obj, entry);
+            break;
+        case 24:
+            func_80054530(obj, entry);
+            break;
+        case 149:
+            func_80054530(obj, entry);
+            break;
+        case 27:
+            func_80054530(obj, entry);
+            break;
+        case 56:
+            func_80054530(obj, entry);
+            break;
+        case 40:
+            obj_init_col_vertices(obj, entry);
+            break;
+        case 41:
+            func_80054530(obj, entry);
+            break;
+        case 38:
+            func_8002993C(obj, entry);
+            break;
+        case 19:
+            func_80054530(obj, entry);
+            break;
+        case 43:
+            func_80054530(obj, entry);
+            break;
+        case 61:
+            func_80054530(obj, entry);
+            break;
+        case 66:
+            func_80054530(obj, entry);
+            break;
+        case 65:
+            corona_from_level_entry(obj, entry);
+            break;
+        case 68:
+            func_80054530(obj, entry);
+            break;
+        case 36:
+            func_80054530(obj, entry);
+            break;
+        case 37:
+            func_80054530(obj, entry);
+            break;
+        case 64:
+            func_800275E8(obj, entry);
+            break;
+        case 70:
+            func_80054530(obj, entry);
+            break;
+        case 71:
+            func_80054530(obj, entry);
+            break;
+        case 73:
+            func_80027DA0(obj, entry);
+            break;
+        case 74:
+            func_80027F90(obj, entry);
+            break;
+        case 75:
+            drift_object_init(obj, entry);
+            break;
+        case 76:
+            func_80054530(obj, entry);
+            break;
+        case 78:
+            func_80054530(obj, entry);
+            break;
+        case 80:
+            func_80028414(obj, entry);
+            break;
+        case 81:
+            func_80054530(obj, entry);
+            break;
+        case 82:
+            func_80054530(obj, entry);
+            break;
+        case 88:
+            func_80054530(obj, entry);
+            break;
+        case 83:
+            func_80054530(obj, entry);
+            break;
+        case 85:
+            func_80054530(obj, entry);
+            break;
+        case 86:
+            func_80054530(obj, entry);
+            break;
+        case 163:
+            func_80054530(obj, entry);
+            break;
+        case 87:
+            func_80054530(obj, entry);
+            break;
+        case 166: case 167:
+            func_80054530(obj, entry);
+            break;
+        case 84: case 168:
+            func_80054530(obj, entry);
+            break;
+        case 89:
+            func_80054530(obj, entry);
+            break;
+        case 51:
+            obj_init_model_swap(obj, entry);
+            break;
+        case 147:
+            func_800270D4(obj, entry);
+            break;
+        case 90:
+            func_80054530(obj, entry);
+            break;
+        case 92:
+            func_80054530(obj, entry);
+            break;
+        case 91:
+            func_80054530(obj, entry);
+            break;
+        case 93:
+            func_80054530(obj, entry);
+            break;
+        case 141:
+            func_80054530(obj, entry);
+            break;
+        case 94:
+            func_80054530(obj, entry);
+            break;
+        case 59:
+            func_80054530(obj, entry);
+            break;
+        case 95: case 150:
+            func_80054530(obj, entry);
+            break;
+        case 164:
+            func_80054530(obj, entry);
+            break;
+        case 165:
+            func_80054530(obj, entry);
+            break;
+        case 96:
+            func_80054530(obj, entry);
+            break;
+        case 98:
+            func_80054530(obj, entry);
+            break;
+        case 100:
+            func_80054530(obj, entry);
+            break;
+        case 99:
+            func_80054530(obj, entry);
+            break;
+        case 102:
+            func_80054530(obj, entry);
+            break;
+        case 103:
+            func_80054530(obj, entry);
+            break;
+        case 104:
+            func_80054530(obj, entry);
+            break;
+        case 105:
+            func_80054530(obj, entry);
+            break;
+        case 107:
+            func_80054530(obj, entry);
+            break;
+        case 106:
+            func_80054530(obj, entry);
+            break;
+        case 151:
+            func_80054530(obj, entry);
+            break;
+        case 110:
+            func_80054530(obj, entry);
+            break;
+        case 111:
+            func_80054530(obj, entry);
+            break;
+        case 112:
+            func_80054530(obj, entry);
+            break;
+        case 113:
+            func_80054530(obj, entry);
+            break;
+        case 114:
+            func_80054530(obj, entry);
+            break;
+        case 116:
+            func_80054530(obj, entry);
+            break;
+        case 117:
+            func_80054530(obj, entry);
+            break;
+        case 118:
+            func_80054530(obj, entry);
+            break;
+        case 119:
+            func_80054530(obj, entry);
+            break;
+        case 120:
+            func_80054530(obj, entry);
+            break;
+        case 121:
+            func_80054530(obj, entry);
+            break;
+        case 122:
+            func_80054530(obj, entry);
+            break;
+        case 123:
+            func_80054530(obj, entry);
+            break;
+        case 124:
+            func_80054530(obj, entry);
+            break;
+        case 125:
+            func_80054530(obj, entry);
+            break;
+        case 127:
+            func_80054530(obj, entry);
+            break;
+        case 128:
+            func_80054530(obj, entry);
+            break;
+        case 129:
+            func_80054530(obj, entry);
+            break;
+        case 130:
+            func_80054530(obj, entry);
+            break;
+        case 169:
+            func_80054530(obj, entry);
+            break;
+        case 170:
+            func_80054530(obj, entry);
+            break;
+        case 172:
+            func_80054530(obj, entry);
+            break;
+        case 171:
+            func_80054530(obj, entry);
+            break;
+        case 137:
+            func_80054530(obj, entry);
+            break;
+        case 138:
+            func_80054530(obj, entry);
+            break;
+        case 173:
+            func_80054530(obj, entry);
+            break;
+        case 139:
+            func_80054530(obj, entry);
+            break;
+        case 174:
+            func_80054530(obj, entry);
+            break;
+        case 142:
+            func_80054530(obj, entry);
+            break;
+        case 132:
+            func_80054530(obj, entry);
+            break;
+        case 133:
+            func_80054530(obj, entry);
+            break;
+        case 134:
+            func_80054530(obj, entry);
+            break;
+        case 136:
+            func_80054530(obj, entry);
+            break;
+        case 143:
+            func_80054530(obj, entry);
+            break;
+        case 145:
+            func_80054530(obj, entry);
+            break;
+        case 146:
+            func_80054530(obj, entry);
+            break;
+    }
+    if (obj->unk5C != NULL) {
+        func_8007E4A0(obj);
+    }
+}
 
 /* JFG: the model flags of an object type (its header's id): obj_spawn_attachment keeps the low 3 bits. */
 s32 obj_type_model_flags(s32 id) {
@@ -3391,7 +3848,439 @@ s32 obj_type_model_flags(s32 id) {
     return flags;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000FBF0);
+void func_8002F728(Object *obj, s32 updateRate);
+void obj_loop_animator(Object *obj, s32 updateRate);
+void obj_loop_exit(Object *obj, s32 updateRate);
+void func_80025A08(Object *obj, s32 updateRate);
+void func_8001C0D8(Object *obj, s32 updateRate);
+void obj_loop_skycontrol(Object *obj, s32 updateRate);
+void obj_sprite_animate(Object *obj, s32 updateRate);
+void sprite_anim_once_update(Object *obj, s32 updateRate);
+void obj_loop_texture_animator(Object *obj, s32 updateRate);
+void func_800270C8(Object *obj, s32 updateRate);
+void obj_loop_zone_trigger(Object *obj, s32 updateRate);
+void func_80026FD4(Object *obj, s32 updateRate);
+void func_800270EC(Object *obj, s32 updateRate);
+void zone_box_apply(Object *obj, s32 updateRate);
+void func_80026D88(Object *obj, s32 updateRate);
+void obj_explosion_update(Object *obj, s32 updateRate);
+void func_800291BC(Object *obj, s32 updateRate);
+void obj_loop_chroma_sprite(Object *obj, s32 updateRate);
+void model_piece_update(Object *obj, s32 updateRate);
+void obj_loop_falling_spark(Object *obj, s32 updateRate);
+void sparks_emitter_update(Object *obj, s32 updateRate);
+void obj_loop_drift(Object *obj, s32 updateRate);
+void obj_loop_pickup_trigger(Object *obj, s32 updateRate);
+void func_800104C0(Object *obj, s32 updateRate);
+void obj_anim_triggers_fire(Object *obj);
+extern s32 D_800A333C; // JFG: what the game is updating (the crash screen reports it)
+extern Object *D_800A3340;
+extern char *D_800A3344;
+extern s32 D_800A3348;
+
+/**
+ * Run every frame for objects with a behaviour: one big switch over the type (DKR run_object_loop_func; JFG's
+ * types, most of them in runlink modules). The crash screen is told which object is being updated.
+ */
+void run_object_loop_func(Object *obj, s32 updateRate) {
+    D_800A333C = 3;
+    D_800A3348 = 1;
+    D_800A3340 = obj;
+    D_800A3344 = obj->header->name;
+    if (obj->unk7C != NULL) {
+        func_800104C0(obj, updateRate);
+    }
+    if (obj->header->unkD4 != NULL) {
+        obj_anim_triggers_fire(obj);
+    }
+    switch (obj->behaviorId) {
+        case 2:
+            func_8002F728(obj, updateRate);
+            break;
+        case 4:
+            func_80054530(obj, updateRate);
+            break;
+        case 20:
+            func_80054530(obj, updateRate);
+            break;
+        case 77:
+            func_80054530(obj, updateRate);
+            break;
+        case 34:
+            obj_loop_animator(obj, updateRate);
+            break;
+        case 8:
+            obj_loop_exit(obj, updateRate);
+            break;
+        case 7:
+            func_80025A08(obj, updateRate);
+            break;
+        case 67:
+            group_light_update(obj, updateRate);
+            break;
+        case 60:
+            func_80054530(obj, updateRate);
+            break;
+        case 9:
+            func_8001C0D8(obj, updateRate);
+            break;
+        case 10:
+            obj_loop_skycontrol(obj, updateRate);
+            break;
+        case 57:
+            obj_sprite_animate(obj, updateRate);
+            break;
+        case 62:
+            sprite_anim_once_update(obj, updateRate);
+            break;
+        case 35:
+            obj_loop_texture_animator(obj, updateRate);
+            break;
+        case 16:
+            func_80054530(obj, updateRate);
+            break;
+        case 11:
+            func_80054530(obj, updateRate);
+            break;
+        case 51:
+            func_800270C8(obj, updateRate);
+            break;
+        case 52:
+            obj_loop_zone_trigger(obj, updateRate);
+            break;
+        case 46: case 47: case 50:
+            func_80026FD4(obj, updateRate);
+            break;
+        case 95: case 150:
+            func_80054530(obj, updateRate);
+            break;
+        case 147:
+            func_800270EC(obj, updateRate);
+            break;
+        case 22:
+            func_80054530(obj, updateRate);
+            break;
+        case 55:
+            func_80054530(obj, updateRate);
+            break;
+        case 31:
+            zone_box_apply(obj, updateRate);
+            break;
+        case 32:
+            func_80054530(obj, updateRate);
+            break;
+        case 33:
+            func_80026D88(obj, updateRate);
+            break;
+        case 21:
+            func_80054530(obj, updateRate);
+            break;
+        case 39:
+            obj_explosion_update(obj, updateRate);
+            break;
+        case 162:
+            func_80054530(obj, updateRate);
+            break;
+        case 152:
+            func_80054530(obj, updateRate);
+            break;
+        case 69:
+            func_80054530(obj, updateRate);
+            break;
+        case 158:
+            func_80054530(obj, updateRate);
+            break;
+        case 159:
+            func_80054530(obj, updateRate);
+            break;
+        case 160:
+            func_80054530(obj, updateRate);
+            break;
+        case 155:
+            func_80054530(obj, updateRate);
+            break;
+        case 161:
+            func_80054530(obj, updateRate);
+            break;
+        case 153:
+            func_80054530(obj, updateRate);
+            break;
+        case 135:
+            func_80054530(obj, updateRate);
+            break;
+        case 154:
+            func_80054530(obj, updateRate);
+            break;
+        case 157:
+            func_80054530(obj, updateRate);
+            break;
+        case 156:
+            func_80054530(obj, updateRate);
+            break;
+        case 23:
+            func_80054530(obj, updateRate);
+            break;
+        case 24:
+            func_80054530(obj, updateRate);
+            break;
+        case 27:
+            func_80054530(obj, updateRate);
+            break;
+        case 149:
+            func_80054530(obj, updateRate);
+            break;
+        case 56:
+            func_80054530(obj, updateRate);
+            break;
+        case 40:
+            func_800291BC(obj, updateRate);
+            break;
+        case 41:
+            func_80054530(obj, updateRate);
+            break;
+        case 38:
+            obj_loop_chroma_sprite(obj, updateRate);
+            break;
+        case 43:
+            func_80054530(obj, updateRate);
+            break;
+        case 61:
+            func_80054530(obj, updateRate);
+            break;
+        case 66:
+            func_80054530(obj, updateRate);
+            break;
+        case 68:
+            func_80054530(obj, updateRate);
+            break;
+        case 36:
+            func_80054530(obj, updateRate);
+            break;
+        case 37:
+            func_80054530(obj, updateRate);
+            break;
+        case 64:
+            model_piece_update(obj, updateRate);
+            break;
+        case 70:
+            func_80054530(obj, updateRate);
+            break;
+        case 71:
+            func_80054530(obj, updateRate);
+            break;
+        case 72:
+            func_80054530(obj, updateRate);
+            break;
+        case 73:
+            obj_loop_falling_spark(obj, updateRate);
+            break;
+        case 74:
+            sparks_emitter_update(obj, updateRate);
+            break;
+        case 75:
+            obj_loop_drift(obj, updateRate);
+            break;
+        case 76:
+            func_80054530(obj, updateRate);
+            break;
+        case 78:
+            func_80054530(obj, updateRate);
+            break;
+        case 80:
+            obj_loop_pickup_trigger(obj, updateRate);
+            break;
+        case 81:
+            func_80054530(obj, updateRate);
+            break;
+        case 82:
+            func_80054530(obj, updateRate);
+            break;
+        case 88:
+            func_80054530(obj, updateRate);
+            break;
+        case 83:
+            func_80054530(obj, updateRate);
+            break;
+        case 85:
+            func_80054530(obj, updateRate);
+            break;
+        case 86:
+            func_80054530(obj, updateRate);
+            break;
+        case 163:
+            func_80054530(obj, updateRate);
+            break;
+        case 87:
+            func_80054530(obj, updateRate);
+            break;
+        case 166: case 167:
+            func_80054530(obj, updateRate);
+            break;
+        case 84: case 168:
+            func_80054530(obj, updateRate);
+            break;
+        case 89:
+            func_80054530(obj, updateRate);
+            break;
+        case 90:
+            func_80054530(obj, updateRate);
+            break;
+        case 92:
+            func_80054530(obj, updateRate);
+            break;
+        case 91:
+            func_80054530(obj, updateRate);
+            break;
+        case 93:
+            func_80054530(obj, updateRate);
+            break;
+        case 141:
+            func_80054530(obj, updateRate);
+            break;
+        case 94:
+            func_80054530(obj, updateRate);
+            break;
+        case 59:
+            func_80054530(obj, updateRate);
+            break;
+        case 164:
+            func_80054530(obj, updateRate);
+            break;
+        case 165:
+            func_80054530(obj, updateRate);
+            break;
+        case 96:
+            func_80054530(obj, updateRate);
+            break;
+        case 98:
+            func_80054530(obj, updateRate);
+            break;
+        case 100:
+            func_80054530(obj, updateRate);
+            break;
+        case 99:
+            func_80054530(obj, updateRate);
+            break;
+        case 102:
+            func_80054530(obj, updateRate);
+            break;
+        case 103:
+            func_80054530(obj, updateRate);
+            break;
+        case 104:
+            func_80054530(obj, updateRate);
+            break;
+        case 105:
+            func_80054530(obj, updateRate);
+            break;
+        case 108:
+            func_80054530(obj, updateRate);
+            break;
+        case 151:
+            func_80054530(obj, updateRate);
+            break;
+        case 109:
+            func_80054530(obj, updateRate);
+            break;
+        case 110:
+            func_80054530(obj, updateRate);
+            break;
+        case 111:
+            func_80054530(obj, updateRate);
+            break;
+        case 113:
+            func_80054530(obj, updateRate);
+            break;
+        case 114:
+            func_80054530(obj, updateRate);
+            break;
+        case 116:
+            func_80054530(obj, updateRate);
+            break;
+        case 117:
+            func_80054530(obj, updateRate);
+            break;
+        case 119:
+            func_80054530(obj, updateRate);
+            break;
+        case 120:
+            func_80054530(obj, updateRate);
+            break;
+        case 122:
+            func_80054530(obj, updateRate);
+            break;
+        case 123:
+            func_80054530(obj, updateRate);
+            break;
+        case 124:
+            func_80054530(obj, updateRate);
+            break;
+        case 125:
+            func_80054530(obj, updateRate);
+            break;
+        case 127:
+            func_80054530(obj, updateRate);
+            break;
+        case 128:
+            func_80054530(obj, updateRate);
+            break;
+        case 129:
+            func_80054530(obj, updateRate);
+            break;
+        case 130:
+            func_80054530(obj, updateRate);
+            break;
+        case 169:
+            func_80054530(obj, updateRate);
+            break;
+        case 170:
+            func_80054530(obj, updateRate);
+            break;
+        case 172:
+            func_80054530(obj, updateRate);
+            break;
+        case 171:
+            func_80054530(obj, updateRate);
+            break;
+        case 137: case 138:
+            func_80054530(obj, updateRate);
+            break;
+        case 173:
+            func_80054530(obj, updateRate);
+            break;
+        case 139:
+            func_80054530(obj, updateRate);
+            break;
+        case 174:
+            func_80054530(obj, updateRate);
+            break;
+        case 142:
+            func_80054530(obj, updateRate);
+            break;
+        case 132:
+            func_80054530(obj, updateRate);
+            break;
+        case 133:
+            func_80054530(obj, updateRate);
+            break;
+        case 134:
+            func_80054530(obj, updateRate);
+            break;
+        case 136:
+            func_80054530(obj, updateRate);
+            break;
+        case 143:
+            func_80054530(obj, updateRate);
+            break;
+        case 145:
+            func_80054530(obj, updateRate);
+            break;
+        case 146:
+            func_80054530(obj, updateRate);
+            break;
+    }
+    D_800A3348 = 4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 

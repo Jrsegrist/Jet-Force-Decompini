@@ -360,4 +360,4 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 
 | DKR file | Functions |
 | --- | --- |
-| `src/objects.c` | get_object_property_size (JFG 0x8000E680: JFG's object types and sizes, 8- and 16-byte aligned data, sizes from the model and the level entry) |
+| `src/objects.c` | get_object_property_size (JFG 0x8000E680: JFG's object types and sizes, 8- and 16-byte aligned data, sizes from the model and the level entry); run_object_init_func and run_object_loop_func (JFG 0x8000F028 and 0x8000FBF0: JFG's types, most handlers in runlink modules, the crash screen's update markers) |
