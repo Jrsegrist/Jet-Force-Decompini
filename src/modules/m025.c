@@ -123,13 +123,13 @@ extern void amCreateAudioMgr(M025SynConfig *c, s32 pri, void *sched);           
 extern void func_80084200(M025SndpConfig *config);                           /* DKR sndp_init_player */
 extern void func_80001EA0(void);                                             /* DKR audioStartThread */
 extern void func_80000450(s32 behaviour);                                    /* DKR sound_volume_change */
-extern void func_80003DB0(void);
+extern void osc_states_init(void);
 extern void func_8008B2A0(s32 arg0);
 extern void func_8008B374(s32 arg0, s32 arg1);
 extern void func_80096BB0(void *mq, void *msg, s32 count); /* osCreateMesgQueue */
 extern void func_80003E40(void);
 extern void osc_update(void);
-extern void func_8000474C(void);
+extern void osc_state_free(void);
 
 extern void *D_800A0660; /* DKR gMusicPlayer */
 extern void *D_800A0664; /* DKR gJinglePlayer */
@@ -321,7 +321,7 @@ void func_m025_00308(void *sched) {
     func_80001EA0();
     func_80000450(0);
     func_8004AA80(addrPtr);
-    func_80003DB0();
+    osc_states_init();
     func_8008B2A0(4);
     func_8008B374(0, 3);
     func_80096BB0(D_800E9780, D_800E9778, 1);
@@ -338,7 +338,7 @@ static void *M025SeqPlayerInit(s32 maxVoices, s32 maxEvents) {
     config.maxChannels = 16;
     config.heap = D_800E94E0;
     config.initOsc = func_80003E40;
-    config.stopOsc = func_8000474C;
+    config.stopOsc = osc_state_free;
     config.updateOsc = osc_update;
     cseqp = func_8008A624(NULL, 0, D_800E94E0, 1, 0x90);
     func_80086640(cseqp, &config);

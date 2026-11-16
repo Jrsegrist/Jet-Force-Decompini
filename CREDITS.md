@@ -58,7 +58,7 @@ Added in round 4 (JFG variants of DKR's code, DKR's `src/` and `include/` only):
 | `src/memory.c` | `src/memory.c` | mempool_init, mempool_alloc_safe, mempool_alloc, mempool_slot_find, mempool_slot_assign; mempool_slot_clear as NON_MATCHING C |
 | `src/audio.c` | `src/audio.c`, `.h` | music_sequence_stop, MusicData |
 | `src/2610.c` | `src/audiomgr.c` | __amMain, __amDMA, __clearAudioDMA (named in naming phase 1), AMDMABuffer and the DMA state |
-| `src/25A70.c` | `src/object_functions.c` | obj_init_torch_mist (the radius scaling of obj_init_torch_mist/func_80024F40) |
+| `src/25A70.c` | `src/object_functions.c` | obj_init_torch_mist (the radius scaling of obj_init_torch_mist/obj_init_scaled_by_radius) |
 | `src/3430.c` | `src/audio_spatial.c` | audspat_init |
 | `src/12D50.c` | `src/tracks.c` | get_inside_segment_count_xz |
 | `src/40240.c` | `src/camera.c` | cam_set_fov now matching, set_viewport_properties, mtx_ortho's copy loop (func_80042134, NON_MATCHING) |
@@ -157,9 +157,9 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | --- | --- |
 | `src/weather.c` | snow_render (with `include/f3ddkr.h`'s gSPPolygon and the Vertex layout of `include/structs.h`); snow_vertices (structure only, NON_MATCHING attempts not committed) |
 | `src/particles.c` | obj_trigger_emitter |
-| `src/camera.c` | func_80067D3C (as func_80040AA4) |
+| `src/camera.c` | func_80067D3C (as cam_view_matrices_set) |
 | `src/lights.c` | light_update (structure only) |
-| `src/tracks.c` | render_level_segment (func_80014EBC, NON_MATCHING body) |
+| `src/tracks.c` | render_level_segment (0x80014EBC, NON_MATCHING body) |
 | `src/textures_sprites.c` | sprite_init_frame (func_80056D24, NON_MATCHING body) |
 | `src/tracks.c` | init_track, generate_track, func_8002C954, func_8002C71C and LOCAL_OFFSET_TO_RAM_ADDRESS, in module 24 (`src/modules/m024.c`, JFG's forms) |
 
@@ -169,7 +169,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 
 | DKR file | Functions |
 | --- | --- |
-| `src/tracks.c` | render_level_segment (func_80014EBC) now matches; its round-7 NON_MATCHING body finished with the permuter |
+| `src/tracks.c` | render_level_segment (0x80014EBC) now matches; its round-7 NON_MATCHING body finished with the permuter |
 
 ## Tools and libraries
 
@@ -372,3 +372,16 @@ from the Diddy Kong Racing decompilation's `src/weather.c`, and the new `src/5DA
 | DKR file | Functions |
 | --- | --- |
 | `src/weather.c` | rain_render_splashes, as JFG's func_8005C188 in `src/5B700.c` (NON_MATCHING; JFG: 16 splashes, a ripple kind drawn as a textured quad, the floor and hit heights instead of the wave heights) |
+
+### Round 25 (namesmain25), main-segment names
+
+Names taken from the Diddy Kong Racing decompilation (CC0) for functions that were already C: the same
+function in DKR, matched by its call sites, arguments and data. Every other name of this round is our own,
+written from what the code does.
+
+| DKR file | Names |
+| --- | --- |
+| `src/tracks.c` | render_level_segment (0x80014EBC, the function credited to it in rounds 7 and 9) |
+| `src/objects.c` | set_world_shading (0x800224D0: JFG passes the shading as bytes, 0xAA/0x55 for DKR's 0.67/0.33) |
+| `src/weather.c` | snow_init (0x8005CBBC: JFG only clears the snow state and loads its texture) |
+| `src/audio_spatial.c` | audspat_calculate_echo (0x800037F8: empty in JFG, called with DKR's arguments from the same places) |

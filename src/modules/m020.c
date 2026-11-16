@@ -59,7 +59,7 @@ typedef struct M020Object {
     M020Vars unk88;
 } M020Object;
 
-extern void func_80079D1C(M020Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
+extern void obj_collision_spheres_init(M020Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
 extern void func_80003410(s32, f32, f32, f32, s32, s32 *);
 extern s32 func_80048E2C(s32, s32);
 extern void func_8005F5AC(M020Object *, s32);
@@ -82,7 +82,7 @@ void func_m020_00000(M020Object *obj, M020Setup *setup) {
     obj->unk3A = setup->unkA;
     obj->unk0 = (setup->unkC & 0xFF) << 10;
     if (setup->unkD != 0) {
-        func_80079D1C(obj, -1, 2, 1, 0, 0, 0, 20.0f, 10.0f, -1.0f, 1.0f, 0x11);
+        obj_collision_spheres_init(obj, -1, 2, 1, 0, 0, 0, 20.0f, 10.0f, -1.0f, 1.0f, 0x11);
     }
     if (obj->unk3A >= obj->unk40->unk1F) {
         obj->unk3A = 0;

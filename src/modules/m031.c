@@ -109,7 +109,7 @@ extern u8 D_800A4FD4;
 extern s8 D_800A4FEC;
 extern s8 D_800A503C;
 extern s32 gMenuTimer;
-extern void func_80047A20(void);
+extern void multiplayer_players_init(void);
 extern void func_80003614(s32 handle);
 extern s32 func_80055694(s32 id);
 extern void func_80055A00(s32 handle);
@@ -1189,7 +1189,7 @@ void func_m031_036E8(s32 arg0) {
     s32 i;
     s32 index;
 
-    func_80047A20();
+    multiplayer_players_init();
     index = D_800A4FC0;
     for (i = 0; i < 4; i++) {
         D_800FF1B8[i] = 0;

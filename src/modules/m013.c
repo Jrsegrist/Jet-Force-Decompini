@@ -58,7 +58,7 @@ typedef struct M013Player {
     /* 0x541 */ u8 unk541 : 4;
 } M013Player;
 
-/* What func_80047C1C returns */
+/* What char_record_lookup returns */
 typedef struct M013Weapons {
     /* 0x00 */ u8 pad0[0x70];
     /* 0x70 */ u8 weapon;
@@ -81,15 +81,15 @@ extern M013WeaponInfo gWeaponInfo[]; /* gWeaponInfo */
 extern s16 cam_get_active_camera_id(void);                    /* the active camera's number */
 extern void set_active_camera(s32 camera);             /* sets the active camera */
 extern ObjectTransform *cam_get_active_camera(void);
-extern M013Weapons *func_80047C1C(s32 player, s32 character);
-extern void func_8003B418(Object *obj, M013Player *p, f32 *x, f32 *y, f32 *z); /* where the aim starts */
+extern M013Weapons *char_record_lookup(s32 player, s32 character);
+extern void player_aim_origin_get(Object *obj, M013Player *p, f32 *x, f32 *y, f32 *z); /* where the aim starts */
 extern s32 func_8007BCD0(Object *obj, f32 dist, f32 *distOut);
 extern void viewport_apply(Gfx **dList, Mtx **mtx);
 extern void rendermode_reset(Gfx **dList);
 extern void func_80055C00(Gfx **dList, void *tex, s32 arg2, s32 arg3);
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* the distance to the camera */
 extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 arg5); /* projects to the screen */
-extern s32 func_800373E4(M013Weapons *w, s32 weapon);                              /* the weapon's ammo capacity */
+extern s32 weapon_ammo_capacity(M013Weapons *w, s32 weapon);                              /* the weapon's ammo capacity */
 extern void s32_to_decimal_string(char *buf, s32 value, s32 arg2);                          /* writes a number */
 extern void debug_text_add(s16 x, s16 y, char *text);                               /* draws a text */
 extern void screen_line_add_in_window(s16 x0, s16 y0, s16 x1, s16 y1, s32 colour, s32 window); /* draws a line */
@@ -226,13 +226,13 @@ void func_m013_00008(Object *obj, M013Player *p, s32 arg2) {
     camId = cam_get_active_camera_id();
     set_active_camera(p->player);
     cam = cam_get_active_camera();
-    w = func_80047C1C(p->player, p->character);
+    w = char_record_lookup(p->player, p->character);
     weapon = w->weapon;
     trans.scale = 0.8f;
     trans.rotation.y_rotation = -0x8000 - cam->rotation.y_rotation;
     trans.rotation.x_rotation = -cam->rotation.x_rotation;
     trans.rotation.z_rotation = 0;
-    func_8003B418(obj, p, &trans.x_position, &trans.y_position, &trans.z_position);
+    player_aim_origin_get(obj, p, &trans.x_position, &trans.y_position, &trans.z_position);
     info = &gWeaponInfo[weapon];
     range = (f32) (info->unk7 * 6) * info->range;
     if (range > 3000.0f) {
@@ -311,10 +311,10 @@ void func_m013_004A8(M013Player *p, s16 x, s16 y, ObjectTransform *trans, f32 di
     s32 locked;
     Gfx *gfx;
 
-    w = func_80047C1C(p->player, p->character);
+    w = char_record_lookup(p->player, p->character);
     entry = &sCrosshairs[w->weapon];
     line = entry->lines;
-    ammo = func_800373E4(w, w->weapon);
+    ammo = weapon_ammo_capacity(w, w->weapon);
     player = p->player;
     count = entry->count;
     locked = p->locked;

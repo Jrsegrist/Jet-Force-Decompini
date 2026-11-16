@@ -62,7 +62,7 @@ void func_m153_00000(Object *obj, M153Setup *setup) {
     obj->trans.rotation.x_rotation = setup->x_rotation;
     obj->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF);
     obj->unk28 = 0.0f;
-    func_80079D1C(obj, setup->size << 8, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
+    obj_collision_spheres_init(obj, setup->size << 8, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
     b->timer = func_80005064(setup->lifetime * 6);
     b->size = setup->size;
     b->thrower = setup->thrower;

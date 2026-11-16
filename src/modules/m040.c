@@ -254,7 +254,7 @@ void func_m040_0019C(s32 updateRate) {
     sTiltList[1] = sTurn[0];
     sTiltList[2] = 0x1000;
     obj = D_800FF3F8[0x84];
-    func_8001138C(obj, -0.02f, updateRate);
+    obj_anim_frame_advance(obj, -0.02f, updateRate);
     inst = *(M040Instance **) obj->modelInstances;
     model = inst->model;
     inst->unkA = updateRate;

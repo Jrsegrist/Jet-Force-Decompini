@@ -208,7 +208,7 @@ void func_800492DC(Obj7E *obj, Vec3f *v);
 /* JFG: set up an object's hit set (at obj+0x4C): its centre offset by the rotated (rx, ry, rz) times the
    scale, the scaled radii and the other values, then place its collision spheres on the model as
    obj_update_collision_spheres does, with fresh radii. */
-void func_80079D1C(Obj7E *obj, s32 arg1, s32 arg2, s32 arg3, s16 rx, s16 ry, s16 rz, f32 radius, f32 radius2,
+void obj_collision_spheres_init(Obj7E *obj, s32 arg1, s32 arg2, s32 arg3, s16 rx, s16 ry, s16 rz, f32 radius, f32 radius2,
                    f32 arg9, f32 arg10, u16 argB) {
     f32 pos[3];
     SphereSet *set;
@@ -600,8 +600,8 @@ typedef struct PushObj {
     /* 0x68 */ void *data;
 } PushObj;
 
-/* JFG: push the player (horizontally) out of every sphere of another object's set its spheres overlap. */
-void func_8007CCF0(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *otherSet) {
+/* JFG: push the player (horizontally) out of every sphere of another object's set its spheres overlap (0x8007CCF0). */
+void player_spheres_push_out(PushObj *obj, SphereSet *set, PushObj *other, SphereSet *otherSet) {
     PushPlayer *player = obj->data;
     s32 flag = 0;
     s32 i;
@@ -676,8 +676,8 @@ void spheres_push_out(f32 *x, f32 *y, f32 *z, f32 radius, SphereSet *set) {
     *z = pz;
 }
 
-/* JFG: TRUE if the sphere overlaps any sphere of the set. */
-s32 func_8007D0B4(CollisionSphere *sphere, SphereSet *set) {
+/* JFG: TRUE if the sphere overlaps any sphere of the set (0x8007D0B4). */
+s32 sphere_overlaps_set(CollisionSphere *sphere, SphereSet *set) {
     s32 i = set->count;
     CollisionSphere *other = set->spheres;
     f32 x = sphere->pos.x;
@@ -1327,7 +1327,7 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80082D80);
 
 /* JFG: the C form of func_8001D464 for three axes: clamp the range to the box, split each axis of the box into
  * 8 cells and return a 24-bit mask of the cells the range overlaps (x in bits 0-7, z in 8-15, y in 16-23). */
-s32 func_800835E0(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ) {
+s32 box_range_cell_mask(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ) {
     s32 mask;
     s32 bit;
     u32 i;

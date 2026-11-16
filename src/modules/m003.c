@@ -350,7 +350,7 @@ extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2
 extern void func_m003_0DF84(); /* (Object *obj, void *entry); one C caller passes nothing */
 extern void func_m003_15ED8(s32 arg0, s32 arg1);
 extern void func_m003_16530(void);
-extern void *func_80050F44(s32 *count);
+extern void *troop_list_get(s32 *count);
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 extern s32 func_m003_16F44(f32 x, f32 z, M003Region *region);
 /* Where a segment leaves a region */
@@ -389,7 +389,7 @@ extern s32 func_80049668(s16 angle); /* cosine */
 extern s32 troop_find_by_tag(s32 arg0);
 extern s32 objflag_get(s32 arg0);
 extern Object *func_80005F14(void *entry, s32 arg1);
-extern void func_80048130(s32 arg0, s32 arg1);
+extern void region_mark_set(s32 arg0, s32 arg1);
 extern void obj_spawn_bonus(f32 x, f32 y, f32 z, s32 arg3);
 extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern s32 D_800FE9F8;
@@ -751,7 +751,7 @@ void func_m003_00AF4(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
     func_m003_04F88(3, 1.0f);
     if (0xFF - D_800FE9F8 * 4 < sMember->unk55) {
-        func_80048130(sHomeData->unk64, 1);
+        region_mark_set(sHomeData->unk64, 1);
         func_m003_09FF0(obj);
     } else {
         sMember->unk55 += D_800FE9F8 * 4;
@@ -1221,8 +1221,8 @@ static M003PathNode *func_m003_01D3C(M003PathNode *node) {
 
 extern s32 D_800FEA58[]; /* each path group's D_801045B0 path */
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern s32 func_80079B6C(void);                   /* a free D_801045B0 slot, or -1 */
-extern M003AnimPath *func_80079AA4(Object *obj);  /* the path an object is on */
+extern s32 anim_path_free_slot(void);                   /* a free D_801045B0 slot, or -1 */
+extern M003AnimPath *anim_path_for_obj(Object *obj);  /* the path an object is on */
 extern void anim_path_spawn_object(u8 index);
 s32 func_m003_061FC(void);
 
@@ -1243,12 +1243,12 @@ static void func_m003_01EB8(void) {
     M003PathNode *from;
     s32 i;
 
-    index = func_80079B6C();
+    index = anim_path_free_slot();
     sHomeData->group = func_m003_061FC();
     if (sHomeData->group != -1 && index != -1) {
         D_801045B0[index] = func_8004A57C(sizeof(M003AnimPath), 0xFFFF00FF);
         D_800FEA58[sHomeData->group] = index;
-        src = func_80079AA4(sHomeData->leader);
+        src = anim_path_for_obj(sHomeData->leader);
         if (src != NULL) {
             path = D_801045B0[index];
             g = sHomeData->group;
@@ -1303,7 +1303,7 @@ static void func_m003_01EB8(void) {
             } while (i--);
             path->obj->trans.flags |= 0x400;
             sGroupNodes[sHomeData->group] = from;
-            ((void (*)(u8)) func_800767EC)(index); /* module.h declares it unprototyped */
+            ((void (*)(u8)) anim_path_enable_run)(index); /* module.h declares it unprototyped */
             sHomeData->leader = path->obj;
             sHomeData->unk79 = 1;
             path->curNode = path->nodes->next;
@@ -2378,7 +2378,7 @@ s32 func_m003_04F88(s32 kind, f32 speed) {
     if (kind == sMember->unk4B) {
         anims = func_m003_04428(sObj);
         sMember->unk60 = sObj->unk28;
-        result = func_8001138C(sObj, func_m003_044B4() * speed, sUpdateRate);
+        result = obj_anim_frame_advance(sObj, func_m003_044B4() * speed, sUpdateRate);
         if (result) {
             if (sHomeData->kind == 0xBD) {
                 flash = &sMember->unkA8;
@@ -2663,7 +2663,7 @@ s32 func_m003_061FC(void) {
     Object **homes;
     s32 used;
 
-    homes = func_80050F44(&count);
+    homes = troop_list_get(&count);
     used = 0;
     while (count--) {
         used |= 1 << ((M003Home *) homes[count]->unk68)->group;
@@ -3025,7 +3025,7 @@ void func_m003_09A14(Object *obj) {
     UNUSED s32 pad1;
 
     objs = func_80005E98(&first, &count);
-    homes = func_80050F44(&numHomes);
+    homes = troop_list_get(&numHomes);
     m = obj->unk68;
     ((M003Group *) &m->group)->inactive = TRUE;
     home = m->home;
@@ -3196,7 +3196,7 @@ void func_m003_0A110(Object *obj, UNUSED s32 arg1) {
     f32 dy;
 
     alarm = obj->unk68;
-    homes = func_80050F44(&count);
+    homes = troop_list_get(&count);
     while (count--) {
         home = homes[count];
         h = home->unk68;
@@ -4026,7 +4026,7 @@ static void func_m003_0D360(Object *home) {
                 sObj->trans.scale = 1.0f;
             }
             header = (M003Header *) sObj->header;
-            func_80079D1C(sObj, sHomeData->unk2A, header->hitKind, 0x10, header->hitX, header->hitY, header->hitZ,
+            obj_collision_spheres_init(sObj, sHomeData->unk2A, header->hitKind, 0x10, header->hitX, header->hitY, header->hitZ,
                           header->hitRadius, header->hitHeight, -1.0f, 1.0f, 0x11);
             /* the object's word at 0x34: its hit radius at its size */
             *(f32 *) ((u8 *) sObj + 0x34) = ((M003Header *) sObj->header)->hitRadius * sObj->trans.scale;
@@ -4621,7 +4621,7 @@ static void func_m003_13FE4(s32 updateRate) {
     s32 count;
     Object **homes;
 
-    homes = func_80050F44(&count);
+    homes = troop_list_get(&count);
     if (D_800FE9F4 < updateRate) {
         D_800FE9F4 = func_80048E2C(0xF0, 0x168);
         pick = func_80048E2C(0, 5);
@@ -4835,7 +4835,7 @@ void func_m003_165D8(void) {
     s32 i;
     void *data;
 
-    data = func_80050F44(&i);
+    data = troop_list_get(&i);
     if (D_800FEA9C != NULL) {
         func_8004AA80(D_800FEA9C);
         D_800FEA9C = NULL;
@@ -5092,7 +5092,7 @@ void func_m003_16D78(void) {
     s32 count;
     s32 ok;
 
-    homes = func_80050F44(&count);
+    homes = troop_list_get(&count);
     if (sBssA < 10) {
         return;
     }

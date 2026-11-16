@@ -1,10 +1,10 @@
 #include "common.h"
 
 s32 func_80054530(); // a module function (patched in by the runtime linker)
-u8 func_80048548(void); // the number of cameras
+u8 camera_count_get(void); // the number of cameras
 s32 fb_mode(void);
 void fb_size(u32 *width, u32 *height);
-s32 func_8005AA7C(void); // the two-player screen is split vertically
+s32 options_split_vertical_get(void); // the two-player screen is split vertically
 void rendermode_reset(Gfx **dList);
 extern Gfx D_800A3540[];
 
@@ -23,7 +23,7 @@ void splitscreen_dividers_draw(Gfx **dList) {
     Gfx *gfx;
 
     if (func_80054530()) {
-        numViews = func_80048548();
+        numViews = camera_count_get();
         mode = fb_mode();
         if (numViews >= 2) {
             gfx = *dList;
@@ -31,7 +31,7 @@ void splitscreen_dividers_draw(Gfx **dList) {
             halfWidth = width >> 1;
             halfHeight = height >> 1;
             gSPDisplayList(gfx++, D_800A3540);
-            if (numViews >= 3 || (numViews == 2 && !(mode & 1) && !func_8005AA7C())) {
+            if (numViews >= 3 || (numViews == 2 && !(mode & 1) && !options_split_vertical_get())) {
                 gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, 0);
                 gDPFillRectangle(gfx++, 0, halfHeight - 2, width, halfHeight + 2);
                 gDPPipeSync(gfx++);
@@ -39,7 +39,7 @@ void splitscreen_dividers_draw(Gfx **dList) {
                 gDPFillRectangle(gfx++, 0, halfHeight - 1, width, halfHeight + 1);
                 gDPPipeSync(gfx++);
             }
-            if (numViews >= 3 || (numViews == 2 && ((mode & 1) || func_8005AA7C()))) {
+            if (numViews >= 3 || (numViews == 2 && ((mode & 1) || options_split_vertical_get()))) {
                 gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, 0);
                 gDPFillRectangle(gfx++, halfWidth - 2, 0, halfWidth + 2, height);
                 gDPPipeSync(gfx++);

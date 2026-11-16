@@ -50,7 +50,7 @@ typedef struct M104PlayerData {
     /* 0x1 */ s8 unk1;
 } M104PlayerData;
 
-/* What func_80047C1C returns */
+/* What char_record_lookup returns */
 typedef struct M104PlayerStats {
     /* 0x0 */ u8 pad0[2];
     /* 0x2 */ s16 healthUpgrades;
@@ -62,7 +62,7 @@ typedef struct M104PlayerStats {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
-extern M104PlayerStats *func_80047C1C(s32 player, s32 arg1);
+extern M104PlayerStats *char_record_lookup(s32 player, s32 arg1);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 extern void sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
@@ -155,7 +155,7 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
             func_800079B8(obj);
             return;
         }
-        func_8001138C(obj, 0.01f, updateRate);
+        obj_anim_frame_advance(obj, 0.01f, updateRate);
     } else {
         anim = 9;
         sprite_anim_advance(obj->modelInstances[obj->modelIndex], &anim, 12, &obj->unk28, updateRate);
@@ -194,7 +194,7 @@ void func_m104_001F0(Object *obj, s32 updateRate) {
                 hit = list[0]->interactObj;
                 pd = list[0]->unk68;
                 if (hit->hitPoints >= 0x100) {
-                    stats = func_80047C1C(pd->player, pd->unk1);
+                    stats = char_record_lookup(pd->player, pd->unk1);
                     if (p->objectID == 0xE9) {
                         if (stats->healthUpgrades < 12) {
                             stats->healthUpgrades++;

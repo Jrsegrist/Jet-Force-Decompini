@@ -38,16 +38,16 @@ void func_m094_00030(Object *obj, s32 updateRate) {
         if (func_800468B0() == t->level && game_flag_get(t->flag) != 0) {
             switch (t->action) {
                 case 0:
-                    func_80079BB8();
+                    sequence_hold();
                     break;
                 case 1:
-                    func_80079BA8();
+                    sequence_resume();
                     break;
                 case 2:
-                    func_800767EC(t->arg.b[1]);
+                    anim_path_enable_run(t->arg.b[1]);
                     break;
                 case 3:
-                    func_8007688C(t->arg.b[1]);
+                    anim_path_disable_run(t->arg.b[1]);
                     break;
                 case 4:
                     func_80076928(t->arg.b[1]);

@@ -62,12 +62,13 @@ void shadow_buffers_free(void) {
     }
 }
 
-/* JFG: flip between two buffers. */
-void func_8001D9B4(void) {
+/* JFG: flip between two buffers (0x8001D9B4). */
+void shadow_buffers_flip(void) {
     D_800A0EC8 ^= 1;
 }
 
-void func_8001D9D0(s32 flags, s32 *a, s32 *b, s32 *c) {
+/* The current shadow buffers (0x8001D9D0). */
+void shadow_heap_current_ptrs(s32 flags, s32 *a, s32 *b, s32 *c) {
     s32 index = D_800A0EC8;
     if (flags & 2) {
         index += 2;

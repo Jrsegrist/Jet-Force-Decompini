@@ -324,7 +324,7 @@ void func_m067_00D70(Object *obj, M067Setup *setup) {
     s->unk3C[4] = 255;
     s->unk3C[5] = 255;
     header = (M067Header *) obj->header;
-    func_80079D1C(obj, 0xF00, 1, 1, header->hitX, header->hitY, header->hitZ, header->hitRadius,
+    obj_collision_spheres_init(obj, 0xF00, 1, 1, header->hitX, header->hitY, header->hitZ, header->hitRadius,
                   header->hitHeight, -1.0f, 1.0f, 1);
     ((u8 *) obj->interactObj)[0x31] = 255;
     if (!runlink_module_loaded(0x27)) {
@@ -496,7 +496,7 @@ void func_m067_038C0(Object *obj, M067ShotSetup *setup) {
     s->unk0 = setup->unk18;
     s->strength = setup->strength;
     s->unk7 = 0;
-    func_80079D1C(obj, s->strength << 8, 1, 4, 0, 0, 0, 80.0f, 80.0f, 100.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, s->strength << 8, 1, 4, 0, 0, 0, 80.0f, 80.0f, 100.0f, 1.0f, 0x11);
 }
 
 /* A bolt: spins and flies until its time is up, and bursts when it hits something */
@@ -615,7 +615,7 @@ void func_m067_03F08(Object *obj, M067ShotSetup *setup) {
     s->timer = setup->time * 6;
     s->strength = setup->strength;
     s->unk7 = 0;
-    func_80079D1C(obj, s->strength << 8, 1, 4, 0, 0, 0, 10.0f, 10.0f, 100.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, s->strength << 8, 1, 4, 0, 0, 0, 10.0f, 10.0f, 100.0f, 1.0f, 0x11);
 }
 
 /* The level entry of a piece a rock breaks into */

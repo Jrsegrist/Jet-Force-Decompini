@@ -67,15 +67,15 @@ typedef struct M131Hit {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
-extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
+extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
 extern void track_light_off(f32 *light);
 extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_800496B0(s32 arg0, Object *obj, f32 *in, f32 *out);
-extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
-extern void func_80056064(void);
+extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void draw_tint_pair_off(void);
 extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M131Sprite *sprite, void *model, s32 arg5, s32 arg6);
 
 s32 D_m131_007C0 = 131; /* the module's number */
@@ -113,9 +113,9 @@ void func_m131_00000(Object *obj, M131Setup *setup) {
     s->shooter = setup->shooter;
     s->swingRadius = sSwingRadius[size];
     s->glow = 0xFE - size;
-    func_80079D1C(obj, setup->strength << 8, 1, 4, 0, 0, 0, sHitSize[size], sHitSize[size], -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, setup->strength << 8, 1, 4, 0, 0, 0, sHitSize[size], sHitSize[size], -1.0f, 1.0f, 0x11);
     OBJ_STATE(obj, M131State)->swingAngle = 0;
-    OBJ_STATE(obj, M131State)->light = (s32) func_80013E0C(obj->trans.x_position, obj->trans.y_position,
+    OBJ_STATE(obj, M131State)->light = (s32) track_light_create(obj->trans.x_position, obj->trans.y_position,
                                                            obj->trans.z_position, 400.0f, 250.0f, 0x40, 0x20, 0xFF);
 }
 
@@ -220,10 +220,10 @@ void func_m131_005BC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         sprite.trans.x_position += obj->trans.x_position;
         sprite.trans.y_position += obj->trans.y_position;
         sprite.trans.z_position += obj->trans.z_position;
-        func_8005600C(colour->r, colour->g, colour->b, colour->r2, colour->g2, colour->b2);
+        draw_tint_pair_set(colour->r, colour->g, colour->b, colour->r2, colour->g2, colour->b2);
         render_sprite_billboard(dl, arg1, arg2, &sprite, model, 14, 255);
     }
-    func_80056064();
+    draw_tint_pair_off();
     gDPPipeSync((*dl)++);
     gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
     gDPSetEnvColor((*dl)++, 255, 255, 255, 255);

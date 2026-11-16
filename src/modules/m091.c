@@ -67,7 +67,7 @@ typedef struct M091PreyData {
     /* 0x0E */ u8 inWater;
 } M091PreyData;
 
-extern s32 func_80048558(void);
+extern s32 player_count_get(void);
 extern s32 track_height_at(f32 x, f32 z, f32 *y, s32 mask); /* the water level at x, z */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern s16 angle_lerp(s16 from, s16 to, f32 t);              /* steps an angle towards another */
@@ -245,7 +245,7 @@ void func_m091_005C4(Object *obj, s32 updateRate) {
     M091Fish *fish;
 
     runlink_unload_timer_set(D_m091_00F20, 2, 2);
-    if (func_80048558() >= 2) {
+    if (player_count_get() >= 2) {
         func_800079B8(obj);
         return;
     }
@@ -397,7 +397,7 @@ void func_m091_005C4(Object *obj, s32 updateRate) {
         func_8004944C(&obj->trans.rotation, &obj->velocity);
     }
     func_80009A04(obj, obj->velocity.x * rate2, obj->velocity.y * rate2, obj->velocity.z * rate2);
-    func_8001138C(obj, fish->speed * 0.03125f, rate);
+    obj_anim_frame_advance(obj, fish->speed * 0.03125f, rate);
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m091/ro", func_m091_005C4);

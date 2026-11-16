@@ -38,7 +38,7 @@ extern void *mempool_alloc_safe(s32 size, s32 colour);
 extern void mempool_free(void *data);
 extern s32 normalise_time(s32 time);
 extern s32 fb_mode(void);
-extern s32 func_8005AA7C(s32 player);
+extern s32 options_split_vertical_get(s32 player);
 extern void fb_scale_coords(s32 *x, s32 *y);
 extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
 extern void func_80098360(void *data, s32 size);  /* clears */
@@ -146,7 +146,7 @@ void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y) {
     hiRes = fb_mode();
     corner *= 2;
     if (D_800A4FD0 == 2) {
-        if ((hiRes & 1) || func_8005AA7C(player)) {
+        if ((hiRes & 1) || options_split_vertical_get(player)) {
             offsetX = D_m006_01A94[player + 2][0];
             offsetY = D_m006_01A94[player + 2][1];
             coords = D_m006_01A84;

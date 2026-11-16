@@ -697,8 +697,8 @@ void sprite_free(void *sprite);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
 void colour_cycle_init(void *cycle, s32 assetID);
 
-/* JFG: (re)set a sprite object from its entry. */
-void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
+/* JFG: (re)set a sprite object from its entry (0x8002993C). */
+void chroma_sprite_reset(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
     ChromaSpriteState *data = obj->data;
 
     sprite_free(*obj->sprite);
@@ -778,8 +778,8 @@ typedef struct Zone {
 extern Zone D_800F6B60[16];
 extern s32 D_800A11B4;
 
-/* JFG: mark all 16 zones unused and zero D_800A11B4 (the zone test is skipped while it is zero). */
-void func_80029B78(void) {
+/* JFG: mark all 16 zones unused and zero D_800A11B4 (the zone test is skipped while it is zero) (0x80029B78). */
+void zones_reset(void) {
     Zone *zone = D_800F6B60;
     s32 i = 16;
     while (i--) {

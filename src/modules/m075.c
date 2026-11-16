@@ -60,7 +60,7 @@ typedef struct M075Racer {
     /* 0x5C8 */ s16 unk5C8;
 } M075Racer;
 
-/* A character's record (func_80047C1C) */
+/* A character's record (char_record_lookup) */
 typedef struct M075Character {
     /* 0x00 */ u8 pad0[0x12];
     /* 0x12 */ s16 tokens;
@@ -101,7 +101,7 @@ extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_80049D80(s32 from, s32 to); /* the difference between two angles */
 extern s32 character_has_item(s32 player, s32 character, s32 item); /* whether the character has the item */
 extern s32 func_80043510(s32 player);                      /* the buttons pressed */
-extern M075Character *func_80047C1C(s32 player, s32 character);
+extern M075Character *char_record_lookup(s32 player, s32 character);
 extern void func_80001170(s32 arg0);
 extern void func_80048518(s32 arg0);
 extern u8 menu_mode_get(void);
@@ -313,7 +313,7 @@ void func_m075_004FC(Object *obj, s32 updateRate) {
                     racer->cabinetMode = 2;
                     state->player = NULL;
                 } else if (!state->credit && (buttons & 0x8000)) {
-                    chr = func_80047C1C(racer->player, racer->character);
+                    chr = char_record_lookup(racer->player, racer->character);
                     if (chr->tokens > 0) {
                         func_80001170(13);
                         chr->tokens--;

@@ -81,7 +81,7 @@ typedef struct M124Model {
 
 extern s32 func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern void light_intensity_set(s32 light, u8 intensity);
-extern s32 func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
+extern s32 track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
 extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
 extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
 
@@ -125,7 +125,7 @@ static void update_beam_light(Object *obj, M124Light *l) {
         if (l->beamLight != 0) {
             track_light_set_position(l->beamLight, x, y, z);
         } else {
-            l->beamLight = func_80013E0C(x, y, z, radius, radius * 0.4f, (l->r * l->intensity) >> 8,
+            l->beamLight = track_light_create(x, y, z, radius, radius * 0.4f, (l->r * l->intensity) >> 8,
                                          (l->g * l->intensity) >> 8, (l->b * l->intensity) >> 8);
         }
     }
@@ -234,7 +234,7 @@ void func_m124_002B0(Object *obj, M124Setup *setup) {
         update_beam_light(obj, l);
     }
     obj->modelIndex = 0;
-    func_80079D1C(obj, setup->health << 8, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, setup->health << 8, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     model = *(M124Model **) obj->modelInstances;
     if (model != NULL) {
         dst = model->vertices;

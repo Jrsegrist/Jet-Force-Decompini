@@ -80,8 +80,8 @@ void set_screen_dialogue_box_size(s32 width, s32 height) {
     box->height = height;
 }
 
-/* JFG: set a text mode byte. */
-void func_8006FC14(s32 mode) {
+/* JFG: set a text mode byte (0x8006FC14). */
+void text_colour_mode_set(s32 mode) {
     D_8010410D = mode;
 }
 
@@ -153,7 +153,7 @@ void draw_dialogue_text_pos_unused(Gfx **displayList, s32 dialogueBoxID, s32 xpo
 
 extern u8 *D_80104108; // JFG: the buffer render_text_string converts its text into
 extern u8 D_8010410C;  // JFG: compact kerning (one pixel less per two-byte character)
-extern u8 D_8010410D;  // JFG: glyph colours on (the text mode byte func_8006FC14 sets)
+extern u8 D_8010410D;  // JFG: glyph colours on (the text mode byte text_colour_mode_set sets)
 extern u8 *D_801040F8; // JFG: the glyph cache's image data
 extern u8 *D_801040E8[]; // JFG: per font, the width of each two-byte character
 void fontConvertString(u8 *in, u8 *out);
@@ -1148,6 +1148,7 @@ u8 *func_8007216C(s32 font, u8 *text, s32 maxWidth, u8 **lineStart) {
 INCLUDE_ASM("asm/nonmatchings/707F0", func_8007216C);
 #endif
 
-u8 func_8007230C(s32 font) {
+/* A font's line height (0x8007230C). */
+u8 font_line_height(s32 font) {
     return gFonts[font].lineHeight;
 }

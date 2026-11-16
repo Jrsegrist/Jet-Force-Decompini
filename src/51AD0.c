@@ -47,7 +47,8 @@ struct TroopObject {
 extern s32 D_800FE9F0;
 extern TroopObject **D_800A38E4;
 
-TroopObject **func_80050F44(s32 *count) {
+/* The troop object list and its count (0x80050F44). */
+TroopObject **troop_list_get(s32 *count) {
     *count = D_800FE9F0;
     return D_800A38E4;
 }

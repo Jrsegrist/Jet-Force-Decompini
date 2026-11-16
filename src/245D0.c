@@ -266,7 +266,7 @@ typedef struct CoronaCamera {
 } CoronaCamera;
 
 CoronaCamera *cam_get_active_camera(void);
-s32 func_80045A14(s32 rect);
+s32 screen_rect_visible(s32 rect);
 s8 screen_rect_queue(s32 x, s32 y, s32 size);
 s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
 
@@ -302,7 +302,7 @@ void func_80024044(void) {
                 i = 0;
             }
             if (corona->active & 0x20) {
-                if (func_80045A14(corona->unk37) == 0) {
+                if (screen_rect_visible(corona->unk37) == 0) {
                     corona->opacity += 8;
                     if (corona->opacity > 16) {
                         corona->opacity = 16;

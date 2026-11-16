@@ -14,8 +14,8 @@ typedef struct FreeNode {
 extern FreeNode *D_800F2B10;
 extern FreeNode D_800F2B18[16];
 
-/* JFG: link all the nodes into the free list. */
-void func_80003DB0(void) {
+/* JFG: link all the nodes into the free list (0x80003DB0). */
+void osc_states_init(void) {
     s32 i;
     FreeNode *node;
 
@@ -53,7 +53,7 @@ typedef struct OscState {
     } data;
 } OscState;
 
-f32 func_80004768(u8 depth);
+f32 osc_depth_to_ratio(u8 depth);
 f32 alCents2Ratio(s32 cents);
 
 #ifdef NON_MATCHING
@@ -104,7 +104,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
                 *initVal = osc->data.tsin.halfDepth;
                 break;
             case 0x80:
-                osc->data.depthcents = func_80004768(oscDepth);
+                osc->data.depthcents = osc_depth_to_ratio(oscDepth);
                 osc->curCount = 0;
                 osc->cycleSpan = 259 - oscRate;
                 *initVal = 1.0f;
@@ -113,7 +113,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
                 osc->cycleSpan = 256 - oscRate;
                 osc->curCount = 256 - oscRate;
                 osc->stateFlags = 0;
-                cents = func_80004768(oscDepth);
+                cents = osc_depth_to_ratio(oscDepth);
                 osc->data.vsqr.loRatio = alCents2Ratio(-cents);
                 osc->data.vsqr.hiRatio = alCents2Ratio(cents);
                 *initVal = osc->data.vsqr.hiRatio;
@@ -121,7 +121,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
             case 0x82:
                 osc->cycleSpan = 256 - oscRate;
                 osc->curCount = 256 - oscRate;
-                cents = func_80004768(oscDepth);
+                cents = osc_depth_to_ratio(oscDepth);
                 osc->data.vsaw.hiCents = cents;
                 osc->data.vsaw.detuneScale = cents * 2;
                 *initVal = alCents2Ratio(cents);
@@ -129,7 +129,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
             case 0x83:
                 osc->cycleSpan = 256 - oscRate;
                 osc->curCount = 256 - oscRate;
-                cents = func_80004768(oscDepth);
+                cents = osc_depth_to_ratio(oscDepth);
                 osc->data.vsaw.hiCents = -cents;
                 osc->data.vsaw.detuneScale = cents * 2;
                 *initVal = alCents2Ratio(-cents);
@@ -226,14 +226,14 @@ s32 osc_update(void *oscState, f32 *updateVal) {
     return deltaTime;
 }
 
-/* JFG: push a node onto a free list. */
-void func_8000474C(FreeNode *node) {
+/* JFG: push a node onto a free list (0x8000474C). */
+void osc_state_free(FreeNode *node) {
     node->next = D_800F2B10;
     D_800F2B10 = node;
 }
 
-/* JFG: 1.030993 (the ratio of about 53 cents) raised to the power of depth (by squaring). */
-f32 func_80004768(u8 depth) {
+/* JFG: 1.030993 (the ratio of about 53 cents) raised to the power of depth (by squaring) (0x80004768). */
+f32 osc_depth_to_ratio(u8 depth) {
     f32 base = 1.030993f;
     f32 result = 1.0f;
 

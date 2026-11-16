@@ -30,11 +30,11 @@
 extern void func_800079B8(Object *obj);                      /* DKR free_object */
 extern void obj_spawn_particle(Object *obj, s32 updateRate); /* DKR */
 /* advances the object's animation */
-extern s32 func_8001138C(Object *obj, f32 speed, f32 updateRate);
+extern s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 updateRate);
 /* sets the object's animation and its position in it */
 extern void obj_anim_set(Object *obj, s32 anim, f32 frame);
 /* sets the object's hit box / collision */
-extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
+extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 
 /* Collision: sweeps a sphere from `from` to `to`, and finds what it hits (returns 1 or 0) */
@@ -73,12 +73,12 @@ extern void *func_m010_0000C(SparkParams *spark); /* returns the spark (callers 
  * scripted animations. Some callers pass (anim, updateRate, obj, 1), others
  * only the first argument, so the original had no prototype in scope for them.
  */
-extern void func_800767EC();
-extern void func_8007688C();
+extern void anim_path_enable_run();
+extern void anim_path_disable_run();
 extern void func_80076928();
 extern void sequence_start();
-extern void func_80079BA8();
-extern void func_80079BB8();
+extern void sequence_resume();
+extern void sequence_hold();
 
 /*
  * The description of an object light, for func_800210A4 (which adds one to

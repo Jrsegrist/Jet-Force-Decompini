@@ -17,7 +17,7 @@ extern s32 func_80042FEC(void);
 extern void tex_init_textures(void);
 extern void allocate_object_model_pools(void);
 extern void func_m034_00000(void);
-extern void func_80029B78(void);
+extern void zones_reset(void);
 extern void func_800436C0(void *arg0, void *arg1);
 extern void func_80064D9C(void);
 extern void func_m026_002F8(void);
@@ -32,7 +32,7 @@ extern void anim_system_init(void);
 extern void transition_buffers_init(void);
 extern void func_80052678(void);
 extern void debug_trace_init(void);
-extern void func_80083A90(void);
+extern void video_players_reset(void);
 extern void func_80096BB0(void *mq, void *msg, s32 count);                  /* osCreateMesgQueue */
 extern void osScAddClient(void *sched, void *client, void *mq, s32 id);      /* osScAddClient */
 extern s32 func_8000E624(s32 arg0);
@@ -40,7 +40,7 @@ extern void func_80097F70(u64 arg0, Gfx **dl); /* a 64-bit first argument (0 pas
 extern void func_80048E20(s32 arg0);
 extern void level_global_init(void);
 extern void game_settings_reset(void *arg0);
-extern void func_8004791C(void);
+extern void multiplayer_characters_reset(void);
 extern void *func_8004A57C(s32 size, s32 colour);                      /* DKR mempool_alloc_safe */
 extern void *func_8004A828(s32 size, void *address, s32 colour);       /* DKR mempool_alloc_fixed */
 extern void func_8004AA80(void *data);                                 /* DKR mempool_free */
@@ -96,7 +96,7 @@ void func_m036_00000(void) {
     func_m034_00000();
     runlink_module_release(0x22);
     check_reset_and_halt();
-    func_80029B78();
+    zones_reset();
     func_800436C0(sM036Key, D_800FD7A8);
     runlink_module_release(0x2D);
     check_reset_and_halt();
@@ -126,7 +126,7 @@ void func_m036_00000(void) {
     check_reset_and_halt();
     func_80052678();
     debug_trace_init();
-    func_80083A90();
+    video_players_reset();
     default_alloc_displaylist_heap();
     func_80096BB0(D_800FD800, D_800FD7FC, 1);
     osScAddClient(D_800FB440, D_800FD7F0, D_800FD800, 3);
@@ -146,7 +146,7 @@ static void func_m036_00250(void) {
     D_800FD748 = 0;
     gSettingsPtr = func_8004A57C(0x538, -1);
     game_settings_reset(gSettingsPtr);
-    func_8004791C();
+    multiplayer_characters_reset();
     D_800A32A8 = 0x04000000;
 }
 

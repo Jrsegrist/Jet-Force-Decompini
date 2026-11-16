@@ -111,7 +111,7 @@ void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     obj->trans.rotation.y_rotation = setup->y_rotation << 8;
     obj->trans.rotation.x_rotation = setup->x_rotation << 8;
     obj->modelIndex = 0;
-    func_80079D1C(obj, t->hitbox << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, t->hitbox << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_m118_00140(Object *obj, s32 updateRate) {
@@ -156,16 +156,16 @@ void func_m118_00140(Object *obj, s32 updateRate) {
             }
             switch (t->action) {
                 case 0:
-                    func_80079BA8();
+                    sequence_resume();
                     break;
                 case 1:
-                    func_80079BB8();
+                    sequence_hold();
                     break;
                 case 2:
-                    func_800767EC(t->arg);
+                    anim_path_enable_run(t->arg);
                     break;
                 case 3:
-                    func_8007688C(t->arg);
+                    anim_path_disable_run(t->arg);
                     break;
                 case 4:
                     func_80076928(t->arg);
@@ -204,7 +204,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
     c = OBJ_STATE(obj, M118Collectable);
     if (c->fade == 0xFF) {
         if (obj->objectID == 0x2C5) {
-            func_8001138C(obj, 0.01f, updateRate);
+            obj_anim_frame_advance(obj, 0.01f, updateRate);
         } else {
             obj->trans.rotation.y_rotation += updateRate << 8;
         }
@@ -235,7 +235,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
     } else {
         if (c->fade > 0) {
             if (obj->objectID == 0x2C5) {
-                func_8001138C(obj, 0.01f, updateRate);
+                obj_anim_frame_advance(obj, 0.01f, updateRate);
             } else {
                 obj->trans.rotation.y_rotation += updateRate << 8;
             }

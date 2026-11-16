@@ -85,7 +85,7 @@ typedef struct M109Env {
 #define OBJ_F34(obj) (*(f32 *) &(obj)->pad2C[0x34 - 0x2C])
 
 extern void runlink_unload_timer_set(s32, s32, s32);
-extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
+extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
 extern void track_light_off(f32 *light);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
@@ -190,7 +190,7 @@ void func_m109_00000(Object *obj, M109Setup *setup) {
         hitSize = setup->strength << 8;
         OBJ_STATE(obj, M109State)->lightColour = sStrengthColours[(setup->strength - 1) & 3];
     }
-    func_80079D1C(obj, hitSize, 1, 4, 0, 0, 0, 4.0f, 4.0f, 100.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, hitSize, 1, 4, 0, 0, 0, 4.0f, 4.0f, 100.0f, 1.0f, 0x11);
     OBJ_STATE(obj, M109State)->light = 0;
     if (setup->colour >= 0 && setup->colour < 4) {
         OBJ_STATE(obj, M109State)->lightColour = sLightColours[setup->colour];
@@ -305,7 +305,7 @@ void func_m109_00298(Object *obj, s32 updateRate) {
                         }
                     }
                 }
-                OBJ_STATE(obj, M109State)->light = (s32) func_80013E0C(
+                OBJ_STATE(obj, M109State)->light = (s32) track_light_create(
                     obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 200.0f, 100.0f,
                     (OBJ_STATE(obj, M109State)->lightColour >> 24) & 0xFF,
                     (OBJ_STATE(obj, M109State)->lightColour >> 16) & 0xFF,

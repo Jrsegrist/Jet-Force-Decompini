@@ -242,10 +242,10 @@ s32 leveltable_blur(s32 level) {
     return 0;
 }
 
-u8 func_80048548(void);
+u8 camera_count_get(void);
 
 s32 func_80043D08(s32 level) {
-    s32 count = func_80048548() - 1;
+    s32 count = camera_count_get() - 1;
     if (level >= 0 && level < gNumberOfLevelHeaders) {
         if (gGlobalLevelTable[level].unk3 != 0) {
             count = gGlobalLevelTable[level].unk3;
@@ -282,7 +282,7 @@ s32 leveltable_world_regions(s32 world, u8 *regions) {
 }
 
 void rumble_stop_all(s32 arg0);
-u8 func_80048558(void); // the number of players
+u8 player_count_get(void); // the number of players
 void sndp_set_active_sound_limit(s32 limit);
 void check_reset_and_halt(void);
 void objflags_select_region(void);
@@ -342,7 +342,7 @@ void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
     if (arg3 < 0) {
         arg3 = 0;
     }
-    switch (func_80048558()) {
+    switch (player_count_get()) {
         case 4:
             sndp_set_active_sound_limit(16);
             break;

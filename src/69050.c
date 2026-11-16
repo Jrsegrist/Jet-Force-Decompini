@@ -1006,7 +1006,7 @@ void func_8006A924(void *child, f32 x, f32 y, f32 z, s32 angle, s32 updateRate);
 
 /* JFG: update a ripple: fade it in or out, animate its texture, flip its vertex frame and lay the new one as a
    square of half-size unk7C around the object at the level height, then update its child along the heading. */
-void func_8006B090(RippleObj *obj, s32 updateRate) {
+void ripple_step_frame(RippleObj *obj, s32 updateRate) {
     UNUSED s32 pad[2];
     RippleInit *r;
     RippleVtx *v;

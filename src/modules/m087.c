@@ -164,7 +164,7 @@ void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
         state->flag = objflags_reserve_ids(1);
     }
     obj->modelIndex = 0;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     state->unk0 = func_m087_00000(setup->common.objectID)->unk1C;
     state->unk2 = 0x20;
     state->unk3 = 0;

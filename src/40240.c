@@ -146,7 +146,7 @@ extern f32 gCamZoom[4]; // JFG: per camera, the zoom
 extern f32 D_800A3168;
 s32 fb_mode(void); // the video mode
 s32 level_type(void);
-s32 func_8005AA7C(void); // the two-player screen is split vertically
+s32 options_split_vertical_get(void); // the two-player screen is split vertically
 
 /**
  * Set the FoV of the viewspace, then recalculate the perspective matrix.
@@ -181,7 +181,7 @@ void cam_set_fov(f32 camFieldOfView, s32 force) {
                 } else {
                     gPerspectiveMatrixF[0][0] *= 0.75f;
                 }
-            } else if (gActiveCameraID == 1 && func_8005AA7C()) {
+            } else if (gActiveCameraID == 1 && options_split_vertical_get()) {
                 gPerspectiveMatrixF[0][0] *= 0.75f;
                 gPerspectiveMatrixF[1][1] *= 0.75f;
             }
@@ -521,7 +521,7 @@ void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u3
         case 0:
             break;
         case 1:
-            if ((mode & 1) || func_8005AA7C()) {
+            if ((mode & 1) || options_split_vertical_get()) {
                 if (gScreenViewports == &gScreenViewports[viewPortIndex]) {
                     *lrx = halfWidth;
                 } else {
@@ -553,7 +553,7 @@ void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u3
 
 void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u32 *uly, u32 *lrx, u32 *lry);
 void viewport_rsp_set(Gfx **dList, s32 width, s32 height, s32 posX, s32 posY);
-void func_80040AA4(Gfx **dList, Mtx **mtx);
+void cam_view_matrices_set(Gfx **dList, Mtx **mtx);
 
 /* JFG: set up the active viewport: the scissor from the window limits, the RSP viewport (half size 160x120,
  * 224x168 in the high-res modes, halved again for three or four players; scaled up by the camera's zoom, with
@@ -592,7 +592,7 @@ void viewport_apply(Gfx **dList, Mtx **mtx) {
     gDPSetScissor((*dList)++, G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
     viewport_rsp_set(dList, width, height, (lrx + ulx) >> 1, (lry + uly) >> 1);
     if (mtx != NULL) {
-        func_80040AA4(dList, mtx);
+        cam_view_matrices_set(dList, mtx);
     }
 }
 
@@ -644,7 +644,7 @@ void func_80048D84(MtxF *in, Mtx *out);
  * skipped without a list, and the shake offsets all three axes.
  * DKR: func_80067D3C (Official Name: camGetPlayerProjMtx / camSetProjMtx - ??)
  */
-void func_80040AA4(Gfx **dList, Mtx **mtx) {
+void cam_view_matrices_set(Gfx **dList, Mtx **mtx) {
     Camera *cam = &gCameras[D_800FA634];
 
     if (gCurCamFOV != cam->fov || gCamZoomSet[D_800FA634]) {

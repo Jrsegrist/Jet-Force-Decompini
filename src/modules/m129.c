@@ -57,7 +57,7 @@ typedef struct M129Player {
     /* 0x5C8 */ s16 unk5C8;
 } M129Player;
 
-/* What func_80047C1C returns */
+/* What char_record_lookup returns */
 typedef struct M129Forms {
     /* 0x00 */ u8 pad0[4];
     /* 0x04 */ u16 unk4 : 11;
@@ -112,7 +112,7 @@ extern void func_8001BC2C(s32 player, s16 *near, s16 *far, s16 *arg3, u8 *r, u8 
 extern void func_8001C3D0(s32 player, s32 r, s32 g, s32 b, s32 near, s32 far, f32 time); /* DKR slowly_change_fog */
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern u16 func_80043510(s32 player);                /* buttons pressed */
-extern M129Forms *func_80047C1C(s32 player, s32 character);
+extern M129Forms *char_record_lookup(s32 player, s32 character);
 extern void transition_begin(void *flash);              /* flashes the screen */
 extern void func_80003614(s32 handle);               /* stops a positioned sound */
 extern void func_80048518(s32);
@@ -271,7 +271,7 @@ void func_m129_002F4(Object *obj, M129Setup *setup) {
     s->beams = NULL;
     s->spawnBeams = 1;
     obj->modelIndex = sKindModel[s->kind];
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
 static void camera_start(Object *player, s32 angle, s32 eased);
@@ -294,7 +294,7 @@ void func_m129_003F4(Object *obj, s32 updateRate) {
         s = obj->unk68;
         pd = player->unk68;
         buttons = func_80043510(0);
-        forms = func_80047C1C(0, pd->character);
+        forms = char_record_lookup(0, pd->character);
         beams_update(obj, s, updateRate);
         switch (s->state) {
             case 0:

@@ -106,7 +106,7 @@ extern s32 func_80049D80(s32 from, s32 to); /* the signed difference of two angl
 extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out);
 extern void func_800492DC(Object *obj, Vec3f *vec);
 extern void obj_list_insert_after(Object *obj, Object *target);
-extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
+extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
 extern void track_light_off(f32 *light);
 extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
@@ -173,10 +173,10 @@ void func_m113_00000(Object *obj, M113Setup *setup) {
     m->hitPos.z = obj->trans.z_position;
     m->timer = func_80005064(setup->lifetime * 6);
     m->owner = setup->owner;
-    func_80079D1C(obj, (setup->strength + 1) << 8, 1, 4, 0, 0, 0, 2.0f, 2.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, (setup->strength + 1) << 8, 1, 4, 0, 0, 0, 2.0f, 2.0f, -1.0f, 1.0f, 0x11);
     OBJ_STATE(obj, M113State)->health = obj->interactObj->hitPoints;
     if (m->radius == 0.0f) {
-        OBJ_STATE(obj, M113State)->light = func_80013E0C(obj->trans.x_position, obj->trans.y_position,
+        OBJ_STATE(obj, M113State)->light = track_light_create(obj->trans.x_position, obj->trans.y_position,
                                                          obj->trans.z_position, 500.0f, 300.0f, 0xFF, 0xE0, 0);
     } else {
         OBJ_STATE(obj, M113State)->light = NULL;

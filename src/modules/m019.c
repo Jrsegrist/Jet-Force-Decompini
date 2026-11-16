@@ -36,7 +36,7 @@ extern s8 is_game_paused(void);
 extern void set_game_paused(s32 paused);
 extern s32 level_id(void);
 extern s32 leveltable_world(s32 level);
-extern s32 func_800468CC(void);
+extern s32 pending_level_character(void);
 extern s32 music_volume(void);
 extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
 extern void runlink_module_release(s32 module);          /* unloads a runlink module */
@@ -182,7 +182,7 @@ void func_m019_00000(s32 arg0) {
         if (player != NULL) {
             sCharacter = ((s8 *) player->unk68)[1];
         } else {
-            sCharacter = func_800468CC();
+            sCharacter = pending_level_character();
         }
         sCharacter2 = sCharacter;
         sLevel2 = sLevel = level_id();

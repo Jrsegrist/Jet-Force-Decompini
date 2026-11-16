@@ -26,7 +26,7 @@ typedef struct M108Object {
     void *unk68;
 } M108Object;
 
-extern void func_80079D1C(M108Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
+extern void obj_collision_spheres_init(M108Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern M108Object *func_8000E4D0(s32);
 extern s32 character_has_item(s32, s32, s32);
@@ -47,7 +47,7 @@ void func_m108_00000(M108Object *obj, M108Setup *setup) {
         scale = 0.1f;
     }
     obj->unk8 = *obj->unk40 * scale;
-    func_80079D1C(obj, -1, 1, 1, 0, 0, 0, 30.0f, 30.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, -1, 1, 1, 0, 0, 0, 30.0f, 30.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_m108_000CC(M108Object *obj, s32 updateRate) {

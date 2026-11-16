@@ -162,15 +162,15 @@ extern s8 D_800A0CE0;
 
 extern void *func_8004A57C(u32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M024LevelHeader *func_8004470C(void);      /* DKR level_header */
-extern u8 func_80048548(void);                    /* the number of cameras */
+extern u8 camera_count_get(void);                    /* the number of cameras */
 extern void cam_set_layout(s32 layout);
 extern void track_spawn_objects(s32 mapID, s32 index); /* DKR track_spawn_objects */
 extern void sequence_table_load(s32 arg0);
 extern void players_spawn(s32 arg0);
 extern void shadow_buffers_alloc(void *model, s32 waveBlocks, s32 arg2, s32 arg3, s32 arg4);
 extern void func_8001DA1C(s32 arg0, s32 arg1); /* DKR shadow_update */
-extern void func_8001D9B4(void);
-extern void func_8003DDBC(s32 arg0);
+extern void shadow_buffers_flip(void);
+extern void extra_batch_bits_store(s32 arg0);
 extern void func_80012B04(s32 skybox); /* DKR skydome_spawn */
 extern void *func_80055694(s32 id);    /* loads a texture */
 extern void func_m137_00000(void *model);
@@ -186,7 +186,7 @@ void func_m024_00000(s32 geometry, s32 skybox, s32 arg2, s32 arg3, s32 arg4, s32
     }
     func_m024_001F8(geometry);
     D_800F31DC = 0;
-    cam_set_layout(func_80048548() - 1);
+    cam_set_layout(camera_count_get() - 1);
     track_spawn_objects(arg4, 0);
     track_spawn_objects(arg3, 1);
     sequence_table_load(arg5);
@@ -195,16 +195,16 @@ void func_m024_00000(s32 geometry, s32 skybox, s32 arg2, s32 arg3, s32 arg4, s32
     shadow_buffers_alloc(D_800A0D60, D_800F31DC, 500, 200, 100);
     func_8001DA1C(2, 0);
     func_8001DA1C(1, 0);
-    func_8001D9B4();
+    shadow_buffers_flip();
     func_8001DA1C(2, 0);
     func_8001DA1C(1, 0);
-    func_8001D9B4();
+    shadow_buffers_flip();
     if (!D_800A0D64->unk68) {
-        func_8003DDBC(0);
+        extra_batch_bits_store(0);
     }
     func_80012B04(skybox);
     if (!D_800A0D64->unk68) {
-        func_8003DDBC(8);
+        extra_batch_bits_store(8);
     }
     D_800F2FA4 = 0;
     D_800F2FA8 = 0x10000;

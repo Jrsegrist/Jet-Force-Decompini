@@ -297,7 +297,7 @@ u8 func_8008CFD4(NVoiceState *vs, NCSPlayer *seqp);                      // n_au
 void func_8008C170(NVoice *v, u8 pan);                                   // n_audio: alSynSetPan
 void func_8008E900(NVoice *v, u8 distortion);                            // n_audio: set a voice's distortion
 void func_8008D424(NCSPlayer *seqp, NInstrument *inst, s32 chan);        // n_audio: __setInstChanState
-f32 func_80004768(u8 depth);                                             // the oscillators' depth in cents
+f32 osc_depth_to_ratio(u8 depth);                                             // the oscillators' depth in cents
 void func_8008C500(NCSPlayer *seqp);                                    // n_audio: all channels on
 void func_8008D148(NCSPlayer *seqp);                                    // n_audio: init the channel states
 void func_8008B4B0(NEventQueue *evtq, NEventListItem *items, s32 count); // n_audio: alEvtqNew
@@ -1075,22 +1075,22 @@ void func_80087440(NCSPlayer *seqp, NEvent *event) {
 
                             switch (osc->type & ~0x80) {
                                 case 2:
-                                    osc->depthB = -func_80004768(byte2);
+                                    osc->depthB = -osc_depth_to_ratio(byte2);
                                 case 3:
                                 case 4:
                                 case 5:
-                                    osc->depthA = func_80004768(byte2);
+                                    osc->depthA = osc_depth_to_ratio(byte2);
                                     break;
                                 case 7:
                                 case 9:
                                 case 13:
-                                    osc->depthA = func_80004768(byte2) / 2.0f;
+                                    osc->depthA = osc_depth_to_ratio(byte2) / 2.0f;
                                     break;
                                 case 10:
-                                    osc->depthA = func_80004768(byte2) * 2.0f;
+                                    osc->depthA = osc_depth_to_ratio(byte2) * 2.0f;
                                     break;
                                 default:
-                                    osc->depthA = func_80004768(byte2);
+                                    osc->depthA = osc_depth_to_ratio(byte2);
                                     break;
                             }
                         }

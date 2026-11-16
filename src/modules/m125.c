@@ -91,7 +91,7 @@ void func_m125_00000(Object *obj, M125Setup *setup) {
     t->level = 0;
     t->unkC = 0;
     t->flag = setup->flag;
-    func_80079D1C(obj, t->maxHitPoints, 1, 0x18, 0, 5, -8, obj->trans.scale * 10.0f, obj->trans.scale * 10.0f, -1.0f,
+    obj_collision_spheres_init(obj, t->maxHitPoints, 1, 0x18, 0, 5, -8, obj->trans.scale * 10.0f, obj->trans.scale * 10.0f, -1.0f,
                   1.0f, 1);
 }
 
@@ -155,12 +155,12 @@ void func_m125_00120(Object *obj, s32 updateRate) {
     weight = &D_m125_00590[level];
     goal = *weight;
     if (goal < obj->unk28) {
-        func_8001138C(obj, -0.01f, updateRate);
+        obj_anim_frame_advance(obj, -0.01f, updateRate);
         if (obj->unk28 < goal) {
             obj->unk28 = goal;
         }
     } else {
-        func_8001138C(obj, 0.01f, updateRate);
+        obj_anim_frame_advance(obj, 0.01f, updateRate);
         if (goal < obj->unk28) {
             obj->unk28 = goal;
         }

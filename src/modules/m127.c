@@ -113,7 +113,7 @@ void func_m127_0003C(Object *obj, M127Setup *setup) {
     s->unk14 = 0.0f;
     obj_anim_set(obj, 0, 0.0f);
     obj_anim_set(obj, 0, 0.0f);
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 1);
 }
 
 void func_m127_00B14(Object *obj);
@@ -198,7 +198,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             break;
         case 1:
             func_80048518(10);
-            func_8001138C(obj, 0.0084f, updateRate);
+            obj_anim_frame_advance(obj, 0.0084f, updateRate);
             if (obj->unk28 == 1.0f) {
                 s->mode = 2;
                 s->unk2 = 120;
@@ -208,7 +208,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             break;
         case 2:
             func_80048518(10);
-            func_8001138C(obj, s->unk4, updateRate);
+            obj_anim_frame_advance(obj, s->unk4, updateRate);
             s->unk4 += 0.0002f * updateRate;
             if (s->unk4 > 0.015f) {
                 s->unk4 = 0.015f;
@@ -233,7 +233,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             break;
         case 3:
             func_80048518(10);
-            func_8001138C(obj, s->unk4, updateRate);
+            obj_anim_frame_advance(obj, s->unk4, updateRate);
             s->unk4 -= 0.0002f * updateRate;
             if (s->unk4 < 0.005f) {
                 s->unk4 = 0.005f;
@@ -249,7 +249,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             break;
         case 4:
             func_80048518(10);
-            func_8001138C(obj, s->unk4, updateRate);
+            obj_anim_frame_advance(obj, s->unk4, updateRate);
             if (func_80043510(0) & 0x1000) {
                 func_m007_00D6C();
             }
@@ -269,7 +269,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             break;
         case 5:
             func_80048518(10);
-            func_8001138C(obj, -0.0084f, updateRate);
+            obj_anim_frame_advance(obj, -0.0084f, updateRate);
             if (obj->unk28 == 0.0f) {
                 s->mode = 0;
                 racer->unk1F9 = 0;
@@ -302,7 +302,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
                 screen->trans.rotation.y_rotation = screen->trans.rotation.y_rotation - s->unkC + (s->unk10 << 6);
                 screen->trans.rotation.z_rotation -= s->unk10 * 16;
             } else {
-                func_8001138C(screen, -0.0167f, updateRate);
+                obj_anim_frame_advance(screen, -0.0167f, updateRate);
                 pos[0] = 0.0f;
                 pos[1] = func_80049C34(OBJ_STATE(screen, M127ScreenState)->unk0) * 8.0f + 100.0f;
                 pos[2] = 50.0f;
@@ -341,7 +341,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             screen->particleEmittersEnabled = 1;
             func_8005F5AC(screen, updateRate);
             move = FALSE;
-            func_8001138C(screen, 0.0167f, updateRate);
+            obj_anim_frame_advance(screen, 0.0167f, updateRate);
         } else {
             OBJ_STATE(screen, M127ScreenState)->unk0 = 0;
             OBJ_STATE(screen, M127ScreenState)->unk4 = 0;

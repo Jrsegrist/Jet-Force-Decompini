@@ -151,7 +151,7 @@ void func_m122_00000(Object *obj, M122Setup *setup) {
     s->modelId = setup->modelId;
     s->timer = func_80005064(600);
     s->age = 0;
-    func_80079D1C(obj, 0xA00, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
+    obj_collision_spheres_init(obj, 0xA00, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
     obj->unk7C[0] |= 2;
     if ((s->model = chain_slot_find_shortest(s->modelId, &unused)) != NULL) {
         obj_list_insert_after(obj, s->model);

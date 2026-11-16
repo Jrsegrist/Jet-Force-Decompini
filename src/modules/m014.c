@@ -44,7 +44,7 @@ void func_m014_00000(void) {
 
 /* The part of the player's state that 00074 reads */
 typedef struct M014Player {
-    /* 0x000 */ s8 unk0; /* (with unk1: picks the weapons, func_80047C1C) */
+    /* 0x000 */ s8 unk0; /* (with unk1: picks the weapons, char_record_lookup) */
     /* 0x001 */ s8 unk1;
     /* 0x002 */ u8 pad2[0xFC - 0x2];
     /* 0x0FC */ s32 unkFC;
@@ -100,7 +100,7 @@ static void func_m014_00074(s16 *angle, M014Player *p, s32 updateRate) {
     }
 }
 
-/* What func_80047C1C returns: the player's weapons */
+/* What char_record_lookup returns: the player's weapons */
 typedef struct M014Weapons {
     /* 0x00 */ u8 pad0[0x2];
     /* 0x02 */ s16 unk2;
@@ -127,7 +127,7 @@ typedef struct M014MenuItem {
 
 extern M014MenuItem D_800FF780[];
 extern Object **func_8000E464(s32 *count); /* the players */
-extern M014Weapons *func_80047C1C(s32 a, s32 b);
+extern M014Weapons *char_record_lookup(s32 a, s32 b);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_00220);
 
@@ -247,7 +247,7 @@ void func_m014_00B30(Object *obj, s32 updateRate) {
                     }
                     func_80056000(0);
                     func_m006_00000(obj, obj->interactObj->hitPoints >> 8,
-                                    func_80047C1C(p->unk0, p->unk1)->unk2, updateRate);
+                                    char_record_lookup(p->unk0, p->unk1)->unk2, updateRate);
                     func_80056000(1);
                     func_m006_012D4(p, updateRate);
                     func_m014_019F4(updateRate);
@@ -288,7 +288,7 @@ static void func_m014_010F4(s32 updateRate) {
     players = func_8000E464(&count);
     if (count > 0) {
         p = (*players)->unk68;
-        w = func_80047C1C(p->unk0, p->unk1);
+        w = char_record_lookup(p->unk0, p->unk1);
         if (((M014Flags *) &p->unk540)->turn & 1) {
             *(s16 *) &item->unk1C = func_80005064(240);
             wheel->unk1C -= 27.0f;
@@ -386,7 +386,7 @@ typedef struct M014Box {
     s32 colour;
 } M014Box;
 
-extern s32 func_800373E4(M014Weapons *w, s32 weapon); /* the weapon's ammo capacity */
+extern s32 weapon_ammo_capacity(M014Weapons *w, s32 weapon); /* the weapon's ammo capacity */
 extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
 extern void menu_digits_draw(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 arg5, s32 arg6); /* draws a number */
 extern void rl_m014_01AD8(M014Player *p, s32 updateRate, s32 image);
@@ -412,7 +412,7 @@ static void func_m014_0292C(s32 updateRate) {
     M014Weapons *w;
 
     p = (*func_8000E464(&count))->unk68;
-    w = func_80047C1C(p->unk0, p->unk1);
+    w = char_record_lookup(p->unk0, p->unk1);
     shown = rl_m014_04810;
     weapons = w; /* (a copy: the ROM spills the pointer after reading the old weapon) */
     image = weapons->weapon + 10;
@@ -434,7 +434,7 @@ static void func_m014_0292C(s32 updateRate) {
         image = p->unk542;
         alpha = 0xFF;
     } else if (weapons->weapon == 3 || weapons->weapon == 6 || weapons->weapon == 4) {
-        ammo = func_800373E4(weapons, weapons->weapon);
+        ammo = weapon_ammo_capacity(weapons, weapons->weapon);
         image = p->unk53E;
         if (weapons->weapon == 3) {
             ammo -= 32;

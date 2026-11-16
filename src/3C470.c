@@ -1018,13 +1018,15 @@ INCLUDE_ASM("asm/nonmatchings/3C470", func_8003D21C);
 
 extern s32 D_800A2EC0;
 
-void func_8003DDBC(s32 arg0) {
+/* Sets the flags added to every model batch (0x8003DDBC). */
+void extra_batch_bits_store(s32 arg0) {
     D_800A2EC0 = arg0;
 }
 
 extern s32 D_800A2EC0;
 
-s32 func_8003DDC8(void) {
+/* The flags added to every model batch (0x8003DDC8). */
+s32 extra_batch_bits(void) {
     return D_800A2EC0;
 }
 
@@ -1401,7 +1403,8 @@ void asset_cache2_release(s16 *asset) {
 
 extern s32 D_800F6F58;
 
-s32 func_8003F1B0(s32 *size) {
+/* The scratch display list and its size (0x8003F1B0). */
+s32 scratch_display_list_get(s32 *size) {
     *size = 0x400;
     return D_800F6F58;
 }
@@ -1480,8 +1483,8 @@ void model_cache_textures_release(s16 *keep) {
 void *load_texture_at(s32 textureID, s32 address);
 void mempool_free(void *data);
 
-/* JFG: free the D_800A2EC8 table, loading each entry's texture at its address first. */
-void func_8003F468(void) {
+/* JFG: free the D_800A2EC8 table, loading each entry's texture at its address first (0x8003F468). */
+void tex_restore_list_free(void) {
     TexEntry3C *entry;
     s32 i;
 

@@ -260,7 +260,7 @@ extern M062Player D_800FED50[];
 extern void func_8006FCA8(Gfx **dl, s32 textX, s32 textY, char *text, s32 flags);
 extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void music_volume_fade(f32 volume, s32 arg1);
-extern void func_80047A20(void);
+extern void multiplayer_players_init(void);
 extern void func_800468C0(s32 arg0);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_800468A4(s32 arg0);
@@ -339,7 +339,7 @@ void func_m062_001E4(s32 updateRate) {
     inst = *obj->modelInstances;
     model = inst->model;
     inst->updateRate = updateRate;
-    func_8001138C(obj, 0.01f, updateRate);
+    obj_anim_frame_advance(obj, 0.01f, updateRate);
     sUnk28 = sUnk2C = sUnk34 = sUnk38 = sUnk3C = sUnk40 = sUnk44 = sUnk48 = 0;
     if (D_800A5058 == 0 && obj->unk28 >= 1.0f) {
         for (i = 0; i < D_800A4FD0; i++) {
@@ -683,7 +683,7 @@ static void func_m062_01158(UNUSED s32 updateRate) {
                 }
                 gMenuTimer = 0;
                 D_800A4FEC = 0;
-                func_80047A20();
+                multiplayer_players_init();
                 func_800468C0(D_800A4FD0);
                 level_goto(D_800A4FE8, 0, 0, 16, 1, 0);
                 func_80047580(0);
@@ -844,7 +844,7 @@ static void func_m062_01A48(UNUSED s32 updateRate) {
             break;
         case 7:
             if (sUnk28) {
-                func_80047A20();
+                multiplayer_players_init();
                 D_800A5058 = 1;
                 music_volume_fade(0.5f, 0);
                 for (old = 0; old < 4; old++) {
@@ -969,7 +969,7 @@ static void func_m062_0228C(UNUSED s32 arg0) {
                 gMenuTimer = 0;
                 D_800A4FD8 = 6;
                 D_800A4FEC = 0;
-                func_80047A20();
+                multiplayer_players_init();
                 func_800468C0(1);
                 level_goto(D_800A4FE8, 0, 0, 16, 1, 0);
                 func_800468A4(0);

@@ -548,9 +548,9 @@ extern Object *D_801045B8;
 static void func_m047_013D0(M047Actor *a, Object *obj, s32 updateRate) {
     if (!((M047Header *) obj->header)->noAnim) {
         if (a->backwards) {
-            func_8001138C(obj, -a->animSpeed, updateRate);
+            obj_anim_frame_advance(obj, -a->animSpeed, updateRate);
         } else {
-            func_8001138C(obj, a->animSpeed, updateRate);
+            obj_anim_frame_advance(obj, a->animSpeed, updateRate);
         }
     }
     if (a->fadeTimer < a->fadeLength) {

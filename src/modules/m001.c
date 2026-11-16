@@ -38,8 +38,8 @@ extern void func_80055A00(void *);
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern M001Env *func_8004470C(void);
 extern ObjectTransform *func_80041DE0(void); /* the camera */
-extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
-extern void func_80056064(void);
+extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void draw_tint_pair_off(void);
 extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M001Particle *p, void *model, s32 arg5, s32 arg6);
 extern void func_80055C00(Gfx **gfx, void *tex, s32 flags, s32 offset); /* sets a texture */
 
@@ -216,10 +216,10 @@ static void drop_render(M001Particle *p, Gfx **dl, s32 arg2, s32 arg3) {
         env = func_8004470C();
         scale = p->scale;
         if (p->state != 2) {
-            func_8005600C(255, 255, 255, env->r, env->g, env->b);
+            draw_tint_pair_set(255, 255, 255, env->r, env->g, env->b);
             p->scale = scale;
             render_sprite_billboard(dl, arg2, arg3, p, D_m001_00C50, 6, 255);
-            func_80056064();
+            draw_tint_pair_off();
         } else {
             func_80055C00(dl, sSplashTexture, 14, 0);
             if (p->alpha < 32) {

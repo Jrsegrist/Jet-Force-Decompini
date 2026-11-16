@@ -19,6 +19,8 @@ func_8001563C = get_inside_segment_count_xz
 func_80015E3C = player_get_draw_alpha
 func_80019518 = line_clip_plane
 func_8001C758 = highest_set_bit
+func_80013E0C = track_light_create
+func_80014EBC = render_level_segment
 
 # src/217C0.c
 func_80020D84 = light_track_light_add
@@ -27,10 +29,15 @@ func_8002130C = light_colour_set
 func_80021338 = light_colour_cycle_set
 func_80021358 = light_intensity_set
 func_800226B8 = light_setup_coronas
+func_800224D0 = set_world_shading
 
 # src/25A70.c
 func_80024E70 = obj_init_torch_mist
 func_80026CAC = obj_loop_skycontrol
+func_80024F40 = obj_init_scaled_by_radius
+func_80027DA0 = obj_init_mover
+func_80027F90 = obj_init_spray
+func_80028414 = obj_init_timer
 
 # src/2610.c
 func_80001D7C = __amMain
@@ -41,6 +48,8 @@ func_800026CC = __clearAudioDMA
 # src/291B0.c
 func_800285B0 = spawn_object_from_list
 func_8002863C = obj_init_emitter
+func_8002993C = chroma_sprite_reset
+func_80029B78 = zones_reset
 
 # src/2BAA0.c
 func_80031F44 = player_items_unlink
@@ -57,16 +66,42 @@ func_80038528 = weapon_select_prev
 func_8003B114 = weapon_usable_by_character
 func_8003B500 = weapon_info_get
 func_8003B820 = player_drop_held_object
+func_8002C070 = player_camera_follow_target
+func_8002EB6C = player_camera_overhead_update
+func_8002F014 = zone_list_add
+func_8002F04C = zone_list_remove
+func_8002F0DC = player_zone_track_update
+func_80033920 = player_restart_on_press
+func_80033ED4 = character_module_handler_call
+func_800344B4 = player_aim_angles_ease
+func_800373E4 = weapon_ammo_capacity
+func_80038324 = weapon_advance_owned
+func_800386B0 = weapon_fire_current
+func_80038F04 = weapon_buffers_release_all
+func_800397E0 = weapon_fire_spread_pair
+func_80039A38 = weapon_fire_velocity_shot
+func_80039B98 = weapon_fire_grenade
+func_8003AABC = player_stick_aim_update
+func_8003B418 = player_aim_origin_get
+func_8003B51C = s16_apply_delta_or_decay
+func_8003B620 = player_start_override_set
+func_8003B660 = player_start_override_take
+func_8003B6BC = player_start_override_clear
 
 # src/3430.c
 func_80002830 = audspat_init
 func_800034C4 = audspat_point_set_volume
 func_800034DC = audspat_point_set_pitch
 func_80003680 = audspat_point_handle_clear
+func_800037F8 = audspat_calculate_echo
 
 # src/3C470.c
 func_8003B870 = mem_copy_u16
 func_8003C0C4 = mtxf_set_identity_array
+func_8003DDBC = extra_batch_bits_store
+func_8003DDC8 = extra_batch_bits
+func_8003F1B0 = scratch_display_list_get
+func_8003F468 = tex_restore_list_free
 
 # src/40240.c
 func_8003F7A8 = cam_shake_off
@@ -86,9 +121,11 @@ func_800420F0 = get_distance_to_camera
 func_800421F0 = cam_shake_start
 func_800422C4 = cam_shake_stop_all
 func_80042438 = cam_fov_zoom_set
+func_80040AA4 = cam_view_matrices_set
 
 # src/432D0.c
 func_8004272C = transform_offset_world_pos
+func_8004271C = view_override_get
 
 # src/44350.c
 func_80043B78 = leveltable_type
@@ -136,6 +173,23 @@ func_800484C0 = mark_all_save_files_to_erase
 func_800484D0 = mark_erase_all_save_data
 func_800484E0 = mark_read_eeprom_settings
 func_800484FC = mark_write_eeprom_settings
+func_80045A14 = screen_rect_visible
+func_80045B98 = transition_values_start
+func_80045DC0 = transition_values_time_left
+func_80045DD0 = transition_values_get
+func_800468CC = pending_level_character
+func_800468DC = pending_level_id
+func_80047674 = settings_level_from_character
+func_8004791C = multiplayer_characters_reset
+func_80047A20 = multiplayer_players_init
+func_80047AE0 = char_record_reset
+func_80047C1C = char_record_lookup
+func_80048130 = region_mark_set
+func_8004822C = region_mark_get
+func_800482A0 = settings_map_ids_store
+func_80048548 = camera_count_get
+func_80048558 = player_count_get
+func_800485C8 = char_id_of_player
 
 # src/4BC70.c
 func_8004B070 = rumble_is_allowed
@@ -165,6 +219,7 @@ func_80052A00 = runlink_reloc_apply
 func_80053370 = runlink_module_loaded
 func_800541B0 = runlink_unload_timer_set
 func_80054204 = runlink_unload_timers_update
+func_80050F44 = troop_list_get
 
 # src/53C0.c
 func_800047C0 = clear_object_pointers
@@ -172,6 +227,7 @@ func_8001191C = obj_list_insert_after
 func_80011974 = obj_list_unlink
 func_80011C84 = point_distance
 func_80011CE0 = point_distance_squared
+func_8001138C = obj_anim_frame_advance
 
 # src/55130.c
 func_80054C4C = zbuffer_alloc
@@ -202,6 +258,18 @@ func_8005A950 = options_screen_offset_get
 func_8005A960 = options_screen_offset_set
 func_8005AA30 = options_music_volume_get
 func_8005AA40 = options_music_volume_set
+func_8005A834 = display_setting_store
+func_8005A8C4 = display_setting_remember
+func_8005A8D8 = display_setting_remembered
+func_8005A8E8 = display_setting_resolved
+func_8005A98C = sound_output_option
+func_8005A99C = sound_output_option_store
+func_8005A9E4 = effects_loudness_option
+func_8005A9F4 = effects_loudness_option_store
+func_8005AA7C = options_split_vertical_get
+func_8005AA94 = options_split_vertical_set
+func_8005AAB8 = options_player_toggle_get
+func_8005AAD0 = options_player_toggle_set
 
 # src/5B700.c
 func_8005BC44 = rain_init
@@ -219,6 +287,8 @@ func_80063030 = move_particle_with_acceleration
 func_80063190 = move_particle_basic
 func_80063244 = move_particle_forward
 func_80063730 = render_all_particles
+func_8005BFC4 = rain_amount_get
+func_8005CBBC = snow_init
 
 # src/67780.c
 func_80067610 = lockup_show_address
@@ -240,10 +310,13 @@ func_8006CFC0 = transition_render_blank
 func_8006D70C = s32_to_decimal_string
 func_8006DA1C = rgba5551_add_clamped
 func_8006DAE8 = rgba5551_brighten_rg
+func_8006B090 = ripple_step_frame
 
 # src/707F0.c
 func_8006FBF0 = set_screen_dialogue_box_size
 func_800720FC = fontConvertString
+func_8006FC14 = text_colour_mode_set
+func_8007230C = font_line_height
 
 # src/74270.c
 func_80073670 = init_dialogue_text
@@ -255,6 +328,15 @@ func_80076020 = bitstream_init
 func_80076044 = bitstream_read_bits
 func_800760C0 = bitstream_read_signed_bits
 func_80076154 = bitstream_end
+func_800761C8 = command_length
+func_800767EC = anim_path_enable_run
+func_8007688C = anim_path_disable_run
+func_800773EC = sequence_rewind
+func_80079890 = cam_point_copy_to_camera
+func_80079AA4 = anim_path_for_obj
+func_80079B6C = anim_path_free_slot
+func_80079BA8 = sequence_resume
+func_80079BB8 = sequence_hold
 
 # src/audio.c
 func_800005F8 = music_volume_fade
@@ -544,6 +626,21 @@ func_80065D50 = debug_trace_add
 # src/66B80.c (display-list command printers, their output compiled out)
 func_80066594 = dl_cmd_unpack_bbh
 func_800665D8 = dl_cmd_unpack_bhb
+func_80065F80 = dl_dump_commands
+func_80066620 = dl_cmd_print_vertex
+func_80066650 = dl_cmd_print_polygon
+func_80066680 = dl_cmd_print_matrix
+func_800666B0 = dl_cmd_print_tex_offsets
+func_800666C0 = dl_cmd_print_dp_block
+func_800666F0 = dl_cmd_print_viewport
+func_80066720 = dl_cmd_print_display_list
+func_80066750 = dl_cmd_print_named
+func_80066764 = dl_cmd_print_prim_colour
+func_80066770 = dl_cmd_print_colour
+func_80066784 = dl_cmd_print_dma_offsets
+func_80066790 = dl_cmd_print_move_word
+func_80066830 = dl_cmd_print_raw
+func_80066860 = dl_cmd_print_other_mode_l
 # src/44350.c (DKR game.c)
 func_80043750 = level_global_init
 D_800FB110 = gTempAssetTable
@@ -579,6 +676,8 @@ func_8001BF9C = apply_fog
 func_8001C650 = compute_scene_camera_transform_matrix
 # src/1DA10.c
 func_8001D800 = shadow_buffers_alloc
+func_8001D9B4 = shadow_buffers_flip
+func_8001D9D0 = shadow_heap_current_ptrs
 # src/217C0.c
 func_80022744 = init_object_shading
 func_800228BC = corona_from_level_entry
@@ -641,6 +740,10 @@ func_80083914 = velocity_mass_weighted
 func_8007CF28 = spheres_push_out
 func_8007E5EC = obj_update_matrices
 func_80082118 = falling_objects_hit_box
+func_80079D1C = obj_collision_spheres_init
+func_8007CCF0 = player_spheres_push_out
+func_8007D0B4 = sphere_overlaps_set
+func_800835E0 = box_range_cell_mask
 # src/74270.c (DKR game_text.c)
 func_800737B8 = render_subtitles
 func_80073BDC = process_subtitles
@@ -908,3 +1011,23 @@ func_8000E680 = get_object_property_size
 func_8000F978 = obj_type_model_flags
 func_8000F028 = run_object_init_func
 func_8000FBF0 = run_object_loop_func
+
+# src/5DA60.c
+func_8005D2E8 = sprite_particles_render
+func_8005D660 = model_particles_render
+func_80062A00 = point_particle_sets_render
+func_80062D5C = point_particle_set_add
+func_8006382C = particles_offset_by_position
+
+# src/560B0.c
+func_8005600C = draw_tint_pair_set
+func_80056064 = draw_tint_pair_off
+func_80057A10 = texture_anim_advance
+
+# src/49B0.c
+func_80003DB0 = osc_states_init
+func_8000474C = osc_state_free
+func_80004768 = osc_depth_to_ratio
+
+# src/84690.c
+func_80083A90 = video_players_reset

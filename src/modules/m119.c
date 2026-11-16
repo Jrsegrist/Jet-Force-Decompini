@@ -23,7 +23,7 @@ typedef struct M119Object {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern M119Object *func_8000E4D0(s32);
-extern M119Counter *func_80047C1C(s32, s32);
+extern M119Counter *char_record_lookup(s32, s32);
 extern void func_80001248(s32, s32);
 extern void func_800079B8(M119Object *);
 
@@ -47,7 +47,7 @@ void func_m119_00000(M119Object *obj, s32 updateRate) {
             dy = obj->unk10 - player->unk10;
             dz = obj->unk14 - player->unk14;
             if (dx * dx + dy * dy + dz * dz < 1600.0f) {
-                counter = func_80047C1C(data->unk0, data->unk1);
+                counter = char_record_lookup(data->unk0, data->unk1);
                 if (counter->unk12 < 32000) {
                     counter->unk12++;
                 }

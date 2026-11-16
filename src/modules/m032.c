@@ -143,7 +143,7 @@ extern Object *rl_m032_031CC;     /* the character the player is talking to */
 
 void func_m032_0241C(Object *obj, s16 sound, s8 variants);
 
-extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
+extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 extern void func_8003D21C(M032Inst *inst, M032Model *model, Object *obj, f32 arg3, f32 arg4);
 extern s32 rl_m032_01D2C(M032Speaker *st);
@@ -194,7 +194,7 @@ void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     st->unk37 = 0;
     st->kind2 = st->kind;
     obj_anim_set(obj, pose[st->kind].anim, 0.0f);
-    func_80079D1C(obj, 0x100, ((M032Header *) obj->header)->unkBA, 1, ((M032Header *) obj->header)->unkB4,
+    obj_collision_spheres_init(obj, 0x100, ((M032Header *) obj->header)->unkBA, 1, ((M032Header *) obj->header)->unkB4,
                   ((M032Header *) obj->header)->unkB6, ((M032Header *) obj->header)->unkB8,
                   ((M032Header *) obj->header)->unkBC, ((M032Header *) obj->header)->unkC0, -1.0f, 1.0f, 0x11);
     inst = *(M032Inst **) obj->modelInstances;
@@ -303,7 +303,7 @@ void func_m032_021B8(Object *obj, s32 updateRate) {
     b->phase += updateRate << 7;
     model = obj->modelInstances[0];
     if (model != NULL && *model != NULL && ((s8 *) *model)[0x4E] != 0) {
-        func_8001138C(obj, 0.1667f, updateRate);
+        obj_anim_frame_advance(obj, 0.1667f, updateRate);
     }
     height = b->height;
     if (b->rising != 0) {

@@ -98,7 +98,7 @@ void func_m102_00000(Object *obj, M102Setup *setup) {
         obj->velocity.y *= setup->speed;
         obj->velocity.z *= setup->speed;
     }
-    func_80079D1C(obj, (setup->size + 1) << 8, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
+    obj_collision_spheres_init(obj, (setup->size + 1) << 8, 1, 2, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
     b->timer = func_80005064(setup->lifetime * 6);
     b->size = setup->size;
     b->thrower = setup->thrower;

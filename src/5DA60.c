@@ -370,7 +370,7 @@ void free_particle_list(WeatherParticleList **listPtr) {
     }
 }
 
-/* A sprite particle (kind 2) as func_8005D2E8 reads it */
+/* A sprite particle (kind 2) as sprite_particles_render reads it */
 typedef struct SpriteParticle {
     /* 0x00 */ u8 pad0[0x2C];
     /* 0x2C */ s16 kind;
@@ -394,15 +394,15 @@ typedef struct ParticleSprite {
     /* 0x0B */ u8 envR, envG, envB;
 } ParticleSprite;
 
-void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
-void func_80056064(void);
+void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
+void draw_tint_pair_off(void);
 void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **vtx, SpriteParticle *particle, ParticleSprite *sprite, s32 flags,
                    s32 alpha);
 
 /* JFG: draw a list's sprite particles (kind 2) with their colours (brightness-scaled, and with an environment
    colour or the sprite's own colours), then reset the colours. The environment colours of a particle without
    one carry over from the previous particle. */
-void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list) {
+void sprite_particles_render(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list) {
     s32 i;
     SpriteParticle *p;
     ParticleSprite *sprite;
@@ -458,9 +458,9 @@ void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *li
                     b = (sprite->primB * b) >> 8;
                 }
                 if (mode != 2) {
-                    func_8005600C(r, g, b, envR, envG, envB);
+                    draw_tint_pair_set(r, g, b, envR, envG, envB);
                 } else {
-                    func_8005600C(envR, envG, envB, r, g, b);
+                    draw_tint_pair_set(envR, envG, envB, r, g, b);
                 }
             } else if (((r << 24) | (g << 16) | (b << 8) | alpha) != 0) {
                 gDPPipeSync((*dList)++);
@@ -471,7 +471,7 @@ void func_8005D2E8(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *li
             }
             render_sprite_billboard(dList, mtx, vtx, p, sprite, flags, alpha);
             if (sprite->flags & 0x200) {
-                func_80056064();
+                draw_tint_pair_off();
             }
         }
     }
@@ -505,7 +505,7 @@ typedef struct ParticleModel {
     /* 0x10 */ u8 *frames[1];
 } ParticleModel;
 
-/* A model particle (kind 3) as func_8005D660 reads it */
+/* A model particle (kind 3) as model_particles_render reads it */
 typedef struct ModelParticle {
     /* 0x00 */ s16 y_rotation;
     /* 0x02 */ s16 x_rotation;
@@ -538,7 +538,7 @@ void mtx_pop(Gfx **dList);
 
 /* JFG: draw a list's model particles (kind 3): each one's matrix, its colour (brightness-scaled when flag 0x800
    is set) and its model's current frame, then reset the colour and pop the matrix. */
-void func_8005D660(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list) {
+void model_particles_render(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticleList *list) {
     s32 i;
     ModelParticle *p;
     ObjectTransform trans;
@@ -939,7 +939,7 @@ extern f32 D_801008FC;
 s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
 s32 particle_update(s32 particle, s32 updateRate);
 void func_80061698(ParticleObj *obj, ParticleEmitter *emitter);
-void func_80062D5C(void *arg0, ParticleEmitter *emitter);
+void point_particle_set_add(void *arg0, ParticleEmitter *emitter);
 
 /**
  * Generates particles from a specific emitter attached to the object.
@@ -961,7 +961,7 @@ void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
     } else if (emitter->flags & PARTICLE_POINT) {
         if (emitter->colourIndex >= behaviour->spawnInterval) {
             emitter->colourIndex -= behaviour->spawnInterval;
-            func_80062D5C(obj, emitter);
+            point_particle_set_add(obj, emitter);
         }
     } else {
         while (emitter->colourIndex >= behaviour->spawnInterval) {
@@ -1515,7 +1515,7 @@ void move_particle_with_acceleration(struct Particle *particle);
 void move_particle_basic(struct Particle *particle);
 void move_particle_forward(struct Particle *particle);
 s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
-s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+s32 texture_anim_advance(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 extern s32 gParticleUpdateRate;
 
 #define particle ((UpdParticle *) particleAddr)
@@ -1556,7 +1556,7 @@ s32 particle_update(s32 particleAddr, s32 updateRate) {
                       gParticleUpdateRate);
     } else if (particle->kind == 1 || particle->kind == 0) {
         if (particle->texture != NULL) {
-            func_80057A10(particle->texture, &particle->flags, particle->texUpdateRate, &particle->frame,
+            texture_anim_advance(particle->texture, &particle->flags, particle->texUpdateRate, &particle->frame,
                           gParticleUpdateRate);
         }
     }
@@ -1793,7 +1793,7 @@ void func_80061698(ParticleObj *objAddr, ParticleEmitter *emitter) {
 INCLUDE_ASM("asm/nonmatchings/5DA60", func_80061698);
 #endif
 
-s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+s32 texture_anim_advance(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 
 /*
  * JFG: update a line set: move the segments whose life ran out to the end, then age the rest (colour cycle
@@ -1861,14 +1861,14 @@ void line_particle_set_update(LineParticleSet *set, s32 updateRate) {
             if (set->flags & 0x800) {
                 set->frame = rand_range(0, (set->texture->numOfTextures >> 8) - 1);
             } else {
-                func_80057A10(set->texture, &set->unk138, set->unk144, &set->frame, updateRate);
+                texture_anim_advance(set->texture, &set->unk138, set->unk144, &set->frame, updateRate);
             }
         }
     }
 }
 
 s32 particle_update(s32 particle, s32 updateRate);
-s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
+s32 texture_anim_advance(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 
 /* JFG: update a point set's particles, pack the live ones to the front, then free or animate its texture. */
 void point_particle_set_update(PointParticleSet *set, s32 updateRate) {
@@ -1917,7 +1917,7 @@ void point_particle_set_update(PointParticleSet *set, s32 updateRate) {
         if (set->flags & 0x800) {
             set->frame = rand_range(0, (tex->numOfTextures >> 8) - 1);
         } else {
-            func_80057A10(tex, &set->texFlags, set->texUpdateRate, &set->frame, updateRate);
+            texture_anim_advance(tex, &set->texFlags, set->texUpdateRate, &set->frame, updateRate);
         }
     }
 }
@@ -1927,8 +1927,8 @@ INCLUDE_ASM("asm/nonmatchings/5DA60", func_80062178);
 extern s32 D_800A5D80;
 void func_80062178(Gfx **dList, Vertex **vtx, PointParticleSet *set);
 
-/* JFG: render the flagged point particle sets. */
-void func_80062A00(Gfx **dList, Vertex **vtx) {
+/* JFG: render the flagged point particle sets (0x80062A00). */
+void point_particle_sets_render(Gfx **dList, Vertex **vtx) {
     s32 i;
     PointParticleSet *item;
 
@@ -2000,8 +2000,8 @@ struct ParticleDesc {
 extern ParticleDesc **D_800A5D9C;
 s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
 
-/* JFG: add a new particle to the emitter's point set (at most 15). */
-void func_80062D5C(void *arg0, ParticleEmitter *emitter) {
+/* JFG: add a new particle to the emitter's point set (at most 15) (0x80062D5C). */
+void point_particle_set_add(void *arg0, ParticleEmitter *emitter) {
     ParticleDesc *desc = D_800A5D9C[emitter->descriptorID];
     PointParticleSet *set;
     s32 particle;
@@ -2295,8 +2295,8 @@ void set_active_camera(s32 arg0);
 void viewport_apply(Gfx **dList, Mtx **matrix);
 void func_8005D93C(Gfx **dList, Vertex **vtx, WeatherParticleList *list);
 void line_particles_render(Gfx **dList, Vertex **vtx);
-void func_8005D2E8(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
-void func_8005D660(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
+void sprite_particles_render(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
+void model_particles_render(Gfx **dList, Mtx **matrix, Vertex **vtx, WeatherParticleList *list);
 
 /* JFG: render all the particles into the current vertex buffer, then flip buffers (0x80063730). */
 void render_all_particles(Gfx **dList, Mtx **matrix) {
@@ -2308,14 +2308,14 @@ void render_all_particles(Gfx **dList, Mtx **matrix) {
     func_8005D93C(dList, &vtx, D_801008E0[0]);
     func_8005D93C(dList, &vtx, D_801008E0[1]);
     line_particles_render(dList, &vtx);
-    func_80062A00(dList, &vtx);
-    func_8005D2E8(dList, matrix, &vtx, D_801008E0[2]);
-    func_8005D660(dList, matrix, &vtx, D_801008E0[3]);
+    point_particle_sets_render(dList, &vtx);
+    sprite_particles_render(dList, matrix, &vtx, D_801008E0[2]);
+    model_particles_render(dList, matrix, &vtx, D_801008E0[3]);
     D_800A5DD8 ^= 1;
 }
 
-/* JFG: move the particles of all five lists by the object's position. */
-void func_8006382C(ObjPos *obj) {
+/* JFG: move the particles of all five lists by the object's position (0x8006382C). */
+void particles_offset_by_position(ObjPos *obj) {
     s32 i;
     s32 j;
     WeatherParticleList *list;
