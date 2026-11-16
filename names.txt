@@ -315,6 +315,34 @@ func_m011_00C34 = campath_span_narrow
 func_m011_01288 = campath_angles_unwrap
 func_m011_01424 = campath_nodes_around
 
+# src/modules/m015.c
+func_m015_01C80 = m015_tex_anims_update
+func_m015_01E14 = m015_water_ripples
+func_m015_020B4 = m015_water_enter
+func_m015_022C4 = m015_wade_splashes
+func_m015_025FC = m015_hit_react
+func_m015_02B2C = m015_state_on_foot
+func_m015_03274 = m015_state_1
+func_m015_03564 = m015_state_2
+func_m015_03740 = m015_state_in_air
+func_m015_04088 = m015_body_head_commands
+func_m015_0418C = m015_state_aiming
+func_m015_04658 = m015_state_strafe_aiming
+func_m015_04A58 = m015_side_lean_update
+func_m015_04B4C = m015_sidestep_roll
+func_m015_05020 = m015_move_anim_pick
+func_m015_05180 = m015_anim_start
+func_m015_05328 = m015_anim_state_machine
+func_m015_05ED4 = m015_move
+func_m015_0663C = m015_head_turn
+func_m015_068BC = m015_state_6
+func_m015_06B3C = m015_state_8
+func_m015_06DDC = m015_state_7
+func_m015_06EBC = m015_state_swimming
+func_m015_07724 = m015_underwater_splash
+func_m015_07890 = m015_state_dead
+func_m015_07BC8 = m015_state_12
+
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap
 
