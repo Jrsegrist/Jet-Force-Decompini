@@ -49,9 +49,9 @@ extern s32 runlink_module_loaded(s32 module); /* a module's load address, 0 when
 extern M018MenuItem D_800FF780[];
 extern Object *D_800FF3F8[];
 
-static void func_m018_01194(s32 weapon);
-static void func_m018_011E4(void);
-static s32 func_m018_0207C(s8 *state);
+static void fe_weapon_show(s32 weapon);
+static void fe_weapon_image_free(void);
+static s32 fe_player_character(s8 *state);
 
 /* The module's .data (still assembly) */
 extern u8 rl_m018_06684[];
@@ -124,8 +124,8 @@ extern void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate);
 extern void func_m019_001B0(s32 screen);
 extern s32 D_m019_013D8;
 
-/* Draws the background and sets up the camera for the screen's objects */
-static void func_m018_00000(void) {
+/* Draws the background and sets up the camera for the screen's objects (module m018, 0x00000). */
+static void fe_screen_backdrop(void) {
     func_8004DFC4(&D_800FF398, &D_800FF39C, 0);
     func_80055B80(&D_800FF398);
     gDPSetFogColor(D_800FF398++, 255, 255, 255, 255);
@@ -145,7 +145,7 @@ void func_m018_000CC(void) {
 
     player = func_8000E4D0(0);
     state = player->unk68;
-    i = func_m018_0207C(state);
+    i = fe_player_character(state);
     menu_assetgroup_load(rl_m018_06684);
     menu_assetgroup_reset(rl_m018_0668C);
     func_m009_00408();
@@ -269,8 +269,8 @@ void func_m018_01028(void) {
     state = player->unk68;
     menu_assetgroup_load(rl_m018_06694);
     menu_assetgroup_reset(rl_m018_066A0);
-    character = func_80047C1C(state[0], func_m018_0207C(state));
-    func_m018_01194(character->weapon);
+    character = func_80047C1C(state[0], fe_player_character(state));
+    fe_weapon_show(character->weapon);
     rl_m018_06CA0 = 0.0f;
     rl_m018_06CA4 = rl_m018_066B4[character->weapon];
     rl_m018_06CA8 = 30;
@@ -299,11 +299,11 @@ void func_m018_01140(void) {
         state[0x585] = rl_m018_066B0;
     }
     menu_assetgroup_free(rl_m018_06694);
-    func_m018_011E4();
+    fe_weapon_image_free();
 }
 
-/* Picks a weapon: loads its image and shows it */
-static void func_m018_01194(s32 weapon) {
+/* Picks a weapon: loads its image and shows it (module m018, 0x01194). */
+static void fe_weapon_show(s32 weapon) {
     rl_m018_066AC = weapon + 0x4A;
     rl_m018_066B0 = weapon;
     menu_item_load(rl_m018_066AC);
@@ -311,8 +311,8 @@ static void func_m018_01194(s32 weapon) {
     func_80054F90();
 }
 
-/* Frees the weapon's image */
-static void func_m018_011E4(void) {
+/* Frees the weapon's image (module m018, 0x011E4). */
+static void fe_weapon_image_free(void) {
     if (rl_m018_066AC) {
         s32 image = rl_m018_066AC;
         menu_item_free(image);
@@ -322,8 +322,8 @@ static void func_m018_011E4(void) {
 
 extern u16 rl_m018_066F8[15]; /* each weapon's bit */
 
-/* Picks the next weapon the character holds */
-static void func_m018_01218(M018Character *record) {
+/* Picks the next weapon the character holds (module m018, 0x01218). */
+static void fe_weapon_next(M018Character *record) {
     s32 weapon = rl_m018_066B0;
 
     do {
@@ -333,13 +333,13 @@ static void func_m018_01218(M018Character *record) {
         }
     } while (!(rl_m018_066F8[weapon] & record->unkA));
     if (weapon != rl_m018_066B0) {
-        func_m018_011E4();
-        func_m018_01194(weapon);
+        fe_weapon_image_free();
+        fe_weapon_show(weapon);
     }
 }
 
-/* Picks the previous weapon the character holds */
-static void func_m018_01294(M018Character *record) {
+/* Picks the previous weapon the character holds (module m018, 0x01294). */
+static void fe_weapon_prev(M018Character *record) {
     s32 weapon = rl_m018_066B0;
 
     do {
@@ -349,8 +349,8 @@ static void func_m018_01294(M018Character *record) {
         }
     } while (!(rl_m018_066F8[weapon] & record->unkA));
     if (weapon != rl_m018_066B0) {
-        func_m018_011E4();
-        func_m018_01194(weapon);
+        fe_weapon_image_free();
+        fe_weapon_show(weapon);
     }
 }
 
@@ -404,17 +404,17 @@ void func_m018_0130C(s32 updateRate) {
 
     settings = get_settings();
     buttons = func_80043510(D_m019_013D8);
-    func_m018_00000();
+    fe_screen_backdrop();
     func_m018_040A8(updateRate, 0x21);
     if (rl_m018_066AC && rl_m018_06BCC) {
         state = func_8000E4D0(0)->unk68;
-        record = func_80047C1C(state[0], func_m018_0207C(state));
+        record = func_80047C1C(state[0], fe_player_character(state));
         oldWeapon = rl_m018_066B0;
         if (D_800FF3D8[D_m019_013D8] < -32 && rl_m018_06C94 == 0) {
-            func_m018_01294(record);
+            fe_weapon_prev(record);
         }
         if (D_800FF3D8[D_m019_013D8] > 32 && rl_m018_06C94 == 0) {
-            func_m018_01218(record);
+            fe_weapon_next(record);
         }
         if (oldWeapon != rl_m018_066B0) {
             func_80001248(0x16B, 0);
@@ -588,8 +588,8 @@ void func_m018_0130C(s32 updateRate) {
     }
 }
 
-/* The player's character (its settings' when the state says 3) */
-static s32 func_m018_0207C(s8 *state) {
+/* The player's character (its settings' when the state says 3) (module m018, 0x0207C). */
+static s32 fe_player_character(s8 *state) {
     s32 character = state[1] & 3;
 
     if (character == 3) {
@@ -672,7 +672,7 @@ void func_m018_020C0(void) {
 
     loaded = runlink_module_loaded(0x14);
     state = func_8000E4D0(0)->unk68;
-    character = func_m018_0207C(state);
+    character = fe_player_character(state);
     if (state[1] & 4) {
         rl_m018_06CF8 = character + 0x9A;
     } else {
@@ -894,7 +894,7 @@ void func_m018_042D4(void) {
     obj_anim_set(D_800FF3F8[0x88], 0, 0.0f);
     player = func_8000E4D0(0);
     state = player->unk68;
-    i = func_m018_0207C(state);
+    i = fe_player_character(state);
     menu_assetgroup_load(&rl_m018_067F4[i * 3]);
     D_800FF780[49].unk6 = rl_m018_067F4[i * 3 + 1];
     D_800FF780[31].unk6 = 0x8F;
@@ -910,7 +910,7 @@ void func_m018_043AC(void) {
 
     player = func_8000E4D0(0);
     state = player->unk68;
-    i = func_m018_0207C(state);
+    i = fe_player_character(state);
     menu_assetgroup_free(rl_m018_067E0);
     menu_assetgroup_free(&rl_m018_067F4[i * 3]);
 }
@@ -932,9 +932,9 @@ void func_m018_04408(s32 updateRate) {
     s32 frame;
     char buf[80];
 
-    func_m018_00000();
+    fe_screen_backdrop();
     state = func_8000E4D0(0)->unk68;
-    character = func_m018_0207C(state);
+    character = fe_player_character(state);
     record = func_80047C1C(state[0], character);
     health = record->unk0 >> 8;
 
@@ -1082,8 +1082,8 @@ extern u8 rl_m018_06BF4;
 extern u8 rl_m018_06BF6;
 extern M018Glow rl_m018_06BF8[3];
 
-static void func_m018_057D8(void);
-static void func_m018_05800(M018Part *part);
+static void fe_highlights_clear(void);
+static void fe_highlight_add(M018Part *part);
 
 /* Sets up the screen that shows object 0x7B: its images, first part highlighted, its animation */
 void func_m018_048E4(void) {
@@ -1099,7 +1099,7 @@ void func_m018_048E4(void) {
     if (loaded == 0) {
         runlink_module_release(0x14);
     }
-    func_m018_057D8();
+    fe_highlights_clear();
     obj = D_800FF3F8[0x7B];
     model = *(M018ShownModel **) obj->modelInstances;
     rl_m018_06BD3 = 0;
@@ -1107,7 +1107,7 @@ void func_m018_048E4(void) {
     rl_m018_06BD0 = rl_m018_06BD1;
     menu_item_load(0x6F);
     D_800FF780[37].unk6 = 0x6F;
-    func_m018_05800(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+    fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
     D_800FF780[37].unkC = 0.0f;
     D_800FF780[37].unk10 = 0.0f;
     rl_m018_06BD8 = rl_m018_0682C[rl_m018_06BD1 * 3];
@@ -1140,8 +1140,8 @@ void func_m018_05788(void) {
     }
 }
 
-/* Clears the highlights */
-static void func_m018_057D8(void) {
+/* Clears the highlights (module m018, 0x057D8). */
+static void fe_highlights_clear(void) {
     M018Glow *g = rl_m018_06BF8;
     s32 i = 3;
 
@@ -1151,8 +1151,8 @@ static void func_m018_057D8(void) {
     }
 }
 
-/* Highlights a part in the first free slot */
-static void func_m018_05800(M018Part *part) {
+/* Highlights a part in the first free slot (module m018, 0x05800). */
+static void fe_highlight_add(M018Part *part) {
     M018Glow *g = rl_m018_06BF8;
     s32 i = 3;
 

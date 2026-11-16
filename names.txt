@@ -303,6 +303,12 @@ func_m007_01F80 = hint_scroll_draw
 func_m007_020D4 = hint_pages_draw
 func_m007_023D4 = hint_text_draw
 
+# src/modules/m009.c
+func_m009_02880 = map_place_pick
+func_m009_030E8 = map_world_model_draw
+func_m009_037E4 = map_tex_frames_set
+func_m009_03908 = map_item_draw
+
 # src/modules/m011.c
 func_m011_007B0 = campath_node_next
 func_m011_0080C = campath_node_prev
@@ -314,6 +320,15 @@ func_m011_00BB8 = campath_point_dist_sq
 func_m011_00C34 = campath_span_narrow
 func_m011_01288 = campath_angles_unwrap
 func_m011_01424 = campath_nodes_around
+
+# src/modules/m014.c
+func_m014_00074 = hud_turn_arrow_blink
+func_m014_010F4 = hud_weapon_wheel_update
+func_m014_019F4 = hud_item6_slide
+func_m014_0292C = hud_weapon_panel
+func_m014_02CF4 = results_screen_update
+func_m014_03418 = results_best_stat_draw
+func_m014_03C68 = hud_bar_draw
 
 # src/modules/m015.c
 func_m015_01C80 = m015_tex_anims_update
@@ -388,6 +403,20 @@ func_m017_050BC = m017_move
 func_m017_056D4 = m017_head_turn
 func_m017_05930 = m017_state_swimming
 func_m017_05F08 = m017_state_dead
+
+# src/modules/m018.c
+func_m018_00000 = fe_screen_backdrop
+func_m018_01194 = fe_weapon_show
+func_m018_011E4 = fe_weapon_image_free
+func_m018_01218 = fe_weapon_next
+func_m018_01294 = fe_weapon_prev
+func_m018_0207C = fe_player_character
+func_m018_057D8 = fe_highlights_clear
+func_m018_05800 = fe_highlight_add
+
+# src/modules/m024.c
+func_m024_00908 = track_segment_grid_build
+func_m024_018B4 = track_segment_batches_scan
 
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap

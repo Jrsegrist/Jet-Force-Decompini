@@ -111,8 +111,8 @@ extern s32 game_flag_get(s32 flag);
 extern s32 runlink_module_loaded(s32 module);
 extern void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom, u32 colourTo, s32 fade);
 extern s32 D_m019_013D8;
-static void func_m009_02880(s32 index);
-static void func_m009_037E4(Object *obj, s32 frame, s32 frames);
+static void map_place_pick(s32 index);
+static void map_tex_frames_set(Object *obj, s32 frame, s32 frames);
 
 extern u8 rl_m009_0441C[];
 extern M009Place rl_m009_0469C[];
@@ -196,7 +196,7 @@ void func_m009_00000(s32 mode) {
             save->characters[1].unk66 |= 0x200;
         }
         rl_m009_04914 = save->unk0 & 3;
-        func_m009_037E4(D_800FF3F8[72], rl_m009_04914 << 8, 3);
+        map_tex_frames_set(D_800FF3F8[72], rl_m009_04914 << 8, 3);
         rl_m009_04908 = 1;
         world = leveltable_world((u32) save->characters[rl_m009_04914].flags >> 5);
         p = rl_m009_0469C;
@@ -205,7 +205,7 @@ void func_m009_00000(s32 mode) {
         while (p->kind != 0xFF && !found) {
             if (world == p->world) {
                 found = 1;
-                func_m009_02880(i);
+                map_place_pick(i);
                 rl_m009_09798 = rl_m009_097A0;
                 rl_m009_0979C = rl_m009_097A4;
                 rl_m009_09790 = rl_m009_09798;
@@ -247,8 +247,8 @@ extern Gfx *D_800FF398;
 extern void *D_800FF39C;
 extern void func_80040D64(Gfx **dl, void *mtx);
 extern void rl_m009_02978(M009Model *model, s32 updateRate);
-static void func_m009_030E8(M009Model *model);
-static void func_m009_03908(s32 index);
+static void map_world_model_draw(M009Model *model);
+static void map_item_draw(s32 index);
 
 /* Draws the icon of a world on the map at (x, y) */
 void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
@@ -270,7 +270,7 @@ void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
                     model->y = y;
                     func_80040D64(&D_800FF398, &D_800FF39C);
                     rl_m009_02978(model, updateRate);
-                    func_m009_030E8(model);
+                    map_world_model_draw(model);
                 } else {
                     D_800FF780[p->index].posX = x;
                     D_800FF780[p->index].posY = y;
@@ -283,7 +283,7 @@ void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
                     D_800FF780[43].x += updateRate << 8;
                     D_800FF780[43].y += updateRate << 5;
                     D_800FF780[15].x += updateRate << 8;
-                    func_m009_03908(p->index);
+                    map_item_draw(p->index);
                 }
             }
             p++;
@@ -297,8 +297,8 @@ void func_m009_0066C(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m009/ro", func_m009_00690);
 
-/* Picks map place `index`: the map heads for its world model or menu item */
-static void func_m009_02880(s32 index) {
+/* Picks map place `index`: the map heads for its world model or menu item (module m009, 0x02880). */
+static void map_place_pick(s32 index) {
     M009Place *p;
 
     rl_m009_0490C = index;
@@ -360,9 +360,9 @@ extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a 
 
 /*
  * Draws a world model on the map: its body and, if it has one, its glowing layer, shrunk as its timer runs.
- * (Commands: the matrix, 25 vertices, 16 + 7 triangles; then pipe sync and the glow's prim colour.)
+ * (Commands: the matrix, 25 vertices, 16 + 7 triangles; then pipe sync and the glow's prim colour.) (module m009, 0x030E8).
  */
-static void func_m009_030E8(M009Model *model) {
+static void map_world_model_draw(M009Model *model) {
     u32 *glow = *(u32 **) ((u8 *) model + 0x4C8);
     MtxF mtx;
     f32 scale = 1.0f - (*(s16 *) ((u8 *) model + 0x4D0) * 0.5f) / 60.0f;
@@ -466,7 +466,7 @@ void func_m009_0343C(s32 updateRate) {
         while (p->kind != 0xFF && !found) {
             if (world == p->world) {
                 found = TRUE;
-                func_m009_02880(i);
+                map_place_pick(i);
             } else {
                 i++;
                 p++;
@@ -503,7 +503,7 @@ void func_m009_0343C(s32 updateRate) {
     }
     if ((rl_m009_04910 == 1 && start <= 0x4000 && angle > 0x4000) ||
         (rl_m009_04910 == -1 && start > 0x4000 && angle <= 0x4000)) {
-        func_m009_037E4(D_800FF3F8[72], rl_m009_04914 << 8, 3);
+        map_tex_frames_set(D_800FF3F8[72], rl_m009_04914 << 8, 3);
     }
 }
 
@@ -545,8 +545,8 @@ typedef struct M009Instance {
 } M009Instance;
 
 /* Sets the frames of the object's animated textures `frames` long to `frame` (the second one to the
-   next frame), and writes each batch's texture offsets */
-static void func_m009_037E4(Object *obj, s32 frame, s32 frames) {
+   next frame), and writes each batch's texture offsets (module m009, 0x037E4). */
+static void map_tex_frames_set(Object *obj, s32 frame, s32 frames) {
     M009Instance *inst = obj->modelInstances[obj->modelIndex];
     M009Model3D *model = inst->model;
     M009TexAnim *a = inst->texAnims;
@@ -585,8 +585,8 @@ extern void *D_800FF3A0;
 extern void func_800221F0(Object *obj, void *model, void *shading, s32 arg3);
 extern void func_8000DB94(Gfx **dl, void *mtx, void *vtx, Object *obj);
 
-/* Draws menu item `index`'s object at the item's place on the map */
-static void func_m009_03908(s32 index) {
+/* Draws menu item `index`'s object at the item's place on the map (module m009, 0x03908). */
+static void map_item_draw(s32 index) {
     M009MenuItem *item = &D_800FF780[index];
     Object *obj = D_800FF3F8[item->object];
 

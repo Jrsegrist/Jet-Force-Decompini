@@ -141,7 +141,7 @@ extern s32 mempool_free_timer_get(void);
 extern void func_8004AA08(s32 timer); /* DKR mempool_free_timer */
 extern void func_8004A828(s32 size, void *address, s32 colour); /* DKR mempool_alloc_fixed */
 extern void track_segment_data_alloc(s32 arg0, s32 arg1);
-static void func_m024_00908(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, s32 arg2);
+static void track_segment_grid_build(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, s32 arg2);
 #ifdef NON_MATCHING
 static s32 func_m024_00CE4(LevelModelSegment *block);
 static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b);
@@ -150,7 +150,7 @@ static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b);
 extern s32 rl_m024_00CE4(LevelModelSegment *block); /* still assembly */
 #endif
 extern f32 func_80097140(f32 x); /* square root */
-static void func_m024_018B4(LevelModelSegment *segment);
+static void track_segment_batches_scan(LevelModelSegment *segment);
 
 static void func_m024_001F8(s32 modelId);
 extern s32 D_800F2FA0;
@@ -283,7 +283,7 @@ static void func_m024_001F8(s32 modelId) {
         mdl += gCurrentLevelModel->segments[k].numberOfTriangles * 4;
         gCurrentLevelModel->segments[k].triangleHeightMasks = (u8 *) mdl;
         mdl += gCurrentLevelModel->segments[k].numberOfTriangles;
-        func_m024_00908(&gCurrentLevelModel->segments[k], &gCurrentLevelModel->segmentsBoundingBoxes[k], k);
+        track_segment_grid_build(&gCurrentLevelModel->segments[k], &gCurrentLevelModel->segmentsBoundingBoxes[k], k);
         gCurrentLevelModel->segments[k].edgeFlags = (u8 *) mdl;
         mdl += gCurrentLevelModel->segments[k].numberOfTriangles;
         mdl = func_8004AFC4(mdl);
@@ -292,7 +292,7 @@ static void func_m024_001F8(s32 modelId) {
         mdl = func_8004AFE0(mdl);
         gCurrentLevelModel->segments[k].unk3C = 0;
         gCurrentLevelModel->segments[k].unk40 = (s16 *) mdl;
-        func_m024_018B4(&gCurrentLevelModel->segments[k]);
+        track_segment_batches_scan(&gCurrentLevelModel->segments[k]);
         mdl = gCurrentLevelModel->segments[k].unk3E * 2 + mdl;
     }
     if (!func_m071_00000()) {
@@ -348,9 +348,9 @@ static void func_m024_001F8(s32 modelId) {
 
 /*
  * DKR func_8002C954, JFG's form: for each triangle, the cells of a 16x16 grid over
- * the segment's bounding box (x, then z) that it covers, and of 8 height bands.
+ * the segment's bounding box (x, then z) that it covers, and of 8 height bands (module m024, 0x00908).
  */
-static void func_m024_00908(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, UNUSED s32 arg2) {
+static void track_segment_grid_build(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, UNUSED s32 arg2) {
     Vertex *vert;
     s32 vertZ;
     s32 vertX;
@@ -724,8 +724,8 @@ static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b) {
 INCLUDE_ASM("asm/nonmatchings/modules/m024", func_m024_016E0);
 #endif
 
-/* DKR func_8002C71C: lists the segment's batches with flag 0x2000 and finds their highest first vertex */
-static void func_m024_018B4(LevelModelSegment *segment) {
+/* DKR func_8002C71C: lists the segment's batches with flag 0x2000 and finds their highest first vertex (module m024, 0x018B4). */
+static void track_segment_batches_scan(LevelModelSegment *segment) {
     s32 curVertY;
     s32 numVerts;
     s32 i;
