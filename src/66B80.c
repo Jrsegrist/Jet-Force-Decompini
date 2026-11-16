@@ -89,7 +89,48 @@ s32 func_80066784(s32 arg0, UNUSED s32 arg1) {
     return 8;
 }
 
-INCLUDE_ASM("asm/nonmatchings/66B80", func_80066790);
+/*
+ * JFG: the "move word" command: names the index (the middle half of the first word), or formats an
+ * unknown one into a local buffer; the print of the command was compiled out. 8 bytes long.
+ * (`if (name) {}` keeps the case blocks apart as in the ROM; name is set on every path.)
+ */
+s32 func_80066790(u32 *cmd) {
+    s32 a;
+    s32 index;
+    s32 offset;
+    s32 data;
+    char *name;
+    char buffer[0x28];
+
+    dl_cmd_unpack_bhb(cmd, &a, &offset, &index, &data);
+    switch (index) {
+        case 6:
+            name = "G_MW_SEGMENT";
+            break;
+        case 4:
+            name = "G_MW_CLIP";
+            break;
+        case 10:
+            name = "G_MW_MTXOFFSET";
+            break;
+        case 12:
+            name = "G_MW_POINTS";
+            break;
+        case 2:
+            name = "G_MW_SPRITEMODE";
+            break;
+        case 8:
+            name = "G_MW_FOG";
+            break;
+        default:
+            sprintf(buffer, "UNKNOWN INDEX %d", index);
+            name = buffer;
+            break;
+    }
+    if (name) {}
+    stubbed_printf("%20s: %s offset = %d, data = 0x%08x\n", "G_MOVEWORD", name, offset, data);
+    return 8;
+}
 
 /* JFG: format the command's argument into a local buffer (the print of the command was compiled out);
    8 bytes long. */
