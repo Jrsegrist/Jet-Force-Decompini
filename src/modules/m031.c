@@ -442,7 +442,7 @@ void func_m031_0080C(void) {
 }
 
 extern void rl_m031_021F0(s32 updateRate);
-static void func_m031_01150(s32 count, s32 updateRate);
+static void race_end_update(s32 count, s32 updateRate);
 extern void rl_m031_0242C(s32 arg0, s32 updateRate);
 
 /*
@@ -564,7 +564,7 @@ void func_m031_00A3C(s32 updateRate) {
     }
     if (sCountdown < 120) {
         rl_m031_021F0(updateRate);
-        func_m031_01150(count, updateRate);
+        race_end_update(count, updateRate);
     }
     if (*(u8 *) &D_800A4FB4 != 0 && sRacers[0].unk1E != 0) {
         rl_m031_0242C(0, updateRate);
@@ -587,9 +587,9 @@ extern void func_80048518(s32 arg0);
 
 /*
  * The race's end: times the racers (to the limit) until every one has finished (laps or time), then the end
- * fade, and after a button the next screen
+ * fade, and after a button the next screen (module m031, 0x01150).
  */
-static void func_m031_01150(s32 count, s32 updateRate) {
+static void race_end_update(s32 count, s32 updateRate) {
     s32 i;
     s32 limit;
     s32 done;
@@ -1043,7 +1043,7 @@ typedef struct M031Save {
 
 extern M031Save D_800FF318;
 extern void func_80047EFC(s32 flag, s32 set);
-static M031Record *func_m031_038E0(u32 time, s8 *place);
+static M031Record *race_best_time_insert(u32 time, s8 *place);
 
 /*
  * The finish of racer n: once, its time goes into the best times (with the reward flags for a
@@ -1052,7 +1052,7 @@ static M031Record *func_m031_038E0(u32 time, s8 *place);
 void func_m031_0242C(s32 n, s32 step) {
     if (n >= 0 && n < D_800A4FD0) {
         if (rl_m031_040EC == 0) {
-            sRacers[n].record = func_m031_038E0(D_800FED50[n].time * 100 / 60, &sRacers[n].place);
+            sRacers[n].record = race_best_time_insert(D_800FED50[n].time * 100 / 60, &sRacers[n].place);
             if (sRacers[n].record != NULL) {
                 if (D_800A5040 == 0) {
                     if (sRacers[n].unk1E == 4 && !(D_800FF318.unk6A & 1)) {
@@ -1225,9 +1225,9 @@ void func_m031_03888(void) {
 
 /*
  * Puts a best time into the current race's table (shifting the slower ones down, with the default
- * letters) and gives its place; returns the table, or NULL when the time is not among the five best
+ * letters) and gives its place; returns the table, or NULL when the time is not among the five best (module m031, 0x038E0).
  */
-static M031Record *func_m031_038E0(u32 time, s8 *place) {
+static M031Record *race_best_time_insert(u32 time, s8 *place) {
     M031Record *table;
     s32 i;
     s32 j;

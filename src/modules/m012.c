@@ -368,7 +368,7 @@ extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern s32 tex_find_id(void *texture);
 extern void func_80055A00(void *texture);        /* frees a texture */
 extern void model_cache_textures_release(s16 *keep);
-static void func_m012_01880(void);
+static void menuframe_modules_place(void);
 
 /* Keeps the level's textures (their ids) while the frame is open, and frees what the models no longer
    need (called from 00164) */
@@ -388,7 +388,7 @@ void func_m012_008A8(void) {
     }
     model_cache_textures_release(sTextureList);
     sFrame.texturesFreed = FALSE;
-    func_m012_01880();
+    menuframe_modules_place();
     func_80004C64(1);
 }
 
@@ -636,8 +636,8 @@ u8 func_m012_01870(void) {
 extern s32 runlink_module_loaded(s32 module);
 extern void runlink_module_move_to_slot(s32 module);
 
-/* Moves each of sModules that is loaded to its slot */
-static void func_m012_01880(void) {
+/* Moves each of sModules that is loaded to its slot (module m012, 0x01880). */
+static void menuframe_modules_place(void) {
     u8 *module;
 
     for (module = sModules; *module != 0xFF; module++) {

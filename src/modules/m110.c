@@ -44,16 +44,16 @@ extern s32 func_80015714(s32 *segments, s16 minX, s16 minY, s16 minZ, s16 maxX, 
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M110Model *func_8001B650(void);
 
-static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ);
+static void fade_exception_box_mark(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ);
 
 void func_m110_00000(Object *obj, M110Setup *setup, s32 arg2) {
     if (obj->objectID == 0x1C8) {
-        func_m110_00054(setup->common.x, setup->common.y, setup->common.z, setup->sizeX, setup->sizeY, setup->sizeZ);
+        fade_exception_box_mark(setup->common.x, setup->common.y, setup->common.z, setup->sizeX, setup->sizeY, setup->sizeZ);
     }
 }
 
-/* Marks the level vertices inside the box (centre, half sizes) as exceptions, saving their colours */
-static void func_m110_00054(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ) {
+/* Marks the level vertices inside the box (centre, half sizes) as exceptions, saving their colours (module m110, 0x00054). */
+static void fade_exception_box_mark(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ) {
     s32 n;
     M110Model *model;
     s32 i;

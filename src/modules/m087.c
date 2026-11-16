@@ -56,8 +56,8 @@ extern M087Entry rl_m087_013F0;
 extern M087Entry rl_m087_01450;
 extern M087Entry rl_m087_01470;
 
-/* The settings entry for an object ID */
-static M087Entry *func_m087_00000(s32 id) {
+/* The settings entry for an object ID (module m087, 0x00000). */
+static M087Entry *breakable_entry_find(s32 id) {
     switch (id) {
         case 0x135:
             return &rl_m087_01224;
@@ -165,7 +165,7 @@ void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
     }
     obj->modelIndex = 0;
     func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
-    state->unk0 = func_m087_00000(setup->common.objectID)->unk1C;
+    state->unk0 = breakable_entry_find(setup->common.objectID)->unk1C;
     state->unk2 = 0x20;
     state->unk3 = 0;
     state->floorY = obj->trans.y_position;
@@ -253,7 +253,7 @@ void func_m087_00510(Object *obj, s32 updateRate) {
     state = obj->unk68;
     runlink_unload_timer_set(D_m087_01220, 2, 2);
     if ((obj->interactObj->flags & 1) || state->unk1C != 0) {
-        entry = func_m087_00000(obj->objectID);
+        entry = breakable_entry_find(obj->objectID);
         if (entry == &rl_m087_01364) {
             func_m087_000D4(obj, 1, &rl_m087_01384, &points[1]);
         }
@@ -495,13 +495,13 @@ void func_m087_010DC(Object *obj, s32 updateRate) {
 }
 
 void func_m087_011B0(s32 id, s16 value) {
-    func_m087_00000(id)->unk1E = value;
+    breakable_entry_find(id)->unk1E = value;
 }
 
 void func_m087_011DC(Object *obj) {
     s16 *state = obj->unk68;
 
-    *state = func_m087_00000(*(s16 *) obj->pad2C)->unk1C;
+    *state = breakable_entry_find(*(s16 *) obj->pad2C)->unk1C;
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m087", data);

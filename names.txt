@@ -322,6 +322,9 @@ func_m007_01F80 = hint_scroll_draw
 func_m007_020D4 = hint_pages_draw
 func_m007_023D4 = hint_text_draw
 
+# src/modules/m008.c
+func_m008_00000 = fxdrops_pools_init
+
 # src/modules/m009.c
 func_m009_02880 = map_place_pick
 func_m009_030E8 = map_world_model_draw
@@ -339,6 +342,9 @@ func_m011_00BB8 = campath_point_dist_sq
 func_m011_00C34 = campath_span_narrow
 func_m011_01288 = campath_angles_unwrap
 func_m011_01424 = campath_nodes_around
+
+# src/modules/m012.c
+func_m012_01880 = menuframe_modules_place
 
 # src/modules/m014.c
 func_m014_00074 = hud_turn_arrow_blink
@@ -437,8 +443,13 @@ func_m018_05800 = fe_highlight_add
 func_m024_00908 = track_segment_grid_build
 func_m024_018B4 = track_segment_batches_scan
 
+# src/modules/m031.c
+func_m031_01150 = race_end_update
+func_m031_038E0 = race_best_time_insert
+
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap
+func_m036_00250 = game_globals_init
 
 # src/modules/m038.c
 D_m038_000F0 = sScreenQuadVerts
@@ -502,6 +513,9 @@ func_m062_01158 = mpmode_settings_page_first
 func_m062_01A48 = mpmode_settings_page_second
 func_m062_0228C = mpmode_setting_pick
 
+# src/modules/m069.c
+func_m069_014D0 = range_crosshair_draw
+
 # src/modules/m082.c
 func_m082_00340 = opener_stand_point_set
 func_m082_00E6C = opener_batches_write
@@ -510,6 +524,9 @@ func_m082_013C0 = opener_reward_owned
 func_m082_0165C = opener_pickup_spawn
 func_m082_01778 = opener_link_release
 
+# src/modules/m087.c
+func_m087_00000 = breakable_entry_find
+
 # src/modules/m093.c
 D_m093_002B0 = sFlagMessages
 
@@ -517,11 +534,26 @@ D_m093_002B0 = sFlagMessages
 func_m101_00000 = pane_shatter
 func_m101_0056C = pane_shards_move
 
+# src/modules/m110.c
+func_m110_00054 = fade_exception_box_mark
+
 # src/modules/m117.c
 D_m117_00B80 = sCloudColours
 
 # src/modules/m118.c
 func_m118_00000 = robot_find
+
+# src/modules/m122.c
+func_m122_00374 = blade_aim_point
+
+# src/modules/m127.c
+func_m127_00000 = terminal_use_point
+
+# src/modules/m135.c
+func_m135_02834 = mproom_tex_frames_set
+
+# src/modules/m136.c
+func_m136_01740 = troop_nearest_non_leader
 
 # src/modules/m142.c
 func_m142_00000 = linetree_node_is_convex

@@ -782,7 +782,7 @@ void func_m135_02188(Object *obj, M135SelectorEntry *entry) {
     obj->trans.rotation.y_rotation = sel->unk4;
 }
 
-static void func_m135_02834(Object *obj, s32 frame, s32 frames);
+static void mproom_tex_frames_set(Object *obj, s32 frame, s32 frames);
 
 /* A player selector's control: turns it, plays its turning sound and sets its model and frame */
 void func_m135_021F8(Object *obj, s32 updateRate) {
@@ -872,7 +872,7 @@ void func_m135_021F8(Object *obj, s32 updateRate) {
             }
         }
         obj->modelIndex = (obj->modelIndex & 3) + prev;
-        func_m135_02834(obj, v << 8, 14);
+        mproom_tex_frames_set(obj, v << 8, 14);
     }
     sel->unk17 = 0;
     sel->unkE = sel->unk8;
@@ -946,8 +946,8 @@ typedef struct M135Instance {
 } M135Instance;
 
 /* Sets the frames of the object's animated textures `texture` frames long to `frame` (the second one to
-   the next frame), and writes each batch's texture offsets (called from 021F8) */
-static void func_m135_02834(Object *obj, s32 frame, s32 frames) {
+   the next frame), and writes each batch's texture offsets (called from 021F8) (module m135, 0x02834). */
+static void mproom_tex_frames_set(Object *obj, s32 frame, s32 frames) {
     M135Instance *inst = obj->modelInstances[obj->modelIndex];
     M135Model *model = inst->model;
     M135TexAnim *a = inst->texAnims;

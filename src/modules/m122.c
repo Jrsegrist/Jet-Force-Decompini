@@ -161,8 +161,8 @@ void func_m122_00000(Object *obj, M122Setup *setup) {
     }
 }
 
-/* Where on the target to aim: its aim joint, or a bit above its position */
-static s32 func_m122_00374(Object *target, f32 *x, f32 *y, f32 *z) {
+/* Where on the target to aim: its aim joint, or a bit above its position (module m122, 0x00374). */
+static s32 blade_aim_point(Object *target, f32 *x, f32 *y, f32 *z) {
     M122Aim *aim;
     M122Instance *inst;
 
@@ -320,7 +320,7 @@ void func_m122_004EC(Object *obj, s32 updateRate) {
         }
         return;
     }
-    if (!func_m122_00374(s->model, &tx, &ty, &tz)) {
+    if (!blade_aim_point(s->model, &tx, &ty, &tz)) {
         obj_list_unlink(obj);
         s->flags |= 4;
         s->model = (void *) s->modelId;

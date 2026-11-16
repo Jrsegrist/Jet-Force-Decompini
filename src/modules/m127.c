@@ -90,8 +90,8 @@ extern f32 func_80097140(f32 x);             /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);      /* atan2 */
 
 
-/* The point the player must be near to use the terminal, and how near (the second argument is unused) */
-static void func_m127_00000(Object *obj, UNUSED void *arg1, f32 *x, f32 *y, f32 *z, f32 *range) {
+/* The point the player must be near to use the terminal, and how near (the second argument is unused) (module m127, 0x00000). */
+static void terminal_use_point(Object *obj, UNUSED void *arg1, f32 *x, f32 *y, f32 *z, f32 *range) {
     *x = obj->trans.x_position;
     *y = obj->trans.y_position;
     *z = obj->trans.z_position;
@@ -178,7 +178,7 @@ void func_m127_00104(Object *obj, s32 updateRate) {
             if (func_80043510(0) & 0x8000) {
                 s16 angle;
 
-                func_m127_00000(obj, racer, &x, &y, &z, &range);
+                terminal_use_point(obj, racer, &x, &y, &z, &range);
                 x -= player->trans.x_position;
                 y -= player->trans.y_position;
                 z -= player->trans.z_position;

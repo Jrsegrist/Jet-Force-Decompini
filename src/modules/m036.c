@@ -79,7 +79,7 @@ static s32 sNumMatPerPlayer[2][4] = { { 280, 384, 512, 640 }, { 300, 300, 300, 3
 static s32 sNumTrisPerPlayer[2][4] = { { 20, 30, 40, 50 }, { 20, 20, 20, 20 } };
 static u32 sM036Key[4] = { 0xEC3CB676, 0xB81DBB8F, 0x6B3A80EC, 0xEDEA5B02 };
 
-static void func_m036_00250(void);
+static void game_globals_init(void);
 static void default_alloc_displaylist_heap(void);
 
 /* Start-up: initialises each game system in turn, unloading the helper modules, then the display lists */
@@ -108,7 +108,7 @@ void func_m036_00000(void) {
     check_reset_and_halt();
     func_8005AB00();
     check_reset_and_halt();
-    func_m036_00250();
+    game_globals_init();
     check_reset_and_halt();
     screen_lines_init();
     level_effects_clear();
@@ -142,8 +142,8 @@ void func_m036_00000(void) {
     func_80048E20(0xD43E);
 }
 
-/* Initialises the level globals and allocates and resets the game settings */
-static void func_m036_00250(void) {
+/* Initialises the level globals and allocates and resets the game settings (module m036, 0x00250). */
+static void game_globals_init(void) {
     level_global_init();
     D_800FD748 = 0;
     gSettingsPtr = func_8004A57C(0x538, -1);

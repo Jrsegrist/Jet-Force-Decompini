@@ -821,8 +821,8 @@ void func_m136_016D0(Object *obj, M136Entry *setup) {
     point->unkA = ENTRY_U8(setup, 0x12);
 }
 
-/* The nearest other troop object that is not a leader */
-static Object *func_m136_01740(Object *obj) {
+/* The nearest other troop object that is not a leader (module m136, 0x01740). */
+static Object *troop_nearest_non_leader(Object *obj) {
     s32 count;
     Object **objects;
     Object *o;
@@ -855,7 +855,7 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     troop->unk64 = ENTRY_U8(setup, 0x2D);
     if (((u32) TROOP_KIND16(troop) >> 12) == 4) {
         if (troop->leader == NULL) {
-            troop->leader = func_m136_01740(obj);
+            troop->leader = troop_nearest_non_leader(obj);
         }
         ENTRY_U8(setup, 0xB) = 0;
     }

@@ -336,8 +336,8 @@ s32 func_m069_0135C(s32 arg0, f32 *from, f32 *to, f32 *dist) {
 INCLUDE_ASM("asm/nonmatchings/modules/m069", func_m069_0135C);
 #endif
 
-/* Draws player `player`'s crosshair at (x, y) */
-static void func_m069_014D0(Gfx **dl, Vertex **verts, s32 player, s32 x, s32 y) {
+/* Draws player `player`'s crosshair at (x, y) (module m069, 0x014D0). */
+static void range_crosshair_draw(Gfx **dl, Vertex **verts, s32 player, s32 x, s32 y) {
     s32 i;
     s8 *line;
     s8 *point;
@@ -395,7 +395,7 @@ void func_m069_016F4(Gfx **dl, Mtx **mtx, Vertex **verts, s32 count) {
     for (i = 0; i < count; i++) {
         obj = rl_m069_02000[i];
         score = obj->unk68;
-        func_m069_014D0(dl, verts, i, score->x, score->y);
+        range_crosshair_draw(dl, verts, i, score->x, score->y);
     }
     if (D_800A4FEC) {
         func_8006FC54(1);
