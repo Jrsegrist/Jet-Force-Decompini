@@ -3870,25 +3870,19 @@ extern void func_80049394(Vec3s *rotation, Vec3f *vec);
 extern s32 rl_m068_125E8;       /* how many trail points (.data) */
 extern s32 rl_m068_125FC;       /* the boulders made (.data) */
 
-#ifdef NON_MATCHING
-/*
- * A boulder: starts 1000 units back along a random direction, with a trail, a
- * speed and a size. The frame is 8 bytes bigger (rotation 4 higher) and the
- * temporaries after the trail end are one lower than the ROM's.
- */
+/* A boulder: starts 1000 units back along a random direction, with a trail, a speed and a size */
 void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
-    M068Boulder *b;
     s32 i;
-    f32 f;
     ObjectHeaderUnk50 *hit;
     Vec3f *t;
     Vec3f *src;
     Vec3f v;
+    M068Boulder *b;
     Vec3s rot;
 
     b = obj->unk68;
-    b->unk70 = 0;
     b->kind = setup->kind;
+    b->unk70 = 0;
     rot.y_rotation = 0;
     rot.x_rotation = 0x3000;
     rot.z_rotation = func_80048E2C(-0x7FBC, 0x7FBC);
@@ -3899,7 +3893,9 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     obj->trans.x_position += v.x;
     obj->trans.y_position += v.y;
     obj->trans.z_position += v.z;
-    for (i = 0, t = b->trail, src = sTrailStart; i < rl_m068_125E8; i++, t++, src++) {
+    t = b->trail;
+    src = sTrailStart;
+    for (i = 0; i < rl_m068_125E8; i++, t++, src++) {
         t->x = src->x;
         t->y = src->y;
         t->z = src->z;
@@ -3912,17 +3908,16 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
         v.y = 0.0f;
         v.z = func_80048E2C(-400, -200);
         func_80049394(&rot, &v);
-        t = &b->trail[rl_m068_125E8 - 1];
+        t = (Vec3f *) &((f32 *) b->trail)[rl_m068_125E8 * 3] - 1; /* the last point */
         t->x += v.x;
         t->y += v.y;
         t->z += v.z;
     }
-    f = func_80048E2C(100, 200) / 10.0f;
-    b->speed = f;
+    b->speed = func_80048E2C(100, 200) / 10.0f;
     b->velocity.x = -v.x;
     b->velocity.y = -v.y;
     b->velocity.z = -v.z;
-    b->unk72 = f * 100.0f;
+    b->unk72 = b->speed * 100.0f;
     if (obj->light != NULL && *obj->light != 0) {
         b->colour = (u8 *) *obj->light + 0x48;
         b->r = b->colour[8];
@@ -3945,9 +3940,6 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     }
     rl_m068_125FC++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F478);
-#endif
 
 /* The debris a boulder breaks into (an object entry) */
 typedef struct M068DebrisEntry {
