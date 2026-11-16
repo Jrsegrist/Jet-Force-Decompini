@@ -281,8 +281,8 @@ s32 func_m011_00454(s32 list, f32 x, f32 y, f32 z, M011Node **outNode, f32 *outT
     return path;
 }
 
-/* The node after `node` on path `path`, or NULL */
-static M011Node *func_m011_007B0(M011Node *node, s32 path) {
+/* The node after `node` on path `path`, or NULL (module m011, 0x007B0). */
+static M011Node *campath_node_next(M011Node *node, s32 path) {
     if (path == node->links[0].path) {
         return node->links[0].next;
     }
@@ -295,8 +295,8 @@ static M011Node *func_m011_007B0(M011Node *node, s32 path) {
     return NULL;
 }
 
-/* The node before `node` on path `path`, or NULL */
-static M011Node *func_m011_0080C(M011Node *node, s32 path) {
+/* The node before `node` on path `path`, or NULL (module m011, 0x0080C). */
+static M011Node *campath_node_prev(M011Node *node, s32 path) {
     if (path == node->links[0].path) {
         return node->links[0].prev;
     }
@@ -309,8 +309,8 @@ static M011Node *func_m011_0080C(M011Node *node, s32 path) {
     return NULL;
 }
 
-/* Link flag 1 of `node` on path `path` */
-static u8 func_m011_00868(M011Node *node, s32 path) {
+/* Link flag 1 of `node` on path `path` (module m011, 0x00868). */
+static u8 campath_link_flag1(M011Node *node, s32 path) {
     if (path == node->links[0].path) {
         return node->links[0].unk1;
     }
@@ -323,8 +323,8 @@ static u8 func_m011_00868(M011Node *node, s32 path) {
     return 0;
 }
 
-/* Link flag 2 of `node` on path `path` */
-static u8 func_m011_008C4(M011Node *node, s32 path) {
+/* Link flag 2 of `node` on path `path` (module m011, 0x008C4). */
+static u8 campath_link_flag2(M011Node *node, s32 path) {
     if (path == node->links[0].path) {
         return node->links[0].unk2;
     }
@@ -339,9 +339,9 @@ static u8 func_m011_008C4(M011Node *node, s32 path) {
 
 /*
  * The node (of `node` and the one before it on path `path`) whose radius holds (x, y, z) and
- * that is nearest; *outT gets the distance as a fraction of the radius.
+ * that is nearest; *outT gets the distance as a fraction of the radius (module m011, 0x00920).
  */
-static M011Node *func_m011_00920(M011Node *node, s32 path, f32 x, f32 y, f32 z, f32 *outT) {
+static M011Node *campath_nearest_node_find(M011Node *node, s32 path, f32 x, f32 y, f32 z, f32 *outT) {
     s32 pad[4];
     s32 i;
     M011Node *best;
@@ -370,7 +370,7 @@ static M011Node *func_m011_00920(M011Node *node, s32 path, f32 x, f32 y, f32 z, 
                     radius = r;
                 }
             }
-            node = func_m011_0080C(node, path);
+            node = campath_node_prev(node, path);
             i++;
         } while (node != NULL && i != 2);
     }
@@ -380,8 +380,8 @@ static M011Node *func_m011_00920(M011Node *node, s32 path, f32 x, f32 y, f32 z, 
     return best;
 }
 
-/* Moves `step` along path `path`, going on to the next or previous node past either end */
-static void func_m011_00A84(M011Node **nodeP, s32 path, f32 *t, f32 step) {
+/* Moves `step` along path `path`, going on to the next or previous node past either end (module m011, 0x00A84). */
+static void campath_step_along(M011Node **nodeP, s32 path, f32 *t, f32 step) {
     M011Node *next;
     M011Node *node;
     M011Node *prev;
@@ -389,17 +389,17 @@ static void func_m011_00A84(M011Node **nodeP, s32 path, f32 *t, f32 step) {
     *t += step;
     node = *nodeP;
     if (*t > 1.0f) {
-        prev = func_m011_0080C(node, path);
-        next = func_m011_0080C(prev, path);
-        if (prev == next || func_m011_008C4(prev, path)) {
+        prev = campath_node_prev(node, path);
+        next = campath_node_prev(prev, path);
+        if (prev == next || campath_link_flag2(prev, path)) {
             *t = 1.0f;
         } else {
             *t -= 1.0f;
             *nodeP = prev;
         }
     } else if (*t < 0.0f) {
-        next = func_m011_007B0(node, path);
-        if (next == node || func_m011_00868(node, path)) {
+        next = campath_node_next(node, path);
+        if (next == node || campath_link_flag1(node, path)) {
             *t = 0.0f;
         } else {
             *t += 1.0f;
@@ -408,8 +408,8 @@ static void func_m011_00A84(M011Node **nodeP, s32 path, f32 *t, f32 step) {
     }
 }
 
-/* The squared distance from (x, y, z) to the point at `t` on path `path` after `node` (stored in out*) */
-static f32 func_m011_00BB8(M011Node *node, s32 path, f32 t, f32 x, f32 y, f32 z, f32 *outX, f32 *outY,
+/* The squared distance from (x, y, z) to the point at `t` on path `path` after `node` (stored in out*) (module m011, 0x00BB8). */
+static f32 campath_point_dist_sq(M011Node *node, s32 path, f32 t, f32 x, f32 y, f32 z, f32 *outX, f32 *outY,
                            f32 *outZ) {
     f32 dx;
     f32 dy;
@@ -422,8 +422,8 @@ static f32 func_m011_00BB8(M011Node *node, s32 path, f32 t, f32 x, f32 y, f32 z,
     return dx * dx + dy * dy + dz * dz;
 }
 
-/* Narrows a span of a path down to the point nearest (x, y, z) by halving steps */
-static void func_m011_00C34(M011Span *span, f32 x, f32 y, f32 z) {
+/* Narrows a span of a path down to the point nearest (x, y, z) by halving steps (module m011, 0x00C34). */
+static void campath_span_narrow(M011Span *span, f32 x, f32 y, f32 z) {
     f32 t;
     f32 d;
     f32 px;
@@ -431,16 +431,16 @@ static void func_m011_00C34(M011Span *span, f32 x, f32 y, f32 z) {
     f32 pz;
     M011Node *node;
 
-    span->a.dist = func_m011_00BB8(span->a.node, span->path, span->a.t, x, y, z, &span->a.x, &span->a.y,
+    span->a.dist = campath_point_dist_sq(span->a.node, span->path, span->a.t, x, y, z, &span->a.x, &span->a.y,
                                    &span->a.z);
-    span->b.dist = func_m011_00BB8(span->b.node, span->path, span->b.t, x, y, z, &span->b.x, &span->b.y,
+    span->b.dist = campath_point_dist_sq(span->b.node, span->path, span->b.t, x, y, z, &span->b.x, &span->b.y,
                                    &span->b.z);
     while (span->step > 0.0025f) {
         span->step *= 0.5f;
         node = span->a.node;
         t = span->a.t;
-        func_m011_00A84(&node, span->path, &t, span->step);
-        d = func_m011_00BB8(node, span->path, t, x, y, z, &px, &py, &pz);
+        campath_step_along(&node, span->path, &t, span->step);
+        d = campath_point_dist_sq(node, span->path, t, x, y, z, &px, &py, &pz);
         if (span->a.dist < span->b.dist) {
             span->b.node = node;
             span->b.t = t;
@@ -477,16 +477,16 @@ void func_m011_00E74(M011Cam *cam, M011Cam *cam2, f32 x, f32 y, f32 z) {
 
     spans[0].a.node = cam->node;
     spans[0].a.t = cam->t;
-    func_m011_00A84(&spans[0].a.node, cam->path, &spans[0].a.t, -0.08f);
+    campath_step_along(&spans[0].a.node, cam->path, &spans[0].a.t, -0.08f);
     spans[0].b.node = spans[0].a.node;
     spans[0].b.t = spans[0].a.t;
-    func_m011_00A84(&spans[0].b.node, cam->path, &spans[0].b.t, 0.16f);
+    campath_step_along(&spans[0].b.node, cam->path, &spans[0].b.t, 0.16f);
     spans[0].step = 0.16f;
     spans[0].path = cam->path;
-    func_m011_00C34(&spans[0], x, y, z);
+    campath_span_narrow(&spans[0], x, y, z);
     sorted[0] = &spans[0];
     count = 1;
-    node = func_m011_00920(cam->node, cam->path, cam->x, cam->y, cam->z, &cam->weight);
+    node = campath_nearest_node_find(cam->node, cam->path, cam->x, cam->y, cam->z, &cam->weight);
     if (node != NULL) {
         sorted[1] = &spans[1];
         sorted[2] = &spans[2];
@@ -494,13 +494,13 @@ void func_m011_00E74(M011Cam *cam, M011Cam *cam2, f32 x, f32 y, f32 z) {
             if (node->links[i].path != 0xFF && cam->path != node->links[i].path) {
                 spans[count].a.node = node;
                 spans[count].a.t = 0.0f;
-                func_m011_00A84(&spans[count].a.node, node->links[i].path, &spans[count].a.t, -0.75f);
+                campath_step_along(&spans[count].a.node, node->links[i].path, &spans[count].a.t, -0.75f);
                 spans[count].b.node = node;
                 spans[count].b.t = 0.0f;
-                func_m011_00A84(&spans[count].b.node, node->links[i].path, &spans[count].b.t, 0.75f);
+                campath_step_along(&spans[count].b.node, node->links[i].path, &spans[count].b.t, 0.75f);
                 spans[count].step = 1.5f;
                 spans[count].path = node->links[i].path;
-                func_m011_00C34(&spans[count], x, y, z);
+                campath_span_narrow(&spans[count], x, y, z);
                 count++;
             }
         }
@@ -539,8 +539,8 @@ void func_m011_00E74(M011Cam *cam, M011Cam *cam2, f32 x, f32 y, f32 z) {
     }
 }
 
-/* Stores four angles, unwrapped so that neighbours differ by less than half a turn */
-static void func_m011_01288(f32 a, f32 b, f32 c, f32 d, f32 *out) {
+/* Stores four angles, unwrapped so that neighbours differ by less than half a turn (module m011, 0x01288). */
+static void campath_angles_unwrap(f32 a, f32 b, f32 c, f32 d, f32 *out) {
     s32 i;
     s32 j;
     f32 diff;
@@ -563,8 +563,8 @@ static void func_m011_01288(f32 a, f32 b, f32 c, f32 d, f32 *out) {
     }
 }
 
-/* The four nodes around `node` on path `path`: the next one, the node, the previous two */
-static s32 func_m011_01424(M011Node *node, s32 path, M011Node **next, M011Node **cur, M011Node **prev,
+/* The four nodes around `node` on path `path`: the next one, the node, the previous two (module m011, 0x01424). */
+static s32 campath_nodes_around(M011Node *node, s32 path, M011Node **next, M011Node **cur, M011Node **prev,
                            M011Node **prev2) {
     s32 i;
 
@@ -596,7 +596,7 @@ void func_m011_01510(M011Node *node, s32 path, f32 t, f32 *x, f32 *y, f32 *z) {
     M011Node *prev;
     M011Node *prev2;
 
-    if (func_m011_01424(node, path, &next, &cur, &prev, &prev2)) {
+    if (campath_nodes_around(node, path, &next, &cur, &prev, &prev2)) {
         *x = func_80049798(next->x, cur->x, prev->x, prev2->x, t);
         *y = func_80049798(next->y, cur->y, prev->y, prev2->y, t);
         *z = func_80049798(next->z, cur->z, prev->z, prev2->z, t);
@@ -635,12 +635,12 @@ void func_m011_015FC(M011Cam *cam, M011Cam *cam2, M011Target *target, f32 *x, f3
     angleCount = 0;
     c = cam;
     for (; i < 2; c = cam2, i++) {
-        if (c->path != 0xFF && func_m011_01424(c->node, c->path, &next, &cur, &prev, &prev2)) {
+        if (c->path != 0xFF && campath_nodes_around(c->node, c->path, &next, &cur, &prev, &prev2)) {
             posX[count] = func_80049798(next->camX, cur->camX, prev->camX, prev2->camX, c->t);
             posY[count] = func_80049798(next->camY, cur->camY, prev->camY, prev2->camY, c->t);
             posZ[count] = func_80049798(next->camZ, cur->camZ, prev->camZ, prev2->camZ, c->t);
             dist = c->node->unk4;
-            other = func_m011_0080C(c->node, c->path);
+            other = campath_node_prev(c->node, c->path);
             if (other != NULL) {
                 dist += (other->unk4 - dist) * c->t;
             }
@@ -661,11 +661,11 @@ void func_m011_015FC(M011Cam *cam, M011Cam *cam2, M011Target *target, f32 *x, f3
             }
             count++;
             if (target->unk6 >= 2) {
-                func_m011_01288(next->angleX, cur->angleX, prev->angleX, prev2->angleX, vals);
+                campath_angles_unwrap(next->angleX, cur->angleX, prev->angleX, prev2->angleX, vals);
                 angleX[angleCount] = func_80049798(vals[0], vals[1], vals[2], vals[3], c->t);
-                func_m011_01288(next->angleY, cur->angleY, prev->angleY, prev2->angleY, vals);
+                campath_angles_unwrap(next->angleY, cur->angleY, prev->angleY, prev2->angleY, vals);
                 angleY[angleCount] = func_80049798(vals[0], vals[1], vals[2], vals[3], c->t);
-                func_m011_01288(next->angleZ, cur->angleZ, prev->angleZ, prev2->angleZ, vals);
+                campath_angles_unwrap(next->angleZ, cur->angleZ, prev->angleZ, prev2->angleZ, vals);
                 angleZ[angleCount] = func_80049798(vals[0], vals[1], vals[2], vals[3], c->t);
                 angleCount++;
             }

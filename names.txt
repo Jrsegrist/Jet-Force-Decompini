@@ -285,6 +285,36 @@ D_m001_01C70 = sDropsLoaded
 func_m001_00000 = drop_pool_init
 func_m001_00678 = drop_render
 
+# src/modules/m007.c
+func_m007_0032C = hint_flags_count
+func_m007_00390 = hint_condition_holds
+func_m007_00578 = hint_stack_push
+func_m007_0070C = hint_stack_pop
+func_m007_00DF0 = hint_stick_repeat_clear
+func_m007_00E0C = hint_pad_read
+func_m007_01018 = hint_scroll_controls
+func_m007_01214 = hint_pages_controls
+func_m007_012E0 = hint_page_condition_holds
+func_m007_01504 = hint_action_condition_holds
+func_m007_016B4 = hint_page_choose
+func_m007_017E8 = hint_action_run
+func_m007_01E34 = hint_boxes_fill
+func_m007_01F80 = hint_scroll_draw
+func_m007_020D4 = hint_pages_draw
+func_m007_023D4 = hint_text_draw
+
+# src/modules/m011.c
+func_m011_007B0 = campath_node_next
+func_m011_0080C = campath_node_prev
+func_m011_00868 = campath_link_flag1
+func_m011_008C4 = campath_link_flag2
+func_m011_00920 = campath_nearest_node_find
+func_m011_00A84 = campath_step_along
+func_m011_00BB8 = campath_point_dist_sq
+func_m011_00C34 = campath_span_narrow
+func_m011_01288 = campath_angles_unwrap
+func_m011_01424 = campath_nodes_around
+
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap
 
