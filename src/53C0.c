@@ -657,7 +657,7 @@ s32 func_800485C8(s32 player);
 PlayerChar53 *func_80047C1C(s32 player, s32 character);
 s32 game_flag_get(s32 flag);
 s32 func_8003B660(s16 *x, s16 *y, s16 *z, s16 *angle);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 extern s32 D_800F2C90; // DKR: gEventCountdown
 extern s32 D_800F2D10;
 extern u8 D_800A4FC4;  // JFG: a multiplayer game
@@ -1592,7 +1592,7 @@ s32 runlink_module_loaded(s32 module);
 void sound_nearest_emitter_update(void);
 void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
 s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
  * Updates all objects in the game.
@@ -1707,7 +1707,7 @@ extern f32 D_800F2C88;
 extern s32 D_800F6F54;
 void group_light_update(Object *obj, s32 updateRate);
 void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /* JFG: update the objects some types need first (one of type 0x80 last), then the racers. */
 void objects_update_special(s32 updateRate) {
@@ -2095,7 +2095,116 @@ void render_misc_model(Object *obj, Vertex *verts, u32 numVertices, Triangle *tr
     func_80041DC0(&gObjectCurrDisplayList);
 }
 
+/* DKR include/structs.h */
+typedef struct Vec3f {
+    f32 x, y, z;
+} Vec3f;
+
+f32 *func_80041E4C(void); // JFG: the camera's view matrix
+Mtx *func_80041E24(void);  // JFG: the camera's projection matrix
+void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // DKR: mtxf_transform_point
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
+void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
+void func_8000A300(Gfx **dList, Vertex **vtxList, void *tex, Triangle *tris, Vec3f *p1, Vec3f *p2, f32 width,
+                   s32 primColour, s32 envColour, s32 flags);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: draw a textured band (two triangles) from p2 to p1 in view space, its width on screen given:
+ * the end behind the near plane (z > -10) is clipped to it, nothing is drawn when both are.
+ * NON_MATCHING: the right frame and stack slots; the flags argument is loaded into a2 (target: t6, then
+ * `ori a2` in the material call's delay slot), and the vertex stores are scheduled earlier (6 words shorter).
+ */
+void func_8000A300(Gfx **dList, Vertex **vtxList, void *tex, Triangle *tris, Vec3f *p1, Vec3f *p2, f32 width,
+                   s32 primColour, s32 envColour, s32 flags) {
+    f32 x1, y1, z1;
+    f32 x2, y2, z2;
+    f32 sx1, sy1;
+    f32 sx2, sy2;
+    f32 lenSq;
+    f32 dx;
+    f32 dy;
+    f32 *mtx;
+    Gfx *dl;
+    Vertex *v;
+
+    if (p2->x == p1->x && p2->y == p1->y && p2->z == p1->z) {
+        return;
+    }
+    mtx = func_80041E4C();
+    func_80048B60(mtx, p2->x, p2->y, p2->z, &x1, &y1, &z1);
+    func_80048B60(mtx, p1->x, p1->y, p1->z, &x2, &y2, &z2);
+    if (z1 > -10.0f && z2 > -10.0f) {
+        return;
+    }
+    if (z1 > -10.0f) {
+        x1 += (x2 - x1) * ((-10.0f - z1) / (z2 - z1));
+        y1 += (y2 - y1) * ((-10.0f - z1) / (z2 - z1));
+        z1 = -10.0f;
+    } else if (z2 > -10.0f) {
+        x2 += (x1 - x2) * ((-10.0f - z2) / (z1 - z2));
+        y2 += (y1 - y2) * ((-10.0f - z2) / (z1 - z2));
+        z2 = -10.0f;
+    }
+    dl = *dList;
+    v = *vtxList;
+    if (func_80041E58(x1, y1, z1, &sx1, &sy1, 0) && func_80041E58(x2, y2, z2, &sx2, &sy2, 0)) {
+        dx = sx2 - sx1;
+        dy = sy2 - sy1;
+        lenSq = dx * dx + dy * dy;
+        if (lenSq > 0.0f) {
+            lenSq = width / sqrtf(lenSq);
+            dx *= lenSq;
+            dy *= lenSq;
+        }
+        gSPMatrix(dl++, (u8 *) func_80041E24() + 0x80000000, G_MTX_PROJECTION);
+        func_80055C00(&dl, tex, flags | 6, 0);
+        fast3d_cmd(dl++, 0xFA000000, primColour);
+        fast3d_cmd(dl++, 0xFB000000, envColour);
+        gSPVertexLast(dl++, (u32) v + 0x80000000, 4, 0);
+        gSPPolygon(dl++, (u32) tris + 0x80000000, 2, 1);
+        gDPPipeSync(dl++);
+        gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor(dl++, 255, 255, 255, 255);
+        fast3d_cmd(dl++, 0xBC00000A, 0);
+        func_80048B60(mtx, p2->x, p2->y, p2->z, &x1, &y1, &z1);
+        func_80048B60(mtx, p1->x, p1->y, p1->z, &x2, &y2, &z2);
+        v += 4;
+        v[-4].x = x1 + dy;
+        v[-4].y = y1 + dx;
+        v[-4].r = 255;
+        v[-4].g = 255;
+        v[-4].b = 255;
+        v[-4].a = 255;
+        v[-4].z = z1;
+        v[-3].x = x1 - dy;
+        v[-3].y = y1 - dx;
+        v[-3].r = 255;
+        v[-3].g = 255;
+        v[-3].b = 255;
+        v[-3].a = 255;
+        v[-3].z = z1;
+        v[-2].x = x2 + dy;
+        v[-2].y = y2 + dx;
+        v[-2].r = 255;
+        v[-2].g = 255;
+        v[-2].b = 255;
+        v[-2].a = 255;
+        v[-2].z = z2;
+        v[-1].x = x2 - dy;
+        v[-1].y = y2 - dx;
+        v[-1].r = 255;
+        v[-1].g = 255;
+        v[-1].b = 255;
+        v[-1].a = 255;
+        v[-1].z = z2;
+    }
+    *dList = dl;
+    *vtxList = v;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
+#endif
 
 void screen_line_add_3d(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
 
@@ -2107,7 +2216,241 @@ void obj_debug_line_draw(Object *obj) {
                   obj->trans.z_position, 0x13);
 }
 
+/* JFG: the data of a type 162 object: a band drawn between two points */
+typedef struct BandData {
+    /* 0x00 */ Triangle tris[2];
+    /* 0x20 */ u8 pad20[0x63 - 0x20];
+    /* 0x63 */ u8 nearEnd; // nonzero: the band ends at the object's first point, else its second
+    /* 0x64 */ u8 pad64[0x6C - 0x64];
+    /* 0x6C */ f32 width;
+} BandData;
+
+/* JFG: the data of a type 152 object: three strips of 32 triangles, and a sprite */
+typedef struct StripData {
+    /* 0x000 */ u8 tris[0x600];
+    /* 0x600 */ u8 verts[0xA54 - 0x600];
+    /* 0xA54 */ f32 spriteScale;
+    /* 0xA58 */ u8 padA58[0xA76 - 0xA58];
+    /* 0xA76 */ s16 spriteRoll;
+    /* 0xA78 */ s16 visible;
+    /* 0xA7A */ u8 padA7A[0xA7F - 0xA7A];
+    /* 0xA7F */ u8 showSprite;
+    /* 0xA80 */ u8 padA80[0xA83 - 0xA80];
+    /* 0xA83 */ u8 colourIndex; // into D_800A0A10 (two environment colours each)
+} StripData;
+
+/* JFG: the data of a type 37 object: a chain of beams between five joint pairs of another object */
+typedef struct ChainData {
+    /* 0x00 */ Object *target;
+    /* 0x04 */ u8 pad4[0x10 - 0x4];
+    /* 0x10 */ s16 joints[6];
+    /* 0x1C */ u8 pad1C[0x23 - 0x1C];
+    /* 0x23 */ u8 hidden;
+} ChainData;
+
+/* JFG: the data of a type 22 object (DKR's butterfly and fish) */
+typedef struct FlapData {
+    /* 0x000 */ Triangle tris[8];
+    /* 0x080 */ Vertex vertices[12];
+    /* 0x0F8 */ void *texture;
+    /* 0x0FC */ u8 frame;
+    /* 0x0FD */ u8 kind;
+    /* 0x0FE */ u8 padFE[0x10C - 0xFE];
+    /* 0x10C */ f32 scale;
+    /* 0x110 */ u32 grey;
+    /* 0x114 */ u32 alpha;
+} FlapData;
+
+extern u32 D_800A0A10[][2];     // JFG: pairs of environment colours (StripData)
+extern Triangle D_800A09A8[];   // JFG: the two triangles of a beam
+extern Vertex D_800A09C8[];     // JFG: a quad's four vertices
+extern Triangle D_800A09F0[];   // JFG: a quad's two triangles
+
+void func_800079B8(Object *obj);
+void func_80029688(Gfx **dList, Mtx **mtx, Object *obj);
+void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj);
+void func_80055B80(Gfx **dList);
+void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex **verts, void *sprite, s16 x, s16 y, s16 z,
+                                s16 roll, f32 scale, f32 frame, s32 flags, u8 alpha);
+
+#ifdef NON_MATCHING
+/**
+ * A few objects use unconventional means to render. They are handled here (DKR render_3d_misc; JFG's types).
+ * NON_MATCHING: the right frame and stack slots (pad: unused words in the target's frame); s0/s1 swapped
+ * (the target keeps the display list's address in s0, the texture in s1), the display-list pointer in v1
+ * (target v0) with w0 stored first, and 4 words shorter.
+ */
+void func_8000AA34(Object *obj) {
+    StripData *strip;
+    ChainData *chain;
+    FlapData *flap;
+    BandData *band;
+    u8 *verts;
+    u8 *tris;
+    s32 i;
+    UNUSED s32 pad[15];
+    void *tex;
+    Vec3f a;
+    Vec3f b;
+    Gfx *gfx;
+
+    switch (obj->behaviorId) {
+        case 68:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 162:
+            band = (BandData *) obj->racer;
+            func_8000A300(&gObjectCurrDisplayList, &gObjectCurrVertexList, obj->attachments[obj->attachmentIndex],
+                          band->tris, (Vec3f *) &obj->trans.x_position,
+                          band->nearEnd ? (Vec3f *) ((u8 *) obj->unk4C + 0xC) : (Vec3f *) ((u8 *) obj->unk4C + 0x18),
+                          band->width, -1, obj->setupEntrance | 0xFF, 0x200);
+            break;
+        case 157:
+            obj_debug_line_draw(obj);
+            break;
+        case 63:
+            func_8000C0B8(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 152:
+            strip = (StripData *) obj->racer;
+            if (strip->visible) {
+                verts = strip->verts;
+                tex = obj->header->assets[0];
+                tris = strip->tris;
+                mtx_cam_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj, 1.0f, 0.0f);
+                func_80055C00(&gObjectCurrDisplayList, tex, 0x206, 0);
+                gfx = gObjectCurrDisplayList++;
+                gfx->words.w0 = 0xFA000000;
+                gfx->words.w1 = 0xFFFFFFC0;
+                gfx = gObjectCurrDisplayList++;
+                gfx->words.w0 = 0xFB000000;
+                gfx->words.w1 = D_800A0A10[strip->colourIndex][0];
+                for (i = 0; i != 3; i++) {
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = ((((u32) verts + 0x80000000) & 6) | 0x90) << 16 | 0x040000BC;
+                    gfx->words.w1 = (u32) verts + 0x80000000;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0x05F10100;
+                    gfx->words.w1 = (u32) tris + 0x80000000;
+                    verts += 0xB4;
+                    tris += 0x100;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = ((((u32) verts + 0x80000000) & 6) | 0x90) << 16 | 0x040000BC;
+                    gfx->words.w1 = (u32) verts + 0x80000000;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0x05F10100;
+                    gfx->words.w1 = (u32) tris + 0x80000000;
+                    verts += 0xB4;
+                    tris += 0x100;
+                    if (i == 0) {
+                        gfx = gObjectCurrDisplayList++;
+                        gfx->words.w0 = 0xE7000000;
+                        gfx->words.w1 = 0;
+                        gfx = gObjectCurrDisplayList++;
+                        gfx->words.w0 = 0xFB000000;
+                        gfx->words.w1 = D_800A0A10[strip->colourIndex][1];
+                    }
+                }
+                func_80041DC0(&gObjectCurrDisplayList);
+                if (strip->showSprite) {
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0xE7000000;
+                    gfx->words.w1 = 0;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0xFA000000;
+                    gfx->words.w1 = 0xFFFFFFC0;
+                    render_sprite_billboard_at(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList,
+                                               obj->header->assets[1], obj->trans.x_position, obj->trans.y_position,
+                                               obj->trans.z_position, strip->spriteRoll, strip->spriteScale, 0.0f, 6,
+                                               192);
+                }
+                func_80055B80(&gObjectCurrDisplayList);
+            }
+            break;
+        case 37:
+            chain = (ChainData *) obj->racer;
+            if (chain->hidden) {
+                break;
+            }
+            if (chain->target->freed) {
+                func_800079B8(obj);
+                break;
+            }
+            if (chain->target->behaviorId == 0x18) {
+                func_80054530(chain->target);
+            }
+            i = 5;
+            while (i--) {
+                if (func_80054530(chain->target, chain->joints[i], &a.x, &a.y, &a.z) &&
+                    func_80054530(chain->target, chain->joints[i + 1], &b.x, &b.y, &b.z)) {
+                    func_8000A300(&gObjectCurrDisplayList, &gObjectCurrVertexList, obj->header->assets[0], D_800A09A8,
+                                  &a, &b, 8.0f, -1, obj->setupEntrance | 0xFF, 0x200);
+                }
+            }
+            break;
+        case 36:
+            obj_draw_displaylist_origin(obj);
+            break;
+        case 64:
+            obj_draw_displaylist(obj);
+            break;
+        case 22:
+            flap = (FlapData *) obj->racer;
+            if (flap->kind == 5) {
+                obj->trans.scale = obj->header->scale * flap->scale;
+                render_misc_model(obj, &flap->vertices[flap->frame * 6], 6, flap->tris, 8, flap->texture, 10, 0, 1.0f,
+                                  (s32) (flap->grey * 255) >> 8, (s32) (flap->alpha * 255) >> 8);
+            } else {
+                render_misc_model(obj, &flap->vertices[flap->frame * 6], 6, flap->tris, 8, flap->texture, 10, 0, 1.0f,
+                                  255, 255);
+            }
+            break;
+        case 40:
+            func_80029688(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 41:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 82:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 88:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 127:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 170:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 173:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 174:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 139:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 151:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 171:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 146:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 123:
+            if (obj->unk4A == 0x1FB) {
+                render_misc_model(obj, D_800A09C8, 4, D_800A09F0, 2, obj->attachments[0], 4, 0, 1.0f, 0, obj->opacity);
+            }
+            break;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000AA34);
+#endif
 
 /* JFG: the block of a type 7 object (drawn twice, or scaled) */
 typedef struct ObjectTwinDraw {
@@ -2383,7 +2726,7 @@ void func_8000C9E8(s32 arg0) {
 }
 
 void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g, u8 *b, u8 *unk2);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /* JFG: set the fog for drawing a type 0x18 object (its flash colour while its player's bit is set,
    counting the flash down), or let a module do it for type 0x82. The fog factor word (0x500, 0x500)
@@ -2506,7 +2849,7 @@ void obj_draw_twin(Object *obj);
 void func_8000B46C(Object *obj);
 void func_8000CC64(Object *obj);
 void func_8000AA34(Object *obj);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
  * Determine which model type the object is using, then call the related function to render it.
@@ -4749,7 +5092,7 @@ f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
 }
 
 extern s32 D_800F2D20[];
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 #ifdef NON_MATCHING
 /**
