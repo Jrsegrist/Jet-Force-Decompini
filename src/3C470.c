@@ -1,3 +1,6 @@
+/*
+ * Object models and the asset caches: loading and freeing models and their textures (DKR's object_models.c).
+ */
 #include "common.h"
 
 /* Copies a block as halfwords (size in bytes, rounded up) (0x8003B870). */

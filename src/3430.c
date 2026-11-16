@@ -1,3 +1,6 @@
+/*
+ * Spatial audio: sound points placed in the level and their volume and pan (DKR's audio_spatial.c).
+ */
 #include "common.h"
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */

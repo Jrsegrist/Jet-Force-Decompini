@@ -1,3 +1,6 @@
+/*
+ * Object shadows: the double-buffered shadow vertex and triangle buffers and building the shadows.
+ */
 #include "common.h"
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001CE10);

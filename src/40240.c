@@ -1,3 +1,7 @@
+/*
+ * Cameras and viewports: view and projection matrices, field of view, shakes and screen projection
+ * (DKR's camera.c).
+ */
 #include "common.h"
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */

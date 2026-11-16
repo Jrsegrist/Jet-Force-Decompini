@@ -1,3 +1,6 @@
+/*
+ * The audio manager thread and its sample DMA (DKR's audiomgr.c).
+ */
 #include "common.h"
 
 /* The audio manager thread (part of DKR's AMAudioMgr __am). */

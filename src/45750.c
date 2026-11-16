@@ -1,3 +1,7 @@
+/*
+ * The main game loop: start-up, level changes, the per-frame update, the character and multiplayer records
+ * and the save flags (DKR's thread3_main.c).
+ */
 #include "common.h"
 #include "joypad.h"
 

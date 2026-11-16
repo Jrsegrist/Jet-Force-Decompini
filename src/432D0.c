@@ -1,3 +1,6 @@
+/*
+ * The camera follow mode and the view override (a fixed view the player camera copies).
+ */
 #include "common.h"
 
 /* DKR include/structs.h */

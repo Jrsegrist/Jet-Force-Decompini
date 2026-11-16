@@ -1,3 +1,6 @@
+/*
+ * The player characters: the player camera, zone tracking, weapons and firing, aiming and restarting.
+ */
 #include "common.h"
 
 // The unreferenced debug strings at the start of this file's .rodata.

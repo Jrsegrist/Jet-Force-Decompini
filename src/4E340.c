@@ -1,3 +1,6 @@
+/*
+ * The split-screen dividers.
+ */
 #include "common.h"
 
 s32 func_80054530(); // a module function (patched in by the runtime linker)

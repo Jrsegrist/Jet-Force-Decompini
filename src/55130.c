@@ -1,3 +1,6 @@
+/*
+ * Video: the frame buffers and VI modes, and the texture set-up (DKR's video.c).
+ */
 #include "common.h"
 #include "memory.h"
 #include "asset_loading.h"

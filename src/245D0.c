@@ -1,3 +1,6 @@
+/*
+ * Coronas: sprites at light points that fade in while nothing blocks the view and out otherwise (50 slots).
+ */
 #include "common.h"
 
 /* A sprite at a point that fades in while nothing is in the way and out otherwise (50 slots). Size: 0x50 bytes */

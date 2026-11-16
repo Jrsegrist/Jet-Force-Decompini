@@ -1,3 +1,6 @@
+/*
+ * A debug trace: values with the source file and line that recorded them.
+ */
 #include "common.h"
 
 /* Size: 0xC bytes */

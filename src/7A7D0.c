@@ -1,3 +1,6 @@
+/*
+ * Object collision: collision spheres, pushing objects apart, line tests and box cells.
+ */
 #include "common.h"
 
 typedef struct Vec3f {

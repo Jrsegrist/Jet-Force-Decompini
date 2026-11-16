@@ -1,3 +1,6 @@
+/*
+ * The video (FMV) players: the video table and the two players.
+ */
 #include "common.h"
 
 /* Size: 0x24 bytes */

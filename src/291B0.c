@@ -1,3 +1,7 @@
+/*
+ * Level object behaviours and helpers: spawning from lists, emitters, light objects, colour-cycling sprites,
+ * the zone table, damage and distance tests.
+ */
 #include "common.h"
 
 typedef struct SpawnEntry {

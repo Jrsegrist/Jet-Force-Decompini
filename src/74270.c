@@ -1,3 +1,6 @@
+/*
+ * Subtitles and the current text from the game's text table (DKR's game_text.c).
+ */
 #include "common.h"
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */

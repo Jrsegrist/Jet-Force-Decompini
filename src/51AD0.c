@@ -1,3 +1,7 @@
+/*
+ * Troops (groups of enemies and their members) and the runlink module loader: slots, loading,
+ * relocation and entry points.
+ */
 #include "common.h"
 
 /* The stubbed debug messages of the troop code (unreferenced), in ROM order. */

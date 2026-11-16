@@ -1,3 +1,6 @@
+/*
+ * A display-list printer; its output was compiled out of the retail build.
+ */
 #include "common.h"
 
 /* Unreferenced debug strings at the start of this file's .rodata: kept as asm. */

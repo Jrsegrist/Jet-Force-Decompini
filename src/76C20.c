@@ -1,3 +1,7 @@
+/*
+ * Animation paths and sequences: objects moved along paths by the level's sequence scripts, and the
+ * sequence's camera points.
+ */
 #include "common.h"
 
 typedef struct AnimModel {

@@ -1,3 +1,6 @@
+/*
+ * guPerspectiveF in the game's own form, and one more maths function (still assembly).
+ */
 #include "common.h"
 
 f32 func_80049C30(s32 angle);

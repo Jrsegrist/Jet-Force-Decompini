@@ -1,3 +1,6 @@
+/*
+ * The crash screen, its text output and its thread (DKR's thread0_epc.c).
+ */
 #include "common.h"
 #include "stdarg.h"
 
