@@ -144,9 +144,9 @@ function at random and keeps the versions whose code is closer to the
 target. `perm.py` builds its workspace with this project's compiler command:
 
 ```sh
-.venv/bin/python3 tools/match/perm.py import src/7A7D0.c func_8007CCF0
-timeout 1800 .venv/bin/python3 tools/permuter/permuter.py build/perm/func_8007CCF0 -j4 --best-only
-.venv/bin/python3 tools/match/perm.py best build/perm/func_8007CCF0
+.venv/bin/python3 tools/match/perm.py import src/7A7D0.c player_spheres_push_out
+timeout 1800 .venv/bin/python3 tools/permuter/permuter.py build/perm/player_spheres_push_out -j4 --best-only
+.venv/bin/python3 tools/match/perm.py best build/perm/player_spheres_push_out
 ```
 
 - Seed it with your best C. Use `-j4` at most, run it in the background with

@@ -75,7 +75,7 @@ assembly, and `make nonmatching`. It cannot run `make check` or
   the present tense:
 
   ```
-  2BAA0: func_8002F0DC matches
+  2BAA0: player_zone_track_update matches
   m026: func_m026_00518 matches; m026 all C
   5B700: func_8005C188 NON_MATCHING body 71 -> 69 words
   53C0: .rodata in C from 0xAB000
