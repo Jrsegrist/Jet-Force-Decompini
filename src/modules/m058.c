@@ -127,7 +127,7 @@ extern u8 D_800A505C;
 extern M058Player D_800FEFD8[];
 extern u8 D_800FEFD0[];
 
-extern void func_8003DDBC(s32 arg0);
+extern void extra_batch_bits_store(s32 arg0);
 extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
 extern void menu_assetgroup_reset(s16 *assets);
 extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
@@ -153,7 +153,7 @@ extern s32 screenimage_load(s32 image); /* loads a full-screen image */
 extern void music_play(s32 seq);
 extern void func_8004797C(void);
 extern void func_8004AA80(s32 data); /* frees */
-extern void func_80047AE0(M058Player *p, s32 arg1);
+extern void char_record_reset(M058Player *p, s32 arg1);
 extern void func_80043430(s8 *players);
 extern void func_m135_0270C(Object *obj, s32 state, s32 character, s32 dir, s32 arg4);
 
@@ -205,9 +205,9 @@ void func_m058_00000(void) {
     M058Asset *asset;
     M058MenuItem *item = &D_800FF780[11]; /* (set before the calls: each access gets its own %hi/%lo) */
 
-    func_8003DDBC(0);
+    extra_batch_bits_store(0);
     menu_assetgroup_load(sAssets);
-    func_8003DDBC(8);
+    extra_batch_bits_store(8);
     menu_assetgroup_reset(sImages);
     sExit = NULL;
     sExitOpen = TRUE;
@@ -256,13 +256,13 @@ void func_m058_00134(s32 updateRate) {
         sTime += updateRate;
     }
     if (!game_flag_get(1) || game_flag_get(0x5B)) {
-        func_8007688C(0);
+        anim_path_disable_run(0);
     }
     if (!game_flag_get(0) || game_flag_get(0x5A)) {
-        func_8007688C(1);
+        anim_path_disable_run(1);
     }
     if (!game_flag_get(2) || game_flag_get(0x5C)) {
-        func_8007688C(2);
+        anim_path_disable_run(2);
     }
     func_m041_008B4(0, 0, updateRate);
     if (!(sLastFlags & 2) && (func_80043510(0) & B_BUTTON) && D_800FF311 && sTime >= 30) {
@@ -488,7 +488,7 @@ void func_m058_009B8(s32 updateRate) {
                                 picked = &D_800FF1B4[j];
                                 if (*picked != 1 && *picked != 0) {
                                     player = &D_800FEFD8[n];
-                                    func_80047AE0(player, 0);
+                                    char_record_reset(player, 0);
                                     player->character = sChars[*picked].unk1;
                                     D_800FEFD0[n] = sChars[*picked].unk0;
                                 }

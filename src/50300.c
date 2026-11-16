@@ -280,7 +280,7 @@ void sc_task_print(SchedTask *t) {
 }
 
 void __osSpSetStatus(u32 data);
-void func_80065F80(Gfx *from, Gfx *to, s32 arg2);
+void dl_dump_commands(Gfx *from, Gfx *to, s32 arg2);
 void debug_trace_find_nearest(u32 addr, s32 *belowB, s32 *belowC, s32 *belowA, s32 *aboveB, s32 *aboveC, s32 *aboveA);
 
 /* The RSP and RDP set back to run a task: SP halt, broke, interrupts and signals cleared; DP flags cleared */
@@ -346,7 +346,7 @@ Gfx *rcp_hang_bisect(OSSched *sc, s32 count, Gfx *dl, OSMesgQueue *mq, Gfx *star
                 if ((s32) from < (s32) start) {
                     from = start;
                 }
-                func_80065F80(from, dl, 0x50);
+                dl_dump_commands(from, dl, 0x50);
                 p = (Gfx *) dl->words.w1;
                 if ((u32) p < 0x80000000) {
                     p = (Gfx *) ((u32) p + 0x80000000);
@@ -365,7 +365,7 @@ Gfx *rcp_hang_bisect(OSSched *sc, s32 count, Gfx *dl, OSMesgQueue *mq, Gfx *star
                 if ((u32) dl < 0x80000000) {
                     dl = (Gfx *) ((u32) dl + 0x80000000);
                 }
-                func_80065F80(sub, dl, 0xA0);
+                dl_dump_commands(sub, dl, 0xA0);
                 return rcp_hang_bisect(sc, count, dl, mq, sub);
             }
             found = TRUE;
@@ -444,7 +444,7 @@ Gfx *rcp_hang_find(OSSched *sc, s32 *belowB, s32 *belowC, s32 *belowA, s32 *abov
     if ((s32) from < (s32) task->t.data_ptr) {
         from = (Gfx *) task->t.data_ptr;
     }
-    func_80065F80(from, dl, 0x50);
+    dl_dump_commands(from, dl, 0x50);
     /*
      * The retrace handler's compiled-out messages come next in .rodata, before its own strings; they
      * are here while that function is assembly.

@@ -127,7 +127,7 @@ extern f32 func_80097140(f32 x);        /* sqrtf */
 extern s32 func_80049C84(f32 a, f32 b); /* the angle of (a, b) */
 extern s32 rl_m135_02A78[]; /* per target: the flag it needs, and one that hides it */
 extern s32 rl_m135_02A84[];
-extern M135AnimPath *func_80079AA4(Object *obj);
+extern M135AnimPath *anim_path_for_obj(Object *obj);
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern u16 *gVideoLastFramebuffer;
@@ -253,7 +253,7 @@ void func_m135_00010(Object *obj, s32 updateRate) {
             }
         }
         if (aim->target != NULL) {
-            path = func_80079AA4(aim->target);
+            path = anim_path_for_obj(aim->target);
             aim->path = path;
             obj_anim_set(aim->target, entry->anim, 0);
             path->speed = entry->speed / 255.0f;

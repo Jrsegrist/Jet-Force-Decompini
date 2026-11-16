@@ -95,7 +95,7 @@ void func_m028_0031C(Object *obj, s32 arg1);
 
 extern s32 rl_m028_01BD4; /* the beam's sound */
 
-extern void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
+extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
                           f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 extern void light_colour_cycle_set(s32 handle, s32 arg1);
 extern void func_800212D0(s32 handle);
@@ -192,7 +192,7 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
             }
         }
     }
-    func_80079D1C(obj, st->padA7C, 1, 4, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, st->padA7C, 1, 4, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
     child = **(Object ***) obj->pad78;
     if (child != NULL && child != NULL) {
         child->animationID = 0;
@@ -537,7 +537,7 @@ typedef struct M028Camera {
 } M028Camera;
 
 extern s32 level_id(void);
-extern s32 func_80048548(void);       /* the number of cameras */
+extern s32 camera_count_get(void);       /* the number of cameras */
 extern M028Camera *func_80041E0C(void); /* the cameras */
 extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
 
@@ -562,7 +562,7 @@ void func_m028_01840(void) {
     best = 1e9f;
     nearest = NULL;
     if (level_id() != 0xD4) {
-        n = func_80048548();
+        n = camera_count_get();
         cams = func_80041E0C();
         objs = func_80005E98(&first, &count);
         for (j = 0; j < n; j++) {

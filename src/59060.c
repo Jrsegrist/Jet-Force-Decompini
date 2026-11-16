@@ -21,11 +21,11 @@ typedef struct MenuItem {
     /* 0x02 */ s16 unk2;
     /* 0x04 */ s16 unk4;
     /* 0x06 */ s16 unk6;
-    /* 0x08 */ f32 unk8;
+    /* 0x08 */ f32 scale;
     /* 0x0C */ f32 unkC;
-    /* 0x10 */ f32 unk10;
-    /* 0x14 */ f32 unk14;
-    /* 0x18 */ f32 unk18;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ f32 frame;
     /* 0x1C */ s8 unk1C;
     /* 0x1D */ s8 unk1D;
     /* 0x1E */ s8 unk1E;
@@ -681,7 +681,7 @@ void menu_draw_layout_box(s32 arg0, s32 index, s32 colour) {
 }
 
 s32 fb_mode(void); // JFG: the video mode
-s32 func_8005AA7C(void);
+s32 options_split_vertical_get(void);
 void fb_scale_coords(s32 *x, s32 *y);
 extern s16 D_800A508C[];
 
@@ -691,7 +691,7 @@ void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
     s32 offset = (((D_800A4FCC - 1) << 2) + index) << 2;
     s16 *box;
 
-    if ((mode & 1) || (D_800A4FCC == 2 && func_8005AA7C())) {
+    if ((mode & 1) || (D_800A4FCC == 2 && options_split_vertical_get())) {
         offset += 0x40;
     }
     box = &D_800A508C[offset];
@@ -929,10 +929,10 @@ void menu_item_reset(s32 item) {
     dst->unk4 = src->unk4;
     dst->unk6 = src->unk6;
     dst->unkC = src->unkC;
-    dst->unk10 = src->unk10;
-    dst->unk14 = src->unk14;
-    dst->unk8 = src->unk8;
-    dst->unk18 = src->unk18;
+    dst->y = src->y;
+    dst->z = src->z;
+    dst->scale = src->scale;
+    dst->frame = src->frame;
     dst->unk1C = src->unk1C;
     dst->unk1D = src->unk1D;
     dst->unk1E = src->unk1E;
@@ -1029,22 +1029,22 @@ void func_8005A0D0(s32 item) {
             trans.rotation[1] = entry->unk2;
             trans.rotation[2] = entry->unk4;
             trans.x = entry->unkC;
-            trans.y = entry->unk10;
-            trans.z = entry->unk14;
-            trans.scale = entry->unk8;
+            trans.y = entry->y;
+            trans.z = entry->z;
+            trans.scale = entry->scale;
             type = D_800A51D0[entry->unk6];
             if (type & 0x4000) {
                 object->rotation[0] = entry->unk0;
                 object->rotation[1] = entry->unk2;
                 object->rotation[2] = entry->unk4;
                 object->x = entry->unkC;
-                object->y = entry->unk10;
-                object->z = entry->unk14;
-                object->scale = entry->unk8;
+                object->y = entry->y;
+                object->z = entry->z;
+                object->scale = entry->scale;
                 object->opacity = D_800A51CC;
                 render_object(&D_800FF398, &D_800FF39C, &D_800FF3A0, object);
             } else if (type & 0x8000) {
-                trans.frame = entry->unk18;
+                trans.frame = entry->frame;
                 sprite = (void *) D_800FF3F8[entry->unk6];
                 gDPPipeSync(sMenuGfx++);
                 gDPSetPrimColor(sMenuGfx++, 0, 0, D_800A51B4, D_800A51B8, D_800A51BC, D_800A51CC);
@@ -1061,7 +1061,7 @@ void func_8005A0D0(s32 item) {
                     gDPSetPrimColor(sMenuGfx++, 0, 0, 255, 255, 255, 255);
                 }
                 gDPSetEnvColor(sMenuGfx++, 255, 255, 255, 0);
-                trans.frame = entry->unk18 * 0.0625f;
+                trans.frame = entry->frame * 0.0625f;
                 model = (MenuDrawModel *) D_800FF3F8[entry->unk6];
                 if (model->header->unk4E == 0) {
                     mtx_cam_push(&D_800FF398, &D_800FF39C, &trans, 1.0f, 0.0f);
@@ -1248,7 +1248,7 @@ extern u8 D_800A51A8;
 
 /* JFG: set the screen mode byte (0-3) and copy its two bits into the settings flags.
    (The compare into a local and the copy of mode give the ROM's registers; found by the permuter.) */
-void func_8005A834(s32 mode) {
+void display_setting_store(s32 mode) {
     s32 changed;
     u8 m;
     s32 bits;
@@ -1271,19 +1271,20 @@ void func_8005A834(s32 mode) {
     }
 }
 
-/* JFG: remember the current screen mode byte (func_8005A8D8 returns it). */
-void func_8005A8C4(void) {
+/* JFG: remember the current screen mode byte (display_setting_remembered returns it) (0x8005A8C4). */
+void display_setting_remember(void) {
     D_800A51A4 = D_800A51A8;
 }
 
-u8 func_8005A8D8(void) {
+/* The remembered screen mode (0x8005A8D8). */
+u8 display_setting_remembered(void) {
     return D_800A51A4;
 }
 
 s32 leveltable_screen_mode();
 
-/* JFG: the screen mode for the current mode byte. */
-s32 func_8005A8E8(void) {
+/* JFG: the screen mode for the current mode byte (0x8005A8E8). */
+s32 display_setting_resolved(void) {
     switch (D_800A51A8) {
         case 3:
             return 3;
@@ -1315,7 +1316,8 @@ void options_screen_offset_set(s32 adjust) {
 
 extern u8 D_800FF38C;
 
-u8 func_8005A98C(void) {
+/* The sound mode setting (0x8005A98C). */
+u8 sound_output_option(void) {
     return D_800FF38C;
 }
 
@@ -1323,7 +1325,8 @@ extern u8 D_800A5938[4];
 extern u8 D_800FF38C;
 void func_8008B2A0(u8 type, s32 mode);
 
-void func_8005A99C(s32 mode) {
+/* Sets the sound mode (0-3) (0x8005A99C). */
+void sound_output_option_store(s32 mode) {
     if (mode < 0) {
         mode = 0;
     }
@@ -1336,14 +1339,16 @@ void func_8005A99C(s32 mode) {
 
 extern u16 D_800FF388;
 
-u16 func_8005A9E4(void) {
+/* The sound volume setting (0x8005A9E4). */
+u16 effects_loudness_option(void) {
     return D_800FF388;
 }
 
 extern u16 D_800FF388;
 void func_80086510(s32 volume);
 
-void func_8005A9F4(s32 volume) {
+/* Sets the sound volume (0-256) (0x8005A9F4). */
+void effects_loudness_option_store(s32 volume) {
     if (volume < 0) {
         volume = 0;
     }
@@ -1376,22 +1381,26 @@ void options_music_volume_set(s32 volume) {
     func_80001050(volume);
 }
 
-s32 func_8005AA7C(void) {
+/* Whether the two-player screen is split vertically (0x8005AA7C). */
+s32 options_split_vertical_get(void) {
     s32 value = D_800FF318.unk6C_3;
     return value;
 }
 
-void func_8005AA94(s32 value) {
+/* Sets whether the two-player screen is split vertically (0x8005AA94). */
+void options_split_vertical_set(s32 value) {
     D_800FF318.unk6C_3 = value & 1;
 }
 
 extern u8 D_800FF38D[4];
 
-u8 func_8005AAB8(s32 index) {
+/* A player's on/off controller option (0x8005AAB8). */
+u8 options_player_toggle_get(s32 index) {
     return D_800FF38D[index & 3];
 }
 
-void func_8005AAD0(s32 index, s32 value) {
+/* Sets a player's on/off controller option (0x8005AAD0). */
+void options_player_toggle_set(s32 index, s32 value) {
     D_800FF38D[index & 3] = value & 1;
 }
 

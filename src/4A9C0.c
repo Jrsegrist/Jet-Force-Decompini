@@ -1,3 +1,6 @@
+/*
+ * Hand-written maths: matrices from transforms and rotations, kept as assembly.
+ */
 #include "common.h"
 
 INCLUDE_ASM("asm/nonmatchings/4A9C0", func_80049DC0);

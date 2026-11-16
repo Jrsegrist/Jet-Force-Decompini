@@ -46,7 +46,7 @@ typedef struct M053Steer {
 } M053Steer;
 
 extern s32 gPlayerButtonsHeld;
-extern void func_8003AABC(s16 *angles, M053Steer *s, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s16 *yaw, s16 *pitch,
+extern void player_stick_aim_update(s16 *angles, M053Steer *s, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s16 *yaw, s16 *pitch,
                           f32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
@@ -70,7 +70,7 @@ void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED s32 arg2, UNUSED s32 arg3
     if (-0.1f < s->unk4 && s->unk4 < 0.1f) {
         s->unk4 = 0.0f;
     }
-    func_8003AABC(angles, s, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &yaw, &pitch, updateRateF);
+    player_stick_aim_update(angles, s, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &yaw, &pitch, updateRateF);
     k = 1.0f - func_80049BEC(0.8333f, (s32) updateRateF);
     s->unk1E0 = angle_lerp(s->unk1E0, pitch, k);
     pitch += s->unk1E2;
@@ -326,7 +326,7 @@ typedef struct M053Water {
     /* 0x60 */ f32 depth;
 } M053Water;
 
-extern void func_8006B090(Object *obj, s32 updateRate); /* moves a ripple */
+extern void ripple_step_frame(Object *obj, s32 updateRate); /* moves a ripple */
 
 /* Updates the vehicle's ripple: on the water while it is in it, its child shown outside unk4's limits
    (called from 00038) */
@@ -345,7 +345,7 @@ void func_m053_0230C(Object *obj, M053Water *w, s32 updateRate) {
             *child |= 2;
         }
     }
-    func_8006B090(obj, updateRate);
+    ripple_step_frame(obj, updateRate);
 }
 
 /* The part of the vehicle's state that 023D0 uses: the camera's offsets */
@@ -461,14 +461,14 @@ void func_m053_0271C(Object *obj, M053Anim *s, UNUSED s32 arg2, f32 updateRateF)
     k = 1.0f - func_80049BEC(0.975f, updateRateF);
     switch (obj->animationID) {
         case 0:
-            func_8001138C(obj, 0.005f, updateRateF);
+            obj_anim_frame_advance(obj, 0.005f, updateRateF);
             if (s->unk4 < -1.2f || 1.2f < s->unk4) {
                 obj_anim_set(obj, 1, obj->unk28);
             }
             s->unk14 += (0.0f - s->unk14) * k;
             break;
         case 1:
-            func_8001138C(obj, 0.01f, updateRateF);
+            obj_anim_frame_advance(obj, 0.01f, updateRateF);
             if (-0.8f < s->unk4 && s->unk4 < 0.8f) {
                 obj_anim_set(obj, 0, obj->unk28);
             }

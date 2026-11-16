@@ -298,8 +298,8 @@ extern void *func_8001B650();
 extern s32 light_add_from_level_object_entry();
 extern s32 corona_add(Object *obj, M136Flare *flare, M136Entry *setup);
 extern void func_m011_000D4(s32 spline);
-extern void func_8002F014();
-extern Object **func_80050F44(s32 *count);
+extern void zone_list_add();
+extern Object **troop_list_get(s32 *count);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 part);
 extern M136Area *D_800FEA9C;
@@ -528,7 +528,7 @@ void func_m136_001FC(Object *obj, M136Entry *setup) {
             }
         }
     }
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 32.0f, obj->trans.scale * 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 32.0f, obj->trans.scale * 32.0f, -1.0f, 1.0f, 1);
 }
 
 typedef struct M136Switch {
@@ -561,7 +561,7 @@ void func_m136_009FC(Object *obj, M136Entry *setup) {
     obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0xA) << 8;
     obj->trans.rotation.x_rotation = ENTRY_U8(setup, 0xB) << 8;
     obj->trans.rotation.z_rotation = ENTRY_U8(setup, 0xC) << 8;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
 void func_m136_00B1C(Object *obj, M136Entry *setup) {
@@ -727,7 +727,7 @@ void func_m136_01224(Object *obj, M136Entry *setup) {
     }
     obj->modelIndex = ENTRY_U8(setup, 0xA);
     obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0xC) << 8;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     if (obj->modelIndex >= ((M136Header *) obj->header)->numberOfModelIds) {
         obj->modelIndex = 0;
     }
@@ -781,7 +781,7 @@ void func_m136_014C0(Object *obj, M136OverrideEntry *setup, s32 arg2) {
     ov->pos.y = obj->trans.y_position + setup->offY;
     ov->pos.z = obj->trans.z_position + setup->offZ;
     if (arg2 == 0) {
-        func_8002F014();
+        zone_list_add();
     }
 }
 
@@ -809,7 +809,7 @@ static Object *func_m136_01740(Object *obj) {
     f32 d;
     f32 best;
 
-    objects = func_80050F44(&count);
+    objects = troop_list_get(&count);
     best = 5e9f;
     nearest = NULL;
     while (count--) {

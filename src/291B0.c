@@ -1,3 +1,7 @@
+/*
+ * Level object behaviours and helpers: spawning from lists, emitters, light objects, colour-cycling sprites,
+ * the zone table, damage and distance tests.
+ */
 #include "common.h"
 
 typedef struct SpawnEntry {
@@ -652,9 +656,9 @@ typedef struct ChromaSpriteState {
     /* 0x00 */ s16 x;
     /* 0x02 */ s16 y;
     /* 0x04 */ s16 z;
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ u8 unk8;
-    /* 0x09 */ u8 unk9;
+    /* 0x06 */ s16 age;
+    /* 0x08 */ u8 opacity;
+    /* 0x09 */ u8 animRate;
     /* 0x0A */ u8 padA[6];
     /* 0x10 */ u8 colourCycle1[0x10];
     /* 0x20 */ u8 colourCycle2[0x10];
@@ -697,8 +701,8 @@ void sprite_free(void *sprite);
 void *tex_load_sprite(s32 spriteID, s32 arg1);
 void colour_cycle_init(void *cycle, s32 assetID);
 
-/* JFG: (re)set a sprite object from its entry. */
-void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
+/* JFG: (re)set a sprite object from its entry (0x8002993C). */
+void chroma_sprite_reset(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
     ChromaSpriteState *data = obj->data;
 
     sprite_free(*obj->sprite);
@@ -707,9 +711,9 @@ void func_8002993C(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
     data->x = entry->x;
     data->y = entry->y;
     data->z = entry->z;
-    data->unk8 = 0;
-    data->unk6 = 0;
-    data->unk9 = entry->unk16;
+    data->opacity = 0;
+    data->age = 0;
+    data->animRate = entry->unk16;
     data->entry = entry;
     obj->unk3C = 0;
     colour_cycle_init(data->colourCycle1, entry->colourCycle1);
@@ -737,28 +741,28 @@ void obj_loop_chroma_sprite(ChromaSpriteObject *obj, s32 updateRate) {
         free_object(obj);
         return;
     }
-    data->unk6 += updateRate;
-    if (data->unk6 >= entry->lifetime) {
+    data->age += updateRate;
+    if (data->age >= entry->lifetime) {
         fade = updateRate;
         fade *= entry->fadeOut;
-        if (fade < data->unk8) {
-            data->unk8 -= fade;
+        if (fade < data->opacity) {
+            data->opacity -= fade;
         } else {
             free_object(obj);
             return;
         }
-    } else if (data->unk8 < 0xFF) {
-        opacity = data->unk8 + updateRate * entry->fadeIn;
+    } else if (data->opacity < 0xFF) {
+        opacity = data->opacity + updateRate * entry->fadeIn;
         if (opacity >= 0x100) {
             opacity = 0xFF;
         }
-        data->unk8 = opacity;
+        data->opacity = opacity;
     }
     obj->unk4 += updateRate * entry->spin;
-    obj->opacity = data->unk8;
+    obj->opacity = data->opacity;
     update_colour_cycle(data->colourCycle1, updateRate);
     update_colour_cycle(data->colourCycle2, updateRate);
-    sprite_anim_advance(sprite, &flags, data->unk9, &obj->animFrame, updateRate);
+    sprite_anim_advance(sprite, &flags, data->animRate, &obj->animFrame, updateRate);
 }
 
 /* A sphere (centre and radius) in a fixed table of 16. Size: 0x24 bytes */
@@ -778,8 +782,8 @@ typedef struct Zone {
 extern Zone D_800F6B60[16];
 extern s32 D_800A11B4;
 
-/* JFG: mark all 16 zones unused and zero D_800A11B4 (the zone test is skipped while it is zero). */
-void func_80029B78(void) {
+/* JFG: mark all 16 zones unused and zero D_800A11B4 (the zone test is skipped while it is zero) (0x80029B78). */
+void zones_reset(void) {
     Zone *zone = D_800F6B60;
     s32 i = 16;
     while (i--) {

@@ -1,3 +1,7 @@
+/*
+ * The main game loop: start-up, level changes, the per-frame update, the character and multiplayer records
+ * and the save flags (DKR's thread3_main.c).
+ */
 #include "common.h"
 #include "joypad.h"
 
@@ -567,7 +571,8 @@ void screen_rects_test_depth(void) {
 
 extern s8 D_800FD757[];
 
-s32 func_80045A14(s32 index) {
+/* Whether screen rect index passed its depth test (0x80045A14). */
+s32 screen_rect_visible(s32 index) {
     if (index < 0 || index >= 8) {
         return 1;
     }
@@ -579,7 +584,7 @@ s32 check_viewport_background_flag(s32 viewPortIndex);
 void copy_viewport_frame_size_to_coords(s32 viewPortIndex, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
 s32 check_fadeout_transition(void);
 s32 runlink_module_loaded(s32 module);
-f32 func_8005BFC4(void);
+f32 rain_amount_get(void);
 void effect_slots_update(void);
 void func_8006E188(void);
 void screen_lines_init(void);
@@ -606,7 +611,7 @@ void frame_post_process(u16 *fb, UNUSED s32 arg1) {
     }
     if (!check_fadeout_transition() && runlink_module_loaded(5) && func_80054530_ret()) {
         if (D_801008B4 > 0 && (u32) height >= D_801008B4) {
-            func_80054530_iiiff(fb, width, D_801008B4, 256.0f, func_8005BFC4());
+            func_80054530_iiiff(fb, width, D_801008B4, 256.0f, rain_amount_get());
         }
         D_801008B4 = height;
     }
@@ -633,7 +638,8 @@ extern s16 D_800A3230;
 extern s16 D_800A3234;
 extern s16 D_800A3238;
 
-void func_80045B98(s32 a0, s32 a1, s32 a2, s32 a3, s32 a4, s32 a5, s32 a6, s32 a7, s32 time) {
+/* Starts the transition of four values over a time (0x80045B98). */
+void transition_values_start(s32 a0, s32 a1, s32 a2, s32 a3, s32 a4, s32 a5, s32 a6, s32 a7, s32 time) {
     D_800FD794 = a0;
     D_800FD796 = a1;
     D_800FD798 = a2;
@@ -658,7 +664,7 @@ extern s16 D_800A3228;
 extern s16 D_800A322C;
 extern u8 D_800A321C;
 
-/* JFG: step the transition of four values from D_800FD79C.. towards D_800FD794.. (see func_80045B98);
+/* JFG: step the transition of four values from D_800FD79C.. towards D_800FD794.. (see transition_values_start);
  * D_800A321C: still running, or finished going forwards. */
 void transition_values_update(s32 updateRate) {
     if (D_800A3230) {
@@ -680,7 +686,8 @@ void transition_values_update(s32 updateRate) {
     D_800A321C = D_800A3230 || !D_800A3238;
 }
 
-s16 func_80045DC0(void) {
+/* The time left of the four-value transition (0x80045DC0). */
+s16 transition_values_time_left(void) {
     return D_800A3230;
 }
 
@@ -689,7 +696,8 @@ extern s16 D_800A3224;
 extern s16 D_800A3228;
 extern s16 D_800A322C;
 
-void func_80045DD0(s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
+/* The four current transition values (0x80045DD0). */
+void transition_values_get(s32 *x1, s32 *y1, s32 *x2, s32 *y2) {
     *x1 = D_800A3220;
     *y1 = D_800A3224;
     *x2 = D_800A3228;
@@ -700,14 +708,14 @@ extern s8 D_800A4FB0;
 s32 get_language(void);
 void set_language(s32 language);
 s32 options_screen_mode_get(void);
-void func_8005A834(s32 arg0);
-void func_8005A8C4(void);
+void display_setting_store(s32 arg0);
+void display_setting_remember(void);
 s8 options_screen_offset_get(void);
 void options_screen_offset_set(s32 adjust);
-u8 func_8005A98C(void);
-void func_8005A99C(s32 mode);
-u16 func_8005A9E4(void);
-void func_8005A9F4(s32 volume);
+u8 sound_output_option(void);
+void sound_output_option_store(s32 mode);
+u16 effects_loudness_option(void);
+void effects_loudness_option_store(s32 volume);
 u16 options_music_volume_get(void);
 void options_music_volume_set(s32 volume);
 void func_80047608(s32 arg0, s32 level, s32 arg2);
@@ -722,12 +730,12 @@ void boot_screen_update(UNUSED s32 updateRate) {
     if (start) D_800A4FB0 = 1;
     if (++sBootDelayTimer >= 10) {
         set_language(get_language());
-        func_8005A834(options_screen_mode_get());
+        display_setting_store(options_screen_mode_get());
         options_screen_offset_set(options_screen_offset_get());
-        func_8005A99C(func_8005A98C());
-        func_8005A9F4(func_8005A9E4());
+        sound_output_option_store(sound_output_option());
+        effects_loudness_option_store(effects_loudness_option());
         options_music_volume_set(options_music_volume_get());
-        func_8005A8C4();
+        display_setting_remember();
         func_80047608(2, 0, 0);
     }
 }
@@ -758,7 +766,7 @@ void func_80077614(s32 updateRate);
 void obj_update(s32 updateRate);
 void particles_update_all(s32 updateRate);
 void *cam_get_active_camera(void);
-void func_80079890(s32 arg0, void *camera);
+void cam_point_copy_to_camera(s32 arg0, void *camera);
 void track_module_effects_run(s32 updateRate);
 void rumble_stop_all(s32 arg0);
 void objects_update_special(s32 updateRate);
@@ -818,7 +826,7 @@ void func_80045F00(s32 updateRate) {
         }
         obj_update(updateRate);
         particles_update_all(updateRate);
-        func_80079890(0, cam_get_active_camera());
+        cam_point_copy_to_camera(0, cam_get_active_camera());
         track_module_effects_run(updateRate);
         if ((s8) header[0x6C] != 1 && (s8) header[0x6C] != 2 && (pressed & START_BUTTON) && D_800A32BC == 0 &&
             D_800A3294 == 0 && D_800FD7C4 == 0) {
@@ -884,14 +892,14 @@ typedef struct CharacterData {
     /* 0x08 */ s16 unk8;
     /* 0x0A */ u16 weapons; // one bit per weapon
     /* 0x0C */ s16 unkC[4];
-    /* 0x14 */ s16 unk14[16]; // per weapon
+    /* 0x14 */ s16 ammo[16]; // per weapon
     /* 0x34 */ s16 unk34[16]; // per weapon
     /* 0x54 */ u8 unk54[16];  // per weapon
     /* 0x64 */ u16 unk64;
     /* 0x66 */ u8 items[8]; // one bit per item, highest bit first
     /* 0x6E */ u8 pad6E;
     /* 0x6F */ u8 unk6F;
-    /* 0x70 */ u8 unk70;
+    /* 0x70 */ u8 weapon;
     /* 0x71 */ s8 unk71;
     /* 0x72 */ u8 pad72[2];
     /* 0x74 */ u16 unk74_hi : 11;
@@ -1033,7 +1041,7 @@ s32 level_redirect_get(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4
 extern s8 D_800A329C;
 extern u8 D_800A32FC[];
 s32 game_flag_get(s32 flag);
-void func_8003B6BC(void);
+void player_start_override_clear(void);
 s32 leveltable_region(s32 level);
 void set_game_paused(s32 arg0);
 u8 music_current_sequence(void);
@@ -1058,7 +1066,7 @@ void level_goto(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5) {
         } else if (level == 0xC2 && game_flag_get(0x4D)) {
             level = 0x179;
         } else if (level == 0x14C) {
-            func_8003B6BC();
+            player_start_override_clear();
         }
     }
     D_800A3250 = level;
@@ -1119,13 +1127,15 @@ void func_800468C0(s32 arg0) {
 
 extern s16 D_800A3260;
 
-s16 func_800468CC(void) {
+/* The character for the next level (0x800468CC). */
+s16 pending_level_character(void) {
     return D_800A3260;
 }
 
 extern s16 D_800A3250;
 
-s16 func_800468DC(void) {
+/* The next level (0x800468DC). */
+s16 pending_level_id(void) {
     return D_800A3250;
 }
 
@@ -1157,7 +1167,7 @@ extern u8 D_800A32FC[];
 u32 input_pressed(s32 player);
 extern u8 D_800A326C;
 s32 leveltable_type(s32 level);
-void func_800482A0(s32 player, s32 arg1, s32 arg2);
+void settings_map_ids_store(s32 player, s32 arg1, s32 arg2);
 void func_80047EFC(s32 flag, s32 set);
 s32 func_80055234(void);
 void mempool_free_queue_flush(void);
@@ -1169,7 +1179,7 @@ void free_message_box(void);
 u8 music_current_sequence(void);
 void music_stop(void);
 void settings_clear_stats(void);
-s32 func_8005A8E8();
+s32 display_setting_resolved();
 s32 leveltable_blur(s32 level);
 void func_800551E8(s32 arg0);
 s32 fb_mode(void);
@@ -1180,7 +1190,7 @@ void runlink_module_release(s32 module);
 void cam_init(s32 arg0);
 void init_dialogue_text(void);
 void level_load(s32 level, s32 arg1, s32 arg2, s32 arg3);
-void func_80029B78(void);
+void zones_reset(void);
 void menu_mode_set(s32 mode);
 void func_8004B55C(void);
 void func_80000B80(void);
@@ -1230,9 +1240,9 @@ void level_load_pending(s32 updateRate) {
     }
     levelType = leveltable_type(D_800A3250);
     if (levelType == 1 || levelType == 2) {
-        func_800482A0(D_800A3260, -1, leveltable_world(D_800A3250));
+        settings_map_ids_store(D_800A3260, -1, leveltable_world(D_800A3250));
     } else {
-        func_800482A0(D_800A3260, D_800A3250, leveltable_world(D_800A3250));
+        settings_map_ids_store(D_800A3260, D_800A3250, leveltable_world(D_800A3250));
     }
     if (level_redirect_get(D_800A3250, &newLevel, &redirArg2, &redirArg3, &redirArg4)) {
         chr->unk74_hi = newLevel;
@@ -1387,7 +1397,7 @@ void level_load_pending(s32 updateRate) {
     }
     D_800A325C = 0;
     check_reset_and_halt();
-    screenMode = func_8005A8E8(gPlayableMapId);
+    screenMode = display_setting_resolved(gPlayableMapId);
     func_800551E8(leveltable_blur(gPlayableMapId));
     if (fb_mode() != screenMode || func_80055208()) {
         func_8005483C(screenMode);
@@ -1431,7 +1441,7 @@ void level_load_pending(s32 updateRate) {
         transition_begin(D_800A32F4);
     }
     osSetTime(0);
-    func_80029B78();
+    zones_reset();
     check_reset_and_halt();
     menu_mode_set(D_800A324C);
     mempool_free_timer(2);
@@ -1504,13 +1514,14 @@ void func_80047608(s32 arg0, s32 level, UNUSED s32 arg2) {
 
 extern GameStats *gSettingsPtr;
 
-void func_80047674(void) {
+/* Sets the current level and world from the current character's level (0x80047674). */
+void settings_level_from_character(void) {
     gSettingsPtr->unk1 = gSettingsPtr->chars[gSettingsPtr->unk0 & 3].unk4_hi;
     gSettingsPtr->unk2 = leveltable_world(gSettingsPtr->unk1);
 }
 
 extern s16 D_800A3314[4];
-void func_80047AE0(CharacterData *chr, s32 level);
+void char_record_reset(CharacterData *chr, s32 level);
 void func_80047EFC(s32 arg0, s32 arg1);
 
 /* JFG: clear a game's settings and statistics and reset its characters. */
@@ -1559,7 +1570,7 @@ void game_settings_reset(GameStats *game) {
     }
     func_80047EFC(1, 1);
     for (i = 0; i < 4; i++) {
-        func_80047AE0(&game->chars[i], D_800A3314[i]);
+        char_record_reset(&game->chars[i], D_800A3314[i]);
     }
     game->chars[0].unk64 = 0;
     game->chars[1].unk64 = 0x400;
@@ -1593,12 +1604,13 @@ void stats_hit_add(s32 weapon) {
 
 extern u8 D_800FEFD0[4];
 extern CharacterData D_800FEFD8[4];
-void func_80047AE0(CharacterData *chr, s32 arg1);
+void char_record_reset(CharacterData *chr, s32 arg1);
 
-void func_8004791C(void) {
+/* Resets the four multiplayer characters (0x8004791C). */
+void multiplayer_characters_reset(void) {
     s32 i;
     for (i = 0; i < 4; i++) {
-        func_80047AE0(&D_800FEFD8[i], 0);
+        char_record_reset(&D_800FEFD8[i], 0);
         D_800FEFD0[i] = 0;
     }
 }
@@ -1654,7 +1666,8 @@ void func_8004797C(void) {
     D_800FEFCA = 0;
 }
 
-void func_80047A20(void) {
+/* Sets up the four multiplayer players from their characters (0x80047A20). */
+void multiplayer_players_init(void) {
     s32 i;
     s32 j;
     s32 n;
@@ -1691,7 +1704,7 @@ u8 *weapon_info_get(s32 index);
 
 /* JFG: reset a character's data for a level: the default weapon only, each weapon's values from its info, no
  * items. */
-void func_80047AE0(CharacterData *chr, s32 level) {
+void char_record_reset(CharacterData *chr, s32 level) {
     s32 i;
     u8 *info;
 
@@ -1702,15 +1715,15 @@ void func_80047AE0(CharacterData *chr, s32 level) {
     chr->unk4_lo = 0;
     for (i = 0; i < 16; i++) {
         info = weapon_info_get(i);
-        chr->unk14[i] = 0;
+        chr->ammo[i] = 0;
         chr->unk34[i] = *(s16 *) (info + 0x24);
         chr->unk54[i] = info[3];
     }
     info = weapon_info_get(0);
     chr->unk6F = 1;
-    chr->unk70 = 0;
-    chr->weapons = 1 << chr->unk70;
-    chr->unk14[0] = *(s16 *) (info + 0x28);
+    chr->weapon = 0;
+    chr->weapons = 1 << chr->weapon;
+    chr->ammo[0] = *(s16 *) (info + 0x28);
     chr->unkC[0] = 0;
     chr->unkC[1] = 0;
     chr->unkC[2] = 0;
@@ -1728,7 +1741,7 @@ GameStats *get_settings(void) {
 
 /* JFG: a player's character data: the player's own in multiplayer, else one of the save's four characters.
    (`character &= 3;` as its own statement lets IDO hoist it into the first delay slot.) */
-u8 *func_80047C1C(s32 player, s32 character) {
+u8 *char_record_lookup(s32 player, s32 character) {
     if (D_800A4FC4 != 0 && D_800A4FD0 >= 2) {
         if (player < 0 || player >= D_800A4FD0) {
             player = 0;
@@ -1739,12 +1752,12 @@ u8 *func_80047C1C(s32 player, s32 character) {
     return (u8 *) &gSettingsPtr->chars[character];
 }
 
-u8 *func_80047C1C(s32 player, s32 character);
+u8 *char_record_lookup(s32 player, s32 character);
 extern s32 gCharItemsChanged; // JFG: characters whose items changed (one bit each)
 
 /* JFG: give a player's character an item (0x80047C9C). */
 void character_item_give(s32 player, s32 character, s32 item) {
-    u8 *chr = func_80047C1C(player, character);
+    u8 *chr = char_record_lookup(player, character);
 
     if (chr != NULL) {
         (chr + 0x66)[item >> 3] |= 0x80 >> (item & 7);
@@ -1754,7 +1767,7 @@ void character_item_give(s32 player, s32 character, s32 item) {
 
 /* JFG: take an item from a player's character (0x80047D0C). */
 void character_item_take(s32 player, s32 character, s32 item) {
-    u8 *chr = func_80047C1C(player, character);
+    u8 *chr = char_record_lookup(player, character);
 
     if (chr != NULL) {
         (chr + 0x66)[item >> 3] &= ~(0x80 >> (item & 7));
@@ -1768,7 +1781,7 @@ s32 character_has_item(s32 player, s32 character, s32 item) {
     u8 *chr;
     s32 has = 0;
 
-    chr = func_80047C1C(player, character);
+    chr = char_record_lookup(player, character);
     if (chr != NULL) {
         if ((chr + 0x66)[item >> 3] & (0x80 >> (item & 7))) {
             has = 1;
@@ -1785,7 +1798,7 @@ int player_chars_have_item(s32 item) {
 
 /* JFG: whether a player's character has a weapon (a bit mask at 0xA) (0x80047E44). */
 s32 character_has_weapon(s32 player, s32 character, s32 weapon) {
-    u8 *chr = func_80047C1C(player, character);
+    u8 *chr = char_record_lookup(player, character);
 
     if (chr != NULL) {
         if (*(u16 *) (chr + 0xA) & (1 << weapon)) {
@@ -1892,7 +1905,8 @@ typedef struct LevelHeader {
 } LevelHeader;
 LevelHeader *level_header(void);
 
-void func_80048130(s32 bit, s32 mode) {
+/* Marks a bit of the current region one of two ways and updates the counts (0x80048130). */
+void region_mark_set(s32 bit, s32 mode) {
     LevelHeader *header = level_header();
     s32 mask = 1 << (bit & 0xF);
 
@@ -1912,7 +1926,8 @@ void func_80048130(s32 bit, s32 mode) {
     }
 }
 
-s32 func_8004822C(s32 bit) {
+/* How a bit of the current region is marked (0x8004822C). */
+s32 region_mark_get(s32 bit) {
     LevelHeader *header = level_header();
     s32 mask = 1 << (bit & 0xF);
     if (gSettingsPtr->unk5C[header->region] & mask) {
@@ -1924,7 +1939,8 @@ s32 func_8004822C(s32 bit) {
     return 0;
 }
 
-void func_800482A0(s32 player, s32 arg1, s32 arg2) {
+/* Sets the level and world in the settings (0x800482A0). */
+void settings_map_ids_store(s32 player, s32 arg1, s32 arg2) {
     if (arg1 >= 0) {
         CharacterData *chr = &gSettingsPtr->chars[player & 3];
         gSettingsPtr->unk1 = arg1;
@@ -2067,14 +2083,16 @@ s32 is_controller_missing(void) {
 
 extern u8 D_800A4FCC;
 
-u8 func_80048548(void) {
+/* The number of cameras (0x80048548). */
+u8 camera_count_get(void) {
     return D_800A4FCC;
 }
 
 s32 leveltable_type(s32 level);
 extern u8 D_800A4FB4;
 
-u8 func_80048558(void) {
+/* The number of players (0x80048558). */
+u8 player_count_get(void) {
     s32 type = leveltable_type(gPlayableMapId);
     if (type == 1 || type == 2) {
         return 0;
@@ -2087,7 +2105,8 @@ u8 func_80048558(void) {
 
 extern s16 D_800A3240;
 
-s32 func_800485C8(s32 player) {
+/* A player's character (0x800485C8). */
+s32 char_id_of_player(s32 player) {
     if (D_800A4FD0 < 2 || (D_800A4FC4 == 0 && D_800A4FB4 == 0)) {
         return D_800A3240;
     }

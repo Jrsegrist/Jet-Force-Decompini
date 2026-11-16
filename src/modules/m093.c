@@ -34,7 +34,7 @@ void func_m093_00000(Object *obj, M093Setup *setup) {
     } else {
         obj->modelIndex = 0;
     }
-    func_80079D1C(obj, setup->unkB << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, setup->unkB << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_m093_000BC(Object *obj, s32 updateRate) {

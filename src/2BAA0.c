@@ -1,3 +1,6 @@
+/*
+ * The player characters: the player camera, zone tracking, weapons and firing, aiming and restarting.
+ */
 #include "common.h"
 
 // The unreferenced debug strings at the start of this file's .rodata.
@@ -14,7 +17,7 @@ typedef struct RacerFlags {
     u32 unk30 : 1;
     u32 weaponDir : 2; /* 1: last weapon change went backwards, 2: forwards (see weapon_switch_direction) */
     u32 unk27 : 1;
-    u32 useOverride : 1; /* use overridePos as the position (func_8003B418) */
+    u32 useOverride : 1; /* use overridePos as the position (player_aim_origin_get) */
     u32 unk25 : 1;
     u32 unk24 : 1;
     u32 unk8 : 16;
@@ -159,9 +162,9 @@ typedef struct Racer {
     /* 0x5CC */ u8 *held;
 } Racer;
 
-s32 func_8003B51C(s32 value, s32 delta);
+s32 s16_apply_delta_or_decay(s32 value, s32 delta);
 void player_voice_play(s32 owner, u8 index);
-u8 *func_80047C1C(s32 player, s32 character);
+u8 *char_record_lookup(s32 player, s32 character);
 void player_drop_held_object(u8 *obj);
 void *spawn_object(void *entry, s32 arg1);
 void stats_shot_add(s32 weapon);
@@ -346,10 +349,10 @@ typedef struct LevelModel2B {
     /* 0x24 */ s16 floorY; // JFG: the camera stays at least 100 above this
 } LevelModel2B;
 
-u8 func_80048548(void); // the number of cameras
-void func_8002F0DC(s32 player, f32 x, f32 y, f32 z);
-void *func_80079890(s32 index, void *camera);
-s32 func_8004271C(void);
+u8 camera_count_get(void); // the number of cameras
+void player_zone_track_update(s32 player, f32 x, f32 y, f32 z);
+void *cam_point_copy_to_camera(s32 index, void *camera);
+s32 view_override_get(void);
 void view_override_copy_reversed(void *trans);
 s32 camera_follow_get(void);
 LevelModel2B *get_current_level_model(void);
@@ -357,7 +360,7 @@ LevelHeader2B *level_header(void);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
 void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate);
 void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate);
-void func_8002C070(u8 *obj, u8 *racer, f32 updateRate);
+void player_camera_follow_target(u8 *obj, u8 *racer, f32 updateRate);
 void func_8002C118(u8 *obj, Racer *racer, f32 updateRate);
 void func_8002C908(u8 *obj, u8 *racer, f32 updateRate);
 void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate);
@@ -379,9 +382,9 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
     s32 segment;
     LevelHeader2B *level;
 
-    if (racer->player < func_80048548()) {
-        func_8002F0DC(racer->player, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14));
-        if (func_80079890(0, D_800F6DC0) == NULL) {
+    if (racer->player < camera_count_get()) {
+        player_zone_track_update(racer->player, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14));
+        if (cam_point_copy_to_camera(0, D_800F6DC0) == NULL) {
             if (racer->unk5C0 != 0) {
                 func_80054530(D_800F6DC0, racer->unk5C0, (s32) updateRate);
             } else if (racer->unk1FA) {
@@ -394,7 +397,7 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
                 chase_camera_update((s16 *) obj, racer, updateRate);
             } else if (racer->unk19D >= 2) {
                 func_80054530(D_800F6DC0, racer, (s32) updateRate);
-            } else if (func_8004271C()) {
+            } else if (view_override_get()) {
                 view_override_copy_reversed(D_800F6DC0);
             } else if (racer->unk568 & 0x20) {
                 if (racer->unk18E) {
@@ -403,7 +406,7 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
                     player_camera_eye_place((s16 *) obj, racer, updateRate);
                 }
             } else if (racer->unk10D & 1) {
-                func_8002C070(obj, (u8 *) racer, updateRate);
+                player_camera_follow_target(obj, (u8 *) racer, updateRate);
             } else if (racer->unk10D & 2) {
                 func_80054530(D_800F6DC0, (s32) updateRate);
             } else if (racer->unk19F) {
@@ -464,7 +467,7 @@ void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     u8 *chr;
     f32 tilt;
 
-    chr = func_80047C1C(racer->player, racer->character);
+    chr = char_record_lookup(racer->player, racer->character);
     racer->unk10A = 0;
     *(f32 *) ((u8 *) cam_get_active_camera() + 0x2C) = 60.0f;
     angles[0] = obj[0];
@@ -577,7 +580,8 @@ void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
 s32 cam_get_active_camera_id(void);
 void func_8003FC60(s32 index, s32 value);
 
-void func_8002C070(UNUSED u8 *obj, u8 *racer, UNUSED f32 updateRate) {
+/* Puts the player camera at its target object's position and angles (0x8002C070). */
+void player_camera_follow_target(UNUSED u8 *obj, u8 *racer, UNUSED f32 updateRate) {
     u8 *target = *(u8 **) (racer + 0x50C);
     u8 *state;
 
@@ -593,7 +597,7 @@ void func_8002C070(UNUSED u8 *obj, u8 *racer, UNUSED f32 updateRate) {
     }
 }
 
-/* An empty function right after func_8002C070 (no symbol of its own in the ROM's split). */
+/* An empty function right after player_camera_follow_target (no symbol of its own in the ROM's split). */
 void func_8002C110(void) {
 }
 
@@ -788,7 +792,7 @@ extern s32 gPlayerButtonsHeld;
 
 /* JFG: an overhead player camera: buttons 8/4 lower/raise the height level at 0x3D (0..80), the camera follows the
    object's x and z and eases its y towards 512 * (level + 40) / 40 above the object, looking straight down. */
-void func_8002EB6C(u8 *obj, UNUSED s32 arg1, f32 updateRate) {
+void player_camera_overhead_update(u8 *obj, UNUSED s32 arg1, f32 updateRate) {
     f32 target;
     s32 i;
     s32 n;
@@ -887,14 +891,16 @@ void player_camera_setup(u8 *obj, Racer *racer) {
     racer->unk574 = 1;
 }
 
-void func_8002F014(s32 obj) {
+/* Adds a zone object to the list of up to 24 (0x8002F014). */
+void zone_list_add(s32 obj) {
     if (D_800A2D38 < 24) {
         D_800F6DF8[D_800A2D38] = obj;
         D_800A2D38++;
     }
 }
 
-void func_8002F04C(s32 obj) {
+/* Removes a zone object from the list (0x8002F04C). */
+void zone_list_remove(s32 obj) {
     s32 i;
     s32 found;
 
@@ -915,7 +921,7 @@ void func_8002F04C(s32 obj) {
 
 /* JFG: for a player at (x, y, z): leaves its current zone object when outside its exit circle (or height range),
  * then if it has none, takes the last listed zone object whose entry circle (and height range) contains it. */
-void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
+void player_zone_track_update(s32 player, f32 x, f32 y, f32 z) {
     ZoneTrack *track;
     u8 *obj;
     TrackZone *zone;
@@ -1070,7 +1076,7 @@ extern u8 D_800A4FC8;
 void camera_point_around_player(u8 *obj, f32 *x, f32 *y, f32 *z, s32 arg4);
 void ignore_bounds_check(void);
 s32 move_object(u8 *obj, f32 xPos, f32 yPos, f32 zPos);
-void func_80079D1C(u8 *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
+void obj_collision_spheres_init(u8 *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
                    f32 arg9, f32 argA, s32 argB);
 
 void func_8002F5F0(u8 *obj, u8 *arg1) {
@@ -1084,7 +1090,7 @@ void func_8002F5F0(u8 *obj, u8 *arg1) {
                 state[2] - *(f32 *) (obj + 0x14));
     *(s16 *) (state + 6) = 0;
     *(s16 *) ((u8 *) state + 0x1A) = 0;
-    func_80079D1C(obj, -1, 1, 2, 0, 0, 0, 125.0f, 125.0f, 1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, -1, 1, 2, 0, 0, 0, 125.0f, 125.0f, 1.0f, 1.0f, 0x11);
     state[3] = *(f32 *) (obj + 0xC);
     state[4] = *(f32 *) (obj + 0x10);
     state[5] = *(f32 *) (obj + 0x14);
@@ -1361,15 +1367,16 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80032A48);
 extern u8 D_800A4FC4;
 extern u8 D_800A4FEC;
 extern s8 D_800FED63[][0xA0];
-s32 func_80048558(void);
+s32 player_count_get(void);
 void func_80048518(s32 arg0);
 u32 input_pressed(s32 player);
 void player_restart(s32 arg0, s8 *player);
 
-void func_80033920(s32 arg0, s8 *player) {
+/* Restarts the player when one of its restart buttons is pressed (0x80033920). */
+void player_restart_on_press(s32 arg0, s8 *player) {
     u32 buttons;
 
-    if (func_80048558() == 1) {
+    if (player_count_get() == 1) {
         func_80048518(10);
     }
     buttons = input_pressed(*player);
@@ -1400,11 +1407,11 @@ void player_restart(s32 owner, s8 *player) {
     u8 *candidates[4];
     u8 *chr;
 
-    chr = func_80047C1C(player[0], player[1]);
+    chr = char_record_lookup(player[0], player[1]);
     *(u16 *) (chr + 0x14) = *(u16 *) (chr + 0x34);
     *(s16 *) (*(u8 **) ((u8 *) owner + 0x4C) + 6) = 0;
     *(s16 *) chr = 0;
-    if (func_80048558() >= 2) {
+    if (player_count_get() >= 2) {
         list = objGetObjList(&start, &end);
         n = 0;
         while (start < end) {
@@ -1431,9 +1438,9 @@ void player_restart(s32 owner, s8 *player) {
     }
 }
 
-s32 func_8005AAB8(s32 player);
+s32 options_player_toggle_get(s32 player);
 s32 camera_follow_get(void);
-s32 func_8004271C(void);
+s32 view_override_get(void);
 
 /* JFG: counts unk19C up by rate (to 40, or 64 when arg1's 0x70 is 7 in states 11/5) while the 0x540 low bits
  * are set and nothing blocks it, otherwise down by 16*rate to 0. */
@@ -1441,7 +1448,7 @@ void player_charge_meter_update(Racer *racer, u8 *arg1, s32 rate) {
     s32 enabled = *(u16 *) &racer->flags & 0xF;
     s32 limit;
 
-    if (func_8005AAB8(racer->player) != 0) {
+    if (options_player_toggle_get(racer->player) != 0) {
         enabled = 0;
     }
     limit = 40;
@@ -1461,7 +1468,7 @@ void player_charge_meter_update(Racer *racer, u8 *arg1, s32 rate) {
     if (racer->unk19D != 0 || racer->unk1F9 != 0 || racer->unk1FA != 0 || racer->unk198 != 0) {
         enabled = 0;
     }
-    if (enabled && func_8004271C() == 0) {
+    if (enabled && view_override_get() == 0) {
         racer->unk19C += rate;
         if (limit < racer->unk19C) {
             racer->unk19C = limit;
@@ -1477,7 +1484,7 @@ void player_charge_meter_update(Racer *racer, u8 *arg1, s32 rate) {
 extern s16 D_800A2DB0;
 
 /* JFG: hysteresis on the angle between angle and the player's 0x11C: unk569 is set when it leaves +-wide (and
- * func_8005AAB8 is 0) and cleared inside +-narrow or after 30 frames; *out = min(*out, near or far limit). */
+ * options_player_toggle_get is 0) and cleared inside +-narrow or after 30 frames; *out = min(*out, near or far limit). */
 void player_turn_limit_update(UNUSED s32 arg0, Racer *racer, f32 *out, s16 angle, s16 narrow, s16 wide, f32 limit,
                    f32 turnLimit) {
     s16 diff = angle - racer->unk11C;
@@ -1495,7 +1502,7 @@ void player_turn_limit_update(UNUSED s32 arg0, Racer *racer, f32 *out, s16 angle
             D_800A2DB0 = 0;
         }
     } else if (*(u16 *) &racer->flags & 0xF) {
-        if (func_8005AAB8(racer->player) == 0 && (diff < -wide || wide < diff)) {
+        if (options_player_toggle_get(racer->player) == 0 && (diff < -wide || wide < diff)) {
             racer->unk569 = 1;
         }
     }
@@ -1513,7 +1520,7 @@ s32 func_80054530_ret();
 
 /* JFG: calls the character's module handler (0/4, 1/5 and 2/6 each their own) and returns its result; 1 for
    any other character (0x80033ED4). */
-s32 func_80033ED4(u8 *obj, u8 *racer) {
+s32 character_module_handler_call(u8 *obj, u8 *racer) {
     switch (racer[1]) {
         case 0:
         case 4:
@@ -1691,7 +1698,7 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
 /* JFG: turns the angles at obj[2] and obj[1] towards pos (rotated by -obj[0]) when the character is in an aiming
    state (characters 0/1: state 0x568 is 2 or 10; 2/3: a pose flag bit), plus the offsets at 0x120/0x11E, eased
    with 0.96 per frame. */
-void func_800344B4(s16 *obj, u8 *racer, f32 *pos, s32 updateRate) {
+void player_aim_angles_ease(s16 *obj, u8 *racer, f32 *pos, s32 updateRate) {
     UNUSED s32 pad[2];
     f32 sinA;
     f32 cosA;
@@ -1767,7 +1774,7 @@ void player_quick_turn(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide,
 
     *out = 0;
     if ((*(s32 *) (D_800A18B0 + 0xC) & gPlayerButtonsPressed) || racer->unk569 != 0 ||
-        (racer->unk1F4 != 0 && func_8005AAB8(racer->player) == 0) || (racer->unk568 != 0 && racer->unk568 != two)) {
+        (racer->unk1F4 != 0 && options_player_toggle_get(racer->player) == 0) || (racer->unk568 != 0 && racer->unk568 != two)) {
         racer->unk13E = 0;
         return;
     }
@@ -2725,7 +2732,8 @@ void func_8003733C(s32 arg0, s32 flags, UNUSED s32 arg2, s32 index, s32 level) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003733C);
 #endif
 
-s32 func_800373E4(u8 *chr, s32 weapon) {
+/* The ammo capacity of a character's weapon (0x800373E4). */
+s32 weapon_ammo_capacity(u8 *chr, s32 weapon) {
     switch (weapon) {
         case 6:
             return 110;
@@ -2799,15 +2807,15 @@ s32 weapon_has_ammo(u8 *racer, u8 *chr) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037550);
 
-/* JFG: switch to the next owned weapon (slots 0..15, wrapping). */
-void func_80038324(u8 *obj, Racer *racer) {
+/* JFG: switch to the next owned weapon (slots 0..15, wrapping) (0x80038324). */
+void weapon_advance_owned(u8 *obj, Racer *racer) {
     s32 weapon;
     s32 cur;
     u8 *chr;
     u16 bit;
     u16 owned;
 
-    chr = func_80047C1C(racer->player, racer->character);
+    chr = char_record_lookup(racer->player, racer->character);
     cur = chr[0x70];
     bit = 1 << cur;
     owned = *(u16 *) (chr + 0xA);
@@ -2838,7 +2846,7 @@ void func_80038324(u8 *obj, Racer *racer) {
 
 /* JFG: switch to `weapon` if owned and not already selected; returns 1 if switched (0x80038430). */
 s32 weapon_select(u8 *obj, Racer *racer, s32 weapon) {
-    u8 *chr = func_80047C1C(racer->player, racer->character);
+    u8 *chr = char_record_lookup(racer->player, racer->character);
     u8 cur = chr[0x70];
 
     if (weapon != cur && (*(u16 *) (chr + 0xA) & (1 << weapon))) {
@@ -2864,7 +2872,7 @@ void weapon_select_prev(u8 *obj, Racer *racer) {
     u8 *chr;
     u16 bit;
 
-    chr = func_80047C1C(racer->player, racer->character);
+    chr = char_record_lookup(racer->player, racer->character);
     cur = chr[0x70];
     bit = 1 << cur;
     weapon = cur;
@@ -2913,16 +2921,16 @@ void weapon_fire_triple_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 a
 void weapon_fire_chain_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8,
                    u32 arg9);
 void player_attachment_spawn(s32 owner, Racer *racer, UNUSED s32 arg2);
-void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
+void weapon_fire_spread_pair(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
                   UNUSED s32 arg9);
 void func_80039918(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
-void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
+void weapon_fire_velocity_shot(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
                   UNUSED s32 arg9);
-void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+void weapon_fire_grenade(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
                    u8 type, u8 argB);
 s32 weapon_throw_or_hold(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
 void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8);
-void func_8003B418(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void player_aim_origin_get(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
 void func_8003B590(u8 *obj, s32 index);
 void *mempool_alloc_safe(s32 size, u32 colour);
 /* The module trap with a pointer and three floats (`func_80054530_pfff` in undefined_syms.us.txt). */
@@ -2931,7 +2939,7 @@ void func_80054530_pfff(void *arg0, f32 x, f32 y, f32 z, s32 arg4, s32 arg5, s32
 /* JFG: fires the character's current weapon (chr[0x70]) with the weapon info: returns 1 when it has no ammo;
    spreads the aim (0x1CA/0x1CC) randomly, dispatches by weapon type and uses one round of ammo. Returns 1 when
    weapon 13's weapon_throw_or_hold returned 0, else 0. */
-s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
+s32 weapon_fire_current(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
     s16 pitch;
     UNUSED s32 pad;
     s32 type;
@@ -2946,7 +2954,7 @@ s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
     s32 saved;
     u8 *target;
 
-    chr = func_80047C1C(racer->player, racer->character);
+    chr = char_record_lookup(racer->player, racer->character);
     if (D_800A5074 != 0) {
         if (((u16 *) (chr + 0x14))[chr[0x70]] == 0) {
             ((u16 *) (chr + 0x14))[chr[0x70]] = 100;
@@ -2974,7 +2982,7 @@ s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
         *(f32 *) (obj + 0x10) = y;
         *(f32 *) (obj + 0x14) = z;
     }
-    func_8003B418(obj, racer, &x, &y, &z);
+    player_aim_origin_get(obj, racer, &x, &y, &z);
     grenade = 0;
     fired = 0;
     racer->unk538 = info[5];
@@ -3013,10 +3021,10 @@ s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
             } else {
                 pitch = 0x1800;
             }
-            func_800397E0((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7]);
+            weapon_fire_spread_pair((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7]);
             break;
         case 9:
-            func_80039A38((s32) obj, (s32) racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10), info[3],
+            weapon_fire_velocity_shot((s32) obj, (s32) racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10), info[3],
                           info[7]);
             break;
         case 8:
@@ -3077,7 +3085,7 @@ s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
         } else {
             pitch = 0x1000;
         }
-        func_80039B98((s32) obj, racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7], type, arg);
+        weapon_fire_grenade((s32) obj, racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7], type, arg);
     }
     if (((u16 *) (chr + 0x14))[chr[0x70]] > 0) {
         ((u16 *) (chr + 0x14))[chr[0x70]]--;
@@ -3091,7 +3099,8 @@ s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
 u8 **get_racer_objects(s32 *numRacers);
 void mempool_free(void *data);
 
-void func_80038F04(void) {
+/* Frees each player's weapon 6 buffer (0x80038F04). */
+void weapon_buffers_release_all(void) {
     s32 numRacers;
     u8 **racers = get_racer_objects(&numRacers);
 
@@ -3171,7 +3180,7 @@ void weapon_fire_standard(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5
     u8 *obj;
     u8 *chr;
 
-    chr = func_80047C1C(racer->player, racer->character);
+    chr = char_record_lookup(racer->player, racer->character);
     setup.objectID = 0x50;
     setup.size = sizeof(Spawn50);
     setup.x = x;
@@ -3415,8 +3424,8 @@ typedef struct SpawnF0 {
 
 s32 rand_range(s32 min, s32 max);
 
-/* JFG: spawn two objects 0xF0 at (x, y, z) with randomised angles. */
-void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
+/* JFG: spawn two objects 0xF0 at (x, y, z) with randomised angles (0x800397E0). */
+void weapon_fire_spread_pair(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
                   UNUSED s32 arg9) {
     s32 i;
     u8 *obj;
@@ -3493,8 +3502,8 @@ typedef struct Spawn39 {
 f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
-/* JFG: spawn object 0x39 at (x, y, z), moving at `speed` along (yaw, pitch). */
-void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
+/* JFG: spawn object 0x39 at (x, y, z), moving at `speed` along (yaw, pitch) (0x80039A38). */
+void weapon_fire_velocity_shot(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
                   UNUSED s32 arg9) {
     Spawn39 setup;
     u8 *obj;
@@ -3533,7 +3542,8 @@ typedef struct SpawnGrenade {
     /* 0x19 */ s8 unk19;
 } SpawnGrenade;
 
-void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+/* Spawns one of the three grenade objects (0x80039B98). */
+void weapon_fire_grenade(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
                    u8 type, u8 argB) {
     SpawnGrenade setup;
     u8 *obj;
@@ -3690,7 +3700,7 @@ extern f32 D_800A2E60[20];
    stick is clamped to +-40, and past +-45 it turns the view (0x1E4/0x1E8 eased towards a rate from D_800A2E60,
    limited by 0x1CE/0x1E0), which turns the yaw at 0x11C and the pitch at 0x1E2 (clamped to minPitch..maxPitch).
    Writes the aim offset scaled by rangeX/rangeY; returns whether it is aiming. */
-s32 func_8003AABC(UNUSED s32 arg0, Racer *racer, s16 rangeX, s16 rangeY, s32 minPitch, s32 maxPitch, s16 *outX,
+s32 player_stick_aim_update(UNUSED s32 arg0, Racer *racer, s16 rangeX, s16 rangeY, s32 minPitch, s32 maxPitch, s16 *outX,
                   s16 *outY, f32 updateRate) {
     s32 x;
     s32 y;
@@ -3705,7 +3715,7 @@ s32 func_8003AABC(UNUSED s32 arg0, Racer *racer, s16 rangeX, s16 rangeY, s32 min
     f32 t;
     s32 i;
 
-    chr = func_80047C1C(racer->player, racer->character);
+    chr = char_record_lookup(racer->player, racer->character);
     manual = 0;
     aimY = 0.0f;
     aimX = 0.0f;
@@ -3814,7 +3824,7 @@ extern u8 gWeaponInfo[][0x30];
 
 /* Returns whether the character can use its current weapon (0x8003B114). */
 s32 weapon_usable_by_character(s8 *ids) {
-    u8 *chr = func_80047C1C(ids[0], ids[1]);
+    u8 *chr = char_record_lookup(ids[0], ids[1]);
     return (gWeaponInfo[chr[0x70]][0] >> ids[1]) & 1;
 }
 
@@ -3853,7 +3863,8 @@ void players_forget_object(s32 obj) {
     }
 }
 
-void func_8003B418(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
+/* Where a player's shots start (0x8003B418). */
+void player_aim_origin_get(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z) {
     u8 *model;
 
     if (racer->flags.useOverride) {
@@ -3894,7 +3905,8 @@ u8 *weapon_info_get(s32 index) {
     return gWeaponInfo[index];
 }
 
-s32 func_8003B51C(s32 value, s32 delta) {
+/* Adds a delta to a value clamped to s16, or with flag 0x8000 moves it towards zero (0x8003B51C). */
+s32 s16_apply_delta_or_decay(s32 value, s32 delta) {
     if (delta != 0) {
         if ((delta & 0xC000) == 0x8000) {
             if (value < 0) {
@@ -3933,9 +3945,9 @@ void func_8003B590(u8 *obj, s32 index) {
             index = 0;
         }
         rates = D_800A11C0[index];
-        *(s16 *) (racer + 0x586) = func_8003B51C(*(s16 *) (racer + 0x586), rates[0]);
-        *(s16 *) (racer + 0x588) = func_8003B51C(*(s16 *) (racer + 0x588), rates[1]);
-        *(s16 *) (racer + 0x58A) = func_8003B51C(*(s16 *) (racer + 0x58A), rates[2]);
+        *(s16 *) (racer + 0x586) = s16_apply_delta_or_decay(*(s16 *) (racer + 0x586), rates[0]);
+        *(s16 *) (racer + 0x588) = s16_apply_delta_or_decay(*(s16 *) (racer + 0x588), rates[1]);
+        *(s16 *) (racer + 0x58A) = s16_apply_delta_or_decay(*(s16 *) (racer + 0x58A), rates[2]);
     }
 }
 
@@ -3945,7 +3957,8 @@ extern s16 D_800F6DF0;
 extern s16 D_800F6DF2;
 extern u8 D_800A2EB0;
 
-void func_8003B620(s16 a, s16 b, s16 c, s16 d) {
+/* Stores a start position and angle for the next level entry (0x8003B620). */
+void player_start_override_set(s16 a, s16 b, s16 c, s16 d) {
     D_800F6DEC = a;
     D_800F6DEE = b;
     D_800F6DF0 = c;
@@ -3953,7 +3966,8 @@ void func_8003B620(s16 a, s16 b, s16 c, s16 d) {
     D_800A2EB0 = 1;
 }
 
-s32 func_8003B660(s16 *a, s16 *b, s16 *c, s16 *d) {
+/* Takes the stored start position and angle, if any (0x8003B660). */
+s32 player_start_override_take(s16 *a, s16 *b, s16 *c, s16 *d) {
     if (D_800A2EB0 != 0) {
         *a = D_800F6DEC;
         *b = D_800F6DEE;
@@ -3967,7 +3981,8 @@ s32 func_8003B660(s16 *a, s16 *b, s16 *c, s16 *d) {
 
 extern u8 D_800A2EB0;
 
-void func_8003B6BC(void) {
+/* Drops the stored start position (0x8003B6BC). */
+void player_start_override_clear(void) {
     D_800A2EB0 = 0;
 }
 

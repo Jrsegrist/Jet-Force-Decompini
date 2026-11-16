@@ -45,9 +45,9 @@ typedef struct M074Object {
     M074Switch sw;
 } M074Object;
 
-extern void func_80079D1C(M074Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
+extern void obj_collision_spheres_init(M074Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
 /* called with the sequence only: no prototype in scope */
-extern void func_800767EC();
+extern void anim_path_enable_run();
 extern void func_80076928();
 
 void func_m074_00000(M074Object *obj, M074Setup *setup) {
@@ -62,7 +62,7 @@ void func_m074_00000(M074Object *obj, M074Setup *setup) {
     if (obj->unk40->unk1F > 0 && obj->sw.on != 0) {
         obj->unk3A = 1;
     }
-    func_80079D1C(obj, 0x100, 1, 1, 0, 0, 0, obj->unk8 * 8.0f, obj->unk8 * 8.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, 0x100, 1, 1, 0, 0, 0, obj->unk8 * 8.0f, obj->unk8 * 8.0f, -1.0f, 1.0f, 1);
 }
 
 void func_m074_00110(M074Object *obj, s32 updateRate) {
@@ -93,7 +93,7 @@ void func_m074_00110(M074Object *obj, s32 updateRate) {
         if (obj->unk40->unk1F > 0) {
             obj->unk3A = one;
         }
-        func_800767EC(sw->unk1);
+        anim_path_enable_run(sw->unk1);
     } else {
         obj->unk3A = 0;
         func_80076928(sw->unk1);

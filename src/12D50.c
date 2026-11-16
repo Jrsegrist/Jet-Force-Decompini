@@ -83,7 +83,7 @@ typedef struct LevelModelSegment {
     /* 0x34 */ SegmentColours *colours;
     /* 0x38 */ u8 pad38[0x46 - 0x38];
     /* 0x46 */ u8 numberOfOpaqueBatches; // DKR: numberofOpaqueBatches
-    /* 0x47 */ u8 unk47;                 // JFG: the end of the second batch group (see func_80014EBC)
+    /* 0x47 */ u8 unk47;                 // JFG: the end of the second batch group (see render_level_segment)
 } LevelModelSegment;
 
 /* DKR include/structs.h, reduced */
@@ -218,7 +218,7 @@ extern s32 D_800A0D6C;
 extern u8 D_800A321C;
 extern s32 D_800A74E0;
 extern s16 D_801046EE;
-u8 func_80048548(void); // the number of cameras
+u8 camera_count_get(void); // the number of cameras
 s8 is_game_paused(void);
 void debug_trace_add(Gfx *dList, char *file, s32 line);
 void set_active_camera(s32 index);
@@ -251,7 +251,7 @@ void func_80024634(Gfx **dList, Mtx **mtx, Vertex **vtx);
 void ground_screen_effect_update(s32 arg0);
 void glitch_effect_draw(Gfx **dList);
 void viewport_reset(Gfx **dList);
-void func_8001D9B4(void);
+void shadow_buffers_flip(void);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: updateRate must stay on the stack (the `&updateRate` fake does it, but then IDO reloads it
@@ -269,7 +269,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
     s32 j;
 
     if (&updateRate) {} // fakematch: keeps updateRate on the stack
-    numViewports = func_80048548();
+    numViewports = camera_count_get();
     if (func_80054530()) {
         D_800F2F70 = *dList;
         D_800F2F74 = *mtx;
@@ -374,7 +374,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
         viewport_reset(&D_800F2F70);
         gDPPipeSync(D_800F2F70++);
         gDkrDisableBillboard(D_800F2F70++);
-        func_8001D9B4();
+        shadow_buffers_flip();
         *dList = D_800F2F70;
         *mtx = D_800F2F74;
         *vtx = D_800F2F78;
@@ -1098,8 +1098,8 @@ void track_segment_data_free(void) {
 
 void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 
-/* JFG: add a track light in the first free slot. */
-TrackLight *func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue) {
+/* JFG: add a track light in the first free slot (0x80013E0C). */
+TrackLight *track_light_create(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue) {
     s32 i;
     TrackLight *light;
 
@@ -1369,7 +1369,7 @@ void track_texture_load(struct WaterTexture *tex, s32 texOffset, s32 flags);
  * DKR: render_level_segment
  * (The empty `if (!texture) {}` keeps the batch pointer and texture in the ROM's saved registers; permuter.)
  */
-void func_80014EBC(s32 segmentId, s32 pass) {
+void render_level_segment(s32 segmentId, s32 pass) {
     s32 i;
     s32 end;
     s32 batchFlags;
@@ -2697,7 +2697,7 @@ extern s16 *D_800F33BC;
 extern s16 *D_800F33C0;
 extern void *D_800F2FB0;
 void track_segment_data_free(void);
-void func_80038F04(void);
+void weapon_buffers_release_all(void);
 void tex_free(void *tex);
 void shadow_buffers_free(void);
 void free_object(Object *obj);
@@ -2719,7 +2719,7 @@ void free_track(void) {
         D_800A0D88 = NULL;
         D_800A0D84 = 0;
     }
-    func_80038F04();
+    weapon_buffers_release_all();
     if (D_800A0D68 != NULL) {
         tex_free(D_800A0D68);
         D_800A0D68 = NULL;
@@ -2790,7 +2790,7 @@ typedef struct ShadowData {
     /* 0x16 */ s16 meshEnd[3];
 } ShadowData;
 
-void func_8001D9D0(s32 flags, Vertex **verts, Triangle **tris, ShadowHeapProperties **data);
+void shadow_heap_current_ptrs(s32 flags, Vertex **verts, Triangle **tris, ShadowHeapProperties **data);
 
 /**
  * Render the shadow of the object on the ground.
@@ -2811,7 +2811,7 @@ void shadow_render(Object *obj, ShadowData *shadow) {
     s32 alpha;
 
     if (shadow->group) {
-        func_8001D9D0(shadow->group, &verts, &tris, &data);
+        shadow_heap_current_ptrs(shadow->group, &verts, &tris, &data);
         for (i = 0; i < shadow->numMeshes; i++) {
             if (shadow->meshStart[i] != -1) {
                 j = shadow->meshStart[i];

@@ -81,7 +81,7 @@ void func_m114_001D4(Object *obj, M114Setup *setup, s32 arg2) {
     t->raise = 0;
     t->health = setup->health << 8;
     OBJ_STATE(obj, s32)[0] = setup->points * 10;
-    func_80079D1C(obj, t->health, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, t->health, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
     obj->interactObj->flags &= ~1;
 }
 

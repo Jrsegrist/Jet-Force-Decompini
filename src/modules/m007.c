@@ -137,7 +137,7 @@ void func_m007_00000(void);
 void func_m007_02824(void);
 static void func_m007_00E0C(s32 updateRate);
 static void func_m007_01018(s32 updateRate);
-extern s32 func_8007230C(s32 font); /* a font's line height */
+extern s32 font_line_height(s32 font); /* a font's line height */
 extern s32 runlink_module_loaded(s32 module);
 extern void func_m032_02540(void);
 extern s32 rl_m007_02A38; /* the lines left to scroll (negative: back) */
@@ -165,9 +165,9 @@ extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 /* The module's .data: the hint box's outline, 9 bytes a box (still assembly) */
 extern s8 rl_m007_02960[];
 /* The module's .rodata (still assembly): the "more" marks */
-extern void func_8006FC14(s32 arg0);
-extern void func_8003B620(s16 x, s16 y, s16 z, s16 angle);
-extern s32 func_800468CC(void);
+extern void text_colour_mode_set(s32 arg0);
+extern void player_start_override_set(s16 x, s16 y, s16 z, s16 angle);
+extern s32 pending_level_character(void);
 extern s32 menu_mode_get(void);
 extern void level_goto(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
 extern Object *func_80005F14(void *entry, s32 arg1);
@@ -302,7 +302,7 @@ typedef struct M007Player {
     /* 0x189 */ s8 unk189;
 } M007Player;
 
-/* A character's items (what func_80047C1C returns) */
+/* A character's items (what char_record_lookup returns) */
 typedef struct M007Items {
     /* 0x00 */ s16 unk0;
     /* 0x02 */ s16 unk2;
@@ -328,7 +328,7 @@ typedef struct M007WeaponInfo {
     /* 0x28 */ s16 ammo;
 } M007WeaponInfo;
 
-extern M007Items *func_80047C1C(s32 player, s32 character);
+extern M007Items *char_record_lookup(s32 player, s32 character);
 extern s32 character_has_item(s32 player, s32 character, s32 item);
 extern s32 player_chars_have_item(s32 item);
 extern void character_item_give(s32 player, s32 character, s32 item);
@@ -349,7 +349,7 @@ static s32 func_m007_00390(s32 condition) {
         return TRUE;
     }
     p = obj->unk68;
-    items = func_80047C1C(p->player, p->character);
+    items = char_record_lookup(p->player, p->character);
     switch (condition) {
         case 1:
             return rl_m007_02A6C;
@@ -708,7 +708,7 @@ static void func_m007_00E0C(s32 updateRate) {
 
 /* A scrolling hint's controls: A scrolls on or ends it, B scrolls back */
 static void func_m007_01018(s32 updateRate) {
-    s32 lines = 88 / func_8007230C(2) - 1;
+    s32 lines = 88 / font_line_height(2) - 1;
 
     if (rl_m007_02A38 != 0) {
         if (rl_m007_02A38 < 0) {
@@ -768,7 +768,7 @@ static int func_m007_012E0(s32 condition) {
     if (obj != NULL) {
         p = obj->unk68;
         if (p != NULL) {
-            items = func_80047C1C(p->player, p->character);
+            items = char_record_lookup(p->player, p->character);
         }
     }
     switch (condition) {
@@ -829,7 +829,7 @@ static int func_m007_01504(s32 condition) {
     if (obj != NULL) {
         p = obj->unk68;
         if (p != NULL) {
-            items = func_80047C1C(p->player, p->character);
+            items = char_record_lookup(p->player, p->character);
         }
     }
     switch (condition) {
@@ -911,7 +911,7 @@ static void func_m007_017E8(s32 action) {
     if (obj != NULL) {
         p = obj->unk68;
         if (p != NULL) {
-            items = func_80047C1C(p->player, p->character);
+            items = char_record_lookup(p->player, p->character);
         }
     }
     switch (action) {
@@ -1047,7 +1047,7 @@ void func_m007_01CCC(Gfx **dl, s32 updateRate) {
             }
         }
     }
-    func_8006FC14(1);
+    text_colour_mode_set(1);
     if (rl_m007_02A20 != 0) {
         if (rl_m007_02A44 != 1) {
             func_m007_01F80(dl);
@@ -1055,7 +1055,7 @@ void func_m007_01CCC(Gfx **dl, s32 updateRate) {
             func_m007_020D4(dl);
         }
     }
-    func_8006FC14(0);
+    text_colour_mode_set(0);
 }
 
 /* Fills the boxes of an outline (9 bytes a box) at (x, y), stretched by (w, h), at `alpha` (0..128) */
@@ -1123,7 +1123,7 @@ static void func_m007_020D4(Gfx **dl) {
 
     func_m007_01E34(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
     i = 0;
-    height = func_8007230C(2);
+    height = font_line_height(2);
     lines = 88 / height - 1;
     func_8006FC54(2);
     func_8006FC8C(0, 0, 0, 0);
@@ -1192,7 +1192,7 @@ static s32 func_m007_023D4(Gfx **dl, u8 *text, s32 skip) {
 
     more = 0;
     done = 0;
-    height = func_8007230C(2);
+    height = font_line_height(2);
     lines = 88 / height - 1;
     func_8006FC8C(0, 0, 0, 0);
     func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, (rl_m007_02A20 * 255) >> 8);
@@ -1324,10 +1324,10 @@ void func_m007_0284C(void) {
     if (rl_m007_02A68 != -1) {
         player = func_8000E4D0(0);
         if (player != NULL) {
-            func_8003B620(player->trans.x_position, player->trans.y_position + 2.0f, player->trans.z_position,
+            player_start_override_set(player->trans.x_position, player->trans.y_position + 2.0f, player->trans.z_position,
                           player->trans.rotation.y_rotation);
         }
-        arg = func_800468CC();
+        arg = pending_level_character();
         level_goto(rl_m007_02A68, arg, 0, menu_mode_get(), 1, 0);
         rl_m007_02A68 = -1;
     }

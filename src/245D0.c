@@ -1,3 +1,6 @@
+/*
+ * Coronas: sprites at light points that fade in while nothing blocks the view and out otherwise (50 slots).
+ */
 #include "common.h"
 
 /* A sprite at a point that fades in while nothing is in the way and out otherwise (50 slots). Size: 0x50 bytes */
@@ -13,9 +16,9 @@ typedef struct Corona {
     /* 0x34 */ s8 attachPoint;   // an attach point of the owner's model, or -1
     /* 0x35 */ u8 rotateOffset;  // the offset turns with the owner
     /* 0x36 */ u8 dirty;         // 1: the position, 2: the direction
-    /* 0x37 */ s8 unk37;
+    /* 0x37 */ s8 screenRect;
     /* 0x38 */ u8 colour[4];
-    /* 0x3C */ void *unk3C; // JFG: a sprite
+    /* 0x3C */ void *sprite; // JFG: a sprite
     /* 0x40 */ f32 unk40;
     /* 0x44 */ f32 unk40Inv;
     /* 0x48 */ f32 unk48;
@@ -30,7 +33,7 @@ void coronas_init(void) {
     s32 i = 50;
     while (i--) {
         corona->active = 0;
-        corona->unk3C = 0;
+        corona->sprite = 0;
         corona++;
     }
     D_800A110C = 0;
@@ -101,16 +104,16 @@ Corona *corona_add(struct CoronaOwner *owner, CoronaHeader *header) {
         corona->rotateOffset = 1;
     }
     corona->dirty = 3;
-    corona->unk37 = -1;
+    corona->screenRect = -1;
     corona_update_transform(corona);
     corona->colour[0] = header->colour[0];
     corona->colour[1] = header->colour[1];
     corona->colour[2] = header->colour[2];
     corona->colour[3] = header->colour[3];
     if (header->spriteID >= 0) {
-        corona->unk3C = tex_load_sprite(header->spriteID, 0);
+        corona->sprite = tex_load_sprite(header->spriteID, 0);
     } else {
-        corona->unk3C = NULL;
+        corona->sprite = NULL;
     }
     corona->unk40 = header->unk1A;
     corona->unk40Inv = 1.0f / corona->unk40;
@@ -127,9 +130,9 @@ void sprite_free(void *sprite);
 void corona_free(Corona *corona) {
     if (corona != NULL && corona->active) {
         corona->active = 0;
-        if (corona->unk3C != NULL) {
-            sprite_free(corona->unk3C);
-            corona->unk3C = NULL;
+        if (corona->sprite != NULL) {
+            sprite_free(corona->sprite);
+            corona->sprite = NULL;
         }
         if (--D_800A1108 == 0) {
             if (D_800A1110 != NULL) {
@@ -266,7 +269,7 @@ typedef struct CoronaCamera {
 } CoronaCamera;
 
 CoronaCamera *cam_get_active_camera(void);
-s32 func_80045A14(s32 rect);
+s32 screen_rect_visible(s32 rect);
 s8 screen_rect_queue(s32 x, s32 y, s32 size);
 s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
 
@@ -302,7 +305,7 @@ void func_80024044(void) {
                 i = 0;
             }
             if (corona->active & 0x20) {
-                if (func_80045A14(corona->unk37) == 0) {
+                if (screen_rect_visible(corona->screenRect) == 0) {
                     corona->opacity += 8;
                     if (corona->opacity > 16) {
                         corona->opacity = 16;
@@ -319,9 +322,9 @@ void func_80024044(void) {
                 dir[1] += cam->y;
                 dir[2] += cam->z;
                 if (func_80041E58(dir[0], dir[1], dir[2], &screenX, &screenY, 1)) {
-                    corona->unk37 = screen_rect_queue(screenX, screenY, 3);
+                    corona->screenRect = screen_rect_queue(screenX, screenY, 3);
                 } else {
-                    corona->unk37 = -1;
+                    corona->screenRect = -1;
                 }
             } else if (corona->active) {
                 radiusSq = corona->unk40 * corona->unk40;

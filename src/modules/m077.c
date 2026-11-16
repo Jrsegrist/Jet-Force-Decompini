@@ -40,7 +40,7 @@ typedef struct M077Env {
     /* 0x107 */ u8 unk107;
 } M077Env;
 
-/* What func_80047C1C returns */
+/* What char_record_lookup returns */
 typedef struct M077Stats {
     /* 0x0 */ u8 pad0[4];
     /* 0x4 */ u16 unk4;
@@ -59,8 +59,8 @@ typedef struct M077Part {
 } M077Part;
 
 extern M077Env *func_8004470C(void);
-extern s32 func_800468CC(void);
-extern M077Stats *func_80047C1C(s32 player, s32 arg1);
+extern s32 pending_level_character(void);
+extern M077Stats *char_record_lookup(s32 player, s32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 arg3, f32 arg4);
 extern void mtx_pop(Gfx **dl);
@@ -105,7 +105,7 @@ void func_m077_00000(s32 id, s32 apart) {
 
 s32 func_m077_000FC(s32 condition) {
     M077Env *env = func_8004470C();
-    M077Stats *stats = func_80047C1C(0, func_800468CC());
+    M077Stats *stats = char_record_lookup(0, pending_level_character());
 
     switch (condition) {
         case 2:
@@ -158,7 +158,7 @@ void func_m077_00200(Object *obj, M077Setup *setup) {
         d->offset = 0.0f;
     }
     d->speed = 0.0f;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 32.0f, obj->trans.scale * 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 32.0f, obj->trans.scale * 32.0f, -1.0f, 1.0f, 1);
 }
 
 void func_m077_00374(Object *obj, s32 updateRate) {

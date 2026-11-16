@@ -113,7 +113,7 @@ typedef struct M154Setup {
     /* 0x15 */ s8 unk15;
 } M154Setup;
 
-extern Object **func_80050F44(s32 *count);
+extern Object **troop_list_get(s32 *count);
 extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern f32 func_m003_03E20(f32 x, f32 z, f32 targetX, f32 targetZ);
@@ -146,7 +146,7 @@ void func_m154_00000(void) {
     Object *obj;
     M154Enemy *e;
 
-    list = func_80050F44(&count);
+    list = troop_list_get(&count);
     node = D_800FEA9C;
     i = D_800FEA98;
     while (i-- > 0) {

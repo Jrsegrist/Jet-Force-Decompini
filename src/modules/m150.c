@@ -108,7 +108,7 @@ void func_m150_00098(Object *obj, M150BeamSetup *setup) {
     b->unk80 = 0;
     b->unk88 = setup->unk20;
     b->unk8C = setup->unk24;
-    func_80079D1C(obj, setup->size << 8, 1, 4, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, setup->size << 8, 1, 4, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_m150_00210(Object *obj, s32 updateRate) {

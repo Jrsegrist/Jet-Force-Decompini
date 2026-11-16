@@ -202,19 +202,19 @@ typedef struct M037MenuItem {
 extern M037MenuItem D_800FF780[];
 
 extern s32 options_screen_mode_get(void);
-extern void func_8005A834(s32 arg0);
+extern void display_setting_store(s32 arg0);
 extern s32 options_screen_offset_get(void);
 extern void options_screen_offset_set(s32 arg0);
-extern s32 func_8005A98C(void);
-extern void func_8005A99C(s32 arg0);
-extern s32 func_8005A9E4(void);
-extern void func_8005A9F4(s32 arg0);
+extern s32 sound_output_option(void);
+extern void sound_output_option_store(s32 arg0);
+extern s32 effects_loudness_option(void);
+extern void effects_loudness_option_store(s32 arg0);
 extern s32 options_music_volume_get(void);
 extern void options_music_volume_set(s32 arg0);
-extern s32 func_8005AA7C(void);
-extern void func_8005AA94(s32 arg0);
-extern u8 func_8005AAB8(s32 player);
-extern void func_8005AAD0(s32 player, s32 arg1);
+extern s32 options_split_vertical_get(void);
+extern void options_split_vertical_set(s32 arg0);
+extern u8 options_player_toggle_get(s32 player);
+extern void options_player_toggle_set(s32 player, s32 arg1);
 extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
 extern void func_8004DFC4(Gfx **dl, Mtx **mtx, s32 arg2); /* draws the background */
 extern void func_80055B80(Gfx **dl);
@@ -339,15 +339,15 @@ void func_m037_001A0(s32 updateRate) {
         inst = *(M037Instance **) obj->modelInstances;
         model = inst->model;
         inst->unkA = updateRate;
-        func_8001138C(obj, sUnk5C, updateRate);
+        obj_anim_frame_advance(obj, sUnk5C, updateRate);
         if (options_screen_mode_get() & 1) {
             sPartAngles[6] = 1;
             sPartAngles[3] = 2;
         } else {
             sPartAngles[6] = 0;
-            sPartAngles[3] = sScreenAngles[func_8005AA7C()];
+            sPartAngles[3] = sScreenAngles[options_split_vertical_get()];
         }
-        sPartAngles[0] = sSoundAngles[func_8005A98C()];
+        sPartAngles[0] = sSoundAngles[sound_output_option()];
         for (i = 0; i < 8; i++) {
             part = inst->parts;
             out = inst->angles[inst->buffer];
@@ -469,7 +469,7 @@ void func_m037_001A0(s32 updateRate) {
                 }
                 break;
             case 0:
-                i = func_8005A98C();
+                i = sound_output_option();
                 if (left) {
                     func_80001248(0x16C, 0);
                     i--;
@@ -484,8 +484,8 @@ void func_m037_001A0(s32 updateRate) {
                         i = 0;
                     }
                 }
-                func_8005A99C(i);
-                func_8006FCA8(&D_800FF398, width, y, (char *) sSaved0[func_8005A98C()], 4);
+                sound_output_option_store(i);
+                func_8006FCA8(&D_800FF398, width, y, (char *) sSaved0[sound_output_option()], 4);
                 if (pressB) {
                     func_80001248(0x16D, 0);
                     sMode = 8;
@@ -516,7 +516,7 @@ void func_m037_001A0(s32 updateRate) {
                 }
                 if (left || right) {
                     func_80001248(0x16C, 0);
-                    func_8005AAD0(sUnk50, (func_8005AAB8(sUnk50) ^ 1) & 1);
+                    options_player_toggle_set(sUnk50, (options_player_toggle_get(sUnk50) ^ 1) & 1);
                 }
                 y += 4;
                 for (i = 0; i < 4; i++) {
@@ -527,7 +527,7 @@ void func_m037_001A0(s32 updateRate) {
                         func_8006FC68(0, 0xFF, 0xFF, 0xFF, 0x62);
                     }
                     func_8006FCA8(&D_800FF398, width - 32, y, sControllerLabels[i], 1);
-                    func_8006FCA8(&D_800FF398, width - 32, y, (char *) sSaved1[func_8005AAB8(i)], 0);
+                    func_8006FCA8(&D_800FF398, width - 32, y, (char *) sSaved1[options_player_toggle_get(i)], 0);
                     func_8006FC68(0, 0xFF, 0xFF, 0xFF, 0xFF);
                     y += 15;
                 }
@@ -546,20 +546,20 @@ void func_m037_001A0(s32 updateRate) {
             case 3:
                 if (left || right) {
                     func_80001248(0x16C, 0);
-                    if (func_8005AA7C() != 0) {
-                        func_8005AA94(0);
+                    if (options_split_vertical_get() != 0) {
+                        options_split_vertical_set(0);
                     } else {
-                        func_8005AA94(1);
+                        options_split_vertical_set(1);
                     }
                 }
-                func_8006FCA8(&D_800FF398, width, y, (char *) sSaved3[func_8005AA7C()], 4);
+                func_8006FCA8(&D_800FF398, width, y, (char *) sSaved3[options_split_vertical_get()], 4);
                 if (pressB) {
                     func_80001248(0x16D, 0);
                     sMode = 8;
                 }
                 break;
             case 4:
-                func_8005A9F4(func_m037_01ACC(func_8005A9E4(), 160, y));
+                effects_loudness_option_store(func_m037_01ACC(effects_loudness_option(), 160, y));
                 if (pressB) {
                     func_80001248(0x16D, 0);
                     sMode = 8;
@@ -634,7 +634,7 @@ void func_m037_001A0(s32 updateRate) {
                     func_8005483C(i);
                     func_80001248(0x16C, 0);
                 }
-                func_8005A834(i);
+                display_setting_store(i);
                 i = options_screen_offset_get();
                 if (cDown) {
                     i--;

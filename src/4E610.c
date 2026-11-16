@@ -1,3 +1,7 @@
+/*
+ * RCP set-up and graphics tasks: the RDP init, starting and waiting for tasks, the background fill
+ * (DKR's rcp_dkr.c).
+ */
 #include "common.h"
 #include "memory.h"
 

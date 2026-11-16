@@ -17,7 +17,7 @@ typedef struct M018MenuItem {
     /* 0x14 */ u8 pad14[0x20 - 0x14];
 } M018MenuItem;
 
-/* A character's record (func_80047C1C) */
+/* A character's record (char_record_lookup) */
 typedef struct M018Character {
     /* 0x00 */ s16 unk0; /* in 1/256ths */
     /* 0x02 */ s16 unk2;
@@ -42,7 +42,7 @@ extern void func_8004AA80(void *data); /* frees */
 extern u8 *get_settings(void);       /* the players' saved settings (0x76 bytes each) */
 extern void func_m009_00408(void);
 extern void func_m009_0066C(void);
-extern M018Character *func_80047C1C(s32 player, s32 character);
+extern M018Character *char_record_lookup(s32 player, s32 character);
 extern s32 options_screen_mode_get(void);
 extern void func_80054F90(void);
 extern s32 runlink_module_loaded(s32 module); /* a module's load address, 0 when not loaded */
@@ -269,7 +269,7 @@ void func_m018_01028(void) {
     state = player->unk68;
     menu_assetgroup_load(rl_m018_06694);
     menu_assetgroup_reset(rl_m018_066A0);
-    character = func_80047C1C(state[0], func_m018_0207C(state));
+    character = char_record_lookup(state[0], func_m018_0207C(state));
     func_m018_01194(character->weapon);
     rl_m018_06CA0 = 0.0f;
     rl_m018_06CA4 = rl_m018_066B4[character->weapon];
@@ -408,7 +408,7 @@ void func_m018_0130C(s32 updateRate) {
     func_m018_040A8(updateRate, 0x21);
     if (rl_m018_066AC && rl_m018_06BCC) {
         state = func_8000E4D0(0)->unk68;
-        record = func_80047C1C(state[0], func_m018_0207C(state));
+        record = char_record_lookup(state[0], func_m018_0207C(state));
         oldWeapon = rl_m018_066B0;
         if (D_800FF3D8[D_m019_013D8] < -32 && rl_m018_06C94 == 0) {
             func_m018_01294(record);
@@ -470,7 +470,7 @@ void func_m018_0130C(s32 updateRate) {
                 rl_m018_06C8C = 0;
             }
         }
-        func_8001138C(obj, rl_m018_06CA0, updateRate);
+        obj_anim_frame_advance(obj, rl_m018_06CA0, updateRate);
         model->unkA = updateRate;
         if (rl_m018_06C88) {
         }
@@ -935,7 +935,7 @@ void func_m018_04408(s32 updateRate) {
     func_m018_00000();
     state = func_8000E4D0(0)->unk68;
     character = func_m018_0207C(state);
-    record = func_80047C1C(state[0], character);
+    record = char_record_lookup(state[0], character);
     health = record->unk0 >> 8;
 
     count = record->unk2;

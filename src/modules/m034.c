@@ -25,7 +25,7 @@ extern void *gObjPtrList;
 extern void *D_800F2CB4;
 extern f32 D_800F2C88;      /* DKR gObjectUpdateRateF */
 
-extern void func_800224D0(s32, s32, s32, s32, s32);  /* DKR set_world_shading */
+extern void set_world_shading(s32, s32, s32, s32, s32);  /* DKR set_world_shading */
 extern void *func_8004A458(s32 size, s32 count);     /* DKR mempool_new_sub */
 extern void *func_8004A57C(s32 size, u32 colour);    /* DKR mempool_alloc_safe */
 extern void *func_8004D37C(s32 asset);               /* DKR asset_table_load */
@@ -41,7 +41,7 @@ static void decrypt_magic_codes(s32 *data, s32 length);
 void func_m034_00000(void) {
     s32 i;
 
-    func_800224D0(0xAA, 0x55, 0, -0x2000, 0);
+    set_world_shading(0xAA, 0x55, 0, -0x2000, 0);
     D_800F2CB0 = func_8004A458(0x19000, 0x200);
     gParticlePtrList = func_8004A57C(0x320, 0xFFFF);
     collision_buffers_alloc();

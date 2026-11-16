@@ -1,3 +1,7 @@
+/*
+ * Troops (groups of enemies and their members) and the runlink module loader: slots, loading,
+ * relocation and entry points.
+ */
 #include "common.h"
 
 /* The stubbed debug messages of the troop code (unreferenced), in ROM order. */
@@ -47,7 +51,8 @@ struct TroopObject {
 extern s32 D_800FE9F0;
 extern TroopObject **D_800A38E4;
 
-TroopObject **func_80050F44(s32 *count) {
+/* The troop object list and its count (0x80050F44). */
+TroopObject **troop_list_get(s32 *count) {
     *count = D_800FE9F0;
     return D_800A38E4;
 }
@@ -714,10 +719,10 @@ typedef struct ModuleEntry {
     /* 0x08 */ s32 unk8;
     /* 0x0C */ s32 unkC;
     /* 0x10 */ s32 unk10;
-    /* 0x14 */ u16 unk14;
+    /* 0x14 */ u16 relocSize;
     /* 0x16 */ u16 unk16;
-    /* 0x18 */ s32 unk18; // an init entry point offset, run once on load (-1 for none)
-    /* 0x1C */ s32 unk1C; // an entry point offset (-1 for none)
+    /* 0x18 */ s32 initOffset; // an init entry point offset, run once on load (-1 for none)
+    /* 0x1C */ s32 runOffset; // an entry point offset (-1 for none)
 } ModuleEntry;
 extern ModuleEntry *gRunlinkModules;
 
@@ -930,7 +935,7 @@ s32 runlink_module_install(s32 module) {
         slot++;
     }
     gForcedColourTag2 = module;
-    entry->unk0 = (s32) mempool_alloc_safe(entry->unk8 + entry->unkC + entry->unk10 + entry->unk14, 0x7F7F7FFF);
+    entry->unk0 = (s32) mempool_alloc_safe(entry->unk8 + entry->unkC + entry->unk10 + entry->relocSize, 0x7F7F7FFF);
     gForcedColourTag2 = -1;
     if (entry->unk0 == 0) {
         return FALSE;
@@ -941,14 +946,14 @@ s32 runlink_module_install(s32 module) {
             mempool_free((void *) entry->unk0);
             return FALSE;
         }
-        dmacopy(entry->unk4 + entry->unk8 + entry->unkC + entry->unk14, (u32) extra, entry->unk16);
+        dmacopy(entry->unk4 + entry->unk8 + entry->unkC + entry->relocSize, (u32) extra, entry->unk16);
     }
     D_800FEAB8[1] = entry->unk0;
     D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
     D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
     D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
     if (entry->unk10 == 0) {
-        dmacopy(entry->unk4, entry->unk0, entry->unk8 + entry->unkC + entry->unk14);
+        dmacopy(entry->unk4, entry->unk0, entry->unk8 + entry->unkC + entry->relocSize);
     } else {
         dmacopy(entry->unk4, entry->unk0, entry->unk8 + entry->unkC);
         p = (u32 *) D_800FEAB8[3];
@@ -956,7 +961,7 @@ s32 runlink_module_install(s32 module) {
         while (n--) {
             *p++ = 0;
         }
-        dmacopy(entry->unk4 + entry->unk8 + entry->unkC, D_800FEAB8[4], entry->unk14);
+        dmacopy(entry->unk4 + entry->unk8 + entry->unkC, D_800FEAB8[4], entry->relocSize);
     }
     osInvalICache((void *) entry->unk0, entry->unk8);
     if (extra != NULL) {
@@ -975,7 +980,7 @@ s32 runlink_module_install(s32 module) {
         mempool_free_timer(timer);
     }
     reloc = (ModuleReloc *) D_800FEAB8[4];
-    n = (u32) entry->unk14 >> 3;
+    n = (u32) entry->relocSize >> 3;
     while (n-- > 0) {
         if (func_80052AB8(reloc, module) == 2) {
             n--;
@@ -999,7 +1004,7 @@ s32 runlink_module_install(s32 module) {
                 D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
                 D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
                 reloc = (ModuleReloc *) D_800FEAB8[4];
-                n = (u32) entry->unk14 >> 3;
+                n = (u32) entry->relocSize >> 3;
             }
             while (n-- > 0) {
                 symModule = D_800FEAA8[reloc->symbol] >> 20;
@@ -1017,8 +1022,8 @@ s32 runlink_module_install(s32 module) {
         }
     }
     entry = &gRunlinkModules[module];
-    if (entry->unk18 != -1) {
-        ((void (*)(void))(entry->unk0 + entry->unk18))();
+    if (entry->initOffset != -1) {
+        ((void (*)(void))(entry->unk0 + entry->initOffset))();
     }
     return TRUE;
 }
@@ -1060,7 +1065,7 @@ s32 runlink_load_target_module(u32 *addr) {
                 D_800FEAB8[3] = D_800FEAB8[2] + module->unkC;
                 D_800FEAB8[4] = D_800FEAB8[3] + module->unk10;
                 reloc = (ModuleReloc *) D_800FEAB8[4];
-                n = (u32) module->unk14 >> 3;
+                n = (u32) module->relocSize >> 3;
             }
             while (n--) {
                 section = reloc->type == 3 ? 2 : 1;
@@ -1096,7 +1101,7 @@ void runlink_module_run(s32 module) {
     ModuleSlot *slot;
     s32 i;
 
-    if (entry->unk1C != -1) {
+    if (entry->runOffset != -1) {
         if (entry->unk0 == 0) {
             slot = D_800FEAD8;
             i = 15;
@@ -1109,7 +1114,7 @@ void runlink_module_run(s32 module) {
             } while (i--);
         }
         if (entry->unk0 != 0) {
-            ((void (*)(void))(entry->unk0 + entry->unk1C))();
+            ((void (*)(void))(entry->unk0 + entry->runOffset))();
         }
     }
 }
@@ -1177,7 +1182,7 @@ void runlink_module_release(s32 module) {
                     D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
                     D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
                     reloc = (ModuleReloc *) D_800FEAB8[4];
-                    n = (u32) entry->unk14 >> 3;
+                    n = (u32) entry->relocSize >> 3;
                 }
                 while (n--) {
                     type = reloc->type;
@@ -1323,7 +1328,7 @@ void module_system_init(void) {
     gRunlinkModules->unk8 = (u32) main_TEXT_END - (u32) sound_volume_change;
     gRunlinkModules->unkC = main_RODATA_END - main_DATA_START;
     gRunlinkModules->unk10 = main_BSS_END - main_BSS_START;
-    gRunlinkModules->unk14 = D_800FEAB0 * 8;
+    gRunlinkModules->relocSize = D_800FEAB0 * 8;
     gRunlinkModules->unk16 = 0;
     i = gNumRunlinkModules - 1;
     entry = &gRunlinkModules[1];
@@ -1359,7 +1364,7 @@ void runlink_module_move_to_slot(s32 module) {
                 runlink_module_release(module);
                 D_800A38F0 = 0;
                 mempool_free_timer(timer);
-                mempool_alloc_fixed(entry->unkC + entry->unk10 + entry->unk14, (u8 *) (slot->unk0 + entry->unk8),
+                mempool_alloc_fixed(entry->unkC + entry->unk10 + entry->relocSize, (u8 *) (slot->unk0 + entry->unk8),
                                     0x7F7F7FFF);
                 return;
             }
@@ -1405,7 +1410,7 @@ void runlink_module_load_from_slot(s32 module) {
     mempool_free_timer(0);
     mempool_free((void *) (slot->unk0 + entry->unk8));
     mempool_free_timer(timer);
-    entry->unk0 = (s32) mempool_alloc_fixed(entry->unk8 + entry->unkC + entry->unk10 + entry->unk14,
+    entry->unk0 = (s32) mempool_alloc_fixed(entry->unk8 + entry->unkC + entry->unk10 + entry->relocSize,
                                             (u8 *) slot->unk0, 0x7F7F7FFF);
     if (entry->unk0 == 0) {
         return;
@@ -1416,7 +1421,7 @@ void runlink_module_load_from_slot(s32 module) {
             mempool_free((void *) entry->unk0);
             return;
         }
-        dmacopy(entry->unk4 + entry->unk8 + entry->unkC + entry->unk14, (u32) extra, entry->unk16);
+        dmacopy(entry->unk4 + entry->unk8 + entry->unkC + entry->relocSize, (u32) extra, entry->unk16);
     }
     D_800FEAB8[1] = entry->unk0;
     D_800FEAB8[2] = D_800FEAB8[1] + entry->unk8;
@@ -1441,7 +1446,7 @@ void runlink_module_load_from_slot(s32 module) {
         mempool_free_timer(timer2);
     }
     reloc = (ModuleReloc *) D_800FEAB8[4];
-    n = (u32) entry->unk14 >> 3;
+    n = (u32) entry->relocSize >> 3;
     while (n-- > 0) {
         if (reloc->offset < (u32) entry->unk8) {
             if (func_80052AB8(reloc, module) == 2) {
@@ -1467,7 +1472,7 @@ void runlink_module_load_from_slot(s32 module) {
                 D_800FEAB8[3] = D_800FEAB8[2] + entry->unkC;
                 D_800FEAB8[4] = D_800FEAB8[3] + entry->unk10;
                 reloc = (ModuleReloc *) D_800FEAB8[4];
-                n = (u32) entry->unk14 >> 3;
+                n = (u32) entry->relocSize >> 3;
             }
             while (n-- > 0) {
                 symModule = D_800FEAA8[reloc->symbol] >> 20;

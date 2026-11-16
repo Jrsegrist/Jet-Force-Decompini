@@ -31,7 +31,7 @@ typedef struct M072PlayerData {
     /* 0x1 */ s8 unk1;
 } M072PlayerData;
 
-/* What func_80047C1C returns: the player's weapons */
+/* What char_record_lookup returns: the player's weapons */
 typedef struct M072Weapons {
     /* 0x00 */ u8 pad0[0xA];
     /* 0x0A */ u16 owned; /* bit per weapon */
@@ -52,7 +52,7 @@ typedef struct M072WeaponInfo {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
-extern M072Weapons *func_80047C1C(s32 player, s32 arg1);
+extern M072Weapons *char_record_lookup(s32 player, s32 arg1);
 extern M072WeaponInfo *weapon_info_get(s32 weapon);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
@@ -108,7 +108,7 @@ void func_m072_00064(Object *obj, s32 updateRate) {
         }
         for (i = 0; i < n;) {
             pd = list[i]->unk68;
-            w = func_80047C1C(pd->player, pd->unk1);
+            w = char_record_lookup(pd->player, pd->unk1);
             weapon = p->weapon;
             info = weapon_info_get(weapon);
             if ((w->owned & (1 << p->weapon)) &&
@@ -174,7 +174,7 @@ u8 func_m072_003BC(Object *obj, s32 player) {
     o = func_8000E4D0(player);
     if (o != NULL) {
         pd = o->unk68;
-        w = func_80047C1C(player, pd->unk1);
+        w = char_record_lookup(player, pd->unk1);
         info = weapon_info_get(p->weapon);
         if (!(w->owned & (1 << p->weapon)) ||
             (p->objectID == 0xE7 && info->maxCapacity < w->maxAmmo[p->weapon] + info->capacityPickup)) {

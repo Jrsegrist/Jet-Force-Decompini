@@ -53,7 +53,7 @@ extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern s32 func_80049C84(f32, f32); /* the angle of a vector */
 extern f32 sqrtf(f32);
-extern f32 *func_80013E0C(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
+extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
 extern void track_light_off(f32 *light);
 extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
@@ -80,9 +80,9 @@ void func_m086_00000(Object *obj, M086Setup *setup) {
     s->z = obj->trans.z_position;
     s->timer = func_80005064(setup->lifetime * 6);
     s->unk10 = setup->unk14;
-    func_80079D1C(obj, (setup->strength + 1) << 8, 1, 4, 0, 0, 0, 2.0f, 2.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, (setup->strength + 1) << 8, 1, 4, 0, 0, 0, 2.0f, 2.0f, -1.0f, 1.0f, 0x11);
     OBJ_STATE(obj, M086State)->health = obj->interactObj->hitPoints;
-    OBJ_STATE(obj, M086State)->light = (s32) func_80013E0C(obj->trans.x_position, obj->trans.y_position,
+    OBJ_STATE(obj, M086State)->light = (s32) track_light_create(obj->trans.x_position, obj->trans.y_position,
                                                            obj->trans.z_position, 500.0f, 300.0f, 0xFF, 0xE0, 0);
 }
 

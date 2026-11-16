@@ -248,10 +248,10 @@ typedef struct M068Sprite {
 extern u8 rl_m068_12630[];
 extern void func_8000A300(Gfx **dl, s32 arg1, void *model, void *data, f32 *pos, void *arg5, f32 arg6, s32 arg7,
                           s32 colour, s32 arg9);
-extern void func_8005600C(s32 r, s32 g, s32 b, s32 a, s32 arg4, s32 arg5);
+extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 a, s32 arg4, s32 arg5);
 extern void render_sprite_billboard_at(Gfx **dl, s32 arg1, s32 arg2, M068Sprite *sprite, s32 x, s32 y, s32 z, s32 arg7, f32 scale,
                           f32 arg9, s32 arg10, s32 alpha);
-extern void func_80056064(void);
+extern void draw_tint_pair_off(void);
 
 extern void func_80049BA0(MtxF *mtx); /* identity */
 extern void func_80049F08(Object *obj, MtxF *out);
@@ -1018,7 +1018,7 @@ typedef struct M068Player {
     /* 0x5C8 */ s16 unk5C8;
 } M068Player;
 
-extern s32 func_800468CC(void);
+extern s32 pending_level_character(void);
 extern s32 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_m006_015E0(s32 hide);
@@ -1726,7 +1726,7 @@ static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate)
 
     sParts[1].target[0] = 0;
     if (s->events & 0x4000) {
-        level_goto(0x184, func_800468CC(), 0, menu_mode_get(), 1, 0);
+        level_goto(0x184, pending_level_character(), 0, menu_mode_get(), 1, 0);
     }
 }
 #else
@@ -2793,7 +2793,7 @@ void func_m068_0C874(Object *obj, M068ShotSetup *setup) {
     s->unk10 = setup->unk20;
     hit = obj->header->unk50;
     s->radius = hit->radius * obj->trans.scale;
-    func_80079D1C(obj, 0x10, 1, 4, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, 0x10, 1, 4, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x11);
 }
 
 /* A fire ball's state (obj->unk68) */
@@ -2928,15 +2928,15 @@ void func_m068_0CDD8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 
     sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[obj->modelIndex];
     if (obj->modelIndex == 0) {
-        func_8005600C(255, 255, 255, 0, 255, 40);
+        draw_tint_pair_set(255, 255, 255, 0, 255, 40);
         scale = obj->trans.scale;
     } else {
-        func_8005600C(255, 255, 255, 150, 255, 150);
+        draw_tint_pair_set(255, 255, 255, 150, 255, 150);
         scale = obj->trans.scale * 0.7f;
     }
     render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position,
                                obj->trans.z_position, 0, scale, obj->unk28, 12, obj->opacity);
-    func_80056064();
+    draw_tint_pair_off();
 }
 
 void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
@@ -2957,7 +2957,7 @@ void func_m068_0CF3C(Object *obj, M068BeamSetup *setup) {
     obj->velocity.x = setup->speed * dx;
     obj->velocity.y = setup->speed * dy;
     obj->velocity.z = setup->speed * dz;
-    func_80079D1C(obj, 0x100, 1, 4, 0, 0, 0, 10.0f, 10.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, 0x100, 1, 4, 0, 0, 0, 10.0f, 10.0f, -1.0f, 1.0f, 0x11);
 }
 
 /* A beam's state (obj->unk68) */
@@ -3087,17 +3087,17 @@ void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         func_8000A300(dl, arg2, ((void **) obj->modelInstances)[obj->modelIndex], rl_m068_12630,
                       &obj->trans.x_position, (u8 *) obj->interactObj + 0x18, 8.0f, -1, 0x8C0EF4FF, 0x200);
         sprite = *(M068Sprite **) ((M068Header *) obj->header)->models;
-        func_8005600C(sprite->r, sprite->g, sprite->b, sprite->a, sprite->unkC, sprite->unkD);
+        draw_tint_pair_set(sprite->r, sprite->g, sprite->b, sprite->a, sprite->unkC, sprite->unkD);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
                       2.0f, 0.0f, 12, 255);
-        func_80056064();
+        draw_tint_pair_off();
     } else {
         colour = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[1];
-        func_8005600C(colour->r, colour->g, colour->b, colour->a, colour->unkC, colour->unkD);
+        draw_tint_pair_set(colour->r, colour->g, colour->b, colour->a, colour->unkC, colour->unkD);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
                       2.0f, obj->unk28, 12, 100);
-        func_80056064();
+        draw_tint_pair_off();
     }
 }
 #else
@@ -3174,7 +3174,7 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     m->pos.x = setup->pos.x;
     m->pos.y = setup->pos.y;
     m->pos.z = setup->pos.z;
-    func_80079D1C(obj, 0x100, 1, 4, 0, 0, 0, 5.0f, 5.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, 0x100, 1, 4, 0, 0, 0, 5.0f, 5.0f, -1.0f, 1.0f, 0x11);
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D65C);
@@ -3463,9 +3463,9 @@ void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             v += 18;
         }
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[2];
-        func_8005600C(255, 255, 255, sLightColour[0], sLightColour[1], sLightColour[2]);
+        draw_tint_pair_set(255, 255, 255, sLightColour[0], sLightColour[1], sLightColour[2]);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, e->x, e->y, e->z, 0, e->scale * 3.0f, 0.0f, 12, 255);
-        func_80056064();
+        draw_tint_pair_off();
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
         func_80041DC0(dl);
@@ -3941,7 +3941,7 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     obj->trans.scale = func_80048E2C(30, 100) / 100.0f;
     hit = obj->header->unk50;
     b->radius = hit->radius * obj->trans.scale;
-    func_80079D1C(obj, 0x100, 1, 5, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x10);
+    obj_collision_spheres_init(obj, 0x100, 1, 5, 0, 0, 0, hit->radius, hit->radius, -1.0f, 1.0f, 0x10);
     if (b->kind == 2 || b->kind == 1) {
         ((u8 *) obj->interactObj)[0x2F] = 0;
     } else {
@@ -4476,7 +4476,7 @@ void func_m068_10FE8(Object *obj, M068BlockSetup *setup) {
     scale *= 0.015625f;
     obj->trans.scale = obj->header->scale * scale;
     obj->trans.rotation.y_rotation = setup->yRotation;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     model = ((M068Model **) obj->modelInstances)[obj->modelIndex];
     ((M068Object *) obj)->radius = model->radius * obj->trans.scale;
 }

@@ -110,7 +110,7 @@ extern M054Level *func_8004470C(void); /* DKR levelGetLevel */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern s16 angle_lerp(s16 from, s16 to, f32 rate);
-extern void func_8002EB6C(Object *obj, M054Craft *craft, f32 rate);
+extern void player_camera_overhead_update(Object *obj, M054Craft *craft, f32 rate);
 
 static M054Weapon sCraftWeapons[1] = {
     { 10, 3, 1, 0, 10, 0x50, 12.0f },
@@ -278,5 +278,5 @@ void func_m054_0033C(Object *obj, s32 updateRate) {
     craft->unk246 = craft->roll;
     craft_models_pulse(craft, updateRate);
     set_active_camera(craft->unk0);
-    func_8002EB6C(obj, craft, rate2);
+    player_camera_overhead_update(obj, craft, rate2);
 }

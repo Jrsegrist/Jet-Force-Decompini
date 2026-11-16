@@ -52,7 +52,7 @@ extern void mempool_free_queue_flush(void);
 extern void runlink_slots_unload_all(void);
 extern void load_texture_at(s32 arg0, s32 arg1);
 extern void func_8004AA80(void *data); /* frees */
-extern void func_8003F468(void);
+extern void tex_restore_list_free(void);
 extern void func_80004C64(s32 arg0);
 
 static s16 sFrameVertices[][3] = {
@@ -401,7 +401,7 @@ static void free_textures(void) {
         load_texture_at(sTextures[i].unk0, sTextures[i].unk4);
     }
     func_8004AA80(sTextures);
-    func_8003F468();
+    tex_restore_list_free();
     sFrame.texturesFreed = 1;
     func_80004C64(0);
 }
@@ -549,7 +549,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01018);
 extern s32 fb_mode(void);
 extern s32 func_800446CC(void);
 extern s32 func_8003FBCC(void);
-extern s32 func_8005AA7C(void);
+extern s32 options_split_vertical_get(void);
 extern void func_80041CA0(Gfx **dl, Mtx **mtx, ObjectTransform *trans, f32 scale, f32 arg4);
 
 /*
@@ -569,7 +569,7 @@ static void func_m012_01444(s32 x, s32 y, s16 angle, s16 front) {
         if (v == 1 || (v & 0xFF) == 2) {
             y -= y >> 2;
         }
-    } else if (func_8003FBCC() == 1 && func_8005AA7C()) {
+    } else if (func_8003FBCC() == 1 && options_split_vertical_get()) {
         y += y / 3;
     }
     trans.x_position = x;

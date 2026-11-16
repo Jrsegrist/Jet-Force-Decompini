@@ -169,8 +169,8 @@ void obj_sprite_animate(u8 *obj, s32 updateRate) {
     sprite_anim_advance(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
 }
 
-/* JFG: init: scale from byte 0xB (DKR's radius scaling, see obj_init_torch_mist). */
-void func_80024F40(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
+/* JFG: init: scale from byte 0xB (DKR's radius scaling, see obj_init_torch_mist) (0x80024F40). */
+void obj_init_scaled_by_radius(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
     f32 radius = entry->radius & 0xFF;
     if (radius < 10.0f) {
         radius = 10.0f;
@@ -580,7 +580,7 @@ Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, s32 type);
 s32 normalise_time(s32 timer);
 void func_80054530();
 void music_jingle_play(s32 jingle);
-void func_8001138C(Object *obj, f32 level, f32 updateRate);
+void obj_anim_frame_advance(Object *obj, f32 level, f32 updateRate);
 
 /* JFG: loop: find the group object nearby, then follow its flags: light up (setting a level, or a module
    effect with a jingle after a delay) and pass the lit state to the model's flagged batches. */
@@ -640,7 +640,7 @@ void group_light_update(Object *obj, s32 updateRate) {
             }
         }
     }
-    func_8001138C(obj, state->level, updateRate);
+    obj_anim_frame_advance(obj, state->level, updateRate);
     if (lit != state->lit) {
         model = obj->models[obj->modelIndex];
         batch = model->batches;
@@ -908,17 +908,17 @@ typedef struct LevelObjectEntry_ZoneTrigger {
 
 s32 zone_sphere_touches(f32 x, f32 y, f32 z, f32 radius, s32 arg4);
 void func_80076928(s32 id);
-void func_80079BB8(void);
+void sequence_hold(void);
 void anim_path_sound_stop(s32 id);
-void func_800767EC(s32 id);
+void anim_path_enable_run(s32 id);
 void sequence_start(s32 id);
 void anim_path_sound_play(s32 id, s32 arg1);
-void func_80079BA8(void);
+void sequence_resume(void);
 void sound_play(u16 soundID, s32 *handlePtr);
 
 /* JFG: loop: a trigger zone; entering (a racer within enterRadius, or zone_sphere_touches with flag 0x40) sets
    off entry->id one way (flags 0x80/0x20) and a sound, leaving undoes it if asked; flag 1 calls
-   func_80079BA8 while inside. */
+   sequence_resume while inside. */
 void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
     Object *racer[8]; // the frame holds 8 words here
     LevelObjectEntry_ZoneTrigger *entry;
@@ -936,7 +936,7 @@ void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
                 if (entry->flags & 0x80) {
                     func_80076928(entry->id);
                 } else {
-                    func_80079BB8();
+                    sequence_hold();
                 }
                 if (entry->unk12) {
                     anim_path_sound_stop(entry->id);
@@ -946,7 +946,7 @@ void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
         }
     } else if (obj_dist_racer(obj->x_position, obj->y_position, obj->z_position, entry->enterRadius, entry->is2d, racer)) {
         if (entry->flags & 0x80) {
-            func_800767EC(entry->id);
+            anim_path_enable_run(entry->id);
         } else if (!(entry->flags & 0x20)) {
             sequence_start(entry->id);
         }
@@ -959,19 +959,19 @@ void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
         obj->properties.common.unk0 = 1;
     }
     if (obj->properties.common.unk0 && (entry->flags & 1)) {
-        func_80079BA8();
+        sequence_resume();
     }
 }
 
-void func_80079D1C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
+void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
                    f32 arg9, f32 argA, s32 argB);
 
 void func_800274FC(Object *obj, UNUSED s32 arg1) {
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_80027564(Object *obj, UNUSED s32 arg1) {
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_800275CC(Object *obj, u8 *entry) {
@@ -1094,7 +1094,7 @@ typedef struct PieceObject {
     /* 0x7C */ PieceParams *params;
 } PieceObject;
 
-PieceCharacter *func_80047C1C(s32 player, s32 character);
+PieceCharacter *char_record_lookup(s32 player, s32 character);
 u8 *weapon_info_get(s32 index);
 void mark_write_eeprom_settings(void);
 void sound_play(u16 soundID, s32 *handlePtr);
@@ -1144,7 +1144,7 @@ void model_piece_update(PieceObject *obj, s32 updateRate) {
     }
     if (state[0x17] >= 2 && count > 0) {
         hitState = (s8 *) racers[0]->animator;
-        chr = func_80047C1C(hitState[0], hitState[1]);
+        chr = char_record_lookup(hitState[0], hitState[1]);
         weapon = -1;
         if (state[0x17] == 3) {
             switch (chr->unk70) {
@@ -1255,8 +1255,8 @@ typedef struct MoverState {
 
 void func_8004944C(s16 *rotation, f32 *vec); // DKR: vec3f_rotate_py
 
-/* JFG: init: remember the start position, then move along the entry's rotation. */
-void func_80027DA0(Object *obj, LevelObjectEntry_Mover *entry) {
+/* JFG: init: remember the start position, then move along the entry's rotation (0x80027DA0). */
+void obj_init_mover(Object *obj, LevelObjectEntry_Mover *entry) {
     MoverState *state = (MoverState *) obj->animator;
 
     state->x = obj->x_position;
@@ -1323,8 +1323,8 @@ typedef struct LevelObjectEntry_Spray {
 } LevelObjectEntry_Spray;
 
 
-/* JFG: init: emitter settings from the entry's (absolute) size. */
-void func_80027F90(Object *obj, LevelObjectEntry_Spray *entry) {
+/* JFG: init: emitter settings from the entry's (absolute) size (0x80027F90). */
+void obj_init_spray(Object *obj, LevelObjectEntry_Spray *entry) {
     f32 size = entry->size;
 
     if (size < 0.0f) {
@@ -1445,7 +1445,8 @@ void obj_loop_drift(Object *obj, s32 updateRate) {
     }
 }
 
-void func_80028414(Object *obj, s8 *entry) {
+/* Init: the object's two timers from the entry, in seconds (0x80028414). */
+void obj_init_timer(Object *obj, s8 *entry) {
     obj->properties.timer.unk0 = entry[0xA] * 60;
     obj->properties.timer.unk2 = entry[0xB] * 60;
     obj->properties.timer.unk4 = 0;

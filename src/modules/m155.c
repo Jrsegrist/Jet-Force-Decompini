@@ -449,7 +449,7 @@ extern M155Home *rl_m155_04F78; /* .bss (still assembly): the current enemy's tr
 extern M155Area *rl_m155_04F80;
 extern M155Area *func_m003_0569C(s32 id);
 extern s32 func_m003_056D4(M155Area *area);
-extern void *func_80050F44(s32 *count);
+extern void *troop_list_get(s32 *count);
 
 /*
  * Builds the path nodes from (x, z): the enemy's region and those inside it, then marks the nodes that
@@ -482,7 +482,7 @@ void func_m155_00FC4(s16 x, s16 z, s32 troop) {
             }
         }
     }
-    homes = func_80050F44(&count);
+    homes = troop_list_get(&count);
     while (count--) {
         h = homes[count];
         home = h->unk68;

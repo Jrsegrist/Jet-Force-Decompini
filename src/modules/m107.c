@@ -418,8 +418,8 @@ typedef struct M107Header {
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* sets a texture */
 extern void func_80041CA0(Gfx **dl, Mtx **mtx, Object *obj, f32 scale, f32 arg4);
 extern void func_80041DC0(Gfx **dl);
-extern void func_8005600C(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
-extern void func_80056064(void);
+extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
+extern void draw_tint_pair_off(void);
 extern void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj, void *sprite, s32 flags,
                                     s32 alpha);
 
@@ -470,11 +470,11 @@ void func_m107_00D24(Gfx **dList, Mtx **mtxList, Vertex **vtxList, Object *obj) 
             obj->trans.x_position = shield->ringX[i];
             obj->trans.y_position = shield->ringY[i];
             obj->trans.z_position = shield->ringZ[i];
-            func_8005600C(255, 255, 255, shield->cycles[i].r, shield->cycles[i].g, shield->cycles[i].b);
+            draw_tint_pair_set(255, 255, 255, shield->cycles[i].r, shield->cycles[i].g, shield->cycles[i].b);
             render_sprite_billboard(&dl, &mtx, &vtx, obj, ((M107Header *) obj->header)->textures[1], 0x206,
                                     obj->opacity);
         }
-        func_80056064();
+        draw_tint_pair_off();
         obj->trans.x_position = x;
         obj->trans.y_position = y;
         obj->trans.z_position = z;

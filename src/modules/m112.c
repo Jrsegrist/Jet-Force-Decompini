@@ -217,7 +217,7 @@ void func_m112_0005C(Object *obj, M112Setup *setup) {
     } else {
         size = 32.0f;
     }
-    func_80079D1C(obj, 0x100, 1, 2, 0, 0, 0, size, size, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, 0x100, 1, 2, 0, 0, 0, size, size, -1.0f, 1.0f, 1);
     func_80049DC0(obj, &s->mtx);
 }
 
@@ -399,7 +399,7 @@ void func_m112_00220(Object *obj, s32 updateRate) {
                 func_80003410(0xCD, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
                 s->mode = 2;
             } else if (s->mode == 2) {
-                func_8001138C(obj, 0.0167f, updateRate);
+                obj_anim_frame_advance(obj, 0.0167f, updateRate);
                 if (found != 0) {
                     s->mode = 5;
                 } else if (s->sound == 0) {

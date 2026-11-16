@@ -39,7 +39,7 @@ void func_m128_00000(Object *obj, M128Setup *setup) {
     pole->radius = setup->radius;
     pole->minY = obj->trans.y_position + setup->minY;
     pole->maxY = obj->trans.y_position + setup->maxY;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
 void func_m128_00188(Object *obj, s32 updateRate) {
@@ -66,7 +66,7 @@ void func_m128_00188(Object *obj, s32 updateRate) {
             break;
         case 1:
             func_8003F1C8(*obj->modelInstances, 0, 0x100, obj);
-            func_8001138C(obj, 0.017f, updateRate);
+            obj_anim_frame_advance(obj, 0.017f, updateRate);
             break;
     }
 }

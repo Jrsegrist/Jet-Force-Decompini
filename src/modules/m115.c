@@ -55,7 +55,7 @@ void func_m115_00000(Object *obj, M115Setup *setup) {
     p->cameraOff = setup->cameraOff;
     p->state = 0;
     p->timer = 0;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
 void func_m115_000E4(Object *obj, s32 updateRate) {

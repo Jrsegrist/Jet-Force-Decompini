@@ -82,8 +82,8 @@ extern void light_intensity_set(M064Light *light, s32 intensity);
 extern void func_800496B0(s32 count, Vec3s *rot, void *in, void *out);
 extern void mtx_pop(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
-extern void func_8005600C(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
-extern void func_80056064(void);
+extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void draw_tint_pair_off(void);
 extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite, s32 arg5, s32 alpha);
 
 /* The trail's strip: eighteen vertices, sixteen triangles */
@@ -339,9 +339,9 @@ static void beam_draw_trail(Gfx **dl, M064Beam *beam) {
 /* Draws the glow at a beam's end */
 static void beam_draw_glow(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite) {
     if (beam->alpha != 0) {
-        func_8005600C(255, 255, 255, beam->r, beam->g, beam->b);
+        draw_tint_pair_set(255, 255, 255, beam->r, beam->g, beam->b);
         render_sprite_billboard(dl, arg1, arg2, beam, sprite, 14, beam->alpha);
-        func_80056064();
+        draw_tint_pair_off();
     }
 }
 

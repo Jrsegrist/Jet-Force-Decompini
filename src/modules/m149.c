@@ -569,7 +569,7 @@ void func_m149_0121C(Object *obj, M149BoltSetup *setup) {
     }
     obj->velocity.y = 0.0f;
     obj->velocity.z = 8.0f;
-    func_80079D1C(obj, 10, 1, 1, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
+    obj_collision_spheres_init(obj, 10, 1, 1, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
 }
 
 /* A homing bolt: turns towards its target point and drops onto it */
@@ -668,7 +668,7 @@ void func_m149_01868(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     obj->trans.rotation.x_rotation = 0;
     obj->trans.rotation.z_rotation = 0;
     obj->level_entry = NULL;
-    func_80079D1C(obj, 1, 1, 2, 0, 0, 0, INTERACT(obj)->unk24, INTERACT(obj)->unk24, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, 1, 1, 2, 0, 0, 0, INTERACT(obj)->unk24, INTERACT(obj)->unk24, -1.0f, 1.0f, 1);
     obj_anim_set(obj, 1, 0.0f);
 }
 
@@ -724,7 +724,7 @@ void func_m149_019C8(Object *obj, s32 updateRate) {
     } else {
         bomb->timer -= updateRate;
         obj->trans.scale = func_80049C34(func_80097140(bomb->timer * 1600.0f) * 600.0f) * 0.03f + 0.2f;
-        func_8001138C(obj, 0.0167f, updateRate);
+        obj_anim_frame_advance(obj, 0.0167f, updateRate);
     }
 }
 

@@ -232,7 +232,7 @@ typedef struct SnowTexture {
 extern SnowGfxData D_800A5940[]; // DKR: gWeatherPresets
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void rain_init(s32 density, s32 intensity, s32 opacity);
-void func_8005CBBC(void); // DKR: snow_init
+void snow_init(void); // DKR: snow_init
 s32 rand_range(s32 min, s32 max);
 
 #ifdef NON_MATCHING
@@ -293,7 +293,7 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
     } while (n--);
     gSnowGfx.pos = mempool_alloc_safe(preset->unk4 * 12, 0xAA55FFFF);
     if ((s32) preset->texture == WEATHER_SNOW) {
-        func_8005CBBC();
+        snow_init();
     }
     gSnowDensity = density;
     gSnowTriIndices = mempool_alloc_safe(density * 2, 0xAA55FFFF);
@@ -680,8 +680,8 @@ void rain_fog(void) {
 
 extern u32 D_800A5D1C;
 
-/* JFG: gRainOpacity scaled by D_800A5D1C, as a fraction clamped to 0.0..1.0. */
-f32 func_8005BFC4(void) {
+/* JFG: gRainOpacity scaled by D_800A5D1C, as a fraction clamped to 0.0..1.0 (0x8005BFC4). */
+f32 rain_amount_get(void) {
     f32 amount = (f32) ((s32) ((gRainOpacity >> 2) * D_800A5D1C) >> 14) / 65536.0f;
 
     if (amount < 0.0f) {
@@ -1002,7 +1002,8 @@ extern TextureHeader *D_800A59D0;
 extern s32 *gWeatherAssetTable;
 TextureHeader *load_texture(s32 assetIndex);
 
-void func_8005CBBC(void) {
+/* Loads the snow texture (0x8005CBBC). */
+void snow_init(void) {
     D_801008B8 = 0;
     D_801008BC = 0;
     D_801008C0 = 0;

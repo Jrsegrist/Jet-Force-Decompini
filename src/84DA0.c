@@ -1,3 +1,6 @@
+/*
+ * Anti-tamper checks: a magic word left in RDRAM, cleared once read.
+ */
 #include "common.h"
 
 s32 drm_check_rdram_a(void) {

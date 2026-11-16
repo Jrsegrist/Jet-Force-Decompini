@@ -1,3 +1,6 @@
+/*
+ * Vertex shading routines that 217C0.c's object shading calls, still assembly.
+ */
 #include "common.h"
 
 INCLUDE_ASM("asm/nonmatchings/235E0", func_800229E0);

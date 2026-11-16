@@ -177,7 +177,7 @@ typedef struct Object {
     /* 0x4C */ struct ObjectPoints *unk4C;
     /* 0x50 */ struct ObjectSprite *sprite;
     /* 0x54 */ void *shade; // JFG: the lighting the object is drawn with
-    /* 0x58 */ void *unk58; // JFG: a ripple it makes (func_8006B090)
+    /* 0x58 */ void *unk58; // JFG: a ripple it makes (ripple_step_frame)
     /* 0x5C */ ObjectUnk5C *unk5C;
     /* 0x60 */ struct ObjectUnk60 *unk60;
     /* 0x64 */ struct ObjectSpriteSlot *spriteSlots;
@@ -652,11 +652,11 @@ typedef struct PlayerChar53 {
 
 LevelHeader53 *level_header(void);
 s8 *get_settings(void);
-s32 func_80048558(void); // the number of players
-s32 func_800485C8(s32 player);
-PlayerChar53 *func_80047C1C(s32 player, s32 character);
+s32 player_count_get(void); // the number of players
+s32 char_id_of_player(s32 player);
+PlayerChar53 *char_record_lookup(s32 player, s32 character);
 s32 game_flag_get(s32 flag);
-s32 func_8003B660(s16 *x, s16 *y, s16 *z, s16 *angle);
+s32 player_start_override_take(s16 *x, s16 *y, s16 *z, s16 *angle);
 s32 func_80054530(); // a module function (patched in by the runtime linker)
 extern s32 D_800F2C90; // DKR: gEventCountdown
 extern s32 D_800F2D10;
@@ -698,7 +698,7 @@ void players_spawn(s32 entranceID) {
     D_800F2C90 = 0;
     D_800F2D10 = 0;
     settings = get_settings();
-    numPlayers = func_80048558();
+    numPlayers = player_count_get();
     target = NULL;
     D_800F2D14 = 0;
     if (D_800A4FC4 && D_800A4FD8 == 6) {
@@ -712,8 +712,8 @@ void players_spawn(s32 entranceID) {
         return;
     }
     for (i = 0; i < numPlayers; i++) {
-        character = func_800485C8(i);
-        chr = func_80047C1C(i, character);
+        character = char_id_of_player(i);
+        chr = char_record_lookup(i, character);
         if (D_800A4FC4 == 0 && game_flag_get(0x5F)) {
             character |= 4;
         }
@@ -771,7 +771,7 @@ void players_spawn(s32 entranceID) {
             entries[0].angleY = point->angleY;
         }
     }
-    func_8003B660(&entries[0].x, &entries[0].y, &entries[0].z, &entries[0].angleY);
+    player_start_override_take(&entries[0].x, &entries[0].y, &entries[0].z, &entries[0].angleY);
     for (i = 0; i < numPlayers; i++) {
         obj = spawn_object((LevelObjectEntry53 *) &entries[i], 1);
         (*gRacers)[i] = obj;
@@ -1584,7 +1584,7 @@ Object **collision_objects_get(s32 *count);
 void run_object_loop_func(Object *obj, s32 updateRate);
 void func_8007E504(void);
 void object_uv_offsets_update(Object *obj, s32 updateRate);
-void func_8006B090(Object *obj, s32 updateRate);
+void ripple_step_frame(Object *obj, s32 updateRate);
 void func_80032A48(Object *obj, s32 updateRate);
 void light_update_all(s32 updateRate);
 void objects_shade_all(void);
@@ -1645,7 +1645,7 @@ void obj_update(s32 updateRate) {
                     object_uv_offsets_update(obj, updateRate);
                 }
                 if (obj->behaviorId != 1 && obj->unk58 != NULL) {
-                    func_8006B090(obj, updateRate);
+                    ripple_step_frame(obj, updateRate);
                 }
                 sprite = (ObjSpriteAnim *) obj->sprite;
                 if (sprite != NULL && sprite->speed != 0 && sprite->texture != NULL) {
@@ -3506,18 +3506,18 @@ void func_8002F5F0(Object *obj, void *entry);
 void func_80032130(Object *obj, void *entry);
 void func_800252EC(Object *obj, void *entry);
 void obj_init_torch_mist(Object *obj, void *entry);
-void func_80024F40(Object *obj, void *entry);
+void obj_init_scaled_by_radius(Object *obj, void *entry);
 void func_800274FC(Object *obj, void *entry);
 void obj_init_light_object(Object *obj, void *entry);
 void func_800275CC(Object *obj, void *entry);
 void obj_init_col_vertices(Object *obj, void *entry);
-void func_8002993C(Object *obj, void *entry);
+void chroma_sprite_reset(Object *obj, void *entry);
 void corona_from_level_entry(Object *obj, void *entry);
 void func_800275E8(Object *obj, void *entry);
-void func_80027DA0(Object *obj, void *entry);
-void func_80027F90(Object *obj, void *entry);
+void obj_init_mover(Object *obj, void *entry);
+void obj_init_spray(Object *obj, void *entry);
 void drift_object_init(Object *obj, void *entry);
-void func_80028414(Object *obj, void *entry);
+void obj_init_timer(Object *obj, void *entry);
 void obj_init_model_swap(Object *obj, void *entry);
 void func_800270D4(Object *obj, void *entry);
 void func_8007E4A0(Object *obj);
@@ -3581,7 +3581,7 @@ void run_object_init_func(Object *obj, void *entry) {
             obj_init_torch_mist(obj, entry);
             break;
         case 58:
-            func_80024F40(obj, entry);
+            obj_init_scaled_by_radius(obj, entry);
             break;
         case 35:
             func_80054530(obj, entry);
@@ -3692,7 +3692,7 @@ void run_object_init_func(Object *obj, void *entry) {
             func_80054530(obj, entry);
             break;
         case 38:
-            func_8002993C(obj, entry);
+            chroma_sprite_reset(obj, entry);
             break;
         case 19:
             func_80054530(obj, entry);
@@ -3728,10 +3728,10 @@ void run_object_init_func(Object *obj, void *entry) {
             func_80054530(obj, entry);
             break;
         case 73:
-            func_80027DA0(obj, entry);
+            obj_init_mover(obj, entry);
             break;
         case 74:
-            func_80027F90(obj, entry);
+            obj_init_spray(obj, entry);
             break;
         case 75:
             drift_object_init(obj, entry);
@@ -3743,7 +3743,7 @@ void run_object_init_func(Object *obj, void *entry) {
             func_80054530(obj, entry);
             break;
         case 80:
-            func_80028414(obj, entry);
+            obj_init_timer(obj, entry);
             break;
         case 81:
             func_80054530(obj, entry);
@@ -4726,7 +4726,7 @@ void obj_anim_triggers_fire(Object *obj) {
 
 /* JFG: advance the animation frame by speed * rate; past either end it wraps (looping attachment) or stops there.
    Returns whether it passed an end. */
-s32 func_8001138C(Object *obj, f32 speed, f32 rate) {
+s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 rate) {
     ObjectAttachment *attachment;
     s32 result;
 
@@ -5151,7 +5151,7 @@ typedef struct ObjectSoundSource53 {
 
 extern void *D_800A089C; // JFG: the sound of the nearest type 0xA7 object
 ObjectCamera53 *cam_get_cameras(void);
-u8 func_80048548(void);
+u8 camera_count_get(void);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
 void audspat_point_set_position(void *audioPoint, f32 x, f32 y, f32 z);
 void audspat_point_stop(void *handle);
@@ -5177,7 +5177,7 @@ void sound_nearest_emitter_update(void) {
     best = 1e10f;
     nearest = NULL;
     cams = cam_get_cameras();
-    numCams = func_80048548();
+    numCams = camera_count_get();
     list = objGetObjList(&start, &end);
     for (i = start; i < end; i++) {
         obj = list[i];

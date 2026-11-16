@@ -268,7 +268,7 @@ extern void func_80049DC0(ObjectTransform *trans, MtxF *out);
 extern void func_8004A014(ObjectTransform *trans, MtxF *out);
 extern void func_80049AE8(s32 angle, MtxF *mtx);
 extern void func_80048C7C(MtxF *a, MtxF *b, MtxF *out);
-extern M137Weapon *func_80047C1C(s32 a, s32 b);
+extern M137Weapon *char_record_lookup(s32 a, s32 b);
 extern void func_m095_0148C(Object *obj, struct M137Pack *pack, Gfx **dl, Mtx **mtx, s32 arg4);
 extern void func_80055B80(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset);
@@ -435,7 +435,7 @@ void func_m137_0025C(Gfx **dl, Mtx **mtx, s32 arg2) {
 
                         if (obj->behaviorId == 1) {
                             pd = obj->unk68;
-                            weaponModel = func_80047C1C(pd->unk0, pd->unk1)->model;
+                            weaponModel = char_record_lookup(pd->unk0, pd->unk1)->model;
                             weaponMtx = &pd->weaponMtx;
                         } else {
                             weaponMtx = obj->unk68;

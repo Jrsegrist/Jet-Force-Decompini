@@ -367,7 +367,7 @@ void func_m101_009F8(Object *obj, M101Setup *setup) {
         t->vi1 = 2;
         t->vi2 = 3;
     }
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
 /* What obj->unk5C points at for the pane */

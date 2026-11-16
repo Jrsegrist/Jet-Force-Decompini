@@ -1,3 +1,7 @@
+/*
+ * Animation paths and sequences: objects moved along paths by the level's sequence scripts, and the
+ * sequence's camera points.
+ */
 #include "common.h"
 
 typedef struct AnimModel {
@@ -7,7 +11,7 @@ typedef struct AnimModel {
 
 typedef struct AnimObjectHeader {
     /* 0x00 */ u8 pad0[0x1F];
-    /* 0x1F */ s8 numVariants; // JFG: the number of values unk3A can take
+    /* 0x1F */ s8 numVariants; // JFG: the number of values modelIndex can take
 } AnimObjectHeader;
 
 typedef struct AnimObject {
@@ -22,7 +26,7 @@ typedef struct AnimObject {
     /* 0x20 */ f32 vy;
     /* 0x24 */ f32 vz;
     /* 0x28 */ u8 pad28[0x3A - 0x28];
-    /* 0x3A */ s8 unk3A;
+    /* 0x3A */ s8 modelIndex;
     /* 0x3B */ u8 pad3B;
     /* 0x3C */ s32 unk3C;
     /* 0x40 */ AnimObjectHeader *header;
@@ -74,8 +78,8 @@ typedef struct AnimPath {
     /* 0x25 */ u8 unk25;
     /* 0x26 */ u8 unk26;
     /* 0x27 */ u8 unk27;
-    /* 0x28 */ u8 unk28;
-    /* 0x29 */ u8 unk29;
+    /* 0x28 */ u8 pitchBase;
+    /* 0x29 */ u8 pitchPerSpeed;
     /* 0x2A */ s16 unk2A;
     /* 0x2C */ f32 unk2C;
     /* 0x30 */ f32 unk30;
@@ -167,7 +171,8 @@ void sequence_commands_reset(void) {
 
 extern s8 D_800A74F0[];
 
-s8 func_800761C8(u16 *arg0) {
+/* The length of a sequence command (0x800761C8). */
+s8 command_length(u16 *arg0) {
     return D_800A74F0[(u8) (arg0[1] >> 8)];
 }
 
@@ -184,7 +189,7 @@ s32 command_list_length() { // JFG: no parameters (the caller passes &D_800A74C8
             if ((u8) (cmd[1] >> 8) == 0x7F) {
                 done = TRUE;
             }
-            len = func_800761C8(cmd);
+            len = command_length(cmd);
             total += len;
             if (len != 0) {
                 cmd += len >> 1;
@@ -243,9 +248,9 @@ typedef struct LevelHeader {
     /* 0xAC */ s8 unkAC; // JFG: the camera FoV
 } LevelHeader;
 LevelHeader *level_header(void);
-s32 func_800485C8(s32 player);
+s32 char_id_of_player(s32 player);
 s32 game_flag_get(s32 flag);
-s16 func_800468CC(void);
+s16 pending_level_character(void);
 AnimObject *spawn_object(LevelObjectEntryCommon *entry, s32 arg1);
 void obj_queue_add(AnimObject *obj);
 extern s16 D_800A7570[8];
@@ -270,7 +275,7 @@ void anim_path_spawn_object(u8 index) {
         node = path->nodes;
         if (node != NULL && path->obj == NULL && path->unk2 != -1) {
             if (path->unk2 == 0xC5 || path->unk2 == 0xC6) {
-                c = func_800485C8(0);
+                c = char_id_of_player(0);
                 if (game_flag_get(0x5F)) {
                     c |= 4;
                 }
@@ -279,9 +284,9 @@ void anim_path_spawn_object(u8 index) {
             if (path->unk2 == 0x106 || path->unk2 == 0x8A || path->unk2 == 0x10A) {
                 type = level_header()->unk6C;
                 if (type == 1 || type == 2) {
-                    path->unk2 = D_800A7580[func_800468CC() & 3];
+                    path->unk2 = D_800A7580[pending_level_character() & 3];
                 } else {
-                    path->unk2 = D_800A7588[func_800468CC() & 3];
+                    path->unk2 = D_800A7588[pending_level_character() & 3];
                 }            }
             setup.x = node->x;
             setup.y = node->y;
@@ -304,12 +309,12 @@ void anim_path_spawn_object(u8 index) {
                 path->unk2C = 1.0f;
                 path->unk30 = 0.0f;
                 if (path->unk2 == 0x29B || path->unk2 == 0x29C || path->unk2 == 0x29D) {
-                    obj->unk3A = func_800468CC() & 3;
-                    if (obj->unk3A == 3) {
-                        obj->unk3A = D_800A4FC0 & 3;
+                    obj->modelIndex = pending_level_character() & 3;
+                    if (obj->modelIndex == 3) {
+                        obj->modelIndex = D_800A4FC0 & 3;
                     }
-                    if (obj->unk3A >= obj->header->numVariants) {
-                        obj->unk3A = 0;
+                    if (obj->modelIndex >= obj->header->numVariants) {
+                        obj->modelIndex = 0;
                     }
                 }
                 if (path->obj->unk5C != 0) {
@@ -317,8 +322,8 @@ void anim_path_spawn_object(u8 index) {
                 }
             }
         }
-        path->unk28 = 100;
-        path->unk29 = 0;
+        path->pitchBase = 100;
+        path->pitchPerSpeed = 0;
     }
 }
 
@@ -362,7 +367,8 @@ void anim_path_restart(u8 index) {
     }
 }
 
-void func_800767EC(u8 index) {
+/* Starts path index and shows its object (0x800767EC). */
+void anim_path_enable_run(u8 index) {
     AnimPath *path = D_801045B0[index];
 
     if (path != NULL) {
@@ -379,7 +385,8 @@ void func_800767EC(u8 index) {
     }
 }
 
-void func_8007688C(u8 index) {
+/* Stops path index and hides its object (0x8007688C). */
+void anim_path_disable_run(u8 index) {
     AnimPath *path = D_801045B0[index];
 
     if (path != NULL) {
@@ -697,7 +704,7 @@ void sequence_stop(void) {
 
 void sequence_paths_create(void);
 void anim_paths_spawn_all(void);
-void func_800773EC(void);
+void sequence_rewind(void);
 extern s32 D_800A74C0;
 extern f32 D_800A74E4;
 extern f32 D_800A74E8;
@@ -725,7 +732,7 @@ void sequence_start(s32 id) {
                 D_800A74BC = (s32 *) ((u8 *) D_800A74B0 + offset);
                 sequence_paths_create();
                 anim_paths_spawn_all();
-                func_800773EC();
+                sequence_rewind();
                 D_800A74E4 = level_header()->unkAC;
                 D_800A74E8 = 0.0f;
                 D_800A74EC = 0;
@@ -749,7 +756,8 @@ void func_80054530(); // a module function (patched in by the runtime linker)
 extern u32 D_800A74D8; // JFG: the sequence clock (ticks)
 extern f32 D_800A74DC;
 
-void func_800773EC(void) {
+/* Restarts every path and the sequence clock (0x800773EC). */
+void sequence_rewind(void) {
     s32 i;
 
     if (D_800A74BC != NULL) {
@@ -910,9 +918,9 @@ void func_80077614(s32 updateRate) {
                     obj = path->obj;
                     if (obj != NULL && obj->audioPoint != NULL) {
                         audspat_point_set_position((void *) (s32) obj->audioPoint, obj->x, obj->y, obj->z);
-                        if (path->unk28 != 100 || path->unk29 != 0) {
+                        if (path->pitchBase != 100 || path->pitchPerSpeed != 0) {
                             speed = sqrtf(obj->vx * obj->vx + obj->vy * obj->vy + obj->vz * obj->vz);
-                            audspat_point_set_pitch(obj->audioPoint, path->unk28 + path->unk29 * speed);
+                            audspat_point_set_pitch(obj->audioPoint, path->pitchBase + path->pitchPerSpeed * speed);
                         }
                     }
                 }
@@ -953,8 +961,8 @@ typedef struct CamTarget {
 extern f32 D_800A74E4;
 void func_8003F7F4(f32 fov, s32 force);
 
-/* JFG: copy camera point index onto the camera (facing the other way) and set the FoV. */
-CamPoint *func_80079890(s32 index, CamTarget *cam) {
+/* JFG: copy camera point index onto the camera (facing the other way) and set the FoV (0x80079890). */
+CamPoint *cam_point_copy_to_camera(s32 index, CamTarget *cam) {
     CamPoint *point = D_801045B8[index];
 
     if (point != NULL) {
@@ -1020,8 +1028,8 @@ void anim_paths_find_near(f32 x, f32 y, f32 z, s16 *pathIds, s16 *nodeIds) {
     }
 }
 
-/* JFG: the path of an object (NULL if none). */
-AnimPath *func_80079AA4(AnimObject *obj) {
+/* JFG: the path of an object (NULL if none) (0x80079AA4). */
+AnimPath *anim_path_for_obj(AnimObject *obj) {
     s32 i;
 
     for (i = 0; i < 256; i++) {
@@ -1032,7 +1040,8 @@ AnimPath *func_80079AA4(AnimObject *obj) {
     return NULL;
 }
 
-s32 func_80079B6C(void) {
+/* A free path slot, or -1 (0x80079B6C). */
+s32 anim_path_free_slot(void) {
     s32 i = 256;
     while (i--) {
         if (D_801045B0[i] == NULL) {
@@ -1044,12 +1053,14 @@ s32 func_80079B6C(void) {
 
 extern s32 D_800A74D4;
 
-void func_80079BA8(void) {
+/* Lets the sequence run (0x80079BA8). */
+void sequence_resume(void) {
     D_800A74D4 = 0x1;
 }
 
 extern s32 D_800A74D4;
 
-void func_80079BB8(void) {
+/* Holds the sequence (0x80079BB8). */
+void sequence_hold(void) {
     D_800A74D4 = 0;
 }

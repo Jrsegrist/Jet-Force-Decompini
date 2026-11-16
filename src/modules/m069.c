@@ -119,7 +119,7 @@ typedef struct M069Player {
 extern M069Player D_800FED50[4];
 extern M069Player *D_800FF1C0[4]; /* the players' results, best first */
 extern ObjectTransform *func_80041DE0(void); /* the camera */
-extern void func_80079890(s32 arg0, ObjectTransform *cam);
+extern void cam_point_copy_to_camera(s32 arg0, ObjectTransform *cam);
 extern void *func_80055694(s32 id); /* loads a texture */
 extern void func_80055A00(void *tex); /* frees it */
 extern void func_800496B0(s32 arg0, s16 *angles, f32 *in, f32 *out);
@@ -155,7 +155,7 @@ void func_m069_000A8(s32 count, s32 updateRate) {
     s8 stickX;
 
     cam = func_80041DE0();
-    func_80079890(0, cam);
+    cam_point_copy_to_camera(0, cam);
     if (D_800A4FEC == 0) {
             if (gMenuTimer != 0) {
                 gMenuTimer -= updateRate;

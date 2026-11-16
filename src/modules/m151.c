@@ -273,7 +273,7 @@ void func_m151_006E8(Object *obj, M151SpitSetup *setup) {
     obj->velocity.y = 0.0f;
     obj->velocity.z = -setup->speed;
     func_8004944C((Vec3s *) setup->rotation, &obj->velocity);
-    func_80079D1C(obj, (setup->size + 1) << 8, 1, 1, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
+    obj_collision_spheres_init(obj, (setup->size + 1) << 8, 1, 1, 0, 0, 0, 16.0f, 16.0f, 1.0f, 0.75f, 0x11);
     s->life = func_80005064(setup->time * 6);
     s->size = setup->size;
     s->unk0 = setup->unk14;

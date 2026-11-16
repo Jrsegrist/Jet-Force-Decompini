@@ -1,22 +1,25 @@
+/*
+ * A display-list printer; its output was compiled out of the retail build.
+ */
 #include "common.h"
 
 /* Unreferenced debug strings at the start of this file's .rodata: kept as asm. */
 INCLUDE_RODATA("asm/nonmatchings/66B80", D_800ADAC0);
 
-s32 func_80066620();
-s32 func_80066650();
-s32 func_80066680();
-s32 func_800666B0();
-s32 func_800666C0();
-s32 func_800666F0();
-s32 func_80066720();
-s32 func_80066750();
-s32 func_80066764();
-s32 func_80066770();
-s32 func_80066784();
-s32 func_80066790();
-s32 func_80066830();
-s32 func_80066860();
+s32 dl_cmd_print_vertex();
+s32 dl_cmd_print_polygon();
+s32 dl_cmd_print_matrix();
+s32 dl_cmd_print_tex_offsets();
+s32 dl_cmd_print_dp_block();
+s32 dl_cmd_print_viewport();
+s32 dl_cmd_print_display_list();
+s32 dl_cmd_print_named();
+s32 dl_cmd_print_prim_colour();
+s32 dl_cmd_print_colour();
+s32 dl_cmd_print_dma_offsets();
+s32 dl_cmd_print_move_word();
+s32 dl_cmd_print_raw();
+s32 dl_cmd_print_other_mode_l();
 s32 dl_cmd_print_geometry_mode();
 
 /*
@@ -24,7 +27,7 @@ s32 dl_cmd_print_geometry_mode();
  * F3D opcodes in a second switch), stepping by the size each printer returns. The prints themselves were
  * compiled out of the retail build.
  */
-void func_80065F80(u8 *dl, UNUSED s32 arg1, s32 count) {
+void dl_dump_commands(u8 *dl, UNUSED s32 arg1, s32 count) {
     u8 *cmd;
     s32 i;
 
@@ -32,144 +35,144 @@ void func_80065F80(u8 *dl, UNUSED s32 arg1, s32 count) {
     for (i = 0; i < count; i++) {
         switch (*cmd) {
             case 4:
-                cmd += func_80066620(cmd);
+                cmd += dl_cmd_print_vertex(cmd);
                 break;
             case 5:
-                cmd += func_80066650(cmd);
+                cmd += dl_cmd_print_polygon(cmd);
                 break;
             case 0:
-                cmd += func_80066830(cmd, "G_SPNOOP");
+                cmd += dl_cmd_print_raw(cmd, "G_SPNOOP");
                 break;
             case 1:
-                cmd += func_80066680(cmd);
+                cmd += dl_cmd_print_matrix(cmd);
                 break;
             case 2:
-                cmd += func_800666B0(cmd, "G_TEXDMA");
+                cmd += dl_cmd_print_tex_offsets(cmd, "G_TEXDMA");
                 break;
             case 3:
-                cmd += func_800666F0(cmd);
+                cmd += dl_cmd_print_viewport(cmd);
                 break;
             case 6:
-                cmd += func_80066720(cmd);
+                cmd += dl_cmd_print_display_list(cmd);
                 break;
             case 7:
-                cmd += func_800666C0(cmd);
+                cmd += dl_cmd_print_dp_block(cmd);
                 break;
             case 8:
-                cmd += func_80066830(cmd, "G_RESERVED3");
+                cmd += dl_cmd_print_raw(cmd, "G_RESERVED3");
                 break;
             case 9:
-                cmd += func_80066830(cmd, "G_RESERVED4");
+                cmd += dl_cmd_print_raw(cmd, "G_RESERVED4");
                 break;
             case 0xC0:
-                cmd += func_80066750(cmd, "G_NOOP", "gDPNoOp");
+                cmd += dl_cmd_print_named(cmd, "G_NOOP", "gDPNoOp");
                 break;
             case 0xFF:
-                cmd += func_80066830(cmd, "G_SETCIMG");
+                cmd += dl_cmd_print_raw(cmd, "G_SETCIMG");
                 break;
             case 0xFE:
-                cmd += func_80066830(cmd, "G_SETZIMG");
+                cmd += dl_cmd_print_raw(cmd, "G_SETZIMG");
                 break;
             case 0xFD:
-                cmd += func_80066830(cmd, "G_SETTIMG");
+                cmd += dl_cmd_print_raw(cmd, "G_SETTIMG");
                 break;
             case 0xFC:
-                cmd += func_80066830(cmd, "G_SETCOMBINE");
+                cmd += dl_cmd_print_raw(cmd, "G_SETCOMBINE");
                 break;
             case 0xFB:
-                cmd += func_80066770(cmd, "G_SETENVCOLOR", "gDPSetEnvColor");
+                cmd += dl_cmd_print_colour(cmd, "G_SETENVCOLOR", "gDPSetEnvColor");
                 break;
             case 0xFA:
-                cmd += func_80066764(cmd);
+                cmd += dl_cmd_print_prim_colour(cmd);
                 break;
             case 0xF9:
-                cmd += func_80066770(cmd, "G_SETBLENDCOLOR", "gDPSetBlendColor");
+                cmd += dl_cmd_print_colour(cmd, "G_SETBLENDCOLOR", "gDPSetBlendColor");
                 break;
             case 0xF8:
-                cmd += func_80066770(cmd, "G_SETFOGCOLOR", "gDPSetFogColor");
+                cmd += dl_cmd_print_colour(cmd, "G_SETFOGCOLOR", "gDPSetFogColor");
                 break;
             case 0xF7:
-                cmd += func_80066770(cmd, "G_SETFILLCOLOR", "gDPSetFillColor");
+                cmd += dl_cmd_print_colour(cmd, "G_SETFILLCOLOR", "gDPSetFillColor");
                 break;
             case 0xF6:
-                cmd += func_80066830(cmd, "G_FILLRECT");
+                cmd += dl_cmd_print_raw(cmd, "G_FILLRECT");
                 break;
             case 0xF5:
-                cmd += func_80066830(cmd, "G_SETTILE");
+                cmd += dl_cmd_print_raw(cmd, "G_SETTILE");
                 break;
             case 0xF4:
-                cmd += func_80066830(cmd, "G_LOADTILE");
+                cmd += dl_cmd_print_raw(cmd, "G_LOADTILE");
                 break;
             case 0xF3:
-                cmd += func_80066830(cmd, "G_LOADBLOCK");
+                cmd += dl_cmd_print_raw(cmd, "G_LOADBLOCK");
                 break;
             case 0xF2:
-                cmd += func_80066830(cmd, "G_SETTILESIZE");
+                cmd += dl_cmd_print_raw(cmd, "G_SETTILESIZE");
                 break;
             case 0xF0:
-                cmd += func_80066830(cmd, "G_LOADTLUT");
+                cmd += dl_cmd_print_raw(cmd, "G_LOADTLUT");
                 break;
             case 0xEF:
-                cmd += func_80066830(cmd, "G_RDPSETOTHERMODE");
+                cmd += dl_cmd_print_raw(cmd, "G_RDPSETOTHERMODE");
                 break;
             case 0xEE:
-                cmd += func_80066830(cmd, "G_SETPRIMDEPTH");
+                cmd += dl_cmd_print_raw(cmd, "G_SETPRIMDEPTH");
                 break;
             case 0xED:
-                cmd += func_80066830(cmd, "G_SETSCISSOR");
+                cmd += dl_cmd_print_raw(cmd, "G_SETSCISSOR");
                 break;
             case 0xEC:
-                cmd += func_80066830(cmd, "G_SETCONVERT");
+                cmd += dl_cmd_print_raw(cmd, "G_SETCONVERT");
                 break;
             case 0xEB:
-                cmd += func_80066830(cmd, "G_SETKEYR");
+                cmd += dl_cmd_print_raw(cmd, "G_SETKEYR");
                 break;
             case 0xEA:
-                cmd += func_80066830(cmd, "G_SETKEYGB");
+                cmd += dl_cmd_print_raw(cmd, "G_SETKEYGB");
                 break;
             case 0xE9:
-                cmd += func_80066750(cmd, "G_RDPFULLSYNC", "gDPFullSync");
+                cmd += dl_cmd_print_named(cmd, "G_RDPFULLSYNC", "gDPFullSync");
                 break;
             case 0xE8:
-                cmd += func_80066750(cmd, "G_RDPTILESYNC", "gDPTileSync");
+                cmd += dl_cmd_print_named(cmd, "G_RDPTILESYNC", "gDPTileSync");
                 break;
             case 0xE7:
-                cmd += func_80066750(cmd, "G_RDPPIPESYNC", "gDPPipeSync");
+                cmd += dl_cmd_print_named(cmd, "G_RDPPIPESYNC", "gDPPipeSync");
                 break;
             case 0xE6:
-                cmd += func_80066750(cmd, "G_RDPLoadSYNC", "gDPLoadSync");
+                cmd += dl_cmd_print_named(cmd, "G_RDPLoadSYNC", "gDPLoadSync");
                 break;
             case 0xE5:
-                cmd += func_80066830(cmd, "G_TEXRECTFLIP");
+                cmd += dl_cmd_print_raw(cmd, "G_TEXRECTFLIP");
                 break;
             case 0xE4:
-                cmd += func_80066830(cmd, "G_TEXRECT");
+                cmd += dl_cmd_print_raw(cmd, "G_TEXRECT");
                 break;
             default:
                 switch ((s8) *cmd) {
                     case -65:
-                        cmd += func_80066784(cmd, "G_DMAOFFSETS");
+                        cmd += dl_cmd_print_dma_offsets(cmd, "G_DMAOFFSETS");
                         break;
                     case -66:
-                        cmd += func_80066830(cmd, "G_CULLDL");
+                        cmd += dl_cmd_print_raw(cmd, "G_CULLDL");
                         break;
                     case -67:
-                        cmd += func_80066830(cmd, "G_POPMTX");
+                        cmd += dl_cmd_print_raw(cmd, "G_POPMTX");
                         break;
                     case -68:
-                        cmd += func_80066790(cmd);
+                        cmd += dl_cmd_print_move_word(cmd);
                         break;
                     case -69:
-                        cmd += func_80066830(cmd, "G_TEXTURE");
+                        cmd += dl_cmd_print_raw(cmd, "G_TEXTURE");
                         break;
                     case -70:
-                        cmd += func_80066830(cmd, "G_SETOTHERMODE_H");
+                        cmd += dl_cmd_print_raw(cmd, "G_SETOTHERMODE_H");
                         break;
                     case -71:
-                        cmd += func_80066860(cmd, "G_SETOTHERMODE_L");
+                        cmd += dl_cmd_print_other_mode_l(cmd, "G_SETOTHERMODE_L");
                         break;
                     case -72:
-                        cmd += func_80066830(cmd, "G_ENDDL");
+                        cmd += dl_cmd_print_raw(cmd, "G_ENDDL");
                         break;
                     case -73:
                         cmd += dl_cmd_print_geometry_mode(cmd, "G_SETGEOMETRYMODE", "gSPSetGeometryMode");
@@ -178,22 +181,22 @@ void func_80065F80(u8 *dl, UNUSED s32 arg1, s32 count) {
                         cmd += dl_cmd_print_geometry_mode(cmd, "G_CLEARGEOMETRYMODE", "gSPClearGeometryMode");
                         break;
                     case -75:
-                        cmd += func_80066830(cmd, "G_LINE3D");
+                        cmd += dl_cmd_print_raw(cmd, "G_LINE3D");
                         break;
                     case -76:
-                        cmd += func_80066830(cmd, "G_PERSPNORMALIZE");
+                        cmd += dl_cmd_print_raw(cmd, "G_PERSPNORMALIZE");
                         break;
                     case -77:
-                        cmd += func_80066830(cmd, "G_RDPHALF_1");
+                        cmd += dl_cmd_print_raw(cmd, "G_RDPHALF_1");
                         break;
                     case -78:
-                        cmd += func_80066830(cmd, "G_RDPHALF_2");
+                        cmd += dl_cmd_print_raw(cmd, "G_RDPHALF_2");
                         break;
                     case -79:
-                        cmd += func_80066830(cmd, "G_RDPHALF_CONT");
+                        cmd += dl_cmd_print_raw(cmd, "G_RDPHALF_CONT");
                         break;
                     default:
-                        cmd += func_80066830(cmd, "UNKNOWN COMMAND");
+                        cmd += dl_cmd_print_raw(cmd, "UNKNOWN COMMAND");
                         break;
                 }
                 break;
@@ -217,7 +220,8 @@ void dl_cmd_unpack_bhb(u32 *arg0, s32 *a, s32 *b, s32 *c, s32 *d) {
     *d = arg0[1];
 }
 
-s32 func_80066620(void *arg0) {
+/* Prints a vertex command (0x80066620). */
+s32 dl_cmd_print_vertex(void *arg0) {
     s32 a, b, c, d;
     s32 pad[4];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
@@ -240,54 +244,63 @@ s32 func_80066620(void *arg0) {
     return 8;
 }
 
-s32 func_80066650(void *arg0) {
+/* Prints a polygon command (0x80066650). */
+s32 dl_cmd_print_polygon(void *arg0) {
     s32 a, b, c, d;
     s32 pad[4];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
-s32 func_80066680(void *arg0) {
+/* Prints a matrix command (0x80066680). */
+s32 dl_cmd_print_matrix(void *arg0) {
     s32 a, b, c, d;
     s32 pad[8];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
-s32 func_800666B0(s32 arg0, s32 arg1) {
+/* Prints a texture offsets command (0x800666B0). */
+s32 dl_cmd_print_tex_offsets(s32 arg0, s32 arg1) {
     return 0x8;
 }
 
-s32 func_800666C0(void *arg0) {
+/* Prints a DP block command (0x800666C0). */
+s32 dl_cmd_print_dp_block(void *arg0) {
     s32 a, b, c, d;
     s32 pad[2];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
-s32 func_800666F0(void *arg0) {
+/* Prints a move-memory (viewport) command (0x800666F0). */
+s32 dl_cmd_print_viewport(void *arg0) {
     s32 a, b, c, d;
     s32 pad[2];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
-s32 func_80066720(void *arg0) {
+/* Prints a display list call or branch (0x80066720). */
+s32 dl_cmd_print_display_list(void *arg0) {
     s32 a, b, c, d;
     s32 pad[2];
     dl_cmd_unpack_bbh(arg0, &a, &b, &c, &d);
     return 8;
 }
 
-s32 func_80066750(s32 arg0, s32 arg1, s32 arg2) {
+/* Prints a command with no arguments by its name (0x80066750). */
+s32 dl_cmd_print_named(s32 arg0, s32 arg1, s32 arg2) {
     return 0x8;
 }
 
-s32 func_80066764(s32 arg0) {
+/* Prints a primitive colour command (0x80066764). */
+s32 dl_cmd_print_prim_colour(s32 arg0) {
     return 0x8;
 }
 
-s32 func_80066770(s32 arg0, s32 arg1, s32 arg2) {
+/* Prints a colour command (0x80066770). */
+s32 dl_cmd_print_colour(s32 arg0, s32 arg1, s32 arg2) {
     return 0x8;
 }
 
@@ -295,7 +308,7 @@ s32 func_80066770(s32 arg0, s32 arg1, s32 arg2) {
  * JFG: 8 bytes long. Only the second argument is spilled: IDO homes the parameters a function never
  * reads, so the first one is tested (the test's body was compiled out).
  */
-s32 func_80066784(s32 arg0, UNUSED s32 arg1) {
+s32 dl_cmd_print_dma_offsets(s32 arg0, UNUSED s32 arg1) {
     if (arg0) {
     }
     return 8;
@@ -306,7 +319,7 @@ s32 func_80066784(s32 arg0, UNUSED s32 arg1) {
  * unknown one into a local buffer; the print of the command was compiled out. 8 bytes long.
  * (`if (name) {}` keeps the case blocks apart as in the ROM; name is set on every path.)
  */
-s32 func_80066790(u32 *cmd) {
+s32 dl_cmd_print_move_word(u32 *cmd) {
     s32 a;
     s32 index;
     s32 offset;
@@ -346,7 +359,7 @@ s32 func_80066790(u32 *cmd) {
 
 /* JFG: format the command's argument into a local buffer (the print of the command was compiled out);
    8 bytes long. */
-s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
+s32 dl_cmd_print_raw(UNUSED s32 arg0, s32 arg1) {
     char buffer[0x50];
     UNUSED s32 pad[2];
 
@@ -359,7 +372,7 @@ s32 func_80066830(UNUSED s32 arg0, s32 arg1) {
  * JFG: the "set other mode" command: the alpha compare, depth source, render mode (named when it is one of
  * the standard modes, else spelt out bit by bit) or blender; the prints were compiled out. 8 bytes long.
  */
-s32 func_80066860(u32 *cmd, s32 arg1) {
+s32 dl_cmd_print_other_mode_l(u32 *cmd, s32 arg1) {
     char buffer[0x50];
     UNUSED s32 pad;
     s32 type;

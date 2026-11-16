@@ -95,7 +95,7 @@ void func_m106_00000(Object *obj, M106Setup *setup) {
     t->unk30 = zero;
     t->unk34 = 1;
     t->unk36 = 0;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     t->u38.word = 0;
     t->unk3A = func_80048E2C(-0x80, 0x7F);
     x = zero;
@@ -148,7 +148,7 @@ extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out); /* rota
 extern f32 func_80097140(f32 x); /* square root */
 extern void music_stop(void);
 extern void func_80000510(s32 arg0);
-extern s32 func_800468CC(void);
+extern s32 pending_level_character(void);
 extern s32 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void music_volume_fade(f32 time, s32 volume);
@@ -472,7 +472,7 @@ void func_m106_00290(Object *obj, s32 updateRate) {
             if (t->unk28 < 0) {
                 t->unk0 = 4;
                 t->unk28 = 0;
-                level_goto(0x165, func_800468CC(), 0, menu_mode_get(), 0, 0);
+                level_goto(0x165, pending_level_character(), 0, menu_mode_get(), 0, 0);
                 music_volume_fade(0.5, 0);
             }
             D_800A32CC = t->unk28 * 0x1300 / 6000 + 0x600;

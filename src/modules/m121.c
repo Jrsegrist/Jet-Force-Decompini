@@ -122,8 +122,8 @@ typedef struct M121State {
 
 extern void *func_8004A60C(s32 size, s32 colour); /* allocates */
 extern void func_8004AA80(void *data);            /* frees */
-extern s32 func_8003DDC8(void);
-extern Gfx *func_8003F1B0(s32 *size); /* the scratch display list */
+extern s32 extra_batch_bits(void);
+extern Gfx *scratch_display_list_get(s32 *size); /* the scratch display list */
 extern void func_80055B80(Gfx **dl);  /* resets the render settings */
 extern void func_80055C00(Gfx **dl, M121Texture *tex, s32 flags, s32 texOffset); /* DKR material_set */
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
@@ -341,8 +341,8 @@ static void func_m121_004D0(Gfx **dl, Object *obj, Object *target, s32 extraFlag
     vtxCount = 0;
     vtxStart = verts;
     triCursor = triOut;
-    renderFlags = func_8003DDC8();
-    gfx = start = func_8003F1B0(&size);
+    renderFlags = extra_batch_bits();
+    gfx = start = scratch_display_list_get(&size);
     clearFlags = ~clearFlags;
     func_80055B80(&gfx);
     while (n--) {

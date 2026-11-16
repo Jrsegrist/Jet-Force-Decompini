@@ -103,7 +103,7 @@ typedef struct M050Player {
 /* The object whose level entry gives the arena's centre and radius (state block 0xFC) */
 #define ARENA(p) (*(Object **) ((u8 *) (p) + 0xFC))
 
-/* What func_80047C1C returns: the character's weapons */
+/* What char_record_lookup returns: the character's weapons */
 typedef struct M050Weapons {
     /* 0x00 */ u8 pad0[0xA];
     /* 0x0A */ s16 owned; /* bit per weapon */
@@ -198,7 +198,7 @@ extern u8 D_800A5078;
 extern u8 D_800A5084;
 extern f32 D_800F6DC4; /* gravity */
 
-extern M050Weapons *func_80047C1C(s32 player, s32 character);
+extern M050Weapons *char_record_lookup(s32 player, s32 character);
 extern M050Settings *get_settings(void);
 extern void player_input_lock_set(s32 locked);
 extern void player_input_latch(s32 player);
@@ -208,7 +208,7 @@ extern void func_m006_015E0(s32);
 extern void player_drop_held_object(Object *obj);
 extern void player_items_unlink(M050Player *p);
 extern s32 weapon_select(Object *obj, M050Player *p, s32 weapon);
-extern void func_80038324();
+extern void weapon_advance_owned();
 extern void weapon_select_prev();
 extern void func_m107_00D08(void *, f32, f32, s32);
 extern void func_8003D21C(M050ModelInstance *, M050ModelData *, Object *, f32, f32);
@@ -220,12 +220,12 @@ extern s32 func_80033F4C(s32 weapon);
 extern void anim_phase_clamp(Object *obj, f32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern void player_voice_play(Object *obj, s32 arg1);
-extern s32 func_8003AABC(Object *obj, M050Player *p, s32, s32, s32, s32, s16 *, s16 *, f32);
+extern s32 player_stick_aim_update(Object *obj, M050Player *p, s32, s32, s32, s32, s16 *, s16 *, f32);
 extern void cam_fov_zoom_set(s32 player, s32 arg1);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern s32 func_8004966C(s16 angle);
 extern void func_80048518(s32 arg0);
-extern void func_80033920(Object *obj, M050Player *p);
+extern void player_restart_on_press(Object *obj, M050Player *p);
 extern s32 weapon_usable_by_character(M050Player *p);
 extern void anim_sound_events_play(Object *obj, f32 frame, f32 speed);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
@@ -340,7 +340,7 @@ void func_m050_00000(Object *obj, s32 updateRate) {
     f32 height;
 
     p = obj->unk68;
-    weapons = func_80047C1C(p->player, p->character);
+    weapons = char_record_lookup(p->player, p->character);
     sCommand = p->commands;
     obj->particleEmittersEnabled = 0;
     p->unk1F4 = 15;
@@ -464,7 +464,7 @@ void func_m050_00000(Object *obj, s32 updateRate) {
         if (p->weapon != weapons->weapon && gPlayerInputLocked == 0) {
             weapon_select(obj, p, p->weapon);
         } else if (D_800A18B0[1] & gPlayerButtonsPressed) {
-            func_80038324(obj, p);
+            weapon_advance_owned(obj, p);
         } else if (D_800A18B0[2] & gPlayerButtonsPressed) {
             weapon_select_prev(obj, p);
         } else {
@@ -573,7 +573,7 @@ static void func_m050_00C40(Object *obj, M050Player *p, f32 updateRate) {
     f32 rate;
     s32 facing;
 
-    weapons = func_80047C1C(p->player, p->character);
+    weapons = char_record_lookup(p->player, p->character);
     p->unk576 = 0;
     p->unk13E = 0;
     if (weapons->weapon != 7 && (D_800A18B0[3] & gPlayerButtonsPressed)) {
@@ -601,7 +601,7 @@ static void func_m050_00C40(Object *obj, M050Player *p, f32 updateRate) {
     prevFacing = p->unk11C & 0xFFFF;
     p->unk11C = obj->trans.rotation.y_rotation;
     if (sHitTimer == 0) {
-        if (func_8003AABC(obj, p, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &aimYaw, &aimPitch, updateRate)) {
+        if (player_stick_aim_update(obj, p, 0xE38, 0xE38, -0x2AAA, 0x2AAA, &aimYaw, &aimPitch, updateRate)) {
             cam_fov_zoom_set(p->player, p->unk1EC);
         }
     } else {
@@ -660,7 +660,7 @@ static void func_m050_011E0(Object *obj, M050Player *p, f32 updateRate) {
     p->speed *= func_80049BEC(0.85f, updateRate);
     p->unk19C = 0;
     if (obj->unk28 == 1.0f) {
-        func_80033920(obj, p);
+        player_restart_on_press(obj, p);
     }
 }
 
@@ -776,7 +776,7 @@ static void func_m050_01468(Object *obj, M050Player *p, f32 updateRate) {
             }
             break;
     }
-    func_8001138C(obj, speed, updateRate);
+    obj_anim_frame_advance(obj, speed, updateRate);
     anim_sound_events_play(obj, startFrame, speed);
     func_m050_013D4(obj, p, move, frame);
 }

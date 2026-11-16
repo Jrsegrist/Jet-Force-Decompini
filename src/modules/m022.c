@@ -70,7 +70,7 @@ typedef struct M022Start {
 
 extern void func_80003614(s32 handle);             /* stops a positioned sound */
 extern ObjectTransform *func_80041DE0(void);       /* the camera */
-extern void func_80045B98(s32 x0, s32 y0, s32 x1, s32 y1, s32 x2, s32 y2, s32 x3, s32 y3, s32 speed); /* letterbox */
+extern void transition_values_start(s32 x0, s32 y0, s32 x1, s32 y1, s32 x2, s32 y2, s32 x3, s32 y3, s32 speed); /* letterbox */
 extern void set_game_paused(s32 paused);
 extern f32 func_80097140(f32 x);                   /* sqrtf */
 extern s32 func_80049C84(f32 a, f32 b);            /* the angle of (a, b) */
@@ -166,7 +166,7 @@ void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     D_800A3210[0] = ((M022Header *) obj->header)->unkAC[1];
     D_800A3210[1] = ((M022Header *) obj->header)->unkAC[2];
     D_800A3210[2] = ((M022Header *) obj->header)->unkAC[3];
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     OBJ_STATE(obj, s32)[0] = 0;
 }
 
@@ -190,7 +190,7 @@ void func_m022_00EA0(Object *obj) {
 }
 
 extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
-extern void func_80045DD0(s32 *x1, s32 *y1, s32 *x2, s32 *y2); /* the viewport */
+extern void transition_values_get(s32 *x1, s32 *y1, s32 *x2, s32 *y2); /* the viewport */
 extern void func_800408C0(Gfx **dl);                 /* sets the viewport's scissor */
 extern Gfx rl_m022_034C0[]; /* .data (still assembly): a display list */
 
@@ -205,7 +205,7 @@ void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
     u32 height;
 
     func_80054EA0(&width, &height);
-    func_80045DD0(&x1, &y1, &x2, &y2);
+    transition_values_get(&x1, &y1, &x2, &y2);
     gSPDisplayList((*dl)++, rl_m022_034C0);
     gDPSetScissor((*dl)++, G_SC_NON_INTERLACE, 0, 0, width - 1, height - 1);
     if (x2 < (s32) width) {
@@ -499,11 +499,11 @@ void func_m022_02990(void) {
     rl_m022_03438 = 2;
     rl_m022_0343C = 3;
     rl_m022_03440 = 0;
-    func_80045B98(0, 0, 320, 240, 24, 30, 168, 138, 32);
+    transition_values_start(0, 0, 320, 240, 24, 30, 168, 138, 32);
     set_game_paused(1);
 }
 
-extern s32 func_80045DC0(void);
+extern s32 transition_values_time_left(void);
 extern s32 func_80043510(s32 player); /* the buttons pressed */
 extern void func_80001248(s32 sound, s32 arg1);
 extern void transition_begin(void *transition);
@@ -516,7 +516,7 @@ void func_m022_02A34(void) {
     s32 buttons;
     u8 *data;
 
-    if (func_80045DC0()) {
+    if (transition_values_time_left()) {
         return;
     }
     rl_m022_03430 = 1;
@@ -528,7 +528,7 @@ void func_m022_02A34(void) {
         if (buttons & 0x9000) {
             func_80001248(0x16B, 0);
             transition_begin(rl_m022_033FC);
-            func_80045B98(24, 30, 168, 138, 0, 0, 320, 240, -1);
+            transition_values_start(24, 30, 168, 138, 0, 0, 320, 240, -1);
             rl_m022_03430 = 0;
             rl_m022_0342C = 0;
             set_game_paused(0);
@@ -697,7 +697,7 @@ void func_m022_03150(void) {
     if (rl_m022_03418 != NULL) {
         func_800079B8(rl_m022_03418);
     }
-    func_80045B98(24, 30, 168, 138, 0, 0, 320, 240, -1);
+    transition_values_start(24, 30, 168, 138, 0, 0, 320, 240, -1);
 }
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022", data);

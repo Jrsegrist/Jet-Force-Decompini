@@ -57,8 +57,8 @@ extern void func_8006FC54(s32 font);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
-extern s32 func_8005A8D8(void);
-extern void func_8005A834(s32 arg0);
+extern s32 display_setting_remembered(void);
+extern void display_setting_store(s32 arg0);
 extern M055Logo *func_m055_00000(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 extern void func_m055_0022C(M055Logo *logo);
 extern void func_m055_002A0(M055Logo *logo, s32 updateRate);
@@ -247,5 +247,5 @@ void func_m057_0090C(void) {
     func_80055A00(sLogoTop);
     func_8004AA80(sSecondImage);
     func_8004AA80(sFirstImage);
-    func_8005A834(func_8005A8D8());
+    display_setting_store(display_setting_remembered());
 }

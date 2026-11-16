@@ -100,7 +100,7 @@ void func_m083_00000(Object *obj, M083Setup *setup) {
     state->flags = 0;
     state->unk2 = setup->unkA;
     state->unk4 = setup->unk14;
-    func_80079D1C(obj, 0x1800, 1, 4, 0, 0, 0, 8.0f, 8.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, 0x1800, 1, 4, 0, 0, 0, 8.0f, 8.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_m083_001EC(Object *obj, s32 updateRate) {
@@ -255,7 +255,7 @@ void func_m083_009C8(Object *obj, M083Setup *setup) {
     state->unk1 = 0;
     state->unk2 = setup->unkA;
     state->unk4 = setup->unk14;
-    func_80079D1C(obj, 0x800, 1, 4, 0, 0, 0, 8.0f, 8.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, 0x800, 1, 4, 0, 0, 0, 8.0f, 8.0f, -1.0f, 1.0f, 0x11);
 }
 
 void func_m083_00A88(Object *obj, s32 updateRate) {
@@ -334,9 +334,9 @@ void func_m083_00A88(Object *obj, s32 updateRate) {
         }
     }
     if (state->unk0 & 1) {
-        func_8001138C(obj, -0.0167f, rate);
+        obj_anim_frame_advance(obj, -0.0167f, rate);
     } else if (state->unk0 & 2) {
-        func_8001138C(obj, 0.0334f, rate);
+        obj_anim_frame_advance(obj, 0.0334f, rate);
         state->unk1 += updateRate * 2;
         obj->trans.rotation.z_rotation = func_8004966C(state->unk1 << 8) >> 4;
     }

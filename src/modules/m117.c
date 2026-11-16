@@ -112,8 +112,8 @@ extern s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list)
 extern void func_80049DC0(void *trans, MtxF *out);
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
-extern void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
-extern void func_80056064(void);
+extern void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
+extern void draw_tint_pair_off(void);
 extern void render_sprite_billboard(s32 arg0, s32 arg1, s32 arg2, M117Billboard *board, s32 texture, s32 arg5, s32 alpha);
 
 static u8 sCloudColours[4][4] = {
@@ -211,7 +211,7 @@ void func_m117_00154(Object *obj, M117Setup *setup) {
     if (obj->light != NULL && *obj->light != 0) {
         light_colour_set(*obj->light, cloud->red, cloud->green, cloud->blue);
     }
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 96.0f, obj->trans.scale * 96.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 96.0f, obj->trans.scale * 96.0f, -1.0f, 1.0f, 1);
 }
 
 #ifdef NON_MATCHING
@@ -360,7 +360,7 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
         board.trans.rotation.y_rotation = 0;
         board.trans.rotation.x_rotation = 0;
         board.unk28 = 0.0f;
-        func_8005600C(255, 255, 255, cloud->red, cloud->green, cloud->blue);
+        draw_tint_pair_set(255, 255, 255, cloud->red, cloud->green, cloud->blue);
         for (ord = order; ord != order + 20; ord++) {
             mote = &cloud->motes[*ord];
             board.trans.x_position = positions[*ord].x;
@@ -370,7 +370,7 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
             board.trans.scale = func_80049C34(mote->spin << 8) * 0.125f + 0.55f;
             render_sprite_billboard(arg0, arg1, arg2, &board, tex, 7, cloud->brightness);
         }
-        func_80056064();
+        draw_tint_pair_off();
     }
 }
 #else

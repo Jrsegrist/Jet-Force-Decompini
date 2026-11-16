@@ -1,3 +1,6 @@
+/*
+ * The video (FMV) players: the video table and the two players.
+ */
 #include "common.h"
 
 /* Size: 0x24 bytes */
@@ -13,7 +16,8 @@ extern FmvPlayer D_80104E58[2];
 extern u32 *D_80104E50;
 u32 *asset_table_load(u32 assetIndex);
 
-void func_80083A90(void) {
+/* Loads the video table and resets the two players (0x80083A90). */
+void video_players_reset(void) {
     FmvPlayer *player;
     s32 i;
     D_80104E50 = asset_table_load(0x45);

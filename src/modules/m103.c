@@ -34,9 +34,9 @@ typedef struct M103Object {
     M103State unk88;
 } M103Object;
 
-extern void func_80079D1C(M103Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
+extern void obj_collision_spheres_init(M103Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
 extern void runlink_unload_timer_set(s32, s32, s32);
-extern void func_8001138C(M103Object *, f32, f32);
+extern void obj_anim_frame_advance(M103Object *, f32, f32);
 extern void obj_spawn_bonus(f32, f32, f32, s32);
 extern void func_8005F5AC(M103Object *, s32);
 extern void func_800079B8(M103Object *);
@@ -47,7 +47,7 @@ void func_m103_00000(M103Object *obj, M103Setup *setup) {
     M103State *state = &obj->unk88;
 
     obj->unk8 = setup->unkA * 0.01f;
-    func_80079D1C(obj, setup->unkB << 8, 1, 1, 0, 0, 0, obj->unk8 * 20.0f, obj->unk8 * 20.0f, -1.0f, 1.0f, 0x11);
+    obj_collision_spheres_init(obj, setup->unkB << 8, 1, 1, 0, 0, 0, obj->unk8 * 20.0f, obj->unk8 * 20.0f, -1.0f, 1.0f, 0x11);
     state->unk0 = setup->unkD * 0.001f;
     state->unk4 = obj->unk4C->unk6;
     state->unk6 = 0;
@@ -65,10 +65,10 @@ void func_m103_00110(M103Object *obj, s32 updateRate) {
         }
         state->unk4 = obj->unk4C->unk6;
         if (state->unk6 > 0) {
-            func_8001138C(obj, 0.0667f, updateRate);
+            obj_anim_frame_advance(obj, 0.0667f, updateRate);
             state->unk6 -= updateRate;
         } else {
-            func_8001138C(obj, 0.01f, updateRate);
+            obj_anim_frame_advance(obj, 0.01f, updateRate);
         }
     } else {
         obj_spawn_bonus(obj->unkC, obj->unk10, obj->unk14, obj->unk88.unk7);

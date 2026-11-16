@@ -200,7 +200,7 @@ void func_m105_00000(Object *obj, M105Setup *setup) {
     obj->trans.rotation.y_rotation = setup->yRotation << 8;
     obj->trans.rotation.x_rotation = 0;
     obj->trans.rotation.z_rotation = 0;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     maxX = 0;
     inst = ((M105ModelInstance **) obj->modelInstances)[obj->modelIndex];
     d = obj->unk68;

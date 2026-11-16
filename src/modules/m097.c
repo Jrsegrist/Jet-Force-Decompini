@@ -46,7 +46,7 @@ void func_m097_00000(Object *obj, M097Setup *setup) {
     f->unk8 = setup->unk1C;
     f->unkC = setup->unk20;
     if (obj->interactObj != NULL) {
-        func_80079D1C(obj, 0x100, 1, 4, 0, 0, 0, 200.0f, 200.0f, -1.0f, 1.0f, 0x11);
+        obj_collision_spheres_init(obj, 0x100, 1, 4, 0, 0, 0, 200.0f, 200.0f, -1.0f, 1.0f, 0x11);
     }
 }
 

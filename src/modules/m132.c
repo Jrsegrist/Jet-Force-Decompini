@@ -25,7 +25,7 @@ typedef struct M132PlayerData {
     /* 0x1 */ s8 unk1;
 } M132PlayerData;
 
-/* What func_80047C1C returns: the player's weapons */
+/* What char_record_lookup returns: the player's weapons */
 typedef struct M132Weapons {
     /* 0x00 */ u8 pad0[0xA];
     /* 0x0A */ u16 owned; /* bit per weapon */
@@ -51,7 +51,7 @@ extern s16 D_800A0CB0[15]; /* the weapon pickups' object IDs */
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
-extern M132Weapons *func_80047C1C(s32, s32);
+extern M132Weapons *char_record_lookup(s32, s32);
 extern M132WeaponInfo *weapon_info_get(s32 weapon);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
@@ -113,7 +113,7 @@ void func_m132_000E4(Object *obj, s32 updateRate) {
         }
         if (n != 0) {
             pd = list[0]->unk68;
-            w = func_80047C1C(pd->unk0, pd->unk1);
+            w = char_record_lookup(pd->unk0, pd->unk1);
             info = weapon_info_get(p->weapon);
             if (!(w->owned & (1 << p->weapon))) {
                 w->owned |= 1 << p->weapon;

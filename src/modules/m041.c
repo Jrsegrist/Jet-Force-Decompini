@@ -340,7 +340,7 @@ void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate) {
             speed = 0.05f;
         }
     }
-    func_8001138C(obj, speed, updateRate);
+    obj_anim_frame_advance(obj, speed, updateRate);
     if (speed != sLastSpeed) {
         if (sSlideSound != 0) {
             sound_stop(sSlideSound);

@@ -216,11 +216,11 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
     func_80023170(0xFF, 0xFF, 0xFF, D_800F5B20);
 }
 
-s32 func_80013E0C(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
+s32 track_light_create(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
 /* Gives a light its track light (unless flag 0x40) (0x80020D84). */
 void light_track_light_add(ObjectLight *light) {
     if (!(light->enabled & 0x40)) {
-        light->trackLight = func_80013E0C(light->posX, light->posY, light->posZ, light->radius * 1.25f,
+        light->trackLight = track_light_create(light->posX, light->posY, light->posZ, light->radius * 1.25f,
                                      light->radius * 0.3f, (light->colourR * light->intensity) >> 8,
                                      (light->colourG * light->intensity) >> 8, (light->colourB * light->intensity) >> 8);
     } else {
@@ -954,8 +954,8 @@ INCLUDE_ASM("asm/nonmatchings/217C0", func_800221F0);
 extern DirLight D_800F5B28; // JFG: the default object light
 void dir_light_setup(DirLight *light, s32 a, s32 b, s16 angle0, s16 angle1, s32 shift);
 
-/* JFG: set up the default object light. */
-void func_800224D0(s32 a, s32 b, s16 c, s16 d, s32 e) {
+/* JFG: set up the default object light (0x800224D0). */
+void set_world_shading(s32 a, s32 b, s16 c, s16 d, s32 e) {
     dir_light_setup(&D_800F5B28, a, b, c, d, e);
 }
 

@@ -52,7 +52,7 @@ void func_m100_00000(Object *obj, M100Setup *setup) {
     pad->unk14 = 0;
     pad->unk18 = 0;
     pad->unk1C = 0;
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
     *(s32 *) obj->state = 0;
 }
 

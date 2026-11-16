@@ -60,7 +60,7 @@ typedef struct M082Player {
     /* 0x5C8 */ s16 unk5C8;
 } M082Player;
 
-/* What func_80047C1C returns: the character's weapons */
+/* What char_record_lookup returns: the character's weapons */
 typedef struct M082Weapons {
     /* 0x00 */ u8 pad0[0xA];
     /* 0x0A */ u16 owned; /* bit per weapon */
@@ -124,8 +124,8 @@ extern void func_8003D21C(void *inst, void *model, Object *obj, f32 arg3, f32 ar
 extern void func_800212D0(s32 light);
 extern void func_800212E4(s32 light);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
-extern s32 func_800468CC(void);
-extern M082Weapons *func_80047C1C(s32 player, s32 character);
+extern s32 pending_level_character(void);
+extern M082Weapons *char_record_lookup(s32 player, s32 character);
 extern M082WeaponInfo *weapon_info_get(s32 weapon);
 extern s32 character_has_item(s32 player, s32 character, s32 item);
 extern void character_item_give(s32 player, s32 character, s32 item);
@@ -270,7 +270,7 @@ void func_m082_00478(Object *obj, M082Setup *setup) {
     state->camDist = setup->camDist;
     state->camYaw = setup->camYaw;
     obj_anim_set(obj, 0, 0.0f);
-    func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 1);
+    obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 1);
 }
 
 /* 00E6C's view of a model: its batches (kind in the low byte of unk4) and its textures */
@@ -397,7 +397,7 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
             case 2:
                 func_80048518(10);
                 prevFrame = obj->unk28;
-                if (func_8001138C(obj, 0.008333334f, updateRate)) {
+                if (obj_anim_frame_advance(obj, 0.008333334f, updateRate)) {
                     state->phase = 3;
                     if (func_m082_00F8C(state->kind, obj->trans.x_position,
                                         obj->trans.y_position + 480.0f * obj->trans.scale, obj->trans.z_position,
@@ -445,7 +445,7 @@ void func_m082_005D4(Object *obj, s32 updateRate) {
                 break;
             case 4:
                 prevFrame = obj->unk28;
-                if (func_8001138C(obj, -0.016666668f, updateRate)) {
+                if (obj_anim_frame_advance(obj, -0.016666668f, updateRate)) {
                     state->phase = 5;
                 }
                 if (obj->unk28 <= 0.56f && 0.56f < prevFrame) {
@@ -521,7 +521,7 @@ static s32 func_m082_00F8C(u32 kind, f32 x, f32 y, f32 z, f32 h) {
         return FALSE;
     }
     racer = player->unk68;
-    weapons = func_80047C1C(0, racer->character);
+    weapons = char_record_lookup(0, racer->character);
     isItem = FALSE;
     isWeapon = FALSE;
     switch (kind) {
@@ -667,7 +667,7 @@ static s32 func_m082_00F8C(u32 kind, f32 x, f32 y, f32 z, f32 h) {
 
 /* Whether the player already has the weapon or item of a kind */
 static s32 func_m082_013C0(u32 kind) {
-    M082Weapons *weapons = func_80047C1C(0, func_800468CC());
+    M082Weapons *weapons = char_record_lookup(0, pending_level_character());
 
     switch (kind) {
         case 0:
@@ -697,7 +697,7 @@ static s32 func_m082_013C0(u32 kind) {
             }
             break;
         case 6:
-            if (character_has_item(0, func_800468CC(), 3)) {
+            if (character_has_item(0, pending_level_character(), 3)) {
                 return TRUE;
             }
             break;
@@ -753,12 +753,12 @@ static s32 func_m082_013C0(u32 kind) {
             }
             break;
         case 18:
-            if (character_has_item(0, func_800468CC(), 9)) {
+            if (character_has_item(0, pending_level_character(), 9)) {
                 return TRUE;
             }
             break;
         case 19:
-            if (character_has_item(0, func_800468CC(), 1)) {
+            if (character_has_item(0, pending_level_character(), 1)) {
                 return TRUE;
             }
             break;

@@ -191,7 +191,7 @@ void func_m073_00000(Object *obj, LevelObjectEntryCommon *setup) {
         }
     }
     if (obj->behaviorId == 0x96) {
-        func_80079D1C(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
+        obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
     }
 }
 

@@ -1,3 +1,7 @@
+/*
+ * Cameras and viewports: view and projection matrices, field of view, shakes and screen projection
+ * (DKR's camera.c).
+ */
 #include "common.h"
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
@@ -146,7 +150,7 @@ extern f32 gCamZoom[4]; // JFG: per camera, the zoom
 extern f32 D_800A3168;
 s32 fb_mode(void); // the video mode
 s32 level_type(void);
-s32 func_8005AA7C(void); // the two-player screen is split vertically
+s32 options_split_vertical_get(void); // the two-player screen is split vertically
 
 /**
  * Set the FoV of the viewspace, then recalculate the perspective matrix.
@@ -181,7 +185,7 @@ void cam_set_fov(f32 camFieldOfView, s32 force) {
                 } else {
                     gPerspectiveMatrixF[0][0] *= 0.75f;
                 }
-            } else if (gActiveCameraID == 1 && func_8005AA7C()) {
+            } else if (gActiveCameraID == 1 && options_split_vertical_get()) {
                 gPerspectiveMatrixF[0][0] *= 0.75f;
                 gPerspectiveMatrixF[1][1] *= 0.75f;
             }
@@ -521,7 +525,7 @@ void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u3
         case 0:
             break;
         case 1:
-            if ((mode & 1) || func_8005AA7C()) {
+            if ((mode & 1) || options_split_vertical_get()) {
                 if (gScreenViewports == &gScreenViewports[viewPortIndex]) {
                     *lrx = halfWidth;
                 } else {
@@ -553,7 +557,7 @@ void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u3
 
 void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u32 *uly, u32 *lrx, u32 *lry);
 void viewport_rsp_set(Gfx **dList, s32 width, s32 height, s32 posX, s32 posY);
-void func_80040AA4(Gfx **dList, Mtx **mtx);
+void cam_view_matrices_set(Gfx **dList, Mtx **mtx);
 
 /* JFG: set up the active viewport: the scissor from the window limits, the RSP viewport (half size 160x120,
  * 224x168 in the high-res modes, halved again for three or four players; scaled up by the camera's zoom, with
@@ -592,7 +596,7 @@ void viewport_apply(Gfx **dList, Mtx **mtx) {
     gDPSetScissor((*dList)++, G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
     viewport_rsp_set(dList, width, height, (lrx + ulx) >> 1, (lry + uly) >> 1);
     if (mtx != NULL) {
-        func_80040AA4(dList, mtx);
+        cam_view_matrices_set(dList, mtx);
     }
 }
 
@@ -644,7 +648,7 @@ void func_80048D84(MtxF *in, Mtx *out);
  * skipped without a list, and the shake offsets all three axes.
  * DKR: func_80067D3C (Official Name: camGetPlayerProjMtx / camSetProjMtx - ??)
  */
-void func_80040AA4(Gfx **dList, Mtx **mtx) {
+void cam_view_matrices_set(Gfx **dList, Mtx **mtx) {
     Camera *cam = &gCameras[D_800FA634];
 
     if (gCurCamFOV != cam->fov || gCamZoomSet[D_800FA634]) {
@@ -1189,11 +1193,11 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
 #endif
 
 typedef struct CameraShake {
-    /* 0x00 */ s16 unk0; // JFG: the end of each phase, in frames
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ s16 unk4;
+    /* 0x00 */ s16 fadeInEnd; // JFG: the end of each phase, in frames
+    /* 0x02 */ s16 holdEnd;
+    /* 0x04 */ s16 fadeOutEnd;
     /* 0x06 */ s16 frame; // JFG: the frame count
-    /* 0x08 */ s32 unk8;
+    /* 0x08 */ s32 magnitude;
 } CameraShake;
 extern CameraShake gCameraShakes[4];
 
@@ -1203,11 +1207,11 @@ void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 arg4) {
 
     if (index >= 0 && index < 4) {
         shake = &gCameraShakes[index];
-        shake->unk0 = phase1 * 60.0f;
-        shake->unk2 = shake->unk0 + (s32) (phase2 * 60.0f);
-        shake->unk4 = shake->unk2 + (s32) (phase3 * 60.0f);
+        shake->fadeInEnd = phase1 * 60.0f;
+        shake->holdEnd = shake->fadeInEnd + (s32) (phase2 * 60.0f);
+        shake->fadeOutEnd = shake->holdEnd + (s32) (phase3 * 60.0f);
         shake->frame = 0;
-        shake->unk8 = arg4;
+        shake->magnitude = arg4;
     }
 }
 
@@ -1225,7 +1229,7 @@ void cam_shake_stop_all(void) {
         cam->shakeX = 0.0f;
         cam->shakeY = 0.0f;
         cam->shakeZ = 0.0f;
-        shake->unk8 = 0;
+        shake->magnitude = 0;
         cam++;
         shake++;
     }
@@ -1285,8 +1289,8 @@ s32 rand_range(s32 min, s32 max);
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target forms &D_800FA658 in $a1 before indexing (mine folds %lo into the store), which shifts
    the temporaries of the rest by one */
-/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in over unk0 frames,
- * hold to unk2, fade out to unk4) into each camera's shakeY. */
+/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in until fadeInEnd,
+ * hold to holdEnd, fade out to fadeOutEnd) into each camera's shakeY. */
 void func_800424A0(s32 updateRate) {
     s32 i;
     Camera *cam;
@@ -1306,17 +1310,17 @@ void func_800424A0(s32 updateRate) {
         cam->shakeX = 0.0f;
         cam->shakeY = 0.0f;
         cam->shakeZ = 0.0f;
-        if (shake->unk8 != 0) {
+        if (shake->magnitude != 0) {
             shake->frame += updateRate;
-            if (shake->frame >= shake->unk4) {
-                shake->unk8 = 0;
+            if (shake->frame >= shake->fadeOutEnd) {
+                shake->magnitude = 0;
             } else {
                 gNoCamShake = 1;
-                magnitude = shake->unk8;
-                if (shake->unk2 < shake->frame) {
-                    magnitude = (shake->unk4 - shake->frame) * magnitude / (shake->unk4 - shake->unk2);
-                } else if (shake->frame < shake->unk0) {
-                    magnitude = shake->frame * magnitude / shake->unk0;
+                magnitude = shake->magnitude;
+                if (shake->holdEnd < shake->frame) {
+                    magnitude = (shake->fadeOutEnd - shake->frame) * magnitude / (shake->fadeOutEnd - shake->holdEnd);
+                } else if (shake->frame < shake->fadeInEnd) {
+                    magnitude = shake->frame * magnitude / shake->fadeInEnd;
                 }
                 cam->shakeY = rand_range(0, magnitude);
             }

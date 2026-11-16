@@ -1,3 +1,6 @@
+/*
+ * The camera follow mode and the view override (a fixed view the player camera copies).
+ */
 #include "common.h"
 
 /* DKR include/structs.h */
@@ -32,7 +35,8 @@ s32 camera_follow_get(void) {
     return D_800FB080;
 }
 
-ObjectTransform *func_8004271C(void) {
+/* The view override, or NULL (0x8004271C). */
+ObjectTransform *view_override_get(void) {
     return D_800FB084;
 }
 

@@ -588,7 +588,8 @@ extern u8 D_800FED4C;
 extern u8 D_800FED4D;
 extern s32 D_800A4E74;
 
-void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f) {
+/* Sets primitive and environment colours for the next draws (0x8005600C). */
+void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f) {
     D_800FED48 = a;
     D_800FED49 = b;
     D_800FED4A = c;
@@ -600,7 +601,8 @@ void func_8005600C(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f) {
 
 extern s32 D_800A4E74;
 
-void func_80056064(void) {
+/* Ends the colour override (0x80056064). */
+void draw_tint_pair_off(void) {
     D_800A4E74 = 0;
 }
 
@@ -1083,8 +1085,8 @@ s32 sprite_anim_advance(SpriteAsset *sprite, s32 *flags, u32 updateRate, f32 *fr
     return done;
 }
 
-/* JFG: sprite_anim_advance for a single texture (as a sprite of its frames). */
-s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4) {
+/* JFG: sprite_anim_advance for a single texture (as a sprite of its frames) (0x80057A10). */
+s32 texture_anim_advance(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4) {
     SpriteAsset sprite;
     TextureHeader *textures[1];
 
