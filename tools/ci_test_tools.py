@@ -14,7 +14,8 @@
   syms      tools/runlink_syms.py on the same synthetic ROM.
   diff      tools/runlink_diff.py finds functions in the module map.
   progress  tools/progress.py on a tiny linked ELF, its map, a module map and
-            C files with INCLUDE_ASM lines.
+            C files with INCLUDE_ASM lines; a static function only an
+            object's .mdebug lists (as IDO writes them) counts too.
   rename    tools/rename.py on a made-up tree: the rewrite, --check, --which,
             re-running, bad maps, stale field uses, and the linker aliases
             (linked).
@@ -417,10 +418,19 @@ class Progress(unittest.TestCase):
             for d in ("src", "src/modules", "build/src", "build/asm", "build/runlink"):
                 os.makedirs(os.path.join(t, d))
             fn = ".global {0}\n.type {0}, @function\n{0}:\n" + "    nop\n" * 2 + "{1}" + ".size {0}, . - {0}\n"
+            # a C static has no ELF symbol: only the object's .mdebug lists it
             game = HEAD + ".section .text\n" + fn.format("func_80000450", "") + \
-                fn.format("func_80000458", "    nop\n" * 2)
+                fn.format("func_80000458", "    nop\n" * 2) + ".Lstatic:\n    jr $ra\n    nop\n"
             lib = HEAD + ".section .text\n" + fn.format("func_80084200", "    nop\n" * 6)
-            assemble(game, os.path.join(t, "build/src/game.o"))
+            game_o = os.path.join(t, "build/src/game.o")
+            # the symbolic header holds file offsets: assemble once to find the
+            # section, then again with the real offsets (same size, same place)
+            procs = [("func_80000450", 0, 8, 6), ("cstatic", 0x18, 8, 14)]
+            assemble(game + mdebug_section(0, procs), game_o)
+            base = elf_section(game_o, ".mdebug")[0]
+            assemble(game + mdebug_section(base, procs), game_o)
+            self.assertEqual(elf_section(game_o, ".mdebug")[0], base)
+            self.assertEqual(progress.static_functions(game_o), [(0x18, 8, "cstatic")])
             assemble(lib, os.path.join(t, "build/asm/lib.o"))
             with open(os.path.join(t, "src/game.c"), "w") as f:
                 f.write('/* INCLUDE_ASM("asm/nonmatchings/game", func_80000450); */\n'
@@ -428,7 +438,7 @@ class Progress(unittest.TestCase):
             with open(os.path.join(t, "link.ld"), "w") as f:
                 f.write("SECTIONS {\n  .game 0x80000450 : { build/src/game.o(.text) }\n"
                         "  .lib 0x80084200 : { build/asm/lib.o(.text) }\n"
-                        "  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) }\n}\n")
+                        "  /DISCARD/ : { *(.reginfo) *(.MIPS.abiflags) *(.mdebug) }\n}\n")
             run([CROSS + "ld", "-T", "link.ld", "-Map", "build/jfg.us.map", "-o", "build/jfg.us.elf",
                  "build/src/game.o", "build/asm/lib.o"], cwd=t)
             with open(os.path.join(t, "src/modules/m001.c"), "w") as f:
@@ -453,14 +463,52 @@ class Progress(unittest.TestCase):
             self.assertIsNotNone(m, "%s not in:\n%s" % (label, out))
             return tuple(int(x) for x in m.groups())
 
-        self.assertEqual(row("main: game"), (1, 2, 8, 24))
+        # game: func_80000450 and the static in C, func_80000458 INCLUDE_ASM
+        self.assertEqual(row("main: game"), (2, 3, 16, 32))
         self.assertEqual(row("main: libraries"), (0, 1, 0, 32))
-        self.assertEqual(row("main: total"), (1, 3, 8, 56))
+        self.assertEqual(row("main: total"), (2, 4, 16, 64))
         self.assertEqual(row("runlink modules"), (1, 3, 0x40, 0x110))
         self.assertIn("(0 of 2 modules all C, 1 partly)", out)
-        self.assertEqual(row("total"), (2, 6, 72, 328))
-        # names: the one C function (func_80000450) still has its address name
-        self.assertRegex(out, r"(?m)^names\s+0/1\s")
+        self.assertEqual(row("total"), (3, 7, 80, 336))
+        # names: func_80000450 still has its address name, the static has a real one
+        self.assertRegex(out, r"(?m)^names\s+1/2\s")
+
+
+def elf_section(obj, name):
+    """(file offset, size) of a section of a 32-bit big-endian ELF object."""
+    data = open(obj, "rb").read()
+    shoff = struct.unpack_from(">I", data, 0x20)[0]
+    shentsize, shnum, shstrndx = struct.unpack_from(">HHH", data, 0x2E)
+    secs = [struct.unpack_from(">IIIIII", data, shoff + i * shentsize) for i in range(shnum)]
+    strs = secs[shstrndx][4]
+    for s in secs:
+        if data[strs + s[0]:data.index(b"\0", strs + s[0])].decode() == name:
+            return s[4], s[5]
+    return None
+
+
+def mdebug_section(base, procs):
+    """Assembly for a minimal IDO-style .mdebug at file offset `base`: one file
+    descriptor and, per (name, offset, size, st) procedure, its begin symbol
+    (st 6 = stProc, 14 = stStaticProc) and the stEnd holding its length."""
+    strings = b"".join(p[0].encode() + b"\0" for p in procs)
+    syms, iss = b"", 0
+    for name, off, size, st in procs:
+        n = len(syms) // 12
+        syms += struct.pack(">III", iss, off, (st << 26) | (1 << 21))
+        syms += struct.pack(">III", 0, size, (8 << 26) | (1 << 21) | n)
+        iss += len(name) + 1
+    fd_off = base + 96
+    sym_off = fd_off + 72
+    ss_off = sym_off + len(syms)
+    nsym = len(syms) // 12
+    hdr = struct.pack(">HH23I", 0x7009, 0, 0, 0, 0, 0, 0, 0, 0, nsym, sym_off, 0, 0, 0, 0,
+                      len(strings), ss_off, 0, 0, 1, fd_off, 0, 0, 0, 0)
+    fdr = struct.pack(">6I", 0, 0, 0, len(strings), 0, nsym) + b"\0" * 48
+    blob = hdr + fdr + syms + strings
+    blob += b"\0" * (-len(blob) % 4)
+    return ".section .mdebug\n" + "".join("    .byte %s\n" % ",".join(str(b) for b in blob[i:i + 16])
+                                          for i in range(0, len(blob), 16))
 
 
 RENAME_NAMES = """\
