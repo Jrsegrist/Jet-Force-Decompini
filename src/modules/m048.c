@@ -4,6 +4,7 @@
  * previous frame's image back over the screen in strips of four lines,
  * textured and faded by the environment alpha; a second function sends it
  * to the RSP as its own task.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 
@@ -48,6 +49,7 @@ static s32 sFrameBuffer;
 
 void func_m048_00058(void);
 
+/* Allocates the two 0x2000-byte display lists (freeing any old ones) and turns the effect on */
 void func_m048_00000(void) {
     func_m048_00058();
     sDisplayLists[0] = func_8004A57C(0x2000, -1);
@@ -56,6 +58,7 @@ void func_m048_00000(void) {
     D_800A3338 = 1;
 }
 
+/* Frees the two display lists and turns the effect off */
 void func_m048_00058(void) {
     if (sDisplayLists[0] != NULL) {
         func_8004AA80(sDisplayLists[0]);
@@ -77,6 +80,7 @@ void func_m048_000D4(void) {
 }
 #pragma weak __rl_fini = func_m048_000D4
 
+/* Builds the display list that draws the previous frame back over the frame buffer in 4-line strips */
 void func_m048_000F4(s32 arg0) {
     u32 y;
     u8 *image;
@@ -129,6 +133,7 @@ void func_m048_000F4(s32 arg0) {
     }
 }
 
+/* Runs the built display list as its own task, then swaps to the other list */
 void func_m048_006F0(void) {
     if (sListStart != NULL) {
         func_8004DA10(sListStart, sListEnd, 5, sFrameBuffer);

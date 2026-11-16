@@ -4,6 +4,7 @@
  * the sides), the heat is blurred upwards and cools, and the result is turned
  * into the texture's 16-bit pixels (red/green from the heat), every other row
  * with its pixel pairs swapped.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

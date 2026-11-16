@@ -3,6 +3,7 @@
  * near; its control pulls some objects towards it) and the gems it drops: a gem object that
  * spins, fades out over its last 64 frames and sparkles at random, and the
  * function that spawns one with a given position, direction and speed.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -68,6 +69,7 @@ typedef struct M106Setup {
 extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
                                 s32 arg9); /* a flare (freed with effect_texture_pair_free) */
 
+/* Init (tank): sets scale and state (gone if flag 0x59 is set), its collider, and creates its two flares */
 void func_m106_00000(Object *obj, M106Setup *setup) {
     f32 zero = 0.0f;
     M106Tank *t;
@@ -636,6 +638,7 @@ void func_m106_01694(Gfx **dl, Mtx **mtx, Object *obj) {
     }
 }
 
+/* Frees the tank's flares, effect and child object and stops its three sounds */
 void func_m106_01A30(Object *obj) {
     M106Tank *tank = obj->unk68;
 
@@ -662,11 +665,13 @@ void func_m106_01A30(Object *obj) {
     }
 }
 
+/* Init (gem): sets its lifetime from the entry's size, fully opaque */
 void func_m106_01AFC(Object *obj, M106GemEntry *setup) {
     OBJ_STATE(obj, M106Gem)->timer = setup->size * 6;
     OBJ_STATE(obj, M106Gem)->alpha = 0xFF;
 }
 
+/* Control (every frame, gem): counts down and frees itself, fading over the last 64 frames; spins and sparkles */
 void func_m106_01B1C(Object *obj, s32 updateRate) {
     s32 flags;
 
@@ -689,6 +694,7 @@ void func_m106_01B1C(Object *obj, s32 updateRate) {
     func_8005F5AC(obj, updateRate);
 }
 
+/* Spawns a gem (object 0x311) at a position, with a velocity from the angles and speed */
 void func_m106_01C04(f32 x, f32 y, f32 z, s16 yRotation, s16 xRotation, f32 speed, f32 size) {
     Vec3s rot;
     M106GemEntry entry;

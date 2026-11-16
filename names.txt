@@ -397,12 +397,218 @@ D_m001_01C70 = sDropsLoaded
 func_m001_00000 = drop_pool_init
 func_m001_00678 = drop_render
 
+# src/modules/m003.c
+func_m003_01D3C = troop_path_node_next
+func_m003_021C8 = troop_group_path_follow
+func_m003_043FC = troop_anim_kind_allowed
+func_m003_044B4 = troop_anim_speed
+func_m003_04614 = troop_anim_pick
+func_m003_04968 = troop_anim_start
+func_m003_0527C = troop_player_nearest
+func_m003_053D4 = troop_blame_set
+func_m003_0556C = troop_select
+func_m003_07B38 = troop_member_counted
+func_m003_0B50C = troop_walk_height
+func_m003_0D360 = troop_member_join
+func_m003_0E3CC = troop_member_level_move
+func_m003_105B8 = troop_blame_all
+func_m003_13FE4 = troop_ambient_sound
+func_m003_170D0 = troop_lines_cross_point
+func_m003_17174 = troop_region_tree_test
+
+# src/modules/m007.c
+func_m007_0032C = hint_flags_count
+func_m007_00390 = hint_condition_holds
+func_m007_00578 = hint_stack_push
+func_m007_0070C = hint_stack_pop
+func_m007_00DF0 = hint_stick_repeat_clear
+func_m007_00E0C = hint_pad_read
+func_m007_01018 = hint_scroll_controls
+func_m007_01214 = hint_pages_controls
+func_m007_012E0 = hint_page_condition_holds
+func_m007_01504 = hint_action_condition_holds
+func_m007_016B4 = hint_page_choose
+func_m007_017E8 = hint_action_run
+func_m007_01E34 = hint_boxes_fill
+func_m007_01F80 = hint_scroll_draw
+func_m007_020D4 = hint_pages_draw
+func_m007_023D4 = hint_text_draw
+
+# src/modules/m008.c
+func_m008_00000 = fxdrops_pools_init
+
+# src/modules/m009.c
+func_m009_02880 = map_place_pick
+func_m009_030E8 = map_world_model_draw
+func_m009_037E4 = map_tex_frames_set
+func_m009_03908 = map_item_draw
+
+# src/modules/m011.c
+func_m011_007B0 = campath_node_next
+func_m011_0080C = campath_node_prev
+func_m011_00868 = campath_link_flag1
+func_m011_008C4 = campath_link_flag2
+func_m011_00920 = campath_nearest_node_find
+func_m011_00A84 = campath_step_along
+func_m011_00BB8 = campath_point_dist_sq
+func_m011_00C34 = campath_span_narrow
+func_m011_01288 = campath_angles_unwrap
+func_m011_01424 = campath_nodes_around
+
+# src/modules/m012.c
+func_m012_01880 = menuframe_modules_place
+
+# src/modules/m014.c
+func_m014_00074 = hud_turn_arrow_blink
+func_m014_010F4 = hud_weapon_wheel_update
+func_m014_019F4 = hud_item6_slide
+func_m014_0292C = hud_weapon_panel
+func_m014_02CF4 = results_screen_update
+func_m014_03418 = results_best_stat_draw
+func_m014_03C68 = hud_bar_draw
+
+# src/modules/m015.c
+func_m015_01C80 = m015_tex_anims_update
+func_m015_01E14 = m015_water_ripples
+func_m015_020B4 = m015_water_enter
+func_m015_022C4 = m015_wade_splashes
+func_m015_025FC = m015_hit_react
+func_m015_02B2C = m015_state_on_foot
+func_m015_03274 = m015_state_1
+func_m015_03564 = m015_state_2
+func_m015_03740 = m015_state_in_air
+func_m015_04088 = m015_body_head_commands
+func_m015_0418C = m015_state_aiming
+func_m015_04658 = m015_state_strafe_aiming
+func_m015_04A58 = m015_side_lean_update
+func_m015_04B4C = m015_sidestep_roll
+func_m015_05020 = m015_move_anim_pick
+func_m015_05180 = m015_anim_start
+func_m015_05328 = m015_anim_state_machine
+func_m015_05ED4 = m015_move
+func_m015_0663C = m015_head_turn
+func_m015_068BC = m015_state_6
+func_m015_06B3C = m015_state_8
+func_m015_06DDC = m015_state_7
+func_m015_06EBC = m015_state_swimming
+func_m015_07724 = m015_underwater_splash
+func_m015_07890 = m015_state_dead
+func_m015_07BC8 = m015_state_12
+
+# src/modules/m016.c
+func_m016_01B48 = m016_water_enter
+func_m016_01D58 = m016_wade_splashes
+func_m016_02220 = m016_hit_react
+func_m016_02708 = m016_state_on_foot
+func_m016_02EB4 = m016_state_1
+func_m016_0321C = m016_state_2
+func_m016_03464 = m016_state_in_air
+func_m016_03DB0 = m016_body_head_commands
+func_m016_03F30 = m016_state_aiming
+func_m016_04440 = m016_state_strafe_aiming
+func_m016_04840 = m016_side_lean_update
+func_m016_04934 = m016_sidestep_roll
+func_m016_04E08 = m016_move_anim_pick
+func_m016_04F78 = m016_anim_start
+func_m016_05120 = m016_anim_state_machine
+func_m016_05BB8 = m016_move
+func_m016_06290 = m016_head_turn
+func_m016_0650C = m016_state_swimming
+func_m016_06AEC = m016_state_dead
+func_m016_06E24 = m016_state_6
+func_m016_070A4 = m016_state_8
+func_m016_07344 = m016_state_7
+func_m016_073A8 = m016_state_12
+
+# src/modules/m017.c
+func_m017_01A30 = m017_water_enter
+func_m017_01C44 = m017_wade_splashes
+func_m017_01F7C = m017_hit_react
+func_m017_02564 = m017_tex_anims_update
+func_m017_02848 = m017_side_move
+func_m017_02A40 = m017_state_2
+func_m017_02A54 = m017_state_on_foot
+func_m017_0313C = m017_state_1
+func_m017_04178 = m017_body_turn_commands
+func_m017_04270 = m017_head_turn_commands
+func_m017_0430C = m017_state_aiming
+func_m017_04614 = m017_state_strafe_aiming
+func_m017_04A44 = m017_move_anim_pick
+func_m017_04B84 = m017_anim_start
+func_m017_04C50 = m017_anim_state_machine
+func_m017_050BC = m017_move
+func_m017_056D4 = m017_head_turn
+func_m017_05930 = m017_state_swimming
+func_m017_05F08 = m017_state_dead
+
+# src/modules/m018.c
+func_m018_00000 = fe_screen_backdrop
+func_m018_01194 = fe_weapon_show
+func_m018_011E4 = fe_weapon_image_free
+func_m018_01218 = fe_weapon_next
+func_m018_01294 = fe_weapon_prev
+func_m018_0207C = fe_player_character
+func_m018_057D8 = fe_highlights_clear
+func_m018_05800 = fe_highlight_add
+
+# src/modules/m024.c
+func_m024_00908 = track_segment_grid_build
+func_m024_018B4 = track_segment_batches_scan
+
+# src/modules/m031.c
+func_m031_01150 = race_end_update
+func_m031_038E0 = race_best_time_insert
+
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap
+func_m036_00250 = game_globals_init
 
 # src/modules/m038.c
 D_m038_000F0 = sScreenQuadVerts
 D_m038_00118 = sScreenQuadTris
+
+# src/modules/m040.c
+func_m040_007F0 = mpstats_places_table
+func_m040_00DF8 = mpstats_kills_table
+func_m040_0124C = mpstats_times_table
+func_m040_0193C = mpstats_scores_table
+func_m040_01D60 = mpstats_bonus_table
+
+# src/modules/m047.c
+func_m047_007DC = cutscene_angle_turn_part
+func_m047_01560 = cutscene_actor_animate
+func_m047_013D0 = cutscene_actor_fade
+
+# src/modules/m050.c
+func_m050_00C40 = m050_on_ground
+func_m050_01108 = m050_in_air
+func_m050_011E0 = m050_dying
+func_m050_0128C = m050_head_arm_commands
+func_m050_01390 = m050_speed_move_pick
+func_m050_013D4 = m050_move_anim_start
+func_m050_01468 = m050_anim_advance
+func_m050_01688 = m050_move
+
+# src/modules/m051.c
+func_m051_008F0 = m051_on_ground
+func_m051_00DC0 = m051_in_air
+func_m051_00E98 = m051_dying
+func_m051_00F44 = m051_head_commands
+func_m051_01038 = m051_neck_commands
+func_m051_010D4 = m051_speed_move_pick
+func_m051_01118 = m051_move_anim_start
+func_m051_01170 = m051_anim_advance
+func_m051_0134C = m051_move
+
+# src/modules/m052.c
+func_m052_00C40 = m052_on_ground
+func_m052_01108 = m052_in_air
+func_m052_011E0 = m052_dying
+func_m052_0128C = m052_head_arm_commands
+func_m052_01390 = m052_speed_move_pick
+func_m052_013D4 = m052_move_anim_start
+func_m052_01468 = m052_anim_advance
+func_m052_01688 = m052_move
 
 # src/modules/m054.c
 D_m054_007A0 = sCraftWeapons
@@ -414,14 +620,76 @@ func_m054_00140 = craft_weapon_fire
 D_m055_00B80 = sDrawModeFull
 D_m055_00BA8 = sDrawModeScaled
 
+# src/modules/m062.c
+func_m062_01158 = mpmode_settings_page_first
+func_m062_01A48 = mpmode_settings_page_second
+func_m062_0228C = mpmode_setting_pick
+
+# src/modules/m069.c
+func_m069_014D0 = range_crosshair_draw
+
+# src/modules/m082.c
+func_m082_00340 = opener_stand_point_set
+func_m082_00E6C = opener_batches_write
+func_m082_00F8C = opener_reward_give
+func_m082_013C0 = opener_reward_owned
+func_m082_0165C = opener_pickup_spawn
+func_m082_01778 = opener_link_release
+
+# src/modules/m087.c
+func_m087_00000 = breakable_entry_find
+
 # src/modules/m093.c
 D_m093_002B0 = sFlagMessages
+
+# src/modules/m101.c
+func_m101_00000 = pane_shatter
+func_m101_0056C = pane_shards_move
+
+# src/modules/m110.c
+func_m110_00054 = fade_exception_box_mark
 
 # src/modules/m117.c
 D_m117_00B80 = sCloudColours
 
 # src/modules/m118.c
 func_m118_00000 = robot_find
+
+# src/modules/m122.c
+func_m122_00374 = blade_aim_point
+
+# src/modules/m127.c
+func_m127_00000 = terminal_use_point
+
+# src/modules/m135.c
+func_m135_02834 = mproom_tex_frames_set
+
+# src/modules/m136.c
+func_m136_01740 = troop_nearest_non_leader
+
+# src/modules/m142.c
+func_m142_00000 = linetree_node_is_convex
+func_m142_001BC = linetree_segment_add
+func_m142_002F4 = linetree_point_on_split_line
+func_m142_003B0 = linetree_split_crossing
+func_m142_00444 = linetree_split_line_choose
+func_m142_00930 = linetree_side_segments_fill
+func_m142_00CFC = linetree_node_split
+
+# src/modules/m154.c
+func_m154_00410 = wpgraph_open_entry_lowest
+func_m154_004B0 = wpgraph_entry_expand
+func_m154_00720 = wpgraph_search_result
+func_m154_00920 = wpgraph_search
+func_m154_00D68 = wpgraph_link_check
+
+# src/modules/m155.c
+func_m155_000C8 = soldier_path_node_add
+func_m155_001B4 = region_point_inside
+func_m155_00268 = soldier_node_beside_object
+func_m155_00644 = soldier_nodes_round_corners
+func_m155_01584 = soldier_enemy_select
+func_m155_019A4 = soldier_ring_entry_copy
 
 # src/modules/m157.c
 D_m157_00180 = sWindowPieces
@@ -555,6 +823,12 @@ field Object.unk1A = numActiveEmitters
 field Object.unk6C = modelInstances
 field Object.unkA0 = freed
 field ObjectInteraction.unk6 = hitPoints
+field SparkParams.unk14 = sparkSize
+field SparkParams.unk18 = textureID
+field SparkParams.unk1A = lifeSteps
+field SparkParams.unk1B = alpha
+field SparkParams.unk1C = colour1
+field SparkParams.unk20 = colour2
 
 # round 5, main segment (main5)
 # src/50300.c: the scheduler, a Rare variant of libultra's (ultralib's names)

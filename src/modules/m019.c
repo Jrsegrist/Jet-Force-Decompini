@@ -4,6 +4,7 @@
  * one drawn by another module: 9, 18, 37), loading the next screen while the
  * current one fades out. It also has the multiplayer version and a small
  * screen of its own that asks for confirmation before leaving the level.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"
@@ -171,6 +172,7 @@ static s32 sChoice;
 static s32 sDone;
 static s32 sAsking;
 
+/* Opens the pause menu: remembers the level, world and character, pauses, halves the music, starts screen 1 */
 void func_m019_00000(s32 arg0) {
     Object *player;
     s32 world;
@@ -216,19 +218,23 @@ void func_m019_00000(s32 arg0) {
     }
 }
 
+/* Asks to switch to another screen (it loads while the current one fades out) */
 void func_m019_001B0(s32 screen) {
     sNextScreen = screen;
     sStage = 1;
 }
 
+/* Returns the current screen */
 s32 func_m019_001C8(void) {
     return sScreen;
 }
 
+/* Unloads runlink module 0x26 */
 static void free_module_38(void) {
     runlink_module_release(0x26);
 }
 
+/* Returns the character remembered when the menu opened */
 s32 func_m019_001F8(void) {
     return sCharacter;
 }
@@ -279,6 +285,7 @@ static void close_screen(s32 screen) {
     }
 }
 
+/* Asks to leave the menu for a new level (screen 11), remembering its arguments */
 void func_m019_00324(s32 level, s32 arg1, s32 arg2, s32 arg3) {
     sNewLevel = level;
     sNewLevelArg1 = arg1;
@@ -288,6 +295,7 @@ void func_m019_00324(s32 level, s32 arg1, s32 arg2, s32 arg3) {
     sStage = 1;
 }
 
+/* Every frame: opens a newly loaded screen, runs the current one, and fades out or in around a switch */
 void func_m019_00360(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 updateRate) {
     s32 ready;
 
@@ -417,10 +425,12 @@ void func_m019_00360(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 updateRate) {
     *vtx = D_800FF3A0;
 }
 
+/* Returns the mode word (initially 1) */
 s32 func_m019_00830(void) {
     return sMode;
 }
 
+/* Pauses the game and opens straight onto the leave-the-level confirmation screen (12) */
 void func_m019_00840(void) {
     if (is_game_paused() == 0) {
         set_game_paused(1);
@@ -438,6 +448,7 @@ void func_m019_00840(void) {
     }
 }
 
+/* Opens the confirmation screen: loads its textures and resets the fade and choice */
 static void confirm_open(void) {
     menu_assetgroup_load(sAssets);
     menu_assetgroup_reset(sAssets2);
@@ -448,6 +459,7 @@ static void confirm_open(void) {
     sAsking = 0;
 }
 
+/* Closes the confirmation screen: frees its textures */
 static void confirm_close(void) {
     menu_assetgroup_free(sAssets);
 }

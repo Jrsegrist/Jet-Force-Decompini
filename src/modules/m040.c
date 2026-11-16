@@ -1,5 +1,6 @@
 /*
  * Runlink module 40: the multiplayer statistics screen of the front end.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -150,11 +151,11 @@ extern void func_8005A0D0(s32 item);          /* draws a menu item */
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity); /* the text colour */
 extern void func_8006FCA8(Gfx **dl, s32 textX, s32 textY, char *text, s32 flags);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
-static void func_m040_007F0(s32 updateRate);
-static void func_m040_00DF8(s32 updateRate);
-static void func_m040_0124C(s32 updateRate);
-static void func_m040_0193C(s32 updateRate);
-static void func_m040_01D60(s32 updateRate);
+static void mpstats_places_table(s32 updateRate);
+static void mpstats_kills_table(s32 updateRate);
+static void mpstats_times_table(s32 updateRate);
+static void mpstats_scores_table(s32 updateRate);
+static void mpstats_bonus_table(s32 updateRate);
 
 /* The statistics screen's frame: runs the view shown, turns the model to it and fades the view titles */
 void func_m040_0019C(s32 updateRate) {
@@ -192,37 +193,37 @@ void func_m040_0019C(s32 updateRate) {
                     case 0x13:
                         sFrameNext = 0;
                         func_m061_00F50();
-                        func_m040_007F0(updateRate);
+                        mpstats_places_table(updateRate);
                         break;
                     case 0x14:
                         sFrameNext = 0;
                         func_m061_010D4(4);
-                        func_m040_0124C(updateRate);
+                        mpstats_times_table(updateRate);
                         break;
                     case 0x15:
                         sFrameNext = 1;
                         func_m061_010D4(4);
-                        func_m040_0124C(updateRate);
+                        mpstats_times_table(updateRate);
                         break;
                     case 0x16:
                         sFrameNext = 2;
                         func_m061_010D4(4);
-                        func_m040_007F0(updateRate);
+                        mpstats_places_table(updateRate);
                         break;
                 }
                 break;
             case 2:
                 sFrameNext = 0;
-                func_m040_00DF8(updateRate);
+                mpstats_kills_table(updateRate);
                 break;
             case 3:
                 sFrameNext = 4;
-                func_m040_0193C(updateRate);
+                mpstats_scores_table(updateRate);
                 break;
             case 4:
                 sFrameNext = 6;
                 func_m061_010D4(3);
-                func_m040_01D60(updateRate);
+                mpstats_bonus_table(updateRate);
                 if (sUnk4 >= 5) {
                     quit = TRUE;
                 }
@@ -323,8 +324,8 @@ extern void func_8006FC54(s32 fontId);
 extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern s32 func_80043510(s32 player);               /* the buttons pressed */
 
-/* Slides the table of the players' places in or out, draws it, and counts up their bonus marks (called from 0019C) */
-static void func_m040_007F0(s32 updateRate) {
+/* Slides the table of the players' places in or out, draws it, and counts up their bonus marks (called from 0019C) (module m040, 0x007F0). */
+static void mpstats_places_table(s32 updateRate) {
     s32 i;
     s32 j;
     s32 rank;
@@ -444,8 +445,8 @@ static void func_m040_007F0(s32 updateRate) {
     }
 }
 
-/* Slides the table of the players' kills in or out and draws it (called from 0019C) */
-static void func_m040_00DF8(s32 updateRate) {
+/* Slides the table of the players' kills in or out and draws it (called from 0019C) (module m040, 0x00DF8). */
+static void mpstats_kills_table(s32 updateRate) {
     UNUSED s32 pad0[2];
     s32 x;
     s32 rowY;
@@ -534,8 +535,8 @@ static void func_m040_00DF8(s32 updateRate) {
 
 extern void func_m006_015EC(s32 time, char *a, char *b, char *c); /* a time as three two-digit strings */
 
-/* Slides the table of the players' times in or out, draws it, and counts up their bonus marks (called from 0019C) */
-static void func_m040_0124C(s32 updateRate) {
+/* Slides the table of the players' times in or out, draws it, and counts up their bonus marks (called from 0019C) (module m040, 0x0124C). */
+static void mpstats_times_table(s32 updateRate) {
     s32 i;
     s32 j;
     s32 x;
@@ -672,8 +673,8 @@ static void func_m040_0124C(s32 updateRate) {
     }
 }
 
-/* Slides the table of the players' scores in or out and draws it (called from 0019C) */
-static void func_m040_0193C(s32 updateRate) {
+/* Slides the table of the players' scores in or out and draws it (called from 0019C) (module m040, 0x0193C). */
+static void mpstats_scores_table(s32 updateRate) {
     UNUSED s32 pad0[2];
     s32 x;
     s32 rowY;
@@ -758,8 +759,8 @@ static void func_m040_0193C(s32 updateRate) {
 }
 
 
-/* Slides the table of the players' bonus marks in or out and draws them in rows of four (called from 0019C) */
-static void func_m040_01D60(s32 updateRate) {
+/* Slides the table of the players' bonus marks in or out and draws them in rows of four (called from 0019C) (module m040, 0x01D60). */
+static void mpstats_bonus_table(s32 updateRate) {
     s32 i;
     s32 j;
     s32 x;

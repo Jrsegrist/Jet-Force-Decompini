@@ -3,6 +3,7 @@
  * buffers and each frame builds a display list that clears one of them, sets
  * up fog, and draws into it only the objects (behaviour 0x18) whose linked
  * object has kind 0xE6; then it runs the list as a task and swaps buffers.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -54,6 +55,7 @@ u8 D_m002_03FE8[0x1008];
 
 void func_m002_00148(void);
 
+/* Once only: allocates the two 64-byte-aligned frame buffers and drains the message queue */
 void func_m002_00000(void) {
     u32 width;
     u32 height;
@@ -86,6 +88,7 @@ void func_m002_00000(void) {
     }
 }
 
+/* Frees the frame buffer allocation if there is one */
 void func_m002_00148(void) {
     if (sBufferBlock != 0) {
         func_8004AA80((void *) sBufferBlock);
@@ -93,11 +96,13 @@ void func_m002_00148(void) {
     }
 }
 
+/* Module teardown: frees the frame buffers */
 void func_m002_0017C(void) {
     func_m002_00148();
 }
 #pragma weak __rl_fini = func_m002_0017C
 
+/* Builds the display list: clears the buffer, sets fog, draws behaviour-0x18 objects linked to kind 0xE6 */
 void func_m002_0019C(void) {
     Gfx *dl;
     Mtx *mtx;
@@ -174,6 +179,7 @@ void func_m002_0019C(void) {
     func_80056000(1);
 }
 
+/* Builds the display list, runs it as a task into the current buffer, then swaps buffers */
 void func_m002_00788(void) {
     func_m002_0019C();
     func_8004DA10(sDisplayLists[D_800FD830], sDisplayListEnds[D_800FD830], 4, D_800FD820[D_800FD830]);
@@ -182,6 +188,7 @@ void func_m002_00788(void) {
     D_800A360C = 1;
 }
 
+/* Calls func_80075C40 */
 void func_m002_00824(void) {
     func_80075C40();
 }

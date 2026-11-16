@@ -7,6 +7,7 @@
  * - A lingering flame (0080C/008CC) with a light that dims and shrinks at the
  *   end of its life.
  * - A halo (009D0/00A24) that grows and fades out.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -128,6 +129,7 @@ typedef struct M120HaloSetup {
 
 s32 D_m120_00AD0 = 120; /* the module's number */
 
+/* Init (burst): four frames of spawning; copies kind, variant, angles, aim and owner from the entry */
 void func_m120_00000(Object *obj, M120BurstSetup *setup) {
     M120Burst *b = obj->unk68;
 
@@ -143,6 +145,10 @@ void func_m120_00000(Object *obj, M120BurstSetup *setup) {
     b->owner = setup->owner;
 }
 
+/*
+ * Control (every frame, burst): animates once then frees itself; fades the linked object; for its first
+ * frames throws sparks, flame particles and a scorch mark, then leaves two dark puffs
+ */
 void func_m120_00060(Object *obj, s32 updateRate) {
     M120Burst *b;
     s32 pitchMin;
@@ -185,11 +191,11 @@ void func_m120_00060(Object *obj, s32 updateRate) {
             spark.x_position = obj->trans.x_position;
             spark.y_position = obj->trans.y_position;
             spark.z_position = obj->trans.z_position;
-            spark.unk18 = 20;
-            spark.unk1A = 10;
-            spark.unk1B = 0xFF;
-            spark.unk1C = 0xFFFF80FF;
-            spark.unk20 = 0xFF0000FF;
+            spark.textureID = 20;
+            spark.lifeSteps = 10;
+            spark.alpha = 0xFF;
+            spark.colour1 = 0xFFFF80FF;
+            spark.colour2 = 0xFF0000FF;
             i = 4;
             if (D_800A4FC4) {
                 i = 2;
@@ -198,7 +204,7 @@ void func_m120_00060(Object *obj, s32 updateRate) {
                 spark.y_rotation = func_80048E2C(-0x8000, 0x7FFF);
                 spark.x_rotation = func_80048E2C(0x1000, 0x3000);
                 spark.speed = func_80048E2C(70, 90) * 0.1f;
-                spark.unk14 = func_80048E2C(25, 50) * 0.1f;
+                spark.sparkSize = func_80048E2C(25, 50) * 0.1f;
                 func_m010_0000C(&spark);
             }
         }
@@ -327,6 +333,7 @@ void func_m120_00060(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (lingering flame): sets scale and lifetime from the entry and adds its light */
 void func_m120_0080C(Object *obj, M120LingerSetup *setup) {
     LightParams lp;
     s32 unusedA;
@@ -352,6 +359,7 @@ void func_m120_0080C(Object *obj, M120LingerSetup *setup) {
     OBJ_STATE(obj, M120Linger)->light = func_800210A4(obj, &lp);
 }
 
+/* Control (every frame, lingering flame): emits and animates; shrinks and dims at the end, then frees */
 void func_m120_008CC(Object *obj, s32 updateRate) {
     s32 anim;
     M120Linger *st;
@@ -379,6 +387,7 @@ void func_m120_008CC(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (halo): sets angles, a tiny scale, and the growth per frame to reach its size over its life */
 void func_m120_009D0(Object *obj, M120HaloSetup *setup) {
     obj->trans.rotation.y_rotation = setup->y_rotation;
     obj->trans.rotation.x_rotation = setup->x_rotation;
@@ -388,6 +397,7 @@ void func_m120_009D0(Object *obj, M120HaloSetup *setup) {
     OBJ_STATE(obj, M120Halo)->alpha = 0xFF;
 }
 
+/* Control (every frame, halo): grows, fades over its last 32 frames, then frees itself */
 void func_m120_00A24(Object *obj, s32 updateRate) {
     M120Halo *st;
 

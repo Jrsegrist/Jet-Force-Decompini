@@ -8,6 +8,7 @@
  * it over a second, and takes 0x5000 hit points off it with an explosion and
  * a sound. With no target left it fades the fog out and frees the effect.
  * The fog getters let the renderer darken the colours while it runs.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

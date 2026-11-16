@@ -1,5 +1,6 @@
 /*
  * Runlink module 143: an enemy kind that flies in a linked group.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

@@ -4,6 +4,7 @@
  * when the home asks for that), notices the player inside its view cone and
  * range when there is a clear line, and goes for the player once it has
  * noticed it and the player is clearly nearer.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -67,6 +68,7 @@ extern void func_m003_0CD34(Object *obj);
 
 s32 D_m140_003B0 = 140; /* the module's number */
 
+/* Picks the enemy's target: the nearest live group object, or the player once seen and clearly nearer */
 void func_m140_00000(Object *obj) {
     M140Enemy *e;
     M140Home *home;

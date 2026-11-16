@@ -3,6 +3,7 @@
  * the offset table in asset 0x3F), turns their offsets into pointers and
  * sets their headers, then builds the triangles of the explosion's ring
  * mesh: a band of 20 vertices (two per step) closed into a loop.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"
@@ -50,6 +51,7 @@ extern void func_8004AA80(void *data);            /* DKR mempool_free */
 
 #define RELOC(e, field) ((e)->field = (void *) ((u8 *) (e) + (s32) (e)->field))
 
+/* Loads and relocates the explosion definitions, sets their headers, and builds the ring's triangles */
 void func_m033_00000(void) {
     s32 *table;
     s32 i;

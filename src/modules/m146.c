@@ -4,6 +4,7 @@
  * way is blocked, goes after food from module 139's list, chases the
  * player when it sees it or a kind-5 object comes near, and returns. A
  * state can only be entered from the states its mask allows.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

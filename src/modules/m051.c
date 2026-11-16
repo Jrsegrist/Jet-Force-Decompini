@@ -4,6 +4,7 @@
  * slow-down helpers, the dying helper and the movement and landing code are
  * the same; its animation tables are smaller, it has no armed animations,
  * and its head and neck commands differ.
+ * Family: bosses (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -297,15 +298,15 @@ static M051Rates sRates[19] = {
 static s16 *sCommand;  /* where the next joint angle command goes */
 static s16 sHitTimer;  /* the state block's unk577, for the turning code */
 
-static void func_m051_008F0(Object *obj, M051Player *p, f32 updateRate);
-static void func_m051_00DC0(Object *obj, M051Player *p, f32 updateRate);
-static void func_m051_00E98(Object *obj, M051Player *p, f32 updateRate);
-static void func_m051_00F44(M051Player *p, s16 pitch, s16 yaw);
-static void func_m051_01038(s16 aimPitch, s16 aimYaw);
-static s32 func_m051_010D4(M051Player *p);
-static void func_m051_01118(Object *obj, M051Player *p, s32 move, f32 frame);
-static void func_m051_01170(Object *obj, M051Player *p, f32 updateRate);
-static void func_m051_0134C(Object *obj, M051Player *p, f32 updateRate);
+static void m051_on_ground(Object *obj, M051Player *p, f32 updateRate);
+static void m051_in_air(Object *obj, M051Player *p, f32 updateRate);
+static void m051_dying(Object *obj, M051Player *p, f32 updateRate);
+static void m051_head_commands(M051Player *p, s16 pitch, s16 yaw);
+static void m051_neck_commands(s16 aimPitch, s16 aimYaw);
+static s32 m051_speed_move_pick(M051Player *p);
+static void m051_move_anim_start(Object *obj, M051Player *p, s32 move, f32 frame);
+static void m051_anim_advance(Object *obj, M051Player *p, f32 updateRate);
+static void m051_move(Object *obj, M051Player *p, f32 updateRate);
 
 void func_m051_00000(Object *obj, s32 updateRate) {
     M051Player *p;
@@ -415,19 +416,19 @@ void func_m051_00000(Object *obj, s32 updateRate) {
             func_m006_015E0(1);
             player_drop_held_object(obj);
             player_items_unlink(p);
-            func_m051_01118(obj, p, 0x17, 0.0f);
+            m051_move_anim_start(obj, p, 0x17, 0.0f);
         }
         p->unk19C = 0;
     }
     switch (p->state & ~0x20) {
         case 0:
-            func_m051_008F0(obj, p, updateRate);
+            m051_on_ground(obj, p, updateRate);
             break;
         case 3:
-            func_m051_00DC0(obj, p, updateRate);
+            m051_in_air(obj, p, updateRate);
             break;
         case 10:
-            func_m051_00E98(obj, p, updateRate);
+            m051_dying(obj, p, updateRate);
             break;
     }
     if (p->unk1F6 != 0) {
@@ -464,8 +465,8 @@ void func_m051_00000(Object *obj, s32 updateRate) {
             p->weapon = weapons->weapon;
         }
     }
-    func_m051_01170(obj, p, updateRate);
-    func_m051_0134C(obj, p, updateRate);
+    m051_anim_advance(obj, p, updateRate);
+    m051_move(obj, p, updateRate);
     if (p->unk5BC != NULL) {
         if ((p->state & ~0x20) == 1) {
             func_m107_00D08(p->unk5BC, 1.0f, 0.75f, 120);
@@ -496,7 +497,7 @@ void func_m051_00000(Object *obj, s32 updateRate) {
         if (obj->animationID == 0xE) {
             anim_phase_clamp(obj, 0);
         } else {
-            func_m051_01118(obj, p, 0xE, 0.0f);
+            m051_move_anim_start(obj, p, 0xE, 0.0f);
         }
         p->unk577 = 40;
     }
@@ -514,8 +515,8 @@ void func_m051_00000(Object *obj, s32 updateRate) {
     }
 }
 
-/* On the ground: jumping, speeding up and slowing down, turning and aiming */
-static void func_m051_008F0(Object *obj, M051Player *p, f32 updateRate) {
+/* On the ground: jumping, speeding up and slowing down, turning and aiming (module m051, 0x008F0). */
+static void m051_on_ground(Object *obj, M051Player *p, f32 updateRate) {
     M051Weapons *weapons;
     s32 prevFacing;
     s16 aimYaw;
@@ -530,7 +531,7 @@ static void func_m051_008F0(Object *obj, M051Player *p, f32 updateRate) {
         p->jumpStartY = obj->trans.y_position;
         p->state = 0x23;
         obj->velocity.y += 10.0f;
-        func_m051_01118(obj, p, 5, 0.0f);
+        m051_move_anim_start(obj, p, 5, 0.0f);
         player_voice_play(obj, 0);
     } else if (gPlayerButtonsHeld & 2) {
         p->speed -= 0.2f * updateRate;
@@ -590,12 +591,12 @@ static void func_m051_008F0(Object *obj, M051Player *p, f32 updateRate) {
     if (p->unk1F6 != 0) {
         aimPitch += (p->unk1F7 * func_8004966C(p->unk1F6 << 12)) >> 8;
     }
-    func_m051_01038(p->unk1DE, p->unk1DC);
-    func_m051_00F44(p, aimPitch, aimYaw);
+    m051_neck_commands(p->unk1DE, p->unk1DC);
+    m051_head_commands(p, aimPitch, aimYaw);
 }
 
-/* In the air */
-static void func_m051_00DC0(Object *obj, M051Player *p, f32 updateRate) {
+/* In the air (module m051, 0x00DC0). */
+static void m051_in_air(Object *obj, M051Player *p, f32 updateRate) {
     if (obj->velocity.y < 0.0f && obj->trans.y_position < p->jumpStartY) {
         p->speed *= func_80049BEC(0.95f, updateRate);
         if (p->speed > -0.1f && p->speed < 0.1f) {
@@ -604,8 +605,8 @@ static void func_m051_00DC0(Object *obj, M051Player *p, f32 updateRate) {
     }
 }
 
-/* Dying */
-static void func_m051_00E98(Object *obj, M051Player *p, f32 updateRate) {
+/* Dying (module m051, 0x00E98). */
+static void m051_dying(Object *obj, M051Player *p, f32 updateRate) {
     obj->interactObj->hitPoints = 0;
     func_80048518(10);
     p->speed *= func_80049BEC(0.85f, updateRate);
@@ -615,8 +616,8 @@ static void func_m051_00E98(Object *obj, M051Player *p, f32 updateRate) {
     }
 }
 
-/* Writes the joint angle commands for the head (they depend on the character) */
-static void func_m051_00F44(M051Player *p, s16 pitch, s16 yaw) {
+/* Writes the joint angle commands for the head (they depend on the character) (module m051, 0x00F44). */
+static void m051_head_commands(M051Player *p, s16 pitch, s16 yaw) {
     if (p->character == 6) {
         *sCommand = 0x36;
         sCommand++;
@@ -638,8 +639,8 @@ static void func_m051_00F44(M051Player *p, s16 pitch, s16 yaw) {
     }
 }
 
-/* Writes the joint angle commands for the neck, its pitch clamped */
-static void func_m051_01038(s16 aimPitch, s16 aimYaw) {
+/* Writes the joint angle commands for the neck, its pitch clamped (module m051, 0x01038). */
+static void m051_neck_commands(s16 aimPitch, s16 aimYaw) {
     if (aimPitch > 0x2AAA) {
         aimPitch = 0x2AAA;
     } else if (aimPitch < -0x2AAA) {
@@ -655,8 +656,8 @@ static void func_m051_01038(s16 aimPitch, s16 aimYaw) {
     sCommand++;
 }
 
-/* The move for the current speed (the same for every speed but zero) */
-static s32 func_m051_010D4(M051Player *p) {
+/* The move for the current speed (the same for every speed but zero) (module m051, 0x010D4). */
+static s32 m051_speed_move_pick(M051Player *p) {
     if (p->speed < 0.0f) {
         return 0;
     }
@@ -666,8 +667,8 @@ static s32 func_m051_010D4(M051Player *p) {
     return 0x12;
 }
 
-/* Starts a move's animation, unless it is playing already (or the boss is dead) */
-static void func_m051_01118(Object *obj, M051Player *p, s32 move, f32 frame) {
+/* Starts a move's animation, unless it is playing already (or the boss is dead) (module m051, 0x01118). */
+static void m051_move_anim_start(Object *obj, M051Player *p, s32 move, f32 frame) {
     if (obj->animationID != 0x17) {
         move = sMoves[move].animArmed;
         if (move != obj->animationID) {
@@ -676,8 +677,8 @@ static void func_m051_01118(Object *obj, M051Player *p, s32 move, f32 frame) {
     }
 }
 
-/* Advances the animation, and picks the next one at the end of some */
-static void func_m051_01170(Object *obj, M051Player *p, f32 updateRate) {
+/* Advances the animation, and picks the next one at the end of some (module m051, 0x01170). */
+static void m051_anim_advance(Object *obj, M051Player *p, f32 updateRate) {
     f32 speed;
     f32 frame;
     f32 startFrame;
@@ -693,21 +694,21 @@ static void func_m051_01170(Object *obj, M051Player *p, f32 updateRate) {
     nextFrame = speed * updateRate + frame;
     switch (anim) {
         case 18:
-            move = func_m051_010D4(p);
+            move = m051_speed_move_pick(p);
             if (p->speed != 0.0f) {
                 frame = 0.25f;
             }
             break;
         case 0:
             speed *= p->speed;
-            move = func_m051_010D4(p);
+            move = m051_speed_move_pick(p);
             if (p->speed == 0.0f) {
                 frame = 0.0f;
             }
             break;
         case 14:
             if (nextFrame >= 1.0f) {
-                move = func_m051_010D4(p);
+                move = m051_speed_move_pick(p);
                 frame = 0.0f;
             }
             break;
@@ -721,18 +722,18 @@ static void func_m051_01170(Object *obj, M051Player *p, f32 updateRate) {
                 speed = (1.0f - frame) / updateRate;
             }
             if (p->unk56B == 0) {
-                move = func_m051_010D4(p);
+                move = m051_speed_move_pick(p);
                 frame = 0.0f;
             }
             break;
     }
     obj_anim_frame_advance(obj, speed, updateRate);
     anim_sound_events_play(obj, startFrame, speed);
-    func_m051_01118(obj, p, move, frame);
+    m051_move_anim_start(obj, p, move, frame);
 }
 
-/* Moves the boss: gravity, staying inside the arena, and landing */
-static void func_m051_0134C(Object *obj, M051Player *p, f32 updateRate) {
+/* Moves the boss: gravity, staying inside the arena, and landing (module m051, 0x0134C). */
+static void m051_move(Object *obj, M051Player *p, f32 updateRate) {
     M051ArenaEntry *entry;
     s32 count2;
     s32 count1;
@@ -801,9 +802,9 @@ static void func_m051_0134C(Object *obj, M051Player *p, f32 updateRate) {
         if (height <= 0.0f) {
             if (p->state == 0x23 && obj->animationID == 0x10) {
                 p->unk56B = 10;
-                func_m051_01118(obj, p, 0x11, 0.0f);
+                m051_move_anim_start(obj, p, 0x11, 0.0f);
             } else if (p->state != 0x20) {
-                func_m051_01118(obj, p, func_m051_010D4(p), 0.0f);
+                m051_move_anim_start(obj, p, m051_speed_move_pick(p), 0.0f);
             }
             if (p->state != 0x2A) {
                 p->state = 0x20;
@@ -811,13 +812,13 @@ static void func_m051_0134C(Object *obj, M051Player *p, f32 updateRate) {
             obj->velocity.y = 0.0f;
             func_80009A04(obj, 0.0f, -height, 0.0f);
         } else if (obj->animationID == 5 && obj->trans.y_position < p->jumpStartY && height > 25.0f) {
-            func_m051_01118(obj, p, 0x10, 0.0f);
+            m051_move_anim_start(obj, p, 0x10, 0.0f);
         } else if (height > 25.0f) {
             if (p->state != 0x23) {
                 if (p->state != 0x2A) {
                     p->state = 0x23;
                 }
-                func_m051_01118(obj, p, 0x10, 0.0f);
+                m051_move_anim_start(obj, p, 0x10, 0.0f);
             }
         }
     }

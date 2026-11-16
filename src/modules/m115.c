@@ -1,6 +1,7 @@
 /*
  * Runlink module 115: a pad that switches night vision on or off when the
  * player presses the button on it, showing a cut-scene camera meanwhile.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -44,6 +45,7 @@ extern void func_m085_00074(s32 camera);
 extern void func_m085_00250(void *view, Object *camera, s32 updateRate);
 extern void func_m077_00000(s32, s32);
 
+/* Init: sets the pad's area, height range and the two cut-scene cameras, and adds its collider */
 void func_m115_00000(Object *obj, M115Setup *setup) {
     M115Pad *p = obj->unk68;
     f32 r = setup->radius;
@@ -58,6 +60,7 @@ void func_m115_00000(Object *obj, M115Setup *setup) {
     obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
+/* Control (every frame): A on the pad with item 0x16 runs a cut-scene, then switches night vision on or off */
 void func_m115_000E4(Object *obj, s32 updateRate) {
     s32 on;
     M115Pad *p;

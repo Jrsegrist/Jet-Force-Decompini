@@ -5,6 +5,7 @@
  * plays a sound, then is freed or switches to its second model. A
  * collectable whose conditions (game flags or the player's items) say it
  * was already taken goes away when it is first run.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -63,11 +64,16 @@ static M043Collectable D_m043_00400[] = {
     { -1, 0, { 0xFF, 0xFF }, { 0, 0 }, -1, -1, 1024.0f, -45.0f, 45.0f, 40000.0f, 0, 0 },
 };
 
+/* Init: shows model 0 and marks the conditions to be checked on the first run */
 void func_m043_00000(Object *obj, LevelObjectEntryCommon *setup) {
     obj->modelIndex = 0;
     *OBJ_STATE(obj, s32) = 1; /* check the conditions on the first run */
 }
 
+/*
+ * Control (every frame): goes away if already taken, spins, runs emitters when the player is near, and
+ * on touch sets the flag or gives the item, queues the message, plays the sound and goes away
+ */
 void func_m043_00014(Object *obj, s32 updateRate) {
     M043Collectable *e;
     s32 got[2];

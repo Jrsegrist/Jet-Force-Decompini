@@ -1,6 +1,7 @@
 /*
  * Runlink module 62: the multiplayer mode select of the front end (the
  * choice of game mode and its settings).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -282,9 +283,9 @@ extern void viewport_scissor(Gfx **dl);
 extern void func_m038_00000(void);
 
 #define MODE_MASK (*(u16 *) &D_800FF318[0x68])
-static void func_m062_01158(s32 updateRate);
-static void func_m062_01A48(s32 updateRate);
-static void func_m062_0228C(s32 updateRate);
+static void mpmode_settings_page_first(s32 updateRate);
+static void mpmode_settings_page_second(s32 updateRate);
+static void mpmode_setting_pick(s32 updateRate);
 
 /* Draws the mode select, reads the players' input and runs the page picked */
 void func_m062_001E4(s32 updateRate) {
@@ -542,20 +543,20 @@ void func_m062_001E4(s32 updateRate) {
     }
     switch (D_800A506C) {
         case 0:
-            func_m062_01158(updateRate);
+            mpmode_settings_page_first(updateRate);
             break;
         case 1:
-            func_m062_01A48(updateRate);
+            mpmode_settings_page_second(updateRate);
             break;
         case 2:
-            func_m062_0228C(updateRate);
+            mpmode_setting_pick(updateRate);
             break;
     }
     viewport_scissor(&D_800FF398);
 }
 
-/* The first mode's settings page */
-static void func_m062_01158(UNUSED s32 updateRate) {
+/* The first mode's settings page (module m062, 0x01158). */
+static void mpmode_settings_page_first(UNUSED s32 updateRate) {
     UNUSED s32 pad;
     s32 old;
     char buf[0x100];
@@ -708,8 +709,8 @@ static void func_m062_01158(UNUSED s32 updateRate) {
     }
 }
 
-/* The second mode's settings page */
-static void func_m062_01A48(UNUSED s32 updateRate) {
+/* The second mode's settings page (module m062, 0x01A48). */
+static void mpmode_settings_page_second(UNUSED s32 updateRate) {
     s32 mask;
     s32 old;
     char buf[0x100];
@@ -879,8 +880,8 @@ static void func_m062_01A48(UNUSED s32 updateRate) {
     }
 }
 
-/* Changes the setting being picked with the stick and draws it; the third button starts the game (called from 001E4) */
-static void func_m062_0228C(UNUSED s32 arg0) {
+/* Changes the setting being picked with the stick and draws it; the third button starts the game (called from 001E4) (module m062, 0x0228C). */
+static void mpmode_setting_pick(UNUSED s32 arg0) {
     s32 mask;
     s32 old;
     char buf[0x100];

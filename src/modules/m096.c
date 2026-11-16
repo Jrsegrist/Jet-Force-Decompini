@@ -3,6 +3,7 @@
  * sticks to what it hits (following that object if it moves), bounces off
  * one kind of surface, and is destroyed by another (with a sound). It is
  * freed when its time runs out.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

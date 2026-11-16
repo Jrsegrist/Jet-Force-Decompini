@@ -4,6 +4,7 @@
  * fly-by sound when it passes a player. When it hits something it can bounce
  * off (reflected about the surface normal), split into smaller shots fanned
  * around the normal, or stop and play the surface's hit sound and particles.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

@@ -59,12 +59,12 @@ typedef struct SparkParams {
     /* 0x08 */ f32 x_position;
     /* 0x0C */ f32 y_position;
     /* 0x10 */ f32 z_position;
-    /* 0x14 */ f32 unk14;
-    /* 0x18 */ s16 unk18;
-    /* 0x1A */ u8 unk1A;
-    /* 0x1B */ u8 unk1B;
-    /* 0x1C */ s32 unk1C; /* colours? */
-    /* 0x20 */ s32 unk20;
+    /* 0x14 */ f32 sparkSize;
+    /* 0x18 */ s16 textureID;
+    /* 0x1A */ u8 lifeSteps; /* the spark lives 6 frames per step */
+    /* 0x1B */ u8 alpha;
+    /* 0x1C */ s32 colour1;
+    /* 0x20 */ s32 colour2;
 } SparkParams;
 extern void *func_m010_0000C(SparkParams *spark); /* returns the spark (callers ignore it) */
 

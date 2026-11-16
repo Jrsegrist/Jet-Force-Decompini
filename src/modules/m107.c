@@ -4,6 +4,7 @@
  * (three rings of particles that orbit the player, each with a light and a
  * colour cycle) for the pick-up's duration, and the pick-up comes back after
  * its respawn time.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -114,6 +115,7 @@ static Triangle sTriangles[16];
 static s16 sCircle[32][2];
 static u8 sTablesBuilt;
 
+/* Init (pick-up): sets the shield duration and respawn time (seconds) from the entry, fully shown */
 void func_m107_00000(Object *obj, LevelObjectEntryCommon *entry) {
     M107State *state = OBJ_STATE(obj, M107State);
 
@@ -123,6 +125,7 @@ void func_m107_00000(Object *obj, LevelObjectEntryCommon *entry) {
     state->fade = 255;
 }
 
+/* Control (every frame, pick-up): spins and fades in; a touching player gets the shield and invincibility */
 void func_m107_00038(Object *obj, s32 updateRate) {
     M107State *state = OBJ_STATE(obj, M107State);
     M107Player *player;
@@ -401,6 +404,7 @@ void func_m107_005C0(Object *obj, s32 updateRate) {
     }
 }
 
+/* Sets the shield's target height and scales, which it eases towards */
 void func_m107_00D08(Object *obj, f32 scaleX, f32 scaleY, s32 height) {
     M107Shield *shield = obj->unk68;
 

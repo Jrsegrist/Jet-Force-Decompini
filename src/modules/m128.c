@@ -1,4 +1,7 @@
-/* Runlink module 128: a pole that the player sets off by walking up to it. */
+/*
+ * Runlink module 128: a pole that the player sets off by walking up to it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M128Setup {
@@ -23,6 +26,7 @@ typedef struct M128Pole {
 extern void func_80001170(s32);
 extern void func_8003F1C8(void *, s32, s32, Object *);
 
+/* Init: sets scale, angle, flag and the trigger area; starts set off if the flag is already set */
 void func_m128_00000(Object *obj, M128Setup *setup) {
     M128Pole *pole = obj->unk68;
 
@@ -42,6 +46,7 @@ void func_m128_00000(Object *obj, M128Setup *setup) {
     obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
+/* Control (every frame): when the player walks into the area, sets the flag, sounds, messages; then animates */
 void func_m128_00188(Object *obj, s32 updateRate) {
     Object *player;
     void *playerData;

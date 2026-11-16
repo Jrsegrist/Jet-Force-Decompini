@@ -3,6 +3,7 @@
  * launched (then it flies off in the direction of its setup angles). It has
  * its own transform matrix for drawing (pushed by 013B4); 00000 stops its
  * sound and switches it to the finished state.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -164,6 +165,7 @@ extern void func_8003D21C(M112Instance *inst, M112Model *model, Object *obj, f32
 extern void func_800221F0(Object *obj, M112Instance *inst, ObjectShading *shading, MtxF *mtx);
 extern void obj_tex_animate(Object *obj, M112Model *model, M112Instance *inst, s32 arg3);
 
+/* Unless it is going off, stops its sound and switches it to the finished (fading) state */
 void func_m112_00000(Object *obj) {
     M112State *s = obj->unk68;
 
@@ -176,6 +178,7 @@ void func_m112_00000(Object *obj) {
     }
 }
 
+/* Init: placed ones wait as type 0; launched ones get velocity, type, count, delay; sets collider, matrix */
 void func_m112_0005C(Object *obj, M112Setup *setup) {
     M112State *s = obj->unk68;
     f32 size;
@@ -586,6 +589,7 @@ void func_m112_01004(Gfx **dList, Mtx **mtx, Object *obj) {
     }
 }
 
+/* Pushes the object's own transform matrix for drawing */
 void func_m112_013B4(Gfx **dList, Mtx **mtx, Object *obj) {
     M112State *s = obj->unk68;
 

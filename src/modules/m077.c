@@ -3,6 +3,7 @@
  * along its facing; it starts apart when its condition (a level state or a
  * player stat) holds, and other code can tell every barrier with an id to
  * part or shut. While shut it blocks (interaction flag 1).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -74,6 +75,7 @@ extern void func_80055B80(Gfx **dl);
         _g->words.w1 = (u32) (m);                  \
     }
 
+/* Tells every barrier (behaviour 0x81) with the id to part (apart == 1) or to shut */
 void func_m077_00000(s32 id, s32 apart) {
     s32 first;
     s32 count;
@@ -103,6 +105,7 @@ void func_m077_00000(s32 id, s32 apart) {
     }
 }
 
+/* Whether a start condition holds: 1 always, 2/3 a level byte set/clear, 4-6 a player stat of 0/1/2 */
 s32 func_m077_000FC(s32 condition) {
     M077Env *env = func_8004470C();
     M077Stats *stats = char_record_lookup(0, pending_level_character());
@@ -139,6 +142,7 @@ s32 func_m077_000FC(s32 condition) {
     return 0;
 }
 
+/* Init: sets id, angle, scale, travel and speeds, starts apart if its condition holds, adds its collider */
 void func_m077_00200(Object *obj, M077Setup *setup) {
     M077Slider *d = obj->unk68;
 
@@ -161,6 +165,7 @@ void func_m077_00200(Object *obj, M077Setup *setup) {
     obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 32.0f, obj->trans.scale * 32.0f, -1.0f, 1.0f, 1);
 }
 
+/* Control (every frame): eases the halves apart or shut, blocking only while shut */
 void func_m077_00374(Object *obj, s32 updateRate) {
     M077Slider *d = obj->unk68;
 
@@ -194,6 +199,7 @@ void func_m077_00374(Object *obj, s32 updateRate) {
     }
 }
 
+/* Draws the two halves, each moved out by the offset along the facing, at the barrier's brightness */
 void func_m077_00548(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     f32 x;
     f32 z;

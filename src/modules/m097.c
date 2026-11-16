@@ -1,4 +1,7 @@
-/* Runlink module 97: a fragment that flies off when something is hit, tumbling and bouncing until it fades. */
+/*
+ * Runlink module 97: a fragment that flies off when something is hit, tumbling and bouncing until it fades.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M097Setup {
@@ -33,6 +36,7 @@ extern M097Level *func_8004470C(void); /* DKR levelGetLevel */
 
 s32 D_m097_003C0 = 97; /* the module's number */
 
+/* Init: sets velocity, scale, gravity and lifetime from the entry, a random spin, and a collider if it has one */
 void func_m097_00000(Object *obj, M097Setup *setup) {
     M097Fragment *f = obj->unk68;
 
@@ -50,6 +54,7 @@ void func_m097_00000(Object *obj, M097Setup *setup) {
     }
 }
 
+/* Control (every frame): tumbles and falls, fading at the end; on a hit, shot or timeout puffs, sounds, frees */
 void func_m097_00100(Object *obj, s32 updateRate) {
     s32 spin;
     HitResult hit;

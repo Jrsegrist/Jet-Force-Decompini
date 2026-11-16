@@ -3,6 +3,7 @@
  * slide in from alternate sides, stay for a while (or until the script lets
  * them go) and slide out again; a small script of commands decides which
  * texts come next.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -163,6 +164,7 @@ static s16 sNextText;
 static s16 sFinished;
 static s8 sSoundPlayed;
 
+/* Resets the five lines to off-screen and starts the script at the beginning */
 void func_m059_00000(void) {
     M059Line *line;
     s32 i;
@@ -183,6 +185,7 @@ void func_m059_00000(void) {
     sSoundPlayed = 0;
 }
 
+/* Every frame: slides the lines in and out, runs the script's next command, and draws the shadowed texts */
 void func_m059_00140(s32 updateRate) {
     M059Line *line;
     s32 i;

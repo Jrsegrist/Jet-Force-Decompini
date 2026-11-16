@@ -3,6 +3,7 @@
  * the model the object's header names (or every model it has), it allocates
  * one 32 KiB block, fills it in, then shrinks the block to what was used and
  * keeps it in the model instance or in the model itself.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

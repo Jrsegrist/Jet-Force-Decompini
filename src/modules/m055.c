@@ -4,6 +4,7 @@
  * slot advances its time (looping, ping-pong or one shot) and loads the frames
  * it needs, and the render function blends the current frame with the next one
  * as screen rectangles, in strips that fit the texture memory.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

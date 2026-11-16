@@ -5,6 +5,7 @@
  * shapes, loads the particle and behaviour tables, makes each colour-cycling
  * particle's colour table, and allocates the vertex buffers, the particle
  * lists, the line and point sets, the dummy textures and the emitter pool.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

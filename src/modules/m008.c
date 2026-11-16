@@ -3,6 +3,7 @@
  * bounce off the level (with a sound) and leave a mark, and a pool of 5
  * sprites drawn at hit points; other modules add to the pools, and the
  * module updates and draws them.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -74,8 +75,8 @@ extern s32 rl_m008_02D38;
  * keeps the ROM's plain loop on the counter (a `for` is unrolled four times), the store after
  * `p++` gives its negative offset, and `i = 0; p = sDrops;` on one line its register order.
  */
-/* Loads the textures and clears the pools */
-static void func_m008_00000(void) {
+/* Loads the textures and clears the pools (module m008, 0x00000). */
+static void fxdrops_pools_init(void) {
     s32 i;
     M008Drop *p;
 
@@ -147,7 +148,7 @@ void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 angle, s32
     s32 i;
 
     if (!sLoaded) {
-        func_m008_00000();
+        fxdrops_pools_init();
     }
     i = 0;
     if (sDropCount < 64) {
@@ -188,7 +189,7 @@ void func_m008_00334(f32 x, f32 y, f32 z, s32 arg3, s32 arg4) {
     s32 i;
 
     if (!sLoaded) {
-        func_m008_00000();
+        fxdrops_pools_init();
     }
     i = 0;
     if (sHitCount < 5) {

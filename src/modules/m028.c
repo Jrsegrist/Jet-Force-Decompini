@@ -2,6 +2,7 @@
  * Runlink module 28: a beam that follows a track. Its object spawns the beam
  * object (the module's other behaviour) and every frame hands it its own
  * position, facing and strength, or turns it off while hidden.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

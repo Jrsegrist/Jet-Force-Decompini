@@ -2,6 +2,7 @@
  * Runlink module 105: an object made of a row of segments that sags under the
  * player's weight (its model's vertices are moved up and down along its
  * length), with its collision data rebuilt as it moves.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -4,6 +4,7 @@
  * parameters); the update recolours the vertices of the flagged model
  * segments from that table, by a phase that advances each frame, either
  * modulating their base colours or taking the brighter of the two.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 
@@ -56,6 +57,7 @@ static u8 *sTable = NULL;
 static s32 sMode = 1;
 static s32 sPhase = 0;
 
+/* Writes a 64-step RGB gradient from one colour to another */
 static void makeGradient(u8 *dst, s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2) {
     s32 i;
 
@@ -77,6 +79,7 @@ static void makeGradient(u8 *dst, s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2) {
     }
 }
 
+/* Allocates the 256-colour table (C to B to A to B to C), resets the phase and takes the mode */
 void func_m027_0008C(M027Params *params) {
     sTable = func_8004A57C(0x300, -1);
     if (sTable != NULL) {
@@ -102,6 +105,7 @@ void func_m027_001A8(void) {
 }
 #pragma weak __rl_fini = func_m027_001A8
 
+/* Advances the phase and recolours the flagged segments' vertices from the table by position and phase */
 void func_m027_001DC(u8 *flags, M027Model *model, s32 delta) {
     u8 *table;
     s32 phase;

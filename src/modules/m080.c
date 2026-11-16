@@ -4,6 +4,7 @@
  * same corner positions). Init copies the triangles' vertex indices once and
  * masks their texture coordinates to the size of the chosen texture; control
  * (002A0, with its helper 01324) moves and animates it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

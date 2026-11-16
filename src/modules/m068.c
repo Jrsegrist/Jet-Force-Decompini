@@ -1,6 +1,7 @@
 /*
  * Runlink module 68: a large boss and the objects it uses (still mostly
  * assembly).
+ * Family: bosses (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -3029,18 +3030,18 @@ void func_m068_0D05C(Object *obj, s32 updateRate) {
         spark.x_position = obj->trans.x_position;
         spark.y_position = obj->trans.y_position;
         spark.z_position = obj->trans.z_position;
-        spark.unk18 = 20;
-        spark.unk1A = 20;
-        spark.unk1B = 190;
-        spark.unk1C = -1;
-        spark.unk20 = 0x8C0EF4FF;
+        spark.textureID = 20;
+        spark.lifeSteps = 20;
+        spark.alpha = 190;
+        spark.colour1 = -1;
+        spark.colour2 = 0x8C0EF4FF;
         spark.x_rotation = 0x2000;
         angle = obj->trans.rotation.y_rotation - 0x4000;
         rate = 0.1f;
         for (i = 0; i < 8; i++) {
             spark.y_rotation = angle;
             spark.speed = func_80048E2C(10, 50) * rate;
-            spark.unk14 = func_80048E2C(10, 50) * rate;
+            spark.sparkSize = func_80048E2C(10, 50) * rate;
             func_m010_0000C(&spark);
             angle += 0x2000;
         }
@@ -3274,18 +3275,18 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
         spark.x_position = obj->trans.x_position;
         spark.y_position = obj->trans.y_position;
         spark.z_position = obj->trans.z_position;
-        spark.unk18 = 20;
-        spark.unk1A = 20;
-        spark.unk1B = 190;
-        spark.unk1C = -1;
-        spark.unk20 = 0xFF64FF;
+        spark.textureID = 20;
+        spark.lifeSteps = 20;
+        spark.alpha = 190;
+        spark.colour1 = -1;
+        spark.colour2 = 0xFF64FF;
         spark.x_rotation = obj->trans.rotation.x_rotation;
         a = obj->trans.rotation.y_rotation - 0x4000;
         r = 0.1f;
         for (i = 0; i < 6; i++) {
             spark.y_rotation = a;
             spark.speed = func_80048E2C(80, 100) * r;
-            spark.unk14 = func_80048E2C(80, 100) * r;
+            spark.sparkSize = func_80048E2C(80, 100) * r;
             func_m010_0000C(&spark);
             a += 0x1554;
         }
@@ -4082,24 +4083,24 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             spark.x_position = obj->trans.x_position;
             spark.y_position = obj->trans.y_position;
             spark.z_position = obj->trans.z_position;
-            spark.unk18 = 20;
-            spark.unk1A = 10;
-            spark.unk1B = 255;
+            spark.textureID = 20;
+            spark.lifeSteps = 10;
+            spark.alpha = 255;
             if (b->kind == 0) {
-                spark.unk1C = 0xFFFF80FF;
-                spark.unk20 = 0xFFFF;
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFFFF;
             } else if (b->kind == 1) {
-                spark.unk1C = 0xFFFF80FF;
-                spark.unk20 = 0xFF0000FF;
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFF0000FF;
             } else if (b->kind == 2) {
-                spark.unk1C = 0xFFFF80FF;
-                spark.unk20 = 0xFF00FF;
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFF00FF;
             }
             for (i = 0; i < 6; i++) {
                 spark.y_rotation = func_80048E2C(yaw[0], yaw[1]);
                 spark.x_rotation = func_80048E2C(pitch[0], pitch[1]);
                 spark.speed = b->speed;
-                spark.unk14 = func_80048E2C(25, 50) * 0.1f;
+                spark.sparkSize = func_80048E2C(25, 50) * 0.1f;
                 func_m010_0000C(&spark);
             }
         }

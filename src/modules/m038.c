@@ -1,4 +1,7 @@
-/* Runlink module 38: draws the dark full-screen backdrop behind the pause menu. */
+/*
+ * Runlink module 38: draws the dark full-screen backdrop behind the pause menu.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
+ */
 #include "module.h"
 #include "gfx.h"
 
@@ -21,6 +24,7 @@ static Triangle sScreenQuadTris[2] = {
     { 0x40, 2, 3, 1, { { 0, 0 }, { 0, 0 }, { 0, 0 } } },
 };
 
+/* Draws a full-screen quad in an orthographic view, shaded from black (y -120) to dark blue (y 120) */
 void func_m038_00000(void) {
     func_80040D64(&D_800FF398, &D_800FF39C);
     func_80055B80(&D_800FF398);

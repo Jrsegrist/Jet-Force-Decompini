@@ -4,6 +4,7 @@
  * state 0 or 2, and every object of kind 0x4D), rebuilt from the active
  * objects, with queries for the nearest one, whether one is in a zone and
  * whether an object is on the list.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -43,6 +44,7 @@ void func_m139_00000(void) {
 }
 #pragma weak __rl_init = func_m139_00000
 
+/* Rebuilds the list from the active objects (up to 32) */
 void func_m139_00030(void) {
     s32 start;
     s32 end;

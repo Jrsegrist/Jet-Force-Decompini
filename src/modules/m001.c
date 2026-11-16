@@ -1,6 +1,7 @@
 /*
  * Runlink module 1: a pool of 32 small particles (drops) that fall, land and
  * spread out as a fading splash, each drawn as two textured quads.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -54,9 +55,9 @@ static void *D_m001_00C54 = NULL; /* loaded with func_80056798 */
 static u8 *sSplashTexture = NULL;   /* texture, loaded with func_80055694 */
 static s32 sDropsInUse = 0;      /* particles in use */
 static M001Particle sDropPool[32];
-static s32 sDropsLoaded; /* Loads the drop resources and clears the pool of 32 drops (module m001, 0x00000). */
-/* set once the resources are loaded */
+static s32 sDropsLoaded; /* set once the resources are loaded */
 
+/* Loads the drop resources and clears the pool of 32 drops (module m001, 0x00000). */
 static void drop_pool_init(void) {
     s32 i;
     s32 j;
@@ -93,6 +94,7 @@ static void drop_pool_init(void) {
     sDropsLoaded = 1;
 }
 
+/* Frees the drop resources (the two sprites and the splash texture) */
 void func_m001_00120(void) {
     if (D_m001_00C50 != NULL) {
         func_80056C14(D_m001_00C50);
@@ -106,6 +108,7 @@ void func_m001_00120(void) {
     sDropsLoaded = 0;
 }
 
+/* Adds a falling drop at a position with a velocity and a floor height; NULL when all 32 are in use */
 M001Particle *func_m001_00188(f32 scale, f32 x, f32 y, f32 z, f32 floorY, f32 vx, f32 vy, f32 vz) {
     M001Particle *p;
     s32 i;
@@ -140,6 +143,7 @@ M001Particle *func_m001_00188(f32 scale, f32 x, f32 y, f32 z, f32 floorY, f32 vx
     return p;
 }
 
+/* Moves one drop: falls until it reaches its floor, then spreads and fades as a splash until it is freed */
 void func_m001_002A0(M001Particle *p, s32 updateRate) {
     f32 size;
     s16 y;
@@ -193,6 +197,7 @@ void func_m001_002A0(M001Particle *p, s32 updateRate) {
     }
 }
 
+/* Every frame: moves every drop in use */
 void func_m001_00600(s32 updateRate) {
     M001Particle *p;
     s32 i;

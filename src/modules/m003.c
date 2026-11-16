@@ -3,6 +3,7 @@
  * member being processed (and its troop's home object) in module state, moves
  * members between way points (module 154's graph), keeps the level's regions,
  * and handles hits, deaths and missions. Most of it is still in assembly.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -345,7 +346,7 @@ extern s32 troop_find_member(s16 arg0, u8 arg1);
 extern void stats_kill_add(s32 sound);
 extern void troop_spawn_context_set(Object *obj, Object *home);
 extern void func_m154_017E8(Object *home);
-static s32 func_m003_0527C(f32 x, f32 y, f32 z);
+static s32 troop_player_nearest(f32 x, f32 y, f32 z);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern void func_m003_0DF84(); /* (Object *obj, void *entry); one C caller passes nothing */
 extern void func_m003_15ED8(s32 arg0, s32 arg1);
@@ -396,8 +397,8 @@ extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
-static s32 func_m003_04968(s32 index, s32 anim, s32 adjust);
-static s32 func_m003_04614(s32 anim, s32 arg1);
+static s32 troop_anim_start(s32 index, s32 anim, s32 adjust);
+static s32 troop_anim_pick(s32 anim, s32 arg1);
 extern void rl_m003_044F4(Object *obj);
 
 /* An animation entry (8 bytes) */
@@ -1161,9 +1162,9 @@ extern M003AnimPath **D_801045B0;
 
 /*
  * The node after `node`: at a junction, the start of one of the junction's exits, picked at random by
- * weight. (If no junction object has the id, `j` is used unset, as in the original.)
+ * weight. (If no junction object has the id, `j` is used unset, as in the original.) (module m003, 0x01D3C).
  */
-static M003PathNode *func_m003_01D3C(M003PathNode *node) {
+static M003PathNode *troop_path_node_next(M003PathNode *node) {
     s32 first;
     s32 count;
     s32 i;
@@ -1298,7 +1299,7 @@ static void func_m003_01EB8(void) {
                 } else {
                     node->next = node + 1;
                 }
-                from = func_m003_01D3C(from);
+                from = troop_path_node_next(from);
                 node++;
             } while (i--);
             path->obj->trans.flags |= 0x400;
@@ -1319,9 +1320,9 @@ extern void rl_m003_01EB8(void);
 /*
  * A troop on a path group follows the group's path: when the path's current node has moved on from the one
  * the troop last saw, the group's node goes on one (copied into the node two before the current one), and
- * the count goes round 0-3. The path's object is flagged 0x400.
+ * the count goes round 0-3. The path's object is flagged 0x400 (module m003, 0x021C8).
  */
-static void func_m003_021C8(void) {
+static void troop_group_path_follow(void) {
     s32 index;
     M003AnimPath *path;
     M003PathNode *src;
@@ -1341,7 +1342,7 @@ static void func_m003_021C8(void) {
     if (n != sHomeData->unk79) {
         src = sGroupNodes[sHomeData->group];
         dst = cur->prev->prev;
-        sGroupNodes[sHomeData->group] = func_m003_01D3C(src);
+        sGroupNodes[sHomeData->group] = troop_path_node_next(src);
         dst->rot[0] = src->rot[0];
         dst->rot[1] = src->rot[1];
         dst->rot[2] = src->rot[2];
@@ -1394,7 +1395,7 @@ void func_m003_0237C(void) {
             if (sHomeData->group == -1) {
                 func_m003_01EB8();
             } else {
-                func_m003_021C8();
+                troop_group_path_follow();
             }
             if (sHomeData->unk77 == 0xFF) {
                 i = 15;
@@ -2036,8 +2037,8 @@ void func_m003_04398(s32 mission, s32 arg1) {
     }
 }
 
-/* Whether the member may go from its current animation kind to `kind` */
-static s32 func_m003_043FC(s32 kind) {
+/* Whether the member may go from its current animation kind to `kind` (module m003, 0x043FC). */
+static s32 troop_anim_kind_allowed(s32 kind) {
     s32 mask = rl_m003_197D4[kind];
 
     return mask & (1 << sMember->unk4B);
@@ -2061,8 +2062,8 @@ M003Anim *func_m003_04428(Object *obj) {
 }
 
 
-/* The current member's animation speed: its first animation entry's unk0, scaled */
-static f32 func_m003_044B4(void) {
+/* The current member's animation speed: its first animation entry's unk0, scaled (module m003, 0x044B4). */
+static f32 troop_anim_speed(void) {
     return func_m003_04428(sObj)->unk0 * 0.0001f;
 }
 
@@ -2142,9 +2143,9 @@ typedef struct M003Word4 {
 /*
  * Picks one of the current body's animation entries of kind `anim` at random, by weight; -1 if there is
  * none. Kinds 5 and 6 follow the home's flags (0x2 / 0x8000), and kind 5 becomes 0xC or 0x34 by two of the
- * member's bits. Unless `arg1`, the member's unkA records the kind.
+ * member's bits. Unless `arg1`, the member's unkA records the kind (module m003, 0x04614).
  */
-static s32 func_m003_04614(s32 anim, s32 arg1) {
+static s32 troop_anim_pick(s32 anim, s32 arg1) {
     M003Anim *a;
     s32 count;
     s32 first;
@@ -2225,9 +2226,9 @@ static s32 func_m003_04614(s32 anim, s32 arg1) {
 
 /*
  * Starts animation `index` of the member's body (asked for as kind `anim`); with `adjust`, some bodies
- * swap in other entries for kinds 0x21, 0x25, 0x16 and 0x19. Returns the index started, or -1.
+ * swap in other entries for kinds 0x21, 0x25, 0x16 and 0x19. Returns the index started, or -1 (module m003, 0x04968).
  */
-static s32 func_m003_04968(s32 index, s32 anim, s32 adjust) {
+static s32 troop_anim_start(s32 index, s32 anim, s32 adjust) {
     M003Anim *a;
     s32 r;
 
@@ -2267,7 +2268,7 @@ static s32 func_m003_04968(s32 index, s32 anim, s32 adjust) {
         }
     }
     if (anim == 1 && sHomeData->unk30 == 3) {
-        r = func_m003_04614(0x3B, 1);
+        r = troop_anim_pick(0x3B, 1);
         if (r != -1) {
             index = r;
         }
@@ -2316,7 +2317,7 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
     s32 last;
     s32 index;
 
-    if (!func_m003_043FC(kind)) {
+    if (!troop_anim_kind_allowed(kind)) {
         return -1;
     }
     index = -1;
@@ -2337,11 +2338,11 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
             if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
                 return -1;
             }
-            index = func_m003_04614(anim, 0);
+            index = troop_anim_pick(anim, 0);
             last = anim;
         } while (i-- != 0 && index == -1 && anims[i] != 0);
     }
-    result = func_m003_04968(index, last, 1);
+    result = troop_anim_start(index, last, 1);
     if (result != -1) {
         sMember->unk4B = kind;
     }
@@ -2356,13 +2357,13 @@ s32 func_m003_04EC4(s32 arg0, s32 index) {
     s32 anim = rl_m003_17DB8[rl_m003_19278[sBodyIndex * 2] + index].anim;
     s32 result;
 
-    if (!func_m003_043FC(arg0)) {
+    if (!troop_anim_kind_allowed(arg0)) {
         return -1;
     }
     if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
         return -1;
     }
-    result = func_m003_04968(index, anim, 0);
+    result = troop_anim_start(index, anim, 0);
     if (result != -1) {
         sMember->unk4B = arg0;
     }
@@ -2378,7 +2379,7 @@ s32 func_m003_04F88(s32 kind, f32 speed) {
     if (kind == sMember->unk4B) {
         anims = func_m003_04428(sObj);
         sMember->unk60 = sObj->unk28;
-        result = obj_anim_frame_advance(sObj, func_m003_044B4() * speed, sUpdateRate);
+        result = obj_anim_frame_advance(sObj, troop_anim_speed() * speed, sUpdateRate);
         if (result) {
             if (sHomeData->kind == 0xBD) {
                 flash = &sMember->unkA8;
@@ -2397,7 +2398,7 @@ s32 func_m003_04F88(s32 kind, f32 speed) {
                 }
                 if (anims[1].anim == 0x35 && sMember->unk4B != 9) {
                     sMember->animSet++;
-                    func_m003_04968(sMember->animSet, 0x35, 1);
+                    troop_anim_start(sMember->animSet, 0x35, 1);
                     return 0;
                 }
             } else if (sMember->unk55 == 0) {
@@ -2415,7 +2416,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
     s32 index;
     M003Anim *e;
 
-    if (!func_m003_043FC(kind)) {
+    if (!troop_anim_kind_allowed(kind)) {
         return 0;
     }
     if (kind == sMember->unk4B && anim == sMember->unkA) {
@@ -2427,7 +2428,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
         sMember->unkA = anim;
         index = rl_m003_19434;
     } else {
-        index = func_m003_04614(anim, 0);
+        index = troop_anim_pick(anim, 0);
     }
     if (index == -1) {
         return 0;
@@ -2437,7 +2438,7 @@ s32 func_m003_0512C(s32 kind, f32 speed, s32 anim) {
         sMember->unk56 = e->unk3 & 0x7F;
     }
     if (index != sMember->animSet) {
-        func_m003_04968(index, anim, 1);
+        troop_anim_start(index, anim, 1);
     }
     sMember->unk4B = kind;
     return 0;
@@ -2453,8 +2454,8 @@ typedef struct M003Player {
 
 extern Object **func_8000E464(s32 *count); /* the players */
 
-/* The player (or the player's vehicle) nearest (x, y, z) */
-static s32 func_m003_0527C(f32 x, f32 y, f32 z) {
+/* The player (or the player's vehicle) nearest (x, y, z) (module m003, 0x0527C). */
+static s32 troop_player_nearest(f32 x, f32 y, f32 z) {
     f32 best = 5.0e9f;
     Object *nearest = NULL;
     Object **players;
@@ -2491,8 +2492,8 @@ s32 func_m003_053C4(void) {
 
 extern void func_m140_00000(Object *obj);
 
-/* Sets who the member blames for its hits, unless it already has someone */
-static void func_m003_053D4(Object *obj) {
+/* Sets who the member blames for its hits, unless it already has someone (module m003, 0x053D4). */
+static void troop_blame_set(Object *obj) {
     M003Member *m = obj->unk68;
 
     if (m->shotBy == 0) {
@@ -2524,26 +2525,26 @@ s32 func_m003_05450(Object *obj) {
         return FALSE;
     }
     sHomeData = sHome->unk68;
-    sClosestPlayer = func_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
-    func_m003_053D4(sObj);
+    sClosestPlayer = troop_player_nearest(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
+    troop_blame_set(sObj);
     sShotBy = sMember->shotBy;
     troop_spawn_context_set(sObj, sHome);
     func_m154_017E8(sHome);
     return func_m003_0D2C0(sObj) != 0;
 }
 
-/* Makes a troop's home (and its first member, if any) the one being processed */
-static void func_m003_0556C(Object *home) {
+/* Makes a troop's home (and its first member, if any) the one being processed (module m003, 0x0556C). */
+static void troop_select(Object *home) {
     sHome = home;
     sHomeData = home->unk68;
     if ((sObj = sHomeData->first) != NULL) {
         sMember = sObj->unk68;
         sShotBy = sMember->shotBy;
-        sClosestPlayer = func_m003_0527C(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
+        sClosestPlayer = troop_player_nearest(sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position);
     } else {
         sMember = NULL;
         sShotBy = 0;
-        sClosestPlayer = func_m003_0527C(sHome->trans.x_position, sHome->trans.y_position, sHome->trans.z_position);
+        sClosestPlayer = troop_player_nearest(sHome->trans.x_position, sHome->trans.y_position, sHome->trans.z_position);
     }
     troop_spawn_context_set(sObj, sHome);
     func_m154_017E8(sHome);
@@ -2792,8 +2793,8 @@ f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_079D8);
 #endif
 
-/* The troop's member whose number is the troop's count (or the last one looked at) */
-static Object *func_m003_07B38(Object *home) {
+/* The troop's member whose number is the troop's count (or the last one looked at) (module m003, 0x07B38). */
+static Object *troop_member_counted(Object *home) {
     M003Home *h = home->unk68;
     s32 i = h->unk0;
     Object *obj = h->first;
@@ -2988,7 +2989,7 @@ void func_m003_098A0(Object *obj) {
         }
     }
     if (h->flags & 1) {
-        ((M003Member *) func_m003_07B38(home)->unk68)->unk15 = ((M003Member *) obj->unk68)->unk15;
+        ((M003Member *) troop_member_counted(home)->unk68)->unk15 = ((M003Member *) obj->unk68)->unk15;
     }
     o = h->first;
     if (o == obj) {
@@ -3471,9 +3472,9 @@ void func_m003_0B468(void) {
 
 /*
  * The height the member walks at: in states 2, 0x13 and 0xC, between the troop's way point and the one
- * before, by how far along the member is; else the troop's height (called from 0B70C)
+ * before, by how far along the member is; else the troop's height (called from 0B70C) (module m003, 0x0B50C).
  */
-static f32 func_m003_0B50C(void) {
+static f32 troop_walk_height(void) {
     M003Node *b;
     M003Node *a;
     s32 i;
@@ -3530,7 +3531,7 @@ void func_m003_0B70C(void) {
     f32 h;
 
     if (!(sHomeData->flags & 0x30) && !sMember->unk0_18 && ((M003BodyFlags *) &sBody->unk24)->unk10) {
-        h = func_m003_0B50C();
+        h = troop_walk_height();
         if (sMember->unk0_11 && sObj->velocity.y > 0.0f) {
             sObj->velocity.y -= 1.0f;
             return;
@@ -3801,7 +3802,7 @@ void func_m003_0CD34(Object *obj) {
     UNUSED s32 pad[2];
     s32 shotBy;
 
-    anim = func_m003_04614(5, 1);
+    anim = troop_anim_pick(5, 1);
     found = FALSE;
     i = 4;
     if (!(sMember->unk4 & 1)) {
@@ -3953,8 +3954,8 @@ typedef struct M003Header {
 
 extern void func_m002_00000(void);
 
-/* The member being set up joins the troop of `home` (once): its place in the troop's list, hit box and size */
-static void func_m003_0D360(Object *home) {
+/* The member being set up joins the troop of `home` (once): its place in the troop's list, hit box and size (module m003, 0x0D360). */
+static void troop_member_join(Object *home) {
     Object *first;
     M003Member *m;
     s32 n;
@@ -4264,14 +4265,14 @@ void func_m003_0DF84(obj, entry)
         sMember->unk57 = sHomeData->unk8C;
         sHomeData->unk8C++;
     }
-    func_m003_0D360(sHome);
+    troop_member_join(sHome);
 }
 
 extern void audspat_point_set_volume(s32 handle, u8 volume);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 
-/* Moves the member through the level: it lands, slides or bounces off what it hits (with a thud) */
-static void func_m003_0E3CC(void) {
+/* Moves the member through the level: it lands, slides or bounces off what it hits (with a thud) (module m003, 0x0E3CC). */
+static void troop_member_level_move(void) {
     HitResult hit;
     s32 r;
     f32 d;
@@ -4370,7 +4371,7 @@ void func_m003_0E9F0(Object *obj) {
         return;
     }
     if ((sHomeData->flags & 0x30) || m->unk0_18) {
-        func_m003_0E3CC();
+        troop_member_level_move();
         rl_m003_03CAC(obj);
     } else {
         m->lastX = obj->trans.x_position;
@@ -4501,8 +4502,8 @@ void func_m003_10548(Object *obj, s32 shotBy) {
     }
 }
 
-/* Makes every member of the current troop blame `shotBy` */
-static void func_m003_105B8(Object *shotBy) {
+/* Makes every member of the current troop blame `shotBy` (module m003, 0x105B8). */
+static void troop_blame_all(Object *shotBy) {
     Object *obj = sHomeData->first;
     M003Member *m;
 
@@ -4604,8 +4605,8 @@ void func_m003_13D94(Object *obj, u16 event) {
 
 extern s32 D_800FE9F4; /* frames until a troop member next makes a sound */
 
-/* Now and then, a random troop member near the player makes one of its kind's sounds */
-static void func_m003_13FE4(s32 updateRate) {
+/* Now and then, a random troop member near the player makes one of its kind's sounds (module m003, 0x13FE4). */
+static void troop_ambient_sound(s32 updateRate) {
     Object *homeObj;
     s32 sound;
     Object *obj;
@@ -4734,14 +4735,14 @@ void func_m003_1477C(void) {
 
 /* A member of the current troop is set up from its level entry (or spawned when that fails) */
 void func_m003_147B8(LevelObjectEntryCommon *entry) {
-    func_m003_0556C((Object *) troop_find_by_tag(((u8 *) entry)[0x11]));
+    troop_select((Object *) troop_find_by_tag(((u8 *) entry)[0x11]));
     if (objflag_get(((u8 *) entry)[0x18])) {
         sHomeData->arrived++;
         if (sHomeData->arrived >= sHomeData->count) {
             if (sHomeData->unk0 == 0) {
                 rl_m003_09840(sHomeData, 0);
             } else if (sHomeData->flags & 0x40) {
-                func_m003_105B8(func_8000E4D0(0));
+                troop_blame_all(func_8000E4D0(0));
             } else if (sHomeData->kind2 == 2) {
                 sHomeData->unk30 = 8;
             } else {
@@ -5042,7 +5043,7 @@ void func_m003_16990(s32 updateRate) {
     if (D_800FE9B0 & 0x10) {
         func_m003_168D8();
     }
-    func_m003_13FE4(updateRate);
+    troop_ambient_sound(updateRate);
 }
 
 void func_m003_16C10(Object *obj) {
@@ -5190,8 +5191,8 @@ s32 func_m003_16F44(f32 x, f32 z, M003Region *region) {
     return TRUE;
 }
 
-/* Where the line through (x1, z1) and (x2, z2) meets the line sCrossSlope/sCrossOffset */
-static void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
+/* Where the line through (x1, z1) and (x2, z2) meets the line sCrossSlope/sCrossOffset (module m003, 0x170D0). */
+static void troop_lines_cross_point(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
     f32 slope;
     f32 offset;
 
@@ -5209,9 +5210,9 @@ static void func_m003_170D0(f32 x1, f32 z1, f32 x2, f32 z2, f32 *x, f32 *z) {
 /*
  * The segment test on a node of the region's tree: at a leaf, the segment sCrossX1..Z2 against each of its
  * edges, keeping the nearest crossing (TRUE at the first one if no sCrossOut wants it); else (x1, z1)-(x2, z2)
- * goes down the side(s) of the node's line it lies on, split where it crosses the line.
+ * goes down the side(s) of the node's line it lies on, split where it crosses the line (module m003, 0x17174).
  */
-static int func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node) {
+static int troop_region_tree_test(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node) {
     M003Edge *edge;
     s32 i;
     s16 hx;
@@ -5247,25 +5248,25 @@ static int func_m003_17174(f32 x1, f32 z1, f32 x2, f32 z2, M003RegionNode *node)
     sCrossSideA = z1 < node->slope * x1 + node->offset;
     sCrossSideB = z2 < node->slope * x2 + node->offset;
     if (sCrossSideA == sCrossSideB) {
-        return func_m003_17174(x1, z1, x2, z2, sCrossSideA ? node->below : node->above);
+        return troop_region_tree_test(x1, z1, x2, z2, sCrossSideA ? node->below : node->above);
     }
     sCrossOffset = node->offset;
     sCrossSlope = node->slope;
-    func_m003_170D0(x1, z1, x2, z2, &sCrossHitX, &sCrossHitZ);
+    troop_lines_cross_point(x1, z1, x2, z2, &sCrossHitX, &sCrossHitZ);
     if (sCrossSideA) {
         if (sCrossOut != NULL) {
-            return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->below) |
-                   func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->above);
+            return troop_region_tree_test(x1, z1, sCrossHitX, sCrossHitZ, node->below) |
+                   troop_region_tree_test(sCrossHitX, sCrossHitZ, x2, z2, node->above);
         }
-        return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->below) ||
-               func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->above);
+        return troop_region_tree_test(x1, z1, sCrossHitX, sCrossHitZ, node->below) ||
+               troop_region_tree_test(sCrossHitX, sCrossHitZ, x2, z2, node->above);
     }
     if (sCrossOut != NULL) {
-        return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) |
-               func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
+        return troop_region_tree_test(x1, z1, sCrossHitX, sCrossHitZ, node->above) |
+               troop_region_tree_test(sCrossHitX, sCrossHitZ, x2, z2, node->below);
     }
-    return func_m003_17174(x1, z1, sCrossHitX, sCrossHitZ, node->above) ||
-           func_m003_17174(sCrossHitX, sCrossHitZ, x2, z2, node->below);
+    return troop_region_tree_test(x1, z1, sCrossHitX, sCrossHitZ, node->above) ||
+           troop_region_tree_test(sCrossHitX, sCrossHitZ, x2, z2, node->below);
 }
 
 
@@ -5290,7 +5291,7 @@ s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, M003Region *region, M003Cros
     sCrossZ2 = z2;
     sCrossDist = -1;
     sCrossOut = out;
-    func_m003_17174(x1, z1, x2, z2, sCrossData);
+    troop_region_tree_test(x1, z1, x2, z2, sCrossData);
     if (sCrossDist == -1) {
         return FALSE;
     }

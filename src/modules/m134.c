@@ -1,4 +1,7 @@
-/* Runlink module 134: an area that sets the weather while the player is inside it. */
+/*
+ * Runlink module 134: an area that sets the weather while the player is inside it.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M134Setup {
@@ -30,6 +33,7 @@ typedef struct M134Object {
 extern M134Object *func_8000E4D0(s32, M134Object *);
 extern void func_8005B1C0(s32, s32, s32, s32, s32, s32);
 
+/* Init: stores the square of the entry's radius */
 void func_m134_00000(M134Object *obj, M134Setup *setup) {
     f32 radius = setup->unkA;
 
@@ -37,6 +41,7 @@ void func_m134_00000(M134Object *obj, M134Setup *setup) {
     obj->unk88 = radius;
 }
 
+/* Control (every frame): while the player is within the radius, sets the weather from the object's data */
 void func_m134_00020(M134Object *obj, s32 updateRate) {
     M134Object *player;
     M134Weather *weather;

@@ -5,6 +5,7 @@
  * hit points and is in the water) and follows behaviour 0x9B/0xA6 objects for
  * a while; out of the water (or when set to stay still) it flops about and
  * sinks or floats to the water level.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

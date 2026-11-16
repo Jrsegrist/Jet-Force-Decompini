@@ -4,6 +4,7 @@
  * model and sets its hit box; control flies it at its target (aimed at by
  * 00374); the matrix function puts it in its target's hand or at its own
  * rotation, and the bounce function knocks it back with a random spin.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -109,6 +110,7 @@ extern s32 D_m122_010B0;                    /* the module's number */
 extern f32 func_80097140(f32 x);        /* sqrtf */
 void func_m122_00FE4(Object *obj, M122State *s);
 
+/* Init: frees the oldest blade past ten, places it, sets its timer and hit box, and loads its model */
 void func_m122_00000(Object *obj, M122Setup *setup) {
     M122State *s;
     s32 first;
@@ -160,8 +162,8 @@ void func_m122_00000(Object *obj, M122Setup *setup) {
     }
 }
 
-/* Where on the target to aim: its aim joint, or a bit above its position */
-static s32 func_m122_00374(Object *target, f32 *x, f32 *y, f32 *z) {
+/* Where on the target to aim: its aim joint, or a bit above its position (module m122, 0x00374). */
+static s32 blade_aim_point(Object *target, f32 *x, f32 *y, f32 *z) {
     M122Aim *aim;
     M122Instance *inst;
 
@@ -319,7 +321,7 @@ void func_m122_004EC(Object *obj, s32 updateRate) {
         }
         return;
     }
-    if (!func_m122_00374(s->model, &tx, &ty, &tz)) {
+    if (!blade_aim_point(s->model, &tx, &ty, &tz)) {
         obj_list_unlink(obj);
         s->flags |= 4;
         s->model = (void *) s->modelId;
@@ -404,6 +406,7 @@ void func_m122_004EC(Object *obj, s32 updateRate) {
     func_8005F5AC(obj, updateRate);
 }
 
+/* Pushes its matrix: relative to the holder's joint if stuck in one, else its own transform plus its spin */
 void func_m122_00F38(Gfx **dl, Mtx **mtx, Object *obj) {
     M122State *s;
     Object *holder;
@@ -421,6 +424,7 @@ void func_m122_00F38(Gfx **dl, Mtx **mtx, Object *obj) {
     }
 }
 
+/* Bounces it back: halves and reverses its horizontal speed, a random upward kick and a random spin */
 void func_m122_00FE4(Object *obj, M122State *s) {
     s->model = (void *) s->modelId;
     s->flags |= 0x20;

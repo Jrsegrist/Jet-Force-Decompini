@@ -1,4 +1,7 @@
-/* Runlink module 119: a pickup that is collected when the player comes close. */
+/*
+ * Runlink module 119: a pickup that is collected when the player comes close.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M119Counter {
@@ -29,6 +32,7 @@ extern void func_800079B8(M119Object *);
 
 s32 D_m119_00100 = 119; /* the module's number */
 
+/* Control (every frame): spins; within 40 units of the player, adds one to its counter, plays a sound, frees */
 void func_m119_00000(M119Object *obj, s32 updateRate) {
     M119Object *player;
     M119PlayerData *data;

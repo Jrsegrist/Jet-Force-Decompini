@@ -3,6 +3,7 @@
  * turns at its own speed, leaves a fading trail of up to eight past positions
  * that is drawn as a strip of triangles, can carry a light, and has a glow
  * sprite drawn at its end.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -228,11 +229,13 @@ static void beam_update(Object *obj, M064Beam *beam, s32 updateRate) {
     }
 }
 
+/* Updates a beam, then builds its trail's vertices */
 static void beam_tick(Object *obj, M064Beam *beam, s32 updateRate) {
     beam_update(obj, beam, updateRate);
     beam_build_verts(beam);
 }
 
+/* Init: allocates the beams and sets each one's angle, length, width, spin and colour, adding lights */
 void func_m064_00614(Object *obj, M064Setup *setup) {
     M064State *state = obj->unk68;
     M064Beam *beam;
@@ -303,6 +306,7 @@ void func_m064_00614(Object *obj, M064Setup *setup) {
     obj->level_entry = NULL;
 }
 
+/* Control (every frame): updates each beam and its trail */
 void func_m064_008E0(Object *obj, s32 updateRate) {
     M064State *state = obj->unk68;
     M064Beam *beam = state->beams;
@@ -345,6 +349,7 @@ static void beam_draw_glow(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 spr
     }
 }
 
+/* Draws every beam's trail, then every beam's end glow */
 void func_m064_00B10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M064State *state = obj->unk68;
     M064Beam *beam;

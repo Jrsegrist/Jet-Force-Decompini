@@ -4,6 +4,7 @@
  * "PRESS START"; pressing A or Start brings up three choices (one player,
  * multiplayer, options), picked with the stick, which then start the game,
  * the multiplayer setup or the options menu.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -132,6 +133,7 @@ static s32 sUnused24;
 static s32 sPulse;
 static s32 sPulseStep;
 
+/* Opens the start screen: resets the players and fades, loads the textures, starts the music */
 void func_m063_00000(void) {
     s32 i;
 
@@ -164,6 +166,7 @@ void func_m063_00000(void) {
     game_settings_reset(get_settings());
 }
 
+/* Every frame: reads the pad, steps the fade-in, choice and level start, and draws the backdrop and texts */
 void func_m063_00140(s32 updateRate) {
     s32 pressed;
     s32 backPressed;
@@ -384,6 +387,7 @@ void func_m063_00140(s32 updateRate) {
     }
 }
 
+/* Closes the start screen: frees its textures and its object if it has one */
 void func_m063_00C14(void) {
     menu_assetgroup_free(sAssets);
     if (sObject != NULL) {

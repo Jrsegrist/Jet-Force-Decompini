@@ -1,5 +1,6 @@
 /*
  * Runlink module 14: part of the HUD (still mostly assembly).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -77,8 +78,8 @@ extern u8 rl_m014_044E8[];    /* its vertices, pointing left */
 extern u8 rl_m014_04508[];    /* and right */
 
 /* Blinks an arrow to the left or right when `angle` is more than 0xA00 off the player's yaw (called from
-   00B30) */
-static void func_m014_00074(s16 *angle, M014Player *p, s32 updateRate) {
+   00B30) (module m014, 0x00074). */
+static void hud_turn_arrow_blink(s16 *angle, M014Player *p, s32 updateRate) {
     rl_m014_04528 += updateRate;
     if ((p->unk540 & 0xF) && (rl_m014_04528 & 0x10)) {
         s16 d = *angle - p->yaw;
@@ -151,11 +152,11 @@ extern void func_m006_00000(Object *obj, s32 health, s32 arg2, s32 updateRate);
 extern void func_m006_012D4(M014Player *p, s32 updateRate);
 extern void func_m006_0107C(s32 *x, s32 *y);
 extern void rl_m014_00220(Object *obj, s32 arg1);
-static void func_m014_010F4(s32 updateRate);
-static s32 func_m014_02CF4(s32 updateRate);
-static void func_m014_0292C(s32 updateRate);
-static void func_m014_019F4(s32 updateRate);
-static void func_m014_03C68(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alpha);
+static void hud_weapon_wheel_update(s32 updateRate);
+static s32 results_screen_update(s32 updateRate);
+static void hud_weapon_panel(s32 updateRate);
+static void hud_item6_slide(s32 updateRate);
+static void hud_bar_draw(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alpha);
 
 /* The behaviour data of what the player holds, as 00B30 reads it */
 typedef struct M014Held {
@@ -175,7 +176,7 @@ void func_m014_00B30(Object *obj, s32 updateRate) {
     s32 y;
 
     if (rl_m014_04896 != 0) {
-        func_m014_02CF4(updateRate);
+        results_screen_update(updateRate);
     } else if (obj != NULL) {
         if (!is_game_paused()) {
             if (D_800FF310 == 0 && D_800A321C == 0 && D_800A32B8 == NULL) {
@@ -190,10 +191,10 @@ void func_m014_00B30(Object *obj, s32 updateRate) {
                 }
                 if (p->unk10D == 0 && p->unk1F9 == 0) {
                     if (p->unk568 != 5) {
-                        func_m014_00074((s16 *) obj, p, updateRate);
+                        hud_turn_arrow_blink((s16 *) obj, p, updateRate);
                     }
-                    func_m014_010F4(updateRate);
-                    func_m014_0292C(updateRate);
+                    hud_weapon_wheel_update(updateRate);
+                    hud_weapon_panel(updateRate);
                     if (p->unk592 > 0) {
                         p->unk592 -= updateRate;
                         rl_m014_04898 += updateRate * 2;
@@ -232,7 +233,7 @@ void func_m014_00B30(Object *obj, s32 updateRate) {
                         gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x80000590, 4, 1);
                         gDPPipeSync(D_800FF398++);
                         func_80055B80(&D_800FF398);
-                        func_m014_03C68(p->unk58C, 3600, -45, -86, 66, -92, rl_m014_04898);
+                        hud_bar_draw(p->unk58C, 3600, -45, -86, 66, -92, rl_m014_04898);
                         func_80040D64(&D_800FF398, &D_800FF39C);
                         func_8006FC54(2);
                         func_8006FC68(0, 255, 255, 255, rl_m014_04898);
@@ -250,7 +251,7 @@ void func_m014_00B30(Object *obj, s32 updateRate) {
                                     char_record_lookup(p->unk0, p->unk1)->unk2, updateRate);
                     func_80056000(1);
                     func_m006_012D4(p, updateRate);
-                    func_m014_019F4(updateRate);
+                    hud_item6_slide(updateRate);
                 }
             }
         }
@@ -271,8 +272,8 @@ typedef struct M014Flags {
 } M014Flags;
 
 /* Swings the weapon wheel (item 0) left or right with a sound, slides item 4 out while its timer (the word
-   at its 0x1C) runs and back after, and keeps the weapon in hand (called from 00B30) */
-static void func_m014_010F4(s32 updateRate) {
+   at its 0x1C) runs and back after, and keeps the weapon in hand (called from 00B30) (module m014, 0x010F4). */
+static void hud_weapon_wheel_update(s32 updateRate) {
     s32 count;
     M014MenuItem *wheel;
     M014MenuItem *item;
@@ -357,8 +358,8 @@ void func_m014_019E4(void) {
     rl_m014_04894 = 0xF0;
 }
 
-/* Slides menu item 6 in while 019E4's timer runs, and out again after */
-static void func_m014_019F4(s32 updateRate) {
+/* Slides menu item 6 in while 019E4's timer runs, and out again after (module m014, 0x019F4). */
+static void hud_item6_slide(s32 updateRate) {
     if (rl_m014_04894 != 0) {
         if (D_800FF780[6].posX < 69.0f) {
             D_800FF780[6].posX += updateRate * 8;
@@ -395,9 +396,9 @@ extern M014Box rl_m014_0447C[7]; /* the ammo bar's boxes */
 
 /*
  * The weapon panel: the weapon's image (loaded when it changes), the ammo bar (six boxes from red to
- * green as the ammo fills), item 7's fade and the weapon's two numbers (called from 00B30)
+ * green as the ammo fills), item 7's fade and the weapon's two numbers (called from 00B30) (module m014, 0x0292C).
  */
-static void func_m014_0292C(s32 updateRate) {
+static void hud_weapon_panel(s32 updateRate) {
     s32 count;
     s32 shown;
     s32 ammo;
@@ -509,7 +510,7 @@ extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void func_m006_010D8(s32 *x, s32 *y);
 extern void func_8005A0D0(s32 item); /* draws a menu item */
-static void func_m014_03418(s32 index, s32 weapon, s32 x, s32 y);
+static void results_best_stat_draw(s32 index, s32 weapon, s32 x, s32 y);
 extern u8 rl_m014_04814[]; /* .data (still assembly) */
 extern s32 rl_m014_04820;  /* the screen's timer */
 extern s32 rl_m014_04824;  /* the blink timer */
@@ -521,9 +522,9 @@ extern s32 rl_m014_048B0;
 
 /*
  * The end-of-level results screen: each line appears (with a sound) as the timer passes it: the stats, the
- * three best stats and the time, with the new records blinking
+ * three best stats and the time, with the new records blinking (module m014, 0x02CF4).
  */
-static s32 func_m014_02CF4(s32 updateRate) {
+static s32 results_screen_update(s32 updateRate) {
     s32 old;
     char buf[80];
     s32 x;
@@ -587,13 +588,13 @@ static s32 func_m014_02CF4(s32 updateRate) {
         func_8005A0D0(13);
     }
     if (rl_m014_04820 >= 60 && rl_m014_048A0 != -1) {
-        func_m014_03418(0, rl_m014_048A0, 140, 50);
+        results_best_stat_draw(0, rl_m014_048A0, 140, 50);
     }
     if (rl_m014_04820 >= 90 && rl_m014_048A4 != -1) {
-        func_m014_03418(1, rl_m014_048A4, 140, 110);
+        results_best_stat_draw(1, rl_m014_048A4, 140, 110);
     }
     if (rl_m014_04820 >= 120 && rl_m014_048A8 != -1) {
-        func_m014_03418(2, rl_m014_048A8, 140, 170);
+        results_best_stat_draw(2, rl_m014_048A8, 140, 170);
     }
     if (rl_m014_04820 >= 150) {
         f32 t;
@@ -626,9 +627,9 @@ extern s32 D_800A51CC;                /* the text opacity */
 
 /*
  * One of the results screen's three best stats: its title, the stat (the most used weapon's count, its
- * accuracy or its kills) and the weapon's name and image (called from 02CF4)
+ * accuracy or its kills) and the weapon's name and image (called from 02CF4) (module m014, 0x03418).
  */
-static void func_m014_03418(s32 index, s32 weapon, s32 x, s32 y) {
+static void results_best_stat_draw(s32 index, s32 weapon, s32 x, s32 y) {
     f32 savedX;
     f32 savedY;
     f32 accuracy;
@@ -836,9 +837,9 @@ extern void update_colour_cycle(M014ColourCycle *cycle, s32 updateRate);
 
 /*
  * A bar from (x1, y1) to (x2, y2) in 4-pixel steps, coloured along colour cycle 0x3B, bright up to
- * value / max of its length and dim after (called from 00B30)
+ * value / max of its length and dim after (called from 00B30) (module m014, 0x03C68).
  */
-static void func_m014_03C68(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alpha) {
+static void hud_bar_draw(s32 value, s32 max, s32 x1, s32 y1, s32 x2, s32 y2, s32 alpha) {
     M014Box *b;
     s32 x;
     s32 width;

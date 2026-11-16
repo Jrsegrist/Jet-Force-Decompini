@@ -3,6 +3,7 @@
  * in, is collected by a player (reporting it to module 31) and respawns or
  * disappears; and an obstacle that reports the players it touches to module 31
  * and goes away (with a sound) once touched, or after a while.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

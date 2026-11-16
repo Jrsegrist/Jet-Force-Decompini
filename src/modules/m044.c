@@ -8,6 +8,7 @@
  * part), audspat_update_all (the audio line part), audspat_line_add_vertex,
  * audspat_distance_to_segment and audspat_line_validate, adapted to JFG's
  * four lines, its line layout and its sound calls.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 
@@ -54,6 +55,7 @@ static AudioLine gAudioLines[MAX_AUDIO_LINES];
 
 void func_m044_0003C(void);
 
+/* Module init: clears every line's sound handle, then resets the lines */
 void func_m044_00000(void) {
     s32 i;
 

@@ -5,6 +5,7 @@
  * update advances the time and blends from the current step to the next.
  * Getters hand the fog and the fade to the renderer, and the cycle can be
  * told to stop when it reaches step 6 (midday).
+ * Family: fog and lighting (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -106,6 +107,7 @@ static s32 sLevelUnkDE;
 
 #define BLEND(field) (cur->field + (((next->field - cur->field) * frac) >> 14))
 
+/* Starts the cycle at a time of day (hours), adds the ambient light and applies the first step */
 void func_m023_00000(f32 start, s32 stepLength) {
     LightParams lp;
     M023Level *level;
@@ -144,6 +146,7 @@ void func_m023_00128(void) {
 }
 #pragma weak __rl_fini = func_m023_00128
 
+/* Advances the time, blends fog, fade, light and level lighting between steps, relights objects if needed */
 void func_m023_0015C(s32 updateRate) {
     s32 i;
     s32 count;
@@ -219,6 +222,7 @@ void func_m023_0065C(void) {
     sStopAtMidday = 1;
 }
 
+/* Returns the current fog distances and colour */
 void func_m023_0066C(s16 *near, s16 *far, u8 *r, u8 *g, u8 *b) {
     *near = sFogNear;
     *far = sFogFar;
@@ -227,6 +231,7 @@ void func_m023_0066C(s16 *near, s16 *far, u8 *r, u8 *g, u8 *b) {
     *b = sFogB;
 }
 
+/* Returns the current track colour fade */
 void func_m023_006B0(s32 *r, s32 *g, s32 *b) {
     *r = sFadeR;
     *g = sFadeG;

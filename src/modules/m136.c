@@ -5,6 +5,7 @@
  * fixed cameras, doors and door switches, fog, sky, sound points and lines,
  * scrolling textures, lights, lens flares, spline camera nodes, static hit
  * objects, position overrides, AI points and junctions, and troops.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -324,6 +325,7 @@ static s16 *sDoorSounds[] = {
     sDoorSounds5, sDoorSounds6, sDoorSounds7, sDoorSounds8, sDoorSounds9, NULL,
 };
 
+/* Init (exit): sets scale and angles, and builds the plane through the object and its width */
 void func_m136_00000(Object *obj, M136Entry *setup) {
     M136Exit *exit;
     f32 sinYaw;
@@ -348,6 +350,7 @@ void func_m136_00000(Object *obj, M136Entry *setup) {
     exit->unk16 = ENTRY_S8(setup, 0x15);
 }
 
+/* Init (fixed camera): sets the three angles from the entry and registers a view override */
 void func_m136_00158(Object *obj, M136Entry *setup) {
     obj->trans.rotation.y_rotation = ENTRY_S16(setup, 0xE);
     obj->trans.rotation.x_rotation = ENTRY_S16(setup, 0xC);
@@ -355,6 +358,7 @@ void func_m136_00158(Object *obj, M136Entry *setup) {
     view_override_set();
 }
 
+/* Init: keeps two entry bytes in the object's state and sets its yaw from a third */
 void func_m136_00194(Object *obj, M136Entry *setup) {
     runlink_unload_timer_set(D_m136_01DB0, 2, 2);
     *(s32 *) &obj->state[0] = ENTRY_U8(setup, 0xA);
@@ -362,6 +366,10 @@ void func_m136_00194(Object *obj, M136Entry *setup) {
     obj->trans.rotation.y_rotation = ENTRY_U8(setup, 0xC) << 2 << 8;
 }
 
+/*
+ * Init (door): copies its type, motion and animations, scales its models' heights and reach, picks its
+ * three sounds by object kind, and adds its collider
+ */
 void func_m136_001FC(Object *obj, M136Entry *setup) {
     M136Door *door = obj->unk68;
     M136ModelInstance *inst;
@@ -541,6 +549,7 @@ typedef struct M136Switch {
     /* 0x0C */ u8 unkC;
 } M136Switch;
 
+/* Init (door switch): resets its state, takes two entry bytes, sets scale, angles and collider */
 void func_m136_009FC(Object *obj, M136Entry *setup) {
     M136Switch *sw = obj->unk68;
     f32 size;
@@ -564,6 +573,7 @@ void func_m136_009FC(Object *obj, M136Entry *setup) {
     obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 1);
 }
 
+/* Init: stores (entry byte * 8) squared, a radius squared, in the object's state */
 void func_m136_00B1C(Object *obj, M136Entry *setup) {
     f32 d = ENTRY_U8(setup, 0xA) * 8.0f;
 
@@ -571,11 +581,13 @@ void func_m136_00B1C(Object *obj, M136Entry *setup) {
     *(f32 *) &obj->state[0] = d;
 }
 
+/* Init: keeps two entry bytes in the object's state */
 void func_m136_00B5C(Object *obj, M136Entry *setup) {
     *(s32 *) &obj->state[0] = ENTRY_U8(setup, 0xA);
     *(s32 *) &obj->state[4] = ENTRY_U8(setup, 0xB);
 }
 
+/* Init (sound point): copies the sound's settings, starts it at the entry's position, and frees the object */
 void func_m136_00B74(Object *obj, M136Entry *setup) {
     M136Sound *snd = obj->unk68;
 
@@ -597,6 +609,7 @@ void func_m136_00B74(Object *obj, M136Entry *setup) {
     func_800079B8(obj);
 }
 
+/* Init (sound line): copies the settings, adds this vertex to its audio line (module 44), frees the object */
 void func_m136_00D08(Object *obj, M136Entry *setup) {
     M136SoundLine *snd = obj->unk68;
 
@@ -616,6 +629,7 @@ void func_m136_00D08(Object *obj, M136Entry *setup) {
     func_800079B8(obj);
 }
 
+/* Init (scrolling texture): clamps the texture index, sets the scroll speeds, resets the offset if new */
 void func_m136_00E30(Object *obj, M136Entry *setup, s32 arg2) {
     M136Scroll *scroll = obj->unk68;
     s16 *textures;
@@ -636,10 +650,12 @@ void func_m136_00E30(Object *obj, M136Entry *setup, s32 arg2) {
     }
 }
 
+/* Init (light): adds a light from the level entry */
 void func_m136_00ED4(Object *obj, M136Entry *setup, s32 arg2) {
     obj->unk68 = (void *) light_add_from_level_object_entry(obj, setup);
 }
 
+/* Init (lens flare): builds the flare's flags, angles and colour from the entry and adds it */
 void func_m136_00F04(Object *obj, M136Entry *setup) {
     M136Flare flare;
 
@@ -672,14 +688,17 @@ void func_m136_00F04(Object *obj, M136Entry *setup) {
     *(s32 *) &obj->state[0] = corona_add(obj, &flare, setup);
 }
 
+/* Init: sets the scale to the entry's value / 40 */
 void func_m136_00FF0(Object *obj, M136Entry *setup, s32 arg2) {
     obj->trans.scale = ENTRY_S16(setup, 0xA);
     obj->trans.scale /= 40.0f;
 }
 
+/* Init: does nothing */
 void func_m136_01020(Object *obj, M136Entry *setup, s32 arg2) {
 }
 
+/* Init (spline camera node): copies the node's settings and position, and registers it with its spline */
 void func_m136_01030(Object *obj, M136Entry *setup, s32 arg2) {
     M136Node *node = obj->unk68;
 
@@ -708,6 +727,7 @@ void func_m136_01030(Object *obj, M136Entry *setup, s32 arg2) {
     func_m011_000D4(node->spline);
 }
 
+/* Init (static hit object): sets scale, shadow, model and yaw, adds its collider, and works out its reach */
 void func_m136_01224(Object *obj, M136Entry *setup) {
     M136ModelInstance *inst;
     s16 *bounds;
@@ -765,6 +785,7 @@ typedef struct M136OverrideEntry {
     /* 0x1C */ s16 unk1C;
 } M136OverrideEntry;
 
+/* Init (position override): copies its two height ranges, values and offset position; registers it if new */
 void func_m136_014C0(Object *obj, M136OverrideEntry *setup, s32 arg2) {
     M136Override *ov = obj->unk68;
 
@@ -785,6 +806,7 @@ void func_m136_014C0(Object *obj, M136OverrideEntry *setup, s32 arg2) {
     }
 }
 
+/* Init (AI point): copies the point's bytes from the level entry */
 void func_m136_016D0(Object *obj, M136Entry *setup) {
     M136AIPoint *point = obj->unk68;
 
@@ -800,8 +822,8 @@ void func_m136_016D0(Object *obj, M136Entry *setup) {
     point->unkA = ENTRY_U8(setup, 0x12);
 }
 
-/* The nearest other troop object that is not a leader */
-static Object *func_m136_01740(Object *obj) {
+/* The nearest other troop object that is not a leader (module m136, 0x01740). */
+static Object *troop_nearest_non_leader(Object *obj) {
     s32 count;
     Object **objects;
     Object *o;
@@ -826,6 +848,7 @@ static Object *func_m136_01740(Object *obj) {
     return nearest;
 }
 
+/* Init (troop): copies its settings, home and facing; a kind-4 one links to the nearest non-kind-4 troop */
 void func_m136_01850(Object *obj, M136Entry *setup) {
     M136Area *area;
     M136Troop *troop = obj->unk68;
@@ -833,7 +856,7 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     troop->unk64 = ENTRY_U8(setup, 0x2D);
     if (((u32) TROOP_KIND16(troop) >> 12) == 4) {
         if (troop->leader == NULL) {
-            troop->leader = func_m136_01740(obj);
+            troop->leader = troop_nearest_non_leader(obj);
         }
         ENTRY_U8(setup, 0xB) = 0;
     }
@@ -928,6 +951,7 @@ void func_m136_01850(Object *obj, M136Entry *setup) {
     }
 }
 
+/* Init (AI junction): takes the entry's id, or picks the lowest id no other junction uses and stores it */
 void func_m136_01CA4(Object *obj, M136Entry *setup) {
     M136Junction *junction = obj->unk68;
     u8 id;

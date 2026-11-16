@@ -3,6 +3,7 @@
  * home, hops away from a player who comes near, and when a player touches
  * it either is collected (freed) or squashes flat and recovers. State 5
  * makes it burst (emitting particles) and fade out.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

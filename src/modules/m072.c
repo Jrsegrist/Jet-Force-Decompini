@@ -3,6 +3,7 @@
  * (or the capacity) of a weapon that the player already has, then respawns
  * after a delay or is freed. One kind (0xE7, a capacity upgrade) is taken
  * only once: it sets a game flag, and is freed at once if that flag is set.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -58,6 +59,7 @@ extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 s32 D_m072_00480 = 72; /* the module's number */
 
+/* Init: copies the kind, weapon, respawn delay and flag from the level entry, shown and facing its angle */
 void func_m072_00000(Object *obj, M072Setup *setup) {
     M072Pickup *p = obj->unk68;
 
@@ -71,6 +73,10 @@ void func_m072_00000(Object *obj, M072Setup *setup) {
     obj_anim_set(obj, 0, 0.0f);
 }
 
+/*
+ * Control (every frame): spins some kinds, fades back in after respawning, and gives the first nearby
+ * player who owns the weapon its ammo or capacity, with a message and sound; then respawns or is freed
+ */
 void func_m072_00064(Object *obj, s32 updateRate) {
     M072Pickup *p;
     s32 n;

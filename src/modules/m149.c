@@ -4,6 +4,7 @@
  * flags in the enemy record's parts word), it picks its attacks through
  * module 3, flies between random points of its arena, and fires homing
  * bolts and lobbed bombs (each with its own init and control function).
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -175,6 +176,10 @@ static Object *sArena;    /* the object with ID 0x61: the arena's centre */
 static s32 sBoltCount;
 static s32 sSwoopSide;
 
+/*
+ * Sets up the boss's state the first time; each frame faces the player, checks which hit zones are shot
+ * away for its phase, and picks its next attack through module 3
+ */
 void func_m149_00000(Object *obj) {
     M149Enemy *e;
     Object *ownerObj;

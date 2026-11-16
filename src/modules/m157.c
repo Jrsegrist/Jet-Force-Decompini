@@ -1,4 +1,7 @@
-/* Runlink module 157: draws a window frame as a set of rectangles from a shape table. */
+/*
+ * Runlink module 157: draws a window frame as a set of rectangles from a shape table.
+ * Family: menus and screens (counted with the other object behaviours in docs/runlink.md).
+ */
 #include "module.h"
 
 /*
@@ -42,6 +45,7 @@ static WindowPiece sWindowPieces[] = {
 
 static WindowPiece *sWindowShapes[] = { sWindowPieces };
 
+/* Draws the shape's rectangles around a window at (x, y, width, height), scaling the colour's alpha per piece */
 void func_m157_00000(s32 arg0, u8 shape, s32 x, s32 y, s32 width, s32 height, u32 colour) {
     WindowRect *r;
     WindowPiece *p;

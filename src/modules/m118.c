@@ -2,6 +2,7 @@
  * Runlink module 118: objects for the robot sections: a target that runs an
  * action when it is shot, a collectable that the robot picks up, and a
  * checkpoint plane that the robot crosses.
+ * Family: switches and targets, and pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -98,6 +99,7 @@ static Object *robot_find(void) {
     return robot;
 }
 
+/* Init (target): copies its message, health, sparks, model swap and action, sets angles and collider */
 void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     M118Target *t = OBJ_STATE(obj, M118Target);
 
@@ -114,6 +116,7 @@ void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     obj_collision_spheres_init(obj, t->hitbox << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame, target): hurt only by the robot; when destroyed, sparks, runs its action, messages */
 void func_m118_00140(Object *obj, s32 updateRate) {
     s32 n;
     SparkParams spark;
@@ -141,16 +144,16 @@ void func_m118_00140(Object *obj, s32 updateRate) {
                 spark.x_position = obj->trans.x_position;
                 spark.y_position = obj->trans.y_position;
                 spark.z_position = obj->trans.z_position;
-                spark.unk18 = 20;
-                spark.unk1A = 10;
-                spark.unk1B = 0xFF;
-                spark.unk1C = 0xFFFF80FF;
-                spark.unk20 = 0xFF0000FF;
+                spark.textureID = 20;
+                spark.lifeSteps = 10;
+                spark.alpha = 0xFF;
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFF0000FF;
                 while (n--) {
                     spark.y_rotation = func_80048E2C(-0x8000, 0x7FFF);
                     spark.x_rotation = func_80048E2C(-0x3000, 0x3C00);
                     spark.speed = func_80048E2C(70, 90) * 0.1f;
-                    spark.unk14 = func_80048E2C(25, 50) * 0.1f;
+                    spark.sparkSize = func_80048E2C(25, 50) * 0.1f;
                     func_m010_0000C(&spark);
                 }
             }
@@ -181,6 +184,7 @@ void func_m118_00140(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (collectable): sets its pick-up radius and message, fully shown */
 void func_m118_003DC(Object *obj, M118CollectableSetup *setup) {
     M118Collectable *c = OBJ_STATE(obj, M118Collectable);
 
@@ -189,6 +193,7 @@ void func_m118_003DC(Object *obj, M118CollectableSetup *setup) {
     c->fade = 0xFF;
 }
 
+/* Control (every frame, collectable): spins; when the robot comes within reach, flashes, sounds and fades out */
 void func_m118_00414(Object *obj, s32 updateRate) {
     M118Collectable *c;
     f32 dx;
@@ -247,6 +252,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (checkpoint): sets scale and angles, and builds the plane and radius from them */
 void func_m118_0063C(Object *obj, M118CheckSetup *setup) {
     M118Check *c = obj->unk68;
     f32 s;
@@ -266,6 +272,7 @@ void func_m118_0063C(Object *obj, M118CheckSetup *setup) {
     c->last = setup->last;
 }
 
+/* Control (every frame, checkpoint): robot near and behind the plane shows the message; the last one ends it */
 void func_m118_00794(Object *obj, s32 updateRate) {
     Object *player;
     Object *robot;

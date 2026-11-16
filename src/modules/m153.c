@@ -2,6 +2,7 @@
  * Runlink module 153: a blob thrown by an enemy: it flies and spins, sticks
  * to its thrower's model while held, leaves blood where it lands, and fades
  * out when its time is up.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -52,6 +53,7 @@ extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz, s32 alp
 
 s32 D_m153_00450 = 153; /* the module's number */
 
+/* Init: at rest and held, with angles from the entry, a random roll and spin, its hit box and lifetime */
 void func_m153_00000(Object *obj, M153Setup *setup) {
     M153Blob *b = obj->unk68;
 
@@ -72,6 +74,7 @@ void func_m153_00000(Object *obj, M153Setup *setup) {
     *obj->unk7C &= ~2;
 }
 
+/* Control (every frame): fades out and frees when time is up; follows the thrower while held, else splats */
 void func_m153_0012C(Object *obj, s32 updateRate) {
     M153Blob *b = obj->unk68;
     M153Collision *c = (M153Collision *) obj->unk7C;

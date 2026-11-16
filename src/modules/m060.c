@@ -1,4 +1,7 @@
-/* Runlink module 60: the object table for the multiplayer arenas. */
+/*
+ * Runlink module 60: the object table for the multiplayer arenas.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
+ */
 #include "module.h"
 
 /* The module's data: tables of object entries (kept as assembly for now) */

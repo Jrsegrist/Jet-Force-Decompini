@@ -3,6 +3,7 @@
  * it. The panel is a rectangle of the setup's size (scaled), drawn as two
  * triangles; when the panel is big enough the glow extends its corners away
  * from a point, drawn as two strips of eight triangles whose texture scrolls.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -96,6 +97,7 @@ static s16 sBackGlowV[8][3] = {
 
 void func_m076_002A8(Object *obj);
 
+/* Init: sets the angles and scale, the panel and glow sizes and colours, the vertex colours, then the shape */
 void func_m076_00000(Object *obj, M076Setup *setup, s32 keepState) {
     M076State *s;
     s32 i;
@@ -145,6 +147,7 @@ void func_m076_00000(Object *obj, M076Setup *setup, s32 keepState) {
     func_m076_002A8(obj);
 }
 
+/* Builds the panel's corners and, if big enough, the glow corners pushed away from the focus point */
 void func_m076_002A8(Object *obj) {
     s32 i;
     f32 halfW;
@@ -228,6 +231,7 @@ void func_m076_002A8(Object *obj) {
     OBJ_STATE(obj, s32)[0] = 0;
 }
 
+/* Scrolls the glow strips' texture coordinates */
 void func_m076_0096C(s32 updateRate) {
     s16 k;
     s16 i;
@@ -254,6 +258,7 @@ void func_m076_0096C(s32 updateRate) {
     }
 }
 
+/* Draws the panel and the front and back glows that are switched on */
 void func_m076_00A34(Gfx **dl, s32 arg1, Object *obj) {
     M076State *s;
 

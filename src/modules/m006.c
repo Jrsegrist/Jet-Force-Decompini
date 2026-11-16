@@ -3,6 +3,7 @@
  * the meter's ring of vertices, places the HUD elements for one, two or four
  * players, keeps a small queue of messages per player that slide in and out
  * of a bar, and formats play times.
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

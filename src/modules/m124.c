@@ -3,6 +3,7 @@
  * to and fro, carries an object light and (optionally) a light at the end of
  * its beam, and can be shot out: then it goes dark (setting a flag for some
  * kinds) and comes back on after a while with a shower of sparks (module 10).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -298,16 +299,16 @@ void func_m124_00678(Object *obj, s32 updateRate) {
                     spark.x_position = obj->trans.x_position;
                     spark.y_position = obj->trans.y_position;
                     spark.z_position = obj->trans.z_position;
-                    spark.unk18 = 20;
-                    spark.unk1A = 10;
-                    spark.unk1B = 0xFF;
-                    spark.unk1C = 0xFFFF80FF;
-                    spark.unk20 = 0xFF0000FF;
+                    spark.textureID = 20;
+                    spark.lifeSteps = 10;
+                    spark.alpha = 0xFF;
+                    spark.colour1 = 0xFFFF80FF;
+                    spark.colour2 = 0xFF0000FF;
                     while (i--) {
                         spark.y_rotation = func_80048E2C(-0x2000, 0x2000) + obj->trans.rotation.y_rotation;
                         spark.x_rotation = func_80048E2C(-0x2000, 0x2000) + obj->trans.rotation.x_rotation;
                         spark.speed = func_80048E2C(10, 20) * 0.1f;
-                        spark.unk14 = func_80048E2C(12, 25) * 0.1f;
+                        spark.sparkSize = func_80048E2C(12, 25) * 0.1f;
                         func_m010_0000C(&spark);
                     }
                 }

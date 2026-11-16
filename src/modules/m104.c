@@ -3,6 +3,7 @@
  * they are placed, give the player health (or, kind 0xE9, a health upgrade,
  * once: a game flag remembers it), then respawn after a delay or are freed.
  * Pickups dropped with a lifetime fade out and are freed when it runs out.
+ * Family: pickups (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -69,6 +70,7 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 s32 D_m104_006A0 = 104; /* the module's number */
 
+/* Init: drops it onto the floor (unless dropped), keeps its spot, respawn, flag and size, and scales it */
 void func_m104_00000(Object *obj, M104Setup *setup, s32 arg2) {
     M104Pickup *p = obj->unk68;
     u8 hit[0x28];
@@ -116,6 +118,10 @@ void func_m104_00000(Object *obj, M104Setup *setup, s32 arg2) {
     }
 }
 
+/*
+ * Control (every frame): counts down a lifetime, fades back in after respawning, and gives a touching player
+ * health (or an upgrade, once), with a message and sound; then respawns or is freed
+ */
 void func_m104_001F0(Object *obj, s32 updateRate) {
     s32 near;
     M104Pickup *p = obj->unk68;

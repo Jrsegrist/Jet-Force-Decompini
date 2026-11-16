@@ -4,6 +4,7 @@
  * falls under a settable downward acceleration and fades out over its life.
  * The draw function sorts them by camera depth before drawing them as
  * streaks from their previous to their current position.
+ * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -68,7 +69,7 @@ void *func_m010_0000C(SparkParams *params) {
     if (sCount < max) {
         spark = func_8004A57C(sizeof(M010Spark), 0xFF7F7FFF);
         if (spark != NULL) {
-            spark->texture = func_80055694(params->unk18);
+            spark->texture = func_80055694(params->textureID);
             if (spark->texture != NULL) {
                 w = (spark->texture[0] - 1) << 5;
                 h = (spark->texture[1] - 1) << 5;
@@ -92,10 +93,10 @@ void *func_m010_0000C(SparkParams *params) {
                 spark->vi12 = 3;
                 spark->uv1[2][0] = 0;
                 spark->uv1[2][1] = h;
-                spark->colour1.word = params->unk1C;
-                spark->colour2.word = params->unk20;
-                spark->alpha = params->unk1B;
-                spark->timer = (u8) params->unk1A * 6;
+                spark->colour1.word = params->colour1;
+                spark->colour2.word = params->colour2;
+                spark->alpha = params->alpha;
+                spark->timer = (u8) params->lifeSteps * 6;
                 spark->colour1.c[3] = spark->alpha;
                 if (spark->timer < 32) {
                     spark->colour1.c[3] = (spark->alpha * spark->timer) >> 5;
@@ -109,7 +110,7 @@ void *func_m010_0000C(SparkParams *params) {
                 spark->prevPos.z = params->z_position;
                 spark->vel.z = -params->speed;
                 func_8004944C((Vec3s *) params, &spark->vel);
-                spark->size = params->unk14;
+                spark->size = params->sparkSize;
                 sSparks[sCount] = spark;
                 sCount++;
             }

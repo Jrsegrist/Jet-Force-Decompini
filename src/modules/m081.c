@@ -6,6 +6,7 @@
  * out at a random direction and distance and falls in towards the centre,
  * faster and faster, until it reaches it; up to four new ones start each
  * frame. Up to four effects exist at once; they share one texture.
+ * Family: effect libraries (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

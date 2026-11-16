@@ -3,6 +3,7 @@
  * for a while. The first kind just shows and hides; the second kind (a
  * pop-up target) swings up into view, swings down again when its time is
  * up, and falls flat (with a sound) when it has been shot.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -26,6 +27,7 @@ typedef struct M114Target {
 
 extern void func_80001248(s32 sound, s32 arg1);
 
+/* Init (first kind): sets the angles, delay, duration, health and points from the level entry */
 void func_m114_00000(Object *obj, M114Setup *setup) {
     M114Target *t;
 
@@ -40,6 +42,7 @@ void func_m114_00000(Object *obj, M114Setup *setup) {
     obj->interactObj->hitPoints = t->health;
 }
 
+/* Control (every frame, first kind): hidden until the delay ends, shown for the duration, hidden once shot */
 void func_m114_000E4(Object *obj, s32 updateRate) {
     M114Target *t = obj->unk68;
 
@@ -68,6 +71,7 @@ void func_m114_000E4(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (pop-up): lies flat; sets angles, scale, delay, duration, health, points and its collider */
 void func_m114_001D4(Object *obj, M114Setup *setup, s32 arg2) {
     M114Target *t;
 
@@ -85,6 +89,7 @@ void func_m114_001D4(Object *obj, M114Setup *setup, s32 arg2) {
     obj->interactObj->flags &= ~1;
 }
 
+/* Control (every frame, pop-up): takes damage, swings up after the delay, down when time is up or when shot */
 void func_m114_00370(Object *obj, s32 updateRate) {
     M114Target *t = obj->unk68;
 

@@ -6,6 +6,7 @@
  * screen shows the game's best time and, every so often, the five fastest
  * times with initials; a cabinet with no game shows a test card and "OUT OF
  * ORDER". B (or Z) walks away.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -227,6 +228,7 @@ void func_m075_00114(Object *camera, s32 updateRate) {
     }
 }
 
+/* Init: sets the angle, the area in front, the camera view and the game; game 0x18D needs item 0x1B */
 void func_m075_0038C(Object *obj, M075Setup *setup) {
     M075State *state = obj->unk68;
 
@@ -258,6 +260,7 @@ void func_m075_0038C(Object *obj, M075Setup *setup) {
  * named locals (pad).
  */
 #ifdef NON_MATCHING
+/* Control (every frame): A in front starts using it; then a token gives a credit, START launches, B leaves */
 void func_m075_004FC(Object *obj, s32 updateRate) {
     s32 pad[4];
     M075State *state = obj->unk68;
@@ -379,6 +382,7 @@ static void draw_time(Gfx **dl, s32 x, s32 y, s32 time);
 static void draw_records(Gfx **dl, M075Record *records, s32 alpha);
 static M075Record *get_records(s32 game);
 
+/* Draws the opening screen: its picture or best times, the credit texts, or the out-of-order test card */
 void func_m075_00900(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj) {
     s32 size;
     s32 alpha;

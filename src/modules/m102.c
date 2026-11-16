@@ -4,6 +4,7 @@
  * spot checked against the scenery. It spins and tumbles as it rolls, and
  * goes off when its time runs out: it spawns an object from the level's list
  * where it lies and plays a sound.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -58,6 +59,7 @@ void func_m102_002B4(Object *obj);
 
 s32 D_m102_00830 = 102; /* the module's number */
 
+/* Init: held still, or aimed and placed where a sweep meets the scenery and launched; sets collider and timer */
 void func_m102_00000(Object *obj, M102Setup *setup) {
     M102Bomb *b;
     u8 hit[0x28];
@@ -108,6 +110,7 @@ void func_m102_00000(Object *obj, M102Setup *setup) {
     *obj->unk7C &= ~2;
 }
 
+/* Goes off: spawns list object 0 (4 if 10+ below the surface), plays the sound, alerts enemies, frees itself */
 void func_m102_002B4(Object *obj) {
     M102Collision *c = (M102Collision *) obj->unk7C;
     s32 kind = 0;
@@ -126,6 +129,7 @@ void func_m102_002B4(Object *obj) {
     func_800079B8(obj);
 }
 
+/* Control (every frame): goes off when time runs out; held ones follow the thrower's point, others roll, smoke */
 void func_m102_00490(Object *obj, s32 updateRate) {
     M102Bomb *b = obj->unk68;
     s32 pad;

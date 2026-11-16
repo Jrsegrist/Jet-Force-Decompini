@@ -4,6 +4,7 @@
  * the player), dims the fog, raises a ring of beams of light (a module 64
  * object), flashes the screen, swaps the player's model (and the shadow's) for
  * the one the pad gives, flashes again and gives the camera back.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -229,6 +230,7 @@ static s32 beams_update(Object *obj, M129State *s, s32 updateRate) {
     }
 }
 
+/* The player's model for each form, by character (NULL for other characters) */
 static s16 *form_models(M129Player *pd) {
     switch (pd->character) {
         case 0:
@@ -243,6 +245,7 @@ static s16 *form_models(M129Player *pd) {
     return NULL;
 }
 
+/* The shadow's model for each form, by character (NULL for other characters) */
 static s16 *form_shadow_models(M129Player *pd) {
     switch (pd->character) {
         case 0:
@@ -257,6 +260,7 @@ static s16 *form_shadow_models(M129Player *pd) {
     return NULL;
 }
 
+/* Init: sets the pad's area, height range and form, its model by kind, and its collider */
 void func_m129_002F4(Object *obj, M129Setup *setup) {
     M129State *s = obj->unk68;
 
@@ -277,6 +281,7 @@ void func_m129_002F4(Object *obj, M129Setup *setup) {
 static void camera_start(Object *player, s32 angle, s32 eased);
 static void player_set_form(Object *player, s32 model, s32 shadowModel);
 
+/* Control (every frame): A on the pad starts the change, then steps it: flash, swap form, flash, give back */
 void func_m129_003F4(Object *obj, s32 updateRate) {
     s32 buttons;
     s32 model;
@@ -426,6 +431,7 @@ static void camera_start(Object *player, s32 angle, s32 eased) {
     sCamAngleStart = angle;
 }
 
+/* The camera while the pad has it: circles the player, closing in while the pad is active, and looks at them */
 void func_m129_00A2C(ObjectTransform *cam, s32 updateRate) {
     s16 pitch;
     s16 yaw;
@@ -471,6 +477,7 @@ void func_m129_00A2C(ObjectTransform *cam, s32 updateRate) {
     sCamEased = 1;
 }
 
+/* Lifts the player over the pad and bobs them while it is active, easing them back down after */
 void func_m129_00CF8(Object *player, M129Player *pd, s32 updateRate) {
     f32 x;
     f32 y;

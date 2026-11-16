@@ -2,6 +2,7 @@
  * Runlink module 130: a glowing shot that flies straight with its own light
  * until it hits something, runs out of time or is shot down. Where it hits a
  * suitable surface it leaves another object behind; otherwise it bursts.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -63,6 +64,7 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 s32 D_m130_005E0 = 130; /* the module's number */
 
+/* Init: sets velocity from the entry and points along it, lifetime and strength, and adds its light */
 void func_m130_00000(Object *obj, M130Setup *setup) {
     M130Shot *s = obj->unk68;
 
@@ -86,6 +88,7 @@ void func_m130_00000(Object *obj, M130Setup *setup) {
                                                            obj->trans.z_position, 500.0f, 300.0f, 0, 0xE0, 0xFF);
 }
 
+/* Control (every frame): flies and checks for hits; when done, leaves an object on water or bursts, then frees */
 void func_m130_001AC(Object *obj, s32 updateRate) {
     M130Shot *s;
     s32 pad1;

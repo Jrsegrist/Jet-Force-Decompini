@@ -4,6 +4,7 @@
  * (up to 15 different ones), the second picks the objects to reflect (up to
  * 60, each with a value from the visibility test), and the third draws them
  * mirrored (C for it is NON_MATCHING).
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 #include "gfx.h"

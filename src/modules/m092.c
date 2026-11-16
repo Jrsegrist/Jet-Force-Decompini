@@ -1,4 +1,7 @@
-/* Runlink module 92: fish food, a pellet that drifts along a line and shrinks away. */
+/*
+ * Runlink module 92: fish food, a pellet that drifts along a line and shrinks away.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M092Setup {
@@ -25,6 +28,7 @@ extern void runlink_unload_timer_set(s32, s32, s32);
 
 s32 D_m092_00330 = 92; /* the module's number */
 
+/* Init: sets the lifetime and size, aims and places it where a sweep meets the level, and sets its speed */
 void func_m092_00000(Object *obj, M092Setup *setup) {
     M092Food *food = obj->unk68;
     u8 hit[0x28];
@@ -63,6 +67,7 @@ void func_m092_00000(Object *obj, M092Setup *setup) {
     *obj->unk7C &= ~2;
 }
 
+/* Control (every frame): shrinks with its timer and frees itself at zero; mirrors two flag bits into its state */
 void func_m092_001F0(Object *obj, s32 updateRate) {
     M092Food *food;
     u8 *flags;

@@ -2,6 +2,7 @@
  * Runlink module 155: the enemy AI shared by the soldier enemies: where the
  * player was last spotted, paths between nodes, the enemies' states and
  * which way they face.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -127,9 +128,9 @@ extern M155Node *rl_m155_04D50; /* .bss (still assembly): the nodes */
 /*
  * Adds a path node: a new one while there are fewer than 64, else it replaces the one with the
  * largest unk8. (As in the original, if every unk8 is 0 the node written is never set.) Called from
- * 00268 and 00644.
+ * 00268 and 00644 (module m155, 0x000C8).
  */
-static void func_m155_000C8(s16 x, s16 z, s16 arg2, s16 arg3, s32 arg4, u32 arg5) {
+static void soldier_path_node_add(s16 x, s16 z, s16 arg2, s16 arg3, s32 arg4, u32 arg5) {
     M155Node *node;
     M155Node *n;
     u32 most;
@@ -167,8 +168,8 @@ typedef struct M155Region {
 
 extern s32 func_m003_16F44(f32 x, f32 z, M155Region *region);
 
-/* Whether (x, z) is in the region and in none of its holes */
-static s32 func_m155_001B4(f32 x, f32 z, M155Region *region) {
+/* Whether (x, z) is in the region and in none of its holes (module m155, 0x001B4). */
+static s32 region_point_inside(f32 x, f32 z, M155Region *region) {
     M155Region *r = region;
 
     if (!func_m003_16F44(x, z, r)) {
@@ -230,9 +231,9 @@ extern s16 rl_m155_04F90;
 
 /*
  * Adds a path node beside object `obj` (from (x, z)): at the point of its edge facing (x, z), pushed out
- * by the target's radius and 10, if that point is in the enemy's region; its other end goes to one side
+ * by the target's radius and 10, if that point is in the enemy's region; its other end goes to one side (module m155, 0x00268).
  */
-static void func_m155_00268(f32 x, f32 z, Object *obj, s32 arg3) {
+static void soldier_node_beside_object(f32 x, f32 z, Object *obj, s32 arg3) {
     M155Extent *e;
     f32 cx;
     f32 cz;
@@ -261,7 +262,7 @@ static void func_m155_00268(f32 x, f32 z, Object *obj, s32 arg3) {
     px = func_80049C34(angle) * d + cx;
     pz = func_80049C30(angle) * d + cz;
     fx = px;
-    if (func_m155_001B4(fx, pz, (M155Region *) rl_m155_04F80)) {
+    if (region_point_inside(fx, pz, (M155Region *) rl_m155_04F80)) {
         fz = pz;
         i = 2;
         goto loop; /* FAKE (found by the permuter): keeps the loop's first test, as in the ROM */
@@ -277,7 +278,7 @@ static void func_m155_00268(f32 x, f32 z, Object *obj, s32 arg3) {
                     continue;
                 }
             }
-            func_m155_000C8(px, pz, qx, qz, (arg3 << 16) + i, (fx - x) * (fx - x) + (fz - z) * (fz - z));
+            soldier_path_node_add(px, pz, qx, qz, (arg3 << 16) + i, (fx - x) * (fx - x) + (fz - z) * (fz - z));
             return;
         }
     }
@@ -290,9 +291,9 @@ extern s32 func_m003_175E8(f32 x1, f32 z1, f32 x2, f32 z2, void *region, void *o
 /*
  * Adds path nodes around the corners of region `area` that (x, z) sees from outside: each such corner gets
  * a node pushed out by the target's radius and 10, joined to a point further along if the way there is
- * clear and in the enemy's region
+ * clear and in the enemy's region (module m155, 0x00644).
  */
-static void func_m155_00644(s16 x, s16 z, M155Area *area) {
+static void soldier_nodes_round_corners(s16 x, s16 z, M155Area *area) {
     s32 n;
     M155Point *p;
     M155Point *q;
@@ -354,7 +355,7 @@ static void func_m155_00644(s16 x, s16 z, M155Area *area) {
             }
             bx = func_80049C30(b) * (s + r) + near->x;
             bz = func_80049C34(b) * (s + r) + near->z;
-            if (func_m155_001B4(bx, bz, (M155Region *) rl_m155_04F80)) {
+            if (region_point_inside(bx, bz, (M155Region *) rl_m155_04F80)) {
                 bx = func_80049C30(b) * s + near->x;
                 ok = TRUE;
                 bz = func_80049C34(b) * s + near->z;
@@ -362,7 +363,7 @@ static void func_m155_00644(s16 x, s16 z, M155Area *area) {
                 cx = func_80049C30(b) * s + near->x;
                 cz = func_80049C34(b) * s + near->z;
                 if (func_m003_175E8(bx, bz, cx, cz, rl_m155_04F80, NULL, -1, 0xFF) ||
-                    !func_m155_001B4(cx, cz, (M155Region *) rl_m155_04F80)) {
+                    !region_point_inside(cx, cz, (M155Region *) rl_m155_04F80)) {
                     ok = FALSE;
                 } else {
                     if (1) { /* FAKE (found by the permuter): splits the else-if as the original */
@@ -376,7 +377,7 @@ static void func_m155_00644(s16 x, s16 z, M155Area *area) {
                     }
                 }
                 if (ok) {
-                    func_m155_000C8(bx, bz, cx, cz, (id << 16) + n, dist);
+                    soldier_path_node_add(bx, bz, cx, cz, (id << 16) + n, dist);
                 } else {
                     ok = TRUE;
                     if (flip) {
@@ -395,7 +396,7 @@ static void func_m155_00644(s16 x, s16 z, M155Area *area) {
                     cx = func_80049C34(b) * (len + r) + bx;
                     cz = func_80049C30(b) * (len + r) + bz;
                     if (func_m003_175E8(bx, bz, cx, cz, rl_m155_04F80, NULL, -1, 0xFF) ||
-                        !func_m155_001B4(cx, cz, (M155Region *) rl_m155_04F80)) {
+                        !region_point_inside(cx, cz, (M155Region *) rl_m155_04F80)) {
                         ok = FALSE;
                     } else if (rl_m155_04F8C != 0) {
                         a1 = func_80049D80(rl_m155_04F90, func_80049C84(rl_m155_04F6C->trans.z_position - bz,
@@ -405,7 +406,7 @@ static void func_m155_00644(s16 x, s16 z, M155Area *area) {
                         }
                     }
                     if (ok) {
-                        func_m155_000C8(bx, bz, cx, cz, (id << 16) + n, dist);
+                        soldier_path_node_add(bx, bz, cx, cz, (id << 16) + n, dist);
                     }
                 }
             }
@@ -468,16 +469,16 @@ void func_m155_00FC4(s16 x, s16 z, s32 troop) {
 
     rl_m155_03C70 = 0;
     a = rl_m155_04F80 = func_m003_0569C(rl_m155_04F78->region);
-    func_m155_00644(x, z, a);
+    soldier_nodes_round_corners(x, z, a);
     for (a = a->next; a != NULL; a = a->next) {
         if ((a->flags & 1) && !(a->flags & 4)) {
             if (a->obj == NULL) {
-                func_m155_00644(x, z, a);
+                soldier_nodes_round_corners(x, z, a);
             } else if (a->obj->behaviorId != 0x5B || a->obj->modelIndex < 2) {
                 if (a->flags & 8) {
-                    func_m155_00268(x, z, a->obj, func_m003_056D4(a));
+                    soldier_node_beside_object(x, z, a->obj, func_m003_056D4(a));
                 } else {
-                    func_m155_00644(x, z, a);
+                    soldier_nodes_round_corners(x, z, a);
                 }
             }
         }
@@ -601,9 +602,9 @@ extern M155Node *rl_m155_04F84;
 /*
  * Makes obj the current enemy: its state, troop, region and flags (allocated the first time); with
  * `full`, also the path nodes towards its target and the node it last reached. FALSE if module 3 has
- * nothing for it
+ * nothing for it (module m155, 0x01584).
  */
-static s32 func_m155_01584(Object *obj, s32 full) {
+static s32 soldier_enemy_select(Object *obj, s32 full) {
     s32 n = rl_m155_03C70;
     M155Node *node = rl_m155_04D50;
 
@@ -714,9 +715,9 @@ extern s32 *rl_m155_01900(void); /* 01900 by its offset, as 33 words */
 
 /*
  * Copies an entry (33 words) into the next free one of the ring; that one, or NULL.
- * (The empty ifs on n and dst, both set, give the ROM's registers for the copy loop.)
+ * (The empty ifs on n and dst, both set, give the ROM's registers for the copy loop.) (module m155, 0x019A4).
  */
-static M155Entry *func_m155_019A4(M155Entry *e) {
+static M155Entry *soldier_ring_entry_copy(M155Entry *e) {
     s32 *entry;
     s32 *dst;
     s32 *s;
@@ -899,7 +900,7 @@ s32 func_m155_01F9C(M155Entry *e) {
         }
     }
     if (exit.point != exit.other1 && rl_m155_04F60 == 0) {
-        copy = func_m155_019A4(e);
+        copy = soldier_ring_entry_copy(e);
         if (copy != NULL) {
             rl_m155_01BE0(copy, zone->points[exit.other1].x, zone->points[exit.other1].z, exit.other1,
                           exit.region);
@@ -907,7 +908,7 @@ s32 func_m155_01F9C(M155Entry *e) {
         }
     }
     if (exit.point != exit.other2 && rl_m155_04F60 == 0) {
-        copy = func_m155_019A4(e);
+        copy = soldier_ring_entry_copy(e);
         if (copy != NULL) {
             rl_m155_01BE0(copy, zone->points[exit.other2].x, zone->points[exit.other2].z, exit.other2,
                           exit.region);
@@ -1177,7 +1178,7 @@ void func_m155_02BB0(Object *obj) {
         info = func_m003_0D2C0(o);
     }
     while (o != NULL) {
-        func_m155_01584(o, 0);
+        soldier_enemy_select(o, 0);
         if (!sFlags->alerted && sEnemy->state == 0) {
             ready = FALSE;
             break;
@@ -1279,7 +1280,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m155/ro", func_m155_02FD0);
 s16 func_m155_03B94(Object *obj, s16 yaw) {
     Object *target;
 
-    func_m155_01584(obj, 0);
+    soldier_enemy_select(obj, 0);
     if (sFlags->alerted || sFlags->unk1 != 0) {
         target = sEnemy->target;
         if (target != NULL && sEnemy->state != 11) {

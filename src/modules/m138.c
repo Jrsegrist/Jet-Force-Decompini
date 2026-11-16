@@ -1,6 +1,7 @@
 /*
  * Runlink module 138: the movement of a flying enemy that circles the
  * player at a distance, closes in, and fires when it is near.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 
@@ -37,6 +38,7 @@ extern f32 func_80049C30(s32 angle); /* cosine */
 
 s32 D_m138_002F0 = 138; /* the module's number */
 
+/* Each frame: sets the move target, circling out on random passes, then closing on the player and firing */
 void func_m138_00000(Object *obj) {
     M138Enemy *e = obj->unk68;
     Object *player;

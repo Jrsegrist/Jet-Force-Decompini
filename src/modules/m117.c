@@ -3,6 +3,7 @@
  * box. The cloud brightens while something is inside its radius (with a
  * sound when that begins and ends) and fades otherwise; it keeps a light
  * object for its glow, and renders the motes as billboards, back to front.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

@@ -1,6 +1,7 @@
 /*
  * Runlink module 61: the deathmatch results and instruments of the front end
  * (the players ranked by kills and other scores).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

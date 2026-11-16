@@ -5,6 +5,7 @@
  * corkscrewing around their path at a growing radius. When it hits
  * something, runs out of time or is shot down, it plays a sound, spawns its
  * impact objects, turns its light off and removes itself.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 

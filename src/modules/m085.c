@@ -1,4 +1,7 @@
-/* Runlink module 85: cut-scene cameras that other objects switch to for a while. */
+/*
+ * Runlink module 85: cut-scene cameras that other objects switch to for a while.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M085Setup {
@@ -45,6 +48,7 @@ extern s32 runlink_module_loaded(s32);
 extern void func_m006_015E0(s32);
 extern void func_m005_00C04(void);
 
+/* Init: sets the camera's duration, id and angles from the level entry */
 void func_m085_00000(Object *obj, M085Setup *setup) {
     M085Camera *c = obj->unk68;
 
@@ -87,6 +91,7 @@ void func_m085_00074(s32 id) {
     }
 }
 
+/* Control (every frame): when the cut's time runs out, restores the player's view and gives back control */
 void func_m085_00150(Object *obj, s32 updateRate) {
     M085Camera *c = obj->unk68;
     Object *player;

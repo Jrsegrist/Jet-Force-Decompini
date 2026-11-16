@@ -3,6 +3,7 @@
  * Each frame it draws a filled disc for every collision sphere of the model
  * (projected from above) into a 64x64 4-bit texture, blurs it and flips
  * between two such textures, sizing the shadow to the spheres' extent.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 

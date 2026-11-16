@@ -5,6 +5,7 @@
  * per weapon (mirrored or rotated copies of a few lines, coloured by lock-on),
  * a rotating 3D centre piece for some weapons, and the readouts some weapons
  * have (distance and zoom, the ammo bars, a "LOCK" sign).
+ * Family: menus and screens (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"
@@ -198,10 +199,12 @@ static M013Crosshair sCrosshairs[] = {
     { sLines0, 2, 2, 0xA0FF10C0, 0xFF2010C0 },  { sLines0, 2, 2, 0xA0FF10C0, 0xFF2010C0 },
 };
 
+/* Always returns TRUE */
 s32 func_m013_00000(void) {
     return TRUE;
 }
 
+/* Casts the aim ray as far as the weapon reaches, updates the lock-on, and draws the crosshair at the hit */
 void func_m013_00008(Object *obj, M013Player *p, s32 arg2) {
     UNUSED s32 pad;
     HitResult hit;
@@ -297,6 +300,7 @@ void func_m013_00008(Object *obj, M013Player *p, s32 arg2) {
     }
 }
 
+/* Draws the weapon's crosshair lines at (x, y), its readouts, and the 3D centre piece if it has one */
 void func_m013_004A8(M013Player *p, s16 x, s16 y, ObjectTransform *trans, f32 dist) {
     M013Weapons *w;
     M013Crosshair *entry;

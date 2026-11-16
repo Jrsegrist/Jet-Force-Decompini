@@ -1,23 +1,24 @@
 /*
  * Runlink module 7: the hint text shown on screen (normal hints and special
  * ones that interrupt them), and the long hints with their conditions and actions.
+ * Family: none: engine and set-up code (counted with the other object behaviours in docs/runlink.md).
  */
 #include "module.h"
 
 /* the .rodata strings the data refers to (first in .rodata) */
 INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", rodata);
 
-static void *func_m007_00578(s32 hint, s32 kind);
-static s32 func_m007_00390(s32 condition);
-static void func_m007_00DF0(void);
-static void func_m007_0070C(void);
+static void *hint_stack_push(s32 hint, s32 kind);
+static s32 hint_condition_holds(s32 condition);
+static void hint_stick_repeat_clear(void);
+static void hint_stack_pop(void);
 #ifdef NON_MATCHING
 static s32 func_m007_007E4(s32 dir);
 #else
 s32 rl_m007_007E4(s32 dir);
 #define func_m007_007E4 rl_m007_007E4
 #endif
-static void func_m007_016B4(void);
+static void hint_page_choose(void);
 #ifdef NON_MATCHING
 static void *func_m007_00988(s32 id, s32 kind);
 static void *func_m007_00C90(s32 id, s32 asset);
@@ -30,7 +31,7 @@ extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
 extern u8 rl_m007_02A04[]; /* the texts of pages without one */
 extern u8 rl_m007_02A14[];
-static int func_m007_012E0(s32 condition);
+static int hint_page_condition_holds(s32 condition);
 extern s32 func_80000F98(void); /* the music playing */
 extern void func_8004AA80(void *data); /* frees */
 extern s32 func_80043510(s32 player); /* the buttons pressed */
@@ -135,8 +136,8 @@ typedef struct M007Entry {
 
 void func_m007_00000(void);
 void func_m007_02824(void);
-static void func_m007_00E0C(s32 updateRate);
-static void func_m007_01018(s32 updateRate);
+static void hint_pad_read(s32 updateRate);
+static void hint_scroll_controls(s32 updateRate);
 extern s32 font_line_height(s32 font); /* a font's line height */
 extern s32 runlink_module_loaded(s32 module);
 extern void func_m032_02540(void);
@@ -144,12 +145,12 @@ extern s32 rl_m007_02A38; /* the lines left to scroll (negative: back) */
 extern s32 rl_m007_02A3C; /* the first line shown */
 extern s32 rl_m007_02A40; /* more lines below */
 extern s32 rl_m007_02A4C; /* the hints on the stack */
-static void func_m007_01214(s32 updateRate);
-static void func_m007_01F80(Gfx **dl);
-static void func_m007_020D4(Gfx **dl);
-static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha);
-static s32 func_m007_023D4(Gfx **dl, u8 *text, s32 skip);
-static void func_m007_017E8(s32 action);
+static void hint_pages_controls(s32 updateRate);
+static void hint_scroll_draw(Gfx **dl);
+static void hint_pages_draw(Gfx **dl);
+static void hint_boxes_fill(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha);
+static s32 hint_text_draw(Gfx **dl, u8 *text, s32 skip);
+static void hint_action_run(s32 action);
 
 /* A box to fill (as m075's) */
 typedef struct M007Box {
@@ -248,11 +249,11 @@ void func_m007_00148(s32 hint, s32 arg1) {
         n = p->count - 1;
         c = p->choices;
         while (n--) {
-            a = func_m007_00390(c->cond1 & 0x7F);
+            a = hint_condition_holds(c->cond1 & 0x7F);
             if (c->cond1 & 0x80) {
                 a = !a;
             }
-            b = func_m007_00390(c->cond2 & 0x7F);
+            b = hint_condition_holds(c->cond2 & 0x7F);
             if (c->cond2 & 0x80) {
                 b = !b;
             }
@@ -271,17 +272,17 @@ void func_m007_00148(s32 hint, s32 arg1) {
         }
         rl_m007_02A70 = c->unk6;
         rl_m007_02A74 = c->unk3;
-        if (func_m007_00578(c->text, 3)) {
+        if (hint_stack_push(c->text, 3)) {
             sHintActive = 1;
         }
-        func_m007_00DF0();
+        hint_stick_repeat_clear();
     }
 }
 
 extern s32 rl_m007_02A78[12]; /* .data (still assembly): game flags that 0032C counts */
 
-/* How many of the twelve flags are set (called from 00390) */
-static s32 func_m007_0032C(void) {
+/* How many of the twelve flags are set (called from 00390) (module m007, 0x0032C). */
+static s32 hint_flags_count(void) {
     s32 i;
     s32 count = 0;
 
@@ -338,8 +339,8 @@ extern void func_80047EFC(s32 flag, s32 value); /* sets a game flag */
 extern void func_80000F2C(void);                /* stops the music */
 extern void func_80000510(s32 song);            /* plays a song */
 
-/* Whether hint condition `condition` holds (with no player, every one does) */
-static s32 func_m007_00390(s32 condition) {
+/* Whether hint condition `condition` holds (with no player, every one does) (module m007, 0x00390). */
+static s32 hint_condition_holds(s32 condition) {
     M007Player *p;
     Object *obj;
     M007Items *items;
@@ -372,13 +373,13 @@ static s32 func_m007_00390(s32 condition) {
         case 17:
             return game_flag_get(0x24);
         case 10:
-            return func_m007_0032C() == 0;
+            return hint_flags_count() == 0;
         case 11:
-            return func_m007_0032C() < 7;
+            return hint_flags_count() < 7;
         case 12:
-            return func_m007_0032C() >= 7;
+            return hint_flags_count() >= 7;
         case 13:
-            return func_m007_0032C() == 12;
+            return hint_flags_count() == 12;
         case 14:
             return game_flag_get(0x58);
         case 15:
@@ -397,9 +398,9 @@ static s32 func_m007_00390(s32 condition) {
 
 /*
  * Shows hint text `hint` (kind 1: pages, 2: special, else scrolling), pushing it on the stack of
- * hints shown; while a special hint is up it is only remembered. Returns its text.
+ * hints shown; while a special hint is up it is only remembered. Returns its text (module m007, 0x00578).
  */
-static void *func_m007_00578(s32 hint, s32 kind) {
+static void *hint_stack_push(s32 hint, s32 kind) {
     void *data = NULL;
 
     if (sHintSpecial) {
@@ -440,8 +441,8 @@ static void *func_m007_00578(s32 hint, s32 kind) {
     return data;
 }
 
-/* Goes back to the hint under the one shown, if there is one */
-static void func_m007_0070C(void) {
+/* Goes back to the hint under the one shown, if there is one (module m007, 0x0070C). */
+static void hint_stack_pop(void) {
     M007Shown *s;
 
     if (rl_m007_02A4C > 0 && --rl_m007_02A4C > 0) {
@@ -456,7 +457,7 @@ static void func_m007_0070C(void) {
         } else {
             rl_m007_02A5C = s->data;
             if (!func_m007_007E4(0)) {
-                func_m007_0070C();
+                hint_stack_pop();
             }
         }
         if (runlink_module_loaded(0x20)) {
@@ -480,7 +481,7 @@ static s32 func_m007_007E4(s32 dir) {
 
     if (p != NULL) {
         for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
-            if (func_m007_012E0(rec->condition)) {
+            if (hint_page_condition_holds(rec->condition)) {
                 count++;
             }
         }
@@ -489,23 +490,23 @@ static s32 func_m007_007E4(s32 dir) {
             if (dir > 0) {
                 do {
                     i++;
-                } while (i < p->count && !func_m007_012E0(p->recs[i].condition));
+                } while (i < p->count && !hint_page_condition_holds(p->recs[i].condition));
             } else {
                 rec = &p->recs[i];
                 if (dir < 0) {
                     do {
                         i--;
-                    } while (i >= 0 && !func_m007_012E0(p->recs[i].condition));
-                } else if (!func_m007_012E0(rec->condition)) {
+                    } while (i >= 0 && !hint_page_condition_holds(p->recs[i].condition));
+                } else if (!hint_page_condition_holds(rec->condition)) {
                     do {
                         i--;
                         rec--;
-                    } while (i >= 0 && !func_m007_012E0(rec->condition));
+                    } while (i >= 0 && !hint_page_condition_holds(rec->condition));
                     if (i < 0) {
                         i = p->current;
                         do {
                             i++;
-                        } while (i < p->count && !func_m007_012E0(p->recs[i].condition));
+                        } while (i < p->count && !hint_page_condition_holds(p->recs[i].condition));
                     }
                 }
             }
@@ -626,7 +627,7 @@ s32 func_m007_00D90(void) {
 void func_m007_00DA0(void) {
     sHintSpecial = 0;
     if (sHintPrevious != -1) {
-        func_m007_00578(sHintPrevious, sHintPreviousArg);
+        hint_stack_push(sHintPrevious, sHintPreviousArg);
     }
 }
 
@@ -634,15 +635,15 @@ s32 func_m007_00DE0(void) {
     return sHintTriedToEnd;
 }
 
-/* Clears the stick's repeat timers */
-static void func_m007_00DF0(void) {
+/* Clears the stick's repeat timers (module m007, 0x00DF0). */
+static void hint_stick_repeat_clear(void) {
     rl_m007_02C4C = 0;
     rl_m007_02C50 = 0;
     sHintTriedToEnd = 0;
 }
 
-/* Reads the controller: the buttons, and the stick's directions with auto-repeat */
-static void func_m007_00E0C(s32 updateRate) {
+/* Reads the controller: the buttons, and the stick's directions with auto-repeat (module m007, 0x00E0C). */
+static void hint_pad_read(s32 updateRate) {
     s32 buttons;
     s32 x;
     s32 y;
@@ -706,8 +707,8 @@ static void func_m007_00E0C(s32 updateRate) {
     }
 }
 
-/* A scrolling hint's controls: A scrolls on or ends it, B scrolls back */
-static void func_m007_01018(s32 updateRate) {
+/* A scrolling hint's controls: A scrolls on or ends it, B scrolls back (module m007, 0x01018). */
+static void hint_scroll_controls(s32 updateRate) {
     s32 lines = 88 / font_line_height(2) - 1;
 
     if (rl_m007_02A38 != 0) {
@@ -731,23 +732,23 @@ static void func_m007_01018(s32 updateRate) {
     }
     if (!rl_m007_02A40 && rl_m007_02C30) {
         if (rl_m007_02A44 == 4 && rl_m007_02A4C >= 2) {
-            func_m007_0070C();
+            hint_stack_pop();
         } else if (rl_m007_02A44 == 3 && rl_m007_02A74 != 0) {
-            func_m007_00578(rl_m007_02A70, rl_m007_02A74);
+            hint_stack_push(rl_m007_02A70, rl_m007_02A74);
         } else {
             sHintTriedToEnd = 1;
         }
     } else if (rl_m007_02C34 && rl_m007_02A4C >= 2) {
-        func_m007_0070C();
+        hint_stack_pop();
     }
 }
 
-/* A long hint's controls: B ends it, A moves on, up and down turn the pages */
-static void func_m007_01214(s32 updateRate) {
+/* A long hint's controls: B ends it, A moves on, up and down turn the pages (module m007, 0x01214). */
+static void hint_pages_controls(s32 updateRate) {
     if (rl_m007_02C34) {
-        func_m007_0070C();
+        hint_stack_pop();
     } else if (rl_m007_02C30) {
-        func_m007_016B4();
+        hint_page_choose();
     } else if (rl_m007_02C3C && rl_m007_02A5C->current > 0) {
         func_m007_007E4(-1);
     } else if (rl_m007_02C40 && rl_m007_02A5C->current < rl_m007_02A5C->count - 1) {
@@ -757,9 +758,9 @@ static void func_m007_01214(s32 updateRate) {
 
 /*
  * Whether a paged hint's condition `condition` holds. With no player, p and items are read unset (as the
- * original does).
+ * original does) (module m007, 0x012E0).
  */
-static int func_m007_012E0(s32 condition) {
+static int hint_page_condition_holds(s32 condition) {
     Object *obj;
     M007Player *p;
     M007Items *items;
@@ -818,9 +819,9 @@ static int func_m007_012E0(s32 condition) {
 
 /*
  * Whether a long hint's condition `condition` holds. With no player, p and items are read unset (as the
- * original does).
+ * original does) (module m007, 0x01504).
  */
-static int func_m007_01504(s32 condition) {
+static int hint_action_condition_holds(s32 condition) {
     Object *obj;
     M007Player *p;
     M007Items *items;
@@ -858,49 +859,49 @@ static int func_m007_01504(s32 condition) {
     return TRUE;
 }
 
-/* A paged hint's A button: does the page's action if its condition holds, then shows its next hint */
-static void func_m007_016B4(void) {
+/* A paged hint's A button: does the page's action if its condition holds, then shows its next hint (module m007, 0x016B4). */
+static void hint_page_choose(void) {
     M007PageRec *rec;
     M007Pages *p = rl_m007_02A5C;
 
     if (p != NULL) {
         rec = &p->recs[p->current];
-        if (func_m007_01504(rec->cond2)) {
+        if (hint_action_condition_holds(rec->cond2)) {
             switch (rec->action & 0xF000) {
                 case 0:
-                    func_m007_017E8(rec->action);
+                    hint_action_run(rec->action);
                     break;
                 case 0x1000:
-                    func_m007_00578(rec->action & 0xFFF, 4);
+                    hint_stack_push(rec->action & 0xFFF, 4);
                     break;
                 case 0x2000:
-                    func_m007_00578(rec->action & 0xFFF, 1);
+                    hint_stack_push(rec->action & 0xFFF, 1);
                     break;
                 case 0x3000:
                     rl_m007_02A68 = rec->action & 0xFFF;
                     sHintSpecial = 2;
                     break;
                 case 0x4000:
-                    func_m007_0070C();
+                    hint_stack_pop();
                     break;
                 default:
                     sHintActive = 0;
                     break;
             }
             if (rec->thenHint != -1) {
-                func_m007_00578(rec->thenHint, 4);
+                hint_stack_push(rec->thenHint, 4);
             }
         } else if (rec->elseHint != -1) {
-            func_m007_00578(rec->elseHint, 4);
+            hint_stack_push(rec->elseHint, 4);
         }
     }
 }
 
 /*
  * Does a long hint's action `action`: gives or takes items, sets game flags, changes the music. With no player,
- * p and items are read unset (as the original does).
+ * p and items are read unset (as the original does) (module m007, 0x017E8).
  */
-static void func_m007_017E8(s32 action) {
+static void hint_action_run(s32 action) {
     M007WeaponInfo *info;
     Object *obj;
     M007Player *p;
@@ -1019,19 +1020,19 @@ static void func_m007_017E8(s32 action) {
             rl_m007_02A64 = 0x6C;
             break;
         default:
-            func_m007_0070C();
+            hint_stack_pop();
             break;
     }
 }
 
 /* Every frame: the hint text's fade in and out, and its drawing */
 void func_m007_01CCC(Gfx **dl, s32 updateRate) {
-    func_m007_00E0C(updateRate);
+    hint_pad_read(updateRate);
     if (sHintActive && !sHintSpecial) {
         if (rl_m007_02A44 != 1 && rl_m007_02A58 != 0) {
-            func_m007_01018(updateRate);
+            hint_scroll_controls(updateRate);
         } else if (rl_m007_02A5C != NULL) {
-            func_m007_01214(updateRate);
+            hint_pages_controls(updateRate);
         }
         rl_m007_02A20 += updateRate * 16;
         if (rl_m007_02A20 > 256) {
@@ -1050,16 +1051,16 @@ void func_m007_01CCC(Gfx **dl, s32 updateRate) {
     text_colour_mode_set(1);
     if (rl_m007_02A20 != 0) {
         if (rl_m007_02A44 != 1) {
-            func_m007_01F80(dl);
+            hint_scroll_draw(dl);
         } else {
-            func_m007_020D4(dl);
+            hint_pages_draw(dl);
         }
     }
     text_colour_mode_set(0);
 }
 
-/* Fills the boxes of an outline (9 bytes a box) at (x, y), stretched by (w, h), at `alpha` (0..128) */
-static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha) {
+/* Fills the boxes of an outline (9 bytes a box) at (x, y), stretched by (w, h), at `alpha` (0..128) (module m007, 0x01E34). */
+static void hint_boxes_fill(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 alpha) {
     s32 n;
     M007Box boxes[24];
     M007Box *b = boxes;
@@ -1091,10 +1092,10 @@ static void func_m007_01E34(Gfx **dl, s8 *src, s32 x, s32 y, s32 w, s32 h, s32 a
     menu_fill_boxes(dl, n, boxes, 0);
 }
 
-/* Draws a scrolling hint: its box, its text, and the marks for more text above and below */
-static void func_m007_01F80(Gfx **dl) {
-    func_m007_01E34(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
-    rl_m007_02A40 = func_m007_023D4(dl, rl_m007_02A58, rl_m007_02A3C);
+/* Draws a scrolling hint: its box, its text, and the marks for more text above and below (module m007, 0x01F80). */
+static void hint_scroll_draw(Gfx **dl) {
+    hint_boxes_fill(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
+    rl_m007_02A40 = hint_text_draw(dl, rl_m007_02A58, rl_m007_02A3C);
     func_8006FC8C(0, 0, 0, 0);
     func_8006FC68(0xFF, 0xC0, 0, 0xFF, (rl_m007_02A20 * 255) >> 8);
     if (rl_m007_02A3C) {
@@ -1108,8 +1109,8 @@ static void func_m007_01F80(Gfx **dl) {
 extern void func_8006FC54(s32 font);
 extern u8 *func_8007216C(s32 font, u8 *text, s32 width, u8 **line); /* the next line of a text */
 
-/* Draws a long hint's pages (the current one in white) and the "more" mark if they don't all fit */
-static void func_m007_020D4(Gfx **dl) {
+/* Draws a long hint's pages (the current one in white) and the "more" mark if they don't all fit (module m007, 0x020D4). */
+static void hint_pages_draw(Gfx **dl) {
     s32 height;
     s32 i;
     s32 lines;
@@ -1121,7 +1122,7 @@ static void func_m007_020D4(Gfx **dl) {
     u8 *line;
     u8 c;
 
-    func_m007_01E34(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
+    hint_boxes_fill(dl, rl_m007_02960, 0x5C, 0x14, 0xD0, 0x58, (rl_m007_02A20 * 160) >> 8);
     i = 0;
     height = font_line_height(2);
     lines = 88 / height - 1;
@@ -1138,7 +1139,7 @@ static void func_m007_020D4(Gfx **dl) {
             func_8006FC68(0, 0xC0, 0xC0, 0xFF, alpha);
         }
         text = rl_m007_02A5C->recs[i].text;
-        if (!func_m007_012E0(rl_m007_02A5C->recs[i].condition)) {
+        if (!hint_page_condition_holds(rl_m007_02A5C->recs[i].condition)) {
             text = NULL;
         }
         while (text != NULL && lines > 0) {
@@ -1168,9 +1169,9 @@ static void func_m007_020D4(Gfx **dl) {
  * Draws a scrolling hint's text from line `skip` on. The text is a list of commands: 1 a blank line
  * (4 bytes), 2-5 a text (its address in the low 24 bits; 2 at the right, 3 plain, 4 at the far
  * right, 5 with its first line indented), 6 the text colour and 7 the shadow colour (8 bytes);
- * anything else ends it. Returns whether lines are left below.
+ * anything else ends it. Returns whether lines are left below (module m007, 0x023D4).
  */
-static s32 func_m007_023D4(Gfx **dl, u8 *text, s32 skip) {
+static s32 hint_text_draw(Gfx **dl, u8 *text, s32 skip) {
     UNUSED s32 pad1;
     UNUSED s32 pad2;
     UNUSED s32 pad3;

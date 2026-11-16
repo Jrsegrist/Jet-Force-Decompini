@@ -5,6 +5,7 @@
  * velocity in 16.16 fixed point), control moves them under gravity, bounces
  * them off a floor height and fades the object out, and the third function
  * frees the buffers.
+ * Family: other object behaviours (docs/runlink.md, "Module families").
  */
 #include "module.h"
 #include "gfx.h"

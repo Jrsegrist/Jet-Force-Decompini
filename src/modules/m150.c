@@ -1,4 +1,7 @@
-/* Runlink module 150: an enemy with a hand that follows one of its points, and its laser beam. */
+/*
+ * Runlink module 150: an enemy with a hand that follows one of its points, and its laser beam.
+ * Family: enemy behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 #include "gfx.h"
 
@@ -49,6 +52,7 @@ extern void func_m003_0609C(s32, f32 *, f32 *, f32 *);
 extern void func_m003_0CD34(Object *);
 extern void func_800035E8(s32 handle, f32 x, f32 y, f32 z); /* moves a positioned sound */
 
+/* Points the hand at the enemy's point 0 and moves it to its own position, then runs module 3's update */
 void func_m150_00000(Object *obj) {
     M150Enemy *e = obj->unk68;
     Object *hand;
@@ -71,6 +75,7 @@ void func_m150_00000(Object *obj) {
     func_m003_0CD34(obj);
 }
 
+/* Init (beam): sets up its two triangles, its start and end points and size, and its hit box */
 void func_m150_00098(Object *obj, M150BeamSetup *setup) {
     M150Beam *b = obj->unk68;
 
@@ -111,6 +116,7 @@ void func_m150_00098(Object *obj, M150BeamSetup *setup) {
     obj_collision_spheres_init(obj, setup->size << 8, 1, 4, 0, 0, 0, 4.0f, 4.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame, beam): plays or moves its sound, sweeps it for hits, and emits particles */
 void func_m150_00210(Object *obj, s32 updateRate) {
     M150Beam *b = obj->unk68;
     u8 hit[0x28];

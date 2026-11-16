@@ -1,4 +1,7 @@
-/* Runlink module 20: two object behaviours (a swaying object and a glowing object). */
+/*
+ * Runlink module 20: two object behaviours (a swaying object and a glowing object).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "common.h"
 
 typedef struct M020Setup {
@@ -66,6 +69,7 @@ extern void func_8005F5AC(M020Object *, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, void *);
 extern void func_800079B8(M020Object *);
 
+/* Init (swaying object): sets scale from the entry's size, the angle and model, and an optional effect */
 void func_m020_00000(M020Object *obj, M020Setup *setup) {
     f32 size;
 
@@ -91,6 +95,7 @@ void func_m020_00000(M020Object *obj, M020Setup *setup) {
     obj->unk88.w[1] = 0;
 }
 
+/* Control (every frame): when flagged by its collider, starts a damped swing and fires one random emitter */
 void func_m020_0012C(M020Object *obj, s32 updateRate) {
     M020Sway *sway;
     s32 shift;
@@ -120,6 +125,7 @@ void func_m020_0012C(M020Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (glowing object): sets scale from the entry's size; kind 0x1B2 gets a 720-frame timer */
 void func_m020_00284(M020Object *obj, M020Setup *setup) {
     s32 *data = obj->unk68;
 
@@ -140,6 +146,7 @@ void func_m020_00284(M020Object *obj, M020Setup *setup) {
     }
 }
 
+/* Control (every frame): emits while a racer is within 600 units; frees itself when its timer runs out */
 void func_m020_0036C(M020Object *obj, s32 updateRate) {
     u8 hit[0x20];
 

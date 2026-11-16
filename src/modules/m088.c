@@ -1,4 +1,7 @@
-/* Runlink module 88: a looping sound source whose pitch follows the camera's approach (a Doppler effect). */
+/*
+ * Runlink module 88: a looping sound source whose pitch follows the camera's approach (a Doppler effect).
+ * Family: other object behaviours (docs/runlink.md, "Module families").
+ */
 #include "module.h"
 
 typedef struct M088Setup {
@@ -19,6 +22,7 @@ extern void func_80003614(s32 handle);              /* stops a positioned sound 
 extern void audspat_point_set_pitch(s32 handle, u8 volume);
 extern f32 func_8008B200(s32);
 
+/* Init: takes the sound from the level entry, at normal pitch */
 void func_m088_00000(Object *obj, M088Setup *setup) {
     M088Sound *s = obj->unk68;
 
@@ -27,6 +31,7 @@ void func_m088_00000(Object *obj, M088Setup *setup) {
     s->lastDist = 0.0f;
 }
 
+/* Control (every frame): plays the sound within 1500 units of the camera, its pitch set by the closing speed */
 void func_m088_00024(Object *obj, s32 updateRate) {
     M088Sound *s = obj->unk68;
     Object *cam = func_80041DE0();
