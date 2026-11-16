@@ -787,3 +787,5 @@ osResetType = 0x8000030C;
 D_800A9F18 = osViClock;
 D_800A9A68 = __osShutdown;
 D_800A9A6C = __OSGlobalIntMask;
+/* ro2b23: 2BAA0.c func_800386B0 calls the module trap with a pointer and three floats */
+func_80054530_pfff = 0x80054530;

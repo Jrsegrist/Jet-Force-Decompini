@@ -44,7 +44,9 @@ typedef struct Racer {
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
     /* 0x0C0 */ s32 sound;
-    /* 0x0C4 */ u8 padC4[0x104 - 0xC4];
+/* 0x0C4 */ u8 padC4[0xFC - 0xC4];
+    /* 0x0FC */ s32 unkFC;
+    /* 0x100 */ u8 pad100[0x104 - 0x100];
     /* 0x104 */ s16 unk104; // the chase camera's yaw
     /* 0x106 */ u8 pad106[0x10A - 0x106];
     /* 0x10A */ s16 unk10A;
@@ -97,7 +99,9 @@ typedef struct Racer {
     /* 0x1A0 */ u8 pad1A0[0x1A4 - 0x1A0];
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
-    /* 0x1C0 */ u8 pad1C0[0x1CE - 0x1C0];
+/* 0x1C0 */ u8 pad1C0[0x1CA - 0x1C0];
+    /* 0x1CA */ s16 unk1CA;
+    /* 0x1CC */ s16 unk1CC;
     /* 0x1CE */ s16 unk1CE;
     /* 0x1D0 */ u8 pad1D0[0x1D4 - 0x1D0];
     /* 0x1D4 */ s32 unk1D4;
@@ -126,16 +130,19 @@ typedef struct Racer {
     /* 0x524 */ f32 prevPos[3];
     /* 0x530 */ s8 numPoints;
     /* 0x531 */ u8 pointMask;
-    /* 0x532 */ u8 pad532[0x53A - 0x532];
+/* 0x532 */ u8 pad532[0x538 - 0x532];
+    /* 0x538 */ u8 unk538;
+    /* 0x539 */ u8 pad539;
     /* 0x53A */ u16 soundId;
-    /* 0x53C */ u8 pad53C[0x540 - 0x53C];
+/* 0x53C */ u8 pad53C[2];
+    /* 0x53E */ s16 unk53E;
     /* 0x540 */ RacerFlags flags;
     /* 0x544 */ f32 overridePos[3];
     /* 0x550 */ u8 pad550[0x558 - 0x550];
     /* 0x558 */ void *light;
     /* 0x55C */ u8 pad55C[0x560 - 0x55C];
     /* 0x560 */ u8 *attachment;
-    /* 0x564 */ u8 pad564[0x568 - 0x564];
+/* 0x564 */ void *unk564;
     /* 0x568 */ u8 unk568;
     /* 0x569 */ u8 unk569;
     /* 0x56A */ u8 pad56A[0x574 - 0x56A];
@@ -2895,7 +2902,187 @@ void func_80038630(UNUSED s32 arg0, Racer *racer) {
     racer->flags.unk25 = 1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800386B0);
+void func_80038F7C(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void weapon_fire_standard(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+                   s32 arg10);
+void weapon_fire_triple_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void weapon_fire_chain_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8,
+                   u32 arg9);
+void player_attachment_spawn(s32 owner, Racer *racer, UNUSED s32 arg2);
+void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
+                  UNUSED s32 arg9);
+void func_80039918(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
+                  UNUSED s32 arg9);
+void func_80039B98(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9,
+                   u8 type, u8 argB);
+s32 weapon_throw_or_hold(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8, s32 arg9);
+void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8);
+void func_8003B418(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void func_8003B590(u8 *obj, s32 index);
+void *mempool_alloc_safe(s32 size, u32 colour);
+/* The module trap with a pointer and three floats (`func_80054530_pfff` in undefined_syms.us.txt). */
+void func_80054530_pfff(void *arg0, f32 x, f32 y, f32 z, s32 arg4, s32 arg5, s32 arg6);
+
+/* JFG: fires the character's current weapon (chr[0x70]) with the weapon info: returns 1 when it has no ammo;
+   spreads the aim (0x1CA/0x1CC) randomly, dispatches by weapon type and uses one round of ammo. Returns 1 when
+   weapon 13's weapon_throw_or_hold returned 0, else 0. */
+s32 func_800386B0(u8 *obj, Racer *racer, u8 *info, f32 updateRate) {
+    s16 pitch;
+    UNUSED s32 pad;
+    s32 type;
+    s32 arg;
+    s32 grenade;
+    s32 fired;
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 count;
+    u8 *chr;
+    s32 saved;
+    u8 *target;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    if (D_800A5074 != 0) {
+        if (((u16 *) (chr + 0x14))[chr[0x70]] == 0) {
+            ((u16 *) (chr + 0x14))[chr[0x70]] = 100;
+        }
+    }
+    if (!weapon_has_ammo((u8 *) racer, chr)) {
+        return 1;
+    }
+    racer->unk1CA += rand_range(-*(s16 *) (info + 8), *(s16 *) (info + 8));
+    racer->unk1CC += rand_range(-*(s16 *) (info + 0xA), *(s16 *) (info + 0xA));
+    target = **(u8 ***) (obj + 0x6C);
+    if (target != NULL && *(f32 **) (target + 0x68) != NULL && chr[0x70] == 2 &&
+        !(((u16 *) (chr + 0x14))[chr[0x70]] & 3)) {
+        x = *(f32 *) (obj + 0xC);
+        y = *(f32 *) (obj + 0x10);
+        z = *(f32 *) (obj + 0x14);
+        saved = *(s32 *) (obj + 0x84);
+        *(s32 *) (obj + 0x84) = 1;
+        *(f32 *) (obj + 0xC) = (*(f32 **) (target + 0x68))[0];
+        *(f32 *) (obj + 0x10) = (*(f32 **) (target + 0x68))[1] + 3.0f;
+        *(f32 *) (obj + 0x14) = (*(f32 **) (target + 0x68))[2];
+        obj_spawn_particle(obj, 2);
+        *(s32 *) (obj + 0x84) = saved;
+        *(f32 *) (obj + 0xC) = x;
+        *(f32 *) (obj + 0x10) = y;
+        *(f32 *) (obj + 0x14) = z;
+    }
+    func_8003B418(obj, racer, &x, &y, &z);
+    grenade = 0;
+    fired = 0;
+    racer->unk538 = info[5];
+    switch (chr[0x70]) {
+        case 13:
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x2000;
+            }
+            if (weapon_throw_or_hold((s32) obj, racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3],
+                                     info[7])) {
+                if (racer->character != 2 && racer->character != 6) {
+                    return 0;
+                }
+            } else {
+                fired = 1;
+            }
+            break;
+        case 11:
+            type = 1;
+            arg = (racer->unk53E - 0x20) >> 4;
+            if (arg == 0) {
+                type = 0;
+            }
+            grenade = 1;
+            break;
+        case 12:
+            type = 2;
+            arg = 0;
+            grenade = 1;
+            break;
+        case 10:
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x1800;
+            }
+            func_800397E0((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7]);
+            break;
+        case 9:
+            func_80039A38((s32) obj, (s32) racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10), info[3],
+                          info[7]);
+            break;
+        case 8:
+            func_8003B590(obj, 4);
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x1800;
+            }
+            func_80039918((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7]);
+            break;
+        case 6:
+            if (racer->unk564 == NULL) {
+                racer->unk564 = mempool_alloc_safe(0x624, 0xFFFF);
+                func_80054530(obj, racer->unk564);
+            }
+            func_80054530_pfff(racer->unk564, x, y, z, racer->unk1CA, racer->unk1CC, updateRate);
+            break;
+        case 5:
+            weapon_fire_triple_shot((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10),
+                                    info[3], info[7]);
+            break;
+        case 1:
+            weapon_fire_chain_shot((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10),
+                                   info[3], info[7]);
+            break;
+        case 4:
+            player_attachment_spawn((s32) obj, racer, updateRate);
+            break;
+        case 3:
+            func_80038F7C((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10),
+                          racer->unk53E >> 5, info[7]);
+            break;
+        case 14:
+            if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+                pitch = racer->unk1CC;
+            } else {
+                pitch = 0x1800;
+            }
+            func_80039ECC((s32) obj, (s32) racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[7]);
+            break;
+        default:
+            func_8003B590(obj, 3);
+            if ((s8) info[6] < 0) {
+                count = racer->unk53E >> 5;
+            } else if (chr[0x70] == 0 && ((u16 *) (chr + 0x14))[chr[0x70]] == 0) {
+                count = 0;
+            } else {
+                count = info[3];
+            }
+            weapon_fire_standard((s32) obj, racer, x, y, z, racer->unk1CA, racer->unk1CC, *(f32 *) (info + 0x10), count,
+                                 info[7], info[1]);
+            break;
+    }
+    if (grenade) {
+        if (racer->unk568 == 5 || racer->unk568 == 11 || racer->unkFC != 0) {
+            pitch = racer->unk1CC;
+        } else {
+            pitch = 0x1000;
+        }
+        func_80039B98((s32) obj, racer, x, y, z, racer->unk1CA, pitch, *(f32 *) (info + 0x10), info[3], info[7], type, arg);
+    }
+    if (((u16 *) (chr + 0x14))[chr[0x70]] > 0) {
+        ((u16 *) (chr + 0x14))[chr[0x70]]--;
+    }
+    if (fired) {
+        return 1;
+    }
+    return 0;
+}
 
 u8 **get_racer_objects(s32 *numRacers);
 void mempool_free(void *data);
@@ -3225,7 +3412,8 @@ typedef struct SpawnF0 {
 s32 rand_range(s32 min, s32 max);
 
 /* JFG: spawn two objects 0xF0 at (x, y, z) with randomised angles. */
-void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7) {
+void func_800397E0(UNUSED s32 arg0, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, UNUSED s32 arg8,
+                  UNUSED s32 arg9) {
     s32 i;
     u8 *obj;
     SpawnF0 setup;
@@ -3302,7 +3490,8 @@ f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
 /* JFG: spawn object 0x39 at (x, y, z), moving at `speed` along (yaw, pitch). */
-void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed) {
+void func_80039A38(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 yaw, s16 pitch, f32 speed, UNUSED s32 arg8,
+                  UNUSED s32 arg9) {
     Spawn39 setup;
     u8 *obj;
 
