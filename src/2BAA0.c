@@ -769,7 +769,38 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CC70);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CF6C);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002EB6C);
+extern s32 gPlayerButtonsHeld;
+
+/* JFG: an overhead player camera: buttons 8/4 lower/raise the height level at 0x3D (0..80), the camera follows the
+   object's x and z and eases its y towards 512 * (level + 40) / 40 above the object, looking straight down. */
+void func_8002EB6C(u8 *obj, UNUSED s32 arg1, f32 updateRate) {
+    f32 target;
+    s32 i;
+    s32 n;
+
+    if (gPlayerButtonsHeld & 8) {
+        PLAYERCAM->unk3D -= (s32) updateRate;
+        if (PLAYERCAM->unk3D > 80) {
+            PLAYERCAM->unk3D = 0;
+        }
+    }
+    n = updateRate;
+    if (gPlayerButtonsHeld & 4) {
+        PLAYERCAM->unk3D += n;
+        if (PLAYERCAM->unk3D > 80) {
+            PLAYERCAM->unk3D = 80;
+        }
+    }
+    target = *(f32 *) (obj + 0x10) + 512.0f * (PLAYERCAM->unk3D + 40) * 0.025f;
+    PLAYERCAM->position[0] = *(f32 *) (obj + 0xC);
+    for (i = n; i > 0; i--) {
+        PLAYERCAM->position[1] += (target - PLAYERCAM->position[1]) * 0.1f;
+    }
+    PLAYERCAM->position[2] = *(f32 *) (obj + 0x14);
+    PLAYERCAM->rotation[0] = 0;
+    PLAYERCAM->rotation[1] = 0x4000;
+    PLAYERCAM->rotation[2] = 0;
+}
 
 /* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
  * range that applies when the flag is set */
@@ -1640,7 +1671,63 @@ void player_loop_sounds_update(u8 *obj, u8 *racer, s32 emitOn, s32 emitStart, s3
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800344B4);
+/* JFG: turns the angles at obj[2] and obj[1] towards pos (rotated by -obj[0]) when the character is in an aiming
+   state (characters 0/1: state 0x568 is 2 or 10; 2/3: a pose flag bit), plus the offsets at 0x120/0x11E, eased
+   with 0.96 per frame. */
+void func_800344B4(s16 *obj, u8 *racer, f32 *pos, s32 updateRate) {
+    UNUSED s32 pad[2];
+    f32 sinA;
+    f32 cosA;
+    f32 x;
+    f32 y;
+    f32 z;
+    s16 yaw;
+    s16 pitch;
+    s32 aim;
+
+    aim = 0;
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            if (racer[0x568] == 2 || racer[0x568] == 10) {
+                aim = 1;
+            }
+            break;
+        case 1:
+        case 5:
+            if (racer[0x568] == 2 || racer[0x568] == 10) {
+                aim = 1;
+            }
+            break;
+        case 2:
+        case 6:
+            if (racer[0x532] & (*(u8 **) (racer + 0x360))[5]) {
+                aim = 1;
+            }
+            break;
+        case 3:
+        case 7:
+            if (racer[0x532] & (*(u8 **) (racer + 0x360))[5]) {
+                aim = 1;
+            }
+            break;
+    }
+    yaw = 0;
+    pitch = 0;
+    if (aim) {
+        sinA = func_80049C34(-obj[0]);
+        cosA = func_80049C30(-obj[0]);
+        y = pos[1];
+        x = pos[0] * cosA + pos[2] * sinA;
+        z = pos[2] * cosA - pos[0] * sinA;
+        yaw = func_80049C84(-x, y);
+        pitch = func_80049C84(z, y);
+    }
+    yaw += *(s16 *) (racer + 0x120);
+    pitch += *(s16 *) (racer + 0x11E);
+    obj[2] = angle_lerp(obj[2], yaw, 1.0f - func_80049BEC(0.96f, updateRate));
+    obj[1] = angle_lerp(obj[1], pitch, 1.0f - func_80049BEC(0.96f, updateRate));
+}
 
 extern u8 *D_800A18B0;
 extern s32 gPlayerStickX;
