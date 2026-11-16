@@ -39,7 +39,7 @@ typedef struct M099Frog {
 extern s32 osTvType;
 
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
-extern void func_800116BC(Object *obj, f32 arg1);
+extern void anim_phase_clamp(Object *obj, f32 arg1);
 extern s16 func_80049C84(f32 x, f32 z); /* the angle of (x, z) */
 extern f32 func_80049C34(s32 angle);   /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle);   /* cosine */
@@ -97,7 +97,7 @@ void func_m099_0008C(Object *obj, s32 updateRate) {
     f = obj->unk68;
     switch (f->state) {
         case 0:
-            func_800116BC(obj, 0.0f);
+            anim_phase_clamp(obj, 0.0f);
             hop = 0;
             if (f->cooldown > 0) {
                 f->cooldown -= updateRate;
@@ -163,7 +163,7 @@ void func_m099_0008C(Object *obj, s32 updateRate) {
                 f->timer = func_80048E2C(0, 300);
                 f->hop = 0;
             }
-            func_800116BC(obj, (32.0f - f->hop) * 0.03125f);
+            anim_phase_clamp(obj, (32.0f - f->hop) * 0.03125f);
             s = (func_80049C30(f->hop << 10) + 1.0f) * 0.5f;
             obj->trans.x_position = f->startX;
             obj->trans.z_position = f->startZ;

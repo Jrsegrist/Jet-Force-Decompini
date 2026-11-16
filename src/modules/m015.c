@@ -686,7 +686,7 @@ extern void func_80000510(s32 arg0);
 extern void sound_stop(s32 handle);
 extern s32 func_8000BC28(Object *obj, M015ModelInst *inst, M015Model *model, s32 weapon, s32 *arg4, f32 *x, f32 *y,
                          f32 *z);
-extern void func_800116BC(Object *obj, f32 frame);
+extern void anim_phase_clamp(Object *obj, f32 frame);
 extern u32 track_height_at(f32 x, f32 z, f32 *height, u32 mask);
 extern void func_800221F0(Object *obj, M015ModelInst *inst, void *shading, void *arg3);
 extern void chain_object_unlink_from_players(Object *obj);
@@ -1188,7 +1188,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
     switch (func_80033F4C(result)) {
         case 1:
             if (obj->animationID == 0x16) {
-                func_800116BC(obj, 0);
+                anim_phase_clamp(obj, 0);
             } else {
                 func_m015_05180(obj, racer, 0x16, 0);
             }
@@ -1196,7 +1196,7 @@ void func_m015_00000(Object *obj, s32 updateRate) {
             break;
         case 2:
             if (obj->animationID == 0x31) {
-                func_800116BC(obj, 0);
+                anim_phase_clamp(obj, 0);
             } else {
                 func_m015_05180(obj, racer, 0x31, 0);
             }

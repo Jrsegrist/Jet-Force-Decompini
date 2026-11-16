@@ -2991,27 +2991,22 @@ s32 obj_anim_set(Object *obj, s32 anim, f32 frame) {
     return 0;
 }
 
-#ifdef NON_MATCHING
-/* JFG: a block with a level at 0x28 (func_800116BC) */
-typedef struct LevelBlock28 {
+/* JFG: an object's animation phase at 0x28 (the modules pass an Object) */
+typedef struct AnimPhaseObj {
     /* 0x00 */ u8 pad0[0x28];
-    /* 0x28 */ f32 level;
-} LevelBlock28;
+    /* 0x28 */ f32 phase;
+} AnimPhaseObj;
 
-/* JFG: set the block's level, clamped to 0..0.999.
-   NON_MATCHING: 2 words: the limit is a float literal (needs this file's .rodata), loaded before the mtc1. */
-s32 func_800116BC(LevelBlock28 *block, f32 level) {
-    if (level > 0.999f) {
-        level = 0.999f;
-    } else if (level < 0.0f) {
-        level = 0.0f;
+/* JFG: set the object's animation phase, clamped to 0..0.999. */
+s32 anim_phase_clamp(AnimPhaseObj *obj, f32 phase) {
+    if (phase > 0.999f) {
+        phase = 0.999f;
+    } else if (phase < 0.0f) {
+        phase = 0.0f;
     }
-    block->level = level;
+    obj->phase = phase;
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800116BC);
-#endif
 
 /* JFG: the level object entry of a bonus item */
 typedef struct LevelObjectEntryBonus {

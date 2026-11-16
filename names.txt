@@ -900,3 +900,7 @@ func_8003DDD8 = model_batches_build_dlist
 func_8003C1B4 = model_instance_init
 func_8003B9E8 = object_model_init
 func_8001400C = segment_vertex_colours_copy
+
+# round 23 (ro53f23): 53C0 and 5B700
+func_800116BC = anim_phase_clamp
+func_800610CC = particle_free

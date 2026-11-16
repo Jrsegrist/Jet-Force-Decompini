@@ -1167,7 +1167,9 @@ typedef struct WeatherParticle {
     /* 0x3C */ u8 pad3C[0x48 - 0x3C];
     /* 0x48 */ s32 unk48;
     /* 0x4C */ void *asset;
-    /* 0x50 */ u8 pad50[0x78 - 0x50];
+    /* 0x50 */ u8 pad50[0x58 - 0x50];
+    /* 0x58 */ PoolEmitter *pool; // JFG: the pool emitter it came from, if any
+    /* 0x5C */ u8 pad5C[0x78 - 0x5C];
 } WeatherParticle;
 
 struct WeatherParticleList {
@@ -2249,7 +2251,48 @@ WeatherParticle *particle_alloc(s32 kind, s32 slot) {
     return p;
 }
 
-INCLUDE_ASM("asm/nonmatchings/5B700", func_800610CC);
+/* JFG: free a particle: its sprite or model, its pool emitter's hold on it and its texture, then give its slot
+   back to its kind's list (kind 0x80 marks a free particle). */
+void particle_free(WeatherParticle *p) {
+    s32 index;
+    WeatherParticleList *list;
+
+    switch (p->kind) {
+        case 0x80:
+            return;
+        default:
+            return;
+        case 2:
+            if (p->asset != NULL) {
+                sprite_free(p->asset);
+                p->asset = NULL;
+            }
+            break;
+        case 3:
+            if (p->asset != NULL) {
+                free_3d_model(p->asset);
+                p->asset = NULL;
+            }
+            break;
+        case 0:
+        case 1:
+        case 4:
+            break;
+    }
+    if (p->pool != NULL) {
+        p->pool->active = 0;
+    }
+    list = D_801008E0[p->kind];
+    if (list->activeCount > 0) {
+        if (p->asset != NULL) {
+            tex_free(p->asset);
+        }
+        list->activeCount--;
+        index = p - list->particles;
+        p->kind = 0x80;
+        list->freeMask[index >> 5] |= 1 << (index & 0x1F);
+    }
+}
 
 /* JFG: a particle that bounces off the level (the part particles_update_all touches) */
 typedef struct BounceParticle {
@@ -2312,7 +2355,6 @@ void move_particle_attached_to_parent(struct Particle *particle);
 void move_particle_with_acceleration(struct Particle *particle);
 void move_particle_basic(struct Particle *particle);
 void move_particle_forward(struct Particle *particle);
-void func_800610CC(UpdParticle *particle);
 s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
 s32 func_80057A10(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 extern s32 gParticleUpdateRate;
@@ -2347,7 +2389,7 @@ s32 particle_update(s32 particleAddr, s32 updateRate) {
     } else if (particle->kind != 5) {
     particle->destroyTimer -= gParticleUpdateRate;
     if (particle->destroyTimer <= 0) {
-        func_800610CC(particle);
+        particle_free((WeatherParticle *) particle);
         return TRUE;
     }
     if (particle->kind == 2 && (particle->flags & 1)) {
