@@ -904,3 +904,5 @@ func_8001400C = segment_vertex_colours_copy
 # round 23 (ro53f23): 53C0 and 5B700
 func_800116BC = anim_phase_clamp
 func_800610CC = particle_free
+func_8000E680 = get_object_property_size
+func_8000F978 = obj_type_model_flags

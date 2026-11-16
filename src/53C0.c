@@ -1249,7 +1249,8 @@ typedef struct ObjectModel53 {
     /* 0x24 */ ModelBatch *batches;
     /* 0x28 */ u8 pad28[0x2C - 0x28];
     /* 0x2C */ u8 numTexAnims;
-    /* 0x2D */ u8 pad2D[2];
+    /* 0x2D */ u8 unk2D; // JFG: sizes an object's property data (0x28 bytes each)
+    /* 0x2E */ u8 pad2E;
     /* 0x2F */ u8 numPoints;
     /* 0x30 */ u16 *unk30; // JFG: [1] is a joint index
     /* 0x34 */ u8 pad34[0x38 - 0x34];
@@ -1381,13 +1382,13 @@ s32 func_8000773C(Object *obj, s32 arg1) {
 extern s32 D_800F2C78;     // JFG: the number of object types
 extern Object *D_800F2C64; // JFG: the buffer an attachment object is built in
 extern s32 D_800F2C68;     // JFG: its size in bytes
-s32 func_8000F978(s32 id);
+s32 obj_type_model_flags(s32 id);
 void *mempool_alloc(s32 size, u32 colourTag);
 
 /**
  * Attempts to spawn an attachment object.
  * JFG: built in a scratch buffer (cleared first), then copied into an allocation of its size
- * rounded up to 16; the models get flags from func_8000F978.
+ * rounded up to 16; the models get flags from obj_type_model_flags.
  * DKR: obj_spawn_attachment
  */
 Object *obj_spawn_attachment(s32 objID) {
@@ -1425,7 +1426,7 @@ Object *obj_spawn_attachment(s32 objID) {
     obj->unk4A = objID;
     obj->trans.scale = header->scale;
     obj->trans.flags |= header->flags & 0x20C;
-    modelFlags = func_8000F978(header->unk1C) & 7;
+    modelFlags = obj_type_model_flags(header->unk1C) & 7;
     numModels = obj->header->numAttachments;
     modelType = obj->header->unk1E;
     obj->attachments = (ObjectAttachment **) ((u8 *) obj + 0xB4);
@@ -2790,11 +2791,605 @@ void func_8000E674(s32 arg0) {
     D_800F2CC0 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E680);
+/**
+ * Return the size of the object's property data, and point the object at it (DKR get_object_property_size,
+ * JFG's types and sizes). Some types align it to 16 or 8 bytes.
+ */
+s32 get_object_property_size(Object *obj, void *entry) {
+    s32 pad;
+    ObjectAttachment *attach;
+    ObjectModel53 *model;
+    s32 size = 0;
+
+    obj->racer = (Object_Racer *) entry;
+
+    switch (obj->header->unk1C) {
+        case 2:
+            size = 0xB4;
+            break;
+        case 1:
+            size = 0x5F0;
+            break;
+        case 7:
+            size = 0x4C;
+            break;
+        case 67:
+            size = 0x10;
+            break;
+        case 60:
+            size = 0x1;
+            break;
+        case 8:
+            size = 0x18;
+            break;
+        case 34:
+            size = 0xC;
+            break;
+        case 45:
+            size = 0x10;
+            break;
+        case 148:
+            size = 0x14;
+            break;
+        case 35:
+            size = 0xC;
+            break;
+        case 55:
+            attach = obj->attachments[obj->attachmentIndex];
+            model = attach->model;
+            size = model->unk2D * 0x28 + 0x30;
+            break;
+        case 22:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x118);
+            break;
+        case 20:
+            size = 0x4C;
+            break;
+        case 77:
+            size = 0x10;
+            break;
+        case 18:
+            size = 0x50;
+            break;
+        case 162:
+            pad = (s32) entry & 7;
+            if (pad) {
+                size = 8 - pad;
+            }
+            obj->racer = (Object_Racer *) ((s32) entry + size);
+            size += 0x88;
+            break;
+        case 152:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0xA88);
+            break;
+        case 63:
+            size = 0x2;
+            break;
+        case 69:
+            size = 0x4;
+            break;
+        case 158:
+            size = 0x3C;
+            break;
+        case 159:
+            size = 0x18;
+            break;
+        case 160:
+            size = 0x18;
+            break;
+        case 155:
+            size = 0x10;
+            break;
+        case 161:
+            size = 0x10;
+            break;
+        case 153:
+            size = 0x88;
+            break;
+        case 135:
+            size = 0x4;
+            break;
+        case 154:
+            size = 0x34;
+            break;
+        case 157:
+            size = 0x98;
+            break;
+        case 156:
+            size = 0x8;
+            break;
+        case 23:
+            size = 0x94;
+            break;
+        case 24:
+            size = 0xCC;
+            break;
+        case 44:
+            size = 0x4;
+            break;
+        case 149:
+            size = 0xC;
+            break;
+        case 27:
+            size = 0x12;
+            break;
+        case 56:
+            size = 0x10;
+            break;
+        case 40:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x1DC);
+            break;
+        case 41:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x700);
+            break;
+        case 39:
+            size = ((u8 *) obj->levelEntry)[0x32] * 2 + ((u8 *) obj->levelEntry)[0x31] + 0x30;
+            break;
+        case 38:
+            size = 0x34;
+            break;
+        case 19:
+            size = 0x30;
+            break;
+        case 147:
+            size = 0x10;
+            break;
+        case 51:
+            size = 0x60;
+            break;
+        case 68:
+            size = 0xD0;
+            break;
+        case 36:
+            size = 0x2C;
+            break;
+        case 37:
+            size = 0x24;
+            break;
+        case 64:
+            size = 0x20;
+            break;
+        case 70:
+            size = 0x58;
+            break;
+        case 71:
+            size = 0x8;
+            break;
+        case 72:
+            size = 0x14;
+            break;
+        case 73:
+            size = 0x10;
+            break;
+        case 75:
+            size = 0x10;
+            break;
+        case 76:
+            size = 0x20;
+            break;
+        case 78:
+            pad = (s32) entry & 7;
+            if (pad) {
+                size = 8 - pad;
+            }
+            obj->racer = (Object_Racer *) ((s32) entry + size);
+            size += 0x60;
+            break;
+        case 66:
+            size = 0xA;
+            break;
+        case 141:
+            size = 0x10;
+            break;
+        case 82:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x508);
+            break;
+        case 88:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0xFCC);
+            break;
+        case 163:
+            size = 0x1C;
+            break;
+        case 166: case 167:
+            size = 0xB0;
+            break;
+        case 89:
+            size = 0x20;
+            break;
+        case 90:
+            size = 0x38;
+            break;
+        case 61:
+            size = 0x18;
+            break;
+        case 92:
+            size = 0x1C;
+            break;
+        case 91:
+            size = 0x20;
+            break;
+        case 93:
+            size = 0x20;
+            break;
+        case 94:
+            size = 0xC;
+            break;
+        case 95: case 150:
+            size = 0xC0;
+            break;
+        case 98:
+            size = 0x24;
+            break;
+        case 104:
+            size = 0x18;
+            break;
+        case 100:
+            size = 0x18;
+            break;
+        case 105:
+            size = 0x10;
+            break;
+        case 84: case 168:
+            size = 0x10;
+            break;
+        case 108:
+            size = 0xCC;
+            break;
+        case 111:
+            size = 0xE;
+            break;
+        case 151:
+            size = 0x78;
+            break;
+        case 113:
+            size = 0x4;
+            break;
+        case 114:
+            size = 0xC;
+            break;
+        case 118:
+            size = 0x20;
+            break;
+        case 119: case 120:
+            size = 0x8;
+            break;
+        case 121:
+            size = 0x40;
+            break;
+        case 123:
+            size = 0x8;
+            break;
+        case 124:
+            size = 0x20;
+            break;
+        case 125:
+            size = 0x20;
+            break;
+        case 83:
+            size = 0x14;
+            break;
+        case 127:
+            size = 0x8;
+            break;
+        case 128:
+            size = 0x10;
+            break;
+        case 129:
+            size = 0x18;
+            break;
+        case 99:
+            size = 0x4;
+            break;
+        case 130:
+            size = 0xB0;
+            break;
+        case 169:
+            size = 0x24;
+            break;
+        case 170:
+            size = 0x8;
+            break;
+        case 172:
+            size = 0x8;
+            break;
+        case 171:
+            size = 0x18;
+            break;
+        case 137:
+            size = 0x10;
+            break;
+        case 138:
+            size = 0x14;
+            break;
+        case 173:
+            size = 0x8;
+            break;
+        case 139:
+            size = 0x1C;
+            break;
+        case 174:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x6E8);
+            break;
+        case 142:
+            size = 0x4;
+            break;
+        case 132:
+            size = 0x30;
+            break;
+        case 133:
+            size = 0x50;
+            break;
+        case 136:
+            size = 0x158;
+            break;
+        case 143:
+            size = 0x30;
+            break;
+        case 145:
+            size = 0x20;
+            break;
+        case 146:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x6C0);
+            break;
+        case 58:
+            size = 0x6;
+            break;
+
+        default:
+            obj->racer = NULL;
+            break;
+    }
+
+    return (size & ~3) + 4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000F028);
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000F978);
+/* JFG: the model flags of an object type (its header's id): obj_spawn_attachment keeps the low 3 bits. */
+s32 obj_type_model_flags(s32 id) {
+    s32 flags = 0;
+
+    switch (id) {
+        case 1: case 2:
+            flags = 0xF01;
+            break;
+        case 5:
+            flags = 0x301;
+            break;
+        case 4:
+            flags = 0xB01;
+            break;
+        case 111:
+            flags = 0x1800;
+            break;
+        case 67:
+            flags = 0x1800;
+            break;
+        case 7:
+            flags = 0x1805;
+            break;
+        case 48:
+            flags = 0x1B01;
+            break;
+        case 49:
+            flags = 0x1A00;
+            break;
+        case 54:
+            flags = 0x1901;
+            break;
+        case 55:
+            flags = 0x3806;
+            break;
+        case 46: case 51: case 95: case 147:
+            flags = 0x301;
+            break;
+        case 150:
+            flags = 0x1B01;
+            break;
+        case 47:
+            flags = 0x200;
+            break;
+        case 16:
+            flags = 0x800;
+            break;
+        case 17: case 18: case 22: case 60:
+            flags = 0x200;
+            break;
+        case 21:
+            flags = 0x301;
+            break;
+        case 44: case 152: case 157: case 158: case 159: case 160: case 162: case 163:
+            flags = 0x800;
+            break;
+        case 161:
+            flags = 0xB01;
+            break;
+        case 135: case 153: case 154: case 155: case 156:
+            flags = 0xA00;
+            break;
+        case 24:
+            flags = 0xB01;
+            break;
+        case 27:
+            flags = 0x200;
+            break;
+        case 149:
+            flags = 0x200;
+            break;
+        case 56:
+            flags = 0x800;
+            break;
+        case 61:
+            flags = 0xA00;
+            break;
+        case 43: case 64: case 66: case 80: case 81:
+            flags = 0x200;
+            break;
+        case 78:
+            flags = 0x1800;
+            break;
+        case 87:
+            flags = 0x901;
+            break;
+        case 89:
+            flags = 0x101;
+            break;
+        case 166:
+            flags = 0x901;
+            break;
+        case 167:
+            flags = 0x901;
+            break;
+        case 84:
+            flags = 0x101;
+            break;
+        case 168:
+            flags = 0x901;
+            break;
+        case 90:
+            flags = 0xB01;
+            break;
+        case 91:
+            flags = 0x1B01;
+            break;
+        case 93:
+            flags = 0x1800;
+            break;
+        case 94:
+            flags = 0x301;
+            break;
+        case 59:
+            flags = 0x301;
+            break;
+        case 164:
+            flags = 0xB01;
+            break;
+        case 165:
+            flags = 0xB01;
+            break;
+        case 96:
+            flags = 0x901;
+            break;
+        case 98:
+            flags = 0x1800;
+            break;
+        case 102:
+            flags = 0x1A00;
+            break;
+        case 103:
+            flags = 0x301;
+            break;
+        case 108:
+            flags = 0xB01;
+            break;
+        case 151:
+            flags = 0x800;
+            break;
+        case 109:
+            flags = 0x301;
+            break;
+        case 110:
+            flags = 0x301;
+            break;
+        case 113:
+            flags = 0x200;
+            break;
+        case 115:
+            flags = 0x101;
+            break;
+        case 116:
+            flags = 0x1A00;
+            break;
+        case 119:
+            flags = 0x901;
+            break;
+        case 120: case 141:
+            flags = 0x1901;
+            break;
+        case 122:
+            flags = 0x101;
+            break;
+        case 123:
+            flags = 0x301;
+            break;
+        case 125:
+            flags = 0x1901;
+            break;
+        case 126:
+            flags = 0x101;
+            break;
+        case 76:
+            flags = 0x1901;
+            break;
+        case 124:
+            flags = 0x1901;
+            break;
+        case 128:
+            flags = 0x1901;
+            break;
+        case 129:
+            flags = 0x1800;
+            break;
+        case 130:
+            flags = 0xB01;
+            break;
+        case 169:
+            flags = 0x101;
+            break;
+        case 170: case 172:
+            flags = 0x901;
+            break;
+        case 171:
+            flags = 0x800;
+            break;
+        case 137:
+            flags = 0x101;
+            break;
+        case 138:
+            flags = 0x101;
+            break;
+        case 173:
+            flags = 0x800;
+            break;
+        case 174:
+            flags = 0x800;
+            break;
+        case 142:
+            flags = 0x1901;
+            break;
+        case 132:
+            flags = 0x1901;
+            break;
+        case 133:
+            flags = 0x1901;
+            break;
+        case 134:
+            flags = 0xA00;
+            break;
+        case 136:
+            flags = 0x1800;
+            break;
+        default:
+            break;
+    }
+    return flags;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000FBF0);
 
