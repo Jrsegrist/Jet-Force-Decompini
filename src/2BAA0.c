@@ -97,11 +97,17 @@ typedef struct Racer {
     /* 0x1A0 */ u8 pad1A0[0x1A4 - 0x1A0];
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
-    /* 0x1C0 */ u8 pad1C0[0x1D4 - 0x1C0];
+    /* 0x1C0 */ u8 pad1C0[0x1CE - 0x1C0];
+    /* 0x1CE */ s16 unk1CE;
+    /* 0x1D0 */ u8 pad1D0[0x1D4 - 0x1D0];
     /* 0x1D4 */ s32 unk1D4;
-    /* 0x1D8 */ u8 pad1D8[0x1E2 - 0x1D8];
+    /* 0x1D8 */ u8 pad1D8[0x1E0 - 0x1D8];
+    /* 0x1E0 */ s16 unk1E0;
     /* 0x1E2 */ s16 unk1E2;
-    /* 0x1E4 */ u8 pad1E4[0x1F4 - 0x1E4];
+    /* 0x1E4 */ f32 unk1E4;
+    /* 0x1E8 */ f32 unk1E8;
+    /* 0x1EC */ f32 unk1EC; // JFG: aiming zoom (1..5)
+    /* 0x1F0 */ f32 unk1F0; // JFG: and its rate
     /* 0x1F4 */ s8 unk1F4;
     /* 0x1F5 */ u8 pad1F5[0x1F9 - 0x1F5];
     /* 0x1F9 */ u8 unk1F9;
@@ -3481,7 +3487,135 @@ void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039FCC);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003AABC);
+extern s32 D_800F6DB4;
+extern s32 D_800F6DB8;
+extern u8 *D_800A18B0;
+extern s32 gPlayerButtonsHeld;
+extern f32 D_800A2E60[20];
+
+/* JFG: stick aiming for character type 7 (when 0x18E is clear): two buttons change the zoom (0x1EC, 1..5); the
+   stick is clamped to +-40, and past +-45 it turns the view (0x1E4/0x1E8 eased towards a rate from D_800A2E60,
+   limited by 0x1CE/0x1E0), which turns the yaw at 0x11C and the pitch at 0x1E2 (clamped to minPitch..maxPitch).
+   Writes the aim offset scaled by rangeX/rangeY; returns whether it is aiming. */
+s32 func_8003AABC(UNUSED s32 arg0, Racer *racer, s16 rangeX, s16 rangeY, s32 minPitch, s32 maxPitch, s16 *outX,
+                  s16 *outY, f32 updateRate) {
+    s32 x;
+    s32 y;
+    u8 *chr;
+    s32 manual;
+    f32 aimX;
+    f32 aimY;
+    f32 zoom;
+    f32 recip;
+    f32 speed;
+    f32 scale;
+    f32 t;
+    s32 i;
+
+    chr = func_80047C1C(racer->player, racer->character);
+    manual = 0;
+    aimY = 0.0f;
+    aimX = 0.0f;
+
+    if (chr != NULL && chr[0x70] == 7 && racer->unk18E == 0) {
+        manual = 1;
+    }
+    x = -D_800F6DB4;
+    y = -D_800F6DB8;
+    if (manual) {
+        if (*(s32 *) (D_800A18B0 + 0x1C) & gPlayerButtonsHeld) {
+            speed = 0.05f;
+        } else if (*(s32 *) (D_800A18B0 + 0x20) & gPlayerButtonsHeld) {
+            speed = -0.05f;
+        } else {
+            speed = 0.0f;
+        }
+        speed = racer->unk1F0 + (1.0f - func_80049BEC(0.875f, updateRate)) * (speed - racer->unk1F0);
+        zoom = racer->unk1EC + speed * updateRate;
+
+        if (zoom < 1.0f) {
+            zoom = 1.0f;
+            if (speed < 0.0f) {
+                speed = 0.0f;
+            }
+        }
+        if (zoom > 5.0f) {
+            zoom = 5.0f;
+            if (speed > 0.0f) {
+                speed = 0.0f;
+            }
+        }
+        racer->unk1EC = zoom;
+        racer->unk1F0 = speed;
+    } else {
+        racer->unk1F0 = 0.0f;
+        zoom = 1.0f;
+    }
+    recip = 1.0f / zoom;
+    scale = 1.0f / ((zoom - 1.0f) * (zoom * 0.5f) + 1.0f);
+    rangeX = rangeX * scale;
+    rangeY = rangeY * scale;
+    if (x < -40) {
+        if (x < -45 && racer->unk1CE < 0x2D8 - rangeX) {
+            i = -45 - x;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimX = -D_800A2E60[i] * recip;
+        }
+        x = -40;
+    }
+    if (x > 40) {
+        if (x > 45 && rangeX - 0x2D8 < racer->unk1CE) {
+            i = x - 45;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimX = D_800A2E60[i] * recip;
+        }
+        x = 40;
+    }
+    if (y < -40) {
+        if (y < -45 && racer->unk1E0 < 0x2D8 - rangeY) {
+            i = -45 - y;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimY = -D_800A2E60[i] * recip;
+        }
+        y = -40;
+    }
+    if (y > 40) {
+        if (y > 45 && rangeY - 0x2D8 < racer->unk1E0) {
+            i = y - 45;
+            if (i >= 20) {
+                i = 19;
+            }
+            aimY = D_800A2E60[i] * recip;
+        }
+        y = 40;
+    }
+    t = 1.0f - func_80049BEC(0.8334f, updateRate);
+    racer->unk1E4 += (aimX - racer->unk1E4) * t;
+    racer->unk1E8 += (aimY - racer->unk1E8) * t;
+    if (aimX == 0.0f && racer->unk1E4 > -1.0f && racer->unk1E4 < 1.0f) {
+        racer->unk1E4 = 0.0f;
+    }
+    if (aimY == 0.0f && racer->unk1E8 > -1.0f && racer->unk1E8 < 1.0f) {
+        racer->unk1E8 = 0.0f;
+    }
+    *outX = (rangeX * x) / 40;
+    *outY = (rangeY * y) / 40;
+    racer->unk11C += (s32) (racer->unk1E4 * updateRate);
+    racer->unk1E2 += (s32) (racer->unk1E8 * updateRate);
+    if (racer->unk1E2 < minPitch) {
+        racer->unk1E2 = minPitch;
+    }
+    if (racer->unk1E2 > maxPitch) {
+        racer->unk1E2 = maxPitch;
+    }
+    return manual;
+}
 
 extern u8 gWeaponInfo[][0x30];
 
