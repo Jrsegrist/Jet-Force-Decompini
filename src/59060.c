@@ -21,11 +21,11 @@ typedef struct MenuItem {
     /* 0x02 */ s16 unk2;
     /* 0x04 */ s16 unk4;
     /* 0x06 */ s16 unk6;
-    /* 0x08 */ f32 unk8;
+    /* 0x08 */ f32 scale;
     /* 0x0C */ f32 unkC;
-    /* 0x10 */ f32 unk10;
-    /* 0x14 */ f32 unk14;
-    /* 0x18 */ f32 unk18;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ f32 frame;
     /* 0x1C */ s8 unk1C;
     /* 0x1D */ s8 unk1D;
     /* 0x1E */ s8 unk1E;
@@ -929,10 +929,10 @@ void menu_item_reset(s32 item) {
     dst->unk4 = src->unk4;
     dst->unk6 = src->unk6;
     dst->unkC = src->unkC;
-    dst->unk10 = src->unk10;
-    dst->unk14 = src->unk14;
-    dst->unk8 = src->unk8;
-    dst->unk18 = src->unk18;
+    dst->y = src->y;
+    dst->z = src->z;
+    dst->scale = src->scale;
+    dst->frame = src->frame;
     dst->unk1C = src->unk1C;
     dst->unk1D = src->unk1D;
     dst->unk1E = src->unk1E;
@@ -1029,22 +1029,22 @@ void func_8005A0D0(s32 item) {
             trans.rotation[1] = entry->unk2;
             trans.rotation[2] = entry->unk4;
             trans.x = entry->unkC;
-            trans.y = entry->unk10;
-            trans.z = entry->unk14;
-            trans.scale = entry->unk8;
+            trans.y = entry->y;
+            trans.z = entry->z;
+            trans.scale = entry->scale;
             type = D_800A51D0[entry->unk6];
             if (type & 0x4000) {
                 object->rotation[0] = entry->unk0;
                 object->rotation[1] = entry->unk2;
                 object->rotation[2] = entry->unk4;
                 object->x = entry->unkC;
-                object->y = entry->unk10;
-                object->z = entry->unk14;
-                object->scale = entry->unk8;
+                object->y = entry->y;
+                object->z = entry->z;
+                object->scale = entry->scale;
                 object->opacity = D_800A51CC;
                 render_object(&D_800FF398, &D_800FF39C, &D_800FF3A0, object);
             } else if (type & 0x8000) {
-                trans.frame = entry->unk18;
+                trans.frame = entry->frame;
                 sprite = (void *) D_800FF3F8[entry->unk6];
                 gDPPipeSync(sMenuGfx++);
                 gDPSetPrimColor(sMenuGfx++, 0, 0, D_800A51B4, D_800A51B8, D_800A51BC, D_800A51CC);
@@ -1061,7 +1061,7 @@ void func_8005A0D0(s32 item) {
                     gDPSetPrimColor(sMenuGfx++, 0, 0, 255, 255, 255, 255);
                 }
                 gDPSetEnvColor(sMenuGfx++, 255, 255, 255, 0);
-                trans.frame = entry->unk18 * 0.0625f;
+                trans.frame = entry->frame * 0.0625f;
                 model = (MenuDrawModel *) D_800FF3F8[entry->unk6];
                 if (model->header->unk4E == 0) {
                     mtx_cam_push(&D_800FF398, &D_800FF39C, &trans, 1.0f, 0.0f);

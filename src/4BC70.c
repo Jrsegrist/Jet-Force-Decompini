@@ -68,14 +68,14 @@ void func_8004B0B8(s32 on) {
 /* JFG: a rumble pak's state (10 bytes per player) */
 typedef struct RumbleData {
     /* 0x00 */ u16 state : 4;
-    /* 0x00 */ u16 unk3 : 1;
-    /* 0x00 */ u16 unk2 : 1; // set when a rumble pak was found
+    /* 0x00 */ u16 motorOn : 1;
+    /* 0x00 */ u16 pakFound : 1; // set when a rumble pak was found
     /* 0x00 */ u16 unk0 : 2;
-    /* 0x01 */ s16 unk1 : 8; // stops still to send
+    /* 0x01 */ s16 stopsLeft : 8; // stops still to send
     /* 0x02 */ s16 strength;
     /* 0x04 */ s16 strength2;
     /* 0x06 */ s16 time;
-    /* 0x08 */ s16 unk8;
+    /* 0x08 */ s16 onFrames;
 } RumbleData;
 extern RumbleData gRumble[];
 u8 input_player_id(s32 player);
@@ -105,7 +105,7 @@ void rumble_stop(s32 pad, s32 force) {
         id = input_player_id(pad);
         if (force != 0 || (gRumble[id].state != 0 && gRumble[id].state != 3)) {
             gRumble[id].state = 3;
-            gRumble[id].unk1 = 1;
+            gRumble[id].stopsLeft = 1;
         }
     }
 }
@@ -195,13 +195,13 @@ void rumble_motors_run(s32 updateRate) {
             rumble = gRumble;
             for (; i != 4; bit <<= 1, i++, rumble++) {
                 rumble->strength = 0;
-                rumble->unk2 = 0;
+                rumble->pakFound = 0;
                 rumble->strength2 = 0;
                 rumble->time = 0;
-                rumble->unk8 = 0;
+                rumble->onFrames = 0;
                 gRumblePresent &= ~bit;
                 if ((plugged & bit) && osMotorInit(sControllerMesgQueue, &pfs[i], i) == 0) {
-                    rumble->unk2 = 1;
+                    rumble->pakFound = 1;
                     gRumblePresent |= bit;
                 }
             }
@@ -211,59 +211,59 @@ void rumble_motors_run(s32 updateRate) {
         bit = 1;
         rumble = gRumble;
         for (; i != 4; bit <<= 1, i++, rumble++) {
-            if (rumble->unk2) {
+            if (rumble->pakFound) {
                 err = 0;
                 switch (rumble->state) {
                     case 1:
                         rumble->time -= updateRate;
-                        rumble->unk8 += updateRate;
+                        rumble->onFrames += updateRate;
                         if (rumble_is_allowed() == 0) {
                             rumble->time = 0;
                         }
                         if (rumble->time <= 0) {
-                            rumble->unk1 = 1;
+                            rumble->stopsLeft = 1;
                             rumble->state = 3;
-                        } else if (rumble->unk8 >= 120) {
+                        } else if (rumble->onFrames >= 120) {
                             rumble->state = 2;
-                            rumble->unk8 = 120;
-                            rumble->unk1 = 1;
+                            rumble->onFrames = 120;
+                            rumble->stopsLeft = 1;
                         } else if (rumble->strength > 490.0f) {
-                            if (!rumble->unk3) {
+                            if (!rumble->motorOn) {
                                 err = osMotorStart(&pfs[i]);
-                                rumble->unk3 = 1;
+                                rumble->motorOn = 1;
                             }
                         } else if (rumble->strength < 3.6000001f) {
-                            if (rumble->unk3) {
+                            if (rumble->motorOn) {
                                 err = osMotorStop(&pfs[i]);
-                                rumble->unk3 = 0;
+                                rumble->motorOn = 0;
                             }
                         } else if (rumble->strength2 >= 0x100) {
-                            if (!rumble->unk3) {
+                            if (!rumble->motorOn) {
                                 err = osMotorStart(&pfs[i]);
-                                rumble->unk3 = 1;
+                                rumble->motorOn = 1;
                             }
                             rumble->strength2 -= 0x100;
                         } else {
-                            if (rumble->unk3) {
+                            if (rumble->motorOn) {
                                 err = osMotorStop(&pfs[i]);
-                                rumble->unk3 = 0;
+                                rumble->motorOn = 0;
                             }
                             rumble->strength2 += rumble->strength + 4;
                         }
                         break;
                     case 2:
-                        if (rumble->unk1) {
+                        if (rumble->stopsLeft) {
                             osMotorInit(sControllerMesgQueue, &pfs[i], i);
                             osMotorStop(&pfs[i]);
                             osMotorStop(&pfs[i]);
                             osMotorStop(&pfs[i]);
                             rumble->time = 0;
-                            rumble->unk3 = 0;
-                            rumble->unk1--;
+                            rumble->motorOn = 0;
+                            rumble->stopsLeft--;
                         }
-                        rumble->unk8 -= updateRate;
-                        if (rumble->unk8 <= 0) {
-                            rumble->unk8 = 0;
+                        rumble->onFrames -= updateRate;
+                        if (rumble->onFrames <= 0) {
+                            rumble->onFrames = 0;
                             rumble->state = 0;
                         }
                         break;
@@ -273,16 +273,16 @@ void rumble_motors_run(s32 updateRate) {
                         osMotorStop(&pfs[i]);
                         osMotorStop(&pfs[i]);
                         rumble->time = 0;
-                        rumble->unk8 = 0;
-                        rumble->unk3 = 0;
-                        rumble->unk1--;
-                        if (rumble->unk1 == 0) {
+                        rumble->onFrames = 0;
+                        rumble->motorOn = 0;
+                        rumble->stopsLeft--;
+                        if (rumble->stopsLeft == 0) {
                             rumble->state = 0;
                         }
                         break;
                 }
                 if (err) {
-                    rumble->unk2 = 0;
+                    rumble->pakFound = 0;
                     gRumblePresent &= ~bit;
                 }
             }
@@ -594,12 +594,12 @@ void init_controller_paks(void) {
     i = 4;
     while (i--) {
         rumble->state = 0;
-        rumble->unk2 = 0;
-        rumble->unk3 = 0;
-        rumble->unk1 = 0;
+        rumble->pakFound = 0;
+        rumble->motorOn = 0;
+        rumble->stopsLeft = 0;
         rumble->strength = 0;
         rumble->time = 0;
-        rumble->unk8 = 0;
+        rumble->onFrames = 0;
         rumble++;
     }
     D_800A3448 = gRumblePresent = 0;
@@ -616,7 +616,7 @@ void init_controller_paks(void) {
                 if (i) {} // as in DKR
                 if (osMotorInit(sControllerMesgQueue, &pfs[i], i) == 0) {
                     gRumblePresent |= bit;
-                    gRumble[i].unk2 = 1;
+                    gRumble[i].pakFound = 1;
                 }
             }
         }

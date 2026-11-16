@@ -1189,11 +1189,11 @@ INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
 #endif
 
 typedef struct CameraShake {
-    /* 0x00 */ s16 unk0; // JFG: the end of each phase, in frames
-    /* 0x02 */ s16 unk2;
-    /* 0x04 */ s16 unk4;
+    /* 0x00 */ s16 fadeInEnd; // JFG: the end of each phase, in frames
+    /* 0x02 */ s16 holdEnd;
+    /* 0x04 */ s16 fadeOutEnd;
     /* 0x06 */ s16 frame; // JFG: the frame count
-    /* 0x08 */ s32 unk8;
+    /* 0x08 */ s32 magnitude;
 } CameraShake;
 extern CameraShake gCameraShakes[4];
 
@@ -1203,11 +1203,11 @@ void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 arg4) {
 
     if (index >= 0 && index < 4) {
         shake = &gCameraShakes[index];
-        shake->unk0 = phase1 * 60.0f;
-        shake->unk2 = shake->unk0 + (s32) (phase2 * 60.0f);
-        shake->unk4 = shake->unk2 + (s32) (phase3 * 60.0f);
+        shake->fadeInEnd = phase1 * 60.0f;
+        shake->holdEnd = shake->fadeInEnd + (s32) (phase2 * 60.0f);
+        shake->fadeOutEnd = shake->holdEnd + (s32) (phase3 * 60.0f);
         shake->frame = 0;
-        shake->unk8 = arg4;
+        shake->magnitude = arg4;
     }
 }
 
@@ -1225,7 +1225,7 @@ void cam_shake_stop_all(void) {
         cam->shakeX = 0.0f;
         cam->shakeY = 0.0f;
         cam->shakeZ = 0.0f;
-        shake->unk8 = 0;
+        shake->magnitude = 0;
         cam++;
         shake++;
     }
@@ -1285,8 +1285,8 @@ s32 rand_range(s32 min, s32 max);
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target forms &D_800FA658 in $a1 before indexing (mine folds %lo into the store), which shifts
    the temporaries of the rest by one */
-/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in over unk0 frames,
- * hold to unk2, fade out to unk4) into each camera's shakeY. */
+/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in until fadeInEnd,
+ * hold to holdEnd, fade out to fadeOutEnd) into each camera's shakeY. */
 void func_800424A0(s32 updateRate) {
     s32 i;
     Camera *cam;
@@ -1306,17 +1306,17 @@ void func_800424A0(s32 updateRate) {
         cam->shakeX = 0.0f;
         cam->shakeY = 0.0f;
         cam->shakeZ = 0.0f;
-        if (shake->unk8 != 0) {
+        if (shake->magnitude != 0) {
             shake->frame += updateRate;
-            if (shake->frame >= shake->unk4) {
-                shake->unk8 = 0;
+            if (shake->frame >= shake->fadeOutEnd) {
+                shake->magnitude = 0;
             } else {
                 gNoCamShake = 1;
-                magnitude = shake->unk8;
-                if (shake->unk2 < shake->frame) {
-                    magnitude = (shake->unk4 - shake->frame) * magnitude / (shake->unk4 - shake->unk2);
-                } else if (shake->frame < shake->unk0) {
-                    magnitude = shake->frame * magnitude / shake->unk0;
+                magnitude = shake->magnitude;
+                if (shake->holdEnd < shake->frame) {
+                    magnitude = (shake->fadeOutEnd - shake->frame) * magnitude / (shake->fadeOutEnd - shake->holdEnd);
+                } else if (shake->frame < shake->fadeInEnd) {
+                    magnitude = shake->frame * magnitude / shake->fadeInEnd;
                 }
                 cam->shakeY = rand_range(0, magnitude);
             }

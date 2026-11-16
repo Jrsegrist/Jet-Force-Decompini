@@ -888,14 +888,14 @@ typedef struct CharacterData {
     /* 0x08 */ s16 unk8;
     /* 0x0A */ u16 weapons; // one bit per weapon
     /* 0x0C */ s16 unkC[4];
-    /* 0x14 */ s16 unk14[16]; // per weapon
+    /* 0x14 */ s16 ammo[16]; // per weapon
     /* 0x34 */ s16 unk34[16]; // per weapon
     /* 0x54 */ u8 unk54[16];  // per weapon
     /* 0x64 */ u16 unk64;
     /* 0x66 */ u8 items[8]; // one bit per item, highest bit first
     /* 0x6E */ u8 pad6E;
     /* 0x6F */ u8 unk6F;
-    /* 0x70 */ u8 unk70;
+    /* 0x70 */ u8 weapon;
     /* 0x71 */ s8 unk71;
     /* 0x72 */ u8 pad72[2];
     /* 0x74 */ u16 unk74_hi : 11;
@@ -1711,15 +1711,15 @@ void char_record_reset(CharacterData *chr, s32 level) {
     chr->unk4_lo = 0;
     for (i = 0; i < 16; i++) {
         info = weapon_info_get(i);
-        chr->unk14[i] = 0;
+        chr->ammo[i] = 0;
         chr->unk34[i] = *(s16 *) (info + 0x24);
         chr->unk54[i] = info[3];
     }
     info = weapon_info_get(0);
     chr->unk6F = 1;
-    chr->unk70 = 0;
-    chr->weapons = 1 << chr->unk70;
-    chr->unk14[0] = *(s16 *) (info + 0x28);
+    chr->weapon = 0;
+    chr->weapons = 1 << chr->weapon;
+    chr->ammo[0] = *(s16 *) (info + 0x28);
     chr->unkC[0] = 0;
     chr->unkC[1] = 0;
     chr->unkC[2] = 0;

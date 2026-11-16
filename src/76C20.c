@@ -7,7 +7,7 @@ typedef struct AnimModel {
 
 typedef struct AnimObjectHeader {
     /* 0x00 */ u8 pad0[0x1F];
-    /* 0x1F */ s8 numVariants; // JFG: the number of values unk3A can take
+    /* 0x1F */ s8 numVariants; // JFG: the number of values modelIndex can take
 } AnimObjectHeader;
 
 typedef struct AnimObject {
@@ -22,7 +22,7 @@ typedef struct AnimObject {
     /* 0x20 */ f32 vy;
     /* 0x24 */ f32 vz;
     /* 0x28 */ u8 pad28[0x3A - 0x28];
-    /* 0x3A */ s8 unk3A;
+    /* 0x3A */ s8 modelIndex;
     /* 0x3B */ u8 pad3B;
     /* 0x3C */ s32 unk3C;
     /* 0x40 */ AnimObjectHeader *header;
@@ -74,8 +74,8 @@ typedef struct AnimPath {
     /* 0x25 */ u8 unk25;
     /* 0x26 */ u8 unk26;
     /* 0x27 */ u8 unk27;
-    /* 0x28 */ u8 unk28;
-    /* 0x29 */ u8 unk29;
+    /* 0x28 */ u8 pitchBase;
+    /* 0x29 */ u8 pitchPerSpeed;
     /* 0x2A */ s16 unk2A;
     /* 0x2C */ f32 unk2C;
     /* 0x30 */ f32 unk30;
@@ -305,12 +305,12 @@ void anim_path_spawn_object(u8 index) {
                 path->unk2C = 1.0f;
                 path->unk30 = 0.0f;
                 if (path->unk2 == 0x29B || path->unk2 == 0x29C || path->unk2 == 0x29D) {
-                    obj->unk3A = pending_level_character() & 3;
-                    if (obj->unk3A == 3) {
-                        obj->unk3A = D_800A4FC0 & 3;
+                    obj->modelIndex = pending_level_character() & 3;
+                    if (obj->modelIndex == 3) {
+                        obj->modelIndex = D_800A4FC0 & 3;
                     }
-                    if (obj->unk3A >= obj->header->numVariants) {
-                        obj->unk3A = 0;
+                    if (obj->modelIndex >= obj->header->numVariants) {
+                        obj->modelIndex = 0;
                     }
                 }
                 if (path->obj->unk5C != 0) {
@@ -318,8 +318,8 @@ void anim_path_spawn_object(u8 index) {
                 }
             }
         }
-        path->unk28 = 100;
-        path->unk29 = 0;
+        path->pitchBase = 100;
+        path->pitchPerSpeed = 0;
     }
 }
 
@@ -914,9 +914,9 @@ void func_80077614(s32 updateRate) {
                     obj = path->obj;
                     if (obj != NULL && obj->audioPoint != NULL) {
                         audspat_point_set_position((void *) (s32) obj->audioPoint, obj->x, obj->y, obj->z);
-                        if (path->unk28 != 100 || path->unk29 != 0) {
+                        if (path->pitchBase != 100 || path->pitchPerSpeed != 0) {
                             speed = sqrtf(obj->vx * obj->vx + obj->vy * obj->vy + obj->vz * obj->vz);
-                            audspat_point_set_pitch(obj->audioPoint, path->unk28 + path->unk29 * speed);
+                            audspat_point_set_pitch(obj->audioPoint, path->pitchBase + path->pitchPerSpeed * speed);
                         }
                     }
                 }

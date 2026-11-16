@@ -50,6 +50,9 @@ func_800285B0 = spawn_object_from_list
 func_8002863C = obj_init_emitter
 func_8002993C = chroma_sprite_reset
 func_80029B78 = zones_reset
+field ChromaSpriteState.unk6 = age
+field ChromaSpriteState.unk8 = opacity
+field ChromaSpriteState.unk9 = animRate
 
 # src/2BAA0.c
 func_80031F44 = player_items_unlink
@@ -94,6 +97,7 @@ func_800034C4 = audspat_point_set_volume
 func_800034DC = audspat_point_set_pitch
 func_80003680 = audspat_point_handle_clear
 func_800037F8 = audspat_calculate_echo
+field AudioPoint.unk23 = groupId
 
 # src/3C470.c
 func_8003B870 = mem_copy_u16
@@ -122,6 +126,10 @@ func_800421F0 = cam_shake_start
 func_800422C4 = cam_shake_stop_all
 func_80042438 = cam_fov_zoom_set
 func_80040AA4 = cam_view_matrices_set
+field CameraShake.unk0 = fadeInEnd
+field CameraShake.unk2 = holdEnd
+field CameraShake.unk4 = fadeOutEnd
+field CameraShake.unk8 = magnitude
 
 # src/432D0.c
 func_8004272C = transform_offset_world_pos
@@ -190,6 +198,8 @@ func_800482A0 = settings_map_ids_store
 func_80048548 = camera_count_get
 func_80048558 = player_count_get
 func_800485C8 = char_id_of_player
+field CharacterData.unk70 = weapon
+field CharacterData.unk14 = ammo
 
 # src/4BC70.c
 func_8004B070 = rumble_is_allowed
@@ -206,6 +216,10 @@ func_8004BF2C = save_flash_init
 func_8004BF98 = flash_write_page
 func_8004C008 = flash_read_page
 func_8004D250 = get_file_type
+field RumbleData.unk1 = stopsLeft
+field RumbleData.unk2 = pakFound
+field RumbleData.unk3 = motorOn
+field RumbleData.unk8 = onFrames
 
 # src/4E610.c
 func_8004E3E8 = rdp_set_default_modes
@@ -220,6 +234,9 @@ func_80053370 = runlink_module_loaded
 func_800541B0 = runlink_unload_timer_set
 func_80054204 = runlink_unload_timers_update
 func_80050F44 = troop_list_get
+field ModuleEntry.unk14 = relocSize
+field ModuleEntry.unk18 = initOffset
+field ModuleEntry.unk1C = runOffset
 
 # src/53C0.c
 func_800047C0 = clear_object_pointers
@@ -270,6 +287,10 @@ func_8005AA7C = options_split_vertical_get
 func_8005AA94 = options_split_vertical_set
 func_8005AAB8 = options_player_toggle_get
 func_8005AAD0 = options_player_toggle_set
+field MenuItem.unk8 = scale
+field MenuItem.unk10 = y
+field MenuItem.unk14 = z
+field MenuItem.unk18 = frame
 
 # src/5B700.c
 func_8005BC44 = rain_init
@@ -311,6 +332,12 @@ func_8006D70C = s32_to_decimal_string
 func_8006DA1C = rgba5551_add_clamped
 func_8006DAE8 = rgba5551_brighten_rg
 func_8006B090 = ripple_step_frame
+field RippleInit.unk75 = fadingIn
+field RippleInit.unk7A = texFrameRate
+field RippleInit.unk7C = halfSize
+field EffectMesh.unk16 = vertFrame
+field EffectMesh.unk18 = radius
+field EffectMesh.unk20 = height
 
 # src/707F0.c
 func_8006FBF0 = set_screen_dialogue_box_size
@@ -337,6 +364,9 @@ func_80079AA4 = anim_path_for_obj
 func_80079B6C = anim_path_free_slot
 func_80079BA8 = sequence_resume
 func_80079BB8 = sequence_hold
+field AnimObject.unk3A = modelIndex
+field AnimPath.unk28 = pitchBase
+field AnimPath.unk29 = pitchPerSpeed
 
 # src/audio.c
 func_800005F8 = music_volume_fade
@@ -619,6 +649,8 @@ func_80023A00 = coronas_free_all
 func_80023CB4 = corona_free
 func_80023D48 = coronas_update
 func_80023FA4 = corona_visibility_update
+field Corona.unk3C = sprite
+field Corona.unk37 = screenRect
 # src/668E0.c (a debug trace: value, source file, line)
 func_80065CE0 = debug_trace_init
 func_80065D24 = debug_trace_flip
@@ -744,6 +776,8 @@ func_80079D1C = obj_collision_spheres_init
 func_8007CCF0 = player_spheres_push_out
 func_8007D0B4 = sphere_overlaps_set
 func_800835E0 = box_range_cell_mask
+field Obj7EData.unk133 = modelIndex
+field Obj7E.unk3A = modelIndex
 # src/74270.c (DKR game_text.c)
 func_800737B8 = render_subtitles
 func_80073BDC = process_subtitles
@@ -1018,6 +1052,8 @@ func_8005D660 = model_particles_render
 func_80062A00 = point_particle_sets_render
 func_80062D5C = point_particle_set_add
 func_8006382C = particles_offset_by_position
+field LineParticleSet.unk138 = texFlags
+field LineParticleSet.unk144 = texUpdateRate
 
 # src/560B0.c
 func_8005600C = draw_tint_pair_set

@@ -144,10 +144,10 @@ typedef struct LineParticleSet {
     /* 0x130 */ u32 *colours; // RGBA, cycled through
     /* 0x134 */ s16 numColours;
     /* 0x136 */ u8 pad136[2];
-    /* 0x138 */ s32 unk138;
+    /* 0x138 */ s32 texFlags;
     /* 0x13C */ s32 flags;
     /* 0x140 */ f32 frame;
-    /* 0x144 */ s16 unk144;
+    /* 0x144 */ s16 texUpdateRate;
     /* 0x146 */ u8 pad146[2];
 } LineParticleSet;
 
@@ -811,20 +811,20 @@ s32 line_particle_set_alloc(ParticleDesc *desc, ParticleBehaviour *behaviour) {
         }
     }
     if (found != 0xFF) {
-        set->unk138 = ((LineDesc *) desc)->unk0;
+        set->texFlags = ((LineDesc *) desc)->unk0;
         set->flags = behaviour->flags;
         if (((LineDesc *) desc)->textureID == -1) {
             set->texture = NULL;
-            set->unk144 = 0;
+            set->texUpdateRate = 0;
             set->frame = 0.0f;
         } else {
             tex = load_texture(((LineDesc *) desc)->textureID);
             set->texture = tex;
-            set->unk144 = ((LineDesc *) desc)->unk8;
+            set->texUpdateRate = ((LineDesc *) desc)->unk8;
             numFrames = tex->numOfTextures >> 8;
             if (behaviour->flags & 0x800) {
                 set->frame = rand_range(0, numFrames - 1);
-            } else if ((set->unk138 & 1) == 2) {
+            } else if ((set->texFlags & 1) == 2) {
                 set->frame = numFrames - 0.01f;
             } else {
                 set->frame = 0.0f;
@@ -1861,7 +1861,7 @@ void line_particle_set_update(LineParticleSet *set, s32 updateRate) {
             if (set->flags & 0x800) {
                 set->frame = rand_range(0, (set->texture->numOfTextures >> 8) - 1);
             } else {
-                texture_anim_advance(set->texture, &set->unk138, set->unk144, &set->frame, updateRate);
+                texture_anim_advance(set->texture, &set->texFlags, set->texUpdateRate, &set->frame, updateRate);
             }
         }
     }

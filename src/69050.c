@@ -318,12 +318,12 @@ typedef struct EffectMesh {
     /* 0x10 */ u8 *tris;
     /* 0x14 */ u8 numPoints;
     /* 0x15 */ u8 segments;
-    /* 0x16 */ u8 unk16; // the current vertex buffer
+    /* 0x16 */ u8 vertFrame; // the current vertex buffer
     /* 0x17 */ u8 pad17;
-    /* 0x18 */ f32 unk18;
+    /* 0x18 */ f32 radius;
     /* 0x1C */ s16 unk1C;
     /* 0x1E */ s16 unk1E;
-    /* 0x20 */ s16 unk20;
+    /* 0x20 */ s16 height;
     /* 0x22 */ s16 x;
     /* 0x24 */ s16 y;
     /* 0x26 */ s16 z;
@@ -365,12 +365,12 @@ EffectMesh *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5
         mesh->verts[0] = mesh->tris + sizeA;
         mesh->verts[1] = mesh->verts[0] + sizeB;
         mesh->numPoints = segments + 1;
-        mesh->unk16 = 0;
+        mesh->vertFrame = 0;
         mesh->segments = segments;
         mesh->unk1E = arg4;
         mesh->unk1C = arg3;
-        mesh->unk20 = arg6;
-        mesh->unk18 = arg5;
+        mesh->height = arg6;
+        mesh->radius = arg5;
         mesh->x = x;
         mesh->y = y;
         mesh->z = z;
@@ -586,8 +586,8 @@ void effect_mesh_update(EffectMesh *mesh, s16 depth, s32 brightness) {
     s32 i;
 
     if (mesh != NULL) {
-        mesh->unk16 ^= 1;
-        verts = (Vertex *) mesh->verts[mesh->unk16];
+        mesh->vertFrame ^= 1;
+        verts = (Vertex *) mesh->verts[mesh->vertFrame];
         p = pts[0];
         pts[0][2] = -depth;
         func_8004944C(&mesh->unk1C, p);
@@ -595,8 +595,8 @@ void effect_mesh_update(EffectMesh *mesh, s16 depth, s32 brightness) {
         verts->y = (s32) pts[0][1] + mesh->y;
         verts->z = (s32) pts[0][2] + mesh->z;
         if (mesh->segments == 0) {
-            radius = mesh->unk18;
-            height = mesh->unk20;
+            radius = mesh->radius;
+            height = mesh->height;
             if (brightness < 0x80) {
                 f = 0.0f;
             } else if (brightness >= 0x100) {
@@ -636,7 +636,7 @@ void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
             hasTex = FALSE;
         }
         if (mesh->segments == 0) {
-            gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]), 18, 0);
+            gSPVertexJFG((*dList)++, OS_K0_TO_PHYSICAL(mesh->verts[mesh->vertFrame]), 18, 0);
             func_80055C00(dList, mesh->tex2, flags, 0);
             gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), 16, hasTex);
             func_80055C00(dList, mesh->tex1, flags, 0);
@@ -645,9 +645,9 @@ void func_80069BE8(Gfx **dList, EffectMesh *mesh, s32 flags, u8 alpha) {
             gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris + 0x100), 16, hasTex);
         } else {
             func_80055C00(dList, mesh->tex1, flags, 0);
-            gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]),
+            gDma1p((*dList)++, G_VTX, OS_K0_TO_PHYSICAL(mesh->verts[mesh->vertFrame]),
                    mesh->numPoints * 8 + 8 + mesh->numPoints * 2,
-                   (mesh->numPoints * 8) | ((u32) OS_K0_TO_PHYSICAL(mesh->verts[mesh->unk16]) & 6));
+                   (mesh->numPoints * 8) | ((u32) OS_K0_TO_PHYSICAL(mesh->verts[mesh->vertFrame]) & 6));
             if (hasTex) {}
             gSPPolygon((*dList)++, OS_K0_TO_PHYSICAL(mesh->tris), mesh->segments, hasTex);
         }
@@ -884,11 +884,11 @@ typedef struct RippleInit {
     /* 0x20 */ RippleVtx vtx[2][4];
     /* 0x70 */ struct RippleTexture *tex;
     /* 0x74 */ u8 frame;
-    /* 0x75 */ u8 unk75;
+    /* 0x75 */ u8 fadingIn;
     /* 0x76 */ s16 alpha;
     /* 0x78 */ s16 texFrame;
-    /* 0x7A */ s16 unk7A;
-    /* 0x7C */ f32 unk7C;
+    /* 0x7A */ s16 texFrameRate;
+    /* 0x7C */ f32 halfSize;
     /* 0x80 */ f32 unk80; // JFG: the level height under it
     /* 0x84 */ void *child;
 } RippleInit;
@@ -966,11 +966,11 @@ s32 ripple_data_init(RippleObj *obj, RippleInit *r) {
     }
 
     r->frame = 0;
-    r->unk75 = 0;
+    r->fadingIn = 0;
     r->alpha = 0;
     r->texFrame = 0;
-    r->unk7A = hdr->unk7E;
-    r->unk7C = hdr->unk78;
+    r->texFrameRate = hdr->unk7E;
+    r->halfSize = hdr->unk78;
     track_height_at(obj->x, obj->z, &r->unk80, 0x2000);
     r->child = 0;
     if (hdr->childType != -1) {
@@ -1017,7 +1017,7 @@ void ripple_step_frame(RippleObj *obj, s32 updateRate) {
     if (r == NULL) {
         return;
     }
-    if (r->unk75) {
+    if (r->fadingIn) {
         r->alpha += 32;
         if (r->alpha >= 256) {
             r->alpha = 255;
@@ -1028,8 +1028,8 @@ void ripple_step_frame(RippleObj *obj, s32 updateRate) {
             r->alpha = 0;
         }
     }
-    if (r->unk7A != 0 && r->tex != NULL) {
-        r->texFrame += r->unk7A * updateRate;
+    if (r->texFrameRate != 0 && r->tex != NULL) {
+        r->texFrame += r->texFrameRate * updateRate;
         while (r->texFrame >= r->tex->numFrames) {
             r->texFrame -= r->tex->numFrames;
         }
@@ -1038,21 +1038,21 @@ void ripple_step_frame(RippleObj *obj, s32 updateRate) {
         r->frame = 1 - r->frame;
         y = r->unk80;
         v = r->vtx[r->frame];
-        v->x = obj->x + r->unk7C;
+        v->x = obj->x + r->halfSize;
         v->y = y;
-        v->z = obj->z - r->unk7C;
+        v->z = obj->z - r->halfSize;
         v++;
-        v->x = obj->x - r->unk7C;
+        v->x = obj->x - r->halfSize;
         v->y = y;
-        v->z = obj->z - r->unk7C;
+        v->z = obj->z - r->halfSize;
         v++;
-        v->x = obj->x + r->unk7C;
+        v->x = obj->x + r->halfSize;
         v->y = y;
-        v->z = obj->z + r->unk7C;
+        v->z = obj->z + r->halfSize;
         v++;
-        v->x = obj->x - r->unk7C;
+        v->x = obj->x - r->halfSize;
         v->y = y;
-        v->z = obj->z + r->unk7C;
+        v->z = obj->z + r->halfSize;
     }
     angle = func_80049C84(obj->vx, obj->vz);
     if (r->child != NULL) {

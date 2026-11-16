@@ -26,7 +26,7 @@ typedef struct Obj7EData {
     /* 0x12E */ s16 unk12E;
     /* 0x130 */ s16 unk130;
     /* 0x132 */ u8 unk132;
-    /* 0x133 */ u8 unk133;
+    /* 0x133 */ u8 modelIndex;
 } Obj7EData;
 
 typedef struct Obj7E {
@@ -41,7 +41,7 @@ typedef struct Obj7E {
     /* 0x18 */ u8 pad18[0x2E - 0x18];
     /* 0x2E */ s16 segmentID;
     /* 0x30 */ u8 pad30[0x3A - 0x30];
-    /* 0x3A */ s8 unk3A;
+    /* 0x3A */ s8 modelIndex;
     /* 0x3B */ u8 pad3B[0x40 - 0x3B];
     /* 0x40 */ Obj7EHeader *header;
     /* 0x44 */ u8 pad44[0x48 - 0x44];
@@ -319,7 +319,7 @@ void obj_hit_set_fit(Obj7E *obj, SphereSet *set) {
     f32 *anim;
     CollisionSphere *sphere;
 
-    anim = obj->modelInstances[obj->unk3A]->animVerts;
+    anim = obj->modelInstances[obj->modelIndex]->animVerts;
     sphere = set->spheres;
     minX = anim[0] - sphere->radius;
     minY = anim[1] - sphere->radius2;
@@ -910,9 +910,9 @@ void func_8007E4A0(Obj7E *obj) {
     s8 value = obj->header->unk71;
 
     if (value >= 0) {
-        data->unk133 = value;
+        data->modelIndex = value;
     } else {
-        data->unk133 = obj->unk3A;
+        data->modelIndex = obj->modelIndex;
     }
     obj_update_matrices(obj, 1);
     obj_update_matrices(obj, 1);
@@ -930,9 +930,9 @@ void func_8007E504(void) {
         data = obj->data;
         value = obj->header->unk71;
         if (value >= 0) {
-            data->unk133 = value;
+            data->modelIndex = value;
         } else {
-            data->unk133 = obj->unk3A;
+            data->modelIndex = obj->modelIndex;
         }
         obj_update_matrices(obj, 0);
         if (data->unk12C != 0) {
@@ -1008,7 +1008,7 @@ void func_8007E794(Obj7E *obj) {
     s16 max[3];
 
     data = obj->data;
-    model = obj->modelInstances[data->unk133];
+    model = obj->modelInstances[data->modelIndex];
     xform = data->mtx2[data->mtxIndex];
     data->bboxMin[0] = xform[3][0];
     data->bboxMin[1] = xform[3][1];
@@ -1143,7 +1143,7 @@ void func_800805F4(void) {
     for (i = 0; i < D_801047F0; i++) {
         if (D_801047F4[i] > 0) {
             obj = (Obj7E *) (D_801047F4[i] | 0x80000000);
-            model = obj->modelInstances[obj->data->unk133];
+            model = obj->modelInstances[obj->data->modelIndex];
             header = model->header;
             if (model->edges != NULL) {
                 edges = model->edges;
@@ -1232,7 +1232,7 @@ s32 func_80081CB8(f32 *line, f32 *out) {
     for (i = 0; i < D_801047F0 && !found; i++) {
         if (D_801047F4[i] > 0) {
             obj = (Obj7E *) (D_801047F4[i] | 0x80000000);
-            model = obj->modelInstances[obj->data->unk133];
+            model = obj->modelInstances[obj->data->modelIndex];
             header = model->header;
             if (model->edges != NULL) {
                 edges = model->edges;

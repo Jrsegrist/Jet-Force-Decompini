@@ -21,7 +21,7 @@ typedef struct AudioPoint {
     /* 0x20 */ u8 fastFalloff;
     /* 0x21 */ u8 priority;
     /* 0x22 */ u8 triggeredOnce;
-    /* 0x23 */ u8 unk23; // JFG
+    /* 0x23 */ u8 groupId; // JFG
 } AudioPoint;
 
 extern AudioPoint **gAudioPoints;
@@ -292,7 +292,7 @@ void audspat_update_all(struct Object **objList, s32 numObjects, s32 updateRate)
                 } else {
                     fxMix = 0;
                 }
-                if (!audioPoint->unk23) {
+                if (!audioPoint->groupId) {
                     if (audioPoint->soundHandle == NULL &&
                         (!audioPoint->triggeredOnce || !(audioPoint->flags & AUDIO_POINT_FLAG_ONE_TIME_TRIGGER))) {
                         sound_play_direct(audioPoint->soundBite, volume, pan, pitch, fxMix, &audioPoint->soundHandle);
@@ -312,7 +312,7 @@ void audspat_update_all(struct Object **objList, s32 numObjects, s32 updateRate)
             } else {
                 if (audioPoint->soundHandle != NULL) {
                     sound_stop(audioPoint->soundHandle);
-                    if (audioPoint->unk23) {
+                    if (audioPoint->groupId) {
                         audspat_point_group_remove(audioPoint);
                     }
                 } else {
@@ -328,7 +328,7 @@ void audspat_update_all(struct Object **objList, s32 numObjects, s32 updateRate)
 
     for (i = 0; i < gNumAudioPoints; i++) {
         audioPoint = gAudioPoints[i];
-        if (audioPoint->unk23) {
+        if (audioPoint->groupId) {
             audioPoint->triggeredOnce = TRUE;
         }
         if ((audioPoint->flags & AUDIO_POINT_FLAG_ONE_TIME_TRIGGER) && audioPoint->triggeredOnce &&
@@ -511,7 +511,7 @@ void audspat_point_create(u16 soundBite, f32 x, f32 y, f32 z, u8 flags, u8 minVo
     audioPoint->fastFalloff = fastFalloff;
     audioPoint->priority = priority;
     audioPoint->triggeredOnce = 0;
-    audioPoint->unk23 = unk;
+    audioPoint->groupId = unk;
     audioPoint->userHandlePtr = handlePtr;
     gAudioPoints[gNumAudioPoints++] = audioPoint;
     if (handlePtr != NULL) {
@@ -530,8 +530,8 @@ extern s32 D_800A0800[]; // JFG: the number of entries of each group (groups fro
 /* JFG: add a point to its group (unk23) with the given sound settings: update its entry, or take a free one,
  * or replace the quietest entry if this one is louder. */
 void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix) {
-    s32 count = D_800A0800[point->unk23];
-    AudioGroupEntry *entries = D_800F2A48[point->unk23 - 1];
+    s32 count = D_800A0800[point->groupId];
+    AudioGroupEntry *entries = D_800F2A48[point->groupId - 1];
     AudioGroupEntry *entry = entries;
     s32 i;
     s32 quietest;
@@ -563,7 +563,7 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
         }
     }
     if (minVolume < volume) {
-        entry = &D_800F2A48[point->unk23 - 1][quietest];
+        entry = &D_800F2A48[point->groupId - 1][quietest];
         if (entry->point->soundHandle != NULL) {
             sound_stop(entry->point->soundHandle);
         }
@@ -615,9 +615,9 @@ extern s32 D_800A0800[];               // JFG: the number of entries of each gro
 /* JFG: take a point out of its group. */
 void audspat_point_group_remove(AudioPoint *point) {
     s32 i;
-    AudioGroupEntry *entry = D_800F2A48[point->unk23 - 1];
+    AudioGroupEntry *entry = D_800F2A48[point->groupId - 1];
 
-    for (i = 0; i < D_800A0800[point->unk23]; i++, entry++) {
+    for (i = 0; i < D_800A0800[point->groupId]; i++, entry++) {
         if (point == entry->point) {
             entry->point = NULL;
             break;
@@ -644,7 +644,7 @@ void audspat_point_stop_by_index(s32 index) {
         if (point->userHandlePtr != NULL) {
             *point->userHandlePtr = NULL;
         }
-        if (point->unk23 != 0) {
+        if (point->groupId != 0) {
             audspat_point_group_remove(point);
         }
         // put it to the free list
