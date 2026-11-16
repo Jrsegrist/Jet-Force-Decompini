@@ -320,14 +320,14 @@ static M052Rates sRates[19] = {
 static s16 *sCommand;  /* where the next joint angle command goes */
 static s16 sHitTimer;  /* the state block's unk577, for the turning code */
 
-static void func_m052_00C40(Object *obj, M052Player *p, f32 updateRate);
-static void func_m052_01108(Object *obj, M052Player *p, f32 updateRate);
-static void func_m052_011E0(Object *obj, M052Player *p, f32 updateRate);
-static void func_m052_0128C(s16 pitch, s16 yaw, s16 aimPitch, s16 aimYaw);
-static s32 func_m052_01390(M052Player *p);
-static void func_m052_013D4(Object *obj, M052Player *p, s32 move, f32 frame);
-static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate);
-static void func_m052_01688(Object *obj, M052Player *p, f32 updateRate);
+static void m052_on_ground(Object *obj, M052Player *p, f32 updateRate);
+static void m052_in_air(Object *obj, M052Player *p, f32 updateRate);
+static void m052_dying(Object *obj, M052Player *p, f32 updateRate);
+static void m052_head_arm_commands(s16 pitch, s16 yaw, s16 aimPitch, s16 aimYaw);
+static s32 m052_speed_move_pick(M052Player *p);
+static void m052_move_anim_start(Object *obj, M052Player *p, s32 move, f32 frame);
+static void m052_anim_advance(Object *obj, M052Player *p, f32 updateRate);
+static void m052_move(Object *obj, M052Player *p, f32 updateRate);
 
 void func_m052_00000(Object *obj, s32 updateRate) {
     M052Player *p;
@@ -436,19 +436,19 @@ void func_m052_00000(Object *obj, s32 updateRate) {
             func_m006_015E0(1);
             player_drop_held_object(obj);
             player_items_unlink(p);
-            func_m052_013D4(obj, p, 0x18, 0.0f);
+            m052_move_anim_start(obj, p, 0x18, 0.0f);
         }
         p->unk19C = 0;
     }
     switch (p->state & ~0x20) {
         case 0:
-            func_m052_00C40(obj, p, updateRate);
+            m052_on_ground(obj, p, updateRate);
             break;
         case 3:
-            func_m052_01108(obj, p, updateRate);
+            m052_in_air(obj, p, updateRate);
             break;
         case 10:
-            func_m052_011E0(obj, p, updateRate);
+            m052_dying(obj, p, updateRate);
             break;
     }
     if (p->unk1F6 != 0) {
@@ -485,8 +485,8 @@ void func_m052_00000(Object *obj, s32 updateRate) {
             p->weapon = weapons->weapon;
         }
     }
-    func_m052_01468(obj, p, updateRate);
-    func_m052_01688(obj, p, updateRate);
+    m052_anim_advance(obj, p, updateRate);
+    m052_move(obj, p, updateRate);
     if (p->unk5BC != NULL) {
         if ((p->state & ~0x20) == 1) {
             func_m107_00D08(p->unk5BC, 1.0f, 0.75f, 120);
@@ -540,7 +540,7 @@ void func_m052_00000(Object *obj, s32 updateRate) {
             if (obj->animationID == 0x16) {
                 anim_phase_clamp(obj, 0);
             } else {
-                func_m052_013D4(obj, p, 0x16, 0.0f);
+                m052_move_anim_start(obj, p, 0x16, 0.0f);
             }
             p->unk577 = 40;
             break;
@@ -548,7 +548,7 @@ void func_m052_00000(Object *obj, s32 updateRate) {
             if (obj->animationID == 0x31) {
                 anim_phase_clamp(obj, 0);
             } else {
-                func_m052_013D4(obj, p, 0x31, 0.0f);
+                m052_move_anim_start(obj, p, 0x31, 0.0f);
             }
             p->unk577 = 40;
             break;
@@ -567,8 +567,8 @@ void func_m052_00000(Object *obj, s32 updateRate) {
     }
 }
 
-/* On the ground: jumping, speeding up and slowing down, turning and aiming */
-static void func_m052_00C40(Object *obj, M052Player *p, f32 updateRate) {
+/* On the ground: jumping, speeding up and slowing down, turning and aiming (module m052, 0x00C40). */
+static void m052_on_ground(Object *obj, M052Player *p, f32 updateRate) {
     M052Weapons *weapons;
     s32 prevFacing;
     s16 aimYaw;
@@ -583,7 +583,7 @@ static void func_m052_00C40(Object *obj, M052Player *p, f32 updateRate) {
         p->jumpStartY = obj->trans.y_position;
         p->state = 0x23;
         obj->velocity.y += 10.0f;
-        func_m052_013D4(obj, p, 6, 0.0f);
+        m052_move_anim_start(obj, p, 6, 0.0f);
         player_voice_play(obj, 0);
     } else if (gPlayerButtonsHeld & 2) {
         p->speed -= 0.2f * updateRate;
@@ -643,11 +643,11 @@ static void func_m052_00C40(Object *obj, M052Player *p, f32 updateRate) {
     if (p->unk1F6 != 0) {
         aimPitch += (p->unk1F7 * func_8004966C(p->unk1F6 << 12)) >> 8;
     }
-    func_m052_0128C(aimPitch, aimYaw, p->unk1DE, p->unk1DC);
+    m052_head_arm_commands(aimPitch, aimYaw, p->unk1DE, p->unk1DC);
 }
 
-/* In the air */
-static void func_m052_01108(Object *obj, M052Player *p, f32 updateRate) {
+/* In the air (module m052, 0x01108). */
+static void m052_in_air(Object *obj, M052Player *p, f32 updateRate) {
     if (obj->velocity.y < 0.0f && obj->trans.y_position < p->jumpStartY) {
         p->speed *= func_80049BEC(0.95f, updateRate);
         if (p->speed > -0.1f && p->speed < 0.1f) {
@@ -656,8 +656,8 @@ static void func_m052_01108(Object *obj, M052Player *p, f32 updateRate) {
     }
 }
 
-/* Dying */
-static void func_m052_011E0(Object *obj, M052Player *p, f32 updateRate) {
+/* Dying (module m052, 0x011E0). */
+static void m052_dying(Object *obj, M052Player *p, f32 updateRate) {
     obj->interactObj->hitPoints = 0;
     func_80048518(10);
     p->speed *= func_80049BEC(0.85f, updateRate);
@@ -667,8 +667,8 @@ static void func_m052_011E0(Object *obj, M052Player *p, f32 updateRate) {
     }
 }
 
-/* Writes the joint angle commands for the head and the arms */
-static void func_m052_0128C(s16 pitch, s16 yaw, s16 aimPitch, s16 aimYaw) {
+/* Writes the joint angle commands for the head and the arms (module m052, 0x0128C). */
+static void m052_head_arm_commands(s16 pitch, s16 yaw, s16 aimPitch, s16 aimYaw) {
     s32 half = pitch >> 1;
 
     *sCommand = 0x12;
@@ -693,8 +693,8 @@ static void func_m052_0128C(s16 pitch, s16 yaw, s16 aimPitch, s16 aimYaw) {
     sCommand++;
 }
 
-/* The move for the current speed: backwards, forwards or standing */
-static s32 func_m052_01390(M052Player *p) {
+/* The move for the current speed: backwards, forwards or standing (module m052, 0x01390). */
+static s32 m052_speed_move_pick(M052Player *p) {
     if (p->speed < 0.0f) {
         return 0x20;
     }
@@ -704,8 +704,8 @@ static s32 func_m052_01390(M052Player *p) {
     return 0x1C;
 }
 
-/* Starts a move's animation, unless it is playing already (or the boss is dead) */
-static void func_m052_013D4(Object *obj, M052Player *p, s32 move, f32 frame) {
+/* Starts a move's animation, unless it is playing already (or the boss is dead) (module m052, 0x013D4). */
+static void m052_move_anim_start(Object *obj, M052Player *p, s32 move, f32 frame) {
     if (obj->animationID != 0x18) {
         if (weapon_usable_by_character(p)) {
             move = sMoves[move].animArmed;
@@ -718,8 +718,8 @@ static void func_m052_013D4(Object *obj, M052Player *p, s32 move, f32 frame) {
     }
 }
 
-/* Advances the animation, and picks the next one at the end of some */
-static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate) {
+/* Advances the animation, and picks the next one at the end of some (module m052, 0x01468). */
+static void m052_anim_advance(Object *obj, M052Player *p, f32 updateRate) {
     f32 speed;
     f32 frame;
     f32 startFrame;
@@ -736,7 +736,7 @@ static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate) {
     switch (anim) {
         case 16:
         case 28:
-            move = func_m052_01390(p);
+            move = m052_speed_move_pick(p);
             if (p->speed != 0.0f) {
                 frame = 0.25f;
             }
@@ -744,7 +744,7 @@ static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate) {
         case 9:
         case 32:
             speed *= -p->speed;
-            move = func_m052_01390(p);
+            move = m052_speed_move_pick(p);
             if (p->speed == 0.0f) {
                 frame = 0.0f;
             }
@@ -752,7 +752,7 @@ static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate) {
         case 10:
         case 33:
             speed *= p->speed;
-            move = func_m052_01390(p);
+            move = m052_speed_move_pick(p);
             if (p->speed == 0.0f) {
                 frame = 0.0f;
             }
@@ -760,7 +760,7 @@ static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate) {
         case 22:
         case 49:
             if (nextFrame >= 1.0f) {
-                move = func_m052_01390(p);
+                move = m052_speed_move_pick(p);
                 frame = 0.0f;
             }
             break;
@@ -774,18 +774,18 @@ static void func_m052_01468(Object *obj, M052Player *p, f32 updateRate) {
                 speed = (1.0f - frame) / updateRate;
             }
             if (p->unk56B == 0) {
-                move = func_m052_01390(p);
+                move = m052_speed_move_pick(p);
                 frame = 0.0f;
             }
             break;
     }
     func_8001138C(obj, speed, updateRate);
     anim_sound_events_play(obj, startFrame, speed);
-    func_m052_013D4(obj, p, move, frame);
+    m052_move_anim_start(obj, p, move, frame);
 }
 
-/* Moves the boss: gravity, staying inside the arena, and landing */
-static void func_m052_01688(Object *obj, M052Player *p, f32 updateRate) {
+/* Moves the boss: gravity, staying inside the arena, and landing (module m052, 0x01688). */
+static void m052_move(Object *obj, M052Player *p, f32 updateRate) {
     M052ArenaEntry *entry;
     s32 count2;
     s32 count1;
@@ -854,9 +854,9 @@ static void func_m052_01688(Object *obj, M052Player *p, f32 updateRate) {
         if (height <= 0.0f) {
             if (p->state == 0x23 && obj->animationID == 0x19) {
                 p->unk56B = 10;
-                func_m052_013D4(obj, p, 0x1A, 0.0f);
+                m052_move_anim_start(obj, p, 0x1A, 0.0f);
             } else if (p->state != 0x20) {
-                func_m052_013D4(obj, p, func_m052_01390(p), 0.0f);
+                m052_move_anim_start(obj, p, m052_speed_move_pick(p), 0.0f);
             }
             if (p->state != 0x2A) {
                 p->state = 0x20;
@@ -864,13 +864,13 @@ static void func_m052_01688(Object *obj, M052Player *p, f32 updateRate) {
             obj->velocity.y = 0.0f;
             func_80009A04(obj, 0.0f, -height, 0.0f);
         } else if (obj->animationID == 6 && obj->trans.y_position < p->jumpStartY && height > 25.0f) {
-            func_m052_013D4(obj, p, 0x19, 0.0f);
+            m052_move_anim_start(obj, p, 0x19, 0.0f);
         } else if (height > 25.0f) {
             if (p->state != 0x23) {
                 if (p->state != 0x2A) {
                     p->state = 0x23;
                 }
-                func_m052_013D4(obj, p, 0x19, 0.0f);
+                m052_move_anim_start(obj, p, 0x19, 0.0f);
             }
         }
     }

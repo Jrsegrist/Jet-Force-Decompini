@@ -396,6 +396,37 @@ func_m036_00564 = default_alloc_displaylist_heap
 D_m038_000F0 = sScreenQuadVerts
 D_m038_00118 = sScreenQuadTris
 
+# src/modules/m050.c
+func_m050_00C40 = m050_on_ground
+func_m050_01108 = m050_in_air
+func_m050_011E0 = m050_dying
+func_m050_0128C = m050_head_arm_commands
+func_m050_01390 = m050_speed_move_pick
+func_m050_013D4 = m050_move_anim_start
+func_m050_01468 = m050_anim_advance
+func_m050_01688 = m050_move
+
+# src/modules/m051.c
+func_m051_008F0 = m051_on_ground
+func_m051_00DC0 = m051_in_air
+func_m051_00E98 = m051_dying
+func_m051_00F44 = m051_head_commands
+func_m051_01038 = m051_neck_commands
+func_m051_010D4 = m051_speed_move_pick
+func_m051_01118 = m051_move_anim_start
+func_m051_01170 = m051_anim_advance
+func_m051_0134C = m051_move
+
+# src/modules/m052.c
+func_m052_00C40 = m052_on_ground
+func_m052_01108 = m052_in_air
+func_m052_011E0 = m052_dying
+func_m052_0128C = m052_head_arm_commands
+func_m052_01390 = m052_speed_move_pick
+func_m052_013D4 = m052_move_anim_start
+func_m052_01468 = m052_anim_advance
+func_m052_01688 = m052_move
+
 # src/modules/m054.c
 D_m054_007A0 = sCraftWeapons
 D_m054_007AC = sScoreEvents
