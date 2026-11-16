@@ -78,7 +78,7 @@ typedef struct ObjHeaderParticleEntry {
 /* JFG: the object header, reduced */
 typedef struct ObjectHeader {
     /* 0x00 */ f32 scale;
-    /* 0x04 */ u8 pad4[0x14 - 0x4];
+    /* 0x04 */ char name[0x10]; // JFG: the crash screen shows it
     /* 0x14 */ u16 flags;
     /* 0x16 */ u8 pad16[0x1B - 0x16];
     /* 0x1B */ u8 category; // JFG: obj_find_nearest_in_category searches by it
@@ -304,8 +304,7 @@ void free_all_objects(void) {
 }
 
 extern Object *D_800A0834; // JFG: an object the searches skip
-extern f32 D_800AA3FC;     // the search's starting distance, in .rodata
-extern f32 D_800AA400;     // the search's starting distance, in .rodata
+extern f32 D_800AA3FC;     // the search's starting distance (5000000000.0f), ahead of this file's .rodata split
 Object **objGetObjList(s32 *arg0, s32 *cnt);
 f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
@@ -362,7 +361,7 @@ Object *obj_find_nearest_in_category(f32 x, f32 y, f32 z, u8 category) {
     f32 dist;
 
     list = objGetObjList(&start, &count);
-    best = D_800AA400;
+    best = 5000000000.0f;
     nearest = NULL;
     for (i = start; i < count; i++) {
         obj = list[i];
@@ -658,7 +657,7 @@ s32 func_800485C8(s32 player);
 PlayerChar53 *func_80047C1C(s32 player, s32 character);
 s32 game_flag_get(s32 flag);
 s32 func_8003B660(s16 *x, s16 *y, s16 *z, s16 *angle);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 extern s32 D_800F2C90; // DKR: gEventCountdown
 extern s32 D_800F2D10;
 extern u8 D_800A4FC4;  // JFG: a multiplayer game
@@ -1250,7 +1249,8 @@ typedef struct ObjectModel53 {
     /* 0x24 */ ModelBatch *batches;
     /* 0x28 */ u8 pad28[0x2C - 0x28];
     /* 0x2C */ u8 numTexAnims;
-    /* 0x2D */ u8 pad2D[2];
+    /* 0x2D */ u8 unk2D; // JFG: sizes an object's property data (0x28 bytes each)
+    /* 0x2E */ u8 pad2E;
     /* 0x2F */ u8 numPoints;
     /* 0x30 */ u16 *unk30; // JFG: [1] is a joint index
     /* 0x34 */ u8 pad34[0x38 - 0x34];
@@ -1382,13 +1382,13 @@ s32 func_8000773C(Object *obj, s32 arg1) {
 extern s32 D_800F2C78;     // JFG: the number of object types
 extern Object *D_800F2C64; // JFG: the buffer an attachment object is built in
 extern s32 D_800F2C68;     // JFG: its size in bytes
-s32 func_8000F978(s32 id);
+s32 obj_type_model_flags(s32 id);
 void *mempool_alloc(s32 size, u32 colourTag);
 
 /**
  * Attempts to spawn an attachment object.
  * JFG: built in a scratch buffer (cleared first), then copied into an allocation of its size
- * rounded up to 16; the models get flags from func_8000F978.
+ * rounded up to 16; the models get flags from obj_type_model_flags.
  * DKR: obj_spawn_attachment
  */
 Object *obj_spawn_attachment(s32 objID) {
@@ -1426,7 +1426,7 @@ Object *obj_spawn_attachment(s32 objID) {
     obj->unk4A = objID;
     obj->trans.scale = header->scale;
     obj->trans.flags |= header->flags & 0x20C;
-    modelFlags = func_8000F978(header->unk1C) & 7;
+    modelFlags = obj_type_model_flags(header->unk1C) & 7;
     numModels = obj->header->numAttachments;
     modelType = obj->header->unk1E;
     obj->attachments = (ObjectAttachment **) ((u8 *) obj + 0xB4);
@@ -1581,7 +1581,7 @@ extern s32 D_800F2EE0[16];
 void func_8007A534(void);
 void func_80029CFC(s32 updateRate);
 Object **collision_objects_get(s32 *count);
-void func_8000FBF0(Object *obj, s32 updateRate);
+void run_object_loop_func(Object *obj, s32 updateRate);
 void func_8007E504(void);
 void object_uv_offsets_update(Object *obj, s32 updateRate);
 void func_8006B090(Object *obj, s32 updateRate);
@@ -1592,7 +1592,7 @@ s32 runlink_module_loaded(s32 module);
 void sound_nearest_emitter_update(void);
 void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
 s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
  * Updates all objects in the game.
@@ -1631,7 +1631,7 @@ void obj_update(s32 updateRate) {
     func_80029CFC(updateRate);
     objs = collision_objects_get(&j);
     for (i = 0; i < j; i++) {
-        func_8000FBF0(objs[i], updateRate);
+        run_object_loop_func(objs[i], updateRate);
     }
     func_8007E504();
     i = gObjectCount;
@@ -1639,7 +1639,7 @@ void obj_update(s32 updateRate) {
         obj = gObjPtrList[j];
         if (obj->behaviorId != 0x1E && obj->behaviorId != 9 && obj->behaviorId != 0x25) {
                 if (obj->unk4C == NULL || (obj->unk4C != NULL && !(obj->unk4C->flags9 & 8))) {
-                    func_8000FBF0(obj, updateRate);
+                    run_object_loop_func(obj, updateRate);
                 }
                 if (obj->header->unk1E == 0 && obj->header->scrollTexture != 0xFF) {
                     object_uv_offsets_update(obj, updateRate);
@@ -1676,7 +1676,7 @@ void obj_update(s32 updateRate) {
     for (j = gObjectListStart; j < i; j++) {
         obj = gObjPtrList[j];
         if (obj->behaviorId == 9 || obj->behaviorId == 0x25) {
-            func_8000FBF0(obj, updateRate);
+            run_object_loop_func(obj, updateRate);
         }
     }
     light_update_all(updateRate);
@@ -1707,7 +1707,7 @@ extern f32 D_800F2C88;
 extern s32 D_800F6F54;
 void group_light_update(Object *obj, s32 updateRate);
 void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /* JFG: update the objects some types need first (one of type 0x80 last), then the racers. */
 void objects_update_special(s32 updateRate) {
@@ -1875,7 +1875,6 @@ LevelModel *get_current_level_model(void);
 LevelModelSegmentBoundingBox *block_boundbox(s32 segmentID);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
 void player_restart(Object *obj, Object_Racer *racer); // JFG: restart a player
-extern f32 D_800AA840; // 3000.0f, in .rodata (not split out yet)
 
 /**
  * Sets the new position of the object using the differences given.
@@ -1914,7 +1913,7 @@ s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos) {
     if (obj->trans.x_position < x1) {
         outOfBounds = TRUE;
     }
-    y2 = levelModel->upperYBounds + D_800AA840;
+    y2 = levelModel->upperYBounds + 3000.0f;
     if (obj->trans.y_position > y2) {
         outOfBounds = TRUE;
     }
@@ -2096,7 +2095,116 @@ void render_misc_model(Object *obj, Vertex *verts, u32 numVertices, Triangle *tr
     func_80041DC0(&gObjectCurrDisplayList);
 }
 
+/* DKR include/structs.h */
+typedef struct Vec3f {
+    f32 x, y, z;
+} Vec3f;
+
+f32 *func_80041E4C(void); // JFG: the camera's view matrix
+Mtx *func_80041E24(void);  // JFG: the camera's projection matrix
+void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // DKR: mtxf_transform_point
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
+void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset); // DKR: material_set
+void func_8000A300(Gfx **dList, Vertex **vtxList, void *tex, Triangle *tris, Vec3f *p1, Vec3f *p2, f32 width,
+                   s32 primColour, s32 envColour, s32 flags);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: draw a textured band (two triangles) from p2 to p1 in view space, its width on screen given:
+ * the end behind the near plane (z > -10) is clipped to it, nothing is drawn when both are.
+ * NON_MATCHING: the right frame and stack slots; the flags argument is loaded into a2 (target: t6, then
+ * `ori a2` in the material call's delay slot), and the vertex stores are scheduled earlier (6 words shorter).
+ */
+void func_8000A300(Gfx **dList, Vertex **vtxList, void *tex, Triangle *tris, Vec3f *p1, Vec3f *p2, f32 width,
+                   s32 primColour, s32 envColour, s32 flags) {
+    f32 x1, y1, z1;
+    f32 x2, y2, z2;
+    f32 sx1, sy1;
+    f32 sx2, sy2;
+    f32 lenSq;
+    f32 dx;
+    f32 dy;
+    f32 *mtx;
+    Gfx *dl;
+    Vertex *v;
+
+    if (p2->x == p1->x && p2->y == p1->y && p2->z == p1->z) {
+        return;
+    }
+    mtx = func_80041E4C();
+    func_80048B60(mtx, p2->x, p2->y, p2->z, &x1, &y1, &z1);
+    func_80048B60(mtx, p1->x, p1->y, p1->z, &x2, &y2, &z2);
+    if (z1 > -10.0f && z2 > -10.0f) {
+        return;
+    }
+    if (z1 > -10.0f) {
+        x1 += (x2 - x1) * ((-10.0f - z1) / (z2 - z1));
+        y1 += (y2 - y1) * ((-10.0f - z1) / (z2 - z1));
+        z1 = -10.0f;
+    } else if (z2 > -10.0f) {
+        x2 += (x1 - x2) * ((-10.0f - z2) / (z1 - z2));
+        y2 += (y1 - y2) * ((-10.0f - z2) / (z1 - z2));
+        z2 = -10.0f;
+    }
+    dl = *dList;
+    v = *vtxList;
+    if (func_80041E58(x1, y1, z1, &sx1, &sy1, 0) && func_80041E58(x2, y2, z2, &sx2, &sy2, 0)) {
+        dx = sx2 - sx1;
+        dy = sy2 - sy1;
+        lenSq = dx * dx + dy * dy;
+        if (lenSq > 0.0f) {
+            lenSq = width / sqrtf(lenSq);
+            dx *= lenSq;
+            dy *= lenSq;
+        }
+        gSPMatrix(dl++, (u8 *) func_80041E24() + 0x80000000, G_MTX_PROJECTION);
+        func_80055C00(&dl, tex, flags | 6, 0);
+        fast3d_cmd(dl++, 0xFA000000, primColour);
+        fast3d_cmd(dl++, 0xFB000000, envColour);
+        gSPVertexLast(dl++, (u32) v + 0x80000000, 4, 0);
+        gSPPolygon(dl++, (u32) tris + 0x80000000, 2, 1);
+        gDPPipeSync(dl++);
+        gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor(dl++, 255, 255, 255, 255);
+        fast3d_cmd(dl++, 0xBC00000A, 0);
+        func_80048B60(mtx, p2->x, p2->y, p2->z, &x1, &y1, &z1);
+        func_80048B60(mtx, p1->x, p1->y, p1->z, &x2, &y2, &z2);
+        v += 4;
+        v[-4].x = x1 + dy;
+        v[-4].y = y1 + dx;
+        v[-4].r = 255;
+        v[-4].g = 255;
+        v[-4].b = 255;
+        v[-4].a = 255;
+        v[-4].z = z1;
+        v[-3].x = x1 - dy;
+        v[-3].y = y1 - dx;
+        v[-3].r = 255;
+        v[-3].g = 255;
+        v[-3].b = 255;
+        v[-3].a = 255;
+        v[-3].z = z1;
+        v[-2].x = x2 + dy;
+        v[-2].y = y2 + dx;
+        v[-2].r = 255;
+        v[-2].g = 255;
+        v[-2].b = 255;
+        v[-2].a = 255;
+        v[-2].z = z2;
+        v[-1].x = x2 - dy;
+        v[-1].y = y2 - dx;
+        v[-1].r = 255;
+        v[-1].g = 255;
+        v[-1].b = 255;
+        v[-1].a = 255;
+        v[-1].z = z2;
+    }
+    *dList = dl;
+    *vtxList = v;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
+#endif
 
 void screen_line_add_3d(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
 
@@ -2108,7 +2216,241 @@ void obj_debug_line_draw(Object *obj) {
                   obj->trans.z_position, 0x13);
 }
 
+/* JFG: the data of a type 162 object: a band drawn between two points */
+typedef struct BandData {
+    /* 0x00 */ Triangle tris[2];
+    /* 0x20 */ u8 pad20[0x63 - 0x20];
+    /* 0x63 */ u8 nearEnd; // nonzero: the band ends at the object's first point, else its second
+    /* 0x64 */ u8 pad64[0x6C - 0x64];
+    /* 0x6C */ f32 width;
+} BandData;
+
+/* JFG: the data of a type 152 object: three strips of 32 triangles, and a sprite */
+typedef struct StripData {
+    /* 0x000 */ u8 tris[0x600];
+    /* 0x600 */ u8 verts[0xA54 - 0x600];
+    /* 0xA54 */ f32 spriteScale;
+    /* 0xA58 */ u8 padA58[0xA76 - 0xA58];
+    /* 0xA76 */ s16 spriteRoll;
+    /* 0xA78 */ s16 visible;
+    /* 0xA7A */ u8 padA7A[0xA7F - 0xA7A];
+    /* 0xA7F */ u8 showSprite;
+    /* 0xA80 */ u8 padA80[0xA83 - 0xA80];
+    /* 0xA83 */ u8 colourIndex; // into D_800A0A10 (two environment colours each)
+} StripData;
+
+/* JFG: the data of a type 37 object: a chain of beams between five joint pairs of another object */
+typedef struct ChainData {
+    /* 0x00 */ Object *target;
+    /* 0x04 */ u8 pad4[0x10 - 0x4];
+    /* 0x10 */ s16 joints[6];
+    /* 0x1C */ u8 pad1C[0x23 - 0x1C];
+    /* 0x23 */ u8 hidden;
+} ChainData;
+
+/* JFG: the data of a type 22 object (DKR's butterfly and fish) */
+typedef struct FlapData {
+    /* 0x000 */ Triangle tris[8];
+    /* 0x080 */ Vertex vertices[12];
+    /* 0x0F8 */ void *texture;
+    /* 0x0FC */ u8 frame;
+    /* 0x0FD */ u8 kind;
+    /* 0x0FE */ u8 padFE[0x10C - 0xFE];
+    /* 0x10C */ f32 scale;
+    /* 0x110 */ u32 grey;
+    /* 0x114 */ u32 alpha;
+} FlapData;
+
+extern u32 D_800A0A10[][2];     // JFG: pairs of environment colours (StripData)
+extern Triangle D_800A09A8[];   // JFG: the two triangles of a beam
+extern Vertex D_800A09C8[];     // JFG: a quad's four vertices
+extern Triangle D_800A09F0[];   // JFG: a quad's two triangles
+
+void func_800079B8(Object *obj);
+void func_80029688(Gfx **dList, Mtx **mtx, Object *obj);
+void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj);
+void func_80055B80(Gfx **dList);
+void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex **verts, void *sprite, s16 x, s16 y, s16 z,
+                                s16 roll, f32 scale, f32 frame, s32 flags, u8 alpha);
+
+#ifdef NON_MATCHING
+/**
+ * A few objects use unconventional means to render. They are handled here (DKR render_3d_misc; JFG's types).
+ * NON_MATCHING: the right frame and stack slots (pad: unused words in the target's frame); s0/s1 swapped
+ * (the target keeps the display list's address in s0, the texture in s1), the display-list pointer in v1
+ * (target v0) with w0 stored first, and 4 words shorter.
+ */
+void func_8000AA34(Object *obj) {
+    StripData *strip;
+    ChainData *chain;
+    FlapData *flap;
+    BandData *band;
+    u8 *verts;
+    u8 *tris;
+    s32 i;
+    UNUSED s32 pad[15];
+    void *tex;
+    Vec3f a;
+    Vec3f b;
+    Gfx *gfx;
+
+    switch (obj->behaviorId) {
+        case 68:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 162:
+            band = (BandData *) obj->racer;
+            func_8000A300(&gObjectCurrDisplayList, &gObjectCurrVertexList, obj->attachments[obj->attachmentIndex],
+                          band->tris, (Vec3f *) &obj->trans.x_position,
+                          band->nearEnd ? (Vec3f *) ((u8 *) obj->unk4C + 0xC) : (Vec3f *) ((u8 *) obj->unk4C + 0x18),
+                          band->width, -1, obj->setupEntrance | 0xFF, 0x200);
+            break;
+        case 157:
+            obj_debug_line_draw(obj);
+            break;
+        case 63:
+            func_8000C0B8(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 152:
+            strip = (StripData *) obj->racer;
+            if (strip->visible) {
+                verts = strip->verts;
+                tex = obj->header->assets[0];
+                tris = strip->tris;
+                mtx_cam_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj, 1.0f, 0.0f);
+                func_80055C00(&gObjectCurrDisplayList, tex, 0x206, 0);
+                gfx = gObjectCurrDisplayList++;
+                gfx->words.w0 = 0xFA000000;
+                gfx->words.w1 = 0xFFFFFFC0;
+                gfx = gObjectCurrDisplayList++;
+                gfx->words.w0 = 0xFB000000;
+                gfx->words.w1 = D_800A0A10[strip->colourIndex][0];
+                for (i = 0; i != 3; i++) {
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = ((((u32) verts + 0x80000000) & 6) | 0x90) << 16 | 0x040000BC;
+                    gfx->words.w1 = (u32) verts + 0x80000000;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0x05F10100;
+                    gfx->words.w1 = (u32) tris + 0x80000000;
+                    verts += 0xB4;
+                    tris += 0x100;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = ((((u32) verts + 0x80000000) & 6) | 0x90) << 16 | 0x040000BC;
+                    gfx->words.w1 = (u32) verts + 0x80000000;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0x05F10100;
+                    gfx->words.w1 = (u32) tris + 0x80000000;
+                    verts += 0xB4;
+                    tris += 0x100;
+                    if (i == 0) {
+                        gfx = gObjectCurrDisplayList++;
+                        gfx->words.w0 = 0xE7000000;
+                        gfx->words.w1 = 0;
+                        gfx = gObjectCurrDisplayList++;
+                        gfx->words.w0 = 0xFB000000;
+                        gfx->words.w1 = D_800A0A10[strip->colourIndex][1];
+                    }
+                }
+                func_80041DC0(&gObjectCurrDisplayList);
+                if (strip->showSprite) {
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0xE7000000;
+                    gfx->words.w1 = 0;
+                    gfx = gObjectCurrDisplayList++;
+                    gfx->words.w0 = 0xFA000000;
+                    gfx->words.w1 = 0xFFFFFFC0;
+                    render_sprite_billboard_at(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList,
+                                               obj->header->assets[1], obj->trans.x_position, obj->trans.y_position,
+                                               obj->trans.z_position, strip->spriteRoll, strip->spriteScale, 0.0f, 6,
+                                               192);
+                }
+                func_80055B80(&gObjectCurrDisplayList);
+            }
+            break;
+        case 37:
+            chain = (ChainData *) obj->racer;
+            if (chain->hidden) {
+                break;
+            }
+            if (chain->target->freed) {
+                func_800079B8(obj);
+                break;
+            }
+            if (chain->target->behaviorId == 0x18) {
+                func_80054530(chain->target);
+            }
+            i = 5;
+            while (i--) {
+                if (func_80054530(chain->target, chain->joints[i], &a.x, &a.y, &a.z) &&
+                    func_80054530(chain->target, chain->joints[i + 1], &b.x, &b.y, &b.z)) {
+                    func_8000A300(&gObjectCurrDisplayList, &gObjectCurrVertexList, obj->header->assets[0], D_800A09A8,
+                                  &a, &b, 8.0f, -1, obj->setupEntrance | 0xFF, 0x200);
+                }
+            }
+            break;
+        case 36:
+            obj_draw_displaylist_origin(obj);
+            break;
+        case 64:
+            obj_draw_displaylist(obj);
+            break;
+        case 22:
+            flap = (FlapData *) obj->racer;
+            if (flap->kind == 5) {
+                obj->trans.scale = obj->header->scale * flap->scale;
+                render_misc_model(obj, &flap->vertices[flap->frame * 6], 6, flap->tris, 8, flap->texture, 10, 0, 1.0f,
+                                  (s32) (flap->grey * 255) >> 8, (s32) (flap->alpha * 255) >> 8);
+            } else {
+                render_misc_model(obj, &flap->vertices[flap->frame * 6], 6, flap->tris, 8, flap->texture, 10, 0, 1.0f,
+                                  255, 255);
+            }
+            break;
+        case 40:
+            func_80029688(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 41:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 82:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 88:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 127:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 170:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, obj);
+            break;
+        case 173:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 174:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 139:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 151:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 171:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 146:
+            func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+            break;
+        case 123:
+            if (obj->unk4A == 0x1FB) {
+                render_misc_model(obj, D_800A09C8, 4, D_800A09F0, 2, obj->attachments[0], 4, 0, 1.0f, 0, obj->opacity);
+            }
+            break;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000AA34);
+#endif
 
 /* JFG: the block of a type 7 object (drawn twice, or scaled) */
 typedef struct ObjectTwinDraw {
@@ -2384,7 +2726,7 @@ void func_8000C9E8(s32 arg0) {
 }
 
 void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g, u8 *b, u8 *unk2);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /* JFG: set the fog for drawing a type 0x18 object (its flash colour while its player's bit is set,
    counting the flash down), or let a module do it for type 0x82. The fog factor word (0x500, 0x500)
@@ -2507,7 +2849,7 @@ void obj_draw_twin(Object *obj);
 void func_8000B46C(Object *obj);
 void func_8000CC64(Object *obj);
 void func_8000AA34(Object *obj);
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
  * Determine which model type the object is using, then call the related function to render it.
@@ -2792,20 +3134,1503 @@ void func_8000E674(s32 arg0) {
     D_800F2CC0 = arg0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000E680);
+/**
+ * Return the size of the object's property data, and point the object at it (DKR get_object_property_size,
+ * JFG's types and sizes). Some types align it to 16 or 8 bytes.
+ */
+s32 get_object_property_size(Object *obj, void *entry) {
+    s32 pad;
+    ObjectAttachment *attach;
+    ObjectModel53 *model;
+    s32 size = 0;
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000F028);
+    obj->racer = (Object_Racer *) entry;
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000F978);
+    switch (obj->header->unk1C) {
+        case 2:
+            size = 0xB4;
+            break;
+        case 1:
+            size = 0x5F0;
+            break;
+        case 7:
+            size = 0x4C;
+            break;
+        case 67:
+            size = 0x10;
+            break;
+        case 60:
+            size = 0x1;
+            break;
+        case 8:
+            size = 0x18;
+            break;
+        case 34:
+            size = 0xC;
+            break;
+        case 45:
+            size = 0x10;
+            break;
+        case 148:
+            size = 0x14;
+            break;
+        case 35:
+            size = 0xC;
+            break;
+        case 55:
+            attach = obj->attachments[obj->attachmentIndex];
+            model = attach->model;
+            size = model->unk2D * 0x28 + 0x30;
+            break;
+        case 22:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x118);
+            break;
+        case 20:
+            size = 0x4C;
+            break;
+        case 77:
+            size = 0x10;
+            break;
+        case 18:
+            size = 0x50;
+            break;
+        case 162:
+            pad = (s32) entry & 7;
+            if (pad) {
+                size = 8 - pad;
+            }
+            obj->racer = (Object_Racer *) ((s32) entry + size);
+            size += 0x88;
+            break;
+        case 152:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0xA88);
+            break;
+        case 63:
+            size = 0x2;
+            break;
+        case 69:
+            size = 0x4;
+            break;
+        case 158:
+            size = 0x3C;
+            break;
+        case 159:
+            size = 0x18;
+            break;
+        case 160:
+            size = 0x18;
+            break;
+        case 155:
+            size = 0x10;
+            break;
+        case 161:
+            size = 0x10;
+            break;
+        case 153:
+            size = 0x88;
+            break;
+        case 135:
+            size = 0x4;
+            break;
+        case 154:
+            size = 0x34;
+            break;
+        case 157:
+            size = 0x98;
+            break;
+        case 156:
+            size = 0x8;
+            break;
+        case 23:
+            size = 0x94;
+            break;
+        case 24:
+            size = 0xCC;
+            break;
+        case 44:
+            size = 0x4;
+            break;
+        case 149:
+            size = 0xC;
+            break;
+        case 27:
+            size = 0x12;
+            break;
+        case 56:
+            size = 0x10;
+            break;
+        case 40:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x1DC);
+            break;
+        case 41:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x700);
+            break;
+        case 39:
+            size = ((u8 *) obj->levelEntry)[0x32] * 2 + ((u8 *) obj->levelEntry)[0x31] + 0x30;
+            break;
+        case 38:
+            size = 0x34;
+            break;
+        case 19:
+            size = 0x30;
+            break;
+        case 147:
+            size = 0x10;
+            break;
+        case 51:
+            size = 0x60;
+            break;
+        case 68:
+            size = 0xD0;
+            break;
+        case 36:
+            size = 0x2C;
+            break;
+        case 37:
+            size = 0x24;
+            break;
+        case 64:
+            size = 0x20;
+            break;
+        case 70:
+            size = 0x58;
+            break;
+        case 71:
+            size = 0x8;
+            break;
+        case 72:
+            size = 0x14;
+            break;
+        case 73:
+            size = 0x10;
+            break;
+        case 75:
+            size = 0x10;
+            break;
+        case 76:
+            size = 0x20;
+            break;
+        case 78:
+            pad = (s32) entry & 7;
+            if (pad) {
+                size = 8 - pad;
+            }
+            obj->racer = (Object_Racer *) ((s32) entry + size);
+            size += 0x60;
+            break;
+        case 66:
+            size = 0xA;
+            break;
+        case 141:
+            size = 0x10;
+            break;
+        case 82:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x508);
+            break;
+        case 88:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0xFCC);
+            break;
+        case 163:
+            size = 0x1C;
+            break;
+        case 166: case 167:
+            size = 0xB0;
+            break;
+        case 89:
+            size = 0x20;
+            break;
+        case 90:
+            size = 0x38;
+            break;
+        case 61:
+            size = 0x18;
+            break;
+        case 92:
+            size = 0x1C;
+            break;
+        case 91:
+            size = 0x20;
+            break;
+        case 93:
+            size = 0x20;
+            break;
+        case 94:
+            size = 0xC;
+            break;
+        case 95: case 150:
+            size = 0xC0;
+            break;
+        case 98:
+            size = 0x24;
+            break;
+        case 104:
+            size = 0x18;
+            break;
+        case 100:
+            size = 0x18;
+            break;
+        case 105:
+            size = 0x10;
+            break;
+        case 84: case 168:
+            size = 0x10;
+            break;
+        case 108:
+            size = 0xCC;
+            break;
+        case 111:
+            size = 0xE;
+            break;
+        case 151:
+            size = 0x78;
+            break;
+        case 113:
+            size = 0x4;
+            break;
+        case 114:
+            size = 0xC;
+            break;
+        case 118:
+            size = 0x20;
+            break;
+        case 119: case 120:
+            size = 0x8;
+            break;
+        case 121:
+            size = 0x40;
+            break;
+        case 123:
+            size = 0x8;
+            break;
+        case 124:
+            size = 0x20;
+            break;
+        case 125:
+            size = 0x20;
+            break;
+        case 83:
+            size = 0x14;
+            break;
+        case 127:
+            size = 0x8;
+            break;
+        case 128:
+            size = 0x10;
+            break;
+        case 129:
+            size = 0x18;
+            break;
+        case 99:
+            size = 0x4;
+            break;
+        case 130:
+            size = 0xB0;
+            break;
+        case 169:
+            size = 0x24;
+            break;
+        case 170:
+            size = 0x8;
+            break;
+        case 172:
+            size = 0x8;
+            break;
+        case 171:
+            size = 0x18;
+            break;
+        case 137:
+            size = 0x10;
+            break;
+        case 138:
+            size = 0x14;
+            break;
+        case 173:
+            size = 0x8;
+            break;
+        case 139:
+            size = 0x1C;
+            break;
+        case 174:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x6E8);
+            break;
+        case 142:
+            size = 0x4;
+            break;
+        case 132:
+            size = 0x30;
+            break;
+        case 133:
+            size = 0x50;
+            break;
+        case 136:
+            size = 0x158;
+            break;
+        case 143:
+            size = 0x30;
+            break;
+        case 145:
+            size = 0x20;
+            break;
+        case 146:
+            pad = 0x10 - ((s32) entry & 0xF);
+            obj->racer = (Object_Racer *) ((s32) entry + pad);
+            size = (pad + 0x6C0);
+            break;
+        case 58:
+            size = 0x6;
+            break;
 
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000FBF0);
+        default:
+            obj->racer = NULL;
+            break;
+    }
+
+    return (size & ~3) + 4;
+}
+
+void func_8002F5F0(Object *obj, void *entry);
+void func_80032130(Object *obj, void *entry);
+void func_800252EC(Object *obj, void *entry);
+void obj_init_torch_mist(Object *obj, void *entry);
+void func_80024F40(Object *obj, void *entry);
+void func_800274FC(Object *obj, void *entry);
+void obj_init_light_object(Object *obj, void *entry);
+void func_800275CC(Object *obj, void *entry);
+void obj_init_col_vertices(Object *obj, void *entry);
+void func_8002993C(Object *obj, void *entry);
+void corona_from_level_entry(Object *obj, void *entry);
+void func_800275E8(Object *obj, void *entry);
+void func_80027DA0(Object *obj, void *entry);
+void func_80027F90(Object *obj, void *entry);
+void drift_object_init(Object *obj, void *entry);
+void func_80028414(Object *obj, void *entry);
+void obj_init_model_swap(Object *obj, void *entry);
+void func_800270D4(Object *obj, void *entry);
+void func_8007E4A0(Object *obj);
+
+/**
+ * Run when an object is created: its type's init function (DKR run_object_init_func; JFG's types, most of
+ * them in runlink modules), then set up its collision if it has any.
+ */
+void run_object_init_func(Object *obj, void *entry) {
+    obj->behaviorId = obj->header->unk1C;
+    switch (obj->behaviorId) {
+        case 2:
+            func_8002F5F0(obj, entry);
+            break;
+        case 1:
+            func_80032130(obj, entry);
+            break;
+        case 3: case 4: case 5:
+            func_80054530(obj, entry);
+            break;
+        case 20:
+            func_80054530(obj, entry);
+            break;
+        case 77:
+            func_80054530(obj, entry);
+            break;
+        case 34:
+            func_800252EC(obj, entry);
+            break;
+        case 8:
+            func_80054530(obj, entry);
+            break;
+        case 45:
+            func_80054530(obj, entry);
+            break;
+        case 148:
+            func_80054530(obj, entry);
+            break;
+        case 17:
+            func_80054530(obj, entry);
+            break;
+        case 6:
+            func_80054530(obj, entry);
+            break;
+        case 7:
+            func_80054530(obj, entry);
+            break;
+        case 67:
+            func_80054530(obj, entry);
+            break;
+        case 60:
+            func_80054530(obj, entry);
+            break;
+        case 9:
+            func_80054530(obj, entry);
+            break;
+        case 10:
+            func_80054530(obj, entry);
+            break;
+        case 57: case 62:
+            obj_init_torch_mist(obj, entry);
+            break;
+        case 58:
+            func_80024F40(obj, entry);
+            break;
+        case 35:
+            func_80054530(obj, entry);
+            break;
+        case 30:
+            func_80054530(obj, entry);
+            break;
+        case 16:
+            func_80054530(obj, entry);
+            break;
+        case 11:
+            func_80054530(obj, entry);
+            break;
+        case 12:
+            func_80054530(obj, entry);
+            break;
+        case 13:
+            func_80054530(obj, entry);
+            break;
+        case 14:
+            func_80054530(obj, entry);
+            break;
+        case 22:
+            func_80054530(obj, entry);
+            break;
+        case 48: case 49:
+            func_800274FC(obj, entry);
+            break;
+        case 54:
+            func_80054530(obj, entry);
+            break;
+        case 55:
+            func_80054530(obj, entry);
+            break;
+        case 32:
+            func_80054530(obj, entry);
+            break;
+        case 21:
+            func_80054530(obj, entry);
+            break;
+        case 18:
+            func_80054530(obj, entry);
+            break;
+        case 39:
+            obj_init_light_object(obj, entry);
+            break;
+        case 162:
+            func_80054530(obj, entry);
+            break;
+        case 63:
+            func_800275CC(obj, entry);
+            break;
+        case 152:
+            func_80054530(obj, entry);
+            break;
+        case 69:
+            func_80054530(obj, entry);
+            break;
+        case 158:
+            func_80054530(obj, entry);
+            break;
+        case 159:
+            func_80054530(obj, entry);
+            break;
+        case 160:
+            func_80054530(obj, entry);
+            break;
+        case 155:
+            func_80054530(obj, entry);
+            break;
+        case 161:
+            func_80054530(obj, entry);
+            break;
+        case 153:
+            func_80054530(obj, entry);
+            break;
+        case 135:
+            func_80054530(obj, entry);
+            break;
+        case 154:
+            func_80054530(obj, entry);
+            break;
+        case 157:
+            func_80054530(obj, entry);
+            break;
+        case 156:
+            func_80054530(obj, entry);
+            break;
+        case 23:
+            func_80054530(obj, entry);
+            break;
+        case 24:
+            func_80054530(obj, entry);
+            break;
+        case 149:
+            func_80054530(obj, entry);
+            break;
+        case 27:
+            func_80054530(obj, entry);
+            break;
+        case 56:
+            func_80054530(obj, entry);
+            break;
+        case 40:
+            obj_init_col_vertices(obj, entry);
+            break;
+        case 41:
+            func_80054530(obj, entry);
+            break;
+        case 38:
+            func_8002993C(obj, entry);
+            break;
+        case 19:
+            func_80054530(obj, entry);
+            break;
+        case 43:
+            func_80054530(obj, entry);
+            break;
+        case 61:
+            func_80054530(obj, entry);
+            break;
+        case 66:
+            func_80054530(obj, entry);
+            break;
+        case 65:
+            corona_from_level_entry(obj, entry);
+            break;
+        case 68:
+            func_80054530(obj, entry);
+            break;
+        case 36:
+            func_80054530(obj, entry);
+            break;
+        case 37:
+            func_80054530(obj, entry);
+            break;
+        case 64:
+            func_800275E8(obj, entry);
+            break;
+        case 70:
+            func_80054530(obj, entry);
+            break;
+        case 71:
+            func_80054530(obj, entry);
+            break;
+        case 73:
+            func_80027DA0(obj, entry);
+            break;
+        case 74:
+            func_80027F90(obj, entry);
+            break;
+        case 75:
+            drift_object_init(obj, entry);
+            break;
+        case 76:
+            func_80054530(obj, entry);
+            break;
+        case 78:
+            func_80054530(obj, entry);
+            break;
+        case 80:
+            func_80028414(obj, entry);
+            break;
+        case 81:
+            func_80054530(obj, entry);
+            break;
+        case 82:
+            func_80054530(obj, entry);
+            break;
+        case 88:
+            func_80054530(obj, entry);
+            break;
+        case 83:
+            func_80054530(obj, entry);
+            break;
+        case 85:
+            func_80054530(obj, entry);
+            break;
+        case 86:
+            func_80054530(obj, entry);
+            break;
+        case 163:
+            func_80054530(obj, entry);
+            break;
+        case 87:
+            func_80054530(obj, entry);
+            break;
+        case 166: case 167:
+            func_80054530(obj, entry);
+            break;
+        case 84: case 168:
+            func_80054530(obj, entry);
+            break;
+        case 89:
+            func_80054530(obj, entry);
+            break;
+        case 51:
+            obj_init_model_swap(obj, entry);
+            break;
+        case 147:
+            func_800270D4(obj, entry);
+            break;
+        case 90:
+            func_80054530(obj, entry);
+            break;
+        case 92:
+            func_80054530(obj, entry);
+            break;
+        case 91:
+            func_80054530(obj, entry);
+            break;
+        case 93:
+            func_80054530(obj, entry);
+            break;
+        case 141:
+            func_80054530(obj, entry);
+            break;
+        case 94:
+            func_80054530(obj, entry);
+            break;
+        case 59:
+            func_80054530(obj, entry);
+            break;
+        case 95: case 150:
+            func_80054530(obj, entry);
+            break;
+        case 164:
+            func_80054530(obj, entry);
+            break;
+        case 165:
+            func_80054530(obj, entry);
+            break;
+        case 96:
+            func_80054530(obj, entry);
+            break;
+        case 98:
+            func_80054530(obj, entry);
+            break;
+        case 100:
+            func_80054530(obj, entry);
+            break;
+        case 99:
+            func_80054530(obj, entry);
+            break;
+        case 102:
+            func_80054530(obj, entry);
+            break;
+        case 103:
+            func_80054530(obj, entry);
+            break;
+        case 104:
+            func_80054530(obj, entry);
+            break;
+        case 105:
+            func_80054530(obj, entry);
+            break;
+        case 107:
+            func_80054530(obj, entry);
+            break;
+        case 106:
+            func_80054530(obj, entry);
+            break;
+        case 151:
+            func_80054530(obj, entry);
+            break;
+        case 110:
+            func_80054530(obj, entry);
+            break;
+        case 111:
+            func_80054530(obj, entry);
+            break;
+        case 112:
+            func_80054530(obj, entry);
+            break;
+        case 113:
+            func_80054530(obj, entry);
+            break;
+        case 114:
+            func_80054530(obj, entry);
+            break;
+        case 116:
+            func_80054530(obj, entry);
+            break;
+        case 117:
+            func_80054530(obj, entry);
+            break;
+        case 118:
+            func_80054530(obj, entry);
+            break;
+        case 119:
+            func_80054530(obj, entry);
+            break;
+        case 120:
+            func_80054530(obj, entry);
+            break;
+        case 121:
+            func_80054530(obj, entry);
+            break;
+        case 122:
+            func_80054530(obj, entry);
+            break;
+        case 123:
+            func_80054530(obj, entry);
+            break;
+        case 124:
+            func_80054530(obj, entry);
+            break;
+        case 125:
+            func_80054530(obj, entry);
+            break;
+        case 127:
+            func_80054530(obj, entry);
+            break;
+        case 128:
+            func_80054530(obj, entry);
+            break;
+        case 129:
+            func_80054530(obj, entry);
+            break;
+        case 130:
+            func_80054530(obj, entry);
+            break;
+        case 169:
+            func_80054530(obj, entry);
+            break;
+        case 170:
+            func_80054530(obj, entry);
+            break;
+        case 172:
+            func_80054530(obj, entry);
+            break;
+        case 171:
+            func_80054530(obj, entry);
+            break;
+        case 137:
+            func_80054530(obj, entry);
+            break;
+        case 138:
+            func_80054530(obj, entry);
+            break;
+        case 173:
+            func_80054530(obj, entry);
+            break;
+        case 139:
+            func_80054530(obj, entry);
+            break;
+        case 174:
+            func_80054530(obj, entry);
+            break;
+        case 142:
+            func_80054530(obj, entry);
+            break;
+        case 132:
+            func_80054530(obj, entry);
+            break;
+        case 133:
+            func_80054530(obj, entry);
+            break;
+        case 134:
+            func_80054530(obj, entry);
+            break;
+        case 136:
+            func_80054530(obj, entry);
+            break;
+        case 143:
+            func_80054530(obj, entry);
+            break;
+        case 145:
+            func_80054530(obj, entry);
+            break;
+        case 146:
+            func_80054530(obj, entry);
+            break;
+    }
+    if (obj->unk5C != NULL) {
+        func_8007E4A0(obj);
+    }
+}
+
+/* JFG: the model flags of an object type (its header's id): obj_spawn_attachment keeps the low 3 bits. */
+s32 obj_type_model_flags(s32 id) {
+    s32 flags = 0;
+
+    switch (id) {
+        case 1: case 2:
+            flags = 0xF01;
+            break;
+        case 5:
+            flags = 0x301;
+            break;
+        case 4:
+            flags = 0xB01;
+            break;
+        case 111:
+            flags = 0x1800;
+            break;
+        case 67:
+            flags = 0x1800;
+            break;
+        case 7:
+            flags = 0x1805;
+            break;
+        case 48:
+            flags = 0x1B01;
+            break;
+        case 49:
+            flags = 0x1A00;
+            break;
+        case 54:
+            flags = 0x1901;
+            break;
+        case 55:
+            flags = 0x3806;
+            break;
+        case 46: case 51: case 95: case 147:
+            flags = 0x301;
+            break;
+        case 150:
+            flags = 0x1B01;
+            break;
+        case 47:
+            flags = 0x200;
+            break;
+        case 16:
+            flags = 0x800;
+            break;
+        case 17: case 18: case 22: case 60:
+            flags = 0x200;
+            break;
+        case 21:
+            flags = 0x301;
+            break;
+        case 44: case 152: case 157: case 158: case 159: case 160: case 162: case 163:
+            flags = 0x800;
+            break;
+        case 161:
+            flags = 0xB01;
+            break;
+        case 135: case 153: case 154: case 155: case 156:
+            flags = 0xA00;
+            break;
+        case 24:
+            flags = 0xB01;
+            break;
+        case 27:
+            flags = 0x200;
+            break;
+        case 149:
+            flags = 0x200;
+            break;
+        case 56:
+            flags = 0x800;
+            break;
+        case 61:
+            flags = 0xA00;
+            break;
+        case 43: case 64: case 66: case 80: case 81:
+            flags = 0x200;
+            break;
+        case 78:
+            flags = 0x1800;
+            break;
+        case 87:
+            flags = 0x901;
+            break;
+        case 89:
+            flags = 0x101;
+            break;
+        case 166:
+            flags = 0x901;
+            break;
+        case 167:
+            flags = 0x901;
+            break;
+        case 84:
+            flags = 0x101;
+            break;
+        case 168:
+            flags = 0x901;
+            break;
+        case 90:
+            flags = 0xB01;
+            break;
+        case 91:
+            flags = 0x1B01;
+            break;
+        case 93:
+            flags = 0x1800;
+            break;
+        case 94:
+            flags = 0x301;
+            break;
+        case 59:
+            flags = 0x301;
+            break;
+        case 164:
+            flags = 0xB01;
+            break;
+        case 165:
+            flags = 0xB01;
+            break;
+        case 96:
+            flags = 0x901;
+            break;
+        case 98:
+            flags = 0x1800;
+            break;
+        case 102:
+            flags = 0x1A00;
+            break;
+        case 103:
+            flags = 0x301;
+            break;
+        case 108:
+            flags = 0xB01;
+            break;
+        case 151:
+            flags = 0x800;
+            break;
+        case 109:
+            flags = 0x301;
+            break;
+        case 110:
+            flags = 0x301;
+            break;
+        case 113:
+            flags = 0x200;
+            break;
+        case 115:
+            flags = 0x101;
+            break;
+        case 116:
+            flags = 0x1A00;
+            break;
+        case 119:
+            flags = 0x901;
+            break;
+        case 120: case 141:
+            flags = 0x1901;
+            break;
+        case 122:
+            flags = 0x101;
+            break;
+        case 123:
+            flags = 0x301;
+            break;
+        case 125:
+            flags = 0x1901;
+            break;
+        case 126:
+            flags = 0x101;
+            break;
+        case 76:
+            flags = 0x1901;
+            break;
+        case 124:
+            flags = 0x1901;
+            break;
+        case 128:
+            flags = 0x1901;
+            break;
+        case 129:
+            flags = 0x1800;
+            break;
+        case 130:
+            flags = 0xB01;
+            break;
+        case 169:
+            flags = 0x101;
+            break;
+        case 170: case 172:
+            flags = 0x901;
+            break;
+        case 171:
+            flags = 0x800;
+            break;
+        case 137:
+            flags = 0x101;
+            break;
+        case 138:
+            flags = 0x101;
+            break;
+        case 173:
+            flags = 0x800;
+            break;
+        case 174:
+            flags = 0x800;
+            break;
+        case 142:
+            flags = 0x1901;
+            break;
+        case 132:
+            flags = 0x1901;
+            break;
+        case 133:
+            flags = 0x1901;
+            break;
+        case 134:
+            flags = 0xA00;
+            break;
+        case 136:
+            flags = 0x1800;
+            break;
+        default:
+            break;
+    }
+    return flags;
+}
+
+void func_8002F728(Object *obj, s32 updateRate);
+void obj_loop_animator(Object *obj, s32 updateRate);
+void obj_loop_exit(Object *obj, s32 updateRate);
+void func_80025A08(Object *obj, s32 updateRate);
+void func_8001C0D8(Object *obj, s32 updateRate);
+void obj_loop_skycontrol(Object *obj, s32 updateRate);
+void obj_sprite_animate(Object *obj, s32 updateRate);
+void sprite_anim_once_update(Object *obj, s32 updateRate);
+void obj_loop_texture_animator(Object *obj, s32 updateRate);
+void func_800270C8(Object *obj, s32 updateRate);
+void obj_loop_zone_trigger(Object *obj, s32 updateRate);
+void func_80026FD4(Object *obj, s32 updateRate);
+void func_800270EC(Object *obj, s32 updateRate);
+void zone_box_apply(Object *obj, s32 updateRate);
+void func_80026D88(Object *obj, s32 updateRate);
+void obj_explosion_update(Object *obj, s32 updateRate);
+void func_800291BC(Object *obj, s32 updateRate);
+void obj_loop_chroma_sprite(Object *obj, s32 updateRate);
+void model_piece_update(Object *obj, s32 updateRate);
+void obj_loop_falling_spark(Object *obj, s32 updateRate);
+void sparks_emitter_update(Object *obj, s32 updateRate);
+void obj_loop_drift(Object *obj, s32 updateRate);
+void obj_loop_pickup_trigger(Object *obj, s32 updateRate);
+void func_800104C0(Object *obj, s32 updateRate);
+void obj_anim_triggers_fire(Object *obj);
+extern s32 D_800A333C; // JFG: what the game is updating (the crash screen reports it)
+extern Object *D_800A3340;
+extern char *D_800A3344;
+extern s32 D_800A3348;
+
+/**
+ * Run every frame for objects with a behaviour: one big switch over the type (DKR run_object_loop_func; JFG's
+ * types, most of them in runlink modules). The crash screen is told which object is being updated.
+ */
+void run_object_loop_func(Object *obj, s32 updateRate) {
+    D_800A333C = 3;
+    D_800A3348 = 1;
+    D_800A3340 = obj;
+    D_800A3344 = obj->header->name;
+    if (obj->unk7C != NULL) {
+        func_800104C0(obj, updateRate);
+    }
+    if (obj->header->unkD4 != NULL) {
+        obj_anim_triggers_fire(obj);
+    }
+    switch (obj->behaviorId) {
+        case 2:
+            func_8002F728(obj, updateRate);
+            break;
+        case 4:
+            func_80054530(obj, updateRate);
+            break;
+        case 20:
+            func_80054530(obj, updateRate);
+            break;
+        case 77:
+            func_80054530(obj, updateRate);
+            break;
+        case 34:
+            obj_loop_animator(obj, updateRate);
+            break;
+        case 8:
+            obj_loop_exit(obj, updateRate);
+            break;
+        case 7:
+            func_80025A08(obj, updateRate);
+            break;
+        case 67:
+            group_light_update(obj, updateRate);
+            break;
+        case 60:
+            func_80054530(obj, updateRate);
+            break;
+        case 9:
+            func_8001C0D8(obj, updateRate);
+            break;
+        case 10:
+            obj_loop_skycontrol(obj, updateRate);
+            break;
+        case 57:
+            obj_sprite_animate(obj, updateRate);
+            break;
+        case 62:
+            sprite_anim_once_update(obj, updateRate);
+            break;
+        case 35:
+            obj_loop_texture_animator(obj, updateRate);
+            break;
+        case 16:
+            func_80054530(obj, updateRate);
+            break;
+        case 11:
+            func_80054530(obj, updateRate);
+            break;
+        case 51:
+            func_800270C8(obj, updateRate);
+            break;
+        case 52:
+            obj_loop_zone_trigger(obj, updateRate);
+            break;
+        case 46: case 47: case 50:
+            func_80026FD4(obj, updateRate);
+            break;
+        case 95: case 150:
+            func_80054530(obj, updateRate);
+            break;
+        case 147:
+            func_800270EC(obj, updateRate);
+            break;
+        case 22:
+            func_80054530(obj, updateRate);
+            break;
+        case 55:
+            func_80054530(obj, updateRate);
+            break;
+        case 31:
+            zone_box_apply(obj, updateRate);
+            break;
+        case 32:
+            func_80054530(obj, updateRate);
+            break;
+        case 33:
+            func_80026D88(obj, updateRate);
+            break;
+        case 21:
+            func_80054530(obj, updateRate);
+            break;
+        case 39:
+            obj_explosion_update(obj, updateRate);
+            break;
+        case 162:
+            func_80054530(obj, updateRate);
+            break;
+        case 152:
+            func_80054530(obj, updateRate);
+            break;
+        case 69:
+            func_80054530(obj, updateRate);
+            break;
+        case 158:
+            func_80054530(obj, updateRate);
+            break;
+        case 159:
+            func_80054530(obj, updateRate);
+            break;
+        case 160:
+            func_80054530(obj, updateRate);
+            break;
+        case 155:
+            func_80054530(obj, updateRate);
+            break;
+        case 161:
+            func_80054530(obj, updateRate);
+            break;
+        case 153:
+            func_80054530(obj, updateRate);
+            break;
+        case 135:
+            func_80054530(obj, updateRate);
+            break;
+        case 154:
+            func_80054530(obj, updateRate);
+            break;
+        case 157:
+            func_80054530(obj, updateRate);
+            break;
+        case 156:
+            func_80054530(obj, updateRate);
+            break;
+        case 23:
+            func_80054530(obj, updateRate);
+            break;
+        case 24:
+            func_80054530(obj, updateRate);
+            break;
+        case 27:
+            func_80054530(obj, updateRate);
+            break;
+        case 149:
+            func_80054530(obj, updateRate);
+            break;
+        case 56:
+            func_80054530(obj, updateRate);
+            break;
+        case 40:
+            func_800291BC(obj, updateRate);
+            break;
+        case 41:
+            func_80054530(obj, updateRate);
+            break;
+        case 38:
+            obj_loop_chroma_sprite(obj, updateRate);
+            break;
+        case 43:
+            func_80054530(obj, updateRate);
+            break;
+        case 61:
+            func_80054530(obj, updateRate);
+            break;
+        case 66:
+            func_80054530(obj, updateRate);
+            break;
+        case 68:
+            func_80054530(obj, updateRate);
+            break;
+        case 36:
+            func_80054530(obj, updateRate);
+            break;
+        case 37:
+            func_80054530(obj, updateRate);
+            break;
+        case 64:
+            model_piece_update(obj, updateRate);
+            break;
+        case 70:
+            func_80054530(obj, updateRate);
+            break;
+        case 71:
+            func_80054530(obj, updateRate);
+            break;
+        case 72:
+            func_80054530(obj, updateRate);
+            break;
+        case 73:
+            obj_loop_falling_spark(obj, updateRate);
+            break;
+        case 74:
+            sparks_emitter_update(obj, updateRate);
+            break;
+        case 75:
+            obj_loop_drift(obj, updateRate);
+            break;
+        case 76:
+            func_80054530(obj, updateRate);
+            break;
+        case 78:
+            func_80054530(obj, updateRate);
+            break;
+        case 80:
+            obj_loop_pickup_trigger(obj, updateRate);
+            break;
+        case 81:
+            func_80054530(obj, updateRate);
+            break;
+        case 82:
+            func_80054530(obj, updateRate);
+            break;
+        case 88:
+            func_80054530(obj, updateRate);
+            break;
+        case 83:
+            func_80054530(obj, updateRate);
+            break;
+        case 85:
+            func_80054530(obj, updateRate);
+            break;
+        case 86:
+            func_80054530(obj, updateRate);
+            break;
+        case 163:
+            func_80054530(obj, updateRate);
+            break;
+        case 87:
+            func_80054530(obj, updateRate);
+            break;
+        case 166: case 167:
+            func_80054530(obj, updateRate);
+            break;
+        case 84: case 168:
+            func_80054530(obj, updateRate);
+            break;
+        case 89:
+            func_80054530(obj, updateRate);
+            break;
+        case 90:
+            func_80054530(obj, updateRate);
+            break;
+        case 92:
+            func_80054530(obj, updateRate);
+            break;
+        case 91:
+            func_80054530(obj, updateRate);
+            break;
+        case 93:
+            func_80054530(obj, updateRate);
+            break;
+        case 141:
+            func_80054530(obj, updateRate);
+            break;
+        case 94:
+            func_80054530(obj, updateRate);
+            break;
+        case 59:
+            func_80054530(obj, updateRate);
+            break;
+        case 164:
+            func_80054530(obj, updateRate);
+            break;
+        case 165:
+            func_80054530(obj, updateRate);
+            break;
+        case 96:
+            func_80054530(obj, updateRate);
+            break;
+        case 98:
+            func_80054530(obj, updateRate);
+            break;
+        case 100:
+            func_80054530(obj, updateRate);
+            break;
+        case 99:
+            func_80054530(obj, updateRate);
+            break;
+        case 102:
+            func_80054530(obj, updateRate);
+            break;
+        case 103:
+            func_80054530(obj, updateRate);
+            break;
+        case 104:
+            func_80054530(obj, updateRate);
+            break;
+        case 105:
+            func_80054530(obj, updateRate);
+            break;
+        case 108:
+            func_80054530(obj, updateRate);
+            break;
+        case 151:
+            func_80054530(obj, updateRate);
+            break;
+        case 109:
+            func_80054530(obj, updateRate);
+            break;
+        case 110:
+            func_80054530(obj, updateRate);
+            break;
+        case 111:
+            func_80054530(obj, updateRate);
+            break;
+        case 113:
+            func_80054530(obj, updateRate);
+            break;
+        case 114:
+            func_80054530(obj, updateRate);
+            break;
+        case 116:
+            func_80054530(obj, updateRate);
+            break;
+        case 117:
+            func_80054530(obj, updateRate);
+            break;
+        case 119:
+            func_80054530(obj, updateRate);
+            break;
+        case 120:
+            func_80054530(obj, updateRate);
+            break;
+        case 122:
+            func_80054530(obj, updateRate);
+            break;
+        case 123:
+            func_80054530(obj, updateRate);
+            break;
+        case 124:
+            func_80054530(obj, updateRate);
+            break;
+        case 125:
+            func_80054530(obj, updateRate);
+            break;
+        case 127:
+            func_80054530(obj, updateRate);
+            break;
+        case 128:
+            func_80054530(obj, updateRate);
+            break;
+        case 129:
+            func_80054530(obj, updateRate);
+            break;
+        case 130:
+            func_80054530(obj, updateRate);
+            break;
+        case 169:
+            func_80054530(obj, updateRate);
+            break;
+        case 170:
+            func_80054530(obj, updateRate);
+            break;
+        case 172:
+            func_80054530(obj, updateRate);
+            break;
+        case 171:
+            func_80054530(obj, updateRate);
+            break;
+        case 137: case 138:
+            func_80054530(obj, updateRate);
+            break;
+        case 173:
+            func_80054530(obj, updateRate);
+            break;
+        case 139:
+            func_80054530(obj, updateRate);
+            break;
+        case 174:
+            func_80054530(obj, updateRate);
+            break;
+        case 142:
+            func_80054530(obj, updateRate);
+            break;
+        case 132:
+            func_80054530(obj, updateRate);
+            break;
+        case 133:
+            func_80054530(obj, updateRate);
+            break;
+        case 134:
+            func_80054530(obj, updateRate);
+            break;
+        case 136:
+            func_80054530(obj, updateRate);
+            break;
+        case 143:
+            func_80054530(obj, updateRate);
+            break;
+        case 145:
+            func_80054530(obj, updateRate);
+            break;
+        case 146:
+            func_80054530(obj, updateRate);
+            break;
+    }
+    D_800A3348 = 4;
+}
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_800104C0);
 
 /* JFG: an animation event (6 bytes) */
 typedef struct AnimTrigger {
     /* 0x00 */ u16 animId;
-    /* 0x02 */ u16 frame; // times D_800AB508: 0..1
+    /* 0x02 */ u16 frame; // divided by 65535: 0..1
     /* 0x04 */ u16 event;
 } AnimTrigger;
 
@@ -2822,7 +4647,6 @@ typedef struct ObjectKind53 {
     /* 0x4C */ s16 kind;
 } ObjectKind53;
 
-extern f32 D_800AB508; // JFG: the event frame scale, in .rodata
 void func_80027120(Object *obj, s32 event);
 void func_800271A0(Object *obj, s32 event);
 void func_80027220(Object *obj, s32 event);
@@ -2862,7 +4686,7 @@ void obj_anim_triggers_fire(Object *obj) {
     }
     for (i = 0; i < list->count; i++, event++) {
         if (animId == event->animId) {
-            t = event->frame * D_800AB508;
+            t = event->frame * 1.5259022e-05f; // 1 / 65535
             if (wrapped && t <= prevFrame) {
                 t += 1.0f;
             }
@@ -2994,29 +4818,22 @@ s32 obj_anim_set(Object *obj, s32 anim, f32 frame) {
     return 0;
 }
 
-#ifdef NON_MATCHING
-/* JFG: a block with a level at 0x28 (func_800116BC) */
-typedef struct LevelBlock28 {
+/* JFG: an object's animation phase at 0x28 (the modules pass an Object) */
+typedef struct AnimPhaseObj {
     /* 0x00 */ u8 pad0[0x28];
-    /* 0x28 */ f32 level;
-} LevelBlock28;
+    /* 0x28 */ f32 phase;
+} AnimPhaseObj;
 
-extern f32 D_800AB50C; // the highest level
-
-/* JFG: set the block's level, clamped to 0..D_800AB50C.
-   NON_MATCHING: 2 words: the limit is a float literal (needs this file's .rodata), loaded before the mtc1. */
-s32 func_800116BC(LevelBlock28 *block, f32 level) {
-    if (level > D_800AB50C) {
-        level = D_800AB50C;
-    } else if (level < 0.0f) {
-        level = 0.0f;
+/* JFG: set the object's animation phase, clamped to 0..0.999. */
+s32 anim_phase_clamp(AnimPhaseObj *obj, f32 phase) {
+    if (phase > 0.999f) {
+        phase = 0.999f;
+    } else if (phase < 0.0f) {
+        phase = 0.0f;
     }
-    block->level = level;
+    obj->phase = phase;
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800116BC);
-#endif
 
 /* JFG: the level object entry of a bonus item */
 typedef struct LevelObjectEntryBonus {
@@ -3275,7 +5092,7 @@ f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
 }
 
 extern s32 D_800F2D20[];
-void func_80054530(); // a module function (patched in by the runtime linker)
+s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 #ifdef NON_MATCHING
 /**
@@ -3333,7 +5150,6 @@ typedef struct ObjectSoundSource53 {
 } ObjectSoundSource53;
 
 extern void *D_800A089C; // JFG: the sound of the nearest type 0xA7 object
-extern f32 D_800AB510;   // JFG: the search's starting distance, in .rodata
 ObjectCamera53 *cam_get_cameras(void);
 u8 func_80048548(void);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
@@ -3358,7 +5174,7 @@ void sound_nearest_emitter_update(void) {
     f32 dz;
     ObjectSoundSource53 *src;
 
-    best = D_800AB510;
+    best = 1e10f;
     nearest = NULL;
     cams = cam_get_cameras();
     numCams = func_80048548();

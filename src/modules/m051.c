@@ -217,7 +217,7 @@ extern void func_800221F0(Object *, M051ModelInstance *, ObjectShading *, void *
 extern void obj_tex_animate(Object *, M051ModelData *, M051ModelInstance *, s32);
 extern s32 func_80037550(Object *obj, M051Player *p, f32 updateRate);
 extern s32 func_80033F4C(s32 weapon);
-extern void func_800116BC(Object *obj, f32 arg1);
+extern void anim_phase_clamp(Object *obj, f32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern void player_voice_play(Object *obj, s32 arg1);
 extern s32 func_8003AABC(Object *obj, M051Player *p, s32, s32, s32, s32, s16 *, s16 *, f32);
@@ -494,7 +494,7 @@ void func_m051_00000(Object *obj, s32 updateRate) {
     }
     if (func_80033F4C(func_80037550(obj, p, updateRate))) {
         if (obj->animationID == 0xE) {
-            func_800116BC(obj, 0);
+            anim_phase_clamp(obj, 0);
         } else {
             func_m051_01118(obj, p, 0xE, 0.0f);
         }

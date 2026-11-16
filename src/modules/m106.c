@@ -152,7 +152,7 @@ extern s32 func_800468CC(void);
 extern s32 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void music_volume_fade(f32 time, s32 volume);
-extern void func_800116BC(Object *obj, f32 arg1);
+extern void anim_phase_clamp(Object *obj, f32 arg1);
 extern s32 func_8004966C(s16 angle); /* sine */
 extern void effect_mesh_set_uvs(M106Flare *flare, s16 angle);
 extern void effect_mesh_update(M106Flare *flare, s16 size, s32 alpha);
@@ -491,7 +491,7 @@ void func_m106_00290(Object *obj, s32 updateRate) {
         child->trans.y_position += obj->trans.y_position;
         child->trans.z_position += obj->trans.z_position;
         child->trans.scale = t->unk28 / 6000.0f * obj->trans.scale + 0.001f;
-        func_800116BC(child, 1.0f);
+        anim_phase_clamp(child, 1.0f);
     }
     if (t->unk37 != 0) {
         count = 0x80;

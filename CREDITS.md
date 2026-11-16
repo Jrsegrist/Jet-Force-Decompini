@@ -353,3 +353,11 @@ object is not ultralib's xprintf.o, so ultralib's file cannot be included):
 | JFG file | Functions | How the game's object differs | Same as ultralib's |
 | --- | --- | --- | --- |
 | `src/9CA20.c` | _Printf, _Putfld | older text scan: each run of literal text is handed out up to a `%` or through its terminating NUL; a larger frame | _Putfld (compiles to the same code as ultralib's at -O3) |
+
+### Round 23 (ro53f23), 53C0 and 5B700
+
+From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
+
+| DKR file | Functions |
+| --- | --- |
+| `src/objects.c` | get_object_property_size (JFG 0x8000E680: JFG's object types and sizes, 8- and 16-byte aligned data, sizes from the model and the level entry); run_object_init_func and run_object_loop_func (JFG 0x8000F028 and 0x8000FBF0: JFG's types, most handlers in runlink modules, the crash screen's update markers) |
