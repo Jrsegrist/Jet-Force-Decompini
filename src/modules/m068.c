@@ -4506,8 +4506,6 @@ extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 
 extern MtxF rl_m068_1250C;       /* (.data) */
 
 /* Breaks the object up: sends each of the six pieces flying out from its point of the model, then frees it */
-#ifdef NON_MATCHING
-/* Frame and slots match; the t-registers of the set-up are one higher and two loads swap places */
 void func_m068_110E0(Object *obj, s32 updateRate) {
     s32 *state;
     M068BreakModel *model;
@@ -4523,19 +4521,20 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
     s32 i;
     f32 d;
     M068Vertex *v;
-    UNUSED s32 pad[1];
+    M068Instance *inst;
 
     state = obj->unk68;
     if (*state != 0) {
-        model = *(M068BreakModel **) obj->modelInstances[obj->modelIndex];
         mtx = &((M068Matrices *) obj->unk5C)->mtx[((M068Matrices *) obj->unk5C)->current];
+        inst = obj->modelInstances[obj->modelIndex];
+        model = inst->model;
         entry.objectID = 0x65;
         entry.active = 1;
         entry.yRotation = obj->trans.rotation.y_rotation;
         entry.xRotation = obj->trans.rotation.x_rotation;
+        entry.zRotation = obj->trans.rotation.z_rotation;
         entry.mtx = &rl_m068_1250C;
         entry.unk1C = 3.0f;
-        entry.zRotation = obj->trans.rotation.z_rotation;
         entry.unk20 = 2.0f;
         entry.unk28 = 0.15f;
         for (i = 0; i < 6; i++) {
@@ -4562,9 +4561,6 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
         func_800079B8(obj);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_110E0);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", data);
 
