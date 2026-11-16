@@ -711,6 +711,12 @@ field Object.unk1A = numActiveEmitters
 field Object.unk6C = modelInstances
 field Object.unkA0 = freed
 field ObjectInteraction.unk6 = hitPoints
+field SparkParams.unk14 = sparkSize
+field SparkParams.unk18 = textureID
+field SparkParams.unk1A = lifeSteps
+field SparkParams.unk1B = alpha
+field SparkParams.unk1C = colour1
+field SparkParams.unk20 = colour2
 
 # round 5, main segment (main5)
 # src/50300.c: the scheduler, a Rare variant of libultra's (ultralib's names)

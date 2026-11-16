@@ -144,16 +144,16 @@ void func_m118_00140(Object *obj, s32 updateRate) {
                 spark.x_position = obj->trans.x_position;
                 spark.y_position = obj->trans.y_position;
                 spark.z_position = obj->trans.z_position;
-                spark.unk18 = 20;
-                spark.unk1A = 10;
-                spark.unk1B = 0xFF;
-                spark.unk1C = 0xFFFF80FF;
-                spark.unk20 = 0xFF0000FF;
+                spark.textureID = 20;
+                spark.lifeSteps = 10;
+                spark.alpha = 0xFF;
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFF0000FF;
                 while (n--) {
                     spark.y_rotation = func_80048E2C(-0x8000, 0x7FFF);
                     spark.x_rotation = func_80048E2C(-0x3000, 0x3C00);
                     spark.speed = func_80048E2C(70, 90) * 0.1f;
-                    spark.unk14 = func_80048E2C(25, 50) * 0.1f;
+                    spark.sparkSize = func_80048E2C(25, 50) * 0.1f;
                     func_m010_0000C(&spark);
                 }
             }
