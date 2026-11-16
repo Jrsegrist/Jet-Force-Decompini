@@ -343,6 +343,31 @@ func_m015_07724 = m015_underwater_splash
 func_m015_07890 = m015_state_dead
 func_m015_07BC8 = m015_state_12
 
+# src/modules/m016.c
+func_m016_01B48 = m016_water_enter
+func_m016_01D58 = m016_wade_splashes
+func_m016_02220 = m016_hit_react
+func_m016_02708 = m016_state_on_foot
+func_m016_02EB4 = m016_state_1
+func_m016_0321C = m016_state_2
+func_m016_03464 = m016_state_in_air
+func_m016_03DB0 = m016_body_head_commands
+func_m016_03F30 = m016_state_aiming
+func_m016_04440 = m016_state_strafe_aiming
+func_m016_04840 = m016_side_lean_update
+func_m016_04934 = m016_sidestep_roll
+func_m016_04E08 = m016_move_anim_pick
+func_m016_04F78 = m016_anim_start
+func_m016_05120 = m016_anim_state_machine
+func_m016_05BB8 = m016_move
+func_m016_06290 = m016_head_turn
+func_m016_0650C = m016_state_swimming
+func_m016_06AEC = m016_state_dead
+func_m016_06E24 = m016_state_6
+func_m016_070A4 = m016_state_8
+func_m016_07344 = m016_state_7
+func_m016_073A8 = m016_state_12
+
 # src/modules/m036.c
 func_m036_00564 = default_alloc_displaylist_heap
 
