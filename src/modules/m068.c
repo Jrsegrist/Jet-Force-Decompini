@@ -2197,7 +2197,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
 
 #ifdef NON_MATCHING
 /* Steers the first form towards target: slows to stop there, turns its body (unk98/unk96) into the motion; 1 while it moves */
-/* 5 diffs: the first dot product loads s->unkC4 before dir[1] in the ROM (operands of the multiply swapped). */
+/* 2 diffs: the first dot product loads s->unkC4 before dir[1] in the ROM (operands of the multiply swapped). */
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate) {
     f32 dir[2];
     f32 rot[2];
@@ -2242,7 +2242,7 @@ static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s3
     } else {
         result = 0;
     }
-    s->unk80 = (s32) (7.75f * speed) + 100;
+    s->unk80 = (s16) (7.75f * speed) + 100;
     return result;
 }
 #else
@@ -3105,9 +3105,13 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 #endif
 
 #ifdef NON_MATCHING
-/* The vertex clear loop: IDO unrolls it twice here, the ROM's is not unrolled */
+/*
+ * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop (22 diffs
+ * left): the outer offset, the row pointer and the second loop's i and prev take other argument registers.
+ */
 void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     M068Strip *m = obj->unk68;
+    Vertex *p;
     Triangle *tri;
     s32 i;
     s32 j;
@@ -3118,14 +3122,19 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     m->unk6C0 = setup->unk24;
     m->unk6C4 = setup->unk28;
     for (i = 0; i < 2; i++) {
-        for (j = 0; j < 72; j++) {
-            m->verts[i][j].x = 0;
-            m->verts[i][j].y = 0;
-            m->verts[i][j].z = 0;
-            m->verts[i][j].r = 255;
-            m->verts[i][j].g = 255;
-            m->verts[i][j].b = 255;
-            m->verts[i][j].a = 255;
+        p = m->verts[i];
+        j = 0;
+        while (TRUE) {
+            p[j].x = 0;
+            p[j].y = 0;
+            p[j].z = 0;
+            p[j].r = 255;
+            p[j].g = 255;
+            p[j].b = 255;
+            p[j].a = 255;
+            j++;
+            if (j < 72) continue;
+            break;
         }
     }
     tri = m->tris;
