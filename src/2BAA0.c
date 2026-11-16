@@ -1460,7 +1460,25 @@ void player_turn_limit_update(UNUSED s32 arg0, Racer *racer, f32 *out, s16 angle
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80033ED4);
+/* The module trap called for a result (`func_80054530_ret` in undefined_syms.us.txt). */
+s32 func_80054530_ret();
+
+/* JFG: calls the character's module handler (0/4, 1/5 and 2/6 each their own) and returns its result; 1 for
+   any other character (0x80033ED4). */
+s32 func_80033ED4(u8 *obj, u8 *racer) {
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            return func_80054530_ret(obj, racer);
+        case 1:
+        case 5:
+            return func_80054530_ret(obj, racer);
+        case 2:
+        case 6:
+            return func_80054530_ret(obj, racer);
+    }
+    return 1;
+}
 
 s32 func_80033F4C(s32 weapon) {
     if (weapon == 8 || weapon == 10 || weapon == 11 || weapon == 12 || weapon == 13 || weapon == 14) {
@@ -3539,9 +3557,59 @@ void func_8003B6BC(void) {
     D_800A2EB0 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B6C8);
+s32 obj_anim_set(void *obj, s32 anim, f32 frame);
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8003B740);
+/* JFG: starts the character's animation 0x30, 0x2B or 7 (characters 0/4, 1/5, 2/6) at frame 0. */
+void func_8003B6C8(u8 *obj, u8 *racer) {
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            obj_anim_set(obj, 0x30, 0.0f);
+            break;
+        case 1:
+        case 5:
+            obj_anim_set(obj, 0x2B, 0.0f);
+            break;
+        case 2:
+        case 6:
+            obj_anim_set(obj, 7, 0.0f);
+            break;
+    }
+}
+
+/* JFG: while the character's animation (0x30 or 0x2B, as in func_8003B6C8) plays: 2 before frame 0.15, 1 before
+   0.53, else 0; 0 for any other animation or character. */
+s32 func_8003B740(u8 *obj, u8 *racer) {
+    switch (racer[1]) {
+        case 0:
+        case 4:
+            if (*(s8 *) (obj + 0x3B) == 0x30) {
+                if (*(f32 *) (obj + 0x28) < 0.15f) {
+                    return 2;
+                }
+                if (*(f32 *) (obj + 0x28) < 0.53f) {
+                    return 1;
+                }
+            }
+            break;
+        case 1:
+        case 5:
+            if (*(s8 *) (obj + 0x3B) == 0x2B) {
+                if (*(f32 *) (obj + 0x28) < 0.15f) {
+                    return 2;
+                }
+                if (*(f32 *) (obj + 0x28) < 0.53f) {
+                    return 1;
+                }
+            }
+            break;
+        case 2:
+        case 3:
+        case 6:
+            break;
+    }
+    return 0;
+}
 
 /* JFG: empty a player's hand (the held object at 0x5CC); a held object 0x59 is also stopped and reset (0x8003B820). */
 void player_drop_held_object(u8 *obj) {
