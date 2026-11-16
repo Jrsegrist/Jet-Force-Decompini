@@ -1,12 +1,19 @@
+*For anyone who has found this repository and wants to know what it is, build it, or help with it.*
+
 # Jet Force Decompini
 
 [![CI](https://github.com/Jrsegrist/Jet-Force-Decompini/actions/workflows/ci.yml/badge.svg)](https://github.com/Jrsegrist/Jet-Force-Decompini/actions/workflows/ci.yml)
 
-A matching decompilation of Jet Force Gemini (Nintendo 64, Rare, 1999): C
-source that compiles back to a byte-identical ROM. The later goal is a native
-Windows port built from that source.
+A matching decompilation of Jet Force Gemini (Nintendo 64, Rare, 1999).
 
-This repository contains no game data. You need your own ROM.
+A *decompilation* turns the game's machine code back into C source. *Matching*
+means that the C, built with the compiler the original developers used (IDO
+5.3), produces the original ROM byte for byte. That is how the C is known to be
+right: `make` rebuilds the ROM from source and checks its SHA-1. A native
+Windows port built from that source is the later goal.
+
+This repository contains no game data. To build it you need your own copy of
+the ROM, which stays on your machine.
 
 ## Status
 
@@ -16,55 +23,72 @@ prints how much of it is built from C:
 | Part | Functions in C | Bytes in C |
 | --- | --- | --- |
 | main segment, game code | 1,106 / 1,320 | 300,564 / 539,832 |
-| main segment, libraries (libultra, n_audio, libc) | 220 / 337 | 46,088 / 102,408 |
+| main segment, libraries (libultra, n_audio, libc) | 306 / 340 | 101,280 / 104,204 |
 | runlink modules (157) | 1,033 / 1,275 (97 modules all C, 56 partly) | 501,872 / 850,816 |
 
-Of the game code's 1,106 C functions, 897 have a real name (DKR's, the SDK's
-or one of our own, see [Naming](#naming)); the other 209 keep their address
-names until the code shows what they do (`make progress`, the `names` line).
+Of the game code's 1,106 C functions, 897 have a real name (DKR's, the SDK's or one of our own, see [Naming](#naming));
+the other 209 keep their address names until the code shows what they do (`make progress`, the `names` line).
 
-- The game code in the main segment is split into C files (`src/`), one
-  `INCLUDE_ASM` per function that is not decompiled yet. Code shared with
-  Diddy Kong Racing comes from the DKR decompilation (see
-  [CREDITS.md](CREDITS.md)); the rest is written from the assembly and named
-  by address or, where the code shows what it does, by a name of our own
-  ([Naming](#naming)).
-- 70 libultra objects build from [decompals/ultralib](https://github.com/decompals/ultralib)
-  (`src/ultra/`). The sound player (`src/audiosfx.c`, DKR's) and most of the
-  n_audio library (`src/naudio_*.c`, written from the assembly) are C too;
-  the rest of the library region is still assembly (hand-written `.s`
-  routines, a few large n_audio functions, and objects from SDK revisions
-  ultralib does not model).
-- The 157 run-time linked modules are split into assembly and rebuilt by a
-  relocation linker of our own (`tools/runlink_build.py`); see
-  [docs/runlink.md](docs/runlink.md).
-- Assets and audio are still binary blobs.
+What that covers:
 
-## ROM
+- **The main segment** is the code the console loads at boot: the engine
+  (memory, assets, levels and tracks, objects, camera, lights, particles,
+  text, audio, the run-time module loader) and the libraries. Its game code is
+  split into C files in `src/`; a function not decompiled yet is pulled in from
+  its assembly with an `INCLUDE_ASM` line. Much of the engine is shared with
+  Diddy Kong Racing, and that code comes from the DKR decompilation (see
+  [CREDITS.md](CREDITS.md)).
+- **The libraries** are almost all C: 99 libultra objects build from
+  [decompals/ultralib](https://github.com/decompals/ultralib) (`src/ultra/`),
+  and the sound player and the n_audio library are C written from the
+  assembly. What is left is hand-written assembly (libultra's `.s` routines,
+  the RSP microcode).
+- **The 157 runlink modules** hold most of the game itself: objects, enemies,
+  bosses, menus and the HUD. The game loads and links them at run time; this
+  project splits them into assembly and C and rebuilds them with a relocation
+  linker of its own ([docs/runlink.md](docs/runlink.md)).
+- Assets (models, textures, levels, sounds, text) are still binary blobs taken
+  from your ROM.
+
+[docs/layout.md](docs/layout.md) describes how the ROM and the code are laid
+out, which files come from where, and what is still assembly and why.
+
+## What you need
+
+- Linux, or WSL on Windows, with `binutils-mips-linux-gnu`, `make`, `git`,
+  `curl` and `python3` (with `venv`).
+- Your own Jet Force Gemini ROM, US 1.0, big-endian (`.z64`):
 
 | Version | File | SHA-1 |
 | --- | --- | --- |
 | US 1.0 (NJFE, CIC-6105, 32 MB) | `baserom.us.z64` | `493ced9008dbe932d6e91179b68e8630cf23a023` |
 
-Put the big-endian `.z64` ROM in the repository root as `baserom.us.z64`.
+Put it in the repository root as `baserom.us.z64`. Git ignores it, and
+everything extracted from it (`asm/`, `assets/`, `build/`) is ignored too:
+none of it may be committed.
 
 ## Building
 
-You need Linux or WSL with `binutils-mips-linux-gnu`, `make`, `git`, `curl` and
-`python3` (with `venv`).
-
 ```sh
-git submodule update --init   # or clone with --recursive
-make setup      # Python venv, IDO 5.3 recomp, m2c, submodules
-make extract    # checks the ROM, recovers symbol names, splits code and modules
-make            # builds build/jfg.us.z64 and checks its SHA-1
-make check      # checks the SHA-1 of the built ROM again
-make progress   # functions and bytes built from C
+git clone --recursive https://github.com/Jrsegrist/Jet-Force-Decompini.git
+cd Jet-Force-Decompini
+make setup        # once: Python venv, the IDO 5.3 recompilation, m2c, submodules
+                  # now copy your ROM here as baserom.us.z64
+make extract      # checks the ROM's SHA-1, reads its symbol names, splits code and modules
+make              # builds build/jfg.us.z64 and checks its SHA-1
+make check        # checks the SHA-1 of the built ROM again
+make progress     # functions and bytes built from C (tools/progress.py --files or --modules for detail)
+make nonmatching  # compiles the not-yet-matching C bodies (see docs/matching.md)
 ```
 
-After changing the ROM split (`jfg.us.yaml`) or symbol files, run
-`make extract` again. `make` does not notice changed compiler flags: delete the
-object to rebuild it.
+- `make setup` installs the Python packages into `.venv/`, downloads the
+  statically recompiled IDO 5.3 compiler into `tools/ido5.3/` and clones m2c
+  into `tools/m2c/`. Neither is part of this repository.
+- After changing the ROM split (`jfg.us.yaml`) or the symbol files, run
+  `make extract` again.
+- `make` does not notice changed compiler flags: delete the object to rebuild
+  it.
+- `make distclean` removes everything the build and `make extract` wrote.
 
 ### Names and ROM-derived data
 
@@ -76,6 +100,18 @@ committed. Committed C refers to functions and data by address
 names of our own (see [Naming](#naming)); `undefined_syms.us.txt` and
 `names.txt` tie those to addresses, and alias files generated at build time
 let them meet the ROM names in the assembly.
+
+## Contributing
+
+- [docs/matching.md](docs/matching.md): how to match one function, the
+  tools, the compiler's habits, and what is not accepted.
+- [CONTRIBUTING.md](CONTRIBUTING.md): branches, the checks to run before a
+  pull request, commit style, and the rules on ROM data and outside code.
+- [docs/layout.md](docs/layout.md): the ROM, the main segment, the libraries
+  and their build flags.
+- [docs/runlink.md](docs/runlink.md): the runlink module format, how modules
+  are split and rebuilt, and how to work on a module in C.
+- [tools/match/README.md](tools/match/README.md): the matching tools.
 
 ## Naming
 
@@ -96,6 +132,7 @@ A name never comes from the ROM's runlink name table (which `make extract`,
 splat's assembly and m2c's output show): not the name, and not a word or a
 close paraphrase of it. If the only reason to pick a word is that the ROM's
 name for that function uses it, pick another word, or keep the address name.
+Ordinary words that the code itself supports (`draw`, `explosion`) are fine.
 A guess is not a name: when unsure, keep the address name and add a one-line
 comment saying what is known. `tools/check_names.py` (see [Checks](#checks))
 catches ROM names; the rest is up to the reviewer.
@@ -129,6 +166,7 @@ names, because splat names the generated assembly by address.
 ```sh
 tools/rename.py                    # apply names.txt (e.g. on another branch, before a merge)
 tools/rename.py --check            # no old name left, fields renamed (also run by the CI)
+tools/rename.py --field-uses       # every .old/->old use of a renamed field's old name, to check by hand
 tools/rename.py --which func_80012345   # old <-> new, for notes and old reports
 ```
 
@@ -140,97 +178,42 @@ tools read names.txt, so a rename changes nothing they do. Names never change
 code: after a rename the ROM, the `NON_MATCHING` objects and every check come
 out the same.
 
-### Working on a function
-
-- The function's assembly is `asm/nonmatchings/<file>/func_XXXXXXXX.s`.
-- `tools/m2c/m2c.py` gives a first draft in C.
-- Replace the `INCLUDE_ASM` line with C, build, and compare with
-  `.venv/bin/python3 tools/asm-differ/diff.py -mw <function>` (it uses the
-  map file) or just `make check`.
-- `tools/match/` has faster helpers: a probe that compares a whole C file
-  with the ROM without linking (main segment and modules), variant runners,
-  and scans for ultralib and DKR code; see
-  [tools/match/README.md](tools/match/README.md).
-- A function whose C is right but does not match yet keeps that C behind
-  `#ifdef NON_MATCHING`, with its `INCLUDE_ASM` in the `#else` branch and a
-  `NON_MATCHING:` comment saying what still differs. The normal build uses the
-  assembly; `make nonmatching` compiles the C bodies of every main-segment
-  and module file (into `build_nm/`, not linked) so that they keep building;
-  CI runs it. These functions count as assembly in
-  `make progress`.
-
-```c
-#ifdef NON_MATCHING
-void func_80012345(void) {
-    ...
-}
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80012345);
-#endif
-```
-
 ## Checks
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs on every push
 and pull request to `main`. GitHub has no ROM, so it runs what can be checked
-without one (`tools/ci_norom.sh`; run it yourself in a clean checkout after
-`make setup`):
+without one (`tools/ci_norom.sh`; run it yourself in a clean checkout, with no
+ROM and no `make extract`, after `make setup`):
 
 - no tracked file is ROM data or extracted from it: no ROM, binaries,
   assembly, disassembly or long number tables (`tools/ci_rom_free.py`);
-- the Python tools compile and pass pyflakes, and their self-tests pass
-  (`tools/ci_test_tools.py`: made-up runlink modules are built, split and
-  rebuilt byte for byte; `runlink_syms.py`, `runlink_diff.py`,
-  `progress.py` and `rename.py` on synthetic files);
+- the Python tools compile and pass pyflakes, the matching tools start
+  (`--help`), and the tools' self-tests pass (`tools/ci_test_tools.py`:
+  made-up runlink modules are built, split and rebuilt byte for byte;
+  `runlink_syms.py`, `runlink_diff.py`, `progress.py` and `rename.py` on
+  synthetic files);
 - `names.txt` is applied everywhere: no old name is left
   (`tools/rename.py --check`);
 - every C file in `src/` compiles with IDO 5.3 at the project's flags, with
   placeholder assembly in place of each `INCLUDE_ASM`
-  (`tools/ci_stub_asm.py`), and so do the `NON_MATCHING` bodies.
+  (`tools/ci_stub_asm.py`), and so do the `NON_MATCHING` bodies
+  (`make nonmatching`).
 
 Two checks need the ROM and are yours to run before you push:
 
 ```sh
-make check                                   # byte-identical ROM
-tools/check_names.py --dkr ~/path/to/dkr     # no ROM-only names, in files or history
+make check                                                   # byte-identical ROM
+tools/check_names.py --dkr ~/path/to/dkr --since 827f28f     # no ROM-only names, in files or history
 ```
 
-`check_names.py` compares every tracked file, commit message and added line
-with the names `make extract` read from your ROM, and fails on any that the
-DKR decompilation (a clone of it, `--dkr`) and ultralib do not have too.
-
-## Compiler
-
-- Game code: IDO 5.3 with `-O2 -mips1`.
-- libultra: SDK 2.0I with Nintendo's flags (os and io at -O1, the rest -O3,
-  -mips2); a few objects are the 2.0J form.
-- The sound player and the n_audio library (with ten libultra audio objects
-  linked into it) were built unoptimised with debug information: `-g -mips2`
-  (Makefile: audiosfx, `naudio_%`, `UL_G_OBJS`). Probe them with
-  `probe.py FILE -O1 -g2 -mips2`; only the full build at `-g` is final.
-- Hand-written assembly: the entry point, the exception/interrupt code and
-  maths at 0x49700, the inflate routines at 0x737F0, and parts of 0x74A80.
-
-## ROM layout (US 1.0)
-
-| ROM | Contents |
-| --- | --- |
-| 0x0000000 | header |
-| 0x0000040 | IPL3 (CIC-6105) |
-| 0x0001000 | main code segment, uncompressed, loaded to 0x80000400. The entry point clears bss 0x800B0B50-0x801059A0, sets sp and calls the boot function at 0x8003F500. Text 0x80000450-0x800A0660, .data to 0x800A7480, .rodata to 0x800B0B50 |
-| 0x00B1750 | asset table (DKR format): u32 count (71), then count+1 u32 offsets relative to 0xB1880 |
-| 0x00B1880 | 71 asset files to 0x1ECF220 (textures, models, levels, audio banks, text). Many are Rare "rzip" (5-byte header: little-endian u32 size + 1 byte, then raw deflate) |
-| 0x1ECF220 | runlink: main's relocations against module symbols |
-| 0x1ED0270 | runlink: global symbol table |
-| 0x1ED2780 | runlink: module table, 157 entries |
-| 0x1ED3B20 | runlink: the 157 module images |
-| 0x1FEB040 | runlink: name offsets, one per symbol |
-| 0x1FED550 | runlink: symbol names |
-
-The main segment holds the engine (audio, memory, tracks and levels, lights,
-camera, the object core, fonts, particles, rzip, the runlink loader at about
-0x80052800) and the libraries. Game objects, enemies, the menus and the HUD
-live in the runlink modules.
+`check_names.py` compares every tracked file, every untracked file git does
+not ignore, and every commit message and added line with the names
+`make extract` read from your ROM, and fails on any that the DKR
+decompilation (a clone of it, `--dkr`) and ultralib do not have too. It prints
+the names it finds on your terminal only: never paste them anywhere.
+`--since 827f28f` skips one older commit whose hit the project has accepted.
+The full list of checks for a pull request is in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
@@ -255,4 +238,6 @@ Details are in [CREDITS.md](CREDITS.md).
 ## Licence
 
 MIT, see [LICENSE](LICENSE). Code adapted from the DKR decompilation is CC0
-upstream.
+upstream and credited in [CREDITS.md](CREDITS.md). The ROM, and anything
+extracted from it, is not part of this repository and is not covered by the
+licence.

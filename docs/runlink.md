@@ -1,3 +1,5 @@
+*For contributors working on the runlink modules, and readers curious about how Jet Force Gemini links code at run time: the ROM format, how this project splits and rebuilds it, and how to write a module in C.*
+
 # Runlink: Jet Force Gemini's run-time linked modules
 
 Most of Jet Force Gemini's game code (objects, enemies, menus and the HUD)
@@ -156,7 +158,9 @@ assembly functions bring their own .rodata (`ro/`, below).
 The splitter also writes `asm/nonmatchings/modules/mNNN/ro/`, the module's
 .rodata split per function (see "Per-function .rodata" below), for every
 module whose .rodata allows it; `build/runlink/rodata_split.txt` lists the
-modules that don't, and why.
+modules that don't, and why. At present 100 modules have a `ro/`
+directory, every module with a separate .rodata section is among them, and
+that list is empty.
 
 `tools/runlink_build.py` then plays the original linker. For each module it
 takes one ELF object, either assembled from `asm/modules/mNNN.s` or compiled
@@ -231,11 +235,15 @@ exported variable), `m108.c` (a call into another module), `m094.c` (a jump
 table in C), `m038.c` (a display list with C data), `m060.c` (C function,
 assembly data), `m001.c` (a particle library: C data, .rodata and .bss,
 static functions and the fini), `m118.c` (three behaviours sharing one jump
-table), `m025.c` and `m036.c` (DKR set-up code in JFG's form), and `m110.c`
-(a C function calling a static one that is still INCLUDE_ASM).
+table), `m025.c` and `m036.c` (DKR set-up code in JFG's form), `m003.c` (C
+functions calling static ones that are still INCLUDE_ASM, by their `rl_`
+names), and `m146.c` (C functions with float literals beside an assembly
+function that brings its own .rodata from `ro/`).
 
 Equivalent C that does not match yet is kept under `#ifdef NON_MATCHING`
-with the INCLUDE_ASM lines in the `#else` branch (m089, m110).
+with the INCLUDE_ASM lines in the `#else` branch (m089, m146). The general
+workflow for matching one function, the tools and IDO's habits are in
+[matching.md](matching.md).
 
 ### Per-function .rodata
 
@@ -262,19 +270,41 @@ the module's directory as before. m146 is the example (00350 stays
 assembly under NON_MATCHING with its floats and jump table, the rest is C).
 
 The splitter assigns each item (a run of words from one referenced offset to
-the next) to the one function that refers to it. An item the code only
-loads with `lwc1`/`ldc1` or jumps through is a literal or jump table (late);
-one whose address is taken is a string or `const` data (early). Where that
-does not give early items first and then literals, each in function order
-(`build/runlink/rodata_split.txt`: an item two functions or data share, or
-items out of function order, as in m006, which looks like several source
-files) the module has no `ro/`. A module without .data has no section
+the next) to the one function that refers to it. The kind of use decides
+where an item goes, not its contents: an item the code only loads with
+`lwc1`/`ldc1` or jumps through is a literal or jump table (late); one whose
+address is taken is a string or `const` data (early). Where that does not
+give early items first and then literals, each in function order (an item
+two functions or data share, or items out of function order, as in a module
+built from several source files), the module would get no `ro/`, and
+`build/runlink/rodata_split.txt` says why. A module without .data has no section
 start inside its data block, so the splitter writes the block as `data.s`;
 it is taken as .rodata for `ro/` when the code only loads floats and
 jump-table entries from it and it holds no other pointers (m124; such a C
 file then has no `INCLUDE_ASM(..., data)` either). The guess can be wrong (a `static const`
 float read directly counts as a literal): the build's SHA-1 shows it, and
 such a module keeps its .rodata in one piece.
+
+How the builder treats the `rl_` labels: a reference to a *defined*
+`rl_mNNN_XXXXX` in .rodata (the label of an assembly function's own
+.rodata) is rebased to the start of .rodata, with the rest of the offset in
+the instruction, as the original linker wrote it. A defined `rl_` name in
+.data keeps its own offset. The tools' self-test (`tools/ci_test_tools.py`)
+splits and rebuilds made-up modules byte for byte; after changing the
+splitter or the builder, run `bash tools/ci_norom.sh` in a clean checkout,
+because `make check` does not run it.
+
+What per-function .rodata changes in practice:
+
+- A module's .rodata no longer has to move to C all at once: a function can
+  go to C with its literals and `switch` while its neighbours stay assembly.
+- IDO writes a file's `static const` arrays into .rodata before every float
+  literal. A partly-C module whose first .rodata item is a literal can
+  therefore not get that order from C; an `extern f32 rl_mNNN_<rodata
+  start>[]` read by index can stand in (m029).
+- A string's place in .rodata follows its first use in the source. Debug
+  strings that the original compiled out with `stubbed_printf` still take
+  their place in the module's data (m089's).
 
 The probe-style check of one function (compile, compare with the ROM module
 with relocated fields masked) does not see static functions on their own:
@@ -291,7 +321,18 @@ start, `OBJ_STATE(obj, T)` for the state a behaviour keeps at 0x88) and
 module files declare their own types; new ones include `module.h`.
 
 Things that came up while matching module code (the main game's IDO -O2
-lessons apply too):
+lessons apply too; [matching.md](matching.md) collects them):
+
+- An exported function (one with a runlink name; its per-function `.s`
+  has no `jlabel rl_mNNN_XXXXX` line) is called from C by its
+  `func_mNNN_XXXXX` name even while it is still assembly. Calling it by an `rl_` name makes a kind-1 entry where
+  the ROM has kind 0: the probe cannot see that, only the full build's SHA-1.
+- A static function that only assembly calls has to wait for its callers;
+  once C calls it, it must be `static` (the builder refuses a global that
+  the module does not export). To call a still-assembly static from new C,
+  declare it by its `rl_mNNN_XXXXX` name and
+  `#define func_mNNN_XXXXX rl_mNNN_XXXXX`, so that the call keeps its
+  final spelling (m003, m007).
 
 - Unused parameters of non-leaf functions are still stored to their home
   slots; unexplained `& 0xFF` on byte fields, odd temporaries and unused
@@ -328,7 +369,7 @@ lessons apply too):
 - A static function that only assembly calls is dropped by IDO; keep it as
   INCLUDE_ASM until its callers are C (m118). The other way round, C calls a
   static function that is still INCLUDE_ASM by its module offset name,
-  `rl_mNNN_XXXXX` (m110). A module's .rodata comes either from all C and
+  `rl_mNNN_XXXXX` (m003). A module's .rodata comes either from all C and
   `ro/` (per function) or from one INCLUDE_ASM `rodata` block; with the
   block, the functions that use it (jump tables, float constants) go to C
   together.
@@ -382,7 +423,7 @@ for its siblings. (Kinds are named here from what the code does.)
 | pickups | 43, 72, 104, 118, 132 | a behaviour pair that checks the player's distance and gives an item, a flag and a message |
 | enemy behaviours | 3, 67, 138-152, 154, 155 | module 3 is the enemy AI (groups, patrol paths, firing); 138-152 are enemy kinds whose movement and facing functions module 3 calls, with the enemy record in `obj->unk68` (m148, m150); their attack decisions share one shape (`func_m003_0CAA4` then `func_m003_04260`: m141, m145, m148), and m141 and m145 share their up-and-down movement code; 67 is an enemy with its own missiles, landing and fog |
 | bosses | 50, 51, 52, 68 | a control function and eight helpers; 50 and 52 are the same source (the code differs only in data offsets and one constant), 51 shares four helper functions; 68 is a larger boss with its own shots, beams and flying pieces (each a behaviour pair) |
-| weapons | 15, 16, 17 | a large control function, a firing check and twenty-odd helpers of matching sizes |
+| weapons (character control) | 15, 16, 17 | a player character's behaviour: a large control function called every frame, a firing check and twenty-odd movement-state helpers of matching sizes; the three share much of their code (m017's control function matched from m015's C) |
 | menus and screens | 6, 9, 12, 13, 18, 37, 40, 42, 57-59, 61-63 | screens with init / per-frame / cleanup functions, and the HUD (6, 13, 14) |
 | effect libraries | 1, 2, 8, 10 | a pool of particles with add / update / draw / free functions that other modules call (module 10's spark is in `module.h`) |
 | fog and lighting | 23, 39 | init / update / fog / fade getters |
@@ -392,8 +433,8 @@ Identical pairs found by comparing the code: 50/52, 71/98, 111/133 (and 74/103
 have the same function sizes but different code).
 
 How far each kind is in C (`tools/progress.py --modules`; a module counts as
-all C when every function is, so modules whose C is only a NON_MATCHING body,
-such as m015 and m091, count as assembly here):
+all C when every function is, so a module with a function that is still only
+a NON_MATCHING body, such as m017 or m091, does not count as all C here):
 
 | kind | modules all C | functions in C |
 | --- | --- | --- |
