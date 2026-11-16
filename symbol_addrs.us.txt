@@ -9,3 +9,7 @@ D_800AD8B4 = 0x800AD8B4; // type:asciz
 D_800AA0D4 = 0x800AA0D4; // type:asciz
 // 67780.c: the empty string func_80066D28 passes after "CORE" (migrated into its .s)
 D_800AE858 = 0x800AE858; // type:asciz force_migration:True
+// 2BAA0.c: func_8002C118's 0.98f and the two unreferenced literals after it (kept in its .s)
+D_800ABDC8 = 0x800ABDC8; // type:f32
+D_800ABDCC = 0x800ABDCC; // type:f32 function_owner:func_8002C118
+D_800ABDD0 = 0x800ABDD0; // type:f32 function_owner:func_8002C118

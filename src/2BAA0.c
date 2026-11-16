@@ -1,5 +1,8 @@
 #include "common.h"
 
+// The unreferenced debug strings at the start of this file's .rodata.
+INCLUDE_RODATA("asm/nonmatchings/2BAA0", D_800ABD10);
+
 extern f32 D_800F6DC4;
 extern void *D_800F6DC0;
 extern s32 D_800A2D38;
@@ -159,7 +162,6 @@ typedef struct SoundSet {
 } SoundSet;
 
 extern SoundSet D_800A26C4[];
-extern f32 D_800ABDA8;
 s32 rand_range(s32 min, s32 max);
 f32 sqrtf(f32 x);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
@@ -207,7 +209,7 @@ void obj_play_move_sound(u8 *obj, u8 index) {
     set = &D_800A26C4[index];
     sounds = set->count * (racer->character & 3) + set->sounds;
     sound = sounds[rand_range(0, set->count - 1)];
-    if (D_800ABDA8 < sqrtf(*(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24) + *(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C))) {
+    if (0.7f < sqrtf(*(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24) + *(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C))) {
         audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4, NULL);
         enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     }
@@ -350,7 +352,6 @@ void func_8002CF6C(u8 *obj, Racer *racer, f32 updateRate);
 void func_80054530();
 /* The module trap with a float third argument; needs `func_80054530_ppf = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_ppf(void *arg0, void *arg1, f32 arg2);
-extern f32 D_800ABDAC;
 
 #define PLAYERCAM ((Transform2BAA0 *) D_800F6DC0)
 
@@ -412,7 +413,7 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
         if (model != NULL) {
             floorY = model->floorY - 100.0f;
             if (PLAYERCAM->position[1] < floorY) {
-                PLAYERCAM->position[1] += (floorY - PLAYERCAM->position[1]) * D_800ABDAC;
+                PLAYERCAM->position[1] += (floorY - PLAYERCAM->position[1]) * 0.175f;
             }
         }
         level = level_header();
@@ -431,8 +432,6 @@ void player_camera_update(u8 *obj, Racer *racer, f32 updateRate) {
     }
 }
 
-extern f32 D_800ABDB0;
-extern f32 D_800ABDB4;
 void *cam_get_active_camera(void);
 s16 angle_lerp(s16 from, s16 to, f32 t);
 f32 func_80049BEC(f32 rate, s32 updateRate);
@@ -469,10 +468,10 @@ void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     }
     tilt = 0.0f;
     if (racer->unk1E2 > 0x38E) {
-        tilt = (racer->unk1E2 - 0x38E) / D_800ABDB0;
+        tilt = (racer->unk1E2 - 0x38E) / 4551.11f;
     }
     if (racer->unk1E2 < -0x38E) {
-        tilt = (-0x38E - racer->unk1E2) / D_800ABDB4;
+        tilt = (-0x38E - racer->unk1E2) / 4551.11f;
     }
     if (tilt > 1.0f) {
         tilt = 1.0f;
@@ -507,10 +506,6 @@ void player_camera_eye_place(s16 *obj, Racer *racer, f32 updateRate) {
     ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * tilt;
 }
 
-extern f32 D_800ABDB8;
-extern f32 D_800ABDBC;
-extern f32 D_800ABDC0;
-extern f32 D_800ABDC4;
 f32 sqrtf(f32 x);
 f32 func_80049C34(s32 angle);
 f32 func_80049C30(s32 angle);
@@ -538,15 +533,15 @@ void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
     dist = sqrtf(dx * dx + dz * dz);
     rate = updateRate;
     angle = 0x6000 - obj[0];
-    angle = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(D_800ABDB8, rate));
-    dz = D_800ABDBC;
+    angle = angle_lerp(racer->unk104, angle, 1.0f - func_80049BEC(0.9f, rate));
+    dz = 0.925f;
     racer->unk104 = angle;
     dist = (1.0f - func_80049BEC(dz, rate)) * (120.0f - dist) + dist;
     dy = (1.0f - func_80049BEC(dz, rate)) * (50.0f - dy) + dy;
     dx = *(f32 *) (obj + 6) + func_80049C34(racer->unk104) * dist;
     y = *(f32 *) (obj + 8) + dy;
     dz = *(f32 *) (obj + 10) - func_80049C30(racer->unk104) * dist;
-    t = 1.0f - func_80049BEC(D_800ABDC0, rate);
+    t = 1.0f - func_80049BEC(0.9334f, rate);
     CHASECAM->position[0] += (dx - CHASECAM->position[0]) * t;
     CHASECAM->position[1] += (y - CHASECAM->position[1]) * t;
     CHASECAM->position[2] += (dz - CHASECAM->position[2]) * t;
@@ -559,7 +554,7 @@ void chase_camera_update(s16 *obj, Racer *racer, f32 updateRate) {
     dz = CHASECAM->position[2] - (*(f32 *) (obj + 10) + look[2]);
     angle = 0x8000 - func_80049C84(dx, dz);
     pitch = func_80049C84(y, sqrtf(dx * dx + dz * dz));
-    t = 1.0f - func_80049BEC(D_800ABDC4, rate);
+    t = 1.0f - func_80049BEC(0.9f, rate);
     CHASECAM->rotation[0] = angle_lerp(CHASECAM->rotation[0], angle, t);
     CHASECAM->rotation[1] = angle_lerp(CHASECAM->rotation[1], pitch, t);
     CHASECAM->rotation[2] = angle_lerp(CHASECAM->rotation[2], 0, t);
@@ -925,7 +920,6 @@ void func_8002F0DC(s32 player, f32 x, f32 y, f32 z) {
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F0DC);
 #endif
 
-extern f32 D_800ABE3C;
 f32 func_80049BEC(f32 rate, s32 updateRate);
 
 /* JFG: eases the player's zone offset towards its current zone's (x/z offsets by flags 1/2), adds it to *x and
@@ -963,7 +957,7 @@ void player_zone_offset_update(s32 player, f32 *z, f32 *x, s32 *hasPos, f32 *pos
         }
         t = 1.0f;
         if (ease) {
-            t = 1.0f - func_80049BEC(D_800ABE3C, updateRate);
+            t = 1.0f - func_80049BEC(0.9f, updateRate);
         }
         track->offsetX += (offsetX - track->offsetX) * t;
         track->offsetZ += (offsetZ - track->offsetZ) * t;
@@ -996,8 +990,6 @@ void func_8002F450(s32 index, f32 scale) {
 }
 
 extern f32 D_800A2D40;
-extern f32 D_800ABE40;
-extern f32 D_800ABE44;
 f32 func_80049BEC(f32 rate, s32 updateRate);
 
 void func_8002F50C(UNUSED s32 arg0, u8 *arg1, s32 updateRate) {
@@ -1009,10 +1001,10 @@ void func_8002F50C(UNUSED s32 arg0, u8 *arg1, s32 updateRate) {
         racer = *(u8 **) (*(u8 **) (arg1 + 0x24) + 0x68);
         if (racer[0x568] == 2 || racer[0x568] == 10) {
             target = 0.5f;
-            rate = D_800ABE40;
+            rate = 0.95f;
         } else if (racer[0x568] == 1 || (racer[0x568] == 2 && (s8) racer[1] != 2)) {
             target = 0.75f;
-            rate = D_800ABE44;
+            rate = 0.95f;
         } else {
             target = 1.0f;
             rate = 0.875f;
@@ -1064,7 +1056,6 @@ typedef struct ModelEntry {
     /* 0x4 */ s32 unk4;
 } ModelEntry;
 
-extern f32 D_800ABEA4;
 
 void func_800319C0(u8 *obj, u8 *arg1, u8 *racer, s32 updateRate) {
     s16 value = 0x300;
@@ -1076,7 +1067,7 @@ void func_800319C0(u8 *obj, u8 *arg1, u8 *racer, s32 updateRate) {
     *(s16 *) (arg1 + 0x92) += updateRate;
     if ((*(u16 *) (racer + 0x540) & 0xF) && (*(s16 *) (arg1 + 0x92) & 0x20)) {
         value = 0;
-    } else if (**(f32 **) (obj + 0x54) < D_800ABEA4) {
+    } else if (**(f32 **) (obj + 0x54) < 0.6f) {
         value = 0x100;
     }
     model = **(u8 ****) (obj + 0x6C);
@@ -1705,9 +1696,7 @@ void player_quick_turn(s16 *obj, Racer *racer, f32 *speed, s16 *angle, s16 wide,
     }
 }
 
-extern f32 D_800ABF68; // JFG: how fast the breathing level rises
-extern f32 D_800ABF6C; // and falls
-extern f32 D_800ABF70; // JFG: the breath length per breath period
+// JFG: 0.0013f/0.0025f are how fast the breathing level rises and falls; 0.2f is the breath length per breath period.
 
 /* JFG: the player's breathing: the level eases towards the speed (the larger of |velX| and |velZ|, 1 from 4 up), the
    phase advances by one breath every 180 - 130 * level frames, and a breath starts (breathNow, breathTimer) each
@@ -1737,14 +1726,14 @@ void player_breath_update(Racer *racer, f32 updateRate) {
         speed *= 0.25f;
     }
     if (racer->breathLevel < speed) {
-        vz = D_800ABF68;
+        vz = 0.0013f;
     } else {
-        vz = D_800ABF6C;
+        vz = 0.0025f;
     }
     racer->breathLevel += (speed - racer->breathLevel) * (1.0f - func_80049BEC(1.0f - vz, (s32) updateRate));
     racer->breathPhase += updateRate / (180.0f + -130.0f * racer->breathLevel);
     if (racer->breathPhase >= 1.0f) {
-        racer->breathTimer = (180.0f + -130.0f * racer->breathLevel) * D_800ABF70;
+        racer->breathTimer = (180.0f + -130.0f * racer->breathLevel) * 0.2f;
         racer->breathNow = 1;
         racer->breathPhase -= 1.0f;
     } else {
@@ -2495,24 +2484,23 @@ void player_squash_update(u8 *obj, Racer *racer, s32 updateRate) {
     }
 }
 
-extern f32 D_800ABF74;
-extern f32 D_800ABF78;
 
 /* JFG: ease the value at 0x48 towards the target at 0x4C; on arrival the target becomes 1.0.
    (The (f32) casts set the add.s operand order.) */
 void racer_ease_to_target(u8 *obj, f32 rate) {
-    f32 cur = *(f32 *) (obj + 0x48);
+f32 *p = (f32 *) (obj + 0x48);
+    f32 cur = *p;
     f32 target = *(f32 *) (obj + 0x4C);
 
     if (cur < target) {
-        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f + D_800ABF74) * rate;
-        if (target <= *(f32 *) (obj + 0x48)) {
+        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f + 0.02f) * rate;
+        if (target <= *p) {
             *(f32 *) (obj + 0x48) = target;
             *(f32 *) (obj + 0x4C) = 1.0f;
         }
     } else {
-        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f - D_800ABF78) * rate;
-        if (*(f32 *) (obj + 0x48) <= target) {
+        *(f32 *) (obj + 0x48) = (f32) cur + ((target - cur) * 0.125f - 0.02f) * rate;
+        if (*p <= target) {
             *(f32 *) (obj + 0x48) = target;
             *(f32 *) (obj + 0x4C) = 1.0f;
         }
