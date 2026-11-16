@@ -286,10 +286,10 @@ void func_m026_002F8(void) {
     }
 }
 
-#ifdef NON_MATCHING
 /*
  * Makes the colour table of each colour-cycling particle (shared between particles with the same cycle).
- * The last `|` of the colour word comes out with its operands swapped.
+ * A shared table's count is read from `cycle` before it is set, as the original does.
+ * The colour word's operand order is the one that gives the original's `or` order.
  */
 void func_m026_00518(void) {
     s32 j;
@@ -326,19 +326,14 @@ void func_m026_00518(void) {
                 desc->colourCount = count;
                 colours = desc->colours;
                 for (j = 0; j < count; j++) {
-                    *colours++ = (cycle.colour[0] << 24) | (cycle.colour[1] << 16) | (cycle.colour[2] << 8) |
-                                 (u32) cycle.colour[3];
+                    *colours++ = cycle.colour[3] | ((cycle.colour[1] << 16) | (cycle.colour[2] << 8) |
+                                                    (cycle.colour[0] << 24));
                     update_colour_cycle(&cycle, 1);
                 }
             }
         }
     }
 }
-#else
-/* the format string of the stubbed print above */
-static char sColourWarning[] = "Particle warning: colour cycle table exceeds 255 entries\n";
-INCLUDE_ASM("asm/nonmatchings/modules/m026", func_m026_00518);
-#endif
 
 /* Allocates the particle buffers (DKR init_particle_buffers) */
 void func_m026_006E8(s32 maxTriangles, s32 maxRectangles, s32 maxSprites, s32 maxLines, s32 maxPoints,
