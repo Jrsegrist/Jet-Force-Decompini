@@ -879,12 +879,6 @@ extern M068Section rl_m068_1254C[11];
 extern f32 func_80049C30(s32 angle); /* cosine */
 
 /* An explosion: the joint nearest it in each live part takes damage falling off with distance */
-#ifdef NON_MATCHING
-/*
- * Same code and frame; the saved registers are assigned in another order (the
- * ROM has blast in s0, hits s1, the part s2) and the limit (a float literal in
- * the ROM, kept in f30) swaps with damage (f28).
- */
 void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
     M068Hits *hits = (M068Hits *) obj->interactObj;
     M068Section *sec;
@@ -902,12 +896,14 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
 
     limit = 1.024e9f;
     for (i = 0; i < 11; i++) {
+        if (hits) {} /* register order */
         sec = &rl_m068_1254C[i];
         if (sec->first >= 0) {
             best = -1;
             if (sParts[i].alive) {
                 bestDist = limit;
                 for (j = sec->first; j <= sec->last; j++) {
+                    if (blast) {} /* register order */
                     joint = &hits->joints[j];
                     dx = blast->x - joint->x;
                     dy = blast->y - joint->y;
@@ -926,8 +922,8 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
                     }
                     if (dist <= blast->radius) {
                         f = func_80049C30(blast->falloff * dist) * damage;
-                        hits->hitPoints -= (s32) f;
-                        f /= (f32) (sec->last - sec->first + 1);
+                        hits->hitPoints -= (s16) f;
+                        f /= (f32) (best = sec->last - sec->first + 1); /* the joint count */
                         for (j = sec->first; j <= sec->last; j++) {
                             hits->joints[j].damage += f;
                         }
@@ -937,9 +933,6 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_01330);
-#endif
 
 extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
@@ -2204,7 +2197,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
 
 #ifdef NON_MATCHING
 /* Steers the first form towards target: slows to stop there, turns its body (unk98/unk96) into the motion; 1 while it moves */
-/* 5 diffs: the first dot product loads s->unkC4 before dir[1] in the ROM (operands of the multiply swapped). */
+/* 2 diffs: the first dot product loads s->unkC4 before dir[1] in the ROM (operands of the multiply swapped). */
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate) {
     f32 dir[2];
     f32 rot[2];
@@ -2249,7 +2242,7 @@ static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s3
     } else {
         result = 0;
     }
-    s->unk80 = (s32) (7.75f * speed) + 100;
+    s->unk80 = (s16) (7.75f * speed) + 100;
     return result;
 }
 #else
@@ -3112,9 +3105,13 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 #endif
 
 #ifdef NON_MATCHING
-/* The vertex clear loop: IDO unrolls it twice here, the ROM's is not unrolled */
+/*
+ * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop (22 diffs
+ * left): the outer offset, the row pointer and the second loop's i and prev take other argument registers.
+ */
 void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     M068Strip *m = obj->unk68;
+    Vertex *p;
     Triangle *tri;
     s32 i;
     s32 j;
@@ -3125,14 +3122,19 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     m->unk6C0 = setup->unk24;
     m->unk6C4 = setup->unk28;
     for (i = 0; i < 2; i++) {
-        for (j = 0; j < 72; j++) {
-            m->verts[i][j].x = 0;
-            m->verts[i][j].y = 0;
-            m->verts[i][j].z = 0;
-            m->verts[i][j].r = 255;
-            m->verts[i][j].g = 255;
-            m->verts[i][j].b = 255;
-            m->verts[i][j].a = 255;
+        p = m->verts[i];
+        j = 0;
+        while (TRUE) {
+            p[j].x = 0;
+            p[j].y = 0;
+            p[j].z = 0;
+            p[j].r = 255;
+            p[j].g = 255;
+            p[j].b = 255;
+            p[j].a = 255;
+            j++;
+            if (j < 72) continue;
+            break;
         }
     }
     tri = m->tris;
@@ -3877,25 +3879,19 @@ extern void func_80049394(Vec3s *rotation, Vec3f *vec);
 extern s32 rl_m068_125E8;       /* how many trail points (.data) */
 extern s32 rl_m068_125FC;       /* the boulders made (.data) */
 
-#ifdef NON_MATCHING
-/*
- * A boulder: starts 1000 units back along a random direction, with a trail, a
- * speed and a size. The frame is 8 bytes bigger (rotation 4 higher) and the
- * temporaries after the trail end are one lower than the ROM's.
- */
+/* A boulder: starts 1000 units back along a random direction, with a trail, a speed and a size */
 void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
-    M068Boulder *b;
     s32 i;
-    f32 f;
     ObjectHeaderUnk50 *hit;
     Vec3f *t;
     Vec3f *src;
     Vec3f v;
+    M068Boulder *b;
     Vec3s rot;
 
     b = obj->unk68;
-    b->unk70 = 0;
     b->kind = setup->kind;
+    b->unk70 = 0;
     rot.y_rotation = 0;
     rot.x_rotation = 0x3000;
     rot.z_rotation = func_80048E2C(-0x7FBC, 0x7FBC);
@@ -3906,7 +3902,9 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     obj->trans.x_position += v.x;
     obj->trans.y_position += v.y;
     obj->trans.z_position += v.z;
-    for (i = 0, t = b->trail, src = sTrailStart; i < rl_m068_125E8; i++, t++, src++) {
+    t = b->trail;
+    src = sTrailStart;
+    for (i = 0; i < rl_m068_125E8; i++, t++, src++) {
         t->x = src->x;
         t->y = src->y;
         t->z = src->z;
@@ -3919,17 +3917,16 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
         v.y = 0.0f;
         v.z = func_80048E2C(-400, -200);
         func_80049394(&rot, &v);
-        t = &b->trail[rl_m068_125E8 - 1];
+        t = (Vec3f *) &((f32 *) b->trail)[rl_m068_125E8 * 3] - 1; /* the last point */
         t->x += v.x;
         t->y += v.y;
         t->z += v.z;
     }
-    f = func_80048E2C(100, 200) / 10.0f;
-    b->speed = f;
+    b->speed = func_80048E2C(100, 200) / 10.0f;
     b->velocity.x = -v.x;
     b->velocity.y = -v.y;
     b->velocity.z = -v.z;
-    b->unk72 = f * 100.0f;
+    b->unk72 = b->speed * 100.0f;
     if (obj->light != NULL && *obj->light != 0) {
         b->colour = (u8 *) *obj->light + 0x48;
         b->r = b->colour[8];
@@ -3952,9 +3949,6 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     }
     rl_m068_125FC++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0F478);
-#endif
 
 /* The debris a boulder breaks into (an object entry) */
 typedef struct M068DebrisEntry {
@@ -4521,8 +4515,6 @@ extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 
 extern MtxF rl_m068_1250C;       /* (.data) */
 
 /* Breaks the object up: sends each of the six pieces flying out from its point of the model, then frees it */
-#ifdef NON_MATCHING
-/* Frame and slots match; the t-registers of the set-up are one higher and two loads swap places */
 void func_m068_110E0(Object *obj, s32 updateRate) {
     s32 *state;
     M068BreakModel *model;
@@ -4538,19 +4530,20 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
     s32 i;
     f32 d;
     M068Vertex *v;
-    UNUSED s32 pad[1];
+    M068Instance *inst;
 
     state = obj->unk68;
     if (*state != 0) {
-        model = *(M068BreakModel **) obj->modelInstances[obj->modelIndex];
         mtx = &((M068Matrices *) obj->unk5C)->mtx[((M068Matrices *) obj->unk5C)->current];
+        inst = obj->modelInstances[obj->modelIndex];
+        model = inst->model;
         entry.objectID = 0x65;
         entry.active = 1;
         entry.yRotation = obj->trans.rotation.y_rotation;
         entry.xRotation = obj->trans.rotation.x_rotation;
+        entry.zRotation = obj->trans.rotation.z_rotation;
         entry.mtx = &rl_m068_1250C;
         entry.unk1C = 3.0f;
-        entry.zRotation = obj->trans.rotation.z_rotation;
         entry.unk20 = 2.0f;
         entry.unk28 = 0.15f;
         for (i = 0; i < 6; i++) {
@@ -4577,9 +4570,6 @@ void func_m068_110E0(Object *obj, s32 updateRate) {
         func_800079B8(obj);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_110E0);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", data);
 
