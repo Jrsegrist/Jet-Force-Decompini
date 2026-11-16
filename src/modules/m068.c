@@ -879,12 +879,6 @@ extern M068Section rl_m068_1254C[11];
 extern f32 func_80049C30(s32 angle); /* cosine */
 
 /* An explosion: the joint nearest it in each live part takes damage falling off with distance */
-#ifdef NON_MATCHING
-/*
- * Same code and frame; the saved registers are assigned in another order (the
- * ROM has blast in s0, hits s1, the part s2) and the limit (a float literal in
- * the ROM, kept in f30) swaps with damage (f28).
- */
 void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
     M068Hits *hits = (M068Hits *) obj->interactObj;
     M068Section *sec;
@@ -902,12 +896,14 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
 
     limit = 1.024e9f;
     for (i = 0; i < 11; i++) {
+        if (hits) {} /* register order */
         sec = &rl_m068_1254C[i];
         if (sec->first >= 0) {
             best = -1;
             if (sParts[i].alive) {
                 bestDist = limit;
                 for (j = sec->first; j <= sec->last; j++) {
+                    if (blast) {} /* register order */
                     joint = &hits->joints[j];
                     dx = blast->x - joint->x;
                     dy = blast->y - joint->y;
@@ -926,8 +922,8 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
                     }
                     if (dist <= blast->radius) {
                         f = func_80049C30(blast->falloff * dist) * damage;
-                        hits->hitPoints -= (s32) f;
-                        f /= (f32) (sec->last - sec->first + 1);
+                        hits->hitPoints -= (s16) f;
+                        f /= (f32) (best = sec->last - sec->first + 1); /* the joint count */
                         for (j = sec->first; j <= sec->last; j++) {
                             hits->joints[j].damage += f;
                         }
@@ -937,9 +933,6 @@ void func_m068_01330(Object *obj, M068Blast *blast, f32 damage) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_01330);
-#endif
 
 extern s16 rl_m068_1260C;     /* the cut camera's angle round the centre */
 extern Vec3f *rl_m068_1261C;   /* what it looks at */
