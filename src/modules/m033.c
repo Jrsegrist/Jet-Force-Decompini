@@ -50,6 +50,7 @@ extern void func_8004AA80(void *data);            /* DKR mempool_free */
 
 #define RELOC(e, field) ((e)->field = (void *) ((u8 *) (e) + (s32) (e)->field))
 
+/* Loads and relocates the explosion definitions, sets their headers, and builds the ring's triangles */
 void func_m033_00000(void) {
     s32 *table;
     s32 i;

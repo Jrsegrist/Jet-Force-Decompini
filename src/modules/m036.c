@@ -82,6 +82,7 @@ static u32 sM036Key[4] = { 0xEC3CB676, 0xB81DBB8F, 0x6B3A80EC, 0xEDEA5B02 };
 static void func_m036_00250(void);
 static void default_alloc_displaylist_heap(void);
 
+/* Start-up: initialises each game system in turn, unloading the helper modules, then the display lists */
 void func_m036_00000(void) {
     check_reset_and_halt();
     func_m025_00308(D_800FB440);
@@ -141,6 +142,7 @@ void func_m036_00000(void) {
     func_80048E20(0xD43E);
 }
 
+/* Initialises the level globals and allocates and resets the game settings */
 static void func_m036_00250(void) {
     level_global_init();
     D_800FD748 = 0;

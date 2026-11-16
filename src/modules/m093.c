@@ -23,6 +23,7 @@ static s16 sFlagMessages[96] = {
     -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
 };
 
+/* Init: sets the angles and flag, shows the broken model if the flag is already set, and adds its collider */
 void func_m093_00000(Object *obj, M093Setup *setup) {
     M093Target *t = OBJ_STATE(obj, M093Target);
 
@@ -37,6 +38,7 @@ void func_m093_00000(Object *obj, M093Setup *setup) {
     func_80079D1C(obj, setup->unkB << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame): takes damage; when destroyed, sparks, plays a sound, sets the flag, shows a message */
 void func_m093_000BC(Object *obj, s32 updateRate) {
     ObjectInteraction *hit;
     SparkParams spark;

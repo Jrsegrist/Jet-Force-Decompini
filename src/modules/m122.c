@@ -109,6 +109,7 @@ extern s32 D_m122_010B0;                    /* the module's number */
 extern f32 func_80097140(f32 x);        /* sqrtf */
 void func_m122_00FE4(Object *obj, M122State *s);
 
+/* Init: frees the oldest blade past ten, places it, sets its timer and hit box, and loads its model */
 void func_m122_00000(Object *obj, M122Setup *setup) {
     M122State *s;
     s32 first;
@@ -404,6 +405,7 @@ void func_m122_004EC(Object *obj, s32 updateRate) {
     func_8005F5AC(obj, updateRate);
 }
 
+/* Pushes its matrix: relative to the holder's joint if stuck in one, else its own transform plus its spin */
 void func_m122_00F38(Gfx **dl, Mtx **mtx, Object *obj) {
     M122State *s;
     Object *holder;
@@ -421,6 +423,7 @@ void func_m122_00F38(Gfx **dl, Mtx **mtx, Object *obj) {
     }
 }
 
+/* Bounces it back: halves and reverses its horizontal speed, a random upward kick and a random spin */
 void func_m122_00FE4(Object *obj, M122State *s) {
     s->model = (void *) s->modelId;
     s->flags |= 0x20;

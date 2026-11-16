@@ -57,6 +57,7 @@ extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 s32 D_m132_00310 = 132; /* the module's number */
 
+/* Init: picks the model, finds the weapon from the object kind, scales kind 0x88, and sets the respawn time */
 void func_m132_00000(Object *obj, M132Setup *setup) {
     M132Pickup *p = OBJ_STATE(obj, M132Pickup);
     s32 i;
@@ -86,6 +87,7 @@ void func_m132_00000(Object *obj, M132Setup *setup) {
     p->fade = 0xFF;
 }
 
+/* Control (every frame): spins, fades back in, gives a touching player the weapon or its ammo, with a message */
 void func_m132_000E4(Object *obj, s32 updateRate) {
     M132Pickup *p = OBJ_STATE(obj, M132Pickup);
     s32 message;

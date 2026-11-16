@@ -20,11 +20,13 @@ extern void func_8005EDA4(s32, s32, s32, s32, s32, s32);
 extern s32 func_80048E2C(s32, s32);
 extern void func_8005F5AC(M078Object *, s32);
 
+/* Init: sets up its emitters from two entry bytes and keeps the entry's chance value */
 void func_m078_00000(M078Object *obj, M078Setup *setup) {
     func_8005EDA4(obj->unk70, setup->unkB, setup->unkA, 0, 0, 0);
     obj->unk88 = setup->unkC;
 }
 
+/* Control (every frame): turns the emitters on with a chance of value/1024, then runs them */
 void func_m078_00054(M078Object *obj, s32 updateRate) {
     if (obj->unk88 >= func_80048E2C(0, 0x400)) {
         obj->unk84 = 1;

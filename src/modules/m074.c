@@ -50,6 +50,7 @@ extern void func_80079D1C(M074Object *, s32, s32, s32, s32, s32, s32, f32, f32, 
 extern void func_800767EC();
 extern void func_80076928();
 
+/* Init: sets the switch's state, animation, mode and time, the angles and the scale, and its collider */
 void func_m074_00000(M074Object *obj, M074Setup *setup) {
     obj->sw.on = setup->unkA & 1;
     obj->sw.unk1 = setup->unkB;
@@ -65,6 +66,7 @@ void func_m074_00000(M074Object *obj, M074Setup *setup) {
     func_80079D1C(obj, 0x100, 1, 1, 0, 0, 0, obj->unk8 * 8.0f, obj->unk8 * 8.0f, -1.0f, 1.0f, 1);
 }
 
+/* Control (every frame): a hit toggles the switch (or turns it on for a time); runs or stops the animation */
 void func_m074_00110(M074Object *obj, s32 updateRate) {
     M074Switch *sw;
     u8 on;

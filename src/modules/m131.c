@@ -86,6 +86,7 @@ static M131Colours sSpriteColours[2] = {
     { 0xE0, 0xC0, 0xC0, 0x40, 0x20, 0xFF },
 };
 
+/* Init: sets velocity from the angles and speed, lifetime, swing radius and hit box by strength, and a light */
 void func_m131_00000(Object *obj, M131Setup *setup) {
     s32 size;
     M131Shot *s;
@@ -119,6 +120,7 @@ void func_m131_00000(Object *obj, M131Setup *setup) {
                                                            obj->trans.z_position, 400.0f, 250.0f, 0x40, 0x20, 0xFF);
 }
 
+/* Control (every frame): flies, swings its sprites and checks for hits; on a hit or timeout puffs and frees */
 void func_m131_001A4(Object *obj, s32 updateRate) {
     M131Hit hit;
     s32 done;
@@ -193,6 +195,7 @@ void func_m131_001A4(Object *obj, s32 updateRate) {
     }
 }
 
+/* Draws the two coloured sprites on either side of the shot at the swing offset */
 void func_m131_005BC(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M131Shot *s;
     M131Sprite sprite;

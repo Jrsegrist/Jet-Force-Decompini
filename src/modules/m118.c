@@ -98,6 +98,7 @@ static Object *robot_find(void) {
     return robot;
 }
 
+/* Init (target): copies its message, health, sparks, model swap and action, sets angles and collider */
 void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     M118Target *t = OBJ_STATE(obj, M118Target);
 
@@ -114,6 +115,7 @@ void func_m118_0007C(Object *obj, M118TargetSetup *setup) {
     func_80079D1C(obj, t->hitbox << 8, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame, target): hurt only by the robot; when destroyed, sparks, runs its action, messages */
 void func_m118_00140(Object *obj, s32 updateRate) {
     s32 n;
     SparkParams spark;
@@ -181,6 +183,7 @@ void func_m118_00140(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (collectable): sets its pick-up radius and message, fully shown */
 void func_m118_003DC(Object *obj, M118CollectableSetup *setup) {
     M118Collectable *c = OBJ_STATE(obj, M118Collectable);
 
@@ -189,6 +192,7 @@ void func_m118_003DC(Object *obj, M118CollectableSetup *setup) {
     c->fade = 0xFF;
 }
 
+/* Control (every frame, collectable): spins; when the robot comes within reach, flashes, sounds and fades out */
 void func_m118_00414(Object *obj, s32 updateRate) {
     M118Collectable *c;
     f32 dx;
@@ -247,6 +251,7 @@ void func_m118_00414(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (checkpoint): sets scale and angles, and builds the plane and radius from them */
 void func_m118_0063C(Object *obj, M118CheckSetup *setup) {
     M118Check *c = obj->unk68;
     f32 s;
@@ -266,6 +271,7 @@ void func_m118_0063C(Object *obj, M118CheckSetup *setup) {
     c->last = setup->last;
 }
 
+/* Control (every frame, checkpoint): robot near and behind the plane shows the message; the last one ends it */
 void func_m118_00794(Object *obj, s32 updateRate) {
     Object *player;
     Object *robot;

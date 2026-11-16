@@ -21,6 +21,7 @@ typedef struct M094Trigger {
 
 extern s32 func_800468B0(void);
 
+/* Init: copies the flag, level, argument and action from the level entry */
 void func_m094_00000(Object *obj, M094Setup *setup) {
     M094Trigger *t = OBJ_STATE(obj, M094Trigger);
 
@@ -30,6 +31,7 @@ void func_m094_00000(Object *obj, M094Setup *setup) {
     t->action = setup->action;
 }
 
+/* Control (every frame): in its level, once the flag is set, runs its action (one of six) and stops */
 void func_m094_00030(Object *obj, s32 updateRate) {
     M094Trigger *t;
 

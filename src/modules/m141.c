@@ -41,6 +41,7 @@ extern void func_m003_04F88(s32, f32);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 
+/* Unless on mission 0x14 or 5, when two module 3 checks pass, calls func_m003_0512C(6, 1.0f, 5) */
 void func_m141_00000(Object *obj) {
     M141Enemy *e = obj->unk68;
 

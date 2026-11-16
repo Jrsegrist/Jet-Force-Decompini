@@ -10,6 +10,7 @@ extern void func_8009A830(s32, void *);
 extern void func_80098050(void *, s32);
 extern void func_800982B0(void *, s32);
 
+/* Fills the 64-byte serial buffer with the 16-byte challenge (after 0xFF padding) and sends it (direction 1) */
 void func_m045_00000(u8 *data, s32 arg1) {
     u32 i;
     u8 *buf = D_800A3324;
@@ -29,6 +30,7 @@ void func_m045_00000(u8 *data, s32 arg1) {
     func_8009A804();
 }
 
+/* Runs the serial transfer the other way (direction 0) on the 64-byte buffer, to get the response */
 void func_m045_000C8(s32 arg0) {
     func_8009A7C0();
     D_80105340 = 0xFE;
@@ -37,6 +39,7 @@ void func_m045_000C8(s32 arg0) {
     func_8009A804();
 }
 
+/* Copies the 16 response bytes (at 0x30 in the serial buffer) out */
 void func_m045_0011C(u8 *out) {
     u8 *buf = D_800A3324;
     s32 i;

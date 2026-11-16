@@ -42,6 +42,7 @@ static WindowPiece sWindowPieces[] = {
 
 static WindowPiece *sWindowShapes[] = { sWindowPieces };
 
+/* Draws the shape's rectangles around a window at (x, y, width, height), scaling the colour's alpha per piece */
 void func_m157_00000(s32 arg0, u8 shape, s32 x, s32 y, s32 width, s32 height, u32 colour) {
     WindowRect *r;
     WindowPiece *p;

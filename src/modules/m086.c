@@ -64,6 +64,7 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 s32 D_m086_005C0 = 86; /* the module's number */
 
+/* Init: sets velocity, a random tumble, the lifetime and strength from the entry, and adds its light */
 void func_m086_00000(Object *obj, M086Setup *setup) {
     M086Shot *s = obj->unk68;
 
@@ -86,6 +87,7 @@ void func_m086_00000(Object *obj, M086Setup *setup) {
                                                            obj->trans.z_position, 500.0f, 300.0f, 0xFF, 0xE0, 0);
 }
 
+/* Control (every frame): flies and checks for hits; when done, leaves an object on water or bursts, then frees */
 void func_m086_00188(Object *obj, s32 updateRate) {
     M086Shot *s;
     s32 pad1;

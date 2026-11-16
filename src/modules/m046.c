@@ -94,6 +94,7 @@ static Gfx sOverlaySetupDL[] = {
     { 0x00000000, 0x00000000 },
 };
 
+/* Adds a target marker for an object slot, in the colour, if one of the eight is free */
 void func_m046_00000(s32 slot, s32 r, s32 g, s32 b) {
     M046Marker *m;
     s32 i;
@@ -119,6 +120,7 @@ void func_m046_00000(s32 slot, s32 r, s32 g, s32 b) {
     }
 }
 
+/* Frees the markers tied to an object slot */
 void func_m046_0008C(s32 slot) {
     M046Marker *m;
     s32 i;
@@ -136,6 +138,7 @@ void func_m046_0008C(s32 slot) {
     }
 }
 
+/* Every frame: shrinks each marker's boxes and blinks its object (tinted on odd frames) */
 void func_m046_000F8(s32 updateRate) {
     M046Marker *m;
     s32 i;
@@ -235,6 +238,7 @@ static void render_bracket_box(Gfx **dl, s32 x, s32 y, s32 w, s32 h, s32 r, s32 
     menu_fill_boxes(dl, 8, rects, 0);
 }
 
+/* Draws each marker's three bracket boxes, fading outwards, around its object's screen position */
 void func_m046_00308(Gfx **dl) {
     M046Marker *m;
     s32 i;
@@ -278,6 +282,7 @@ void func_m046_00308(Gfx **dl) {
     }
 }
 
+/* Sets the overlay colour and starts its alpha moving from now to `alpha` over `duration` */
 void func_m046_0049C(s32 r, s32 g, s32 b, s32 alpha, s32 duration) {
     D_801046E8 = r;
     D_801046EA = g;
@@ -288,6 +293,7 @@ void func_m046_0049C(s32 r, s32 g, s32 b, s32 alpha, s32 duration) {
     D_801046F4 = duration;
 }
 
+/* Every frame: moves the overlay alpha towards its target */
 void func_m046_004E4(s32 updateRate) {
     if (D_801046F4 != 0) {
         D_801046EE = D_801046F2;
@@ -300,6 +306,7 @@ void func_m046_004E4(s32 updateRate) {
     }
 }
 
+/* Draws the full-screen colour overlay when its alpha is nonzero */
 void func_m046_00584(Gfx **dl) {
     s32 inv;
     s32 r;
@@ -322,6 +329,7 @@ void func_m046_00584(Gfx **dl) {
     }
 }
 
+/* Moves the colour level, tints it by the lighting modules, and scales the enabled batches' vertex colours */
 void func_m046_006EC(u8 *enabled, M046Model *model, s32 updateRate) {
     s32 i;
     M046Batch *batch;

@@ -58,6 +58,7 @@ extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* di
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 
+/* When a module 3 check passes and a random roll is under the home's chance, starts the swoop (mission 0x12) */
 void func_m147_00000(Object *obj) {
     M147Enemy *e = obj->unk68;
     Object *homeObj = e->home;

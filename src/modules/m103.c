@@ -43,6 +43,7 @@ extern void func_800079B8(M103Object *);
 
 s32 D_m103_00240 = 103; /* the module's number */
 
+/* Init: sets scale, collider, a rate, the bonus kind, and remembers the current health */
 void func_m103_00000(M103Object *obj, M103Setup *setup) {
     M103State *state = &obj->unk88;
 
@@ -54,6 +55,7 @@ void func_m103_00000(M103Object *obj, M103Setup *setup) {
     state->unk7 = setup->unkC;
 }
 
+/* Control (every frame): shrinks faster for 15 frames after a hit; at zero health drops a bonus, frees */
 void func_m103_00110(M103Object *obj, s32 updateRate) {
     M103State *state;
 

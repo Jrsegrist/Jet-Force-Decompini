@@ -86,6 +86,7 @@ static Gfx sLogoDrawMode[] = {
     gsSPEndDisplayList(),
 };
 
+/* Loads the two full-screen images, the three logo textures and the animated logo, and resets the fades */
 void func_m057_00000(void) {
     sFirstImage = screenimage_load(0);
     sSecondImage = screenimage_load(1);
@@ -102,6 +103,7 @@ void func_m057_00000(void) {
     sAnimatedLogoFade = 0;
 }
 
+/* Every frame: steps the fade sequence through its stages and draws whatever is faded in */
 void func_m057_000C0(s32 updateRate) {
     switch (sStage) {
         case 1:
@@ -240,6 +242,7 @@ void func_m057_000C0(s32 updateRate) {
     }
 }
 
+/* Frees the animated logo, the logo textures and the two images */
 void func_m057_0090C(void) {
     func_m055_0022C(sAnimatedLogo);
     func_80055A00(sLogoBottomRight);

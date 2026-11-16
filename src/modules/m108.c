@@ -37,6 +37,7 @@ extern void func_m006_011E0(M108PlayerData *, s32);
 
 s32 D_m108_00220 = 108; /* the module's number */
 
+/* Init: the key number from the object kind (minus 600), scale from the entry's size, and its collider */
 void func_m108_00000(M108Object *obj, M108Setup *setup) {
     u8 *key = obj->unk68;
     f32 scale;
@@ -50,6 +51,7 @@ void func_m108_00000(M108Object *obj, M108Setup *setup) {
     func_80079D1C(obj, -1, 1, 1, 0, 0, 0, 30.0f, 30.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame): spins; freed if the player has the key, else gives it on touch, with sound, message */
 void func_m108_000CC(M108Object *obj, s32 updateRate) {
     s32 pad0[2]; /* the unused stack slots come from locals the original had */
     M108PlayerData *data;

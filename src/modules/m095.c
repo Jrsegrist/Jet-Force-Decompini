@@ -135,6 +135,7 @@ s32 D_m095_01848 = 95; /* the module's number */
 static M095Data *sUsers[4];
 static s32 sUserCount;
 
+/* Clears a user's weapon data, sets its owner and adds it to the user list */
 void func_m095_00000(Object *owner, M095Data *data) {
     func_80098360(data, 0x624);
     data->owner = owner;
@@ -601,6 +602,7 @@ void func_m095_0148C(Object *obj, M095Data *data, Gfx **dlp, Mtx **mtxp, struct 
     *vtxp = vtx;
 }
 
+/* Module teardown: removes and frees the flame light of each player user */
 void func_m095_0175C(void) {
     s32 i;
     Object *owner;

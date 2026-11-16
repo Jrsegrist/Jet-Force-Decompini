@@ -39,6 +39,7 @@ extern void func_m003_04F88(s32, f32);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 
+/* Unless on mission 5, when two module 3 checks pass, may fire both guns (home's chance), then func_m003_04398 */
 void func_m145_00000(Object *obj) {
     M145Enemy *e = obj->unk68;
     Object *homeObj = e->home;
@@ -59,6 +60,7 @@ void func_m145_00000(Object *obj) {
     }
 }
 
+/* Moves up to the top of its column, then down to the bottom and to a new random spot around home */
 void func_m145_000D0(Object *obj) {
     M145Enemy *e;
     Object *homeObj;

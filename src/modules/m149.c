@@ -175,6 +175,10 @@ static Object *sArena;    /* the object with ID 0x61: the arena's centre */
 static s32 sBoltCount;
 static s32 sSwoopSide;
 
+/*
+ * Sets up the boss's state the first time; each frame faces the player, checks which hit zones are shot
+ * away for its phase, and picks its next attack through module 3
+ */
 void func_m149_00000(Object *obj) {
     M149Enemy *e;
     Object *ownerObj;

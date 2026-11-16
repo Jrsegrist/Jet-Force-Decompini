@@ -65,10 +65,12 @@ static s32 sUnusedBss;
 static M005Field sStreakField;
 static u32 *sStreakColours; /* one per streak, after the streaks */
 
+/* Returns the point field's allocation (NULL when there is none) */
 void *func_m005_00000(void) {
     return sPoints;
 }
 
+/* Frees the point field if there is one */
 void func_m005_00010(void) {
     if (sPoints != NULL) {
         func_8004AA80(sPoints);
@@ -77,6 +79,7 @@ void func_m005_00010(void) {
     }
 }
 
+/* Sets up the point field: `count` random points in the box, and a 256-shade ramp between the two colours */
 void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom, u32 colourTo, s32 fade) {
     M005Point *pt;
     u16 *colours;
@@ -124,6 +127,7 @@ void func_m005_0004C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom,
     }
 }
 
+/* Stores the point field's velocity and moves the points by it, wrapping them round in the box */
 void func_m005_00434(f32 velX, f32 velY, f32 velZ, s32 updateRate) {
     M005Field *f = &sPointField;
 
@@ -178,10 +182,12 @@ void func_m005_0050C(Gfx **dl, f32 focal) {
     func_80055B80(dl);
 }
 
+/* Returns the streak field's allocation (NULL when there is none) */
 void *func_m005_00708(void) {
     return sStreaks;
 }
 
+/* Frees the streak field if there is one */
 void func_m005_00718(void) {
     if (sStreaks != NULL) {
         func_8004AA80(sStreaks);
@@ -246,6 +252,7 @@ void func_m005_0074C(s32 count, s32 sizeX, s32 sizeY, s32 sizeZ, u32 colourFrom,
     }
 }
 
+/* Moves the streaks by the given wind plus the camera's movement since last time, wrapping in the box */
 void func_m005_00A58(f32 velX, f32 velY, f32 velZ, s32 updateRate) {
     M005Field *f = &sStreakField;
     ObjectTransform *cam;
@@ -284,14 +291,17 @@ void func_m005_00A58(f32 velX, f32 velY, f32 velZ, s32 updateRate) {
     }
 }
 
+/* Sets whether the streaks are drawn */
 void func_m005_00BF8(s32 shown) {
     sStreaksShown = shown;
 }
 
+/* Forgets the streak field's last camera position (so the next move ignores the camera) */
 void func_m005_00C04(void) {
     sStreakField.hasCamera = 0;
 }
 
+/* Draws a `density` fraction of the streaks, if shown, facing the camera's heading */
 void func_m005_00C10(s32 arg0, s32 arg1, s32 arg2, f32 arg3, f32 density) {
     s32 count;
     M005Field *f = &sStreakField;

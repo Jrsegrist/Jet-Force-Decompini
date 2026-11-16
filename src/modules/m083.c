@@ -68,6 +68,7 @@ extern u8 D_800A4FC4;
 
 s32 D_m083_01200 = 83; /* the module's number */
 
+/* Init (big one): aims by the entry's angles, moves to where a sweep meets the level, sets speed, collider */
 void func_m083_00000(Object *obj, M083Setup *setup) {
     M083State *state = OBJ_STATE(obj, M083State);
     HitResult hit;
@@ -103,6 +104,7 @@ void func_m083_00000(Object *obj, M083Setup *setup) {
     func_80079D1C(obj, 0x1800, 1, 4, 0, 0, 0, 8.0f, 8.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame, big one): flies under gravity or water drag; on a hit or timeout bursts into three */
 void func_m083_001EC(Object *obj, s32 updateRate) {
     M083State *state;
     Object *spawned;
@@ -242,6 +244,7 @@ void func_m083_001EC(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (small one): sets its velocity from the entry's angles and speed, its timer and its collider */
 void func_m083_009C8(Object *obj, M083Setup *setup) {
     M083SmallState *state = OBJ_STATE(obj, M083SmallState);
 
@@ -258,6 +261,7 @@ void func_m083_009C8(Object *obj, M083Setup *setup) {
     func_80079D1C(obj, 0x800, 1, 4, 0, 0, 0, 8.0f, 8.0f, -1.0f, 1.0f, 0x11);
 }
 
+/* Control (every frame, small one): spins and flies, slowed in water or a fast fall; on a hit bursts into four */
 void func_m083_00A88(Object *obj, s32 updateRate) {
     Object *spawned;
     f32 dx;

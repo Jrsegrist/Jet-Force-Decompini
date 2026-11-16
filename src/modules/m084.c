@@ -20,6 +20,7 @@ typedef struct M084Object {
 
 extern void func_800079B8(M084Object *);
 
+/* Init: scales the object's size, sets its angle, and starts the timer (seconds) from the level entry */
 void func_m084_00000(M084Object *obj, M084Setup *setup) {
     f32 *timer = obj->unk68;
 
@@ -28,6 +29,7 @@ void func_m084_00000(M084Object *obj, M084Setup *setup) {
     *timer = setup->unkC;
 }
 
+/* Control (every frame): counts the timer down, then fades the alpha out and frees the object */
 void func_m084_00030(M084Object *obj, s32 updateRate) {
     f32 *timer = obj->unk68;
     s32 fade;

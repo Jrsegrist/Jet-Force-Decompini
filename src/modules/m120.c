@@ -128,6 +128,7 @@ typedef struct M120HaloSetup {
 
 s32 D_m120_00AD0 = 120; /* the module's number */
 
+/* Init (burst): four frames of spawning; copies kind, variant, angles, aim and owner from the entry */
 void func_m120_00000(Object *obj, M120BurstSetup *setup) {
     M120Burst *b = obj->unk68;
 
@@ -143,6 +144,10 @@ void func_m120_00000(Object *obj, M120BurstSetup *setup) {
     b->owner = setup->owner;
 }
 
+/*
+ * Control (every frame, burst): animates once then frees itself; fades the linked object; for its first
+ * frames throws sparks, flame particles and a scorch mark, then leaves two dark puffs
+ */
 void func_m120_00060(Object *obj, s32 updateRate) {
     M120Burst *b;
     s32 pitchMin;
@@ -327,6 +332,7 @@ void func_m120_00060(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (lingering flame): sets scale and lifetime from the entry and adds its light */
 void func_m120_0080C(Object *obj, M120LingerSetup *setup) {
     LightParams lp;
     s32 unusedA;
@@ -352,6 +358,7 @@ void func_m120_0080C(Object *obj, M120LingerSetup *setup) {
     OBJ_STATE(obj, M120Linger)->light = func_800210A4(obj, &lp);
 }
 
+/* Control (every frame, lingering flame): emits and animates; shrinks and dims at the end, then frees */
 void func_m120_008CC(Object *obj, s32 updateRate) {
     s32 anim;
     M120Linger *st;
@@ -379,6 +386,7 @@ void func_m120_008CC(Object *obj, s32 updateRate) {
     }
 }
 
+/* Init (halo): sets angles, a tiny scale, and the growth per frame to reach its size over its life */
 void func_m120_009D0(Object *obj, M120HaloSetup *setup) {
     obj->trans.rotation.y_rotation = setup->y_rotation;
     obj->trans.rotation.x_rotation = setup->x_rotation;
@@ -388,6 +396,7 @@ void func_m120_009D0(Object *obj, M120HaloSetup *setup) {
     OBJ_STATE(obj, M120Halo)->alpha = 0xFF;
 }
 
+/* Control (every frame, halo): grows, fades over its last 32 frames, then frees itself */
 void func_m120_00A24(Object *obj, s32 updateRate) {
     M120Halo *st;
 

@@ -54,6 +54,7 @@ static AudioLine gAudioLines[MAX_AUDIO_LINES];
 
 void func_m044_0003C(void);
 
+/* Module init: clears every line's sound handle, then resets the lines */
 void func_m044_00000(void) {
     s32 i;
 

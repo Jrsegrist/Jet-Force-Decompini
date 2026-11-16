@@ -99,6 +99,7 @@ extern M035Font *func_8004D37C(s32 asset);
 extern void func_8004D530(s32 asset, void *dst, s32 offset, s32 size);
 extern void fontCreateDisplayList(void *);
 
+/* Resets the 8 text windows and 32 text entries, allocates the glyph buffers and loads the four fonts */
 void func_m035_00000(void) {
     s32 i;
     s32 j;

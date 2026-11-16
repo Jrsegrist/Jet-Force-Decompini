@@ -37,6 +37,7 @@ extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 
 s32 D_m100_002F0 = 100; /* the module's number */
 
+/* Init: sets the pad's area, height range, top-up amount and uses (0 meaning unlimited), and its collider */
 void func_m100_00000(Object *obj, M100Setup *setup) {
     M100Pad *pad = obj->unk68;
 
@@ -56,6 +57,7 @@ void func_m100_00000(Object *obj, M100Setup *setup) {
     *(s32 *) obj->state = 0;
 }
 
+/* Control (every frame): tops up the fuel of eligible players standing on the pad, counting down its uses */
 void func_m100_00110(Object *obj, s32 updateRate) {
     s32 i;
     s32 n;

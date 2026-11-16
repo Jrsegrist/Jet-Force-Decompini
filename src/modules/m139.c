@@ -43,6 +43,7 @@ void func_m139_00000(void) {
 }
 #pragma weak __rl_init = func_m139_00000
 
+/* Rebuilds the list from the active objects (up to 32) */
 void func_m139_00030(void) {
     s32 start;
     s32 end;

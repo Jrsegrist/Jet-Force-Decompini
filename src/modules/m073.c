@@ -155,6 +155,7 @@ static M073GlowSet D_m073_00AC0[] = {
     { 0x325, 2, D_m073_00AA0 },  { -1, 0, NULL },
 };
 
+/* Init: creates a flare at each of the object's table points, with a random pulse phase */
 void func_m073_00000(Object *obj, LevelObjectEntryCommon *setup) {
     M073Glow *glows;
     M073Glow *glow;
@@ -195,6 +196,7 @@ void func_m073_00000(Object *obj, LevelObjectEntryCommon *setup) {
     }
 }
 
+/* Control (every frame): fades each flare towards its target alpha and pulses its size and texture */
 void func_m073_00208(Object *obj, s32 updateRate) {
     M073Glow *glow;
     M073Flare *flare;
@@ -223,6 +225,7 @@ void func_m073_00208(Object *obj, s32 updateRate) {
     func_80026FD4(obj, updateRate);
 }
 
+/* Frees the flares and stops the object's positioned sound if it has one */
 void func_m073_0037C(Object *obj) {
     M073Glow *glow;
     s32 i;
@@ -240,6 +243,7 @@ void func_m073_0037C(Object *obj) {
     }
 }
 
+/* Draws the visible flares at their model points, nearest to the camera first */
 void func_m073_003F4(Gfx **dl, s32 arg1, Object *obj) {
     s16 i;
     s16 j;

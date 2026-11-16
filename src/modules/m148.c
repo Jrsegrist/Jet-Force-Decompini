@@ -27,6 +27,7 @@ extern void func_m003_04260(s32, s32, s32, s32, s32);
 extern void func_m003_04398(s32, s32);
 extern void func_m003_07E88(s32, s32, s32);
 
+/* When a module 3 check passes, switches the turret to its firing mission (0x16) */
 void func_m148_00000(Object *obj) {
     M148Enemy *e = obj->unk68;
 
@@ -37,6 +38,7 @@ void func_m148_00000(Object *obj) {
     }
 }
 
+/* Spins the turret up, fires a burst of 24 shots, then spins it down; returns its target point */
 void func_m148_00060(Object *obj, f32 *x, f32 *y, f32 *z) {
     M148Enemy *e = obj->unk68;
     s16 *turn = e->turn;

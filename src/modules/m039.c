@@ -62,6 +62,7 @@ static s32 sFogB;
 static s32 sFogNear;
 static s32 sFogFar;
 
+/* Adds the ambient light, starts at the first keyframe and applies it */
 void func_m039_00000(void) {
     LightParams lp;
 
@@ -85,6 +86,7 @@ void func_m039_00000(void) {
     func_m039_000D0(0);
 }
 
+/* Removes the ambient light if there is one */
 void func_m039_0009C(void) {
     if (sLight != NULL) {
         func_8002179C(sLight);
@@ -94,6 +96,7 @@ void func_m039_0009C(void) {
 
 #define BLEND(field) (cur->field + (next->field - cur->field) * frac)
 
+/* Advances the time, steps through the keyframes and blends track colour, fog and light towards the next */
 void func_m039_000D0(s32 updateRate) {
     M039Key *cur;
     M039Key *next;
@@ -137,6 +140,7 @@ void func_m039_000D0(s32 updateRate) {
     }
 }
 
+/* Returns the current fog distances and colour */
 void func_m039_004FC(s16 *near, s16 *far, u8 *r, u8 *g, u8 *b) {
     *near = sFogNear;
     *far = sFogFar;
@@ -145,6 +149,7 @@ void func_m039_004FC(s16 *near, s16 *far, u8 *r, u8 *g, u8 *b) {
     *b = sFogB;
 }
 
+/* Returns the current track colour */
 void func_m039_00540(s32 *r, s32 *g, s32 *b) {
     *r = sTrackRed;
     *g = sTrackGreen;

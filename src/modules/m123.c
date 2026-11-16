@@ -56,6 +56,7 @@ extern void *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_f
 extern void *corona_add(Object *obj, M123BeamParams *params);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 
+/* Init: picks the model, sets the base angles, and adds the light and the beam if the entry asks for them */
 void func_m123_00000(Object *obj, M123Setup *setup) {
     LightParams lp;
     M123BeamParams bp;
@@ -116,6 +117,7 @@ void func_m123_00000(Object *obj, M123Setup *setup) {
     l->period = setup->period;
 }
 
+/* Control (every frame): turns it round once a period, or swings its yaw or pitch to and fro, by mode */
 void func_m123_00208(Object *obj, s32 updateRate) {
     M123Light *l = obj->unk68;
     s32 phase;

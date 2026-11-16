@@ -4,6 +4,7 @@
 extern void func_80099CB0(void); /* takes the PI */
 extern void func_80099CF4(void); /* releases the PI */
 
+/* Waits for the PI, reads the cartridge word at addr | 0xB0000454; returns 1 if it is 0x0109082B */
 s32 func_m111_00000(u32 addr) {
     register u32 stat;
 
