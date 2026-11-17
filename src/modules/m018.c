@@ -170,6 +170,7 @@ extern u8 *get_settings(void);
  * images that are no longer used and loads the new ones (each once).
  */
 #ifdef NON_MATCHING
+/* 141 -> 28 diffs: `for (found = j = 0; ...)` and the empty `if (found) {}`s */
 /* Same code, frame and slots; the argument/temp registers of the inner loops are one off (ROM: image a3, j a1, found a2) */
 void func_m018_00AEC(void) {
     s32 i;
@@ -187,9 +188,10 @@ void func_m018_00AEC(void) {
     for (i = 0; i < 4; i++) {
         image = rl_m018_06C98[i];
         if (image != -1) {
-            found = 0;
-            for (j = 0; j < nOld; j++) {
+            for (found = j = 0; j < nOld; j++) {
                 if (image == old[j]) {
+                    if (found) {
+                    }
                     found = 1;
                 }
             }
@@ -202,8 +204,7 @@ void func_m018_00AEC(void) {
     for (i = 0; i < 4; i++) {
         image = record[0x534 + i] + 10;
         rl_m018_06C98[i] = image;
-        found = 0;
-        for (j = 0; j < nNew; j++) {
+        for (found = j = 0; j < nNew; j++) {
             if (image == new[j]) {
                 found = 1;
             }
@@ -214,9 +215,10 @@ void func_m018_00AEC(void) {
     }
     for (i = 0; i < nOld; i++) {
         image = old[i];
-        found = 0;
-        for (j = 0; j < nNew; j++) {
+        for (found = j = 0; j < nNew; j++) {
             if (image == new[j]) {
+                if (found) {
+                }
                 found = 1;
             }
         }
@@ -226,8 +228,7 @@ void func_m018_00AEC(void) {
     }
     for (i = 0; i < nNew; i++) {
         image = new[i];
-        found = 0;
-        for (j = 0; j < nOld; j++) {
+        for (found = j = 0; j < nOld; j++) {
             if (image == old[j]) {
                 found = 1;
             }

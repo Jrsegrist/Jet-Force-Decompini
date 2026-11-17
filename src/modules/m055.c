@@ -237,6 +237,7 @@ void func_m055_002A0(M055Player *player, s32 updateRate) {
 }
 
 #ifdef NON_MATCHING
+/* 307 -> 141 diffs with the empty ifs on xh, height and step */
 /* Not matched yet: the structure is right, but the order of the set-up computations, the
    registers of the hoisted display-list words and the frame (0x108 here, 0x100) differ. */
 void func_m055_005B4(M055Player *player, Gfx **dl, f32 scale) {
@@ -275,12 +276,20 @@ void func_m055_005B4(M055Player *player, Gfx **dl, f32 scale) {
         xh = (s32) (width * scale * 4.0f) + x;
         y = player->y << 16;
         prevY = y;
+        if (xh) {
+        }
         lineBytes = width * 2;
         step = 1024.0f / scale;
         yScale = scale * 65536.0f;
         if (height != 0) {
             rows = (0x800 / lineBytes) & ~1;
           do {
+            if (height) {
+            }
+            if (height) {
+            }
+            if (step) {
+            }
             if (rows < height) {
                 n = rows;
                 height -= rows;

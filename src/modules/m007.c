@@ -522,6 +522,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_007E4);
 #endif
 
 #ifdef NON_MATCHING
+/* 80 -> 60 diffs with the empty ifs on id, kind, t and i */
 /*
  * Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet.
  * NON_MATCHING: the frame is two words bigger and the registers differ; func_m007_00C90 (close:
@@ -533,12 +534,20 @@ static void *func_m007_00988(s32 id, s32 kind) {
     s32 i;
     s32 asset;
 
+    if (id) {
+    }
     for (t = rl_m007_02C58; t < &rl_m007_02C58[32]; t++) {
+        if (kind) {
+        }
         if (t->data != NULL && id == t->id) {
             return t->data;
         }
     }
     for (i = 0; i < 32 && rl_m007_02C58[i].data != NULL; i++) {
+    }
+    if (t) {
+    }
+    if (t) {
     }
     if (i >= 32) {
         return NULL;
@@ -566,6 +575,10 @@ static void *func_m007_00988(s32 id, s32 kind) {
     if (t->data != NULL) {
         t->id = id;
         rl_m007_02A48++;
+    }
+    if (i) {
+    }
+    if (i) {
     }
     return t->data;
 }

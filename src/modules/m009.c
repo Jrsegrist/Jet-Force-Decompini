@@ -658,6 +658,7 @@ void func_m009_039F0(void) {
 extern u8 rl_m009_043C8[24]; /* the shade of each vertex of a world model's disc */
 extern u8 rl_m009_043E0[24]; /* and of its glow */
 
+/* 367 -> 164 diffs with the empty ifs on i, v, glowV and glowTri in the loop */
 /*
  * Sets up the next world model: a disc of 23 triangles round a centre vertex for the icon, and one for
  * its glow. Same length, frame and stores; the four triangle and vertex pointers get other s-registers,
@@ -725,6 +726,10 @@ static void func_m009_03D0C(M009Icon *icon) {
     u = func_80048E2C(0, 32) << 5;
     w = func_80048E2C(0, 32) << 5;
     for (i = 1; i != 24; i++) {
+        if (i) {
+        }
+        if (i) {
+        }
         sine = func_80049C34(angle);
         cosine = func_80049C30(angle);
         v->x = icon->radius * sine;
@@ -748,10 +753,18 @@ static void func_m009_03D0C(M009Icon *icon) {
         glowTri->vi0 = 0;
         tri->vi0 = 0;
         glowTri->vi1 = i;
+        if (v) {
+        }
+        if (v) {
+        }
         tri->vi1 = i;
         glowTri->vi2 = i + 1;
         tri->vi2 = i + 1;
         tri->uv[0][0] = (size + 1) << 5;
+        if (glowV) {
+        }
+        if (glowV) {
+        }
         tri->uv[0][1] = (size + 1) << 5;
         tri->uv[1][0] = ((size + 1) << 5) + (size << 5) * sine;
         tri->uv[1][1] = ((size + 1) << 5) + (size << 5) * cosine;
@@ -765,6 +778,14 @@ static void func_m009_03D0C(M009Icon *icon) {
         glowTri->uv[2][0] = func_80049C34(angle + 0xB21) * (glowSize << 3) + ((glowSize + 1) << 5) + u;
         glowTri->uv[2][1] = func_80049C30(angle + 0xB21) * (glowSize << 5) + ((glowSize + 1) << 5) + w;
         glowTri++;
+        if (glowTri) {
+        }
+        if (i) {
+        }
+        if (i) {
+        }
+        if (glowTri) {
+        }
         angle += 0xB21;
     }
     glowTri--;

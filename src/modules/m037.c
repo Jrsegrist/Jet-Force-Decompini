@@ -243,6 +243,7 @@ s32 func_m037_01ACC(s32 value, s32 arg1, s32 top);
 
 #ifdef NON_MATCHING
 /* register allocation (the ROM keeps more of the pointers and flags in s-registers) and the frame */
+/* 1591 -> 1024 diffs with the empty `if (inst) {}` / `if (obj) {}` */
 /* The options page: moves the console's parts, draws the box and the items, and handles the pad */
 void func_m037_001A0(s32 updateRate) {
     s32 pad124;
@@ -373,6 +374,8 @@ void func_m037_001A0(s32 updateRate) {
             } else {
                 bright = 0x60;
                 if ((options_screen_mode_get() & 1) && sUnk40 == 3) {
+                    if (inst) {
+                    }
                     alpha = 0x70;
                 } else {
                     alpha = 0xFF;
@@ -382,6 +385,8 @@ void func_m037_001A0(s32 updateRate) {
                 n = batch[1].firstVertex - batch->firstVertex;
                 v = &inst->vertices[inst->buffer][batch->firstVertex];
                 while (n--) {
+                    if (obj) {
+                    }
                     v->r = bright;
                     v->g = bright;
                     v->b = bright;

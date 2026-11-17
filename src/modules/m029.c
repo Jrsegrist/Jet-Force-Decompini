@@ -103,6 +103,7 @@ void func_m029_00C34(s32 updateRate);
  * 1000000.0f are this function's, so the .rodata stays assembly with it.
  */
 #ifdef NON_MATCHING
+/* 436 -> 294 diffs (and the ROM's frame) with the empty ifs on first, player, updateRate */
 void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
     s32 first;
     s32 count;
@@ -158,7 +159,13 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
                     sTarget->interactObj->hitPoints > 0 && obj_id_is_special(sTarget->objectID) == 0) {
                     dx = obj->trans.x_position - sTarget->trans.x_position;
                     dy = obj->trans.y_position - sTarget->trans.y_position;
+                    if (first) {
+                    }
+                    if (first) {
+                    }
                     dz = obj->trans.z_position - sTarget->trans.z_position;
+                    if (first) {
+                    }
                     if (dx * dx + dy * dy + dz * dz < 1000000.0f) {
                         if (func_8001B078(sTarget->trans.x_position, sTarget->trans.z_position, 0x800,
                                           &heights) != 0 &&
@@ -170,6 +177,8 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
                             sTarget = NULL;
                         } else {
                             break;
+                        }
+                        if (player) {
                         }
                         continue;
                     }
@@ -198,6 +207,10 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
             }
             break;
         case 4:
+            if (updateRate) {
+            }
+            if (updateRate) {
+            }
             if (sStrikeTimer != 0) {
                 sStrikeTimer -= updateRate;
                 if (sStrikeTimer < 0) {

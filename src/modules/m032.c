@@ -244,6 +244,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_01DD8);
 
 #ifdef NON_MATCHING
 /* 14 diffs, registers only: the ROM has the two differences in v0/a3 and the step in v1 */
+/* 14 -> 9 diffs with the empty `if (d) {}` */
 /* Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps` */
 s16 func_m032_02068(s16 angle, s16 target, s16 steps) {
     s32 d;
@@ -252,6 +253,8 @@ s16 func_m032_02068(s16 angle, s16 target, s16 steps) {
 
     while (steps--) {
         d = (u16) (target - angle);
+        if (d) {
+        }
         back = (u16) (angle - target);
         if (back < d) {
             step = -back >> 3;

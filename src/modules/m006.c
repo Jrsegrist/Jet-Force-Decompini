@@ -242,6 +242,7 @@ void func_m006_012B0(s8 *player) {
 }
 
 #ifdef NON_MATCHING
+/* 149 -> 68 diffs with the empty `if (player) {}` / `if (updateRate) {}` */
 /* Slides a player's message bar in and out and moves on through the queue; register allocation differs */
 void func_m006_012D4(s8 *player, s32 updateRate) {
     M006Queue *queue = &D_800FF1D0[*player];
@@ -267,6 +268,8 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                 }
             }
         }
+        if (player) {
+        }
         if (!queue->locked) {
             if (D_800A4FD0 == 1 || (D_800A4FD0 != 1 && sBarY[*player] == 30)) {
                 queue->timer -= updateRate;
@@ -277,6 +280,8 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                 } else {
                     queue->timer += normalise_time(120);
                     queue->current = queue->messages[queue->tail];
+                    if (updateRate) {
+                    }
                     queue->unk4E = 0;
                     if (++queue->tail >= 5) {
                         queue->tail = 0;
