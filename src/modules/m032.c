@@ -4,7 +4,11 @@
  * moves its light with it and fades out once it is told to.
  * Family: other object behaviours (docs/runlink.md, "Module families").
  */
+/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
+#define obj_anim_set func_8001149C_void
 #include "module.h"
+#undef obj_anim_set
+extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 
 /* One spoken line: a sound and how many variants follow it */
 typedef struct M032Line {
@@ -151,8 +155,6 @@ extern s32 rl_m032_01D2C(M032Speaker *st);
 extern s32 rl_m032_01DD8(M032Speaker *st);
 
 /* The speaker's init: its place, reach and lines (by its object ID), animation and settings flag */
-#ifdef NON_MATCHING
-/* 7 diffs: after the first call the ROM keeps the header pointer in v1, C in v0 */
 void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     M032Speaker *st = obj->unk68;
     M032Lines *l;
@@ -208,9 +210,6 @@ void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     }
     rl_m032_031CC = NULL;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_00000);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_002E8);
 
