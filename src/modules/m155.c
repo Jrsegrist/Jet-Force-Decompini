@@ -809,12 +809,6 @@ void func_m155_01BE0(M155Entry *e, s16 x, s16 z, u8 from, u8 to) {
     e->cost = dx * dx + dz * dz;
 }
 
-#ifdef NON_MATCHING
-/*
- * The ROM narrows `from` into its home (sb, then lbu) as if the parameter were assigned somewhere
- * (`from += 0;` gave 59 diffs of 122); `if (from) {}` after the first call takes it to 10.
- * DKR's music_sequence_start (func_8000160C, also still asm) has the same sb.
- */
 /*
  * Moves (x, z) away from crossing `from` of region `to`, along the line halfway between the two edges
  * that meet there, by the target's radius and 15 more
@@ -825,33 +819,29 @@ static void func_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to) {
     s32 i;
     M155Point *next;
     s16 a;
+    UNUSED s16 pad;
     s16 angle;
     M155Point *prev;
 
     zone = func_m003_0569C(to);
     cur = &zone->points[from];
-    if (from) {}
-    if (from != 0) {
+    if (from) {
         i = from - 1;
     } else {
         i = zone->count - 1;
     }
-    prev = &zone->points[i];
+    prev = i + zone->points;
     if (from >= zone->count) { /* (the original's test: from + 1 is never compared) */
         i = 0;
     } else {
         i = from + 1;
     }
-    next = &zone->points[i];
+    next = i + zone->points;
     a = func_80049C84(cur->z - prev->z, cur->x - prev->x) - 0x8000;
     angle = (func_80049D80(a, (s16) (func_80049C84(cur->z - next->z, cur->x - next->x) - 0x8000)) >> 1) + a;
     *x -= func_80049C30(angle) * (((M155Interaction *) rl_m155_04F6C->interactObj)->radius + 15.0f);
     *z -= func_80049C34(angle) * (((M155Interaction *) rl_m155_04F6C->interactObj)->radius + 15.0f);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_01D9C);
-#define func_m155_01D9C rl_m155_01D9C
-#endif
 
 /* Where a segment leaves a region, and where it can go on from (module 3's) */
 typedef struct M155Exit {
