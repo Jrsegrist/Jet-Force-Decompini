@@ -440,7 +440,8 @@ extern MaterialMode D_800A4BE0[]; // untextured
 extern u8 D_800A4E70;             // JFG: semi-transparent draws become cutouts
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 5 words: the final copy keeps bits >> 3 in $a1 and bits << 3 in $a2 (the ROM has them swapped) */
+/* NON_MATCHING: 2 words: the final copy computes bits >> 3 in $a1 (the ROM: $a2); `if (bits) {}` between the
+   two copies (bits is set on every path there) put bits << 3 in the ROM's $a1 */
 /**
  * Load a texture (JFG: up to two frames for blending) and set the render mode for the flags.
  * Tracks which modes are active, to skip setting them again.
@@ -564,6 +565,7 @@ void func_80055C00(Gfx **dList, TextureHeader *texhead, s32 flags, s32 texOffset
         }
         gfx[0].words.w0 = mode->combine[bits >> 3].words.w0;
         gfx[0].words.w1 = mode->combine[bits >> 3].words.w1;
+        if (bits) {}
         gfx[1].words.w0 = mode->otherMode[bits].words.w0;
         gfx[1].words.w1 = mode->otherMode[bits].words.w1;
         gfx += 2;
