@@ -1047,7 +1047,7 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E794);
 #endif
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: loop shape only: the target keeps j as a counter (j != 4, mtx + j * 4 recomputed); mine turns it into pointers */
+/* NON_MATCHING (39 words, from 80, after the empty ifs on always-set values below): loop shape only: the target keeps j as a counter (j != 4, mtx + j * 4 recomputed); mine turns it into pointers */
 /* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. */
 void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     f32 newMin[4];
@@ -1057,6 +1057,7 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     f32 a;
     f32 b;
 
+    if (min) {}
     newMin[0] = 0.0f;
     newMin[1] = 0.0f;
     newMin[2] = 0.0f;
@@ -1076,6 +1077,7 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
                 newMin[j] += b;
                 newMax[j] += a;
             }
+            if (i) {}
         }
     }
     min[0] = newMin[0];

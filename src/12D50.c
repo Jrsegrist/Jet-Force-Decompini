@@ -1955,7 +1955,7 @@ typedef struct SweepHit {
 } SweepHit;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the target copies flags to $s0 (in the delay slot of the first branch) and takes the 0x40 test
+/* NON_MATCHING (33 words, from 116, after the empty ifs on always-set values below): the target copies flags to $s0 (in the delay slot of the first branch) and takes the 0x40 test
    from that copy, which also moves the hit-field stores after the float stores; IDO propagates my copies away */
 void track_edges_build(void);
 void func_800805F4(void);
@@ -1977,6 +1977,7 @@ s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, SweepHit
     if (extra) {
         track_edges_build();
         func_800805F4();
+        if (extra) {}
     }
     hit->obj = NULL;
     hit->unk25 = 0;
@@ -2027,6 +2028,7 @@ s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, SweepHit
             }
         }
     }
+    if (obj) {}
     return result;
 }
 #else

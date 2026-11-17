@@ -1174,7 +1174,7 @@ f32 get_distance_to_camera(f32 x, f32 y, f32 z) {
 /**
  * Copy the ortho matrix.
  * JFG: (from DKR's mtx_ortho) its last element is half the framebuffer width.
- * NON_MATCHING: one extra lui: the target shares %hi of gOrthoMatrixF across its first loads,
+ * NON_MATCHING (20 words, from 33, after the empty ifs on always-set values below): one extra lui: the target shares %hi of gOrthoMatrixF across its first loads,
  * which needs the matrix defined in this file (an extern gets a new lui per offset).
  */
 void func_80042134(MtxF *out) {
@@ -1185,6 +1185,7 @@ void func_80042134(MtxF *out) {
     fb_size(&width, &height);
     for (i = 0; i < 15; i++) {
         ((f32 *) out)[i] = ((f32 *) gOrthoMatrixF)[i];
+        if (i) {}
     }
     (*out)[3][3] = width >> 1;
 }

@@ -2346,7 +2346,7 @@ extern Gfx D_800A6D70[]; // JFG: the texture image command and the slice loading
 extern Gfx D_800A6DA8[]; // JFG: the same for display modes 2 and 3
 
 /*
- * NON_MATCHING: same code and length; the shifted width stays in its saved register (target: a temporary
+ * NON_MATCHING (30 words, from 52, after the empty ifs on always-set values below): same code and length; the shifted width stays in its saved register (target: a temporary
  * after a copy), so every saved register from s1 on is numbered differently.
  * JFG: draw a framebuffer image (width pixels per row) as 4-row texture rectangles from (x1, y1) to (x2, y2),
  * tinted by the glitch colours when D_800A6D04 is set, else by colour.
@@ -2377,6 +2377,7 @@ void func_8006F550(Gfx **dList, s32 image, s32 width, s32 height, s32 x1, s32 y1
         gSPDisplayList((*dList)++, D_800A6D20);
         gDPSetColor((*dList)++, G_SETPRIMCOLOR, colour);
     }
+    if (x2) {}
     img = image + width * y1 * 2;
     s = x1 << 5;
     x2 <<= 2;
@@ -2396,6 +2397,7 @@ void func_8006F550(Gfx **dList, s32 image, s32 width, s32 height, s32 x1, s32 y1
             y1 = y2;
         }
         gSPTextureRectangleOld((*dList)++, x1, prevY, x2, y1, 0, s, 0, 0x400, 0x400);
+        if (width) {}
     }
     rendermode_reset(dList);
     gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);

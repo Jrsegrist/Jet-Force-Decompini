@@ -277,7 +277,7 @@ s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
 /* JFG: update the active coronas from where the last call stopped: screen-space ones (0x20) fade by
    whether their queued screen point was hidden and queue a new one along their direction; the others
    in range are lit, or (0x40) get up to four visibility tests a call.
-   NON_MATCHING: the target keeps -1 and &screenY in saved registers (mine &dir and &screenX) and has
+   NON_MATCHING (10 words, from 113, after the empty ifs on always-set values below): the target keeps -1 and &screenY in saved registers (mine &dir and &screenX) and has
    two more words below dir. */
 void func_80024044(void) {
     CoronaCamera *cam;
@@ -331,6 +331,7 @@ void func_80024044(void) {
                 dx = corona->pos[0] - cam->x;
                 dy = corona->pos[1] - cam->y;
                 dz = corona->pos[2] - cam->z;
+                if (budget) {}
                 distSq = dx * dx + dy * dy + dz * dz;
                 if (distSq < radiusSq) {
                     if (corona->active & 0x40) {
@@ -348,6 +349,7 @@ void func_80024044(void) {
                     corona->opacity = 0;
                 }
             }
+            if (cam) {}
         } while (i != D_800A110C);
         if (budget == 0) {
             D_800A110C = next;

@@ -2586,7 +2586,7 @@ void rendermode_reset(Gfx **dList);
 #ifdef NON_MATCHING
 /* JFG: draw the object's held item (slot as in func_8000BC28) with the matrix, lighting it and
    animating its textures first when it asks.
-   NON_MATCHING: the right frame; obj->racer is reloaded (target: in s0, then reused for the item)
+   NON_MATCHING (65 words, from 144, after the empty ifs on always-set values below): the right frame; obj->racer is reloaded (target: in s0, then reused for the item)
    and the temporaries are numbered differently. */
 void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     Object *held;
@@ -2598,6 +2598,7 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
         if (obj->behaviorId == 1) {
             Object_Racer *racer = obj->racer;
 
+            if (arg1) {}
             if (racer->unk1FA != 0 && func_8003B740(obj, racer) < 2) {
                 slot = 0;
             } else if (slot >= 9 || racer->unk53C > 0) {
@@ -2633,6 +2634,7 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
                                (u32) item->vertices + 0x80000000);
                     fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + 0x80000000);
                     fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + 0x80000000);
+                    if (arg2) {}
                     fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
                     mtx_pop(&gObjectCurrDisplayList);
                     rendermode_reset(&gObjectCurrDisplayList);

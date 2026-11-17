@@ -811,7 +811,7 @@ void func_8004A2FC(MtxF *mtx, f32 *in, f32 *out);                               
 void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // a point by the matrix
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the frame matches; the target keeps the point matrix in s7 for the whole function and the batch
+/* NON_MATCHING (111 words, from 266, after the empty ifs on always-set values below): the frame matches; the target keeps the point matrix in s7 for the whole function and the batch
  * index in memory with its own *16 counter (mine recomputes mtx + 2 and i << 4). */
 /*
  * JFG: collect the faces of the object's model that face up (normal y times the scale above 0.5) and overlap the
@@ -846,6 +846,7 @@ s32 func_800203C4(HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f3
     model = inst->model;
     if (inst->normals != NULL) {
         normalSet = inst->normals;
+        if (inst) {}
     } else {
         normalSet = model->normals;
     }

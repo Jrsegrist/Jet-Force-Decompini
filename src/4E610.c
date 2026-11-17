@@ -575,7 +575,7 @@ extern Gfx D_800A3828[][2]; // DKR: dTextureRectangleScaledOpa
 extern Gfx D_800A3868[][2]; // DKR: dTextureRectangleScaledXlu
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 2 words short: the ROM keeps a dead `move a2, zero` before the loop (and so one register fewer,
+/* NON_MATCHING (259 words, from 382, with `lrx = lry = 0;` before the loop; both are set before every use, so it only moves registers); before that it was 2 words short: the ROM keeps a dead `move a2, zero` before the loop (and so one register fewer,
  * where mine keeps 0x80000000 in $ra); otherwise the same code. */
 /*
  * Renders one or more textures directly on screen, scaled, in a primitive colour (flags 0x1000 and 0x2000 flip
@@ -623,6 +623,7 @@ void func_8004F02C(Gfx **dList, TexturedRect *element, f32 xPos, f32 yPos, f32 x
     yScale *= 4;
     xPos4x = xPos * 4;
     yPos4x = yPos * 4;
+    lrx = lry = 0;
     for (i = 0; (tex = element[i].tex); i++) {
         if (!bFlipX) {
             ulx = (s32) (element[i].x * xScale) + xPos4x;

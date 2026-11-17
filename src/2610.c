@@ -242,7 +242,7 @@ OSMesgQueue *osScGetCmdQ(void *sc);
  * three output buffers, and no arguments.
  */
 #ifdef NON_MATCHING
-/* NON_MATCHING: the ROM keeps the `== 1` test of the mode in v0 (xori), shifting the t-registers by one */
+/* NON_MATCHING (53 words, from 133, after the empty ifs on always-set values below): the ROM keeps the `== 1` test of the mode in v0 (xori), shifting the t-registers by one */
 void __amHandleFrameMsg(void) {
     s16 *audioPtr;
     Acmd *cmdp;
@@ -276,6 +276,7 @@ void __amHandleFrameMsg(void) {
                     dmaState.firstUsed = (AMDMABuffer *) D_800A06C0[i].node.next;
                 }
                 if (buf == dmaState.firstFree) {
+                    if (samplesLeft) {}
                     dmaState.firstFree = (AMDMABuffer *) D_800A06C0[i].node.next;
                 }
                 alUnlink((ALLink *) buf);
@@ -335,6 +336,7 @@ void __amHandleFrameMsg(void) {
     } else {
         D_800A06D8 = 1;
         gAudioMgr.frameSamples[D_800A06C8] = D_800F2168;
+        if (samplesLeft) {}
     }
     if (D_800A06DC == 1) {
         gAudioMgr.frameSamples[D_800A06C8] *= D_800F29E0;
