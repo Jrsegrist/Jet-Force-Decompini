@@ -311,9 +311,8 @@ void func_m006_015E0(s32 hide) {
 
 #ifdef NON_MATCHING
 /*
- * The original multiplied by a double literal 1.2 from the module's .rodata, which stays assembly
- * until func_m006_00000 (which has the rest of it) is C; read from there the load is scheduled
- * differently. 015EC's saved register also differs.
+ * 29 diffs. Reading the double 1.2 as `extern f64 rl_m006_01AF8` (as 017AC does) fixes its load (23);
+ * what is left then is the frame: 0x40 here, 0x38 in the ROM (every spill one word higher).
  */
 /* Formats a time in frames as minutes, seconds and hundredths */
 void func_m006_015EC(s32 time, char *minutes, char *seconds, char *hundredths) {
@@ -345,6 +344,12 @@ void func_m006_015EC(s32 time, char *minutes, char *seconds, char *hundredths) {
         sprintf(hundredths, rl_m006_01AC0 + 0x14, frac);
     }
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_015EC);
+#endif
+
+/* The 50 Hz time scale: a double in the module's .rodata (still assembly), read by its own address */
+extern f64 rl_m006_01B00;
 
 /* The same with hours */
 void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *hundredths) {
@@ -354,7 +359,7 @@ void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *
     s32 total;
 
     if (D_800FECC0 == 50) {
-        time = (f32) time * *(f64 *) (rl_m006_01AC0 + 0x40);
+        time = (f32) time * rl_m006_01B00;
     }
     total = time / 3600;
     min = total % 60;
@@ -378,10 +383,5 @@ void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *
     }
     sprintf(hours, rl_m006_01AC0 + 0x30, total / 60);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_015EC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_017AC);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m006", rodata);
