@@ -2558,25 +2558,18 @@ static void troop_select(Object *home) {
     func_m154_017E8(sHome);
 }
 
-#ifdef NON_MATCHING
-/* 11 diffs, registers only: the ROM keeps `point` in v0 and computes `point + 1` again for the test */
 /* The points before and after `point` round the region's edge */
-void func_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next) {
+static void func_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next) {
     *prev = point - 1;
     *next = point + 1;
     if (point == 0) {
         *prev = region->numEdges - 1;
         return;
     }
-    if (region->numEdges == point + 1) {
+    if (point == region->numEdges - 1) {
         *next = 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_05650);
-void rl_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next); /* static: called by its module offset */
-#define func_m003_05650 rl_m003_05650
-#endif
 
 /* Region `index`, or NULL before the regions are loaded */
 M003Region *func_m003_0569C(s32 index) {
@@ -2950,9 +2943,6 @@ void func_m003_09680(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* 2 diffs: the ROM masks `flag` to 16 bits in the branch's delay slot (with this prototype IDO masks
-   it through its stack slot; with none it does not mask it at all) */
 extern void obj_group_countdown(s32 id, u16 flag);
 
 /* Puts the troop in state 7 and, once, counts it down in its object group */
@@ -2960,14 +2950,11 @@ void func_m003_09840(M003Home *home, s32 flag) {
     u8 group = home->unk75;
 
     home->unk30 = 7;
-    if (group != 0 && !(home->flags & 8)) {
+    if (group && !(home->flags & 8)) {
         obj_group_countdown(group, flag);
         home->flags |= 8;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09840);
-#endif
 
 extern void rl_m003_09840(M003Home *home, s32 arg1);
 
