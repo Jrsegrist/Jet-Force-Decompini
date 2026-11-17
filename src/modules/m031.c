@@ -848,11 +848,13 @@ extern Object *func_80005F14(void *entry, s32 arg1);
 
 #ifdef NON_MATCHING
 /* Racer n fires its pick-up (an oil slick or a bomb) */
-/* (same code, but the frame is 8 bytes bigger: every local sits 8 higher) */
+/*
+ * 21 -> 9 diffs: the floor count reuses `n` (no longer needed by then), which gives the ROM's frame, and the
+ * empty `if (racer) {}`; racer and heights still sit one word higher than the ROM's
+ */
 s32 func_m031_01C68(Object *obj, s32 n) {
     Object *spawned;
     M031Entry entry;
-    s32 count;
     f32 **heights;
     s32 i;
     M031Racer *racer;
@@ -863,9 +865,11 @@ s32 func_m031_01C68(Object *obj, s32 n) {
             entry.x = obj->trans.x_position;
             entry.y = obj->trans.y_position;
             entry.z = obj->trans.z_position;
-            count = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
-            if (count != 0) {
-                i = count;
+            n = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
+            if (n != 0) {
+                i = n;
+                if (racer) {
+                }
                 while (i--) {
                     if (*heights[i] < obj->trans.y_position) {
                         entry.y = *heights[i];

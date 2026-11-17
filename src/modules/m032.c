@@ -242,38 +242,32 @@ void func_m032_01D84(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_01DD8);
 
-#ifdef NON_MATCHING
-/* 14 diffs, registers only: the ROM has the two differences in v0/a3 and the step in v1 */
-/* 14 -> 9 diffs with the empty `if (d) {}` */
-/* Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps` */
+/*
+ * Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps`
+ * (the forward difference d becomes the step)
+ */
 s16 func_m032_02068(s16 angle, s16 target, s16 steps) {
-    s32 d;
     s32 back;
-    s32 step;
+    s32 d;
 
     while (steps--) {
         d = (u16) (target - angle);
-        if (d) {
-        }
         back = (u16) (angle - target);
         if (back < d) {
-            step = -back >> 3;
-            if (step < -364) {
-                step = -364;
+            d = -back >> 3;
+            if (d < -364) {
+                d = -364;
             }
         } else {
-            step = d >> 3;
-            if (step > 364) {
-                step = 364;
+            d = d >> 3;
+            if (d > 364) {
+                d = 364;
             }
         }
-        angle += step;
+        angle += d;
     }
     return angle;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_02068);
-#endif
 
 void func_m032_02110(Object *obj, M032BobSetup *setup) {
     M032Bob *b = obj->unk68;
