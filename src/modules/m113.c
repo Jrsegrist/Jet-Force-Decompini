@@ -186,7 +186,8 @@ void func_m113_00000(Object *obj, M113Setup *setup) {
 
 #ifdef NON_MATCHING
 /* Same size; differs in where `rate` is spilled (0x58, ROM 0x60), the register of the hit normal's z
-   (ROM keeps it in a caller-saved register spilled to dz's slot) and the register of the light pointer. */
+   (ROM keeps it in a caller-saved register spilled to dz's slot) and the register of the light pointer.
+   `if (obj) {}` and `if (dist) {}` (both set there) take it from 296 to 66 diffs. */
 void func_m113_002C8(Object *obj, s32 updateRate) {
     M113Rocket *m;
     HitResult hit;
@@ -302,6 +303,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
             }
             m->hit = func_80018808(obj, &((M113Interaction *) obj->interactObj)->pos,
                                    (Vec3f *) &obj->trans.x_position, &hit, 0, 0);
+            if (obj) {}
             if (m->hit != 0) {
                 if (hit.obj == NULL) {
                     m->hit |= 2;
@@ -314,6 +316,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                               m->hitPos.z - obj->trans.z_position);
                 dx = hit.normal.x;
                 dist = hit.normal.z;
+                if (dist) {}
                 dy = hit.normal.y;
                 m->hitYaw = func_80049C84(dx, dist) + 0x8000;
                 m->hitPitch = func_80049C84(dy, sqrtf(dx * dx + dist * dist));

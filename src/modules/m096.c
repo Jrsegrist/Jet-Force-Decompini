@@ -79,6 +79,7 @@ void func_m096_00000(Object *obj, M096Setup *setup) {
 /*
  * Equivalent, and the frame matches; IDO swaps two caller-saved registers
  * (the original keeps f in t0 and updateRate / o in v1, this gives f v1).
+ * The empty ifs on obj and o (both set there) take it from 144 to 77 diffs.
  */
 void func_m096_00088(Object *obj, s32 updateRate) {
     M096Hit hit;
@@ -165,6 +166,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
     } else {
         o = f->stuck;
         if (o != NULL) {
+            if (obj) {}
             m = (M096Model *) o->unk5C;
             if (o->behaviorId == 0x37) {
                 func_m105_01474(o, &f->localX, &f->localY, &f->localZ, &obj->trans.x_position,
@@ -182,6 +184,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
                 obj->trans.rotation.y_rotation += o->trans.rotation.y_rotation - m->y_rotation;
                 obj->trans.rotation.x_rotation += o->trans.rotation.x_rotation - m->x_rotation;
                 obj->trans.rotation.z_rotation += o->trans.rotation.z_rotation - m->z_rotation;
+                if (o) {}
                 func_80009A04(obj, dx - obj->trans.x_position, dy - obj->trans.y_position,
                               dz - obj->trans.z_position);
             }

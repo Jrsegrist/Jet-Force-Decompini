@@ -3078,7 +3078,8 @@ void func_m068_0D05C(Object *obj, s32 updateRate) {
 }
 
 #ifdef NON_MATCHING
-/* Registers: every t-register after the model lookup is one lower than the ROM's */
+/* Registers: every t-register after the model lookup is one lower than the ROM's (105 diffs; 64 with
+   `if (state) {}` in the second arm) */
 void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     s16 *state = obj->unk68;
     M068Sprite *sprite;
@@ -3094,6 +3095,7 @@ void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         draw_tint_pair_off();
     } else {
         colour = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
+        if (state) {}
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[1];
         draw_tint_pair_set(colour->r, colour->g, colour->b, colour->a, colour->unkC, colour->unkD);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
@@ -3107,8 +3109,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 
 #ifdef NON_MATCHING
 /*
- * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop (22 diffs
- * left): the outer offset, the row pointer and the second loop's i and prev take other argument registers.
+ * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop; with
+ * two empty ifs on the outer counter at the inner loop's top, 8 diffs are left (registers).
  */
 void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     M068Strip *m = obj->unk68;
@@ -3126,6 +3128,8 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
+            if (i) {}
+            if (i) {}
             p[j].x = 0;
             p[j].y = 0;
             p[j].z = 0;
@@ -3695,6 +3699,7 @@ typedef struct M068Death {
  * Draws the boss's death effect: the same triangles over four runs of
  * vertices, in two colours. The code matches but for registers: the ROM keeps
  * the end of the colour table in s3 (one more saved register, frame 0x40).
+ * The empty ifs on arg1 and d (both always set) take it from 128 to 17 diffs.
  */
 void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068Death *d = obj->unk68;
@@ -3704,6 +3709,8 @@ void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     if (d->visible) {
         obj->trans.scale = 1.0f;
         func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
+        if (arg1) {}
+        if (arg1) {}
         v = d->verts[d->buffer];
         func_80055C00(dl, *((M068Header *) obj->header)->models, 0x206, 0);
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 190);
@@ -3718,6 +3725,7 @@ void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             gDPPipeSync((*dl)++);
             v += 18;
         }
+        if (d) {}
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
         func_80041DC0(dl);

@@ -123,6 +123,9 @@ static s32 sFlybySound = 0;
 static Object *sFlybyShot = NULL;
 
 #ifdef NON_MATCHING
+/* 10 diffs: from the model index on, the ROM's argument registers are one higher (a3/a2 for the index and the
+   texture, the call's 1 and 4 loaded the other way round). `!setup->strength` and the empty ifs on w, tex and
+   h (all set above) took it from 73. */
 void func_m109_00000(Object *obj, M109Setup *setup) {
     s32 pad0;
     s32 pad1;
@@ -161,10 +164,13 @@ void func_m109_00000(Object *obj, M109Setup *setup) {
     b->tris[1].flags = 0x40;
     b->tris[1].vi0 = 1;
     b->tris[1].uv[0][0] = w << 5;
+    if (w) {}
+    if (tex) {}
     b->tris[1].uv[0][1] = h << 5;
     b->tris[1].vi1 = 2;
     b->tris[1].uv[1][0] = 0;
     b->tris[1].uv[1][1] = 0;
+    if (h) {}
     b->tris[1].vi2 = 3;
     b->tris[1].uv[2][0] = 0;
     b->tris[1].uv[2][1] = h << 5;
@@ -180,9 +186,10 @@ void func_m109_00000(Object *obj, M109Setup *setup) {
     b->unk7C = setup->unk12;
     b->flybyPlayed = 0;
     if (b->splitCount >= 5) {
+        if (w) {}
         b->splitCount = 4;
     }
-    if (setup->strength == 0) {
+    if (!setup->strength) {
         b->scale = 2.5f;
         hitSize = 0x40;
         OBJ_STATE(obj, M109State)->lightColour = 0xFFC01000;

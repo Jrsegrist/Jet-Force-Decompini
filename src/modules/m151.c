@@ -315,7 +315,8 @@ static void add_drop(s32 x, s32 y) {
  * Advances texture `index` one frame (restarting it if reset). Equivalent;
  * the original sign-extends the texel value more often in the IA16
  * conversion (the 4x unrolled loops come out 0xC0 bytes longer), and some
- * registers differ.
+ * registers differ. Empty ifs on o, rowOut and j (all set there) take it from
+ * 288 to 185 diffs.
  */
 void func_m151_009BC(s32 index, M151Texture *tex, s32 reset) {
     s32 w;
@@ -373,6 +374,7 @@ void func_m151_009BC(s32 index, M151Texture *tex, s32 reset) {
     s = src + w + 1;
     o = dst + w + 1;
     i = h - 2;
+    if (o) {}
     while (i--) {
         j = w - 2;
         while (j--) {
@@ -390,6 +392,7 @@ void func_m151_009BC(s32 index, M151Texture *tex, s32 reset) {
         if (i & 1) {
             j = w;
             while (j--) {
+                if (rowOut) {}
                 c = *s++;
                 a = c;
                 if ((s16) (c >> 4) != 0) {
@@ -410,6 +413,8 @@ void func_m151_009BC(s32 index, M151Texture *tex, s32 reset) {
                 c = *s++;
                 a = c;
                 if ((s16) (c >> 4) != 0) {
+                    if (j) {}
+                    if (j) {}
                     a = c * (s16) (c >> 4);
                 }
                 if (a >= 0x100) {

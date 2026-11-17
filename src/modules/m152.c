@@ -170,7 +170,8 @@ void func_m152_00228(Object *obj, M152Chain *chain, s32 index, f32 *outX, f32 *o
 
 #ifdef NON_MATCHING
 /* Differs only in the three j loops of the switch: the original tests n != 0 before each
-   (beq n, zero) although n is the constant 8; IDO folds that test here. */
+   (beq n, zero) although n is the constant 8; IDO folds that test here. Two `if (obj) {}` take it
+   from 150 to 61 diffs. */
 void func_m152_004AC(Object *obj) {
     M152Hydra *hydra;
     M152HitSphere *sphere;
@@ -251,6 +252,7 @@ void func_m152_004AC(Object *obj) {
     }
     sReachBlend += sReachBlendSpeed * D_800FE9F8;
     if (sReachBlend >= 0x80) {
+        if (obj) {}
         sReachMode = 3;
     } else if (sReachBlend <= 0) {
         sReachMode = 1;
@@ -283,6 +285,7 @@ void func_m152_004AC(Object *obj) {
                     p[2] = (reachZ - z) * blend + z;
                     p += 4;
                 }
+                if (obj) {}
                 break;
             case 3:
                 j = n;
@@ -315,7 +318,8 @@ void func_m152_004AC(Object *obj) {
 
 /* Differs only in the render loop: the original keeps the chain array's address in s6 (set before
    the loop, then base + chain * 0x90 + point * 0x10) and the hoisted arguments in s3-s5 in a
-   different order; IDO rebuilds the address in the loop here. */
+   different order; IDO rebuilds the address in the loop here. `if (arg4) {}` at the top takes it
+   from 74 to 31 diffs. */
 void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, u8 arg6, s32 inverted) {
     M152Hydra *hydra;
     s32 count;
@@ -331,6 +335,7 @@ void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 ar
     f32 depth;
     u8 b;
 
+    if (arg4) {}
     hydra = obj->unk68;
     count = 0;
     e = sDepthList;
