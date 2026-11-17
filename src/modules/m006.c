@@ -314,20 +314,18 @@ void func_m006_015E0(s32 hide) {
     D_800FF310 = hide;
 }
 
-#ifdef NON_MATCHING
-/*
- * 29 diffs. Reading the double 1.2 as `extern f64 rl_m006_01AF8` (as 017AC does) fixes its load (23);
- * what is left then is the frame: 0x40 here, 0x38 in the ROM (every spill one word higher).
- */
+/* The 50 Hz time scales: doubles in the module's .rodata (still assembly), each read by its own address */
+extern f64 rl_m006_01AF8;
+extern f64 rl_m006_01B00;
+
 /* Formats a time in frames as minutes, seconds and hundredths */
 void func_m006_015EC(s32 time, char *minutes, char *seconds, char *hundredths) {
     s32 min;
     s32 sec;
     s32 rest;
-    s32 frac;
 
     if (D_800FECC0 == 50) {
-        time = (f32) time * *(f64 *) (rl_m006_01AC0 + 0x38);
+        time = (f32) time * rl_m006_01AF8;
     }
     min = time / 3600;
     if (min < 10) {
@@ -342,19 +340,12 @@ void func_m006_015EC(s32 time, char *minutes, char *seconds, char *hundredths) {
     } else {
         sprintf(seconds, rl_m006_01AC0 + 0xC, sec);
     }
-    frac = ((time - sec * 60 - rest) * 100) / 60;
-    if (frac < 10) {
-        sprintf(hundredths, rl_m006_01AC0 + 0x10, frac);
+    if (((time - sec * 60 - rest) * 100) / 60 < 10) {
+        sprintf(hundredths, rl_m006_01AC0 + 0x10, ((time - sec * 60 - rest) * 100) / 60);
     } else {
-        sprintf(hundredths, rl_m006_01AC0 + 0x14, frac);
+        sprintf(hundredths, rl_m006_01AC0 + 0x14, ((time - sec * 60 - rest) * 100) / 60);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_015EC);
-#endif
-
-/* The 50 Hz time scale: a double in the module's .rodata (still assembly), read by its own address */
-extern f64 rl_m006_01B00;
 
 /* The same with hours */
 void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *hundredths) {
