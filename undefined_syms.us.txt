@@ -57,7 +57,6 @@ func_80043638 = input_clamp_stick_mag;
 func_800436B4 = drm_disable_input;
 func_800433E0 = input_assign_players;
 gButtonMask = 0x800A3194;
-input_update = 0x80043130;
 /* joypad.c defines its .bss; the asm still uses these names */
 D_800FB090 = sSIMesgQueue;
 D_800FB0A8 = sSIMesgBuf;
@@ -789,3 +788,6 @@ D_800A9A68 = __osShutdown;
 D_800A9A6C = __OSGlobalIntMask;
 /* ro2b23: 2BAA0.c weapon_fire_current calls the module trap with a pointer and three floats */
 func_80054530_pfff = 0x80054530;
+
+/* sweepmain26 (round 26) */
+func_80043130 = input_update;
