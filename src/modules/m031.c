@@ -1121,7 +1121,11 @@ extern void menu_fill_boxes(s32 arg0, s32 count, M031GaugeMark *marks, s32 arg3)
 
 /* Draws the racer's speed gauge: the marks up to its speed lit, and the speed as a number */
 #ifdef NON_MATCHING
-/* Same code and length; only the loop counter and the scale pointer swap registers (a0/a2) */
+/*
+ * Same code and length; only the loop counter and the scale pointer swap registers (a0/a2).
+ * The empty `if (n) {}` / `if (dim) {}` pair (both set) takes it from 9 diffs to 3: the order i = 0 and
+ * the scale address are set up in.
+ */
 void func_m031_029FC(s32 arg0, Object *obj) {
     M031Speed *s;
     s32 *scale;
@@ -1137,6 +1141,8 @@ void func_m031_029FC(s32 arg0, Object *obj) {
             n = -n;
         }
         scale = rl_m031_04108;
+        if (n) {
+        }
         lit = rl_m031_04248;
         dim = rl_m031_04158;
         for (i = 0; i < 20; i++) {
@@ -1151,6 +1157,8 @@ void func_m031_029FC(s32 arg0, Object *obj) {
             scale++;
             lit++;
             dim++;
+        }
+        if (dim) {
         }
         n = s->speed * 25.0f;
         if (n < 0) {
