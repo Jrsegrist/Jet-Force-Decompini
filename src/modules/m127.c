@@ -497,6 +497,7 @@ typedef struct M127Instance {
  * Scrolls the screen's texture by `scroll` while the terminal is idle, or puts it back at the top.
  * `minV` is never set before its first use in the second branch (the original's slip; nothing reads
  * the result, but IDO gives it a stack home that the ROM loads and stores).
+ * Two empty ifs on `scroll` (a parameter) take it from 94 to 68 diffs.
  */
 #ifdef NON_MATCHING
 static void func_m127_00FA0(Object *obj, s32 scroll) {
@@ -523,6 +524,7 @@ static void func_m127_00FA0(Object *obj, s32 scroll) {
     batch = model->batches;
     while (i--) {
         if (batch->kind == 7) {
+            if (scroll) {}
             j = batch[1].firstTri - batch->firstTri;
             tri = &model->tris[batch->firstTri];
             while (j--) {
@@ -531,6 +533,7 @@ static void func_m127_00FA0(Object *obj, s32 scroll) {
                     minU = tri->uv[1][1] - v0;
                     tri->uv[0][1] = (v0 + scroll * 16) & mask;
                     minV = tri->uv[2][1] - v0;
+                    if (scroll) {}
                     tri->uv[1][1] = tri->uv[0][1] + minU;
                     tri->uv[2][1] = tri->uv[0][1] + minV;
                 } else {

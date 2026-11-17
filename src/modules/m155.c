@@ -811,8 +811,8 @@ void func_m155_01BE0(M155Entry *e, s16 x, s16 z, u8 from, u8 to) {
 
 #ifdef NON_MATCHING
 /*
- * 122 diffs: the ROM narrows `from` into its home (sb, then lbu) as if the parameter were assigned
- * somewhere (`from += 0;` before the first call reproduces it, leaving 59: every temp one higher);
+ * The ROM narrows `from` into its home (sb, then lbu) as if the parameter were assigned somewhere
+ * (`from += 0;` gave 59 diffs of 122); `if (from) {}` after the first call takes it to 10.
  * DKR's music_sequence_start (func_8000160C, also still asm) has the same sb.
  */
 /*
@@ -830,6 +830,7 @@ static void func_m155_01D9C(s16 *x, s16 *z, u8 from, u8 to) {
 
     zone = func_m003_0569C(to);
     cur = &zone->points[from];
+    if (from) {}
     if (from != 0) {
         i = from - 1;
     } else {
@@ -1084,8 +1085,6 @@ extern s16 rl_m155_04F6A;
 extern M155Node *rl_m155_04F84;  /* .bss (still assembly): the node it is heading for, or NULL */
 extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
 
-#ifdef NON_MATCHING
-/* 7 diffs: bestDist and limit take s6/s7 the other way round */
 /*
  * The node nearest the target, short of the current node's unk8, that 018C4 accepts; it is
  * marked and its point (or (x, z)) goes to outX/outZ. (As in the original, with no current node
@@ -1114,6 +1113,7 @@ M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
     } else {
         limit = unset;
     }
+    if (tx) {}
     while (n-- > 0) {
         if (node != rl_m155_04F84 && node->unk8 < limit) {
             dx = tx - node->x;
@@ -1124,6 +1124,7 @@ M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
                 d = func_80049D80(a, (s16) func_80049C84(node->z - rl_m155_04F6A, node->x - rl_m155_04F68));
                 if (d < 20000 || d > -20000) {
                     limit = node->unk8;
+                    if (best) {}
                     bestDist = dist;
                     best = node;
                 }
@@ -1131,12 +1132,10 @@ M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
         }
         node++;
     }
+    if (bestDist) {}
     rl_m155_026D8(best, x, z, outX, outZ);
     return best;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m155", func_m155_0289C);
-#endif
 
 /* The node with the highest unk8 that 018C4 accepts; its point (or (x, z)) goes to outX/outZ */
 M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {

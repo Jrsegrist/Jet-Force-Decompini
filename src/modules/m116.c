@@ -136,8 +136,6 @@ void func_m116_002B0(Object *obj, M116ObstacleSetup *setup) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Differs only in register allocation: s0/s1 (counter, list pointer) and s4/s5 (obj, found) are swapped */
 void func_m116_002FC(Object *obj, s32 updateRate) {
     M116Obstacle *o;
     s32 found;
@@ -148,6 +146,7 @@ void func_m116_002FC(Object *obj, s32 updateRate) {
     hits = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 64.0f, 0, list);
     o = obj->unk68;
     found = 0;
+    if (obj) {}
     if (hits != 0) {
         i = hits;
         hits = 0;
@@ -155,6 +154,7 @@ void func_m116_002FC(Object *obj, s32 updateRate) {
             if (o->owner == list[i]) {
                 found = 1;
             } else {
+                if (updateRate) {}
                 hits++;
                 if (obj->objectID == 0x278) {
                     func_m031_01ED8(list[i]);
@@ -197,6 +197,3 @@ void func_m116_002FC(Object *obj, s32 updateRate) {
         func_800079B8(obj);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m116", func_m116_002FC);
-#endif

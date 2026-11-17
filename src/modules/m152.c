@@ -315,7 +315,8 @@ void func_m152_004AC(Object *obj) {
 
 /* Differs only in the render loop: the original keeps the chain array's address in s6 (set before
    the loop, then base + chain * 0x90 + point * 0x10) and the hoisted arguments in s3-s5 in a
-   different order; IDO rebuilds the address in the loop here. */
+   different order; IDO rebuilds the address in the loop here. `if (arg4) {}` at the top takes it
+   from 74 to 31 diffs. */
 void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, u8 arg6, s32 inverted) {
     M152Hydra *hydra;
     s32 count;
@@ -331,6 +332,7 @@ void func_m152_00B8C(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 ar
     f32 depth;
     u8 b;
 
+    if (arg4) {}
     hydra = obj->unk68;
     count = 0;
     e = sDepthList;
