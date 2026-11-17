@@ -743,7 +743,7 @@ void mempool_free(void *data);
 RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: one word short (the ROM copies half and numVerts to v0/v1 before the alloc call); the registers of
+/* NON_MATCHING (186 words, from 352, after the empty ifs on always-set values below): one word short (the ROM copies half and numVerts to v0/v1 before the alloc call); the registers of
    frames/half at the top and the spill slots differ */
 /* JFG: allocate and set up a ripple's child effect: segments from length (60 per unit, two per pair), two
    triangle buffers, the strips and four (type 0) or two vertex buffers, all white; frees it if the texture
@@ -818,6 +818,7 @@ RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 t
                     child->tris[i][j].flags = 0x40;
                 }
             }
+            if (size14) {}
             child->texFrame = 0;
             child->numStrips = 0;
             child->unk39 = 0;
@@ -827,6 +828,8 @@ RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 t
         } else {
             mempool_free(child);
             child = NULL;
+            if (i) {}
+            if (stripsSize) {}
         }
     }
     return child;
@@ -2346,7 +2349,7 @@ extern Gfx D_800A6D70[]; // JFG: the texture image command and the slice loading
 extern Gfx D_800A6DA8[]; // JFG: the same for display modes 2 and 3
 
 /*
- * NON_MATCHING: same code and length; the shifted width stays in its saved register (target: a temporary
+ * NON_MATCHING (30 words, from 52, after the empty ifs on always-set values below): same code and length; the shifted width stays in its saved register (target: a temporary
  * after a copy), so every saved register from s1 on is numbered differently.
  * JFG: draw a framebuffer image (width pixels per row) as 4-row texture rectangles from (x1, y1) to (x2, y2),
  * tinted by the glitch colours when D_800A6D04 is set, else by colour.
@@ -2377,6 +2380,7 @@ void func_8006F550(Gfx **dList, s32 image, s32 width, s32 height, s32 x1, s32 y1
         gSPDisplayList((*dList)++, D_800A6D20);
         gDPSetColor((*dList)++, G_SETPRIMCOLOR, colour);
     }
+    if (x2) {}
     img = image + width * y1 * 2;
     s = x1 << 5;
     x2 <<= 2;
@@ -2396,6 +2400,7 @@ void func_8006F550(Gfx **dList, s32 image, s32 width, s32 height, s32 x1, s32 y1
             y1 = y2;
         }
         gSPTextureRectangleOld((*dList)++, x1, prevY, x2, y1, 0, s, 0, 0x400, 0x400);
+        if (width) {}
     }
     rendermode_reset(dList);
     gDPSetPrimColor((*dList)++, 0, 0, 255, 255, 255, 255);

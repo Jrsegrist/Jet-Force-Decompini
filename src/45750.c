@@ -779,7 +779,7 @@ void splitscreen_dividers_draw(Gfx **dList);
 void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the target keeps the held-buttons OR in a stack slot (only $s0/$s1 used, frame 0x48) and tests
+/* NON_MATCHING (129 words, from 238, after the empty ifs on always-set values below): the target keeps the held-buttons OR in a stack slot (only $s0/$s1 used, frame 0x48) and tests
    i < numPlayers with slt; mine gives it $s1 and $s2 */
 /* JFG: one frame of the game: the module hooks, the players' buttons (START pauses), the world update unless
  * paused, then the drawing passes. */
@@ -854,6 +854,7 @@ void func_80045F00(s32 updateRate) {
         if (D_800A32BC < 0) {
             D_800A32BC = 0;
         }
+        if (v) {}
     }
     gParticlePtrList_flush();
     debug_trace_add(gfx, "main/main.c", 0x683);
@@ -1839,8 +1840,9 @@ extern s32 D_800FF37C;
 void mark_write_eeprom_settings(void);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the two word loops get other registers (target: src $v1, dst $a0, count $v0) and some
-   temporaries are renumbered; the frame needs a fourth word above copy (pad) */
+/* NON_MATCHING: 19 words: in both word loops src and the counter's dead copy swap $a1/$v1 (target: src $v1)
+   and some flag temporaries are renumbered; the frame needs a fourth word above copy (pad). The empty
+   `if (dst) {}` (dst is set there) fixed the rest. */
 /* JFG: set or clear one of the game's 0x480 flags (0x5A and 0x5B are always set while D_800A331C is 0); setting
  * one also sets the unlock bits it stands for, and mark_write_eeprom_settings runs if any of them changed. */
 void func_80047EFC(s32 flag, s32 set) {
@@ -1862,6 +1864,7 @@ void func_80047EFC(s32 flag, s32 set) {
         if (set) {
             src = (s32 *) &D_800FF318;
             dst = copy;
+            if (dst) {}
             i = 32;
             while (i--) {
                 *dst++ = *src++;

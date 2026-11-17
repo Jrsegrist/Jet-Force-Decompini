@@ -1003,7 +1003,7 @@ s32 rand_range(s32 min, s32 max);
 #ifdef NON_MATCHING
 /* JFG: create the object's child objects and load its sprite slots (picking each slot's first
    frame); if anything failed, free what was made and return 1.
-   NON_MATCHING: IDO sinks index/amount into the two branches that use them (the target computes
+   NON_MATCHING (53 words, from 153, after the empty ifs on always-set values below): IDO sinks index/amount into the two branches that use them (the target computes
    them once, into a0/a1, before the tests); everything after is renumbered. */
 s32 func_80006F2C(Object *obj) {
     ObjectHeader *header;
@@ -1045,6 +1045,7 @@ s32 func_80006F2C(Object *obj) {
         def = (SpriteSlotDef *) header->unk3C;
         for (i = 0; i < obj->numSpriteSlots; i++) {
             slot->sprite = tex_load_sprite(def->spriteID, 1);
+            if (children) {}
             slot->unk4 = def->unk2;
             flags = def->flags;
             slot->flags = flags;
@@ -2276,7 +2277,7 @@ void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex **verts, void *sp
 #ifdef NON_MATCHING
 /**
  * A few objects use unconventional means to render. They are handled here (DKR render_3d_misc; JFG's types).
- * NON_MATCHING: the right frame and stack slots (pad: unused words in the target's frame); s0/s1 swapped
+ * NON_MATCHING (353 words, from 474, after the empty ifs on always-set values below): the right frame and stack slots (pad: unused words in the target's frame); s0/s1 swapped
  * (the target keeps the display list's address in s0, the texture in s1), the display-list pointer in v1
  * (target v0) with w0 stored first, and 4 words shorter.
  */
@@ -2400,6 +2401,7 @@ void func_8000AA34(Object *obj) {
                 obj->trans.scale = obj->header->scale * flap->scale;
                 render_misc_model(obj, &flap->vertices[flap->frame * 6], 6, flap->tris, 8, flap->texture, 10, 0, 1.0f,
                                   (s32) (flap->grey * 255) >> 8, (s32) (flap->alpha * 255) >> 8);
+                if (flap) {}
             } else {
                 render_misc_model(obj, &flap->vertices[flap->frame * 6], 6, flap->tris, 8, flap->texture, 10, 0, 1.0f,
                                   255, 255);
@@ -2586,7 +2588,7 @@ void rendermode_reset(Gfx **dList);
 #ifdef NON_MATCHING
 /* JFG: draw the object's held item (slot as in func_8000BC28) with the matrix, lighting it and
    animating its textures first when it asks.
-   NON_MATCHING: the right frame; obj->racer is reloaded (target: in s0, then reused for the item)
+   NON_MATCHING (65 words, from 144, after the empty ifs on always-set values below): the right frame; obj->racer is reloaded (target: in s0, then reused for the item)
    and the temporaries are numbered differently. */
 void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     Object *held;
@@ -2598,6 +2600,7 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
         if (obj->behaviorId == 1) {
             Object_Racer *racer = obj->racer;
 
+            if (arg1) {}
             if (racer->unk1FA != 0 && func_8003B740(obj, racer) < 2) {
                 slot = 0;
             } else if (slot >= 9 || racer->unk53C > 0) {
@@ -2633,6 +2636,7 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
                                (u32) item->vertices + 0x80000000);
                     fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + 0x80000000);
                     fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + 0x80000000);
+                    if (arg2) {}
                     fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
                     mtx_pop(&gObjectCurrDisplayList);
                     rendermode_reset(&gObjectCurrDisplayList);

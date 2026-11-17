@@ -105,11 +105,7 @@ void rumble_motors_run(s32 updateRate);
  * JFG: its own save flags, the connected controllers are counted, and input
  * is cleared per player rather than for everyone.
  * Official name: joyRead
- * NON_MATCHING: the same instructions, but IDO shares one saved register between
- * settings and allSaves where the target gives each its own (five saved
- * registers, frame 0x58 instead of 0x50).
  */
-#ifdef NON_MATCHING
 s32 input_update(s32 saveDataFlags, s32 updateRate) {
     u8 *allSaves;
     OSMesg unusedMsg;
@@ -164,6 +160,7 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
             }
             // Reset all flags
             saveDataFlags = 0;
+            if (settings) {} // settings is set here on every path: this keeps it apart from allSaves
         }
         rumble_motors_run(updateRate);
         osContStartReadData(&sSIMesgQueue);
@@ -185,9 +182,6 @@ s32 input_update(s32 saveDataFlags, s32 updateRate) {
     }
     return saveDataFlags;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/joypad", func_80043130);
-#endif
 
 /**
  * Set the first 4 player ID's to the controller numbers, so players can input in the menus after boot.

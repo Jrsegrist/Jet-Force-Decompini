@@ -130,7 +130,7 @@ extern void *D_800A3900[]; // JFG: video buffers ([0] the line buffer, [3] the d
 extern s8 gVideoVerticalAdjust;
 extern s8 D_800FECA5;
 extern s8 D_800FECA6;
-extern u8 D_800FECA7;
+extern s8 D_800FECA7;
 extern s32 D_800FECD0; // JFG: no Z buffer reallocation
 extern s32 D_800A3928;
 extern s8 sBlackScreenTimer;
@@ -172,7 +172,7 @@ extern f32 D_800A391C; // JFG: the screen's x scale (to 320)
 extern f32 D_800A3920; // JFG: the screen's y scale (to 240)
 extern s32 D_800A3910[3]; // JFG: the framebuffers
 extern s8 D_800FECA4; // JFG: the framebuffer index
-extern u8 D_800FECA7;
+extern s8 D_800FECA7;
 void set_screen_dialogue_box_size(s32 width, s32 height);
 void zbuffer_alloc(s32 width, s32 height);
 void zbuffer_free(s32 width, s32 height);
@@ -181,12 +181,9 @@ void video_delta_reset(void);
 void fb_swap(void);
 void fb_init_vi(void);
 
-#ifdef NON_MATCHING
 /* JFG: switch to video mode (0-3, offset for MPAL/PAL; mode 0 on the first call): the screen scale,
    the depth buffer, two or three framebuffers (the second allocated in modes 2 and 3, the third when
-   asked) cleared unless it is the first call, then the VI.
-   NON_MATCHING: register choice only: the target keeps the global addresses in a1/v1/a3/a2 (mine
-   v1/a3/a2/v1), which also moves the size + 0x30 into a branch delay slot. */
+   asked) cleared unless it is the first call, then the VI. */
 void func_8005483C(s32 mode) {
     s32 size;
     VideoMode *videoMode;
@@ -223,6 +220,7 @@ void func_8005483C(s32 mode) {
     } else {
         D_800A3900[1] = mempool_alloc_safe(size + 0x30, -1);
         D_800A3910[1] = ((s32) D_800A3900[1] + 0x3F) & ~0x3F;
+        if (size) {} // size is set on every path: this keeps the target's registers for the addresses
     }
     if (D_800FECA6) {
         D_800A3900[2] = mempool_alloc_safe(size + 0x30, -1);
@@ -245,9 +243,6 @@ void func_8005483C(s32 mode) {
     fb_init_vi();
     D_800FECD0 = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/55130", func_8005483C);
-#endif
 
 extern s32 D_800FECB0; // JFG: the previous frame's image
 extern s32 gVideoLastFramebuffer; // the framebuffer to show next
@@ -481,7 +476,7 @@ s32 func_80055208(void) {
     return D_800FECA5 != D_800FECA6;
 }
 
-extern u8 D_800FECA7;
+extern s8 D_800FECA7;
 
 void func_80055228(void) {
     D_800FECA7 = 0;

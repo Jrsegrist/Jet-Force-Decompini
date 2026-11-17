@@ -634,7 +634,7 @@ void func_80054530_ppfff(u8 *arg0, u8 *arg1, f32 x, f32 y, f32 z);
 void func_80054530();
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: s0/s1 swapped (the target keeps obj then racer in s0, the view address in s1) and the target stores
+/* NON_MATCHING (104 words, from 158, after the empty ifs on always-set values below): s0/s1 swapped (the target keeps obj then racer in s0, the view address in s1) and the target stores
    the free-view angles through %lo(D_800F6DC8) rather than the address register; frame and order match */
 /* JFG: player camera update: C buttons toggle the free view (0x3D); the camera module (racer 0x1FC/0x21C) is
  * given the object's position (and angles in the free view), and the camera eases to the result */
@@ -656,6 +656,7 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
     view->position[0] = *(f32 *) (obj + 0xC);
     view->position[1] = *(f32 *) (obj + 0x10);
     view->unk14 = 0.0f;
+    if (racer) {}
     view->unk18 = 0.0f;
     view->position[2] = *(f32 *) (obj + 0x14);
     view->unk1C = -48.0f;

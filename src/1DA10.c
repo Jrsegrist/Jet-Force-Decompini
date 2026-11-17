@@ -343,8 +343,8 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E8B8);
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001EE1C);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: an FP register rotation only (dz, -dx and the edge offset get f22/f24/f20 instead of
- * f20/f22/f24). */
+/* NON_MATCHING: an FP register swap only: dz and the edge offset get f24/f20 (target f20/f24); the empty
+ * `if (temp_f14) {}` (always set there) put -dx in the target's f22. */
 /* DKR func_8002FF6C (tracks.c): clip the shadow polygon against each edge, caching the edge intersections (JFG: the
  * shadow struct passed in, the counts as parameters, stops at 8 vertices). */
 s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEdges, ShadowEdge *edges) {
@@ -387,6 +387,7 @@ s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEd
         } else {
             var_f2 = (temp_f12 * edges[var_v1].x) + (edges[var_v1].z * temp_f14);
             var_f2 = -var_f2;
+            if (temp_f14) {}
         }
 
         for (var_t1 = 0, var_t2 = 0; var_t1 < var_s2; var_t1++) {
@@ -810,7 +811,7 @@ void func_8004A2FC(MtxF *mtx, f32 *in, f32 *out);                               
 void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); // a point by the matrix
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the frame matches; the target keeps the point matrix in s7 for the whole function and the batch
+/* NON_MATCHING (111 words, from 266, after the empty ifs on always-set values below): the frame matches; the target keeps the point matrix in s7 for the whole function and the batch
  * index in memory with its own *16 counter (mine recomputes mtx + 2 and i << 4). */
 /*
  * JFG: collect the faces of the object's model that face up (normal y times the scale above 0.5) and overlap the
@@ -845,6 +846,7 @@ s32 func_800203C4(HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f3
     model = inst->model;
     if (inst->normals != NULL) {
         normalSet = inst->normals;
+        if (inst) {}
     } else {
         normalSet = model->normals;
     }

@@ -529,46 +529,70 @@ void audspat_calculate_echo(void *soundHandle, f32 x, f32 y, f32 z) {
 extern s32 D_800A0800[]; // JFG: the number of entries of each group (groups from 1)
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: IDO unrolls the two search loops by 4 here (the target's are not unrolled) */
+/* NON_MATCHING: 75 words: the loops have the ROM's shape (not unrolled: `while (TRUE) { ...; if (i < count) continue;
+   break; }` under a count guard), but the ROM spills volume to its home and gives $a1 to minVolume, so the other
+   registers and the frame (0x30 there) differ. The empty ifs test a parameter and count, both always set. */
 /* JFG: add a point to its group (unk23) with the given sound settings: update its entry, or take a free one,
  * or replace the quietest entry if this one is louder. */
 void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix) {
     s32 count = D_800A0800[point->groupId];
-    AudioGroupEntry *entries = D_800F2A48[point->groupId - 1];
-    AudioGroupEntry *entry = entries;
+    AudioGroupEntry *entry = D_800F2A48[point->groupId - 1];
     s32 i;
     s32 quietest;
     s32 minVolume;
 
-    for (i = 0; i < count; i++, entry++) {
-        if (point == entry->point) {
-            entry->pitch = pitch;
-            entry->pan = pan;
-            entry->volume = volume;
-            entry->fxMix = fxMix;
-            return;
+    i = 0;
+    if (count > 0) {
+        while (TRUE) {
+            if (fxMix) {}
+            if (point == entry->point) {
+                entry->pitch = pitch;
+                entry->pan = pan;
+                entry->volume = volume;
+                entry->fxMix = fxMix;
+                return;
+            }
+
+            i++;
+            entry++;
+            if (i < count) {
+                continue;
+            }
+            break;
         }
+        if (count) {}
     }
-    entry = entries;
+    entry = D_800F2A48[point->groupId - 1];
     minVolume = entry->volume;
-    for (i = 0; i < count; i++, entry++) {
-        if (entry->point == NULL) {
-            entry->point = point;
-            entry->pitch = pitch;
-            entry->pan = pan;
-            entry->volume = volume;
-            entry->fxMix = fxMix;
-            return;
-        }
-        if (entry->volume <= minVolume) {
-            minVolume = entry->volume;
-            quietest = i;
+    i = 0;
+    if (count > 0) {
+        while (TRUE) {
+            if (entry->point == NULL) {
+                entry->point = point;
+                entry->pitch = pitch;
+                entry->pan = pan;
+                entry->volume = volume;
+                entry->fxMix = fxMix;
+                return;
+            }
+            if (entry->volume <= minVolume) {
+                minVolume = entry->volume;
+                quietest = i;
+            }
+
+            i++;
+            entry++;
+            if (i < count) {
+                continue;
+            }
+            break;
         }
     }
     if (minVolume < volume) {
         entry = &D_800F2A48[point->groupId - 1][quietest];
         if (entry->point->soundHandle != NULL) {
             sound_stop(entry->point->soundHandle);
+            if (count) {}
         }
         entry->point = point;
         entry->pitch = pitch;

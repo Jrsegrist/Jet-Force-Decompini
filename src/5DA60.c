@@ -1038,7 +1038,7 @@ extern f32 D_801008F8;
 extern f32 D_801008FC;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the target loads model->data into a0 and copies it to a3 for the call (mine loads a3), which
+/* NON_MATCHING (32 words, from 73, after the empty ifs on always-set values below): the target loads model->data into a0 and copies it to a3 for the call (mine loads a3), which
    shifts the FPRs of the normalisation */
 /**
  * Initializes the particle velocity.
@@ -1125,6 +1125,7 @@ void func_8005F960(VelParticle *particle, VelObject *obj, ParticleEmitter *emitt
         } else {
             model = NULL;
         }
+        if (model) {}
         if (emitter->unk23 != -1 && model != NULL && model->data->unk4E != 0) {
             if (model->unkA != 0) {
                 sourceVel.x = 0.0f;
@@ -1149,6 +1150,7 @@ void func_8005F960(VelParticle *particle, VelObject *obj, ParticleEmitter *emitt
         particle->velocity.x += sourceVel.x;
         particle->velocity.y += sourceVel.y;
         particle->velocity.z += sourceVel.z;
+        if (model) {}
     }
 }
 #else

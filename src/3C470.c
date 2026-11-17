@@ -1258,7 +1258,7 @@ typedef struct BatchModel3E {
 } BatchModel3E;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: same code, other registers: the target keeps each slot id in $a1 (copied from $v0) and the
+/* NON_MATCHING (54 words, from 87, after the empty ifs on always-set values below): same code, other registers: the target keeps each slot id in $a1 (copied from $v0) and the
    loop counters/pointers in $v1/$t0/$t1, mine shifts them all by one */
 /* JFG: the three cached slots (D_800F6F48: id, D_800F6F4C: batches until it is used again): count each down and
  * re-measure; then give each of the three ids a slot (one it has, a free one or the one needed latest that none
@@ -1273,6 +1273,7 @@ void func_8003E398(Gfx **dList, s8 *ids, s8 *slots, BatchModel3E *model, s32 bat
     Gfx *gfx;
 
     for (i = 0; i < 3; i++) {
+        if (dList) {}
         if (D_800F6F48[i] != -1) {
             D_800F6F4C[i]--;
             if (D_800F6F4C[i] <= 0) {
@@ -1289,6 +1290,7 @@ void func_8003E398(Gfx **dList, s8 *ids, s8 *slots, BatchModel3E *model, s32 bat
         }
     }
     slot = slots;
+    if (batchIndex) {}
     id = ids;
     for (j = 0; j < 3; j++, slot++, id++) {
         *slot = -1;
