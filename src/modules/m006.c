@@ -242,6 +242,7 @@ void func_m006_012B0(s8 *player) {
 }
 
 #ifdef NON_MATCHING
+/* 149 -> 68 diffs with the empty `if (player) {}` / `if (updateRate) {}` */
 /* Slides a player's message bar in and out and moves on through the queue; register allocation differs */
 void func_m006_012D4(s8 *player, s32 updateRate) {
     M006Queue *queue = &D_800FF1D0[*player];
@@ -267,6 +268,8 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                 }
             }
         }
+        if (player) {
+        }
         if (!queue->locked) {
             if (D_800A4FD0 == 1 || (D_800A4FD0 != 1 && sBarY[*player] == 30)) {
                 queue->timer -= updateRate;
@@ -277,6 +280,8 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                 } else {
                     queue->timer += normalise_time(120);
                     queue->current = queue->messages[queue->tail];
+                    if (updateRate) {
+                    }
                     queue->unk4E = 0;
                     if (++queue->tail >= 5) {
                         queue->tail = 0;
@@ -309,21 +314,18 @@ void func_m006_015E0(s32 hide) {
     D_800FF310 = hide;
 }
 
-#ifdef NON_MATCHING
-/*
- * The original multiplied by a double literal 1.2 from the module's .rodata, which stays assembly
- * until func_m006_00000 (which has the rest of it) is C; read from there the load is scheduled
- * differently. 015EC's saved register also differs.
- */
+/* The 50 Hz time scales: doubles in the module's .rodata (still assembly), each read by its own address */
+extern f64 rl_m006_01AF8;
+extern f64 rl_m006_01B00;
+
 /* Formats a time in frames as minutes, seconds and hundredths */
 void func_m006_015EC(s32 time, char *minutes, char *seconds, char *hundredths) {
     s32 min;
     s32 sec;
     s32 rest;
-    s32 frac;
 
     if (D_800FECC0 == 50) {
-        time = (f32) time * *(f64 *) (rl_m006_01AC0 + 0x38);
+        time = (f32) time * rl_m006_01AF8;
     }
     min = time / 3600;
     if (min < 10) {
@@ -338,11 +340,10 @@ void func_m006_015EC(s32 time, char *minutes, char *seconds, char *hundredths) {
     } else {
         sprintf(seconds, rl_m006_01AC0 + 0xC, sec);
     }
-    frac = ((time - sec * 60 - rest) * 100) / 60;
-    if (frac < 10) {
-        sprintf(hundredths, rl_m006_01AC0 + 0x10, frac);
+    if (((time - sec * 60 - rest) * 100) / 60 < 10) {
+        sprintf(hundredths, rl_m006_01AC0 + 0x10, ((time - sec * 60 - rest) * 100) / 60);
     } else {
-        sprintf(hundredths, rl_m006_01AC0 + 0x14, frac);
+        sprintf(hundredths, rl_m006_01AC0 + 0x14, ((time - sec * 60 - rest) * 100) / 60);
     }
 }
 
@@ -354,7 +355,7 @@ void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *
     s32 total;
 
     if (D_800FECC0 == 50) {
-        time = (f32) time * *(f64 *) (rl_m006_01AC0 + 0x40);
+        time = (f32) time * rl_m006_01B00;
     }
     total = time / 3600;
     min = total % 60;
@@ -378,10 +379,5 @@ void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *
     }
     sprintf(hours, rl_m006_01AC0 + 0x30, total / 60);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_015EC);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_017AC);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m006", rodata);

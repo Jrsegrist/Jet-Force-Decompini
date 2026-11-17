@@ -2,7 +2,11 @@
  * Runlink module 67: an enemy and its missiles (still mostly assembly).
  * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
+/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
+#define obj_anim_set func_8001149C_void
 #include "module.h"
+#undef obj_anim_set
+extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 #include "gfx.h"
 
 /* A missile's state (obj->unk68), as far as used here */
@@ -292,8 +296,6 @@ void func_m067_00728(Object *obj, s32 updateRate) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_008C4);
 
-#ifdef NON_MATCHING
-/* Registers: the ROM keeps the state in v1, the pair in v0 and the header in t0 (t0/t1 taken) */
 void func_m067_00D70(Object *obj, M067Setup *setup) {
     M067Header *header;
     M067State *s = obj->unk68;
@@ -332,9 +334,6 @@ void func_m067_00D70(Object *obj, M067Setup *setup) {
         func_m039_00000();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m067", func_m067_00D70);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_00EF4);
 

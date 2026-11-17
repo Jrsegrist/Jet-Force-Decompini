@@ -225,6 +225,7 @@ extern void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *o
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern f32 func_80097140(f32 x); /* sqrtf */
 
+/* 436 -> 204 diffs with the empty ifs on j, v2 and a */
 /* The beam object's control: grows or fades its strength, flickers, and rebuilds its model out to what it hits */
 void func_m028_0031C(Object *obj, s32 updateRate) {
     s32 i;
@@ -376,6 +377,8 @@ void func_m028_0031C(Object *obj, s32 updateRate) {
                 t->uv[2][1] += 0x1000;
             }
         }
+        if (j) {
+        }
         func_80049DC0(obj, mtx);
         func_80048B60(mtx, 0.0f, 0.0f, -st->strength, &st->end.x, &st->end.y, &st->end.z);
         hitRes = func_80018808(obj, (Vec3f *) &obj->trans.x_position, &st->end, &hit, 0, 0);
@@ -404,6 +407,8 @@ void func_m028_0031C(Object *obj, s32 updateRate) {
             st->shape[0][c] = rot + updateRate * st->shape[1][c];
             a = 0;
             z = 0;
+            if (v2) {
+            }
             scale = (f32) st->strength / (f32) st->strength2;
             for (i = 0; i < 9; i++) {
                 f32 w;
@@ -414,6 +419,8 @@ void func_m028_0031C(Object *obj, s32 updateRate) {
                 a += step;
                 pos[0] = func_80049C34(rot) * r;
                 pos[1] = func_80049C30(rot) * r;
+                if (a) {
+                }
                 pos[2] = 0.0f;
                 if (c == 0) {
                     offsets[n++] = pos[0];

@@ -568,6 +568,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_012F0);
 
 #ifdef NON_MATCHING
 /* register choice: the ROM gives lo/hi/n a0/v0/v1 and the mask t0 */
+/* 104 -> 69 diffs with the empty ifs on base, hi and lo */
 /*
  * For each triangle, a mask of the cells of an 8x8x8 grid over the model's
  * bounds that its bounding box touches (x in bits 0-7, z in 8-15, y in 16-23).
@@ -608,6 +609,10 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
             if (model->triangles[j].flags & 0x80) {
                 ((u32 *) hit->unk4)[j] = 0;
                 continue;
+            }
+            if (base) {
+            }
+            if (base) {
             }
             maxX = -32000;
             maxY = -32000;
@@ -664,6 +669,10 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
                 lo += step;
                 bit <<= 1;
             }
+            if (hi) {
+            }
+            if (lo) {
+            }
             lo = inst->minY;
             step = ((inst->maxY - inst->minY) >> 3) + 1;
             hi = step + inst->minY;
@@ -685,6 +694,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_01508);
 
 #ifdef NON_MATCHING
 /* register allocation: the ROM keeps the result in ra and the batch vertex in t5 */
+/* 89 -> 58 diffs with the empty ifs on k and k2 */
 /* Finds which edge of triangle tri runs from p to q (either way round), or -1 */
 static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M030Vertex *p, M030Vertex *q) {
     M030Batch *batch;
@@ -742,6 +752,12 @@ static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M03
                 z2 = v2->z;
                 if ((px == x1 && py == y1 && pz == z1 && qx == x2 && qy == y2 && qz == z2) ||
                     (px == x2 && py == y2 && pz == z2 && qx == x1 && qy == y1 && qz == z1)) {
+                    if (k) {
+                    }
+                    if (k) {
+                    }
+                    if (k2) {
+                    }
                     result = k;
                     k = 3;
                 }

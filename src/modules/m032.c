@@ -4,7 +4,11 @@
  * moves its light with it and fades out once it is told to.
  * Family: other object behaviours (docs/runlink.md, "Module families").
  */
+/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
+#define obj_anim_set func_8001149C_void
 #include "module.h"
+#undef obj_anim_set
+extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 
 /* One spoken line: a sound and how many variants follow it */
 typedef struct M032Line {
@@ -151,8 +155,6 @@ extern s32 rl_m032_01D2C(M032Speaker *st);
 extern s32 rl_m032_01DD8(M032Speaker *st);
 
 /* The speaker's init: its place, reach and lines (by its object ID), animation and settings flag */
-#ifdef NON_MATCHING
-/* 7 diffs: after the first call the ROM keeps the header pointer in v1, C in v0 */
 void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     M032Speaker *st = obj->unk68;
     M032Lines *l;
@@ -208,9 +210,6 @@ void func_m032_00000(Object *obj, M032SpeakerSetup *setup) {
     }
     rl_m032_031CC = NULL;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_00000);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_002E8);
 
@@ -243,35 +242,32 @@ void func_m032_01D84(Object *obj) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_01DD8);
 
-#ifdef NON_MATCHING
-/* 14 diffs, registers only: the ROM has the two differences in v0/a3 and the step in v1 */
-/* Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps` */
+/*
+ * Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps`
+ * (the forward difference d becomes the step)
+ */
 s16 func_m032_02068(s16 angle, s16 target, s16 steps) {
-    s32 d;
     s32 back;
-    s32 step;
+    s32 d;
 
     while (steps--) {
         d = (u16) (target - angle);
         back = (u16) (angle - target);
         if (back < d) {
-            step = -back >> 3;
-            if (step < -364) {
-                step = -364;
+            d = -back >> 3;
+            if (d < -364) {
+                d = -364;
             }
         } else {
-            step = d >> 3;
-            if (step > 364) {
-                step = 364;
+            d = d >> 3;
+            if (d > 364) {
+                d = 364;
             }
         }
-        angle += step;
+        angle += d;
     }
     return angle;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_02068);
-#endif
 
 void func_m032_02110(Object *obj, M032BobSetup *setup) {
     M032Bob *b = obj->unk68;

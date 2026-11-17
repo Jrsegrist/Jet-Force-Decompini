@@ -522,6 +522,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_007E4);
 #endif
 
 #ifdef NON_MATCHING
+/* 80 -> 60 diffs with the empty ifs on id, kind, t and i */
 /*
  * Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet.
  * NON_MATCHING: the frame is two words bigger and the registers differ; func_m007_00C90 (close:
@@ -533,12 +534,20 @@ static void *func_m007_00988(s32 id, s32 kind) {
     s32 i;
     s32 asset;
 
+    if (id) {
+    }
     for (t = rl_m007_02C58; t < &rl_m007_02C58[32]; t++) {
+        if (kind) {
+        }
         if (t->data != NULL && id == t->id) {
             return t->data;
         }
     }
     for (i = 0; i < 32 && rl_m007_02C58[i].data != NULL; i++) {
+    }
+    if (t) {
+    }
+    if (t) {
     }
     if (i >= 32) {
         return NULL;
@@ -567,6 +576,10 @@ static void *func_m007_00988(s32 id, s32 kind) {
         t->id = id;
         rl_m007_02A48++;
     }
+    if (i) {
+    }
+    if (i) {
+    }
     return t->data;
 }
 #else
@@ -576,7 +589,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00988);
 INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00B00);
 
 #ifdef NON_MATCHING
-
+/* Matches (indexing p->recs[i]; a record pointer gave 6 diffs); staged: only 00988 (NON_MATCHING) calls it */
 /* Loads text `id` from asset `asset` as pages, turning their text offsets into pointers */
 static void *func_m007_00C90(s32 id, s32 asset) {
     UNUSED s32 *offsets;
@@ -584,22 +597,22 @@ static void *func_m007_00C90(s32 id, s32 asset) {
     s32 size;
     M007Pages *p;
     s32 i;
-    M007PageRec *rec;
+    UNUSED M007PageRec *rec;
 
     start = ((s32 *) rl_m007_02A54)[id];
     size = ((s32 *) rl_m007_02A54)[id + 1] - start;
     p = func_8004A57C(size, 0xFF00FF);
     if (p != NULL) {
         func_8004D530(asset, p, start, size);
-        for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
-            if (rec->text == NULL) {
-                if (rec->action == 0x4000) {
-                    rec->text = rl_m007_02A04;
+        for (i = 0; i < p->count; i++) {
+            if (p->recs[i].text == NULL) {
+                if (p->recs[i].action == 0x4000) {
+                    p->recs[i].text = rl_m007_02A04;
                 } else {
-                    rec->text = rl_m007_02A14;
+                    p->recs[i].text = rl_m007_02A14;
                 }
             } else {
-                rec->text = rec->text + (s32) p;
+                p->recs[i].text = p->recs[i].text + (s32) p;
             }
         }
     }

@@ -1228,6 +1228,7 @@ extern void anim_path_spawn_object(u8 index);
 s32 func_m003_061FC(void);
 
 #ifdef NON_MATCHING
+/* 127 -> 88 diffs with the empty `if (src) {}` / `if (node) {}` */
 /*
  * A troop with no path group takes a free one: a new path of its own, four nodes long (in sGroupPaths), copied
  * from the leader's path and looping, whose object becomes the leader.
@@ -1302,10 +1303,14 @@ static void func_m003_01EB8(void) {
                 from = troop_path_node_next(from);
                 node++;
             } while (i--);
+            if (src) {
+            }
             path->obj->trans.flags |= 0x400;
             sGroupNodes[sHomeData->group] = from;
             ((void (*)(u8)) anim_path_enable_run)(index); /* module.h declares it unprototyped */
             sHomeData->leader = path->obj;
+            if (node) {
+            }
             sHomeData->unk79 = 1;
             path->curNode = path->nodes->next;
         }
@@ -2087,6 +2092,7 @@ extern void func_m003_058A4(Object *obj);
 
 #ifdef NON_MATCHING
 /* IDO folds the `+ 0.0f`s the ROM keeps, and sBody/index swap registers */
+/* 25 -> 11 diffs with the empty `if (piece) {}` */
 /* The member loses the body part the last hit took off: a flying piece of it is spawned if there's memory */
 static void func_m003_044F4(Object *obj) {
     u8 index = sBody->hitPart;
@@ -2120,6 +2126,8 @@ static void func_m003_044F4(Object *obj) {
         piece = func_80005F14(&entry, 1);
         if (piece != NULL) {
             zero = 0.0f;
+            if (piece) {
+            }
             piece->velocity.x += zero;
             piece->velocity.y += zero;
             piece->velocity.z += zero;
@@ -2550,25 +2558,18 @@ static void troop_select(Object *home) {
     func_m154_017E8(sHome);
 }
 
-#ifdef NON_MATCHING
-/* 11 diffs, registers only: the ROM keeps `point` in v0 and computes `point + 1` again for the test */
 /* The points before and after `point` round the region's edge */
-void func_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next) {
+static void func_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next) {
     *prev = point - 1;
     *next = point + 1;
     if (point == 0) {
         *prev = region->numEdges - 1;
         return;
     }
-    if (region->numEdges == point + 1) {
+    if (point == region->numEdges - 1) {
         *next = 0;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_05650);
-void rl_m003_05650(M003Region *region, u8 point, u8 *prev, u8 *next); /* static: called by its module offset */
-#define func_m003_05650 rl_m003_05650
-#endif
 
 /* Region `index`, or NULL before the regions are loaded */
 M003Region *func_m003_0569C(s32 index) {
@@ -2683,6 +2684,7 @@ extern s32 audspat_volume_at_distance(s32 kind, f32 *from, f32 *to); /* how loud
 
 #ifdef NON_MATCHING
 /* IDO puts the loop counter's dead copy in the branch delay slots the ROM leaves empty (one word short) */
+/* 116 -> 53 diffs with the empty `if (obj) {}` before the return */
 /* The nearest event the member hears loudly enough (its loudness in *loudness), or NULL */
 M003Event *func_m003_06754(Object *obj, f32 *loudness) {
     M003Member *m = obj->unk68;
@@ -2719,6 +2721,8 @@ M003Event *func_m003_06754(Object *obj, f32 *loudness) {
         }
         e++;
     } while (i--);
+    if (obj) {
+    }
     return found;
 }
 #else
@@ -2939,9 +2943,6 @@ void func_m003_09680(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* 2 diffs: the ROM masks `flag` to 16 bits in the branch's delay slot (with this prototype IDO masks
-   it through its stack slot; with none it does not mask it at all) */
 extern void obj_group_countdown(s32 id, u16 flag);
 
 /* Puts the troop in state 7 and, once, counts it down in its object group */
@@ -2949,14 +2950,11 @@ void func_m003_09840(M003Home *home, s32 flag) {
     u8 group = home->unk75;
 
     home->unk30 = 7;
-    if (group != 0 && !(home->flags & 8)) {
+    if (group && !(home->flags & 8)) {
         obj_group_countdown(group, flag);
         home->flags |= 8;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_09840);
-#endif
 
 extern void rl_m003_09840(M003Home *home, s32 arg1);
 
