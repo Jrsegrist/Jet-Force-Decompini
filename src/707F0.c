@@ -882,7 +882,7 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 #ifdef NON_MATCHING
 /* JFG: find the cached glyph of the current font, or load it into free cache blocks (keeping the 16
    bytes the glyph's header overwrites in front of its block).
-   NON_MATCHING: the target keeps the 4-word save as a loop (IDO unrolls this one), ch out of $s0,
+   NON_MATCHING (83 words, from 152, after the empty ifs on always-set values below): the target keeps the 4-word save as a loop (IDO unrolls this one), ch out of $s0,
    and other argument registers for the counters (frame 0x70). */
 GlyphCacheEntry *glyph_cache_get(u8 ch) {
     GlyphCacheEntry *entry;
@@ -914,9 +914,11 @@ GlyphCacheEntry *glyph_cache_get(u8 ch) {
     if (found != NULL) {
         entry = found;
         do {
+            if (font) {}
             run = entry->next;
             entry->state = 2;
             entry++;
+            if (ch) {}
         } while (run);
         return found;
     }
@@ -1079,7 +1081,7 @@ void fontConvertString(u8 *in, u8 *out) {
 }
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: register allocation only: the target keeps 0x80/0xF in t3/t4 and the D_801040E8 address unhoisted (4 saved registers, mine 7) */
+/* NON_MATCHING (55 words, from 109, after the empty ifs on always-set values below): register allocation only: the target keeps 0x80/0xF in t3/t4 and the D_801040E8 address unhoisted (4 saved registers, mine 7) */
 /* JFG: word wrap: from text, find where the line that fits maxWidth ends (spaces are 0x80 0x0F); the line's
  * first word goes to *lineStart. Returns NULL at the end of the text or if not even one word fits. */
 u8 *func_8007216C(s32 font, u8 *text, s32 maxWidth, u8 **lineStart) {
@@ -1101,6 +1103,7 @@ u8 *func_8007216C(s32 font, u8 *text, s32 maxWidth, u8 **lineStart) {
             if (ch == 0x80 && text[1] == 0xF) {
                 text += 2;
                 if (!first) {
+                    if (brk) {}
                     wordWidth += gFonts[font].charWidth;
                 }
             } else if (ch == 0) {
@@ -1120,6 +1123,7 @@ u8 *func_8007216C(s32 font, u8 *text, s32 maxWidth, u8 **lineStart) {
         }
         ch = *text;
         if (ch == 0x80 && text[1] != 0xF) {
+            if (brk) {}
             widths = D_801040E8[font];
             do {
                 wordWidth += widths[text[1]];

@@ -779,7 +779,7 @@ void splitscreen_dividers_draw(Gfx **dList);
 void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the target keeps the held-buttons OR in a stack slot (only $s0/$s1 used, frame 0x48) and tests
+/* NON_MATCHING (129 words, from 238, after the empty ifs on always-set values below): the target keeps the held-buttons OR in a stack slot (only $s0/$s1 used, frame 0x48) and tests
    i < numPlayers with slt; mine gives it $s1 and $s2 */
 /* JFG: one frame of the game: the module hooks, the players' buttons (START pauses), the world update unless
  * paused, then the drawing passes. */
@@ -854,6 +854,7 @@ void func_80045F00(s32 updateRate) {
         if (D_800A32BC < 0) {
             D_800A32BC = 0;
         }
+        if (v) {}
     }
     gParticlePtrList_flush();
     debug_trace_add(gfx, "main/main.c", 0x683);

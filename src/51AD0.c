@@ -831,7 +831,7 @@ void runlink_reloc_apply(PatchWord *insn, u32 value, u8 type) {
  * (kind 5) also applies the LO16 after it with the combined addend. Returns how many relocations it used. */
 extern u32 D_800FEAB8[5]; // JFG: the section addresses of the module being relocated
 #ifdef NON_MATCHING
-/* NON_MATCHING: insn gets s1 (target: a3, spilled around the first call), so target lands in a3 and the temps shift */
+/* NON_MATCHING (86 words, from 118, after the empty ifs on always-set values below): insn gets s1 (target: a3, spilled around the first call), so target lands in a3 and the temps shift */
 s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
     PatchWord *insn;
     u32 kind;
@@ -858,6 +858,7 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
         }
         if (reloc->type == 0 && gRunlinkModules[symModule].unk0 == 0) {
             target = (u32) D_800FEAD4;
+            if (target) {}
         }
         lo = (PatchWord *) (reloc[1].offset + D_800FEAB8[1]);
         loHalf = lo->half.lo;
@@ -871,6 +872,7 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
         }
         runlink_reloc_apply(insn, target, 5);
         runlink_reloc_apply(lo, target, 6);
+        if (type) {}
         reloc->type = type;
         return 2;
     }

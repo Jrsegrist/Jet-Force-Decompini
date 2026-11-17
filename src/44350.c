@@ -323,7 +323,7 @@ extern s16 D_800A31BC[3]; // JFG: the IDs of the looping level sounds (-1: none)
  * DKR: level_load (a different order and set of steps)
  */
 #ifdef NON_MATCHING
-/* NON_MATCHING: register allocation (loop tests, the sound loops' pointers and slot) */
+/* NON_MATCHING (174 words, from 305, after the empty ifs on always-set values below): register allocation (loop tests, the sound loops' pointers and slot) */
 void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
     s32 count;
     s32 offset;
@@ -394,6 +394,7 @@ void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
         gCurrentLevelHeader->fogG == 0 && gCurrentLevelHeader->fogB == 0) {
         for (i = 0; i < 4; i++) {
             reset_fog(i);
+            if (arg1) {}
         }
     } else {
         for (i = 0; i < 4; i++) {

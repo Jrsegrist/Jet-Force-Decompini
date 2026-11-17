@@ -743,7 +743,7 @@ void mempool_free(void *data);
 RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 texID, f32 speed);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: one word short (the ROM copies half and numVerts to v0/v1 before the alloc call); the registers of
+/* NON_MATCHING (186 words, from 352, after the empty ifs on always-set values below): one word short (the ROM copies half and numVerts to v0/v1 before the alloc call); the registers of
    frames/half at the top and the spill slots differ */
 /* JFG: allocate and set up a ripple's child effect: segments from length (60 per unit, two per pair), two
    triangle buffers, the strips and four (type 0) or two vertex buffers, all white; frees it if the texture
@@ -818,6 +818,7 @@ RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 t
                     child->tris[i][j].flags = 0x40;
                 }
             }
+            if (size14) {}
             child->texFrame = 0;
             child->numStrips = 0;
             child->unk39 = 0;
@@ -827,6 +828,8 @@ RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 t
         } else {
             mempool_free(child);
             child = NULL;
+            if (i) {}
+            if (stripsSize) {}
         }
     }
     return child;

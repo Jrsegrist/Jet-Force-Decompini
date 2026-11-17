@@ -236,7 +236,7 @@ void snow_init(void); // DKR: snow_init
 s32 rand_range(s32 min, s32 max);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the target's frame is 0x30 bytes bigger and keeps the density in s3; the colour tag is
+/* NON_MATCHING (144 words, from 228, after the empty ifs on always-set values below): the target's frame is 0x30 bytes bigger and keeps the density in s3; the colour tag is
    rebuilt for each call there, mine stays in s5 */
 /**
  * Free all existing weather data.
@@ -307,6 +307,7 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
         pos->unused_E = 1 << (rand_range(0, 32) + 5);
         pos->index = rand_range(0, gSnowGfx.unk4 - 1);
         pos++;
+        if (density) {}
     }
     numOfElements = density * 4;
     allocSize = sizeof(SnowVertex);
