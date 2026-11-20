@@ -12,12 +12,7 @@ static void *hint_stack_push(s32 hint, s32 kind);
 static s32 hint_condition_holds(s32 condition);
 static void hint_stick_repeat_clear(void);
 static void hint_stack_pop(void);
-#ifdef NON_MATCHING
 static s32 func_m007_007E4(s32 dir);
-#else
-s32 rl_m007_007E4(s32 dir);
-#define func_m007_007E4 rl_m007_007E4
-#endif
 static void hint_page_choose(void);
 static void *func_m007_00988(s32 id, s32 kind);
 static void *func_m007_00C90(s32 id, s32 asset);
@@ -461,22 +456,19 @@ static void hint_stack_pop(void) {
     }
 }
 
-#ifdef NON_MATCHING
 /*
  * Counts the pages whose condition holds, and turns to the next one that holds in direction `dir`
  * (0: the current one if it holds, else the one before or after).
- * NON_MATCHING: the original walks the pages from the start of the block (4 bytes before the
- * first) and schedules the first loop's increments before the call.
  */
 static s32 func_m007_007E4(s32 dir) {
     M007Pages *p = rl_m007_02A5C;
     s32 i;
-    M007PageRec *rec;
+    UNUSED M007PageRec *rec;
     s32 count = 0;
 
     if (p != NULL) {
-        for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
-            if (hint_page_condition_holds(rec->condition)) {
+        for (i = 0; i < p->count;) {
+            if (hint_page_condition_holds(p->recs[i++].condition)) {
                 count++;
             }
         }
@@ -487,16 +479,14 @@ static s32 func_m007_007E4(s32 dir) {
                     i++;
                 } while (i < p->count && !hint_page_condition_holds(p->recs[i].condition));
             } else {
-                rec = &p->recs[i];
                 if (dir < 0) {
                     do {
                         i--;
                     } while (i >= 0 && !hint_page_condition_holds(p->recs[i].condition));
-                } else if (!hint_page_condition_holds(rec->condition)) {
+                } else if (!hint_page_condition_holds(p->recs[i].condition)) {
                     do {
                         i--;
-                        rec--;
-                    } while (i >= 0 && !hint_page_condition_holds(rec->condition));
+                    } while (i >= 0 && !hint_page_condition_holds(p->recs[i].condition));
                     if (i < 0) {
                         i = p->current;
                         do {
@@ -512,9 +502,6 @@ static s32 func_m007_007E4(s32 dir) {
     }
     return count;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_007E4);
-#endif
 
 /* Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet */
 static void *func_m007_00988(s32 id, s32 kind) {
