@@ -291,28 +291,28 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
     M117Cloud *cloud;
     M117Mote *mote;
     s32 *texture;
+    u8 order[20];
     s32 tex;
     s32 i;
     s32 j;
-    u8 *ord;
-    f32 *dep;
+    UNUSED s32 pad;
+    f32 zero;
     Vec3f *pos;
     f32 y;
     f32 scale;
     f32 base;
-    f32 range;
     f32 height;
+    f32 range;
     f32 fade;
     f32 swell;
+    MtxF mtx;
+    f32 depth[20];
+    M117Billboard board;
     f32 r;
     f32 x;
+    Vec3f positions[20];
     f32 tmp;
     u8 t;
-    Vec3f positions[20];
-    M117Billboard board;
-    f32 depth[20];
-    MtxF mtx;
-    u8 order[20];
 
     cloud = obj->unk68;
     if (cloud->brightness != 0 && obj->header != NULL &&
@@ -320,29 +320,26 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
         y = obj->trans.y_position;
         tex = *texture;
         scale = obj->trans.scale;
-        obj->trans.y_position = y + 8.0f;
         obj->trans.scale = 0.1f;
+        obj->trans.y_position = y + 8.0f;
         func_80049DC0(obj, &mtx);
         obj->trans.scale = scale;
         obj->trans.y_position = y;
         base = cloud->sizeZ;
-        fade = cloud->brightness / 255.0f;
         height = (cloud->sizeY * 2) * 0.5f;
-        range = (cloud->sizeX - base) * 0.5f;
+        fade = cloud->brightness / 255.0f;
+        range = ((f32) cloud->sizeX - cloud->sizeZ) * 0.5f;
         pos = positions;
         mote = cloud->motes;
-        dep = depth;
-        ord = order;
+        zero = 0.0f; /* the ROM adds a real 0.0f below (a literal folds away) */
         for (i = 0; i < 20; i++) {
             swell = func_80049C30(mote->phase) + 1.0f;
             r = (range * swell + base) * mote->scale;
             x = func_80049C34(mote->angle) * r * fade;
-            func_80048B60(&mtx, x, (height * swell + 0.0f) * fade, func_80049C30(mote->angle) * r * fade, &pos->x,
+            func_80048B60(&mtx, x, (height * swell + zero) * fade, func_80049C30(mote->angle) * r * fade, &pos->x,
                           &pos->y, &pos->z);
-            *dep = get_distance_to_camera(pos->x, pos->y, pos->z);
-            *ord = i;
-            dep++;
-            ord++;
+            depth[i] = get_distance_to_camera(pos->x, pos->y, pos->z);
+            order[i] = i;
             mote++;
             pos++;
         }
@@ -362,11 +359,12 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
         board.trans.rotation.x_rotation = 0;
         board.unk28 = 0.0f;
         draw_tint_pair_set(255, 255, 255, cloud->red, cloud->green, cloud->blue);
-        for (ord = order; ord != order + 20; ord++) {
-            mote = &cloud->motes[*ord];
-            board.trans.x_position = positions[*ord].x;
-            board.trans.y_position = positions[*ord].y;
-            board.trans.z_position = positions[*ord].z;
+        for (i = 0; i < 20; i++) {
+            t = order[i];
+            mote = &cloud->motes[t];
+            board.trans.x_position = positions[t].x;
+            board.trans.y_position = positions[t].y;
+            board.trans.z_position = positions[t].z;
             board.trans.rotation.z_rotation = mote->roll << 8;
             board.trans.scale = func_80049C34(mote->spin << 8) * 0.125f + 0.55f;
             render_sprite_billboard(arg0, arg1, arg2, &board, tex, 7, cloud->brightness);
