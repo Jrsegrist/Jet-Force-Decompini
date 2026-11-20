@@ -19,13 +19,8 @@ s32 rl_m007_007E4(s32 dir);
 #define func_m007_007E4 rl_m007_007E4
 #endif
 static void hint_page_choose(void);
-#ifdef NON_MATCHING
 static void *func_m007_00988(s32 id, s32 kind);
 static void *func_m007_00C90(s32 id, s32 asset);
-#else
-void *rl_m007_00988(s32 id, s32 kind);
-#define func_m007_00988 rl_m007_00988
-#endif
 extern void *rl_m007_00B00(s32 id, s32 asset);
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
@@ -521,38 +516,21 @@ static s32 func_m007_007E4(s32 dir) {
 INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_007E4);
 #endif
 
-#ifdef NON_MATCHING
-/* 80 -> 60 diffs with the empty ifs on id, kind, t and i */
-/*
- * Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet.
- * NON_MATCHING: the frame is two words bigger and the registers differ; func_m007_00C90 (close:
- * its loop's pointer starts 4 bytes later than the original's) is only called from here, so it
- * stays assembly with it.
- */
+/* Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet */
 static void *func_m007_00988(s32 id, s32 kind) {
-    M007Text *t;
     s32 i;
     s32 asset;
 
-    if (id) {
-    }
-    for (t = rl_m007_02C58; t < &rl_m007_02C58[32]; t++) {
-        if (kind) {
-        }
-        if (t->data != NULL && id == t->id) {
-            return t->data;
+    for (i = 0; i < 32; i++) {
+        if (rl_m007_02C58[i].data != NULL && id == rl_m007_02C58[i].id) {
+            return rl_m007_02C58[i].data;
         }
     }
     for (i = 0; i < 32 && rl_m007_02C58[i].data != NULL; i++) {
     }
-    if (t) {
-    }
-    if (t) {
-    }
     if (i >= 32) {
         return NULL;
     }
-    t = &rl_m007_02C58[i];
     switch (func_8005A7D0()) {
         case 1:
             asset = 12;
@@ -568,28 +546,19 @@ static void *func_m007_00988(s32 id, s32 kind) {
             break;
     }
     if (kind != 1) {
-        t->data = rl_m007_00B00(id, asset);
+        rl_m007_02C58[i].data = rl_m007_00B00(id, asset);
     } else {
-        t->data = func_m007_00C90(id, asset);
+        rl_m007_02C58[i].data = func_m007_00C90(id, asset);
     }
-    if (t->data != NULL) {
-        t->id = id;
+    if (rl_m007_02C58[i].data != NULL) {
+        rl_m007_02C58[i].id = id;
         rl_m007_02A48++;
     }
-    if (i) {
-    }
-    if (i) {
-    }
-    return t->data;
+    return rl_m007_02C58[i].data;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00988);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00B00);
 
-#ifdef NON_MATCHING
-/* Matches (indexing p->recs[i]; a record pointer gave 6 diffs); staged: only 00988 (NON_MATCHING) calls it */
 /* Loads text `id` from asset `asset` as pages, turning their text offsets into pointers */
 static void *func_m007_00C90(s32 id, s32 asset) {
     UNUSED s32 *offsets;
@@ -618,9 +587,6 @@ static void *func_m007_00C90(s32 id, s32 asset) {
     }
     return p;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00C90);
-#endif
 
 /* Stops the hint text */
 void func_m007_00D6C(void) {
