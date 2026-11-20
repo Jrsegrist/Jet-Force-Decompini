@@ -61,13 +61,17 @@ static M081Effect sEffects[4];
 
 /*
  * NON_MATCHING: func_m081_00080 (the stack slot of `effect`, 0x18 rather than
- * 0x1C, and the registers of the vertex colour loop differ). load_textures
- * matches, but only func_m081_00080 calls it, so it stays assembly with it.
+ * 0x1C, and the registers of the vertex colour loop differ). load_textures is
+ * 2 diffs off (measured at its own address; 25 before): the four sparks resets
+ * as a loop give the ROM's separate lui per store, and `if (tris) {}` (tris is
+ * set above) in it gives the ROM's tris base; the texture pointer's copy is in
+ * a0 here, a2 in the ROM. Only func_m081_00080 calls it, so it stays assembly with it.
  */
 #ifdef NON_MATCHING
 static void load_textures(void) {
     Triangle *tris;
     s32 w;
+    s32 i;
 
     sTexture = func_80055694(0x257);
     if (sTexture != NULL) {
@@ -79,10 +83,10 @@ static void load_textures(void) {
         tris[1].uv[1][1] = w;
         tris[1].uv[2][0] = w;
         tris[1].uv[2][1] = w;
-        sEffects[0].sparks = NULL;
-        sEffects[1].sparks = NULL;
-        sEffects[2].sparks = NULL;
-        sEffects[3].sparks = NULL;
+        for (i = 0; i < 4; i++) {
+            if (tris) {}
+            sEffects[i].sparks = NULL;
+        }
     }
 }
 

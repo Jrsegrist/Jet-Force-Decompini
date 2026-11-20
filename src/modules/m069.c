@@ -287,7 +287,11 @@ extern s32 func_8007C2E8(s32 arg0, M069Ray *ray, s32 count, Object **objs, Objec
 extern f32 func_80097140(f32 x); /* sqrtf */
 
 #ifdef NON_MATCHING
-/* 27 diffs: stack offsets only (the frame is 8 bytes bigger; the code is the same) */
+/*
+ * 8 diffs. With `kind == 1 || kind == 2` the code is the ROM's but IDO gives the frame two more temp
+ * words (8 bytes); as a switch the frame is the ROM's and only the test's registers and delay slots
+ * differ (27 diffs before).
+ */
 /*
  * Of the objects with a hit box of kind 1 or 2 (and header flag 0x40), how many the line from `from`
  * to `to` meets; the distance to the first goes to *dist (as the original computes it)
@@ -313,13 +317,16 @@ s32 func_m069_0135C(s32 arg0, f32 *from, f32 *to, f32 *dist) {
     ray.unk24 = 1.0f;
     ray.unk28 = 1.0f;
     list = func_80005E98(&first, &count);
-    list += first;
+    list = first + list;
     i = count - first;
     while (i--) {
         obj = *list++;
         if (obj->interactObj != NULL && (((u16 *) obj->header)[0x14 / 2] & 0x40)) {
-            if (((u8 *) obj->interactObj)[0x30] == 1 || ((u8 *) obj->interactObj)[0x30] == 2) {
-                objs[n++] = obj;
+            switch (((u8 *) obj->interactObj)[0x30]) {
+                case 1:
+                case 2:
+                    objs[n++] = obj;
+                    break;
             }
         }
     }
@@ -328,8 +335,8 @@ s32 func_m069_0135C(s32 arg0, f32 *from, f32 *to, f32 *dist) {
     }
     if (n > 0) {
         *dist = func_80097140((ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position) +
-                              (ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position) +
-                              (ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position));
+                              ((ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position) +
+                               (ray.from[0] - hit->trans.y_position) * (ray.from[0] - hit->trans.y_position)));
     }
     return n;
 }
