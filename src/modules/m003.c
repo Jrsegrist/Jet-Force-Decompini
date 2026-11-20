@@ -1516,17 +1516,15 @@ void func_m003_02A94(void) {
                        (func_80049668(((Object *) sClosestPlayer)->trans.rotation.y_rotation) >> 7);
 }
 
-#ifdef NON_MATCHING
 /* The troop's home takes its own position plus its offset (in 16s) */
-/* (the ROM converts the offset after loading the position: other registers, add.s operands swapped) */
 void func_m003_02BBC(void) {
-    sHomeData->unk40 = sHome->trans.x_position + sHomeData->offset[0] * 16;
-    sHomeData->unk42 = sHome->trans.y_position + sHomeData->offset[1] * 16;
-    sHomeData->unk44 = sHome->trans.z_position + sHomeData->offset[2] * 16;
+    M003Home **data = &sHomeData; /* (the ROM keeps both addresses in registers) */
+    Object **home = &sHome;
+
+    (*data)->unk40 = (*data)->offset[0] * 16 + (*home)->trans.x_position;
+    (*data)->unk42 = (*data)->offset[1] * 16 + (*home)->trans.y_position;
+    (*data)->unk44 = (*data)->offset[2] * 16 + (*home)->trans.z_position;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02BBC);
-#endif
 
 /* The troop's home takes the closest player's position (at the body's height above it) */
 void func_m003_02CA8(void) {
