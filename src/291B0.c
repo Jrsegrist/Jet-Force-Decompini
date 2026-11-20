@@ -1044,9 +1044,6 @@ s32 obj_apply_damage(DamageObject *obj, s32 damage) {
     return total;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the radius squared of the last compare is in f10 (target f12). (`if (model) {}` after
-   bounds is read: model is set at function level.) */
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 
 /* JFG: an object model with a bounding box */
@@ -1098,7 +1095,7 @@ s32 func_8002AC3C(BoxObject *obj, f32 *sphere, f32 *distSq) {
     dx = sphere[0] - obj->x;
     dz = sphere[2] - obj->z;
     bounds = model->bounds;
-    if (model) {}
+    if (model) {} // model is set here
     lx = dx * c + dz * s;
     ly = sphere[1] - obj->y;
     lz = dz * c - dx * s;
@@ -1138,11 +1135,9 @@ s32 func_8002AC3C(BoxObject *obj, f32 *sphere, f32 *distSq) {
     }
     d = dx * dx + dy * dy + dz * dz;
     *distSq = d;
-    if (d < sphere[3] * sphere[3]) {
+    hi = sphere[3] * sphere[3]; // hi reused for the radius squared
+    if (d < hi) {
         return 1;
     }
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/291B0", func_8002AC3C);
-#endif
