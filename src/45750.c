@@ -779,8 +779,8 @@ void splitscreen_dividers_draw(Gfx **dList);
 void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (129 words, from 238, after the empty ifs on always-set values below): the target keeps the held-buttons OR in a stack slot (only $s0/$s1 used, frame 0x48) and tests
-   i < numPlayers with slt; mine gives it $s1 and $s2 */
+/* NON_MATCHING: one word longer: the ROM loads startPlayer once before the D_800A3208 branch; here the
+   fall-through arm reloads it */
 /* JFG: one frame of the game: the module hooks, the players' buttons (START pauses), the world update unless
  * paused, then the drawing passes. */
 void func_80045F00(s32 updateRate) {
@@ -800,6 +800,7 @@ void func_80045F00(s32 updateRate) {
     held = 0;
     pressed = 0;
     startPlayer = -1;
+    i = 0;
     if (D_800A4FC8 && D_800A3208) {
         numPlayers = 2;
     } else if (D_800A4FC4) {
@@ -807,7 +808,7 @@ void func_80045F00(s32 updateRate) {
     } else {
         numPlayers = 1;
     }
-    for (i = 0; i < numPlayers; i++) {
+    for (; i < numPlayers; i++) {
         held |= input_held(i);
         pressed |= input_pressed(i);
         if (pressed & START_BUTTON) {
@@ -817,6 +818,7 @@ void func_80045F00(s32 updateRate) {
     debug_trace_add(gfx, "main/main.c", 0x62E);
     objects_set_attachment_byte(updateRate);
     v = func_80011C2C();
+    if (v) {}
     D_800A38FC = 1;
     if (gIsPaused == 0 && D_800A3328 == 0 && v == 0) {
         Time += updateRate;
@@ -854,7 +856,6 @@ void func_80045F00(s32 updateRate) {
         if (D_800A32BC < 0) {
             D_800A32BC = 0;
         }
-        if (v) {}
     }
     gParticlePtrList_flush();
     debug_trace_add(gfx, "main/main.c", 0x683);

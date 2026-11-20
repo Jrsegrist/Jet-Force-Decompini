@@ -1066,9 +1066,14 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     newMax[2] = 0.0f;
     newMin[3] = 1.0f;
     newMax[3] = 1.0f;
-    for (j = 0; j < 4; j++) {
+    j = 0;
+    for (;;) {
+        if (!(j < 4)) {
+            break;
+        }
         for (i = 0; i < 4; i++) {
             a = mtx[i][j] * min[i];
+            if (i) {}
             b = mtx[i][j] * max[i];
             if (a < b) {
                 newMin[j] += a;
@@ -1079,6 +1084,7 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
             }
             if (i) {}
         }
+        j++;
     }
     min[0] = newMin[0];
     min[1] = newMin[1];

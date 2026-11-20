@@ -1300,9 +1300,9 @@ void func_800424A0(s32 updateRate) {
     s32 magnitude;
 
     D_800FA658[D_800A2ED0].unk4 = -1;
-    shake = gCameraShakes;
     func_80074E50(&gViewProjMatrixF);
     cam = gCameras;
+    shake = gCameraShakes;
     gNoCamShake = D_800A2ED0 = 0;
     i = 4;
     while (i--) {
