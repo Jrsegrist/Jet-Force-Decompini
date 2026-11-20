@@ -2154,7 +2154,8 @@ void func_8004A2FC(MtxF *mf, f32 *in, f32 *out);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the frame and the declared stack slots match; the float registers are numbered differently from the
- * else branch on (the target loads the segment ends into f4..f18 in turn) and the temporaries sit one word lower. */
+ * else branch on (the target loads the segment ends into f4..f18 in turn) and the temporaries sit one word lower.
+ * 216 words (from 298, with the hang position's y stored first). */
 /* JFG: grab the ledge the player has just crossed, if the move allows it: snap to the point along it, enter the hang
  * state (6) facing the wall, and slide towards the middle when the next ledge turns away. */
 void func_80035E14(u8 *obj, Racer *racer, f32 arg2, f32 arg3, UNUSED s32 arg4, HangParams *params) {
@@ -2250,8 +2251,8 @@ void func_80035E14(u8 *obj, Racer *racer, f32 arg2, f32 arg3, UNUSED s32 arg4, H
         ok = 1;
     }
     if (ok && *(f32 *) (obj + 0x10) - 10.0f < hang[1] && hang[1] < *(f32 *) (obj + 0x10) + 10.0f) {
-        *(f32 *) (obj + 0xC) = hang[0];
         *(f32 *) (obj + 0x10) = hang[1];
+        *(f32 *) (obj + 0xC) = hang[0];
         *(f32 *) (obj + 0x14) = hang[2];
         racer->unk568 = 6;
         racer->unk579 = params->turnFrames;
@@ -2307,7 +2308,8 @@ void func_8007EB6C(f32 *min, f32 *max, s32 arg2, s32 arg3, s32 arg4); // JFG: co
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: ROM length and frame; the ROM loads the platform object once (the reload here shifts the
-   t-registers), spills the matrix pointer to 0x40 (here 0x4C) and stores the state 12 first. */
+   t-registers), spills the matrix pointer to 0x40 (here 0x4C) and stores the state 12 first. 139 words (from 204,
+   with the segment test called before `hit = 0`). */
 /* JFG: while falling, look for a ledge ahead (on the track or a platform) that the jump can still reach: if one is
  * crossed below the jump's height, enter the leap state (12) aimed at it, with the per-frame steps (0x170/0x174,
  * 0x17C) to land there. */
@@ -2354,8 +2356,8 @@ void func_800364D4(u8 *obj, Racer *racer, UNUSED f32 arg2, UNUSED f32 arg3, UNUS
         to[1] = from[1];
         to[2] = from[2] - func_80049C30(racer->unk11C) * range;
         seg = racer->segStart;
-        hit = 0;
         result = func_80019888(from, to, seg);
+        hit = 0;
         if (result == 0) {
             min[0] = *(f32 *) (obj + 0xC) - range;
             min[1] = *(f32 *) (obj + 0x10);

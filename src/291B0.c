@@ -1046,7 +1046,8 @@ s32 obj_apply_damage(DamageObject *obj, s32 damage) {
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: same code and frame, but register choice: the target keeps the model in $t0 (spilled to 0x24) and
-   the sphere in $a1, mine gives the model $a1 and the sphere $a2 (so it homes a1 at entry); 41 words */
+   the sphere in $a1, mine gives the model $a1 and the sphere $a2 (so it homes a1 at entry); 25 words (from 41,
+   with `if (model) {}` after bounds is read: model is set at function level) */
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 
 /* JFG: an object model with a bounding box */
@@ -1098,6 +1099,7 @@ s32 func_8002AC3C(BoxObject *obj, f32 *sphere, f32 *distSq) {
     dx = sphere[0] - obj->x;
     dz = sphere[2] - obj->z;
     bounds = model->bounds;
+    if (model) {}
     lx = dx * c + dz * s;
     ly = sphere[1] - obj->y;
     lz = dz * c - dx * s;

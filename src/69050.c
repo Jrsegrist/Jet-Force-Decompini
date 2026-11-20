@@ -245,14 +245,14 @@ void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, LevelEffect
                              s32 arg6);
 
 /* JFG: draw the loaded sprite level effects (type 4), farthest from the camera first.
-   (dx doubles as the swap temporary.) */
-#ifdef NON_MATCHING
-/* Registers differ from +0x1C; only an `if (effect) {}` read of the unset local (undefined behaviour) matched */
-void func_80068B54(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 arg3) {
+   (dx doubles as the swap temporary.) The fourth parameter, which the function never needs (its incoming value
+   is homed and ignored), is reused as the effect pointer: the empty `if (effect) {}` on its incoming value gives
+   the target's registers, and the pad keeps the frame word the local had. */
+void func_80068B54(Gfx **dList, Mtx **mtx, Vertex **vtx, LevelEffect *effect) {
     s32 i;
     s32 count;
     EffectCamera *cam;
-    LevelEffect *effect;
+    UNUSED s32 pad0;
     s32 sorted;
     UNUSED f32 pad;
     f32 dx;
@@ -262,6 +262,7 @@ void func_80068B54(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 arg3) {
     f32 dz;
 
     cam = cam_get_active_camera();
+    if (effect) {}
     effect = D_80102760;
     i = 0;
     count = 0;
@@ -297,9 +298,6 @@ void func_80068B54(Gfx **dList, Mtx **mtx, Vertex **vtx, s32 arg3) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_80068B54);
-#endif
 
 void effect_texture_pair_free(void **cone) {
     if (cone[0] != NULL) {
