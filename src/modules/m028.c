@@ -105,8 +105,8 @@ extern u8 rl_m028_01BB0[]; /* .data (still assembly) */
 
 /* The beam object's init: places it on its owner, copies its shape and builds its model's triangles */
 #ifdef NON_MATCHING
-/* 44 diffs: the shape loop's counter and pointer registers swapped, the colour loop's vertices one apart,
-   and the stores after it scheduled differently */
+/* 18 diffs (44 before the inner counter reused `i`, the colour loop became a while and the A5C/A60 stores
+   swapped): registers in the triangle loops and the stores after them */
 void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     Object *owner = entry->owner;
     M028BeamState *st = obj->unk68;
@@ -117,7 +117,6 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     s32 i;
     s32 n;
     s32 j;
-    s32 k;
     s32 v;
     s32 uv;
     s32 prev;
@@ -149,24 +148,26 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     st->strength2 = entry->strength;
     st->unkA81 = 0xFF;
     st->on = 0;
-    st->unkA60 = f;
     st->unkA5C = 0.05f;
+    st->unkA60 = f;
     st->unkA82 = entry->unk29;
     st->unkA83 = entry->unk2A;
     vtx = (M028Vertex *) st->verts;
-    for (i = 0; i < 108; i++) {
+    i = 0;
+    while (i < 108) {
         vtx[i + 1].r = 0xFF;
         vtx[i + 1].g = 0xFF;
         vtx[i + 1].b = 0xFF;
         vtx[i + 1].a = 0xFF;
+        i++;
     }
     t = st->tris;
     for (n = 0; n < 3; n++) {
         for (j = 0; j < 2; j++) {
             prev = 0;
             v = 0;
-            for (k = 1; k < 9; k++) {
-                uv = ((k * 64) / 8 - 1) << 5;
+            for (i = 1; i < 9; i++) {
+                uv = ((i * 64) / 8 - 1) << 5;
                 t[0].flags = 0x40;
                 t[0].vi0 = v;
                 t[0].vi1 = v + 1;

@@ -846,30 +846,20 @@ typedef struct M031Entry {
 extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights);
 extern Object *func_80005F14(void *entry, s32 arg1);
 
-#ifdef NON_MATCHING
 /* Racer n fires its pick-up (an oil slick or a bomb) */
-/*
- * 21 -> 9 diffs: the floor count reuses `n` (no longer needed by then), which gives the ROM's frame, and the
- * empty `if (racer) {}`; racer and heights still sit one word higher than the ROM's
- */
 s32 func_m031_01C68(Object *obj, s32 n) {
     Object *spawned;
     M031Entry entry;
-    f32 **heights;
     s32 i;
-    M031Racer *racer;
+    f32 **heights;
 
     if (n >= 0 && n < 4) {
-        racer = &sRacers[n];
-        if (racer->pickup != 0) {
+        if (sRacers[n].pickup != 0) {
             entry.x = obj->trans.x_position;
             entry.y = obj->trans.y_position;
             entry.z = obj->trans.z_position;
-            n = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
-            if (n != 0) {
-                i = n;
-                if (racer) {
-                }
+            i = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
+            if (i != 0) {
                 while (i--) {
                     if (*heights[i] < obj->trans.y_position) {
                         entry.y = *heights[i];
@@ -878,7 +868,7 @@ s32 func_m031_01C68(Object *obj, s32 n) {
                 }
             }
             entry.owner = obj;
-            if (racer->pickup == 2) {
+            if (sRacers[n].pickup == 2) {
                 entry.objectID = 0x279;
                 entry.unkA = 0x1E0;
                 if (D_800A503C != 0) {
@@ -902,15 +892,12 @@ s32 func_m031_01C68(Object *obj, s32 n) {
             if (spawned != NULL) {
                 spawned->level_entry = NULL;
             }
-            racer->pickup = 0;
+            sRacers[n].pickup = 0;
             return TRUE;
         }
     }
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_01C68);
-#endif
 
 /* Whether the countdown is over */
 s32 func_m031_01EB0(void) {
@@ -1120,12 +1107,6 @@ extern void screen_line_add_raw(s32 x, s32 y, s32 value, s32 digits, s32 flag); 
 extern void menu_fill_boxes(s32 arg0, s32 count, M031GaugeMark *marks, s32 arg3);
 
 /* Draws the racer's speed gauge: the marks up to its speed lit, and the speed as a number */
-#ifdef NON_MATCHING
-/*
- * Same code and length; only the loop counter and the scale pointer swap registers (a0/a2).
- * The empty `if (n) {}` / `if (dim) {}` pair (both set) takes it from 9 diffs to 3: the order i = 0 and
- * the scale address are set up in.
- */
 void func_m031_029FC(s32 arg0, Object *obj) {
     M031Speed *s;
     s32 *scale;
@@ -1140,12 +1121,11 @@ void func_m031_029FC(s32 arg0, Object *obj) {
         if (n < 0) {
             n = -n;
         }
-        scale = rl_m031_04108;
-        if (n) {
-        }
+        i = 0;
         lit = rl_m031_04248;
         dim = rl_m031_04158;
-        for (i = 0; i < 20; i++) {
+        scale = rl_m031_04108;
+        for (; i < 20; i++) {
             base = lit->colour & ~0xFF;
             if (i < n) {
                 lit->colour = base | 0xAA;
@@ -1158,8 +1138,6 @@ void func_m031_029FC(s32 arg0, Object *obj) {
             lit++;
             dim++;
         }
-        if (dim) {
-        }
         n = s->speed * 25.0f;
         if (n < 0) {
             n = -n;
@@ -1169,9 +1147,6 @@ void func_m031_029FC(s32 arg0, Object *obj) {
     menu_fill_boxes(arg0, 20, rl_m031_04248, 0);
     menu_fill_boxes(arg0, 20, rl_m031_04158, 0);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_029FC);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_02B88);
 

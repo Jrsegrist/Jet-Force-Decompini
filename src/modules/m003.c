@@ -980,8 +980,6 @@ extern void func_m146_00000(Object *obj, s32 arg1);
 extern void func_8002179C(s32 handle);
 extern void track_light_off(s32 light);
 
-#ifdef NON_MATCHING
-/* 2 diffs: the ROM computes `hp > 0` into a register before the store (one branch shorter) */
 /*
  * An object's position; while the member burns its hit points go down, and when its time is up it
  * goes back to its mission and the fire's spark, unkC4 and light go
@@ -989,7 +987,7 @@ extern void track_light_off(s32 light);
 void func_m003_01764(Object *obj, f32 *x, f32 *y, f32 *z) {
     f32 min = 0.2f;
     f32 rate;
-    s16 hp;
+    s32 alive;
 
     *x = obj->trans.x_position;
     *y = obj->trans.y_position;
@@ -998,9 +996,9 @@ void func_m003_01764(Object *obj, f32 *x, f32 *y, f32 *z) {
     if (rate < min) {
         rate = min;
     }
-    hp = ((M003Interact *) obj->interactObj)->hitPoints;
-    ((M003Interact *) obj->interactObj)->hitPoints = hp - rate * sUpdateRate;
-    if (((M003Interact *) obj->interactObj)->hitPoints <= 0 && hp > 0) {
+    alive = ((M003Interact *) obj->interactObj)->hitPoints > 0;
+    ((M003Interact *) obj->interactObj)->hitPoints -= rate * sUpdateRate;
+    if (((M003Interact *) obj->interactObj)->hitPoints <= 0 && alive) {
         ((M003Interact *) obj->interactObj)->sound = 4;
         func_m003_0C038(obj);
     }
@@ -1029,9 +1027,6 @@ void func_m003_01764(Object *obj, f32 *x, f32 *y, f32 *z) {
         sMember->node -= D_800FE9F8;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_01764);
-#endif
 
 /* Keeps the facing; records the turn towards whoever shot the member (no one: the mission ends) */
 s32 func_m003_01974(Object *obj, s16 *angle, s32 arg2, s32 arg3) {
@@ -1521,17 +1516,15 @@ void func_m003_02A94(void) {
                        (func_80049668(((Object *) sClosestPlayer)->trans.rotation.y_rotation) >> 7);
 }
 
-#ifdef NON_MATCHING
 /* The troop's home takes its own position plus its offset (in 16s) */
-/* (the ROM converts the offset after loading the position: other registers, add.s operands swapped) */
 void func_m003_02BBC(void) {
-    sHomeData->unk40 = sHome->trans.x_position + sHomeData->offset[0] * 16;
-    sHomeData->unk42 = sHome->trans.y_position + sHomeData->offset[1] * 16;
-    sHomeData->unk44 = sHome->trans.z_position + sHomeData->offset[2] * 16;
+    M003Home **data = &sHomeData; /* (the ROM keeps both addresses in registers) */
+    Object **home = &sHome;
+
+    (*data)->unk40 = (*data)->offset[0] * 16 + (*home)->trans.x_position;
+    (*data)->unk42 = (*data)->offset[1] * 16 + (*home)->trans.y_position;
+    (*data)->unk44 = (*data)->offset[2] * 16 + (*home)->trans.z_position;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_02BBC);
-#endif
 
 /* The troop's home takes the closest player's position (at the body's height above it) */
 void func_m003_02CA8(void) {

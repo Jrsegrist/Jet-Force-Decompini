@@ -12,21 +12,11 @@ static void *hint_stack_push(s32 hint, s32 kind);
 static s32 hint_condition_holds(s32 condition);
 static void hint_stick_repeat_clear(void);
 static void hint_stack_pop(void);
-#ifdef NON_MATCHING
 static s32 func_m007_007E4(s32 dir);
-#else
-s32 rl_m007_007E4(s32 dir);
-#define func_m007_007E4 rl_m007_007E4
-#endif
 static void hint_page_choose(void);
-#ifdef NON_MATCHING
 static void *func_m007_00988(s32 id, s32 kind);
 static void *func_m007_00C90(s32 id, s32 asset);
-#else
-void *rl_m007_00988(s32 id, s32 kind);
-#define func_m007_00988 rl_m007_00988
-#endif
-extern void *rl_m007_00B00(s32 id, s32 asset);
+static void *func_m007_00B00(s32 id, s32 asset);
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
 extern u8 rl_m007_02A04[]; /* the texts of pages without one */
@@ -466,22 +456,19 @@ static void hint_stack_pop(void) {
     }
 }
 
-#ifdef NON_MATCHING
 /*
  * Counts the pages whose condition holds, and turns to the next one that holds in direction `dir`
  * (0: the current one if it holds, else the one before or after).
- * NON_MATCHING: the original walks the pages from the start of the block (4 bytes before the
- * first) and schedules the first loop's increments before the call.
  */
 static s32 func_m007_007E4(s32 dir) {
     M007Pages *p = rl_m007_02A5C;
     s32 i;
-    M007PageRec *rec;
+    UNUSED M007PageRec *rec;
     s32 count = 0;
 
     if (p != NULL) {
-        for (i = 0, rec = p->recs; i < p->count; i++, rec++) {
-            if (hint_page_condition_holds(rec->condition)) {
+        for (i = 0; i < p->count;) {
+            if (hint_page_condition_holds(p->recs[i++].condition)) {
                 count++;
             }
         }
@@ -492,16 +479,14 @@ static s32 func_m007_007E4(s32 dir) {
                     i++;
                 } while (i < p->count && !hint_page_condition_holds(p->recs[i].condition));
             } else {
-                rec = &p->recs[i];
                 if (dir < 0) {
                     do {
                         i--;
                     } while (i >= 0 && !hint_page_condition_holds(p->recs[i].condition));
-                } else if (!hint_page_condition_holds(rec->condition)) {
+                } else if (!hint_page_condition_holds(p->recs[i].condition)) {
                     do {
                         i--;
-                        rec--;
-                    } while (i >= 0 && !hint_page_condition_holds(rec->condition));
+                    } while (i >= 0 && !hint_page_condition_holds(p->recs[i].condition));
                     if (i < 0) {
                         i = p->current;
                         do {
@@ -517,42 +502,22 @@ static s32 func_m007_007E4(s32 dir) {
     }
     return count;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_007E4);
-#endif
 
-#ifdef NON_MATCHING
-/* 80 -> 60 diffs with the empty ifs on id, kind, t and i */
-/*
- * Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet.
- * NON_MATCHING: the frame is two words bigger and the registers differ; func_m007_00C90 (close:
- * its loop's pointer starts 4 bytes later than the original's) is only called from here, so it
- * stays assembly with it.
- */
+/* Text `id` (kind 1: pages, else plain), loaded into a free slot if it is not loaded yet */
 static void *func_m007_00988(s32 id, s32 kind) {
-    M007Text *t;
     s32 i;
     s32 asset;
 
-    if (id) {
-    }
-    for (t = rl_m007_02C58; t < &rl_m007_02C58[32]; t++) {
-        if (kind) {
-        }
-        if (t->data != NULL && id == t->id) {
-            return t->data;
+    for (i = 0; i < 32; i++) {
+        if (rl_m007_02C58[i].data != NULL && id == rl_m007_02C58[i].id) {
+            return rl_m007_02C58[i].data;
         }
     }
     for (i = 0; i < 32 && rl_m007_02C58[i].data != NULL; i++) {
     }
-    if (t) {
-    }
-    if (t) {
-    }
     if (i >= 32) {
         return NULL;
     }
-    t = &rl_m007_02C58[i];
     switch (func_8005A7D0()) {
         case 1:
             asset = 12;
@@ -568,28 +533,81 @@ static void *func_m007_00988(s32 id, s32 kind) {
             break;
     }
     if (kind != 1) {
-        t->data = rl_m007_00B00(id, asset);
+        rl_m007_02C58[i].data = func_m007_00B00(id, asset);
     } else {
-        t->data = func_m007_00C90(id, asset);
+        rl_m007_02C58[i].data = func_m007_00C90(id, asset);
     }
-    if (t->data != NULL) {
-        t->id = id;
+    if (rl_m007_02C58[i].data != NULL) {
+        rl_m007_02C58[i].id = id;
         rl_m007_02A48++;
     }
-    if (i) {
-    }
-    if (i) {
-    }
-    return t->data;
+    return rl_m007_02C58[i].data;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00988);
-#endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00B00);
+/*
+ * Loads text `id` from asset `asset` as plain text: a list of records (the first byte is the kind, 0 ends
+ * it); kinds 2 to 5 hold a text offset in their low 24 bits, turned into a pointer (the kind byte kept)
+ */
+static void *func_m007_00B00(s32 id, s32 asset) {
+    s32 start;
+    s32 size;
+    u8 *data;
+    u8 *p;
+    u8 *rec;
+    u32 value;
 
-#ifdef NON_MATCHING
-/* Matches (indexing p->recs[i]; a record pointer gave 6 diffs); staged: only 00988 (NON_MATCHING) calls it */
+    start = ((s32 *) rl_m007_02A54)[id];
+    size = ((s32 *) rl_m007_02A54)[id + 1] - start;
+    data = func_8004A57C(size, 0xFF00FF);
+    if (data != NULL) {
+        func_8004D530(asset, data, start, size);
+        p = data;
+        while (*p != 0) {
+            rec = p;
+            switch (*p) {
+                case 1:
+                    p += 4;
+                    break;
+                case 2:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 2;
+                    break;
+                case 3:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 3;
+                    break;
+                case 4:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 4;
+                    break;
+                case 5:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 5;
+                    break;
+                case 6:
+                    p += 8;
+                    break;
+                case 7:
+                    p += 8;
+                    break;
+            }
+        }
+    }
+    return data;
+}
+
 /* Loads text `id` from asset `asset` as pages, turning their text offsets into pointers */
 static void *func_m007_00C90(s32 id, s32 asset) {
     UNUSED s32 *offsets;
@@ -618,9 +636,6 @@ static void *func_m007_00C90(s32 id, s32 asset) {
     }
     return p;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m007", func_m007_00C90);
-#endif
 
 /* Stops the hint text */
 void func_m007_00D6C(void) {
