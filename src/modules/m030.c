@@ -693,22 +693,13 @@ INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_01508);
 #endif
 
 #ifdef NON_MATCHING
-/* register allocation: the ROM keeps the result in ra and the batch vertex in t5 */
-/* 89 -> 58 diffs with the empty ifs on k and k2 */
+/* 6 diffs: two of the compiler's stack temporaries sit two words lower than the ROM's (as m024 016E0, its twin) */
 /* Finds which edge of triangle tri runs from p to q (either way round), or -1 */
 static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M030Vertex *p, M030Vertex *q) {
-    M030Batch *batch;
-    M030Triangle *t;
-    M030Vertex *verts;
-    M030Vertex *v1;
-    M030Vertex *v2;
     s32 i;
     s32 k;
     s32 k2;
-    s32 base;
     s32 result;
-    s32 start;
-    s32 end;
     s16 px;
     s16 py;
     s16 pz;
@@ -721,6 +712,12 @@ static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M03
     s16 x2;
     s16 y2;
     s16 z2;
+    s32 base;
+    s32 start;
+    s32 end;
+    M030Vertex *verts;
+    M030Triangle *t;
+    M030Vertex *v;
 
     px = p->x;
     py = p->y;
@@ -729,35 +726,28 @@ static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M03
     qy = q->y;
     qz = q->z;
     result = -1;
-    batch = model->batches;
-    for (i = 0; i < model->numBatches; i++, batch++) {
-        start = batch->start;
-        end = batch[1].start;
-        if (!(batch->flags & 0x880) && start <= tri && tri < end) {
+    for (i = 0; i < model->numBatches; i++) {
+        start = model->batches[i].start;
+        end = model->batches[i + 1].start;
+        if (!(model->batches[i].flags & 0x880) && start <= tri && tri < end) {
+            base = model->batches[i].vertex;
             t = &model->triangles[tri];
             verts = inst->vertices;
-            base = batch->vertex;
             for (k = 0; k < 3; k++) {
                 k2 = k + 1;
                 if (k2 >= 3) {
                     k2 = 0;
                 }
-                v1 = &verts[t->vertices[k] + base];
-                v2 = &verts[t->vertices[k2] + base];
-                x1 = v1->x;
-                y1 = v1->y;
-                z1 = v1->z;
-                x2 = v2->x;
-                y2 = v2->y;
-                z2 = v2->z;
+                v = &verts[t->vertices[k] + base];
+                x1 = v->x;
+                y1 = v->y;
+                z1 = v->z;
+                v = &verts[t->vertices[k2] + base];
+                x2 = v->x;
+                y2 = v->y;
+                z2 = v->z;
                 if ((px == x1 && py == y1 && pz == z1 && qx == x2 && qy == y2 && qz == z2) ||
                     (px == x2 && py == y2 && pz == z2 && qx == x1 && qy == y1 && qz == z1)) {
-                    if (k) {
-                    }
-                    if (k) {
-                    }
-                    if (k2) {
-                    }
                     result = k;
                     k = 3;
                 }
