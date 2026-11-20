@@ -3482,34 +3482,45 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
 #endif
 
 #ifdef NON_MATCHING
-/* As 0D65C: the vertex clear loop is unrolled here */
+/*
+ * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer and a continue-style inner
+ * loop, which IDO doesn't unroll) and a separate counter for the last two loops; the clear loop's pointer
+ * and counter have v1/a0 the other way round, and the triangle loop's registers differ.
+ */
 void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     M068Strip *m = obj->unk68;
+    Vertex *p;
     Triangle *tri;
     s32 i;
     s32 j;
     s32 k;
     s32 v;
     s32 prev;
+    s32 n;
 
     ((M068Strip2 *) m)->unk6B8 = setup->unk1C;
     ((M068Strip2 *) m)->unk6BC = setup->unkC;
     for (i = 0; i < 2; i++) {
-        for (j = 0; j < 72; j++) {
-            m->verts[i][j].x = 0;
-            m->verts[i][j].y = 0;
-            m->verts[i][j].z = 0;
-            m->verts[i][j].r = 255;
-            m->verts[i][j].g = 255;
-            m->verts[i][j].b = 255;
-            m->verts[i][j].a = 255;
+        p = m->verts[i];
+        j = 0;
+        while (TRUE) {
+            p[j].x = 0;
+            p[j].y = 0;
+            p[j].z = 0;
+            p[j].r = 255;
+            p[j].g = 255;
+            p[j].b = 255;
+            p[j].a = 255;
+            j++;
+            if (j < 72) continue;
+            break;
         }
     }
     tri = m->tris;
     prev = 0;
     k = 0;
-    for (i = 64; i < 576; i += 64) {
-        v = (i / 8 - 1) << 5;
+    for (n = 64; n < 576; n += 64) {
+        v = (n / 8 - 1) << 5;
         tri[0].flags = 0x40;
         tri[0].vi0 = k;
         tri[0].vi1 = k + 1;
@@ -3534,10 +3545,10 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         prev = v;
         k += 2;
     }
-    for (i = 0; i < 2; i++) {
-        m->a[i] = setup->a[i];
-        m->b[i] = setup->b[i];
-        m->c[i] = setup->c[i];
+    for (n = 0; n < 2; n++) {
+        m->a[n] = setup->a[n];
+        m->b[n] = setup->b[n];
+        m->c[n] = setup->c[n];
     }
 }
 #else
