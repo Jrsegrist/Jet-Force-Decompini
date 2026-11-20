@@ -2175,8 +2175,7 @@ void func_8000A300(Gfx **dList, Vertex **vtxList, void *tex, Triangle *tris, Vec
         v[-4].y = y1 + dx;
         v[-4].r = 255;
         v[-4].g = 255;
-        v[-4].b = 255;
-        v[-4].a = 255;
+        v[-4].a = v[-4].b = 255;
         v[-4].z = z1;
         v[-3].x = x1 - dy;
         v[-3].y = y1 - dx;
