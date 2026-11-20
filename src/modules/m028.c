@@ -104,9 +104,6 @@ extern u8 rl_m028_01BB0[]; /* .data (still assembly) */
 #define rl_m028_01BD8 ((s16 *) (rl_m028_01BB0 + 0x28)) /* per kind */
 
 /* The beam object's init: places it on its owner, copies its shape and builds its model's triangles */
-#ifdef NON_MATCHING
-/* 18 diffs (44 before the inner counter reused `i`, the colour loop became a while and the A5C/A60 stores
-   swapped): registers in the triangle loops and the stores after them */
 void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     Object *owner = entry->owner;
     M028BeamState *st = obj->unk68;
@@ -142,24 +139,24 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
     st->strength = 0;
     st->owner = owner;
     st->padA7C = entry->unk28;
+    st->strength2 = entry->strength;
     st->unkA7E = 0;
     st->unkA7F = 0;
     st->unkA58 = f;
-    st->strength2 = entry->strength;
+    st->unkA5C = 0.05f;
     st->unkA81 = 0xFF;
     st->on = 0;
-    st->unkA5C = 0.05f;
     st->unkA60 = f;
     st->unkA82 = entry->unk29;
     st->unkA83 = entry->unk2A;
     vtx = (M028Vertex *) st->verts;
-    i = 0;
-    while (i < 108) {
-        vtx[i + 1].r = 0xFF;
-        vtx[i + 1].g = 0xFF;
-        vtx[i + 1].b = 0xFF;
-        vtx[i + 1].a = 0xFF;
-        i++;
+    if (vtx) { /* (vtx is set: no code, it only changes register choice) */
+    }
+    for (i = 0; i < 108; i++) {
+        vtx[i].r = 0xFF;
+        vtx[i].g = 0xFF;
+        vtx[i].b = 0xFF;
+        vtx[i].a = 0xFF;
     }
     t = st->tris;
     for (n = 0; n < 3; n++) {
@@ -204,9 +201,6 @@ void func_m028_00000(Object *obj, M028BeamEntry *entry) {
         func_800212D0(*obj->light);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m028/ro", func_m028_00000);
-#endif
 
 #ifdef NON_MATCHING
 /* 436 diffs: register allocation (the glow loop's counter is set before the call and spilled) and the stack temporaries below the declared block */

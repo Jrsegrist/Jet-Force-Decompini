@@ -197,7 +197,8 @@ void func_m012_008A8(void);
 /*
  * The frame's update: opening, it spins in, grows to its width and then its height and fades the background
  * in; closing, it frees the textures, starts the level change, shrinks and spins out.
- * ROM length and frame; 15 words differ in the closing arm (the ROM loads the minimum width 10 into t1 once,
+ * ROM length and frame; 12 words differ in the closing arm (15 before the empty `if (updateRate)`, a used
+ * parameter; the ROM loads the minimum width 10 into t1 once,
  * before the unk2B test, and compares against it with slt; the `width >= -4` test ends in an empty-else jump)
  */
 void func_m012_00164(s32 updateRate) {
@@ -315,6 +316,8 @@ void func_m012_00164(s32 updateRate) {
         }
         if (updateRate * 16 < frame->unk2B) {
             frame->targetWidth = 10;
+            if (updateRate) {
+            }
             frame->unk2B -= updateRate * 16;
             speed = 0;
         } else {

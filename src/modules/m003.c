@@ -2085,12 +2085,12 @@ extern void func_m003_058A4(Object *obj);
 
 #ifdef NON_MATCHING
 /* IDO folds the `+ 0.0f`s the ROM keeps, and sBody/index swap registers */
-/* 25 -> 11 diffs with the empty `if (piece) {}` */
+/* 25 -> 11 diffs with the empty `if (piece) {}`, 8 with m declared first */
 /* The member loses the body part the last hit took off: a flying piece of it is spawned if there's memory */
 static void func_m003_044F4(Object *obj) {
+    M003Member *m = obj->unk68;
     u8 index = sBody->hitPart;
     M003BodyPart *part = &sBody->parts[index];
-    M003Member *m = obj->unk68;
     M003PartEntry entry;
     u16 bit = 1 << part->bit;
     f32 zero;
@@ -2314,9 +2314,8 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
     s32 anims[3];
     s32 i;
     s32 anim;
-    s32 result;
     s32 last;
-    s32 index;
+    s32 index; /* also the result: index is dead once passed */
 
     if (!troop_anim_kind_allowed(kind)) {
         return -1;
@@ -2343,11 +2342,11 @@ s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
             last = anim;
         } while (i-- != 0 && index == -1 && anims[i] != 0);
     }
-    result = troop_anim_start(index, last, 1);
-    if (result != -1) {
+    index = troop_anim_start(index, last, 1);
+    if (index != -1) {
         sMember->unk4B = kind;
     }
-    return result;
+    return index;
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_04D08);

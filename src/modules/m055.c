@@ -239,7 +239,8 @@ void func_m055_002A0(M055Player *player, s32 updateRate) {
 #ifdef NON_MATCHING
 /* 307 -> 141 diffs with the empty ifs on xh, height and step */
 /* Not matched yet: the structure is right, but the order of the set-up computations, the
-   registers of the hoisted display-list words and the frame (0x108 here, 0x100) differ. */
+   registers of the hoisted display-list words differ. The ROM's frame (0x100) needs the two immediate
+   commands written through g, not as gImmp1 (each macro's block-scoped pointer costs a frame word). */
 void func_m055_005B4(M055Player *player, Gfx **dl, f32 scale) {
     M055MovieDef *def;
     u8 *texA;
@@ -320,8 +321,12 @@ void func_m055_005B4(M055Player *player, Gfx **dl, f32 scale) {
             g = (*dl)++;
             g->words.w0 = _SHIFTL(G_TEXRECT, 24, 8) | _SHIFTL(xh, 12, 12) | _SHIFTL(y >> 14, 0, 12);
             g->words.w1 = _SHIFTL(0, 24, 3) | _SHIFTL(x, 12, 12) | _SHIFTL(prevY >> 14, 0, 12);
-            gImmp1((*dl)++, 0xB3, 0);
-            gImmp1((*dl)++, 0xB2, _SHIFTL(step, 16, 16) | _SHIFTL(step, 0, 16));
+            g = (*dl)++;
+            g->words.w0 = _SHIFTL(0xB3, 24, 8);
+            g->words.w1 = 0;
+            g = (*dl)++;
+            g->words.w0 = _SHIFTL(0xB2, 24, 8);
+            g->words.w1 = _SHIFTL(step, 16, 16) | _SHIFTL(step, 0, 16);
             prevY = y;
             texA += n * lineBytes;
             texB += n * lineBytes;

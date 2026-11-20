@@ -418,7 +418,9 @@ static void copy_models(Object *obj, M004Copy *copy, s32 arg2, s32 arg3) {
 #ifdef NON_MATCHING
 /*
  * Blurs the copy's 64x64 shadow texture, then halves its intensities.
- * The original sums into a temporary and copies it to `sum` after the shift.
+ * NON_MATCHING: ROM length now (the dead copy back into `sum` comes from `sum >>= 3`; sum is dead after it),
+ * but the ROM copies the unshifted sum and shifts in a temporary: 8 diffs, the x counter's dead copy order
+ * and the t-registers after it.
  */
 static void func_m004_015A8(M004Copy *copy) {
     u8 *p = copy->unk20;
@@ -433,7 +435,7 @@ static void func_m004_015A8(M004Copy *copy) {
         while (x--) {
             sum = p[0];
             sum += p[1] + p[2] + p[0x40] + p[0x42] + p[0x80] + p[0x81] + p[0x82];
-            p[0x41] = sum >> 3;
+            p[0x41] = sum >>= 3;
             p++;
         }
         p += 2;

@@ -65,17 +65,13 @@ typedef struct M061Triangle {
     /* 0x4 */ s16 uv[3][2];
 } M061Triangle;
 
-/* A mark of the dial (0x10 bytes; four pairs of bytes) */
-typedef struct M061Mark {
-    /* 0x0 */ u8 a0, a1;
-    /* 0x2 */ u8 pad2[2];
-    /* 0x4 */ u8 b0, b1;
-    /* 0x6 */ u8 pad6[2];
-    /* 0x8 */ u8 c0, c1;
-    /* 0xA */ u8 padA[2];
-    /* 0xC */ u8 d0, d1;
-    /* 0xE */ u8 padE[2];
-} M061Mark;
+/* A dot on a player's radar (sDots[player] holds four) */
+typedef struct M061Dot {
+    /* 0x0 */ s8 x;
+    /* 0x1 */ s8 y;
+    /* 0x2 */ u8 alpha;  /* 0: not shown on its own radar */
+    /* 0x3 */ u8 colour; /* an index into the colours at .data 0x618 */
+} M061Dot;
 
 /* A colour cycle (55130.c's) */
 typedef struct M061ColourCycle {
@@ -105,27 +101,24 @@ extern M061Vertex rl_m061_03600[17];
 extern M061Vertex rl_m061_036B0[17];
 extern M061ColourCycle rl_m061_03760[2];
 extern f32 rl_m061_03780;
-extern M061Mark rl_m061_03788[4];
+extern M061Dot rl_m061_03788[4][4];
 extern s32 rl_m061_037C8;
 extern s32 rl_m061_03528, rl_m061_03540, rl_m061_03558, rl_m061_03570; /* .data: = sTextures[0, 6, 12, 18] */
 #define sOuter rl_m061_03600 /* the dial's outer ring */
 #define sInner rl_m061_036B0 /* and inner ring */
 #define sCycles rl_m061_03760
 #define sBss180 rl_m061_03780
-#define sMarks rl_m061_03788
+#define sDots rl_m061_03788 /* each player's radar dots */
 #define sBss1C8 rl_m061_037C8
 #define sTriangles ((M061Triangle *) &rl_m061_02FA0[0x250]) /* 16 */
 #define sImages ((s16 *) &rl_m061_02FA0[0x500])
 
-#ifdef NON_MATCHING
-/* 6 diffs: the marks loop's end; the ROM loads &marks[4] as its own address, IDO here adds 0x40 to the
-   start (and with any end IDO cannot measure, it unrolls the loop) */
-/* The module's init: the dial's vertices and triangles (16 sectors), its marks, cycles and sounds */
+/* The module's init: the dial's vertices and triangles (16 sectors), the radar dots, cycles and sounds */
 void func_m061_00000(void) {
     M061Vertex *outer;
     M061Vertex *inner;
     M061Triangle *t;
-    M061Mark *m;
+    s32 j;
     s32 angle;
     s32 i;
     f32 s;
@@ -172,15 +165,11 @@ void func_m061_00000(void) {
         t++;
         angle += 0x1000;
     }
-    for (m = sMarks; m != &sMarks[4]; m++) {
-        m->b0 = 0;
-        m->b1 = 0;
-        m->c0 = 0;
-        m->c1 = 0;
-        m->d0 = 0;
-        m->d1 = 0;
-        m->a0 = 0;
-        m->a1 = 0;
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 4; j++) {
+            sDots[i][j].x = 0;
+            sDots[i][j].y = 0;
+        }
     }
     func_m006_00C74();
     colour_cycle_init(&sCycles[0], 0x29);
@@ -193,9 +182,6 @@ void func_m061_00000(void) {
     rl_m061_03570 = func_80055694(0x26D);
     sBss1C8 = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_00000);
-#endif
 
 void func_m061_003D0(void) {
     menu_assetgroup_free(sAssets);
@@ -287,14 +273,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_01218);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_019E0);
 
-/* A dot on a player's radar (sMarks[player] holds four) */
-typedef struct M061Dot {
-    /* 0x0 */ s8 x;
-    /* 0x1 */ s8 y;
-    /* 0x2 */ u8 alpha;  /* 0: not shown on its own radar */
-    /* 0x3 */ u8 colour; /* an index into the colours at .data 0x618 */
-} M061Dot;
-
 extern Gfx *D_800FF398;
 extern Mtx *D_800FF39C;
 extern Object *D_800FF3F8[]; /* the menu's images */
@@ -351,7 +329,7 @@ void func_m061_01F14(Object *obj, UNUSED s32 arg1, UNUSED s32 arg2) {
     gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000350, 8, 1);
     func_80040D64(&D_800FF398, &D_800FF39C);
     func_80055B80(&D_800FF398);
-    dot = (M061Dot *) &sMarks[*player];
+    dot = sDots[*player];
     for (i = 0; i < D_800A4FD0; i++, dot++) {
         if (i != *player || dot->alpha != 0) {
             colour = sDotColours[dot->colour] | dot->alpha;
