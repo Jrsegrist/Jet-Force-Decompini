@@ -2588,19 +2588,18 @@ void rendermode_reset(Gfx **dList);
 #ifdef NON_MATCHING
 /* JFG: draw the object's held item (slot as in func_8000BC28) with the matrix, lighting it and
    animating its textures first when it asks.
-   NON_MATCHING (65 words, from 144, after the empty ifs on always-set values below): the right frame; obj->racer is reloaded (target: in s0, then reused for the item)
-   and the temporaries are numbered differently. */
+   NON_MATCHING: one word longer: the target keeps the 0x80000000 segment constant in one register for all four
+   display-list words (here it is materialised twice), so the later temporaries are numbered differently. */
 void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     Object *held;
     ObjectAttachment *item;
     Gfx *dl;
     s16 *texOffsets;
+    Object_Racer *racer;
 
     if (D_800A0A20 == 0) {
+        racer = obj->racer; // read before the behaviour test (the ROM loads it there too)
         if (obj->behaviorId == 1) {
-            Object_Racer *racer = obj->racer;
-
-            if (arg1) {}
             if (racer->unk1FA != 0 && func_8003B740(obj, racer) < 2) {
                 slot = 0;
             } else if (slot >= 9 || racer->unk53C > 0) {

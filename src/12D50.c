@@ -254,8 +254,9 @@ void viewport_reset(Gfx **dList);
 void shadow_buffers_flip(void);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: updateRate must stay on the stack (the `&updateRate` fake does it, but then IDO reloads it
-   inside the skydome branch; the ROM loads it once before the branch); one word longer */
+/* NON_MATCHING: updateRate must stay on the stack (the `&updateRate` fake does it). The ROM loads it once before
+   the skydome branch, after the skydomeFixed compare; the `rate` copy gives the single load (ROM length) but
+   schedules it before the compare (3 words) */
 /**
  * The main rendering function for the level: updates the level's animated parts, then draws every
  * viewport's scene.
@@ -267,6 +268,7 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
     s32 tempUpdateRate;
     s32 i;
     s32 j;
+    s32 rate;
 
     if (&updateRate) {} // fakematch: keeps updateRate on the stack
     numViewports = camera_count_get();
@@ -340,10 +342,11 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
             func_8000C9E8(1);
             screen_lines_set_window(D_800F2F84);
             if (numViewports < 2) {
+                rate = updateRate;
                 if (D_800A0D64->skydomeFixed == -1) {
-                    trackbg_render_flashy(updateRate);
+                    trackbg_render_flashy(rate);
                 } else {
-                    skydome_render(updateRate);
+                    skydome_render(rate);
                 }
             } else {
                 func_80013454();

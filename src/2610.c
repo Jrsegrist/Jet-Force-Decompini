@@ -242,7 +242,8 @@ OSMesgQueue *osScGetCmdQ(void *sc);
  * three output buffers, and no arguments.
  */
 #ifdef NON_MATCHING
-/* NON_MATCHING (53 words, from 133, after the empty ifs on always-set values below): the ROM keeps the `== 1` test of the mode in v0 (xori), shifting the t-registers by one */
+/* NON_MATCHING (29 words, ROM length and frame): the ROM keeps the `== 1` test of the mode in v0 (xori), shifting
+   the t-registers by one, and keeps the DMA buffer pointer in a1 for the unlink */
 void __amHandleFrameMsg(void) {
     s16 *audioPtr;
     Acmd *cmdp;
@@ -251,8 +252,7 @@ void __amHandleFrameMsg(void) {
     AMDMABuffer *buf;
     u8 *out;
     s32 i;
-    UNUSED s32 pad1;
-    UNUSED s32 pad2;
+    UNUSED s32 pad;
 
     __clearAudioDMA();
     samplesLeft = IO_READ(AI_LEN_REG) >> 2;
@@ -331,12 +331,11 @@ void __amHandleFrameMsg(void) {
     }
     audioPtr = (s16 *) osVirtualToPhysical(gAudioMgr.data[D_800A06C8]);
     if ((samplesLeft >= 313) & D_800A06D8) {
-        D_800A06D8 = 0;
         gAudioMgr.frameSamples[D_800A06C8] = D_800F216C;
+        D_800A06D8 = 0;
     } else {
-        D_800A06D8 = 1;
         gAudioMgr.frameSamples[D_800A06C8] = D_800F2168;
-        if (samplesLeft) {}
+        D_800A06D8 = 1;
     }
     if (D_800A06DC == 1) {
         gAudioMgr.frameSamples[D_800A06C8] *= D_800F29E0;
@@ -345,8 +344,8 @@ void __amHandleFrameMsg(void) {
     if (D_800A06F0 < cmdLen) {
         D_800A06F0 = cmdLen;
     }
-    gAudioMgr.task.msgQ = &D_800F1B0C;
     gAudioMgr.task.unk6C = 1;
+    gAudioMgr.task.msgQ = &D_800F1B0C;
     gAudioMgr.task.unk58 = -1;
     gAudioMgr.task.flags = OS_SC_NEEDS_RSP;
     gAudioMgr.task.next = NULL;

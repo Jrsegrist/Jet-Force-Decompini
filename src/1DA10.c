@@ -856,7 +856,9 @@ s32 func_800203C4(HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f3
     count = 0;
     mtx = (MtxF *) ((u8 *) obj->data + (obj->data->matrixIndex << 6));
     pointMtx = mtx + 2;
-    for (i = 0; i < model->numberOfBatches; i++) {
+    i = 0;
+    for (;;) {
+        if (!(i < model->numberOfBatches)) break;
         batch = &model->batches[i];
         if (!(batch->flags & 0x1C80)) {
             j = batch->facesOffset;
@@ -890,6 +892,7 @@ s32 func_800203C4(HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f3
                 }
             }
         }
+        i++;
     }
     return count;
 }

@@ -364,8 +364,6 @@ s32 func_8004BAF4(s32 slot, u8 *data) {
 INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BAF4);
 #endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target keeps a `beqz` guard before the page loop (IDO here knows the count is 11) */
 /* JFG: write a save file (0x538 bytes, slot number at byte 3) to its slot's flash sector, the checksum in the
  * sector's last page. */
 s32 func_8004BC10(s32 slot, u8 *data) {
@@ -380,7 +378,10 @@ s32 func_8004BC10(s32 slot, u8 *data) {
     checksum = calculate_save_file_checksum(data, 0x538);
     if (is_reset_pressed() == 0) {
         func_80083EB0(page);
-        while (slot != 0) {
+        for (;;) {
+            if (slot == 0) {
+                break;
+            }
             flash_write_page(page++, data);
             slot--;
             data += 0x80;
@@ -389,9 +390,6 @@ s32 func_8004BC10(s32 slot, u8 *data) {
     }
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/4BC70", func_8004BC10);
-#endif
 
 /* JFG: erase a save slot's flash sector (fill its pages with 0xFF) (0x8004BCB4). */
 void erase_save_file(s32 slot, UNUSED s32 arg1) {
