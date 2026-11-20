@@ -124,7 +124,10 @@ INCLUDE_ASM("asm/nonmatchings/modules/m080/ro", func_m080_00000);
 #endif
 
 #ifdef NON_MATCHING
-/* 613 diffs: the frame is 8 bytes bigger (two extra temp words below the declared block), so every sp offset moves */
+/*
+ * Frame and length match since the unused pad went (setup in its slot): about 500 aligned diffs left, the
+ * stack offsets of the temporaries and the registers.
+ */
 /* What a target's unk4C points at, as used here */
 typedef struct M080Pos {
     /* 0x00 */ u8 pad0[0xC];
@@ -168,12 +171,11 @@ void func_m080_002A0(Object *obj, s32 updateRate) {
     f32 lim;
     s16 turn;
     s32 a;
-    UNUSED s32 pad60;
+    M080Entry *setup;
     s32 big;
     Object *found[8];
     Vertex *v;
     M080State *s;
-    M080Entry *setup;
 
     setup = (M080Entry *) obj->level_entry;
     s = obj->unk68;
