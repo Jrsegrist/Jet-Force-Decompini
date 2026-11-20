@@ -3697,12 +3697,14 @@ typedef struct M068Death {
 #ifdef NON_MATCHING
 /*
  * Draws the boss's death effect: the same triangles over four runs of
- * vertices, in two colours. The code matches but for registers: the ROM keeps
- * the end of the colour table in s3 (one more saved register, frame 0x40).
- * The empty ifs on arg1 and d (both always set) take it from 128 to 17 diffs.
+ * vertices, in two colours. Frame and code match but for registers: d, the end
+ * of the colour table and the table pointer are s1/s3/a3 in the ROM (s3/s1/t0
+ * here, as in 0E148). The empty ifs on arg1 and d (both always set) and the
+ * pad (the ROM's frame is 0x40, v's spill at 0x34) take it from 128 to 12 diffs.
  */
 void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068Death *d = obj->unk68;
+    UNUSED s32 pad;
     Vertex *v;
     s32 i;
 
