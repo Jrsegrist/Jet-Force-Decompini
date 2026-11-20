@@ -846,30 +846,20 @@ typedef struct M031Entry {
 extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights);
 extern Object *func_80005F14(void *entry, s32 arg1);
 
-#ifdef NON_MATCHING
 /* Racer n fires its pick-up (an oil slick or a bomb) */
-/*
- * 21 -> 9 diffs: the floor count reuses `n` (no longer needed by then), which gives the ROM's frame, and the
- * empty `if (racer) {}`; racer and heights still sit one word higher than the ROM's
- */
 s32 func_m031_01C68(Object *obj, s32 n) {
     Object *spawned;
     M031Entry entry;
-    f32 **heights;
     s32 i;
-    M031Racer *racer;
+    f32 **heights;
 
     if (n >= 0 && n < 4) {
-        racer = &sRacers[n];
-        if (racer->pickup != 0) {
+        if (sRacers[n].pickup != 0) {
             entry.x = obj->trans.x_position;
             entry.y = obj->trans.y_position;
             entry.z = obj->trans.z_position;
-            n = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
-            if (n != 0) {
-                i = n;
-                if (racer) {
-                }
+            i = func_8001B078(obj->trans.x_position, obj->trans.z_position, 0, &heights);
+            if (i != 0) {
                 while (i--) {
                     if (*heights[i] < obj->trans.y_position) {
                         entry.y = *heights[i];
@@ -878,7 +868,7 @@ s32 func_m031_01C68(Object *obj, s32 n) {
                 }
             }
             entry.owner = obj;
-            if (racer->pickup == 2) {
+            if (sRacers[n].pickup == 2) {
                 entry.objectID = 0x279;
                 entry.unkA = 0x1E0;
                 if (D_800A503C != 0) {
@@ -902,15 +892,12 @@ s32 func_m031_01C68(Object *obj, s32 n) {
             if (spawned != NULL) {
                 spawned->level_entry = NULL;
             }
-            racer->pickup = 0;
+            sRacers[n].pickup = 0;
             return TRUE;
         }
     }
     return FALSE;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m031", func_m031_01C68);
-#endif
 
 /* Whether the countdown is over */
 s32 func_m031_01EB0(void) {
