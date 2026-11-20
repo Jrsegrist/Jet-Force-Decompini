@@ -1012,6 +1012,7 @@ void func_80041DC0(void *dList); // the same as mtx_pop
  * Render a menu item: an object, a sprite or a model, by the top bits of its type (textures are not drawn here).
  * JFG: the item's transform is copied first; pipe syncs around the colour changes; models are drawn here.
  * DKR: menu_element_render
+ * NON_MATCHING: 207 words (from 276, the sprite read before the frame copy); the frame differs.
  */
 void func_8005A0D0(s32 item) {
     MenuDrawObject *object;
@@ -1044,8 +1045,8 @@ void func_8005A0D0(s32 item) {
                 object->opacity = D_800A51CC;
                 render_object(&D_800FF398, &D_800FF39C, &D_800FF3A0, object);
             } else if (type & 0x8000) {
-                trans.frame = entry->frame;
                 sprite = (void *) D_800FF3F8[entry->unk6];
+                trans.frame = entry->frame;
                 gDPPipeSync(sMenuGfx++);
                 gDPSetPrimColor(sMenuGfx++, 0, 0, D_800A51B4, D_800A51B8, D_800A51BC, D_800A51CC);
                 gDPSetEnvColor(sMenuGfx++, 255, 255, 255, 0);

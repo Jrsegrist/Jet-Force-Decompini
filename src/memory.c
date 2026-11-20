@@ -403,7 +403,8 @@ s32 mempool_get_pool(u8 *address) {
  * JFG: also adds the slot's size back to the free counters.
  */
 #ifdef NON_MATCHING
-/* NON_MATCHING: the slot->flags store and the free-counter updates are scheduled differently (15 words) */
+/* NON_MATCHING: the slot->flags store and the free-counter updates are scheduled differently (10 words, from 15
+   with the flags store written before the pool's free-byte update) */
 void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
     s32 nextIndex;
     s32 prevIndex;
@@ -426,8 +427,8 @@ void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
     if (poolIndex == POOL_MAIN) {
         gMainPoolFreeBytes += slot->size;
     }
-    gPoolFreeBytes[poolIndex] += slot->size;
     slot->flags = SLOT_FREE;
+    gPoolFreeBytes[poolIndex] += slot->size;
     if (nextIndex != MEMSLOT_NONE) {
         if (nextSlot->flags == SLOT_FREE) {
             slot->size += nextSlot->size;

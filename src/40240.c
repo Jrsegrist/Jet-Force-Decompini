@@ -1289,7 +1289,8 @@ s32 rand_range(s32 min, s32 max);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: the target forms &D_800FA658 in $a1 before indexing (mine folds %lo into the store), which shifts
-   the temporaries of the rest by one */
+   the temporaries of the rest by one (36 words, from 127, with the two zero stores chained and the shake
+   pointer set before the camera pointer) */
 /* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in until fadeInEnd,
  * hold to holdEnd, fade out to fadeOutEnd) into each camera's shakeY. */
 void func_800424A0(s32 updateRate) {
@@ -1300,10 +1301,9 @@ void func_800424A0(s32 updateRate) {
 
     D_800FA658[D_800A2ED0].unk4 = -1;
     func_80074E50(&gViewProjMatrixF);
-    D_800A2ED0 = 0;
-    gNoCamShake = 0;
-    cam = gCameras;
+    gNoCamShake = D_800A2ED0 = 0;
     shake = gCameraShakes;
+    cam = gCameras;
     i = 4;
     while (i--) {
         gCamZoomSet[i] = 0;
