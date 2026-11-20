@@ -141,14 +141,17 @@ extern s32 objflags_reserve_ids(s32 count);
 extern s32 objflag_get(s32 flag);
 extern s32 func_8001B078(f32 x, f32 z, s32 flags, f32 ***heights);
 
-#ifdef NON_MATCHING
-/* The 0.1 limit is an extern while the .rodata is asm, so IDO loads it late; heights is one word high */
+/*
+ * The breakable object's init: its scale, collision spheres and settings, where it stands, and the
+ * broken model if its flag is already set. (The original's frame has one more word above heights.)
+ */
 void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
     f32 scale;
     s32 count;
     s32 i;
     s32 found;
     M087State *state = obj->unk68;
+    UNUSED s32 pad;
     f32 **heights;
 
     scale = setup->scale * (1.0f / 64);
@@ -196,24 +199,16 @@ void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
     state->unkB = 0;
     OBJ_STATE(obj, s32)[0] = 0;
     if (objflag_get(state->flag)) {
-        switch (setup->common.objectID) {
-            case 0x2CC:
-            case 0x2DE:
-            case 0x2DF:
-                break;
-            default:
-                obj->modelIndex = obj->header->numberOfModelIds - 1;
-                obj->interactObj->flags &= ~1;
-                if ((state->unk9 & 0xF0) && obj->shadow != NULL) {
-                    *obj->shadow = state->shadowScale;
-                }
-                break;
+        if (setup->common.objectID != 0x2CC && setup->common.objectID != 0x2DE &&
+            setup->common.objectID != 0x2DF) {
+            obj->modelIndex = obj->header->numberOfModelIds - 1;
+            obj->interactObj->flags &= ~1;
+            if ((state->unk9 & 0xF0) && obj->shadow != NULL) {
+                *obj->shadow = state->shadowScale;
+            }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m087/ro", func_m087_001DC);
-#endif
 
 #ifdef NON_MATCHING
 extern s32 D_m087_01220;  /* the module's number (.data, still assembly) */
