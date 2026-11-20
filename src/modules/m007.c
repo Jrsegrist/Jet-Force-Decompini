@@ -16,7 +16,7 @@ static s32 func_m007_007E4(s32 dir);
 static void hint_page_choose(void);
 static void *func_m007_00988(s32 id, s32 kind);
 static void *func_m007_00C90(s32 id, s32 asset);
-extern void *rl_m007_00B00(s32 id, s32 asset);
+static void *func_m007_00B00(s32 id, s32 asset);
 extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
 extern u8 rl_m007_02A04[]; /* the texts of pages without one */
@@ -533,7 +533,7 @@ static void *func_m007_00988(s32 id, s32 kind) {
             break;
     }
     if (kind != 1) {
-        rl_m007_02C58[i].data = rl_m007_00B00(id, asset);
+        rl_m007_02C58[i].data = func_m007_00B00(id, asset);
     } else {
         rl_m007_02C58[i].data = func_m007_00C90(id, asset);
     }
@@ -544,7 +544,69 @@ static void *func_m007_00988(s32 id, s32 kind) {
     return rl_m007_02C58[i].data;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m007/ro", func_m007_00B00);
+/*
+ * Loads text `id` from asset `asset` as plain text: a list of records (the first byte is the kind, 0 ends
+ * it); kinds 2 to 5 hold a text offset in their low 24 bits, turned into a pointer (the kind byte kept)
+ */
+static void *func_m007_00B00(s32 id, s32 asset) {
+    s32 start;
+    s32 size;
+    u8 *data;
+    u8 *p;
+    u8 *rec;
+    u32 value;
+
+    start = ((s32 *) rl_m007_02A54)[id];
+    size = ((s32 *) rl_m007_02A54)[id + 1] - start;
+    data = func_8004A57C(size, 0xFF00FF);
+    if (data != NULL) {
+        func_8004D530(asset, data, start, size);
+        p = data;
+        while (*p != 0) {
+            rec = p;
+            switch (*p) {
+                case 1:
+                    p += 4;
+                    break;
+                case 2:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 2;
+                    break;
+                case 3:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 3;
+                    break;
+                case 4:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 4;
+                    break;
+                case 5:
+                    value = (*(u32 *) p & 0xFFFFFF) | 0x80000000;
+                    p += 4;
+                    value += (u32) data;
+                    *(u32 *) rec = value;
+                    *rec = 5;
+                    break;
+                case 6:
+                    p += 8;
+                    break;
+                case 7:
+                    p += 8;
+                    break;
+            }
+        }
+    }
+    return data;
+}
 
 /* Loads text `id` from asset `asset` as pages, turning their text offsets into pointers */
 static void *func_m007_00C90(s32 id, s32 asset) {
