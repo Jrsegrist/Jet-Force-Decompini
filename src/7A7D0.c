@@ -1115,7 +1115,8 @@ void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 #ifdef NON_MATCHING
 /**
  * NON_MATCHING: i lives on the stack for the whole loop (the target keeps it in a3 and spills it only around the
- * triangle loop), which renumbers the temporaries; frame 0xA8 vs 0xB0.
+ * triangle loop), which renumbers the temporaries; frame 0xA8 vs 0xB0. 132 words (from 228, with the edges
+ * if/else written the other way round).
  * JFG: build the object edge list from the entries, as track_edges_build does for the level: an object entry
  * selects the object (its current model and transform), a triangle entry adds the model triangle's marked
  * edges, transformed to world space (zero-length edges are skipped), up to the level header's limit.
@@ -1150,10 +1151,10 @@ void func_800805F4(void) {
             obj = (Obj7E *) (D_801047F4[i] | 0x80000000);
             model = obj->modelInstances[obj->data->modelIndex];
             header = model->header;
-            if (model->edges != NULL) {
-                edges = model->edges;
-            } else {
+            if (model->edges == NULL) {
                 edges = header->edges;
+            } else {
+                edges = model->edges;
             }
             mtx = obj->data->mtx2[obj->data->mtxIndex][0];
         } else {

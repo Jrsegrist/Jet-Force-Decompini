@@ -845,13 +845,15 @@ void audspat_point_set_pitch(void *audioPoint, u8 pitch);
    then set the sequence state), its clock, the paths and the positioned sounds of the paths' objects (pitch from the
    object's speed).
    NON_MATCHING: ROM length; the command block's a0-a3/t0 rotated and the state store written before the command
-   pointer's (the ROM reads the command's low byte before that store but stores it after). */
+   pointer's (the ROM reads the command's low byte before that store but stores it after). 42 words (from 57: frames
+   u32 (it holds a u16 or u16 * 6 / 10, so every value is the same), the clock advanced in place, empty ifs on
+   rate and frames, both set there); the frame keeps the old time variable's word. */
 void func_80077614(s32 updateRate) {
     s32 i;
     AnimPath *path;
     s32 rate;
-    s32 frames;
-    u32 time;
+    u32 frames;
+    UNUSED u32 time;
     AnimObject *obj;
     f32 speed;
     f32 frameTime;
@@ -874,6 +876,8 @@ void func_80077614(s32 updateRate) {
                         frames = ((u16 *) D_800A74CC)[0] >> 1;
                     } else {
                         frames = frames * 6 / 10;
+                        if (frames) {}
+
                     }
                     updateRate = frames - D_800A74D8;
                     D_800A74D4 = (s8) ((u16 *) D_800A74CC)[1];
@@ -885,7 +889,8 @@ void func_80077614(s32 updateRate) {
             }
         }
         if (updateRate > 0) {
-            time = D_800A74D8 + updateRate;
+
+            if (rate) {}
             for (i = 0; i < 4; i++) {
                 D_801045B8[i] = NULL;
             }
@@ -898,8 +903,8 @@ void func_80077614(s32 updateRate) {
                     D_800A74EC = 0;
                 }
             }
-            D_800A74D8 = time;
-            D_800A74DC = time * frameTime;
+            D_800A74D8 += updateRate;
+            D_800A74DC = D_800A74D8 * frameTime;
             for (i = 0; i < 256; i++) {
                 path = D_801045B0[i];
                 if (path != NULL && (path->flags & 5)) {
