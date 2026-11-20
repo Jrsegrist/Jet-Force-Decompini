@@ -494,6 +494,7 @@ void snow_vertices(void) {
     s16 offsetH;
 
     offsetW = gSnowGfx.vertOffsetW;
+    if (offsetW) {}
     offsetH = gSnowGfx.vertOffsetH;
     camX = gWeatherCamera->pos.x * 65536.0f;
     camY = gWeatherCamera->pos.y * 65536.0f;
@@ -510,8 +511,8 @@ void snow_vertices(void) {
         func_80048C00(gWeatherCameraMatrix, &posF, &posF);
         posZ = posF.z;
         if ((s16) posZ < gSnowPlane.near && gSnowPlane.current < (s16) posZ) {
-            posX = posF.x;
             posY = posF.y;
+            posX = posF.x;
             verts[0].x = posX - offsetW;
             verts[0].y = posY + offsetH;
             verts[0].z = posZ;
@@ -523,10 +524,10 @@ void snow_vertices(void) {
             verts[2].z = posZ;
             verts[3].x = posX - offsetW;
             verts[3].y = posY - offsetH;
-            verts[3].z = posZ;
-            verts += 4;
             D_800A59F8 += 4;
+            verts[3].z = posZ;
             ((s16 *) gSnowTriIndices)[D_800A59F8 >> 2] = i;
+            verts += 4;
         }
     }
 }

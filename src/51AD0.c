@@ -855,6 +855,7 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
         symModule = D_800FEAA8[reloc->symbol] >> 20;
         if (symModule >= 0xFFC) {
             symModule = 0;
+            if (insn) {}
         }
         if (reloc->type == 0 && gRunlinkModules[symModule].unk0 == 0) {
             target = (u32) D_800FEAD4;
@@ -865,6 +866,7 @@ s32 func_80052AB8(ModuleReloc *reloc, s32 module) {
         addend = insn->half.lo;
         if (loHalf & 0x8000) {
             loHalf |= 0xFFFF0000;
+            if (addend) {}
         }
         addend = (addend << 16) + loHalf;
         if (addend != (s32) D_800FEAD4) {

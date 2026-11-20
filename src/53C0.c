@@ -2545,6 +2545,7 @@ s32 func_8000BC28(Object *obj, ObjectAttachment *inst, ObjectModel53 *model, s32
             i = 0;
             while (TRUE) {
                 *dst++ = *src++;
+                if (racer) {}
                 if (++i >= 15) {
                     break;
                 }
@@ -2563,12 +2564,14 @@ s32 func_8000BC28(Object *obj, ObjectAttachment *inst, ObjectModel53 *model, s32
                     }
                 }
             }
+            if (i) {}
             item = held->attachments[slot];
             if (item != NULL && item->point != NULL) {
                 func_80048B60(mtx, item->point[0], item->point[1], item->point[2], x, y, z);
                 result = 1;
             }
         }
+        if (slot) {}
     }
     return result;
 }

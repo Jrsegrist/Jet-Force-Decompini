@@ -655,6 +655,7 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
     view = &D_800F6DC8;
     view->position[0] = *(f32 *) (obj + 0xC);
     view->position[1] = *(f32 *) (obj + 0x10);
+    if (obj) {}
     view->unk14 = 0.0f;
     if (racer) {}
     view->unk18 = 0.0f;
