@@ -507,10 +507,10 @@ static void func_m127_00FA0(Object *obj, s32 scroll) {
     s32 mask;
     M127Batch *batch;
     s32 i;
+    s32 minV;
     s32 j;
     M127Tri *tri;
     s32 minU;
-    s32 minV;
     s32 v0;
     s32 v1;
     s32 v2;

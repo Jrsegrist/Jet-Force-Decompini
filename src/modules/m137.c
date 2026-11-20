@@ -299,10 +299,11 @@ extern void func_8000DB94(Gfx **dl, Mtx **mtx, s32 arg2, Object *obj);
  * it (its model, a held weapon, special effects), then sets the camera
  * matrix back.
  */
-/* (equivalent; not matched: stack layout and register allocation) */
+/* (equivalent; not matched: register allocation and the stack offsets; a pad gives the ROM's frame) */
 void func_m137_0025C(Gfx **dl, Mtx **mtx, s32 arg2) {
     M137Instance *lodInst;
     M137Player *pd;
+    UNUSED s32 pad;
     MtxF *cam;
     Vec3f to;
     Vec3f from;

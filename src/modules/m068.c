@@ -3227,7 +3227,7 @@ extern void func_800492DC(Object *obj, Vec3f *vec);
 #ifdef NON_MATCHING
 /*
  * An electric strip: grows from its source towards a point, holds, shrinks; sparks when it starts.
- * Draft: the frame is 8 bytes small and the float registers differ (the ROM keeps dx*dx in f28).
+ * Draft: two pads give the ROM's frame; the float registers differ (the ROM keeps dx*dx in f28).
  */
 void func_m068_0D828(Object *obj, s32 updateRate) {
     f32 dx;
@@ -3242,9 +3242,11 @@ void func_m068_0D828(Object *obj, s32 updateRate) {
     f32 hw;
     f32 sx;
     f32 radius;
+    UNUSED s32 pad1;
     f32 sy;
     f32 *width;
     f32 pos[3];
+    UNUSED s32 pad0;
     f32 *q;
     s32 angle;
     Vertex *v;
@@ -3504,8 +3506,8 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
-            p[j].x = 0;
             p[j].y = 0;
+            p[j].x = 0;
             p[j].z = 0;
             p[j].r = 255;
             p[j].g = 255;
@@ -3517,8 +3519,8 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         }
     }
     tri = m->tris;
-    prev = 0;
     k = 0;
+    prev = 0;
     for (n = 64; n < 576; n += 64) {
         v = (n / 8 - 1) << 5;
         tri[0].flags = 0x40;
@@ -3548,6 +3550,7 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     for (n = 0; n < 2; n++) {
         m->a[n] = setup->a[n];
         m->b[n] = setup->b[n];
+        if (k) {} /* k is set above */
         m->c[n] = setup->c[n];
     }
 }
@@ -3787,30 +3790,38 @@ extern void audspat_point_set_volume(s32 sound, s32 volume);
 #ifdef NON_MATCHING
 /*
  * The ring grows and fades; it hurts the player once if they stand on its
- * edge. Same operations, but the float registers are numbered differently
- * (the rate is f0 in the ROM) and the frame is 0x18 bytes smaller.
+ * edge. Length and frame match (the declarations sit at the ROM's spill
+ * slots, model 0x54, r 0x50, dy 0x40, k 0x34, damage 0x2C); the rate is f0
+ * in the ROM, and the ROM starts the scale's growth * k before the opacity.
  */
 void func_m068_0EF70(Object *obj, s32 updateRate) {
-    f32 rate = updateRate;
-    M068Ring *r = obj->unk68;
-    M068Model *model = *((M068Header *) obj->header)->models;
-    f32 k;
-    s32 damage;
     Object *player;
+    f32 rate;
+    M068Model *model;
+    M068Ring *r;
+    UNUSED s32 pad0;
+    UNUSED s32 pad1;
     f32 dx;
     f32 dy;
     f32 dz;
     f32 d;
+    f32 k;
+    UNUSED s32 pad2;
+    s32 damage;
+    UNUSED s32 pad3;
 
+    rate = updateRate;
+    r = obj->unk68;
+    model = *((M068Header *) obj->header)->models;
     r->time += rate / 60.0f;
     if (r->fadeStart < r->time) {
         k = 1.0f - (r->time - r->fadeStart) / (r->end - r->fadeStart);
     } else {
         k = 1.0f;
     }
+    obj->trans.rotation.y_rotation += (s32) (512.0f * rate * k);
     obj->opacity = (s32) (255.0f * k);
     r->scale += r->growth * k * rate;
-    obj->trans.rotation.y_rotation += (s32) (512.0f * rate * k);
     if (k == 1.0f) {
         obj->particleEmittersEnabled = 1;
         func_8005F5AC(obj, updateRate);
