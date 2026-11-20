@@ -759,11 +759,10 @@ s32 get_current_viewport(void);
 s32 cam_get_active_camera_id();
 void copy_framebuffer_size_to_coords(s32 layout, s32 viewPortIndex, u32 *ulx, u32 *uly, u32 *lrx, u32 *lry);
 
-#ifdef NON_MATCHING
 /* JFG: draw the level's background as a gradient from its top colour to its bottom colour.
-   NON_MATCHING: 23 words: the t-registers of the vertex coordinates are numbered one lower. */
+   (width is an s32 halved as unsigned: the s32 type gives the target's register numbering.) */
 void func_80013454(void) {
-    u32 width;
+    s32 width;
     u32 height;
     u32 x1;
     u32 y1;
@@ -791,9 +790,9 @@ void func_80013454(void) {
     bottomR = D_800A0D64->bgBottomR;
     bottomG = D_800A0D64->bgBottomG;
     bottomB = D_800A0D64->bgBottomB;
-    fb_size(&width, &height);
+    fb_size((u32 *) &width, &height);
     copy_framebuffer_size_to_coords(get_current_viewport(), cam_get_active_camera_id(), &x1, &y1, &x2, &y2);
-    width >>= 1;
+    width = (u32) width >> 1;
     height >>= 1;
     verts->x = x1 - width;
     verts->y = height - y2;
@@ -829,9 +828,6 @@ void func_80013454(void) {
     verts++;
     D_800F2F78 = verts;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_80013454);
-#endif
 
 Camera *cam_get_active_camera(void);
 void func_80041168(Gfx **dList, Mtx **matrices); // DKR: mtx_world_origin

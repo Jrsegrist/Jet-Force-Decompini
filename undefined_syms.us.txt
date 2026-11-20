@@ -248,7 +248,6 @@ gViewMatrixF = 0x800FAF78;
 
 /* ---- 55130.c ---- */
 func_80056798 = tex_load_sprite;
-sprite_init_frame = 0x80056D24;
 gSpriteTableSize = 0x800FED14;
 gSpriteOffsetTable = 0x800FED08;
 gCurrentSpriteAsset = 0x800FED10;
@@ -791,3 +790,6 @@ func_80054530_pfff = 0x80054530;
 
 /* sweepmain26 (round 26) */
 func_80043130 = input_update;
+
+/* ---- round 27 (rewrite27main): C names now defined in C ---- */
+func_80056D24 = sprite_init_frame;

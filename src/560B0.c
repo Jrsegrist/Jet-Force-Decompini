@@ -804,9 +804,6 @@ void sprite_free(SpriteAsset *sprite) {
     }
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 4 words: the target stores the spilled tileEnd before the loop's entry test (in its delay slot),
-   mine in the loop preheader */
 /* JFG's DMA display list, vertex and two-triangle commands here: parameter, command and length or'ed in that
    order; the vertices are appended (0x200) and counted from 0 */
 #define gDkrDmaDisplayListSpr(pkt, address, numberOfCommands)                                        \
@@ -834,7 +831,8 @@ void sprite_free(SpriteAsset *sprite) {
  * Creates a display list that renders the specified sprite frame.
  * A frame may consist of multiple tiles.
  * JFG: the first frame always sets the draw flags; with draw flag 0x40 the tiles' own display lists are left out
- * and the command counts of the parts are recorded in unk14 instead.
+ * and the command counts of the parts are recorded in unk14 instead. JFG reuses frameId (not needed once the
+ * tile range is read) for each tile's texture width.
  * DKR: sprite_init_frame
  */
 void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 frameId) {
@@ -847,7 +845,6 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
     s32 left;
     s32 numQuads;
     s32 curVertIndex;
-    s32 texWidth;
     s32 texHeight;
     s32 tileIndex;
     s32 numMarks;
@@ -876,7 +873,7 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
     numMarks = 0;
     while (tileIndex < tileEnd) {
         tex = sprite->textures[tileIndex];
-        texWidth = tex->width;
+        frameId = tex->width;
         texHeight = tex->height;
         tileOffsetX = tex->posX - anchorX;
         tileOffsetY = anchorY - tex->posY;
@@ -891,7 +888,7 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
         vertex->a = 255;
         vertex++;
 
-        vertex->x = tileOffsetX + texWidth - 1;
+        vertex->x = tileOffsetX + frameId - 1;
         vertex->y = tileOffsetY - 1;
         vertex->z = 0;
         vertex->r = 255;
@@ -900,7 +897,7 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
         vertex->a = 255;
         vertex++;
 
-        vertex->x = tileOffsetX + texWidth - 1;
+        vertex->x = tileOffsetX + frameId - 1;
         vertex->y = tileOffsetY - texHeight;
         vertex->z = 0;
         vertex->r = 255;
@@ -940,9 +937,9 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
         triangle->vi0 = curVertIndex + 3;
         triangle->vi1 = curVertIndex + 2;
         triangle->vi2 = curVertIndex + 1;
-        triangle->uv[0][0] = (texWidth - 1) << 5;
+        triangle->uv[0][0] = (frameId - 1) << 5;
         triangle->uv[0][1] = (texHeight - 1) << 5;
-        triangle->uv[1][0] = (texWidth - 1) << 5;
+        triangle->uv[1][0] = (frameId - 1) << 5;
         triangle->uv[1][1] = 0;
         triangle->uv[2][0] = 1;
         triangle->uv[2][1] = 0;
@@ -954,7 +951,7 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
         triangle->vi2 = curVertIndex + 1;
         triangle->uv[0][0] = 1;
         triangle->uv[0][1] = (texHeight - 1) << 5;
-        triangle->uv[1][0] = (texWidth - 1) << 5;
+        triangle->uv[1][0] = (frameId - 1) << 5;
         triangle->uv[1][1] = (texHeight - 1) << 5;
         triangle->uv[2][0] = 1;
         triangle->uv[2][1] = 0;
@@ -978,9 +975,6 @@ void sprite_init_frame(SpriteAssetData *spriteAsset, SpriteAsset *sprite, s32 fr
     gSpriteVertices = vertex;
     gSpriteTriangles = triangle;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/560B0", func_80056D24);
-#endif
 
 void func_8005719C(Gfx **dList, TextureHeader *tex, s32 arg2, s32 arg3);
 
