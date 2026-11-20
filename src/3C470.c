@@ -810,8 +810,8 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *model_asset_block_load(s32 index);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: saved registers: the target keeps &D_800F6F2C in $s0 and id in $s1 (mine the other way round)
-   and reloads/re-spills the offset around each call */
+/* NON_MATCHING (20 words, from 73, after the two empty ifs on offset, which is set on every path there): register
+   allocation around the calls */
 /* JFG: load model `id`'s asset list (tables 0x28/0x29) into the model: its 0x58 block, the ids (0x5C) and, unless
  * 0x64 is set, the cached assets (0x50); returns 1 when something could not be had (all freed again). */
 s32 func_8003CB04(Model3C7 *model, s32 id) {
@@ -840,6 +840,7 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
     }
     if (!model->unk64) {
         model->assets = mempool_alloc(model->numAssets * 4, 0xFF0000FF);
+        if (offset) {}
     }
     model->unk5C = mempool_alloc(model->numAssets * 2, 0xFF0000FF);
     if (!model->unk64) {
@@ -870,6 +871,7 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
         ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset];
         offset++;
     }
+    if (offset) {}
     return 0;
 }
 #else

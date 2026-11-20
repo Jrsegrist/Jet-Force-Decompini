@@ -242,7 +242,7 @@ OSMesgQueue *osScGetCmdQ(void *sc);
  * three output buffers, and no arguments.
  */
 #ifdef NON_MATCHING
-/* NON_MATCHING (29 words, ROM length and frame): the ROM keeps the `== 1` test of the mode in v0 (xori), shifting
+/* NON_MATCHING (18 words, ROM length and frame): the ROM keeps the `== 1` test of the mode in v0 (xori), shifting
    the t-registers by one, and keeps the DMA buffer pointer in a1 for the unlink */
 void __amHandleFrameMsg(void) {
     s16 *audioPtr;
@@ -318,9 +318,9 @@ void __amHandleFrameMsg(void) {
             for (i = 0; i < 3; i++) {
                 gAudioMgr.data[i] = gAudioMgr.dataNormal[i];
             }
-            D_800A06E4 = 12;
             gAudioMgr.ACMDList[0] = gAudioMgr.ACMDListNormal[0];
             gAudioMgr.ACMDList[1] = gAudioMgr.ACMDListNormal[1];
+            D_800A06E4 = 12;
         }
         D_800A06E0 = D_800A06DC;
     }
@@ -368,8 +368,8 @@ void __amHandleFrameMsg(void) {
     osSendMesg(osScGetCmdQ(gAudioSched), (OSMesg) &gAudioMgr.task, OS_MESG_NOBLOCK);
     D_800A06C4 ^= 1;
     D_800A06CC = D_800A06C8++;
-    audFrameCt++;
     D_800A06C8 %= 3;
+    audFrameCt++;
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/2610", func_80001EF8);

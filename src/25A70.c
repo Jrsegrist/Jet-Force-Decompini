@@ -996,8 +996,7 @@ typedef struct ModelBatch275 {
 } ModelBatch275;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: register allocation: the target copies obj/entry to $s2/$s0 first and keeps entry->0xC in $a1,
-   the model in $a3, the batch count in $a0 and the total in $a2 (mine: $t0, $t1, $a2, $a3) */
+/* NON_MATCHING (31 words, from 82, after the empty if on entry, which is set there): register allocation */
 /* JFG: init: break the target object's model batches lo..hi (entry 0x10/0x11) off as pieces flying off
  * at random; freed when it has no such triangles or the buffers can not be had. */
 void func_800275E8(Object *obj, u8 *entry) {
@@ -1010,6 +1009,7 @@ void func_800275E8(Object *obj, u8 *entry) {
         s32 n;
         ModelBatch275 *batch;
 
+        if (entry) {}
         target = *(u8 **) (entry + 0xC);
         model = **(u8 ***) (*(u8 ***) (target + 0x6C) + *(s8 *) (target + 0x3A));
         state = *(u8 **) &obj->animator;
