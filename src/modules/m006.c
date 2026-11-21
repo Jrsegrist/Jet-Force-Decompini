@@ -134,8 +134,10 @@ void func_m006_00EFC(void) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Where one corner of a player's HUD is on the screen; the temporaries' registers differ */
+/*
+ * Where one corner of a player's HUD is on the screen. The offset rows D_m006_01A94[player + n] are read with
+ * the row index pre-shifted onto the s16 scaling (two s16 per row)
+ */
 void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y) {
     s32 hiRes;
     s32 cornerX;
@@ -148,17 +150,17 @@ void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y) {
     corner *= 2;
     if (D_800A4FD0 == 2) {
         if ((hiRes & 1) || options_split_vertical_get(player)) {
-            offsetX = D_m006_01A94[player + 2][0];
-            offsetY = D_m006_01A94[player + 2][1];
+            offsetX = ((s16 *) D_m006_01A94 + (player << 1))[4];
+            offsetY = ((s16 *) D_m006_01A94 + (player << 1))[5];
             coords = D_m006_01A84;
         } else {
-            offsetX = D_m006_01A94[player][0];
-            offsetY = D_m006_01A94[player][1];
+            offsetX = ((s16 *) D_m006_01A94 + (player << 1))[0];
+            offsetY = ((s16 *) D_m006_01A94 + (player << 1))[1];
             coords = D_m006_01A74;
         }
     } else {
-        offsetX = D_m006_01A94[player + 4][0];
-        offsetY = D_m006_01A94[player + 4][1];
+        offsetX = ((s16 *) D_m006_01A94 + (player << 1))[8];
+        offsetY = ((s16 *) D_m006_01A94 + (player << 1))[9];
         coords = D_m006_01A64;
     }
     fb_scale_coords(&offsetX, &offsetY);
@@ -168,9 +170,6 @@ void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y) {
     *x = cornerX + offsetX;
     *y = cornerY + offsetY;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_00F30);
-#endif
 
 void func_m006_0107C(s32 *x, s32 *y) {
     u32 width;
