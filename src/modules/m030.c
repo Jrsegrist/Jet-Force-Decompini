@@ -570,8 +570,9 @@ static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
 #ifdef NON_MATCHING
 /* register choice: the ROM gives lo/hi/n a0/v0/v1 and the mask t0 */
 /*
- * 104 -> 69 diffs with the empty ifs on hi and lo; aligned distance 108 -> 67 with n an s8 (it only counts
- * 0..8; the empty ifs on base that the s16 n needed then change nothing and are gone)
+ * 104 -> 69 diffs with the empty ifs on hi and lo; aligned distance 108 -> 67 with n an s8, then 67 -> 39
+ * with hi first holding the max (the ROM loads it into its own register, s1) and n back to s16 (the ROM
+ * narrows the counter with sll/sra 16); left: the t-registers around each band's set-up
  */
 /*
  * For each triangle, a mask of the cells of an 8x8x8 grid over the model's
@@ -600,7 +601,7 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
     s16 lo;
     s16 hi;
     s16 step;
-    s8 n;
+    s16 n;
 
     for (i = 0; i < model->numBatches; i++) {
         start = model->batches[i].start;
@@ -648,7 +649,8 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
             }
             bit = 1;
             lo = inst->minX;
-            step = ((inst->maxX - inst->minX) >> 3) + 1;
+            hi = inst->maxX;
+            step = ((hi - inst->minX) >> 3) + 1;
             hi = step + inst->minX;
             for (n = 0; n < 8; n++) {
                 if (hi >= minX && maxX >= lo) {
@@ -659,8 +661,9 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
                 bit <<= 1;
             }
             lo = inst->minZ;
-            step = ((inst->maxZ - inst->minZ) >> 3) + 1;
-            hi = step + inst->minZ;
+            hi = inst->maxZ;
+            step = ((hi - inst->minZ) >> 3) + 1;
+            hi = inst->minZ + step;
             for (n = 0; n < 8; n++) {
                 if (hi >= minZ && maxZ >= lo) {
                     mask |= bit;
@@ -674,8 +677,9 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
             if (lo) {
             }
             lo = inst->minY;
-            step = ((inst->maxY - inst->minY) >> 3) + 1;
-            hi = step + inst->minY;
+            hi = inst->maxY;
+            step = ((hi - inst->minY) >> 3) + 1;
+            hi = inst->minY + step;
             for (n = 0; n < 8; n++) {
                 if (hi >= minY && maxY >= lo) {
                     mask |= bit;
