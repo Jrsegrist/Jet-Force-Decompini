@@ -688,29 +688,23 @@ extern u8 runlink_nameoffs_ROM_START[];
 extern u8 runlink_names_ROM_START[];
 void dmacopy(u32 romOffset, u32 ramAddress, s32 numBytes);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the offset-table address is spilled to sp+0x18 (target 0x1C): the target has no word for
- * offset (reading it into index instead puts it in a3, target a0) */
 /* JFG: the name of runlink symbol `index`: read its offset from the name offset table, then up to 0x60 bytes of
- * the name (ROM reads are 8-byte aligned). Note: returns a pointer into this function's own stack buffer. */
+ * the name (ROM reads are 8-byte aligned). Note: returns a pointer into this function's own stack buffer.
+ * `offset` first carries the buffer's address for the first read (its only use), then the name's offset. */
 char *func_800527F0(s32 index) {
-    u8 *name;
+    s32 offset;
     s32 skew;
     u8 buf[0x60];
-    s32 offset;
 
-    name = buf;
-    dmacopy((u32) (runlink_nameoffs_ROM_START + index * 4) & ~7, (u32) &buf, 8);
+    offset = (s32) buf;
+    dmacopy((u32) (runlink_nameoffs_ROM_START + index * 4) & ~7, offset, 8);
     offset = *(s32 *) &buf[(u32) (runlink_nameoffs_ROM_START + index * 4) & 7];
     offset += (s32) runlink_names_ROM_START;
     skew = offset & 7;
     offset &= ~7;
-    dmacopy(offset, (u32) name, 0x60);
-    return (char *) name + skew;
+    dmacopy(offset, (u32) buf, 0x60);
+    return (char *) buf + skew;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_800527F0);
-#endif
 
 /* Size: 0x20 bytes */
 typedef struct ModuleEntry {
