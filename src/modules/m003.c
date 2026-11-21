@@ -1852,14 +1852,9 @@ void func_m003_038D4(void) {
 extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
 
-#ifdef NON_MATCHING
-/*
- * 3 diffs: the word-14 test's load and `and` are in t9/t0 where the ROM has t0/t1 (21 before the (s16) cast on
- * the unk74 store: unk74 is a u8 and n is 0..255, so the stored byte is the same)
- */
 /*
  * Once the troop's first member is near enough its way point: on, unless the point says to wait for
- * a player who is not within 700
+ * a player who is not within 700 (the first test reads the word's low byte; unk74 is a u8, n is 0..255)
  */
 void func_m003_03AA8(void) {
     Object *first;
@@ -1873,8 +1868,8 @@ void func_m003_03AA8(void) {
         n = sHomeData->unk3C & 0xFF;
         node = &D_800FEA9C[n];
         first = sHomeData->first;
-        if (NODEWORD14(node) & 2) {
-            sHomeData->unk74 = (s16) n;
+        if ((NODEWORD14(node) & 0xFF) & 2) {
+            sHomeData->unk74 = n & 0xFF;
         }
         if (sHomeData->unk6C == 1.0f) {
             dist = point_distance(first->trans.x_position, first->trans.y_position, first->trans.z_position,
@@ -1899,9 +1894,6 @@ void func_m003_03AA8(void) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_03AA8);
-#endif
 
 void func_m003_03C84(void) {
     func_m155_02BB0(sHome);
