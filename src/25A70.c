@@ -995,10 +995,8 @@ typedef struct ModelBatch275 {
     /* 0x0C */ s32 flags;
 } ModelBatch275;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (21 words, from 82, after the empty if on entry, which is set there): register allocation. The
-   first buffer is total * 30 bytes (three 10-byte vertices per triangle: the ROM computes total * 3, then * 10;
-   the old body had 26) */
+/* The first buffer is total * 30 bytes (three 10-byte vertices per triangle: the ROM computes total * 3, then
+   * 10). */
 /* JFG: init: break the target object's model batches lo..hi (entry 0x10/0x11) off as pieces flying off
  * at random; freed when it has no such triangles or the buffers can not be had. */
 void func_800275E8(Object *obj, u8 *entry) {
@@ -1010,11 +1008,14 @@ void func_800275E8(Object *obj, u8 *entry) {
         u8 *model;
         s32 n;
         ModelBatch275 *batch;
+        u8 **models;
 
         if (entry) {}
         target = *(u8 **) (entry + 0xC);
         state = *(u8 **) &obj->animator;
-        model = **(u8 ***) (*(s8 *) (target + 0x3A) + *(u8 ***) (target + 0x6C));
+        /* the model table entry through its own local: its register stays held to the end of the block */
+        models = *(u8 ***) (*(s8 *) (target + 0x3A) + *(u8 ***) (target + 0x6C));
+        model = *models;
         n = *(s16 *) (model + 0x16);
         batch = *(ModelBatch275 **) (model + 0x24);
         total = 0;
@@ -1055,9 +1056,6 @@ void func_800275E8(Object *obj, u8 *entry) {
     }
     free_object(obj);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_800275E8);
-#endif
 
 /* JFG: the game character data of a player (reduced) */
 typedef struct PieceCharacter {

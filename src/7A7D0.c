@@ -1121,8 +1121,8 @@ void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 #ifdef NON_MATCHING
 /**
  * NON_MATCHING: i lives on the stack for the whole loop (the target keeps it in a3 and spills it only around the
- * triangle loop), which renumbers the temporaries; frame 0xA8 vs 0xB0. 132 words (from 228, with the edges
- * if/else written the other way round).
+ * triangle loop), which renumbers the temporaries. 135 aligned diffs at the ROM's length and frame (0xB0, with
+ * the pad after mtx; 139 at frame 0xA8).
  * JFG: build the object edge list from the entries, as track_edges_build does for the level: an object entry
  * selects the object (its current model and transform), a triangle entry adds the model triangle's marked
  * edges, transformed to world space (zero-length edges are skipped), up to the level header's limit.
@@ -1136,6 +1136,7 @@ void func_800805F4(void) {
     UNUSED s32 pad2[3];
     LevelHeader *level;
     f32 *mtx;
+    UNUSED s32 pad3[2];
     s32 i;
     s32 j;
     s32 k;

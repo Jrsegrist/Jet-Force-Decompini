@@ -2650,8 +2650,7 @@ f32 get_distance_to_camera(f32 x, f32 y, f32 z);
 void func_80069BE8(Gfx **dList, void *mesh, s32 flags, u8 alpha);
 extern u8 D_800A0C2C[];
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: from the joint matrix statement on, every t-register is one lower than the target's */
+/* The joint matrix address is written as a pre-shifted f32 index (16 floats a matrix). */
 /* JFG: draw a player's (up to four) effect meshes at their model points, farthest first, each with its joint
    matrix; then the module's extra effect (racer 0x550) if there is one. */
 void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
@@ -2676,7 +2675,7 @@ void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
             order[count] = count;
             depth[count] = get_distance_to_camera(point[0], point[1], point[2]);
             effects[count] = eff;
-            mtx[count] = (racer->effectMtx[i] << 6) + (u32) model->matrices[model->matrixIndex];
+            mtx[count] = (u32) ((f32 *) model->matrices[model->matrixIndex] + (racer->effectMtx[i] << 4));
             alpha[count] = racer->effectAlpha[i];
             count++;
         }
@@ -2684,11 +2683,10 @@ void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
     if (count > 0) {
         for (i = count - 1; i > 0; i--) {
             for (j = 0; j < i; j++) {
-                s16 a = order[j + 1];
-                s16 b = order[j];
-                if (depth[a] < depth[b]) {
-                    order[j] = a;
-                    order[j + 1] = b;
+                if (depth[order[j + 1]] < depth[order[j]]) {
+                    s16 tmp = order[j];
+                    order[j] = order[j + 1];
+                    order[j + 1] = tmp;
                 }
             }
         }
@@ -2702,9 +2700,6 @@ void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
         func_80054530(dList, arg1, racer->unk550, &D_800A0C2C[racer->unk1 * 6], racer->unk544, (u8 *) racer + 0x78);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C6E0);
-#endif
 
 extern u8 D_800A0C5C;
 extern u8 D_800A0C60;
