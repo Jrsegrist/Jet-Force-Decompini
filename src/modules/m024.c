@@ -658,7 +658,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m024", func_m024_00CE4);
 
 /* Which edge (0-2) of triangle `tri` of the segment runs between points a and b (either way), or -1 */
 #ifdef NON_MATCHING
-/* two of the compiler's stack temporaries sit two words lower than the ROM's */
+/* 2 diffs: the batch-count bound's stack temporary is at 0x34, the ROM's at 0x30 (the rest is the ROM's) */
 static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b) {
     s32 i;
     s32 j;
@@ -677,9 +677,8 @@ static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b) {
     s16 y1;
     s16 z1;
     s32 vOffset;
-    s32 start;
-    s32 end;
-    Vertex *verts;
+    s16 start; /* both read from s16 fields */
+    s16 end;
     Triangle *t;
     Vertex *v;
 
@@ -697,17 +696,16 @@ static s32 func_m024_016E0(LevelModelSegment *seg, s32 tri, s16 *a, s16 *b) {
             j = 0;
             vOffset = seg->batches[i].verticesOffset;
             t = &seg->triangles[tri];
-            verts = seg->vertices;
             for (; j < 3; j++) {
                 k = j + 1;
                 if (k >= 3) {
                     k = 0;
                 }
-                v = &verts[(&t->vi0)[j] + vOffset];
+                v = &seg->vertices[(&t->vi0)[j] + vOffset];
                 x0 = v->x;
                 y0 = v->y;
                 z0 = v->z;
-                v = &verts[(&t->vi0)[k] + vOffset];
+                v = &seg->vertices[(&t->vi0)[k] + vOffset];
                 x1 = v->x;
                 y1 = v->y;
                 z1 = v->z;
