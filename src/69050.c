@@ -2003,8 +2003,6 @@ void rgba5551_brighten_rg(u16 *colour, u8 addRed, u8 addGreen) {
     *colour = (red << 11) | (green << 6) | (blue << 1) | 1;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: frame 0x60 (target 0x50: width/height at sp+0x3C/0x38) and register numbering differ; same code otherwise */
 /* JFG: brighten the green of a 2-pixel-wide line in the framebuffer (horizontal, or vertical when vertical is set). */
 void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
     u16 *center;
@@ -2014,9 +2012,8 @@ void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
     u32 width, height;
     s32 count;
     s32 step;
-    u16 pixel;
+    s32 pixel;
     s32 green;
-    s32 newGreen;
 
     fb_size(&width, &height);
     if ((!vertical && x2 < x1) || (vertical && y2 < y1)) {
@@ -2032,7 +2029,7 @@ void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
     center = &fb[y1 * width + x1];
     if (!vertical) {
         after = center + width;
-        before = center - width;
+        before = center + -width;
         after2 = after + width;
         count = x2 - x1 + 1;
         step = 1;
@@ -2060,25 +2057,24 @@ void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
         after2 += step;
         pixel = *center;
         green = pixel & 0x7C0;
-        newGreen = green + 0x200;
-        if (newGreen & 0xF800) {
-            newGreen = 0x7C0;
+        pixel ^= green;
+        green += 0x200;
+        if (green & 0xF800) {
+            green = 0x7C0;
         }
-        *center = (pixel ^ green) | newGreen;
+        *center = pixel | green;
         center += step;
         pixel = *after;
         green = pixel & 0x7C0;
-        newGreen = green + 0x200;
-        if (newGreen & 0xF800) {
-            newGreen = 0x7C0;
+        pixel ^= green;
+        green += 0x200;
+        if (green & 0xF800) {
+            green = 0x7C0;
         }
-        *after = (pixel ^ green) | newGreen;
+        *after = pixel | green;
         after += step;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006DB6C);
-#endif
 
 extern s32 D_800A6B64[17]; // JFG: the digit font, one row of nine 3-bit pixels per word
 
