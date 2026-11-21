@@ -504,8 +504,8 @@ extern ShockTri D_800F2D68[20];
 /* JFG: update a shockwave ring: grow both radii (speeds decay per frame), count down or fade out (freed when
    faded), colour cycles, the current buffer's inner/outer vertex rings, the texture u coordinates, the texture
    animation, then swap buffers.
-   NON_MATCHING: 2 words long: the ROM keeps one register holding 10 for both the buffer offset multiply and the
-   uv loop bound (a3), so it doesn't hoist the texture call's arguments; here the 10s are separate. */
+   NON_MATCHING: ROM length and frame since `s32 b` (was 2 words long); the ROM keeps one register holding 10 for
+   both the buffer offset multiply and the uv loop bound (a3); here the 10s are separate. */
 void func_800291BC(u8 *obj, s32 updateRate) {
     s32 i;
     ColVertex *v;
@@ -518,7 +518,7 @@ void func_800291BC(u8 *obj, s32 updateRate) {
     s16 hi;
     s16 lo;
     s16 a;
-    s16 b;
+    s32 b; // only ever holds hi or a (s16 values)
     s16 t;
     ShockTri *tri;
     ColVertex *outer;

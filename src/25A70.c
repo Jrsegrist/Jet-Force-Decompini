@@ -996,7 +996,9 @@ typedef struct ModelBatch275 {
 } ModelBatch275;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (31 words, from 82, after the empty if on entry, which is set there): register allocation */
+/* NON_MATCHING (21 words, from 82, after the empty if on entry, which is set there): register allocation. The
+   first buffer is total * 30 bytes (three 10-byte vertices per triangle: the ROM computes total * 3, then * 10;
+   the old body had 26) */
 /* JFG: init: break the target object's model batches lo..hi (entry 0x10/0x11) off as pieces flying off
  * at random; freed when it has no such triangles or the buffers can not be had. */
 void func_800275E8(Object *obj, u8 *entry) {
@@ -1011,10 +1013,11 @@ void func_800275E8(Object *obj, u8 *entry) {
 
         if (entry) {}
         target = *(u8 **) (entry + 0xC);
-        model = **(u8 ***) (*(u8 ***) (target + 0x6C) + *(s8 *) (target + 0x3A));
         state = *(u8 **) &obj->animator;
+        model = **(u8 ***) (*(s8 *) (target + 0x3A) + *(u8 ***) (target + 0x6C));
         n = *(s16 *) (model + 0x16);
         batch = *(ModelBatch275 **) (model + 0x24);
+        total = 0;
         **(u8 **) ((u8 *) obj + 0x7C) &= ~2;
         *(s32 *) (state + 4) = 0;
         *(s32 *) (state + 8) = 0;
@@ -1023,7 +1026,6 @@ void func_800275E8(Object *obj, u8 *entry) {
         *(u8 **) state = *(u8 **) (entry + 0xC);
         state[0x17] = entry[0x12];
         *(s16 *) (state + 0x14) = 0x3B6;
-        total = 0;
         while (n--) {
             if (batch->unk1 >= entry[0x10] && batch->unk1 <= entry[0x11] && !(batch->flags & 0x400)) {
                 total += (batch + 1)->facesOffset - batch->facesOffset;
@@ -1031,7 +1033,7 @@ void func_800275E8(Object *obj, u8 *entry) {
             batch++;
         }
     }
-    if (total != 0 && (*(void **) (state + 4) = mempool_alloc(total * 26, 0xFF0000FF)) != NULL &&
+    if (total != 0 && (*(void **) (state + 4) = mempool_alloc(total * 3 * 10u, 0xFF0000FF)) != NULL &&
         (*(void **) (state + 8) = mempool_alloc(total * 16, 0xFF0000FF)) != NULL) {
         func_8003E638(state + 0xC, obj, *(u8 **) state, 2, 0, entry[0x10], entry[0x11]);
         func_8003E638(state + 0x10, obj, *(u8 **) state, 6, 0, entry[0x10], entry[0x11]);
