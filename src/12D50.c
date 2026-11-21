@@ -2038,14 +2038,14 @@ f32 sqrtf(f32 x);
 
 #ifdef NON_MATCHING
 /**
- * NON_MATCHING: same instructions and stack, the FPR temporaries rotated (f10/f8/f6 where the target has
+ * NON_MATCHING: ROM length and stack (with `u8 hit`), the FPR temporaries rotated (f10/f8/f6 where the target has
  * f8/f6/f10) from the first statement on.
  * JFG: intersect a ray (start, unit direction dir) with an infinite cylinder (a point on its axis, unit axis
  * direction, radius): TRUE if it hits, with the ray distances where it enters and leaves in *in and *out (the
  * classic Graphics Gems IV method: Cychosz and Waggenspack). A ray parallel to the axis never hits.
  */
 s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *in, f32 *out) {
-    s32 hit;
+    u8 hit; // 0 or 1
     f32 rc[3];
     f32 n[3];
     f32 o[3];

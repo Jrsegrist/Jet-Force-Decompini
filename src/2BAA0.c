@@ -2308,7 +2308,7 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
 void func_8007EB6C(f32 *min, f32 *max, s32 arg2, s32 arg3, s32 arg4); // JFG: collects the objects in a box
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: ROM length and frame; the ROM loads the platform object once (the reload here shifts the
+/* NON_MATCHING: ROM length and frame (with `u16 pitch`; one word short before); the ROM loads the platform object once (the reload here shifts the
    t-registers), spills the matrix pointer to 0x40 (here 0x4C) and stores the state 12 first. 139 words (from 204,
    with the segment test called before `hit = 0`). */
 /* JFG: while falling, look for a ledge ahead (on the track or a platform) that the jump can still reach: if one is
@@ -2341,7 +2341,7 @@ void func_800364D4(u8 *obj, Racer *racer, UNUSED f32 arg2, UNUSED f32 arg3, UNUS
     f32 range;
     UNUSED s32 pad4;
     s16 rot[3];
-    s16 pitch;
+    u16 pitch; // only stored into s16 fields: the same bits
     s16 yaw;
     MtxF *mf;
 
