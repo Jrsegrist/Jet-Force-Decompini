@@ -1108,7 +1108,8 @@ static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_067B4 func_m068_067B4
 static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_06AE0 func_m068_06AE0
-extern void rl_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_06E14 func_m068_06E14
 extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -2540,7 +2541,6 @@ typedef struct M068BurstEntry {
     /* 0x0A */ s16 unkA;
     /* 0x0C */ f32 unkC;
     /* 0x10 */ f32 unk10;
-    /* 0x14 */ u8 pad14[0x20 - 0x14];
 } M068BurstEntry;
 
 /* The debris a boulder breaks into, and the ring the boss throws up (an object entry) */
@@ -2560,14 +2560,15 @@ typedef struct M068DebrisEntry {
 /*
  * A second-form phase (unkAA 10): on event 0x40 it shakes the camera and throws up a burst and a ring of
  * seven pieces of debris round model point 4. obj also holds the objects spawned (its own value is only
- * read in the first arm): the ROM's frame has no word for a separate variable.
+ * read in the first arm): the ROM's frame has no word for a separate variable. The height is a Vec3f's
+ * y (as in 06AE0 and 06E14): its frame bytes are the ROM's 12 above the entries.
  */
 static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f pos;
     M068BurstEntry burst;
     M068DebrisEntry debris;
     Vec3f *p;
     f32 x;
-    f32 y;
     f32 z;
     f32 r;
     s16 iy;
@@ -2584,11 +2585,11 @@ static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance
         s->unkBC |= 1;
     } else if (s->events & 0x40) {
         p = &inst->points2[4];
-        y = sCentreY;
+        pos.y = sCentreY;
         x = p->x;
         z = p->z;
         cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
-        func_80003410(0x1CC, x, y, z, 4, NULL);
+        func_80003410(0x1CC, x, pos.y, z, 4, NULL);
         burst.objectID = 0x313;
         burst.size = 20;
         burst.unk3 = 0;
@@ -2596,7 +2597,7 @@ static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance
         burst.unkC = 2.0f;
         burst.unk10 = 4.0f;
         burst.x = x;
-        burst.y = iy = y;
+        burst.y = iy = pos.y;
         burst.z = z;
         obj = func_80005F14(&burst, 1);
         if (obj != NULL) {
@@ -2645,10 +2646,10 @@ typedef struct M068HeightModel {
  * debris at sDropPoints[4], lowered by the model's height. As in 067B4, obj also holds the objects spawned.
  */
 static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f pos;
     M068BurstEntry burst;
     M068DebrisEntry debris;
     f32 x;
-    f32 y;
     f32 z;
     s16 iy;
     s16 angle;
@@ -2668,11 +2669,11 @@ static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance
         s->unkBC &= ~2;
     }
     if (s->events & 0x40) {
-        y = sDropPoints[4].y - ((M068HeightModel *) model)->unk34[14] * obj->trans.scale;
+        pos.y = sDropPoints[4].y - ((M068HeightModel *) model)->unk34[14] * obj->trans.scale;
         x = sDropPoints[4].x;
         z = sDropPoints[4].z;
         cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
-        func_80003410(0x1CC, x, y, z, 4, NULL);
+        func_80003410(0x1CC, x, pos.y, z, 4, NULL);
         burst.objectID = 0x313;
         burst.size = 20;
         burst.unk3 = 0;
@@ -2680,7 +2681,7 @@ static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance
         burst.unkC = 1.0f;
         burst.unk10 = 2.0f;
         burst.x = x;
-        burst.y = iy = y;
+        burst.y = iy = pos.y;
         burst.z = z;
         obj = func_80005F14(&burst, 1);
         if (obj != NULL) {
@@ -2709,7 +2710,97 @@ static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06E14);
+/* What func_80005F14 spawns the flame line's pieces (object 0x252) from */
+typedef struct M068FlameEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ f32 spacing;
+    /* 0x10 */ Vec3f dir;
+    /* 0x1C */ f32 length; /* how far it still is to the player */
+    /* 0x20 */ Object *owner;
+} M068FlameEntry;
+
+extern s32 rl_m068_12608; /* set: the fire balls fade out (.data) */
+
+/*
+ * A second-form phase (unkAA 10): while its timer runs, a line of pieces from model point 4 towards the
+ * player (at the centre's height + 30), one more piece per frame step. The target is a Vec3f of which
+ * only y is set: its frame bytes are the ROM's 12 above the entry.
+ */
+static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f target;
+    M068FlameEntry entry;
+    Object *player;
+    Vec3f *p;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s32 i;
+
+    if (s->unkAA != 10) {
+        rl_m068_12608 = 1;
+        s->unkB0 = 0;
+        s->unk54 = 1;
+        s->timer = 0.0f;
+        return;
+    }
+    if (s->unkBC == 0) {
+        s->unkBC |= 1;
+        func_m068_0BDC4(obj, s, 0x28, 0.0f);
+    }
+    if (s->events & 0x10) {
+        rl_m068_12608 = 0;
+        s->cycleKind = 2;
+        s->timer = 1.0f;
+    }
+    if (s->timer > 0.0f) {
+        player = func_8000E4D0(0);
+        p = &inst->points[4];
+        target.y = sCentreY + 30.0f;
+        entry.objectID = 0x252;
+        entry.size = 0x24;
+        entry.unk3 = 0;
+        entry.owner = obj;
+        dx = player->trans.x_position - p->x;
+        dy = target.y - p->y;
+        dz = player->trans.z_position - p->z;
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        dx /= d;
+        dy /= d;
+        dz /= d;
+        entry.unkA = 0x200;
+        entry.spacing = 20.0f;
+        entry.dir.x = dx;
+        entry.dir.y = dy;
+        entry.dir.z = dz;
+        for (i = 0; i < updateRate; i++) {
+            entry.x = p->x + dx * (i * entry.spacing);
+            entry.y = p->y + dy * (i * entry.spacing);
+            entry.z = p->z + dz * (i * entry.spacing);
+            entry.length = d - i * entry.spacing;
+            player = func_80005F14(&entry, 1);
+            if (player != NULL) {
+                player->level_entry = NULL;
+            }
+        }
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            s->unk1C |= 1;
+            s->unk18 = 0.5f;
+            rl_m068_12608 = 1;
+            s->unkB0 = 0;
+            s->unk54 = 1;
+            s->timer = 0.0f;
+            func_m068_0BDC4(obj, s, 0x2A, 0.0f);
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0714C);
 
