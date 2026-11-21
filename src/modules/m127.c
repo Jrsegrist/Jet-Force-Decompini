@@ -497,7 +497,10 @@ typedef struct M127Instance {
  * Scrolls the screen's texture by `scroll` while the terminal is idle, or puts it back at the top.
  * `minV` is never set before its first use in the second branch (the original's slip; nothing reads
  * the result, but IDO gives it a stack home that the ROM loads and stores).
- * Two empty ifs on `scroll` (a parameter) take it from 94 to 68 diffs.
+ * Two empty ifs on `scroll` (a parameter) take it from 94 to 68 diffs. 64 -> 35 aligned diffs with: the
+ * ROM keeps each `while (n--)` loop's dead copy in a local's register (here minU and v1, both set before
+ * every other read), `scroll` (no longer read) counts the attachments, and the 7 of the attachment test is
+ * an unsigned compare (the ROM loads it again rather than sharing the batch test's).
  */
 #ifdef NON_MATCHING
 static void func_m127_00FA0(Object *obj, s32 scroll) {
@@ -525,14 +528,14 @@ static void func_m127_00FA0(Object *obj, s32 scroll) {
     while (i--) {
         if (batch->kind == 7) {
             if (scroll) {}
-            j = batch[1].firstTri - batch->firstTri;
             tri = &model->tris[batch->firstTri];
-            while (j--) {
+            j = batch[1].firstTri - batch->firstTri;
+            while (minU = j, j--, minU) {
                 if (s->mode == 0) {
                     v0 = tri->uv[0][1];
                     minU = tri->uv[1][1] - v0;
-                    tri->uv[0][1] = (v0 + scroll * 16) & mask;
                     minV = tri->uv[2][1] - v0;
+                    tri->uv[0][1] = (v0 + scroll * 16) & mask;
                     if (scroll) {}
                     tri->uv[1][1] = tri->uv[0][1] + minU;
                     tri->uv[2][1] = tri->uv[0][1] + minV;
@@ -556,10 +559,10 @@ static void func_m127_00FA0(Object *obj, s32 scroll) {
         }
         batch++;
     }
-    i = model->attachCount;
+    scroll = model->attachCount;
     a = inst->attach;
-    while (i--) {
-        if ((a->kind & 0xFF) == 7) {
+    while (v1 = scroll, scroll--, v1) {
+        if ((a->kind & 0xFFU) == 7) {
             if (s->mode == 0) {
                 a->flags = 0;
             } else {

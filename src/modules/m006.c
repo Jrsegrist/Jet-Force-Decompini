@@ -241,12 +241,9 @@ void func_m006_012B0(s8 *player) {
     queue->locked = 0;
 }
 
-#ifdef NON_MATCHING
 /*
- * Slides a player's message bar in and out and moves on through the queue.
- * NON_MATCHING: 3 aligned diffs (one is only a %lo addend the probe shows): the ROM also loads
- * queue->locked at the end of the D_800A4FD0 == 1 arm, and doesn't home updateRate (the empty
- * `if (updateRate) {}` homes it, but without it the rest is further off).
+ * Slides a player's message bar in and out and moves on through the queue. (The empty test of
+ * queue->locked at the end of the second arm gives the ROM's load of it at the end of each arm.)
  */
 void func_m006_012D4(s8 *player, s32 updateRate) {
     M006Queue *queue = &D_800FF1D0[*player];
@@ -271,8 +268,8 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                     sBarWidth[*player] = 86;
                 }
             }
-        }
-        if (player) {
+            if (queue->locked) {
+            }
         }
         if (!queue->locked) {
             if (D_800A4FD0 == 1 || (D_800A4FD0 != 1 && sBarY[*player] == 30)) {
@@ -284,8 +281,6 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                 } else {
                     queue->timer += normalise_time(120);
                     queue->current = queue->messages[queue->tail++];
-                    if (updateRate) {
-                    }
                     queue->unk4E = 0;
                     if (queue->tail >= 5) {
                         queue->tail = 0;
@@ -310,9 +305,6 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_012D4);
-#endif
 
 void func_m006_015E0(s32 hide) {
     D_800FF310 = hide;

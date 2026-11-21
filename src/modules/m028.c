@@ -246,7 +246,7 @@ void func_m028_0031C(Object *obj, s32 updateRate) {
     s32 rot;
     f32 offsets[18];
     s16 step;
-    s16 a;
+    u16 a; /* the sine reads only its low 16 bits, so u16 and s16 give the same values */
     s16 z;
     s16 zStep;
     M028Tri *t;

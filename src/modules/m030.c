@@ -693,7 +693,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_01508);
 #endif
 
 #ifdef NON_MATCHING
-/* 6 diffs: two of the compiler's stack temporaries sit two words lower than the ROM's (as m024 016E0, its twin) */
+/* 2 diffs: the batch-count bound's stack temporary is one word above the ROM's (as m024 016E0, its twin) */
 /* Finds which edge of triangle tri runs from p to q (either way round), or -1 */
 static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M030Vertex *p, M030Vertex *q) {
     s32 i;
@@ -713,9 +713,8 @@ static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M03
     s16 y2;
     s16 z2;
     s32 base;
-    s32 start;
-    s32 end;
-    M030Vertex *verts;
+    s16 start; /* both read from s16 fields */
+    s16 end;
     M030Triangle *t;
     M030Vertex *v;
 
@@ -732,17 +731,16 @@ static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M03
         if (!(model->batches[i].flags & 0x880) && start <= tri && tri < end) {
             base = model->batches[i].vertex;
             t = &model->triangles[tri];
-            verts = inst->vertices;
             for (k = 0; k < 3; k++) {
                 k2 = k + 1;
                 if (k2 >= 3) {
                     k2 = 0;
                 }
-                v = &verts[t->vertices[k] + base];
+                v = &inst->vertices[t->vertices[k] + base];
                 x1 = v->x;
                 y1 = v->y;
                 z1 = v->z;
-                v = &verts[t->vertices[k2] + base];
+                v = &inst->vertices[t->vertices[k2] + base];
                 x2 = v->x;
                 y2 = v->y;
                 z2 = v->z;

@@ -19,7 +19,8 @@ extern u8 *D_80102D60[]; /* heat buffers, by texture */
 extern u8 *D_80102D78[]; /* the other heat buffers */
 
 /*
- * NON_MATCHING: same instructions in nearly the same order, but register
+ * NON_MATCHING (487 -> 344 aligned diffs, ROM length, with the first loop's dead copy in g):
+ * same instructions in nearly the same order, but register
  * allocation and spill placement differ (the ROM spills the source buffer
  * pointer at its definition and uses fewer induction variables in the pixel
  * loops). The asm refers to the data by its offset name, so the matching
@@ -56,7 +57,7 @@ void func_m065_00000(s32 index, M065Texture *tex, s32 arg2) {
     dst = src + (height - 6) * width + 3;
     if (!sSeeded) {
         i = width - 6;
-        while (i--) {
+        while (g = i, i--, g) { /* the dead copy in g's register (g is not set until the pixel loops) */
             d = (width >> 1) - i - 3;
             v = d;
             if (d <= 0) {
