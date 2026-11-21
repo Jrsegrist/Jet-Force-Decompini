@@ -125,8 +125,9 @@ static u8 sCloudColours[4][4] = {
 };
 
 /*
- * NON_MATCHING: only func_m117_00154 matches. The static light spawner (the
- * original keeps the level entry in a3; the order of the entry stores differs),
+ * NON_MATCHING: only func_m117_00154 matches. The static light spawner (6
+ * diffs: the original keeps the level entry in a3, here v0; with the entry's
+ * stores in field order the rest is the ROM's),
  * func_m117_003F8 (the f20/f22 registers of base and range are swapped) and
  * func_m117_0070C (a first draft) do not; the matching build includes them
  * (003F8 and 0070C from ro/, with their .rodata floats).
@@ -147,21 +148,21 @@ static void spawnLight(Object *obj) {
         entry.y = obj->trans.y_position;
         entry.z = obj->trans.z_position;
         entry.unkA = setup->lightUnk14;
+        entry.unkC = setup->lightUnk15;
         entry.unkE = 0;
         entry.unk10 = 0;
-        entry.unkC = setup->lightUnk15;
+        entry.unk12 = setup->lightUnk17;
         entry.unk14 = 10;
         entry.unk15 = 50;
-        entry.unk12 = setup->lightUnk17;
         entry.red = cloud->red;
         entry.green = cloud->green;
-        entry.unk19 = 0x80;
         entry.blue = cloud->blue;
+        entry.unk19 = 0x80;
+        entry.unk1A = setup->lightUnk16;
         entry.unk1C = 100;
         entry.unk1D = 100;
         entry.unk1E = 6;
         entry.unk1F = 0;
-        entry.unk1A = setup->lightUnk16;
         entry.unk20 = obj->trans.rotation.x_rotation + 0x4000;
         entry.unk22 = obj->trans.rotation.y_rotation;
         light = func_80005F14(&entry, 1);
