@@ -490,8 +490,6 @@ sTransitionFadeDuration = 0x800A679C;
 sTransitionFadeTimer = 0x800A6794;
 sTransitionOpacity = 0x80102DA8;
 sTransitionStatus = 0x800A6790;
-sTransitionTaskNum = 0x800A67B4;
-sTransitionVtx = 0x800A67A4;
 
 /* ---- 5B700.c ---- */
 func_8005AC04 = weather_clip_planes;
@@ -642,7 +640,6 @@ func_8004A4A4 = mempool_init;
 /* ---- round 4 data used by new C ---- */
 gWeatherSoundMask = 0x800A5D50;
 gParticleUpdateRate = 0x80100900;
-sTransitionTris = 0x800A67AC;
 D_80102D9C = 0x80102D9C;
 gAudioPointsPool = 0x800F29F8;
 
@@ -793,3 +790,9 @@ func_80043130 = input_update;
 
 /* ---- round 27 (rewrite27main): C names now defined in C ---- */
 func_80056D24 = sprite_init_frame;
+
+/* ---- round 29 (gen29main): asm references into the .data pieces now defined in C ---- */
+/* 69050.c (0x800A67A0-0x800A6810) */
+D_800A67A4 = sTransitionVtx;
+D_800A67AC = sTransitionTris;
+D_800A67B4 = sTransitionTaskNum;

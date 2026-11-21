@@ -24,8 +24,27 @@ typedef struct FadeTransition {
     /* 0x06 */ u16 endTimer;
 } FadeTransition;
 
-extern Vertex *sTransitionVtx[2];
-extern Triangle *sTransitionTris[2];
+/* .data: this file's from 0x800A67A0 to 0x800A6810 (the yaml's 69050 .data piece; the rest of it is still asm).
+   DKR fade_transition.c's .data (CC0). */
+s8 gTransitionFadeIn = 0;
+Vertex *sTransitionVtx[2] = { NULL, NULL };
+Triangle *sTransitionTris[2] = { NULL, NULL };
+s32 sTransitionTaskNum = 0;
+
+Gfx dTransitionFadeSettings[] = {
+    gsDPPipeSync(),
+    gsDPSetCycleType(G_CYC_1CYCLE),
+    gsDPSetTextureLOD(G_TL_TILE),
+    gsDPSetTextureLUT(G_TT_NONE),
+    gsDPSetTextureDetail(G_TD_CLAMP),
+    gsDPSetTexturePersp(G_TP_NONE),
+    gsDPSetTextureFilter(G_TF_BILERP),
+    gsDPSetTextureConvert(G_TC_FILT),
+    gsDPSetAlphaCompare(G_AC_NONE),
+    gsDPSetRenderMode(G_RM_CLD_SURF, G_RM_CLD_SURF2),
+    gsSPEndDisplayList(),
+};
+
 extern Gfx dTransitionShapeSettings[];
 void rendermode_reset(Gfx **dList);
 extern f32 *gTransitionNextVtx;
@@ -42,7 +61,6 @@ extern s32 gLastFadeRedStep;
 extern s32 gTransitionInvert;
 extern s32 gTransitionVertexCount;
 extern s32 sTransitionStatus;
-extern s32 sTransitionTaskNum;
 extern u16 gTransitionEndTimer;
 extern u16 sTransitionFadeDuration;
 extern u16 sTransitionFadeTimer;
@@ -1175,9 +1193,6 @@ void ripple_quad_draw(RippleQuad *obj, Gfx **dList) {
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void effect_slots_init(void);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 1 word longer: the target hoists the lui of gTransitionNextVtx above the sTransitionVtx[1] store
-   and shares one lui at for both sTransitionVtx stores */
 /* JFG: allocate the shape transitions' buffers once (DKR allocates them per transition in transition_init_shape):
    two triangle and two vertex buffers of 16 each and the three 16-point float arrays; then set up the effect slots.
    (The sizes in variables: with constants IDO forwards the stored pointers instead of reloading them.) */
@@ -1198,9 +1213,6 @@ void transition_buffers_init(void) {
     gTransitionVertexTarget = (f32 *) ((u8 *) gTransitionVtxStep + sizeF);
     effect_slots_init();
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006B8C4);
-#endif
 
 extern s32 gTransitionsDisabled;
 

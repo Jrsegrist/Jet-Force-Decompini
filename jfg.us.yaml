@@ -280,6 +280,8 @@ segments:
       - [0xA1260, data, main]
       - [0xA6F80, .data, printf]
       - [0xA70B0, data]
+      - [0xA73A0, .data, 69050]
+      - [0xA7410, data, data_A7410]
       - [0xA7B70, .data, ultra/io/pimgr]
       - [0xA7BA0, data, data_A7BA0]
       # Labelled .data so that it stays ahead of the libultra .data at 0xAAB80:
