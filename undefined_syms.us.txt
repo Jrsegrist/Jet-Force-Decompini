@@ -232,8 +232,6 @@ func_800402B0 = copy_framebuffer_size_to_coords;
 func_8003FF64 = viewport_menu_set;
 func_80040FE4 = viewport_reset;
 func_80040F2C = viewport_rsp_set;
-gViewportStack = 0x800A2FB8;
-gViewportWithBG = 0x800A2FA4;
 func_80041E24 = get_projection_matrix_s16;
 func_80041E0C = cam_get_cameras;
 func_80041DE0 = cam_get_active_camera;
@@ -242,8 +240,6 @@ gPerspectiveMatrix = 0x800FAB38;
 gActiveCameraID = 0x800FA630;
 gCurCamFOV = 0x800FB078;
 gInverseViewMatrixF = 0x800FAFB8;
-gOrthoMatrixF = 0x800A3128;
-gScreenViewports = 0x800A2ED4;
 gViewMatrixF = 0x800FAF78;
 
 /* ---- 55130.c ---- */
@@ -490,8 +486,6 @@ sTransitionFadeDuration = 0x800A679C;
 sTransitionFadeTimer = 0x800A6794;
 sTransitionOpacity = 0x80102DA8;
 sTransitionStatus = 0x800A6790;
-sTransitionTaskNum = 0x800A67B4;
-sTransitionVtx = 0x800A67A4;
 
 /* ---- 5B700.c ---- */
 func_8005AC04 = weather_clip_planes;
@@ -642,7 +636,6 @@ func_8004A4A4 = mempool_init;
 /* ---- round 4 data used by new C ---- */
 gWeatherSoundMask = 0x800A5D50;
 gParticleUpdateRate = 0x80100900;
-sTransitionTris = 0x800A67AC;
 D_80102D9C = 0x80102D9C;
 gAudioPointsPool = 0x800F29F8;
 
@@ -793,3 +786,15 @@ func_80043130 = input_update;
 
 /* ---- round 27 (rewrite27main): C names now defined in C ---- */
 func_80056D24 = sprite_init_frame;
+
+/* ---- round 29 (gen29main): asm references into the .data pieces now defined in C ---- */
+/* 69050.c (0x800A67A0-0x800A6810) */
+D_800A67A4 = sTransitionVtx;
+D_800A67AC = sTransitionTris;
+D_800A67B4 = sTransitionTaskNum;
+/* 40240.c (0x800A2ED0-0x800A3170) */
+D_800A2ED4 = gScreenViewports;
+D_800A2F04 = gScreenViewports + 0x30;
+D_800A2FA4 = gViewportWithBG;
+D_800A2FB8 = gViewportStack;
+D_800A313C = gOrthoMatrixF + 0x14;

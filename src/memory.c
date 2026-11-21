@@ -402,9 +402,6 @@ s32 mempool_get_pool(u8 *address) {
  * Unused slots before and after will be merged with this slot
  * JFG: also adds the slot's size back to the free counters.
  */
-#ifdef NON_MATCHING
-/* NON_MATCHING: the slot->flags store and the free-counter updates are scheduled differently (10 words, from 15
-   with the flags store written before the pool's free-byte update) */
 void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
     s32 nextIndex;
     s32 prevIndex;
@@ -424,10 +421,11 @@ void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
     slot = slot; // Fakematch
     nextSlot = &slots[nextIndex];
     prevSlot = &slots[prevIndex];
-    if (poolIndex == POOL_MAIN) {
-        gMainPoolFreeBytes += slot->size;
-    }
     slot->flags = SLOT_FREE;
+    if (poolIndex == POOL_MAIN) {
+        // the int cast keeps the counter's address in a register, as the ROM has it
+        *(s32 *) ((u32) &gMainPoolFreeBytes) += slot->size;
+    }
     gPoolFreeBytes[poolIndex] += slot->size;
     if (nextIndex != MEMSLOT_NONE) {
         if (nextSlot->flags == SLOT_FREE) {
@@ -454,9 +452,6 @@ void mempool_slot_clear(MemoryPools poolIndex, s32 slotIndex) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/memory", func_8004AD2C);
-#endif
 
 /**
  * Return the address of the first slot of a given memory pool.

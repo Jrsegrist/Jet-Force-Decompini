@@ -2587,17 +2587,15 @@ void mtx_model_push(Gfx **dList, Mtx **mtx, f32 *in);
 void mtx_pop(Gfx **dList);
 void rendermode_reset(Gfx **dList);
 
-#ifdef NON_MATCHING
 /* JFG: draw the object's held item (slot as in func_8000BC28) with the matrix, lighting it and
-   animating its textures first when it asks.
-   NON_MATCHING: one word longer: the target keeps the 0x80000000 segment constant in one register for all four
-   display-list words (here it is materialised twice), so the later temporaries are numbered differently. */
+   animating its textures first when it asks. */
 void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     Object *held;
     ObjectAttachment *item;
     Gfx *dl;
     s16 *texOffsets;
     Object_Racer *racer;
+    u32 seg; // the KSEG0 offset, added to each address (one register for all four words, as in the ROM)
 
     if (D_800A0A20 == 0) {
         racer = obj->racer; // read before the behaviour test (the ROM loads it there too)
@@ -2631,13 +2629,13 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
                     } else {
                         texOffsets = D_800A0838;
                     }
+                    seg = 0x80000000;
                     mtx_model_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, mtx);
                     fast3d_cmd(gObjectCurrDisplayList++,
-                               (((u32) item->matrices[item->matrixIndex] + 0x80000000) & 0xFFFFFF) | 0xBF000000,
-                               (u32) item->vertices + 0x80000000);
-                    fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + 0x80000000);
-                    fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + 0x80000000);
-                    if (arg2) {}
+                               (((u32) item->matrices[item->matrixIndex] + seg) & 0xFFFFFF) | 0xBF000000,
+                               (u32) item->vertices + seg);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + seg);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + seg);
                     fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
                     mtx_pop(&gObjectCurrDisplayList);
                     rendermode_reset(&gObjectCurrDisplayList);
@@ -2646,9 +2644,6 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BE5C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
@@ -5096,31 +5091,26 @@ f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2) {
     return dx * dx + dy * dy + dz * dz;
 }
 
-extern s32 D_800F2D20[];
+/* JFG: a list of up to 8 entries (count D_800F2D40). This file's .bss (the yaml's 53C0 .bss piece). */
+s32 D_800F2D20[8];
 s32 func_80054530(); // a module function (patched in by the runtime linker)
 
-#ifdef NON_MATCHING
-/**
- * JFG: add an entry to the D_800F2D20 list; when full, the oldest goes (to a module function first).
- * NON_MATCHING: one extra lui: the target shares %hi of D_800F2D20 between two stores of the
- * unrolled shift (likely needs the list defined in this file).
- */
+/* JFG: add an entry to the D_800F2D20 list; when full, the oldest goes (to a module function first). */
 void func_80011D1C(s32 entry) {
     s32 i;
 
     if (D_800F2D40 >= 8) {
         func_80054530(D_800F2D20[0]);
-        for (i = 0; i < 7; i++) {
+        i = 0;
+        while (i < 7) {
             D_800F2D20[i] = D_800F2D20[i + 1];
+            i++;
         }
         D_800F2D40 = 7;
     }
     D_800F2D20[D_800F2D40] = entry;
     D_800F2D40++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80011D1C);
-#endif
 
 /* JFG: remove an entry from the D_800F2D20 list (the later ones move down). */
 void entry_list_remove(s32 entry) {
