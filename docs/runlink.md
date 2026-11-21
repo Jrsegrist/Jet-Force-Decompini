@@ -441,13 +441,13 @@ a NON_MATCHING body, such as m017 or m091, does not count as all C here):
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 5 of 5 | 16/16 |
 | enemy behaviours | 11 of 19 | 264/304 |
-| bosses | 3 of 4 | 83/124 |
+| bosses | 3 of 4 | 86/124 |
 | weapons (character control) | 2 of 3 | 77/78 |
-| menus and screens | 6 of 14 | 110/136 |
+| menus and screens | 6 of 14 | 111/136 |
 | effect libraries | 2 of 4 | 23/26 |
 | fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 60 of 96 | 495/568 |
+| other object behaviours | 60 of 96 | 496/568 |
 
 Other modules placed by what their code does (all in "other object
 behaviours" above unless a family row lists them):
