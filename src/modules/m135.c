@@ -274,7 +274,10 @@ void func_m135_00298(Object *obj, LevelObjectEntryCommon *entry) {
 s32 func_m135_01754(Object *obj, s32 dir);
 
 #ifdef NON_MATCHING
-/* The fog call's arguments: the ROM copies the shifted near, R and far values back into v0/t3/v1 (31 words) */
+/*
+ * 6 diffs (31 before the fog values became statements and the yaw store got its 16-bit mask): the fog
+ * call loads R, G, B into t5/t3/t4 where the ROM has t3/t4/t5 (the ROM's copied value is R>>20, ours G>>20)
+ */
 /* The room camera's control: chooses and confirms the targets, and moves the camera, its fog and its view */
 void func_m135_002BC(Object *obj, s32 updateRate) {
     f32 fov;
@@ -476,10 +479,12 @@ void func_m135_002BC(Object *obj, s32 updateRate) {
         fov += (targetFov - fov) * 0.125f;
         cam->fogB += (b - cam->fogB) >> 5;
     }
-    g = cam->fogG;
-    b = cam->fogB;
-    func_8001BB30(0, x = cam->fogNear >> 20, z = cam->fogFar >> 20, cam->unk48, y = cam->fogR >> 20, g >> 20, b >> 20,
-                  cam->unk55);
+    x = cam->fogNear >> 20;
+    z = cam->fogFar >> 20;
+    g = cam->fogG >> 20;
+    b = cam->fogB >> 20;
+    y = cam->fogR >> 20;
+    func_8001BB30(0, x, z, cam->unk48, y, g, b, cam->unk55);
     func_8003F7F4(fov, 1);
     yaw1 = aimEntry->yaw;
     pitch1 = aimEntry->pitch;
@@ -519,7 +524,7 @@ void func_m135_002BC(Object *obj, s32 updateRate) {
     for (i = 0; i < updateRate; i++) {
         cur += (goal - cur) >> 5;
     }
-    cam->unk4A = cur;
+    cam->unk4A = cur & 0xFFFF;
     i = goal - cur;
     if (i < 0) {
         i = -i;

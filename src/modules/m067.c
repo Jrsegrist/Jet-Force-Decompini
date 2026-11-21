@@ -409,8 +409,6 @@ typedef struct M067Model {
 
 extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8, s32 arg9);
 
-#ifdef NON_MATCHING
-/* Scheduling: 17 diffs (33 before the unk1A/unk1C chain and the empty `if (k)`, k set just above it) */
 void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     f32 k;
     M067Model *model;
@@ -424,8 +422,6 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     obj->trans.rotation.z_rotation = setup->zRotation;
     obj->trans.scale = setup->scale * k;
     obj->velocity.x = 0.0f;
-    if (k) {
-    }
     obj->velocity.y = setup->speedY * k;
     obj->velocity.z = 0.0f;
     m->unkC = 0.0f;
@@ -434,10 +430,15 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     m->unk14 = setup->unk14;
     m->unk16 = setup->unk16;
     m->unk18 = setup->unk18;
-    m->unk1C = m->unk1A = 0;
+    m->unk1A = 0;
+    m->unk1C = 0;
     m->unk1E = 0;
     m->unk20 = setup->unk1C;
-    model = *(M067Model **) obj->modelInstances[0];
+    {
+        M067Model **inst = obj->modelInstances[0];
+
+        model = *inst;
+    }
     v = &model->vertices[*model->flameVertex];
     m->thrust = 0.0f;
     m->unk2 = 0;
@@ -446,9 +447,6 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     m->unk0 = 0;
     m->unk1 = setup->unk1A * 6;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02E38);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02FDC);
 
