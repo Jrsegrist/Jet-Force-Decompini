@@ -858,7 +858,8 @@ typedef struct M068Section {
     /* 0x2 */ u8 pad2[4 - 2];
     /* 0x4 */ s16 first; /* < 0: none */
     /* 0x6 */ s16 last;
-    /* 0x8 */ u8 pad8[0xC - 0x8];
+    /* 0x8 */ s16 hp; /* what the part's hit points are set to again */
+    /* 0xA */ u8 padA[0xC - 0xA];
 } M068Section;
 
 
@@ -1122,9 +1123,12 @@ static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_09088 func_m068_09088
 extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0A5D8 func_m068_0A5D8
+static void func_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0ADC4 func_m068_0ADC4
+static void func_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0B4D0 func_m068_0B4D0
 static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 
 /* The module's .data (still assembly) */
@@ -1573,9 +1577,7 @@ static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-#ifdef NON_MATCHING
 /* Starts phase 11 of the second form: the player watches from joint section 6 */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_03C70(Object *obj, M068State *s) {
     M068Player *player;
 
@@ -1595,9 +1597,6 @@ static void func_m068_03C70(Object *obj, M068State *s) {
         func_80003614(s->sound58);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03C70);
-#endif
 
 /* Phase 11 of the second form */
 static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate) {
@@ -1620,9 +1619,7 @@ static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-#ifdef NON_MATCHING
 /* Starts phase 12 of the second form: the player watches from joint section 5 */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_03E24(Object *obj, M068State *s) {
     M068Player *player;
 
@@ -1642,9 +1639,6 @@ static void func_m068_03E24(Object *obj, M068State *s) {
         func_80003614(s->sound58);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03E24);
-#endif
 
 /* Phase 12 of the second form */
 static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate) {
@@ -1667,9 +1661,7 @@ static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-#ifdef NON_MATCHING
 /* Starts phase 13 of the second form: the player watches from joint section 4, 300 up */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_03FD8(Object *obj, M068State *s) {
     M068Player *player;
 
@@ -1693,15 +1685,10 @@ static void func_m068_03FD8(Object *obj, M068State *s) {
     }
     s->unk50 |= 0x800;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03FD8);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_040EC);
 
-#ifdef NON_MATCHING
 /* Starts phase 14 of the second form: the player watches from joint section 4, 300 up */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_0447C(Object *obj, M068State *s) {
     M068Player *player;
 
@@ -1725,9 +1712,6 @@ static void func_m068_0447C(Object *obj, M068State *s) {
     }
     s->unk50 |= 0x800;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0447C);
-#endif
 
 /* Phase 14 of the second form: its event ends the level */
 static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate) {
@@ -2679,9 +2663,7 @@ static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance
     }
 }
 
-#ifdef NON_MATCHING
 /* Part i is destroyed: it shrinks away and its joints can no longer be hit (their radii scaled with it) */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_09218(Object *obj, s32 i) {
     M068PartState *part;
     M068Hits *hits;
@@ -2707,9 +2689,6 @@ static void func_m068_09218(Object *obj, s32 i) {
         joint->radius = ((f32 *) sBss130E8)[k] * part->scale;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_09218);
-#endif
 
 /* Turns joint section `index` on (it can be hit, 100 damage) or off */
 static void func_m068_092F0(Object *obj, s32 index, s32 on) {
@@ -2740,11 +2719,434 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0A208);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0A5D8);
+void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0ADC4);
+/* What func_80005F14 spawns the four objects 100 from when part 4's hit points first run out */
+typedef struct M068SpawnEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0xC - 0xA];
+    /* 0x0C */ Object *owner;
+    /* 0x10 */ s16 unk10[3][2];
+    /* 0x1C */ s32 unk1C;
+} M068SpawnEntry;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0B4D0);
+extern Object *rl_m068_124F0; /* (.data) the four objects spawned */
+extern Object *rl_m068_124F4;
+extern Object *rl_m068_124F8;
+extern Object *rl_m068_124FC;
+
+/*
+ * Phase work of the second form for part 4: when it is hit with flag 0x100 and event 0x2000 it bursts
+ * (a piece flies from its joint section away from section 1, and the cut camera follows it; sparks)
+ * and is destroyed. When its hit points run out it starts phase 14 (unkF set) or phase 13, which also
+ * spawns four objects 100 round the boss; until then unkB6 is 1.
+ * As in 0ADC4 and 0B4D0, sParts and rl_m068_1254C are read through pointer locals (parts, secs): that
+ * gives the ROM's direct %lo addressing of each field instead of one shared base register.
+ */
+static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f *from;
+    Vec3f *to;
+    s32 i;
+    M068PartState *parts;
+    M068Section *secs;
+    M068PieceSetup entry;
+    M068SpawnEntry e;
+    Vec3f v;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    UNUSED s32 pad5;
+    s32 alpha;
+    UNUSED s32 pad6;
+    s16 yaw;
+    s16 pitch;
+    s16 rot[2]; /* the angles func_8004944C reads (y, x) */
+
+    parts = sParts;
+    secs = rl_m068_1254C;
+    if (parts[4].hit) {
+        if ((s->flags & 0x100) && (s->events & 0x2000)) {
+            from = (Vec3f *) &sJointPos[secs[4].joint * 3];
+            to = (Vec3f *) &sJointPos[secs[1].joint * 3];
+            entry.x = from->x;
+            entry.y = from->y;
+            entry.z = from->z;
+            entry.objectID = 0x59;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.unk1C = 5.0f;
+            entry.unk20 = 5.0f;
+            entry.unk28 = 0.15f;
+            dx = from->x - to->x;
+            dy = from->y - to->y;
+            dz = from->z - to->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            entry.mtx = (MtxF *) sMtx12F30;
+            entry.speed = 3.0f;
+            entry.velocity.x = dx;
+            entry.velocity.y = dy;
+            entry.velocity.z = dz;
+            func_m068_10DD4(sBss12F28, &entry);
+            rl_m068_1261C = (Vec3f *) &sBss12F28->trans.x_position;
+            yaw = func_80049C84(dx, dz) + 0x8000;
+            pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+            alpha = obj->shading->unk0 * 255.0f;
+            for (i = 0; i < 8; i++) {
+                rot[0] = func_80048E2C(-0x2000, 0x2000) + yaw;
+                rot[1] = func_80048E2C(-0x2000, 0x2000) + pitch;
+                v.x = 0.0f;
+                v.y = 0.0f;
+                v.z = func_80048E2C(50, 100) * -0.1f;
+                func_8004944C((Vec3s *) rot, &v);
+                func_m008_001CC(from->x, from->y, from->z, v.x, v.y, v.z, alpha, 4, 2.0f);
+            }
+            from = (Vec3f *) &sJointPos[secs[4].joint * 3];
+            spawn_object_from_list(0x12, from->x, from->y, from->z, 100, 0);
+            func_80003410(0xD1, from->x, from->y, from->z, 4, NULL);
+            func_m068_09218(obj, 4);
+        } else if (parts[4].hp <= 0) {
+            if (s->unkF) {
+                parts[4].hp = rl_m068_1254C[4].hp;
+                s->flags |= 0x100;
+                func_m068_0447C(obj, s);
+            } else {
+                func_80003410(0x97, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1,
+                              &s->sound5C);
+                parts[4].hp = rl_m068_1254C[4].hp;
+                s->flags |= 0x100;
+                func_m068_03FD8(obj, s);
+                e.objectID = 100;
+                e.size = 0x20;
+                e.unk3 = 0;
+                e.x = obj->trans.x_position;
+                e.y = obj->trans.y_position;
+                e.z = obj->trans.z_position;
+                e.owner = obj;
+                e.unk1C = 7;
+                e.unk10[0][0] = 0;
+                e.unk10[1][0] = 0x800;
+                e.unk10[2][0] = 0x1000;
+                e.unk10[0][1] = -0x8000;
+                e.unk10[1][1] = -0x800;
+                e.unk10[2][1] = -0x1000;
+                if ((rl_m068_124F0 = func_80005F14(&e, 1)) != NULL) {
+                    rl_m068_124F0->level_entry = NULL;
+                }
+                e.unk1C = 8;
+                e.unk10[0][0] = 0x4000;
+                e.unk10[1][0] = 0x400;
+                e.unk10[2][0] = 0x1000;
+                e.unk10[0][1] = -0x4000;
+                e.unk10[1][1] = -0x400;
+                e.unk10[2][1] = -0x1000;
+                if ((rl_m068_124F4 = func_80005F14(&e, 1)) != NULL) {
+                    rl_m068_124F4->level_entry = NULL;
+                }
+                e.unk1C = 9;
+                e.unk10[0][0] = 0;
+                e.unk10[1][0] = -0x800;
+                e.unk10[2][0] = 0x1000;
+                e.unk10[0][1] = -0x8000;
+                e.unk10[1][1] = 0x800;
+                e.unk10[2][1] = 0x1000;
+                if ((rl_m068_124F8 = func_80005F14(&e, 1)) != NULL) {
+                    rl_m068_124F8->level_entry = NULL;
+                }
+                e.unk1C = 10;
+                e.unk10[0][0] = 0;
+                e.unk10[1][0] = -0x800;
+                e.unk10[2][0] = 0x1000;
+                e.unk10[0][1] = -0x8000;
+                e.unk10[1][1] = 0x800;
+                e.unk10[2][1] = 0x1000;
+                if ((rl_m068_124FC = func_80005F14(&e, 1)) != NULL) {
+                    rl_m068_124FC->level_entry = NULL;
+                }
+            }
+        } else {
+            s->unkB6 = 1;
+        }
+    } else if (s->flags & 0x100) {
+        if (obj->animationID == 0x2F && obj->unk28 >= 0.89f) {
+            from = (Vec3f *) &sJointPos[secs[4].joint * 3];
+            to = (Vec3f *) &sJointPos[secs[1].joint * 3];
+            alpha = obj->shading->unk0 * 255.0f;
+            dx = from->x - to->x;
+            dy = from->y - to->y;
+            dz = from->z - to->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            d = func_80048E2C(50, 100) * 0.1f;
+            dx *= d;
+            dy *= d;
+            dz *= d;
+            func_m008_001CC(from->x, from->y, from->z, dx, dy, dz, alpha, 4, 2.0f);
+        }
+    }
+}
+
+/*
+ * Phase work of the second form for part 6: when it is hit with flag 0x40 and event 0x800 it bursts
+ * (nine pieces fly from its joints, three of them towards the model's points 32-34; sparks from the
+ * model's points 35 to 37) and is destroyed; when its hit points run out it starts phase 11. Before
+ * the hit, the sparks fly during animation 0x25. The pieces' loop keeps its next point in its own
+ * variable (next), apart from the later from/to: that is what gives the ROM's v0/v1.
+ */
+static void func_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f *from;
+    Vec3f *to;
+    s32 i;
+    Vec3f *p;
+    M068PartState *parts;
+    Vec3f *next;
+    UNUSED s32 pad4;
+    M068PieceSetup entry;
+    Vec3f v;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    UNUSED s32 pad5;
+    s32 alpha;
+    UNUSED s32 pad6;
+    s16 yaw;
+    s16 pitch;
+    s16 rot[2]; /* the angles func_8004944C reads (y, x) */
+
+    parts = sParts;
+    if (parts[6].hit) {
+        if ((s->flags & 0x40) && (s->events & 0x800)) {
+            entry.objectID = 0x339;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.unk1C = 3.0f;
+            entry.unk20 = 2.0f;
+            entry.unk28 = 0.15f;
+            p = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+            for (i = 0; i < 9; i++) {
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                if (i == 4) {
+                    next = &inst->points[32];
+                } else if (i == 6) {
+                    next = &inst->points[33];
+                } else if (i == 8) {
+                    next = &inst->points[34];
+                } else {
+                    next = p + 1;
+                }
+                if (i == 4 || i == 6 || i == 8) {
+                    entry.speed = 8.0f;
+                } else if (i == 3 || i == 5 || i == 7) {
+                    entry.speed = 7.0f;
+                } else {
+                    entry.speed = i + 4.0f;
+                }
+                dx = next->x - p->x;
+                dy = next->y - p->y;
+                dz = next->z - p->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry.mtx = (MtxF *) ((f32 *) sMtx12C18 + (i << 4));
+                entry.velocity.x = dx;
+                entry.velocity.y = dy;
+                entry.velocity.z = dz;
+                func_m068_10DD4(sBss12BF0[i], &entry);
+                p++;
+            }
+            from = &inst->points[35];
+            to = &inst->points[37];
+            dx = to->x - from->x;
+            dy = to->y - from->y;
+            dz = to->z - from->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dz /= d;
+            dy /= d;
+            yaw = func_80049C84(dx, dz) + 0x8000;
+            pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+            alpha = obj->shading->unk0 * 255.0f;
+            for (i = 0; i < 8; i++) {
+                rot[0] = func_80048E2C(-0x2000, 0x2000) + yaw;
+                rot[1] = func_80048E2C(-0x2000, 0x2000) + pitch;
+                v.x = 0.0f;
+                v.y = 0.0f;
+                v.z = func_80048E2C(50, 100) * -0.1f;
+                func_8004944C((Vec3s *) rot, &v);
+                func_m008_001CC(from->x, from->y, from->z, v.x, v.y, v.z, alpha, 4, 2.0f);
+            }
+            p = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+            spawn_object_from_list(3, p->x, p->y, p->z, 100, 0);
+            func_80003410(0xD1, p->x, p->y, p->z, 4, NULL);
+            func_m068_09218(obj, 6);
+        } else if (parts[6].hp <= 0) {
+            parts[6].hp = rl_m068_1254C[6].hp;
+            s->flags |= 0x40;
+            func_m068_03C70(obj, s);
+        }
+    } else if (s->flags & 0x40) {
+        if (obj->animationID == 0x25 && obj->unk28 >= 0.43f) {
+            from = &inst->points[35];
+            to = &inst->points[37];
+            alpha = obj->shading->unk0 * 255.0f;
+            dx = to->x - from->x;
+            dy = to->y - from->y;
+            dz = to->z - from->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            d = func_80048E2C(50, 100) * 0.1f;
+            dx *= d;
+            dy *= d;
+            dz *= d;
+            func_m008_001CC(from->x, from->y, from->z, dx, dy, dz, alpha, 4, 2.0f);
+            s->unk1C |= 0x2800;
+        } else if (obj->animationID != 0x25) {
+            if (func_80048E2C(1, 5) == 3) {
+                s->unk1C |= 0x2800;
+            }
+        }
+    }
+}
+
+/*
+ * Phase work of the second form for part 5: when it is hit with flag 0x80 and event 0x1000 it bursts
+ * (three pieces fly from its joints, sparks from the model's points 36 to 38) and is destroyed; when
+ * its hit points run out it starts phase 12. Before the hit, the sparks fly during animation 0x26.
+ */
+static void func_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f *from;
+    Vec3f *to;
+    s32 i;
+    Vec3f *p;
+    M068PartState *parts;
+    Vec3f *next;
+    UNUSED s32 pad4;
+    M068PieceSetup entry;
+    Vec3f v;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    UNUSED s32 pad5;
+    s32 alpha;
+    UNUSED s32 pad6;
+    s16 yaw;
+    s16 pitch;
+    s16 rot[2]; /* the angles func_8004944C reads (y, x) */
+
+    parts = sParts;
+    if (parts[5].hit) {
+        if ((s->flags & 0x80) && (s->events & 0x1000)) {
+            entry.objectID = 0x7A;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.unk1C = 3.0f;
+            entry.unk20 = 2.0f;
+            entry.unk28 = 0.15f;
+            p = (Vec3f *) &sJointPos[rl_m068_1254C[5].joint * 3];
+            for (i = 0; i < 3; i++) {
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                if (i == 2) {
+                    next = &sBss13540;
+                } else {
+                    next = p + 1;
+                }
+                dx = next->x - p->x;
+                dy = next->y - p->y;
+                dz = next->z - p->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry.mtx = (MtxF *) ((f32 *) sMtx12E68 + (i << 4));
+                entry.velocity.x = dx;
+                entry.speed = i + 4.0f;
+                entry.velocity.y = dy;
+                entry.velocity.z = dz;
+                func_m068_10DD4(sBss12E58[i], &entry);
+                p++;
+            }
+            from = &inst->points[36];
+            to = &inst->points[38];
+            dx = to->x - from->x;
+            dy = to->y - from->y;
+            dz = to->z - from->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dz /= d;
+            dy /= d;
+            yaw = func_80049C84(dx, dz) + 0x8000;
+            pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+            alpha = obj->shading->unk0 * 255.0f;
+            for (i = 0; i < 8; i++) {
+                rot[0] = func_80048E2C(-0x2000, 0x2000) + yaw;
+                rot[1] = func_80048E2C(-0x2000, 0x2000) + pitch;
+                v.x = 0.0f;
+                v.y = 0.0f;
+                v.z = func_80048E2C(50, 100) * -0.1f;
+                func_8004944C((Vec3s *) rot, &v);
+                func_m008_001CC(from->x, from->y, from->z, v.x, v.y, v.z, alpha, 4, 2.0f);
+            }
+            p = (Vec3f *) &sJointPos[rl_m068_1254C[5].joint * 3];
+            spawn_object_from_list(3, p->x, p->y, p->z, 100, 0);
+            func_80003410(0xD1, p->x, p->y, p->z, 4, NULL);
+            func_m068_09218(obj, 5);
+        } else if (parts[5].hp <= 0) {
+            parts[5].hp = rl_m068_1254C[5].hp;
+            s->flags |= 0x80;
+            func_m068_03E24(obj, s);
+        }
+    } else if (s->flags & 0x80) {
+        if (obj->animationID == 0x26 && obj->unk28 >= 0.5f) {
+            from = &inst->points[36];
+            to = &inst->points[38];
+            alpha = obj->shading->unk0 * 255.0f;
+            dx = to->x - from->x;
+            dy = to->y - from->y;
+            dz = to->z - from->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            d = func_80048E2C(50, 100) * 0.1f;
+            dx *= d;
+            dy *= d;
+            dz *= d;
+            func_m008_001CC(from->x, from->y, from->z, dx, dy, dz, alpha, 4, 2.0f);
+            s->unk1C |= 0x5000;
+        } else if (obj->animationID != 0x26) {
+            if (func_80048E2C(1, 5) == 3) {
+                s->unk1C |= 0x5000;
+            }
+        }
+    }
+}
+
 
 /* Starts the sound unk50's lowest set bit asks for at one of the model's points, or moves the one playing */
 static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
