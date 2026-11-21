@@ -1215,7 +1215,8 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80081658);
 /* JFG: find the object edge (flag bits 3-5 of its triangle) that continues the line: one ending at
    the line's start (line[6] < 0.5) or starting at its end; copies its ends to out and returns 1.
    NON_MATCHING: the right length and stack; the entry count sits in v0 (target a3), which
-   renumbers the loop's temporaries. */
+   renumbers the loop's temporaries. k carrying the model index and the batch index (each dead by its next
+   assignment) took the aligned distance 96 -> 65. */
 s32 func_80081CB8(f32 *line, f32 *out) {
     s32 found;
     s32 i;
@@ -1244,7 +1245,8 @@ s32 func_80081CB8(f32 *line, f32 *out) {
     for (i = 0; i < D_801047F0 && !found; i++) {
         if (D_801047F4[i] > 0) {
             obj = (Obj7E *) (D_801047F4[i] | 0x80000000);
-            model = obj->modelInstances[obj->data->modelIndex];
+            k = obj->data->modelIndex;
+            model = obj->modelInstances[k];
             header = model->header;
             if (model->edges != NULL) {
                 edges = model->edges;
@@ -1254,7 +1256,8 @@ s32 func_80081CB8(f32 *line, f32 *out) {
         } else {
             tri = D_801047FC[i];
             triangle = &header->triangles[tri];
-            verts = &model->vertices[header->batches[D_801047F8[i]].verticesOffset];
+            k = D_801047F8[i];
+            verts = &model->vertices[header->batches[k].verticesOffset];
             flags = edges->edgeFlags[tri] >> 3;
             if (flags & 7) {
                 for (j = 0; j < 3; j++) {

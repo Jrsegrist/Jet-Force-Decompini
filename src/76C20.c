@@ -847,7 +847,8 @@ void audspat_point_set_pitch(void *audioPoint, u8 pitch);
    NON_MATCHING: ROM length; the command block's a0-a3/t0 rotated and the state store written before the command
    pointer's (the ROM reads the command's low byte before that store but stores it after). 42 words (from 57: frames
    u32 (it holds a u16 or u16 * 6 / 10, so every value is the same), the clock advanced in place, empty ifs on
-   rate and frames, both set there); the frame keeps the old time variable's word. */
+   rate and frames, both set there); the frame keeps the old time variable's word. The int-cast read of
+   D_800A74EC in the clock compare (keeps its address in a register) took the aligned distance 89 -> 64. */
 void func_80077614(s32 updateRate) {
     s32 i;
     AnimPath *path;
@@ -895,7 +896,7 @@ void func_80077614(s32 updateRate) {
                 D_801045B8[i] = NULL;
             }
             if (D_800A74EC != 0) {
-                if (updateRate < D_800A74EC) {
+                if (updateRate < *(s32 *) ((u32) &D_800A74EC)) {
                     D_800A74E4 += D_800A74E8 * updateRate;
                     D_800A74EC -= updateRate;
                 } else {

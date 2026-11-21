@@ -213,7 +213,6 @@ void func_80055684(u8 arg0) {
     D_800A4E6C = arg0;
 }
 
-#ifdef NON_MATCHING
 extern s32 gForcedColourTag; // JFG: the texture being loaded (-1 when none)
 extern u8 *D_800A4E7C; // JFG: load the next texture at this address
 void *mempool_alloc(s32 size, u32 colourTag);
@@ -226,8 +225,8 @@ void tex_dlist_build(TextureHeader *tex, Gfx *dList);
  * JFG: can load at a given address; room for the larger of the compressed and
  * uncompressed sizes; one call sets up the display lists; no palettes here.
  * Official Name: texLoadTexture
- * NON_MATCHING: identical but for one stack slot: compressedStart is spilled at sp+0x20
- * (target 0x24); the declaration orders tried keep it there or grow the frame.
+ * JFG: the display-list address is held in compressedStart (dead by then) before the
+ * tex_dlist_build call; that gives the ROM's stack slot for compressedStart's spill.
  */
 TextureHeader *load_texture(s32 id) {
     s32 i;
@@ -316,7 +315,8 @@ TextureHeader *load_texture(s32 id) {
     }
     gTextureCache[ASSETCACHE_ID(slotIndex)] = id;
     gTextureCache[ASSETCACHE_PTR(slotIndex)] = (s32) tex;
-    tex_dlist_build(tex, (Gfx *) align16((u8 *) ((s32) tex + assetSize)));
+    compressedStart = (u32) align16((u8 *) ((s32) tex + assetSize));
+    tex_dlist_build(tex, (Gfx *) compressedStart);
     if (gCiPalettesSize >= 0x280) {
         return NULL;
     }
@@ -325,9 +325,6 @@ TextureHeader *load_texture(s32 id) {
     }
     return tex;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/560B0", func_80055694);
-#endif
 
 /**
  * This function attempts to free the texture from memory.

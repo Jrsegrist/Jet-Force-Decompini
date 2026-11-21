@@ -947,7 +947,8 @@ void track_segment_data_free(void);
 #ifdef NON_MATCHING
 /* JFG: scroll the texture coordinates of the triangles using each queued texture (tex_scroll_queue).
    NON_MATCHING: the same code with other registers (target: outer values in t-registers, the
-   per-triangle values in s3..fp, no $ra use). */
+   per-triangle values in s3..fp, no $ra use). `value` (dead after the entry is decoded) carrying the batch's
+   face offset gives the ROM's length and frame (129 words, 0x28; aligned distance 183 -> 65). */
 void func_80013970(void) {
     s32 count;
     s32 *entry;
@@ -990,7 +991,8 @@ void func_80013970(void) {
                     while (batchCount--) {
                         if (texIndex == batch->textureIndex) {
                             triCount = batch[1].facesOffset - batch[0].facesOffset;
-                            tri = &segment->triangles[batch->facesOffset];
+                            value = batch->facesOffset;
+                            tri = &segment->triangles[value];
                             while (triCount--) {
                                 u = tri->uv[0][0];
                                 v = tri->uv[0][1];
@@ -1798,7 +1800,8 @@ typedef struct DrawRangeData {
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: same length; the switch cases from 0x2B on use other t-registers, and the plane loop is entered
- * through a second inRange test (the target tests it once, before the loads). */
+ * through a second inRange test (the target tests it once, before the loads). The (u16)/(s16) casts on two
+ * opacity stores (a u8 field: the stored low byte is the same) took the aligned distance 73 -> 53. */
 /**
  * Sets the object's opacity for its kind, fades it out towards the end of its draw distance, and tells whether it is
  * in range and in front of the three view planes.
@@ -1845,7 +1848,7 @@ s32 func_80015ED8(Object *obj) {
             obj->opacity = data->unk8;
             break;
         case 0x18:
-            obj->opacity = 255 - ((DrawRangeData *) obj->racer)->unk55;
+            obj->opacity = (u16) (255 - ((DrawRangeData *) obj->racer)->unk55);
             break;
         case 0x2B:
         case 0x3D:
@@ -1854,7 +1857,7 @@ s32 func_80015ED8(Object *obj) {
             obj->opacity = obj->unk8C;
             break;
         case 0x42:
-            obj->opacity = func_80054530(obj, cam_get_active_camera_id());
+            obj->opacity = (s16) (func_80054530(obj, cam_get_active_camera_id()));
             break;
         case 0x55:
         case 0x56:

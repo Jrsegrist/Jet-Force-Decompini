@@ -324,6 +324,8 @@ extern s16 D_800A31BC[3]; // JFG: the IDs of the looping level sounds (-1: none)
  */
 #ifdef NON_MATCHING
 /* NON_MATCHING (174 words, from 305, after the empty ifs on always-set values below): register allocation (loop tests, the sound loops' pointers and slot) */
+/* The ROM's length (456 words) comes from two int-cast reads of gCurrentLevelHeader (fogR, unkE4) and the set_fog
+   loop test as `i + 1 <= 4` (i is 0..4, no overflow); aligned distance 190 -> 172. */
 void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
     s32 count;
     s32 offset;
@@ -390,14 +392,14 @@ void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
     sequence_start(arg3);
     check_reset_and_halt();
     func_80051EA4();
-    if (gCurrentLevelHeader->fogNear == 0 && gCurrentLevelHeader->fogFar == 0 && gCurrentLevelHeader->fogR == 0 &&
+    if (gCurrentLevelHeader->fogNear == 0 && gCurrentLevelHeader->fogFar == 0 && (*(LevelHeader **) ((u32) &gCurrentLevelHeader))->fogR == 0 &&
         gCurrentLevelHeader->fogG == 0 && gCurrentLevelHeader->fogB == 0) {
         for (i = 0; i < 4; i++) {
             reset_fog(i);
             if (arg1) {}
         }
     } else {
-        for (i = 0; i < 4; i++) {
+        for (i = 0; i + 1 <= 4; i++) {
             set_fog(i, gCurrentLevelHeader->fogNear, gCurrentLevelHeader->fogFar, gCurrentLevelHeader->fogUnk5E,
                     gCurrentLevelHeader->fogR, gCurrentLevelHeader->fogG, gCurrentLevelHeader->fogB,
                     gCurrentLevelHeader->fogUnk63);
@@ -431,7 +433,7 @@ void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
     } while (i < 4);
     set_active_camera(0);
     if (gCurrentLevelHeader->unkE4 == -1) {
-        gCurrentLevelHeader->unkE4 = 0;
+        (*(LevelHeader **) ((u32) &gCurrentLevelHeader))->unkE4 = 0;
     } else {
         gCurrentLevelHeader->unkE4 = (s32) get_misc_asset(gCurrentLevelHeader->unkE4);
     }
