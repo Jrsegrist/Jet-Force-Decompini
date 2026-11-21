@@ -173,8 +173,9 @@ s32 func_m146_00000(Object *obj, s32 state) {
 }
 
 /*
- * NON_MATCHING: 6 instructions: k/d get v0/v1 the other way round in the
- * blocked-path loop (10 -> 6 aligned diffs with the empty `if (e) {}` in the mission arm). The assembly brings its own .rodata (its floats and
+ * NON_MATCHING: 3 instructions: d gets a1 where the ROM has v0 in the blocked-path loop (10 -> 6 aligned
+ * diffs with the empty `if (e) {}` in the mission arm, 6 -> 3 with the empty `if (d) {}` at the end of
+ * d's else arm, which gives k the ROM's v1). The assembly brings its own .rodata (its floats and
  * jump table, from asm/nonmatchings/modules/m146/ro/).
  */
 #ifdef NON_MATCHING
@@ -238,6 +239,8 @@ void func_m146_00350(Object *obj) {
                     d = k;
                 } else {
                     d = -k;
+                    if (d) {
+                    }
                 }
                 r = (3.0f - d) * ((M146Interact *) obj->interactObj)->radius;
                 x = obj->trans.x_position - func_80049C34(angle) * r;
