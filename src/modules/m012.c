@@ -431,12 +431,7 @@ extern void func_80055B80(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* loads a texture */
 extern void *func_80055B40(M012Image *tex, s32 frame); /* set_animated_texture_header */
 extern void func_m006_0107C(s32 *x, s32 *y);
-#ifdef NON_MATCHING
 static void func_m012_01018(void);
-#else
-extern void rl_m012_01018(void);
-#define func_m012_01018 rl_m012_01018
-#endif
 #ifdef NON_MATCHING
 static void func_m012_01444(s32 x, s32 y, s16 angle, s16 front);
 #else
@@ -552,7 +547,6 @@ void func_m012_00A64(void) {
     }
 }
 
-#ifdef NON_MATCHING
 extern s32 fb_mode(void);
 extern s32 func_800446CC(void);
 extern s32 func_8003FBCC(void);
@@ -562,9 +556,8 @@ extern s32 options_split_vertical_get(void);
  * Fills the frame's 20 vertices from sFrameVertices, the middle ones moved out by half its width; with
  * fb_mode() & 1 (unless func_800446CC gives 1 or 2), or func_8003FBCC() 1 and a vertical split, it then
  * widens their x by a third (called from 00A64).
- * NON_MATCHING: first C body, from the ROM; 25 aligned diffs: one word long (the ROM stores the reset
- * vertex pointer through the register holding &D_800FF3A0, this stores it through $at) and the offset and
- * the source pointer get a1/v0 the other way round.
+ * The reset vertex pointer is stored through an int-cast address, so IDO uses the register that holds
+ * &D_800FF3A0 (as the ROM does; a plain store goes through $at and is one word longer).
  */
 static void func_m012_01018(void) {
     s32 i;
@@ -582,8 +575,8 @@ static void func_m012_01018(void) {
     } else {
         offset = (frame->width >> 1) - 44;
     }
-    frame->vertices = D_800FF3A0;
     src = sFrameVertices[0];
+    frame->vertices = D_800FF3A0;
     for (i = 0; i < 20; i++) {
         v = D_800FF3A0;
         if (i == 10) {
@@ -592,6 +585,8 @@ static void func_m012_01018(void) {
             offset += shift;
         } else if (i == 19) {
             offset -= shift;
+            if (src) {
+            }
         }
         v->x = src[0] - offset;
         D_800FF3A0->y = src[1];
@@ -607,7 +602,7 @@ static void func_m012_01018(void) {
         s32 vv = func_800446CC();
 
         if (vv != 1 && (vv & 0xFF) != 2) {
-            D_800FF3A0 = frame->vertices;
+            *(Vertex **) (u32) &D_800FF3A0 = frame->vertices;
             for (i = 0; i < 20; i++) {
                 v = D_800FF3A0;
                 v->x += v->x / 3;
@@ -615,7 +610,7 @@ static void func_m012_01018(void) {
             }
         }
     } else if (func_8003FBCC() == 1 && options_split_vertical_get()) {
-        D_800FF3A0 = frame->vertices;
+        *(Vertex **) (u32) &D_800FF3A0 = frame->vertices;
         for (i = 0; i < 20; i++) {
             v = D_800FF3A0;
             v->x += v->x / 3;
@@ -623,10 +618,6 @@ static void func_m012_01018(void) {
         }
     }
 }
-#else
-#undef func_m012_01018
-INCLUDE_ASM("asm/nonmatchings/modules/m012", func_m012_01018);
-#endif
 
 #ifdef NON_MATCHING
 extern s32 fb_mode(void);
