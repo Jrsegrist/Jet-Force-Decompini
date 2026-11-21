@@ -1082,12 +1082,8 @@ static void func_m068_047F8(Object *obj, M068State *s);
 static void func_m068_05028(Object *obj, M068State *s);
 #define rl_m068_05028 func_m068_05028
 extern s32 rl_m068_125DC;      /* (.data) how many landing points */
-#ifdef NON_MATCHING
 static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #define rl_m068_04A60 func_m068_04A60
-#else
-extern void rl_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
 static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #define rl_m068_05100 func_m068_05100
 static void func_m068_053AC(Object *obj, M068State *s);
@@ -1839,16 +1835,15 @@ static void func_m068_04938(Object *obj, M068State *s) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04938);
 #endif
 
-#ifdef NON_MATCHING
 static void func_m068_05964(Object *obj, M068State *s);
 #define rl_m068_05964 func_m068_05964
 
 /*
  * Phase 3 of the first form: slides along the two walls (sPlanes), turns back at a wall (unkBA picks
  * it), and the player in reach is caught. Frame (0x88) and the f20 of the ROM come from dx/dz also
- * carrying sPlanes[0] (the first arm and the func_80049C84 arguments) and the pads; 3 words short and
- * registers differ in the wall test: the ROM keeps along in f16, the wall dot in f18 (spilled across
- * the sqrt) and along * along in f20, and spills the object's x and z (0x30/0x2C).
+ * carrying sPlanes[0] (the first arm and the func_80049C84 arguments) and the pads. d also holds the
+ * two dot products (the motion along the wall's normal, and the turn's), and along * along is written
+ * out at both uses: that gives the ROM's float registers. The plane index is pre-scaled (4 floats).
  */
 static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     Object *player;
@@ -1899,18 +1894,18 @@ static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate)
             dir[0] = 0.0f;
             dir[1] = 0.0f;
         }
-        plane = sPlanes[s->unkBA];
-        along = speed * (dir[0] * plane[0] + plane[2] * dir[1]);
+        plane = (f32 *) sPlanes + (s->unkBA << 2);
+        d = dir[0] * plane[0] + dir[1] * plane[2];
+        along = speed * d;
         if (along < 0.0f) {
-            dot = plane[2] * s->unk28 + s->unk24 * plane[0];
-            dist = plane[3] + (plane[0] * obj->trans.x_position + plane[1] * obj->trans.y_position +
-                               plane[2] * obj->trans.z_position);
-            along *= along;
-            if (dist <= -along / (dot + dot) && dot < 0.0f) {
+            dot = s->unk24 * plane[0] + s->unk28 * plane[2];
+            dist = (plane[0] * obj->trans.x_position + plane[1] * obj->trans.y_position +
+                    plane[2] * obj->trans.z_position) + plane[3];
+            if (dist <= -(along * along) / (dot + dot) && dot < 0.0f) {
                 s->unk24 = plane[0];
                 s->unk28 = plane[2];
                 if (s->unkBA == 0) {
-                    s->unk20 = along / (dist + dist);
+                    s->unk20 = (along * along) / (dist + dist);
                 } else {
                     s->unk20 = 1.0f;
                 }
@@ -1934,10 +1929,12 @@ static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate)
             }
             rot[0] = -func_80049C34(s->unk9A);
             rot[1] = -func_80049C30(s->unk9A);
-            s->unk98 = rl_m068_0C7DC(s->unk98, -204.8f * speed * (dir[1] * rot[1] + rot[0] * dir[0]), 0x100, updateRate);
+            d = rot[0] * dir[0] + rot[1] * dir[1];
+            s->unk98 = rl_m068_0C7DC(s->unk98, -204.8f * speed * d, 0x100, updateRate);
             rot[0] = -func_80049C34(s->unk9A + 0x4000);
             rot[1] = -func_80049C30(s->unk9A + 0x4000);
-            s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * (dir[1] * rot[1] + rot[0] * dir[0]), 0x100, updateRate);
+            d = rot[0] * dir[0] + rot[1] * dir[1];
+            s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * d, 0x100, updateRate);
         } else {
             s->unkBA ^= 1;
             if (s->unkBA == 1) {
@@ -1966,9 +1963,6 @@ static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unk80 = (s16) (7.75f * speed) + 100;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_04A60);
-#endif
 
 /* Starts the first form's jump (phase 2); with flag 8 the player watches it from joint section 2 */
 static void func_m068_05028(Object *obj, M068State *s) {
@@ -2187,9 +2181,7 @@ static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-#ifdef NON_MATCHING
 /* Back to phase 4 (unkAA): lands, with no landing point picked yet */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_05964(Object *obj, M068State *s) {
     func_m068_092F0(obj, 2, 0);
     s->unkBA = -1;
@@ -2205,9 +2197,6 @@ static void func_m068_05964(Object *obj, M068State *s) {
         func_m068_0BDC4(obj, s, 0xD, 0.0f);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05964);
-#endif
 
 /*
  * Phase 4 of the first form: jumps between the landing points; the player in reach is caught.
