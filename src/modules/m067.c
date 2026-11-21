@@ -409,12 +409,6 @@ typedef struct M067Model {
 
 extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8, s32 arg9);
 
-#ifdef NON_MATCHING
-/*
- * 7 diffs: the scale's lbu is in t1 (the ROM: t9) and the model pointer chain's t9/t1 are swapped. The mask
- * (scale is a u8, so the same value) gives the ROM's extra temporary before speedY (33 without it, 17 with the
- * old unk1A/unk1C chain and empty `if (k)`)
- */
 void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     f32 k;
     M067Model *model;
@@ -426,7 +420,7 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     obj->trans.rotation.x_rotation = setup->xRotation;
     m = obj->unk68;
     obj->trans.rotation.z_rotation = setup->zRotation;
-    obj->trans.scale = (setup->scale & 0xFFu) * k;
+    obj->trans.scale = setup->scale * k;
     obj->velocity.x = 0.0f;
     obj->velocity.y = setup->speedY * k;
     obj->velocity.z = 0.0f;
@@ -440,7 +434,11 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     m->unk1C = 0;
     m->unk1E = 0;
     m->unk20 = setup->unk1C;
-    model = *(M067Model **) obj->modelInstances[0];
+    {
+        M067Model **inst = obj->modelInstances[0];
+
+        model = *inst;
+    }
     v = &model->vertices[*model->flameVertex];
     m->thrust = 0.0f;
     m->unk2 = 0;
@@ -449,9 +447,6 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     m->unk0 = 0;
     m->unk1 = setup->unk1A * 6;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02E38);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02FDC);
 
