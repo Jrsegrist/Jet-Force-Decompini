@@ -1111,7 +1111,8 @@ extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *
 extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_083C8 func_m068_083C8
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -2540,7 +2541,86 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_078F4);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_083C8);
+/* What func_80005F14 spawns the dropped items from */
+typedef struct M068ItemEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 kind;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0x10 - 0xA];
+} M068ItemEntry;
+
+/*
+ * (.data) how often an item drops, in seconds, and the time since the last drop. The time is also
+ * named on its own (rl_m068_125F0): the ROM addresses it directly outside the compare.
+ */
+extern f32 rl_m068_125EC[2];
+extern f32 rl_m068_125F0;
+extern s16 rl_m068_125F4;      /* (.data) the item chances: a roll of 1..rl_m068_125F8 */
+extern s16 rl_m068_125F6;
+extern s16 rl_m068_125F8;
+extern s32 rl_m068_125FC;      /* (.data) the boulders made */
+
+/* A second-form phase: while its timer runs, an item drops at the trail's start every so often */
+static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    M068ItemEntry entry;
+    Object *o;
+    s16 roll;
+    f32 step;
+
+    if (s->unkBC == 0) {
+        func_m068_0BDC4(obj, s, 7, 0.0f);
+        s->unkBC |= 1;
+    }
+    if (s->events & 1) {
+        if (s->flags & 4) {
+            s->timer = 20.0f;
+        } else if (s->flags & 2) {
+            s->timer = 15.0f;
+        } else if (s->flags & 1) {
+            s->timer = 10.0f;
+        }
+        s->unkBC |= 2;
+    }
+    if (s->unkBC & 2) {
+        if (s->timer > 0.0f) {
+            step = rate / 60.0f;
+            if (rl_m068_125EC[0] <= rl_m068_125EC[1]) {
+                roll = func_80048E2C(1, rl_m068_125F8);
+                if (roll <= rl_m068_125F4) {
+                    entry.objectID = 0x18E;
+                    entry.kind = 0;
+                } else if (roll <= rl_m068_125F6) {
+                    entry.objectID = 0x1A7;
+                    entry.kind = 1;
+                } else if (roll <= rl_m068_125F8) {
+                    entry.objectID = 0x6F;
+                    entry.kind = 2;
+                }
+                entry.size = 10;
+                entry.x = sTrailStart[0].x;
+                entry.y = sTrailStart[0].y;
+                entry.z = sTrailStart[0].z;
+                o = func_80005F14(&entry, 1);
+                if (o != NULL) {
+                    o->level_entry = NULL;
+                }
+                rl_m068_125F0 = 0.0f;
+            } else {
+                rl_m068_125F0 += step;
+            }
+            s->timer -= step;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                func_m068_0BDC4(obj, s, 0x20, 0.0f);
+            }
+        } else if (rl_m068_125FC == 0) {
+            s->unkB0 = 0;
+        }
+    }
+}
 
 /* Animation 6 of the second form */
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
