@@ -1302,16 +1302,15 @@ typedef struct ObjectPoints {
 /* JFG: set up the object's point states (one per model point, 40 more for type 0xE6) after the
    block's 0x44-byte head; returns the size used.
    NON_MATCHING: the right length; the register allocation differs (the target keeps a copy of
-   block in v0 for the first loop's bound and the model in a2). */
+   block in v0 for the first loop's bound and the model in a2). Dropping the `b` copy (block reloaded from
+   obj->unk4C, the same pointer, for the second part) gives the ROM's length (aligned distance 150 -> 118). */
 s32 func_80007528(Object *obj, ObjectPoints *block, s32 type) {
     s32 size;
     ObjectModel53 *model;
     ObjectPoint *points;
-    ObjectPoints *b;
     s32 i;
 
     obj->unk4C = block;
-    b = block;
     size = 0x44;
     if (obj->header->unk1E == 0) {
         points = (ObjectPoint *) ((u8 *) block + 0x44);
@@ -1320,7 +1319,7 @@ s32 func_80007528(Object *obj, ObjectPoints *block, s32 type) {
             block->count = model->numPoints;
             block->points = points;
             size = block->count * 0x34 + 0x44;
-            for (i = 0; i < b->count; i++) {
+            for (i = 0; i < block->count; i++) {
                 points[i].unk0 = 0;
                 points[i].unk2 = 0;
                 points[i].unk4 = 0;
@@ -1339,12 +1338,12 @@ s32 func_80007528(Object *obj, ObjectPoints *block, s32 type) {
         }
     }
     if (type == 0xE6) {
-        b = obj->unk4C;
+        block = obj->unk4C;
         points = (ObjectPoint *) ((u8 *) block + size);
-        b->count = 40;
-        size += b->count * 0x34;
-        b->points = points;
-        for (i = 0; i < b->count; i++) {
+        block->count = 40;
+        size += block->count * 0x34;
+        block->points = points;
+        for (i = 0; i < block->count; i++) {
             points[i].unk0 = 0;
             points[i].unk30_7 = 1;
             points[i].unk2 = 0;
