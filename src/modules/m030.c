@@ -94,10 +94,10 @@ extern s32 mempool_free_timer_get(s32 size);
 extern void func_8004AA08(s32 state);
 
 static void model_hit_build(M030ModelInstance *inst, M030Model *model, M030Hit **slot);
+static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d);
 #ifdef NON_MATCHING
 static void hit_planes_build(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
 static void hit_edges_link(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
-static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d);
 static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
 static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M030Vertex *p, M030Vertex *q);
 s32 func_m030_01134(M030ModelInstance *inst, M030Model *model, s32 skip, s32 a, s32 b, s32 *outBatch,
@@ -110,8 +110,6 @@ extern void rl_m030_00C14(M030ModelInstance *inst, M030Model *model, M030Hit *hi
 #define hit_edges_link rl_m030_00C14
 extern void rl_m030_01508(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
 #define hit_cells_build rl_m030_01508
-extern s32 rl_m030_012F0(M030Vertex *v, s32 a, s32 b, s32 c, s32 d);
-#define hit_edges_compare rl_m030_012F0
 #endif
 
 void func_m030_00000(Object *obj, s32 flags) {
@@ -528,11 +526,10 @@ s32 func_m030_01134(M030ModelInstance *inst, M030Model *model, s32 skip, s32 a, 
     return -1;
 }
 
-#ifdef NON_MATCHING
-/* load order: the ROM loads the second vertex's y and z first */
 /*
  * Compares edge (a, b) with edge (c, d): 1 if they use the same vertex
  * indices, 2 if their vertices are at the same places, else 0.
+ * (Each `p < q + 1` is p <= q: written that way, IDO loads p first as the ROM does.)
  */
 static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
     M030Vertex *pa;
@@ -545,20 +542,20 @@ static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
     }
     pc = &v[c];
     pa = &v[a];
-    if (pc->x - 1 < pa->x && pc->x >= pa->x && pc->y <= pa->y && pc->y >= pa->y && pc->z <= pa->z &&
+    if (pc->x - 1 < pa->x && pc->x >= pa->x && pc->y < pa->y + 1 && pc->y >= pa->y && pc->z < pa->z + 1 &&
         pc->z >= pa->z) {
         pb = &v[b];
         pd = &v[d];
-        if (pd->x <= pb->x && pd->x >= pb->x && pd->y <= pb->y && pd->y >= pb->y && pd->z <= pb->z &&
+        if (pd->x < pb->x + 1 && pd->x >= pb->x && pd->y < pb->y + 1 && pd->y >= pb->y && pd->z < pb->z + 1 &&
             pd->z >= pb->z) {
             return 2;
         }
     } else {
         pd = &v[d];
-        if (pd->x <= pa->x && pd->x >= pa->x && pd->y <= pa->y && pd->y >= pa->y && pd->z <= pa->z &&
+        if (pd->x < pa->x + 1 && pd->x >= pa->x && pd->y < pa->y + 1 && pd->y >= pa->y && pd->z < pa->z + 1 &&
             pd->z >= pa->z) {
             pb = &v[b];
-            if (pc->x - 1 < pb->x && pc->x >= pb->x && pc->y <= pb->y && pc->y >= pb->y && pc->z <= pb->z &&
+            if (pc->x - 1 < pb->x && pc->x >= pb->x && pc->y < pb->y + 1 && pc->y >= pb->y && pc->z < pb->z + 1 &&
                 pc->z >= pb->z) {
                 return 2;
             }
@@ -566,9 +563,6 @@ static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
     }
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_012F0);
-#endif
 
 #ifdef NON_MATCHING
 /* register choice: the ROM gives lo/hi/n a0/v0/v1 and the mask t0 */
