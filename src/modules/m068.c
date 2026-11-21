@@ -62,7 +62,7 @@ typedef struct M068State {
     /* 0x96 */ s16 unk96;
     /* 0x98 */ s16 unk98;
     /* 0x9A */ s16 unk9A;
-    /* 0x9C */ u8 pad9C[0x9E - 0x9C];
+    /* 0x9C */ s16 unk9C; /* 07D68: how fast the strips' aim point circles */
     /* 0x9E */ s16 unk9E; /* the yaw unk9A turns to */
     /* 0xA0 */ u8 padA0[0xA8 - 0xA0];
     /* 0xA8 */ s16 unkA8;
@@ -1116,7 +1116,8 @@ static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_0758C func_m068_0758C
 static void func_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_078F4 func_m068_078F4
-extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_07D68 func_m068_07D68
 static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_083C8 func_m068_083C8
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -3077,7 +3078,160 @@ static void func_m068_078F4(Object *obj, M068State *s, void *model, M068Instance
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
+/* What func_80005F14 spawns the electric strips (objects 0x315, 0x31B) from: M068StripSetup, bytewise */
+typedef struct M068StripEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0xC - 0xA];
+    /* 0x0C */ s16 a[2];
+    /* 0x10 */ s16 b[2];
+    /* 0x14 */ s16 c[2];
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ Vec3f *point;
+    /* 0x28 */ Object *owner;
+} M068StripEntry;
+
+/*
+ * A second-form phase: turns to the centre from joint section 0's joint; on event 0x100 throws three
+ * electric strips from model points 32-34, then aims at sStripEnd as it circles the centre until the
+ * timer (the strips' life) runs out. The pad gives the ROM's frame; parts addresses sParts[6] field by
+ * field as the ROM does.
+ */
+static void func_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    UNUSED Vec3f pad;
+    Object *player;
+    Vec3f *jp;
+    Vec3f *p;
+    M068StripEntry entry;
+    M068PartState *parts;
+    f32 dy;
+    f32 dx;
+    f32 r;
+    f32 dz;
+    s16 yaw;
+    s16 angle;
+
+    if (s->unkBC == 0) {
+        jp = (Vec3f *) &sJointPos[rl_m068_1254C[0].joint * 3];
+        dx = sCentre.x - jp->x;
+        dz = sCentre.z - jp->z;
+        yaw = func_80049C84(dx, dz) + 0x8000;
+        s->unk9A = rl_m068_0C7DC(s->unk9A, yaw, 0x200, updateRate);
+        s->unk9E = s->unk9A;
+        if (yaw == s->unk9A) {
+            s->unkBC |= 1;
+        }
+    }
+    if (s->unkBC & 1) {
+        if (s->timer == 0.0f) {
+            if (!(s->unkBC & 2)) {
+                func_m068_0BDC4(obj, s, 0x17, 0.0f);
+                s->unkBC |= 2;
+                s->cycleKind = 3;
+            }
+            if (s->events & 0x100) {
+                r = func_80048E2C(5, 15);
+                entry.size = 0x2C;
+                entry.unk3 = 0;
+                entry.unk1C = r;
+                entry.unk20 = r + 0.3f;
+                entry.unk18 = 0.3f;
+                entry.owner = obj;
+                p = &inst->points[32];
+                entry.objectID = 0x315;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.point = p;
+                entry.a[0] = 0;
+                entry.b[0] = 0x800;
+                entry.c[0] = 0x1000;
+                entry.a[1] = -0x8000;
+                entry.b[1] = -0x800;
+                entry.c[1] = -0x1000;
+                obj = func_80005F14(&entry, 1);
+                if (obj != NULL) {
+                    obj->level_entry = NULL;
+                }
+                p = &inst->points[33];
+                entry.objectID = 0x31B;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.point = p;
+                entry.a[0] = 0x4000;
+                entry.b[0] = 0x400;
+                entry.c[0] = 0x1000;
+                entry.a[1] = -0x4000;
+                entry.b[1] = -0x400;
+                entry.c[1] = -0x1000;
+                obj = func_80005F14(&entry, 1);
+                if (obj != NULL) {
+                    obj->level_entry = NULL;
+                }
+                p = &inst->points[34];
+                entry.objectID = 0x315;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.point = p;
+                entry.a[0] = 0;
+                entry.b[0] = -0x800;
+                entry.c[0] = 0x1000;
+                entry.a[1] = -0x8000;
+                entry.b[1] = 0x800;
+                entry.c[1] = 0x1000;
+                obj = func_80005F14(&entry, 1);
+                if (obj != NULL) {
+                    obj->level_entry = NULL;
+                }
+                s->timer = entry.unk20;
+                player = func_8000E4D0(0);
+                dx = player->trans.x_position - sCentre.x;
+                dz = player->trans.z_position - sCentre.z;
+                angle = func_80049C84(dx, dz);
+                s->unk9C = func_80048E2C(0x50, 0x200);
+                if (angle < rl_m068_1260C) {
+                    s->unk9C = -s->unk9C;
+                }
+                sStripEnd.x = sCentre.x;
+                sStripEnd.y = sCentreY + 15.0f;
+                sBss1373C = 0;
+                sStripEnd.z = sCentre.z;
+            }
+        } else {
+            sBss1373C += s->unk9C * updateRate;
+            r = func_80049C34(sBss1373C) * sBss13750;
+            sStripEnd.x = func_80049C34(rl_m068_1260C + 0x4000) * r + sCentre.x;
+            sStripEnd.z = func_80049C30(rl_m068_1260C + 0x4000) * r + sCentre.z;
+            jp = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+            dx = sStripEnd.x - jp->x;
+            dz = sStripEnd.z - jp->z;
+            s->unk9A = rl_m068_0C7DC(s->unk9A, func_80049C84(dx, dz) + 0x8000, 0x200, updateRate);
+            s->unk9E = s->unk9A;
+            jp = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+            dx = sStripEnd.x - jp->x;
+            dy = sStripEnd.y - jp->y;
+            dz = sStripEnd.z - jp->z;
+            parts = sParts;
+            parts[6].target[1] = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                s->unkB0 = 0;
+                s->unk54 = 1;
+                parts[6].target[1] = 0;
+                func_m068_0BDC4(obj, s, 0x19, 0.0f);
+            }
+        }
+    }
+}
 
 /* What func_80005F14 spawns the dropped items from */
 typedef struct M068ItemEntry {
