@@ -2078,14 +2078,9 @@ void func_8006DB6C(u16 *fb, s32 x1, s32 y1, s32 x2, s32 y2, s32 vertical) {
 
 extern s32 D_800A6B64[17]; // JFG: the digit font, one row of nine 3-bit pixels per word
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: x and y live in s1/s2 across fb_size (target reloads them from their homes, so its row pointers
-   use t5/ra) and the frame is 0x70 (target 0x58) */
 /* JFG: brighten a 9x17 glyph into an RGBA5551 framebuffer at (x, y): each font pixel holds the bit of `glyph`
    that lights it (more when the bit is set), added to the green (or, with `red`, the red) channel, clamped. */
 void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 red) {
-    u32 width;
-    u32 height;
     u16 *fb;
     s32 i;
     s32 j;
@@ -2094,17 +2089,19 @@ void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 red) {
     s32 amount;
     s32 mask;
     s32 shift;
-    u16 px;
+    s32 px;
     s32 c;
-    s32 n;
+    u32 width;
+    u32 height;
 
     fb_size(&width, &height);
     fb = framebuffer + (y * width + x);
-    mask = 0x7C0;
-    shift = 6;
     if (red) {
         mask = 0xF800;
         shift = 11;
+    } else {
+        mask = 0x7C0;
+        shift = 6;
     }
     for (i = 0; i < 17; i++) {
         bits = D_800A6B64[i];
@@ -2118,20 +2115,18 @@ void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 red) {
                 }
                 px = *fb;
                 c = px & mask;
-                n = c + (amount << shift);
-                if (n & ~mask) {
-                    n = mask;
+                px ^= c;
+                c += amount << shift;
+                if (c & ~mask) {
+                    c = mask;
                 }
-                *fb = (px ^ c) | n;
+                *fb = px | c;
             }
             fb++;
         }
         fb += width - 9;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006DD20);
-#endif
 
 int sprintf(char *s, const char *fmt, ...);
 void func_8006DD20(u16 *framebuffer, u8 glyph, s32 x, s32 y, s32 arg4);
