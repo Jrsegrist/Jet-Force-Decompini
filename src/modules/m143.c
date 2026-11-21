@@ -231,7 +231,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00280);
 /*
  * A ring's init: clears its vertices and lays out its 48 triangles round them,
  * mapping the texture. The ROM unrolls the triangle loop twice and orders the
- * stores differently.
+ * stores differently. (218 -> 109 aligned diffs with the clear loop's dead copy in h; 223 words, ROM 222.)
  */
 void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     M143Ring *ring;
@@ -247,7 +247,7 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     ring = obj->unk68;
     v = ring->verts;
     i = 100;
-    while (i--) {
+    while (h = i, i--, h) { /* the dead copy in h's register (h is set after the loop) */
         v->x = 0;
         v->y = 0;
         v->z = 0;
