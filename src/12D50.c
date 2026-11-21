@@ -239,7 +239,7 @@ void viewport_apply(Gfx **dList, Mtx **mtx);
 void view_planes_update(void);
 void func_8000C9E8(s32 arg0);
 void screen_lines_set_window(s32 arg0);
-void trackbg_render_flashy(); // JFG: called with the update rate, which it doesn't read
+void trackbg_render_flashy(); // takes no arguments, as in DKR
 void skydome_render(s32 updateRate);
 void func_80013454(void);
 void initialise_player_viewport_vars(s32 arg0, s32 arg1);
@@ -253,10 +253,6 @@ void glitch_effect_draw(Gfx **dList);
 void viewport_reset(Gfx **dList);
 void shadow_buffers_flip(void);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: updateRate must stay on the stack (the `&updateRate` fake does it). The ROM loads it once before
-   the skydome branch, after the skydomeFixed compare; the `rate` copy gives the single load (ROM length) but
-   schedules it before the compare (3 words) */
 /**
  * The main rendering function for the level: updates the level's animated parts, then draws every
  * viewport's scene.
@@ -268,7 +264,6 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
     s32 tempUpdateRate;
     s32 i;
     s32 j;
-    s32 rate;
 
     if (&updateRate) {} // fakematch: keeps updateRate on the stack
     numViewports = camera_count_get();
@@ -342,11 +337,10 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
             func_8000C9E8(1);
             screen_lines_set_window(D_800F2F84);
             if (numViewports < 2) {
-                rate = updateRate;
                 if (D_800A0D64->skydomeFixed == -1) {
-                    trackbg_render_flashy(rate);
+                    trackbg_render_flashy();
                 } else {
-                    skydome_render(rate);
+                    skydome_render(updateRate);
                 }
             } else {
                 func_80013454();
@@ -384,9 +378,6 @@ void func_800121C0(Gfx **dList, Mtx **mtx, Vertex **vtx, Triangle **tris, s32 up
         *tris = D_800F2F7C;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/12D50", func_800121C0);
-#endif
 
 extern Gfx *D_800F2F70; // DKR: gTrackDL
 extern s32 D_801008B4;  // JFG: the screen row the effect below starts at (0: all of it)

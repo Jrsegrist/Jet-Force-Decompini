@@ -778,9 +778,6 @@ void splitscreen_dividers_draw(Gfx **dList);
 /* The module trap called with three floats; needs `func_80054530_fff = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: one word longer: the ROM loads startPlayer once before the D_800A3208 branch; here the
-   fall-through arm reloads it */
 /* JFG: one frame of the game: the module hooks, the players' buttons (START pauses), the world update unless
  * paused, then the drawing passes. */
 void func_80045F00(s32 updateRate) {
@@ -835,7 +832,7 @@ void func_80045F00(s32 updateRate) {
             rumble_stop_all(1);
             if (!D_800A4FC4 && !D_800A4FB4) {
                 if (D_800A3208) {
-                    func_80054530(startPlayer);
+                    func_80054530(); // m022 02990 takes no arguments; m019 00000 below takes the player
                 } else {
                     func_80054530(startPlayer);
                 }
@@ -871,9 +868,6 @@ void func_80045F00(s32 updateRate) {
     splitscreen_dividers_draw(&gfx);
     debug_trace_add(gfx, "main/main.c", 0x6DC);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_80045F00);
-#endif
 
 void func_80046334(s32 *level, s32 *a, s32 *b) {
     s32 value = *level;
@@ -1001,6 +995,10 @@ void level_next_select(void) {
         }
         D_800A3294 = 30;
     }
+    // JFG: compiled-out debug prints: the ROM keeps the strings of five after func_80045F00's, in this order
+    // (here and in level_load_pending, character_item_give/take and force_mark_write_save_file; owners and
+    // arguments guessed from the text)
+    stubbed_printf("Change: L %d, R %d >> L %d, R %d  (%d)\n");
 }
 
 /* JFG: where some levels send the player (level, two zeros and D_800FD7A4); FALSE for the others. */
@@ -1215,6 +1213,7 @@ void level_load_pending(s32 updateRate) {
     u32 n;
     s32 value;
 
+    stubbed_printf("SYNC\n");
     check_reset_and_halt();
     if (D_800A329C) {
         if (!(input_pressed(0) & 0x8000) && !(input_pressed(0) & 0x1000)) {
@@ -1765,6 +1764,7 @@ void character_item_give(s32 player, s32 character, s32 item) {
         (chr + 0x66)[item >> 3] |= 0x80 >> (item & 7);
         gCharItemsChanged |= 1 << (character & 3);
     }
+    stubbed_printf("Char Flag %d\n");
 }
 
 /* JFG: take an item from a player's character (0x80047D0C). */
@@ -1775,6 +1775,7 @@ void character_item_take(s32 player, s32 character, s32 item) {
         (chr + 0x66)[item >> 3] &= ~(0x80 >> (item & 7));
         gCharItemsChanged |= 1 << (character & 3);
     }
+    stubbed_printf("Char Flag %d\n");
 }
 
 /* JFG: whether a player's character has an item (a bit array at 0x66, highest bit first) (0x80047D80). */
@@ -2022,6 +2023,7 @@ s32 get_all_save_files_ptr(void) {
  * Official Name: mainSaveGame
  */
 void force_mark_write_save_file(s32 saveFileIndex) {
+    stubbed_printf("Saving Game %d\n");
     gSaveDataFlags &= ~SAVE_DATA_FLAG_WRITE_SAVE_FILE_NUMBER_BITS;
     gSaveDataFlags |= (SAVE_DATA_FLAG_WRITE_SAVE_DATA | ((saveFileIndex & 7) << 3));
 }
