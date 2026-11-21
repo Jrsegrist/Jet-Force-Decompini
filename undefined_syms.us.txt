@@ -93,7 +93,6 @@ func_800652E4 = debug_text_parse;
 func_800657A4 = debug_text_character;
 func_80064D9C = debug_text_init;
 func_80064E8C = debug_text_print;
-load_texture = 0x80055694;
 /* printf.c defines its .data/.rodata/.bss; the asm still uses these names */
 D_800A6380 = gSprintfSpacingCode;
 D_800A6384 = gDebugPrintBufferEnd;
@@ -798,3 +797,6 @@ D_800A2F04 = gScreenViewports + 0x30;
 D_800A2FA4 = gViewportWithBG;
 D_800A2FB8 = gViewportStack;
 D_800A313C = gOrthoMatrixF + 0x14;
+
+/* ---- round 30 (lev30main): C names now defined in C (the old `load_texture = 0x80055694;` line removed) ---- */
+func_80055694 = load_texture;

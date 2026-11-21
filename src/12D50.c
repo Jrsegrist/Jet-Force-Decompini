@@ -1798,7 +1798,8 @@ typedef struct DrawRangeData {
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: same length; the switch cases from 0x2B on use other t-registers, and the plane loop is entered
- * through a second inRange test (the target tests it once, before the loads). */
+ * through a second inRange test (the target tests it once, before the loads). The (u16)/(s16) casts on two
+ * opacity stores (a u8 field: the stored low byte is the same) took the aligned distance 73 -> 53. */
 /**
  * Sets the object's opacity for its kind, fades it out towards the end of its draw distance, and tells whether it is
  * in range and in front of the three view planes.
@@ -1845,7 +1846,7 @@ s32 func_80015ED8(Object *obj) {
             obj->opacity = data->unk8;
             break;
         case 0x18:
-            obj->opacity = 255 - ((DrawRangeData *) obj->racer)->unk55;
+            obj->opacity = (u16) (255 - ((DrawRangeData *) obj->racer)->unk55);
             break;
         case 0x2B:
         case 0x3D:
@@ -1854,7 +1855,7 @@ s32 func_80015ED8(Object *obj) {
             obj->opacity = obj->unk8C;
             break;
         case 0x42:
-            obj->opacity = func_80054530(obj, cam_get_active_camera_id());
+            obj->opacity = (s16) (func_80054530(obj, cam_get_active_camera_id()));
             break;
         case 0x55:
         case 0x56:

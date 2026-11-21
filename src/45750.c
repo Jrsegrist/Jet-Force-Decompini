@@ -1841,9 +1841,9 @@ extern s32 D_800FF37C;
 void mark_write_eeprom_settings(void);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 19 words: in both word loops src and the counter's dead copy swap $a1/$v1 (target: src $v1)
-   and some flag temporaries are renumbered; the frame needs a fourth word above copy (pad). The empty
-   `if (dst) {}` (dst is set there) fixed the rest. */
+/* NON_MATCHING: 8 words: in both word loops src and the counter's dead copy swap $a1/$v1 (target: src $v1);
+   the frame needs a fourth word above copy (pad). The empty `if (dst) {}` (dst is set there) and reading
+   unk64 as `(&D_800FF318.unk64)[0]` (operand order of the `|`) fixed the rest. */
 /* JFG: set or clear one of the game's 0x480 flags (0x5A and 0x5B are always set while D_800A331C is 0); setting
  * one also sets the unlock bits it stands for, and mark_write_eeprom_settings runs if any of them changed. */
 void func_80047EFC(s32 flag, s32 set) {
@@ -1875,7 +1875,7 @@ void func_80047EFC(s32 flag, s32 set) {
                 if (flag < 4) {
                     D_800FF391 = D_800FF318.unk79 | (1 << flag);
                 }
-                D_800FF37C = D_800FF318.unk64 | (1 << flag);
+                D_800FF37C = (&D_800FF318.unk64)[0] | (1 << flag);
             } else if (flag >= 0x42 && flag < 0x47) {
                 D_800FF318.unk6A |= 1 << (flag + 30);
             } else if (flag >= 0x49 && flag < 0x4D) {
