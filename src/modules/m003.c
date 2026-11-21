@@ -2678,8 +2678,11 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_062A0);
 extern s32 audspat_volume_at_distance(s32 kind, f32 *from, f32 *to); /* how loud a sound of a kind is from `from` at `to` */
 
 #ifdef NON_MATCHING
-/* IDO puts the loop counter's dead copy in the branch delay slots the ROM leaves empty (one word short) */
-/* 116 -> 53 diffs with the empty `if (obj) {}` before the return */
+/*
+ * IDO puts the loop counter's dead copy before `e++` (the ROM: after it), so it lands in the branch delay
+ * slots the ROM leaves empty (one word short; 11 aligned diffs). An empty `if (obj) {}` before the return
+ * gave the ROM's length but homed obj and moved every temporary one register up (39 aligned diffs).
+ */
 /* The nearest event the member hears loudly enough (its loudness in *loudness), or NULL */
 M003Event *func_m003_06754(Object *obj, f32 *loudness) {
     M003Member *m = obj->unk68;
@@ -2716,8 +2719,6 @@ M003Event *func_m003_06754(Object *obj, f32 *loudness) {
         }
         e++;
     } while (i--);
-    if (obj) {
-    }
     return found;
 }
 #else

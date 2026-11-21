@@ -353,8 +353,7 @@ void func_m032_0241C(Object *obj, s16 sound, s8 variants) {
     func_80003410(sound, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, &s->sound);
 }
 
-#ifdef NON_MATCHING
-/* Says the character's line number `line`. Register choice: line - 1 in t9, the ROM's in t0 */
+/* Says the character's line number `line` */
 void func_m032_024C4(Object *obj, s32 line) {
     M032Lines *l = rl_m032_02F24;
     M032Line *e;
@@ -362,12 +361,10 @@ void func_m032_024C4(Object *obj, s32 line) {
     while (l->objectID != obj->objectID && l->objectID >= 0) {
         l++;
     }
-    e = &l->lines[line - 1];
+    /* &l->lines[line - 1]: the index pre-shifted onto the s16 scaling (4-byte lines) */
+    e = (M032Line *) ((s16 *) l->lines + ((line - 1) << 1));
     func_m032_0241C(obj, e->sound, e->variants);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m032", func_m032_024C4);
-#endif
 
 /* The character being talked to answers */
 void func_m032_02540(void) {
