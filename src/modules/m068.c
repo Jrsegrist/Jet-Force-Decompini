@@ -1037,7 +1037,7 @@ typedef struct M068ColourCycle {
     /* 0x8 */ u8 r; /* the current colour */
     /* 0x9 */ u8 g;
     /* 0xA */ u8 b;
-    /* 0xB */ u8 padB;
+    /* 0xB */ u8 unkB; /* 0758C waits for 0xE6 */
     /* 0xC */ s32 *unkC;
 } M068ColourCycle;
 
@@ -1111,7 +1111,8 @@ static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance
 static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_06E14 func_m068_06E14
 extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0758C func_m068_0758C
 extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -2804,7 +2805,95 @@ static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0714C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0758C);
+/* What func_80005F14 spawns object 0x30E from: a bolt from a model point to the player */
+typedef struct M068BoltEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 targetX;
+    /* 0x0C */ s16 targetY;
+    /* 0x0E */ s16 targetZ;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ Object *owner;
+} M068BoltEntry;
+
+/*
+ * A second-form phase (unkAA 10): once its colour cycle is bright enough, bolts at the player from model
+ * points 0 and 1 in turn, one every 0.1 s; after the fourth it ends
+ */
+static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Object *player;
+    f32 y;
+    Vec3f *pt;
+    M068BoltEntry entry;
+    Object *o;
+
+    if (s->unkAA != 10) {
+        s->unkB0 = 0;
+        s->timer = 0.0f;
+        return;
+    }
+    s->unkBC |= 1;
+    if ((s->unkBC & 1) && !(s->unkBC & 2)) {
+        s->unkBC |= 2;
+        func_m068_0BDC4(obj, s, 0x2B, 0.0f);
+    }
+    if (s->events & 0x200) {
+        s->unkBC |= 4;
+    }
+    if (s->unkBC & 4) {
+        if (!(s->unkBC & 0x30) && s->cycleKind == 0) {
+            s->cycleKind = 4;
+        }
+        if (s->cycle != NULL && s->cycle->unkB >= 0xE6) {
+            s->unkBC |= 8;
+        }
+        if (s->timer == 0.0f && (s->unkBC & 8)) {
+            player = func_8000E4D0(0);
+            y = sCentreY + 30.0f;
+            if (s->unkBE & 1) {
+                pt = &inst->points[1];
+                s->unkBC |= 0x20;
+            } else {
+                pt = &inst->points[0];
+                s->unkBC |= 0x10;
+            }
+            entry.objectID = 0x30E;
+            entry.size = 0x18;
+            entry.unk3 = 0;
+            entry.x = pt->x;
+            entry.y = pt->y;
+            entry.z = pt->z;
+            entry.targetX = player->trans.x_position;
+            entry.targetY = y;
+            entry.targetZ = player->trans.z_position;
+            entry.unk10 = 30.0f;
+            entry.owner = obj;
+            o = func_80005F14(&entry, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+            func_80003410(0x1D0, pt->x, pt->y, pt->z, 4, NULL);
+            s->unkBE++;
+            s->timer = 0.1f;
+            if ((s->unkBC & 0x30) == 0x30) {
+                s->unkBC &= ~0x38;
+            }
+        } else {
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                if (s->unkBE == 4) {
+                    s->unkB0 = 0;
+                    func_m068_0BDC4(obj, s, 0x2D, 0.0f);
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_078F4);
 
