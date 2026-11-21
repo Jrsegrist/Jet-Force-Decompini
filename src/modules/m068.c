@@ -2198,7 +2198,10 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
 
 #ifdef NON_MATCHING
 /* Steers the first form towards target: slows to stop there, turns its body (unk98/unk96) into the motion; 1 while it moves */
-/* 2 diffs: the first dot product loads s->unkC4 before dir[1] in the ROM (operands of the multiply swapped). */
+/*
+ * Matches (staged: its callers and m068's .rodata wait for the gate 024EC). unkC0/unkC4 are a 2-vector here:
+ * the first dot product reads unkC4 as (&s->unkC0)[1], the only spelling that loads it before dir[1].
+ */
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate) {
     f32 dir[2];
     f32 rot[2];
@@ -2219,7 +2222,7 @@ static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s3
         dir[0] = 0.0f;
         dir[1] = 0.0f;
     }
-    along = dir[0] * s->unkC0 + s->unkC4 * dir[1];
+    along = dir[0] * s->unkC0 + dir[1] * (&s->unkC0)[1];
     dx = obj->trans.x_position - target->x;
     dz = obj->trans.z_position - target->z;
     dist = func_80097140(dx * dx + dz * dz);
@@ -2564,7 +2567,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_088DC);
 
 #ifdef NON_MATCHING
 /* Runs the colour cycle cycleKind picks over the model's vertices cycleFirst..cycleEnd, until it ends */
-/* 4 diffs: the end test loads cycle->unkC into t6 and cycle->unk0 into t7 in the ROM (swapped here). */
+/* Matches (staged behind the gate 024EC, its only caller). cycle->unk0 read as (&cycle->unk0)[0] gives the
+   ROM's operand order in the end test (the plain field puts unk0's load in t6). */
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     M068ColourCycle *cycle;
     M068DrawModel *m;
@@ -2601,7 +2605,7 @@ static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance
             ((Vertex *) m->vertices)[i].b = cycle->b;
         }
         s->unk8A = updateRate << 10;
-        if (*cycle->unkC == cycle->unk0 + 1) {
+        if (*cycle->unkC == (&cycle->unk0)[0] + 1) {
             s->cycleKind = 0;
             obj->state[0x9F - 0x88] = 0;
             s->cycle = NULL;
@@ -3109,8 +3113,10 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 
 #ifdef NON_MATCHING
 /*
- * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop; with
- * two empty ifs on the outer counter at the inner loop's top, 8 diffs are left (registers).
+ * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop. With the
+ * triangle loop on its own counter n (continue-style, so IDO doesn't unroll it) and the inner counter j
+ * reused for the last loop, every register is the ROM's; 5 diffs are left: the ROM increments n and does
+ * its test right after v, where a `for` loop puts them, but every `for` form here is unrolled 2x.
  */
 void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     M068Strip *m = obj->unk68;
@@ -3121,6 +3127,7 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     s32 k;
     s32 v;
     s32 prev;
+    s32 n;
 
     m->unk6C0 = setup->unk24;
     m->unk6C4 = setup->unk28;
@@ -3128,8 +3135,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
-            if (i) {}
-            if (i) {}
             p[j].x = 0;
             p[j].y = 0;
             p[j].z = 0;
@@ -3145,8 +3150,9 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     tri = m->tris;
     prev = 0;
     k = 0;
-    for (i = 64; i < 576; i += 64) {
-        v = (i / 8 - 1) << 5;
+    n = 64;
+    while (TRUE) {
+        v = (n / 8 - 1) << 5;
         tri[0].flags = 0x40;
         tri[0].vi0 = k;
         tri[0].vi1 = k + 1;
@@ -3170,11 +3176,14 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         tri += 2;
         prev = v;
         k += 2;
+        n += 64;
+        if (n < 576) continue;
+        break;
     }
-    for (i = 0; i < 2; i++) {
-        m->a[i] = setup->a[i];
-        m->b[i] = setup->b[i];
-        m->c[i] = setup->c[i];
+    for (j = 0; j < 2; j++) {
+        m->a[j] = setup->a[j];
+        m->b[j] = setup->b[j];
+        m->c[j] = setup->c[j];
     }
     m->pos.x = setup->pos.x;
     m->pos.y = setup->pos.y;
