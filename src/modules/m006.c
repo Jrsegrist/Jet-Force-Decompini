@@ -242,8 +242,12 @@ void func_m006_012B0(s8 *player) {
 }
 
 #ifdef NON_MATCHING
-/* 149 -> 68 diffs with the empty `if (player) {}` / `if (updateRate) {}` */
-/* Slides a player's message bar in and out and moves on through the queue; register allocation differs */
+/*
+ * Slides a player's message bar in and out and moves on through the queue.
+ * NON_MATCHING: 3 aligned diffs (one is only a %lo addend the probe shows): the ROM also loads
+ * queue->locked at the end of the D_800A4FD0 == 1 arm, and doesn't home updateRate (the empty
+ * `if (updateRate) {}` homes it, but without it the rest is further off).
+ */
 void func_m006_012D4(s8 *player, s32 updateRate) {
     M006Queue *queue = &D_800FF1D0[*player];
 
@@ -279,11 +283,11 @@ void func_m006_012D4(s8 *player, s32 updateRate) {
                     queue->timer = 0;
                 } else {
                     queue->timer += normalise_time(120);
-                    queue->current = queue->messages[queue->tail];
+                    queue->current = queue->messages[queue->tail++];
                     if (updateRate) {
                     }
                     queue->unk4E = 0;
-                    if (++queue->tail >= 5) {
+                    if (queue->tail >= 5) {
                         queue->tail = 0;
                     }
                     queue->count--;

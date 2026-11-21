@@ -2084,18 +2084,24 @@ extern s32 gMainPoolFreeBytes;
 extern void func_m003_058A4(Object *obj);
 
 #ifdef NON_MATCHING
-/* IDO folds the `+ 0.0f`s the ROM keeps, and sBody/index swap registers */
-/* 25 -> 11 diffs with the empty `if (piece) {}`, 8 with m declared first */
-/* The member loses the body part the last hit took off: a flying piece of it is spawned if there's memory */
+/*
+ * The member loses the body part the last hit took off: a flying piece of it is spawned if there's memory.
+ * NON_MATCHING: 6 diffs, sBody and index swap registers (v1/a1); the declaration order puts part's spill at
+ * the ROM's 0x48 (the zero local keeps the ROM's `+ 0.0f` adds).
+ */
 static void func_m003_044F4(Object *obj) {
-    M003Member *m = obj->unk68;
-    u8 index = sBody->hitPart;
-    M003BodyPart *part = &sBody->parts[index];
-    M003PartEntry entry;
-    u16 bit = 1 << part->bit;
-    f32 zero;
     Object *piece;
+    M003BodyPart *part;
+    u16 bit;
+    M003PartEntry entry;
+    f32 zero;
+    u8 index;
+    M003Member *m;
 
+    m = obj->unk68;
+    index = sBody->hitPart;
+    part = &sBody->parts[index];
+    bit = 1 << part->bit;
     if (index == 7) {
         return;
     }
