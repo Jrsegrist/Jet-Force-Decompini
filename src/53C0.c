@@ -1303,7 +1303,9 @@ typedef struct ObjectPoints {
    block's 0x44-byte head; returns the size used.
    NON_MATCHING: the right length; the register allocation differs (the target keeps a copy of
    block in v0 for the first loop's bound and the model in a2). Dropping the `b` copy (block reloaded from
-   obj->unk4C, the same pointer, for the second part) gives the ROM's length (aligned distance 150 -> 118). */
+   obj->unk4C, the same pointer, for the second part) gives the ROM's length (aligned distance 150 -> 118).
+   The no-code masks on three copies (each stores the same bits into a field of that width) take the code
+   generator's extra temporaries (118 -> 87). */
 s32 func_80007528(Object *obj, ObjectPoints *block, s32 type) {
     s32 size;
     ObjectModel53 *model;
@@ -1323,13 +1325,13 @@ s32 func_80007528(Object *obj, ObjectPoints *block, s32 type) {
                 points[i].unk0 = 0;
                 points[i].unk2 = 0;
                 points[i].unk4 = 0;
-                points[i].unk6 = model->points[i].unk0;
+                points[i].unk6 = model->points[i].unk0 & 0xFFFF;
                 points[i].unk8 = model->points[i].unk2;
-                points[i].unk9 = model->points[i].unk3;
+                points[i].unk9 = model->points[i].unk3 & 0xFF;
                 points[i].unkA = 0;
                 points[i].unk24 = model->points[i].size * obj->trans.scale;
                 points[i].unk28 = model->points[i].size * obj->trans.scale;
-                points[i].unk2E = model->points[i].unk4;
+                points[i].unk2E = model->points[i].unk4 & 0xFF;
                 points[i].unk30_7 = 1;
                 points[i].unk2C = 0;
                 points[i].unk30_6 = 0;
