@@ -399,7 +399,6 @@ extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
 extern void func_m003_09A14(Object *obj);
 static s32 troop_anim_start(s32 index, s32 anim, s32 adjust);
 static s32 troop_anim_pick(s32 anim, s32 arg1);
-extern void rl_m003_044F4(Object *obj);
 
 /* An animation entry (8 bytes) */
 typedef struct M003Anim {
@@ -2086,11 +2085,10 @@ typedef struct M003PartEntry {
 extern s32 gMainPoolFreeBytes;
 extern void func_m003_058A4(Object *obj);
 
-#ifdef NON_MATCHING
 /*
  * The member loses the body part the last hit took off: a flying piece of it is spawned if there's memory.
- * NON_MATCHING: 6 diffs, sBody and index swap registers (v1/a1); the declaration order puts part's spill at
- * the ROM's 0x48 (the zero local keeps the ROM's `+ 0.0f` adds).
+ * (The declaration order puts part's spill at the ROM's 0x48; the zero local keeps the ROM's `+ 0.0f` adds;
+ * the hit part is read again for the index test, as the ROM does.)
  */
 static void func_m003_044F4(Object *obj) {
     Object *piece;
@@ -2102,10 +2100,9 @@ static void func_m003_044F4(Object *obj) {
     M003Member *m;
 
     m = obj->unk68;
-    index = sBody->hitPart;
-    part = &sBody->parts[index];
+    part = &sBody->parts[sBody->hitPart];
     bit = 1 << part->bit;
-    if (index == 7) {
+    if ((index = sBody->hitPart) == 7) {
         return;
     }
     if ((m->lostParts & bit) || m->unk55 != 0) {
@@ -2136,9 +2133,6 @@ static void func_m003_044F4(Object *obj) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_044F4);
-#endif
 
 /* Bits of the member's word at 0x4 (04614) */
 typedef struct M003Word4 {
@@ -2291,10 +2285,10 @@ static s32 troop_anim_start(s32 index, s32 anim, s32 adjust) {
     }
     sObj->particleEmittersEnabled = 0;
     if (a->unk4_22 == 3) {
-        rl_m003_044F4(sObj);
+        func_m003_044F4(sObj);
     }
     if (!(sHomeData->flags & 0x8000) && a->unk4_22 == 4 && func_80048E2C(1, 3) == 1) {
-        rl_m003_044F4(sObj);
+        func_m003_044F4(sObj);
     }
     if (index == -1) {
         return -1;
@@ -3873,7 +3867,7 @@ void func_m003_0CFA8(Object *obj) {
                     func_80003410(func_80048E2C(0, 1) + 0x191, obj->trans.x_position, obj->trans.y_position,
                                   obj->trans.z_position, 4, &sMember->sound);
                 }
-                rl_m003_044F4(obj);
+                func_m003_044F4(obj);
                 func_m003_04D08(8, 15, 13, 0);
                 func_m003_04260(9, 11, 0, 0, 0);
             }
