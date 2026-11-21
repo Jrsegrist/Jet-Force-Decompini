@@ -2154,14 +2154,17 @@ extern s32 D_800A339C[];
 extern s32 D_800A32D0;
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: registers: the target keeps the pressed buttons in v1 and &D_800A3398 in v0 */
+/* NON_MATCHING (12 words, was 20; one word short): the target copies the pressed buttons to v1 and keeps
+   &D_800A3398 in v0 (mine: pressed stays in v0, the address in v1, so no move). The increment as its own
+   statement gives the target's code otherwise. */
 /* JFG: a button sequence on controller 1 (zero-terminated list D_800A339C) toggles D_800A32D0. */
 void func_800487B8(void) {
     s32 pressed = input_pressed(0);
 
     if (pressed != 0) {
         if (pressed == D_800A339C[D_800A3398]) {
-            if (D_800A339C[++D_800A3398] == 0) {
+            D_800A3398++;
+            if (D_800A339C[D_800A3398] == 0) {
                 D_800A3398 = 0;
                 D_800A32D0 ^= 1;
             }

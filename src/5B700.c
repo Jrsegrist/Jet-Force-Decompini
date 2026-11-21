@@ -236,8 +236,10 @@ void snow_init(void); // DKR: snow_init
 s32 rand_range(s32 min, s32 max);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (144 words, from 228, after the empty ifs on always-set values below): the target's frame is 0x30 bytes bigger and keeps the density in s3; the colour tag is
-   rebuilt for each call there, mine stays in s5 */
+/* NON_MATCHING (16 words, ROM length and frame; was 58): the target loads preset->texture before storing
+   gSnowGfx.pos, materialises &gSnowTriangles for its store, and gives the triangle indices v0/a1 (mine a1/a2).
+   numOfElements declared last and reused for density * 4 (as DKR) gives the frame: its second value is spilled to
+   its own word. */
 /**
  * Free all existing weather data.
  * If the weather type allows rain, then allocate and initialise rain.
@@ -248,17 +250,17 @@ s32 rand_range(s32 min, s32 max);
 void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity) {
     s16 width;
     s16 height;
-    s32 numOfElements;
     s32 allocSize;
     s32 i;
     SnowGfxData *preset;
     SnowPosData *pos;
     SnowVertex *verts;
-    SnowVertex **vertexData;
+    s32 j;
     SnowTriangle *tris;
     u8 *src;
     u8 *dst;
     u8 n;
+    s32 numOfElements;
 
     weather_free();
     gWeather.velX = velX;
@@ -295,9 +297,11 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
     if ((s32) preset->texture == WEATHER_SNOW) {
         snow_init();
     }
-    gSnowDensity = density;
-    gSnowTriIndices = mempool_alloc_safe(density * 2, 0xAA55FFFF);
-    gSnowPhysics = pos = mempool_alloc_safe(density * sizeof(SnowPosData), 0xAA55FFFF);
+    numOfElements = density;
+    gSnowDensity = numOfElements;
+    gSnowTriIndices = mempool_alloc_safe(numOfElements * 2, 0xAA55FFFF);
+    gSnowPhysics = mempool_alloc_safe(numOfElements * sizeof(SnowPosData), 0xAA55FFFF);
+    pos = gSnowPhysics;
     for (i = 0; i < gSnowDensity; i++) {
         pos->x_position = rand_range(0, gSnowGfx.radiusX);
         pos->y_position = rand_range(0, gSnowGfx.radiusY);
@@ -309,13 +313,13 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
         pos++;
         if (density) {}
     }
-    numOfElements = density * 4;
+    numOfElements = numOfElements * 4;
     allocSize = sizeof(SnowVertex);
     allocSize *= numOfElements;
     gSnowVertexData[0] = mempool_alloc_safe(allocSize, 0xAA55FFFF);
     gSnowVertexData[1] = mempool_alloc_safe(allocSize, 0xAA55FFFF);
-    for (vertexData = (SnowVertex **) gSnowVertexData; vertexData < (SnowVertex **) &gSnowVertexData[2]; vertexData++) {
-        verts = *vertexData;
+    for (j = 0; j < 2; j++) {
+        verts = (SnowVertex *) gSnowVertexData[j];
         for (i = 0; i < numOfElements; i++) {
             verts->r = 255;
             verts->g = 255;

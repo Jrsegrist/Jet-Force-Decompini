@@ -634,8 +634,10 @@ void func_80054530_ppfff(u8 *arg0, u8 *arg1, f32 x, f32 y, f32 z);
 void func_80054530();
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (104 words, from 158, after the empty ifs on always-set values below): s0/s1 swapped (the target keeps obj then racer in s0, the view address in s1) and the target stores
-   the free-view angles through %lo(D_800F6DC8) rather than the address register; frame and order match */
+/* NON_MATCHING (4 words; was 31): the target shares one `lui at` for the four free-view angle stores through
+   %lo(D_800F6DC8), which needs D_800F6DC8 defined in this file (a .bss split); with the extern each store gets its
+   own lui (2 words longer). The float stores through `D_800F6DC8.` and the angles through `view->` give the
+   target's address-register use (IDO folds `view` back to %lo and keeps the address for the others). */
 /* JFG: player camera update: C buttons toggle the free view (0x3D); the camera module (racer 0x1FC/0x21C) is
  * given the object's position (and angles in the free view), and the camera eases to the result */
 void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
@@ -655,19 +657,17 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
     view = &D_800F6DC8;
     view->position[0] = *(f32 *) (obj + 0xC);
     view->position[1] = *(f32 *) (obj + 0x10);
-    if (obj) {}
-    view->unk14 = 0.0f;
-    if (racer) {}
-    view->unk18 = 0.0f;
-    view->position[2] = *(f32 *) (obj + 0x14);
-    view->unk1C = -48.0f;
+    D_800F6DC8.position[2] = *(f32 *) (obj + 0x14);
+    D_800F6DC8.unk14 = 0.0f;
+    D_800F6DC8.unk18 = 0.0f;
+    D_800F6DC8.unk1C = -48.0f;
     if (((Transform2BAA0 *) D_800F6DC0)->unk3D) {
-        D_800F6DC8.rotation[0] = *(s16 *) (obj + 0);
-        D_800F6DC8.rotation[1] = *(s16 *) (obj + 2);
-        D_800F6DC8.unk6 = 0;
-        D_800F6DC8.rotation[2] = *(s16 *) (obj + 4);
+        view->rotation[0] = *(s16 *) (obj + 0);
+        view->rotation[1] = *(s16 *) (obj + 2);
+        view->unk6 = 0;
+        view->rotation[2] = *(s16 *) (obj + 4);
     } else {
-        D_800F6DC8.unk6 = 2;
+        view->unk6 = 2;
     }
     func_80054530_ppfff(racer + 0x1FC, racer + 0x21C, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10),
                         *(f32 *) (obj + 0x14));
@@ -705,9 +705,10 @@ s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags
 s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 9 words: the heights pointer of the last loop is in a1 (target t6) and the pos[1]/yOrig
-   compare uses f4/f8 (target f6/f10); `if (heights[i]) {}` gives the target's strength-reduced loop and
-   `if (mode) {}` keeps mode in s1 */
+/* NON_MATCHING: 5 words: the heights pointer of the last loop is in a1 (target t6, and the target's t-registers
+   there are one later: its i and heights look like code-generator temporaries); `if (heights[i]) {}` gives the
+   target's strength-reduced loop and `if (mode) {}` keeps mode in s1. The x/z conversions through f64 (dead, so
+   only their FP temporaries count) put the pos[1]/yOrig compare in the target's f6/f10 (9 -> 5). */
 /* JFG: move pos to where the track stops the way from `from` (passing through objects 0x30/0x31 once), then out
    of the floors and ceilings around it; on a clear way also not below its starting height. The int copies of x
    and z are unused (the target keeps only their rounding-mode switches). */
@@ -750,8 +751,8 @@ void func_8002CC70(f32 *from, f32 *pos, UNUSED s32 arg2) {
             pos[2] = hit.pos[2];
         }
     } while (!done);
-    x = pos[0];
-    z = pos[2];
+    x = (f64) pos[0];
+    z = (f64) pos[2];
     if (x) {}
     if (z) {}
     n = func_8001A218(pos[0], pos[2], -32000.0f, 32000.0f, 16.0f, 0xC00, 1, &heights);
