@@ -174,7 +174,7 @@ s32 func_m146_00000(Object *obj, s32 state) {
 
 /*
  * NON_MATCHING: 6 instructions: k/d get v0/v1 the other way round in the
- * blocked-path loop. The assembly brings its own .rodata (its floats and
+ * blocked-path loop (10 -> 6 aligned diffs with the empty `if (e) {}` in the mission arm). The assembly brings its own .rodata (its floats and
  * jump table, from asm/nonmatchings/modules/m146/ro/).
  */
 #ifdef NON_MATCHING
@@ -222,6 +222,8 @@ void func_m146_00350(Object *obj) {
     }
     if (e->mission != 0) {
         sState = 12;
+        if (e) {
+        }
     } else {
         blocked = FALSE;
         if (func_m003_17910(obj->trans.x_position, obj->trans.z_position, home->zone) == 0) {
