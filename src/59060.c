@@ -1012,7 +1012,9 @@ void func_80041DC0(void *dList); // the same as mtx_pop
  * Render a menu item: an object, a sprite or a model, by the top bits of its type (textures are not drawn here).
  * JFG: the item's transform is copied first; pipe syncs around the colour changes; models are drawn here.
  * DKR: menu_element_render
- * NON_MATCHING: 207 words (from 276, the sprite read before the frame copy); the frame differs.
+ * NON_MATCHING: 207 words (from 276, the sprite read before the frame copy); the frame differs. Reading the type
+ * table pointer through `*(s16 **) ((u32) &D_800A51D0)` for `type` keeps its address in a register as the ROM
+ * does (aligned distance 277 -> 89).
  */
 void func_8005A0D0(s32 item) {
     MenuDrawObject *object;
@@ -1033,7 +1035,7 @@ void func_8005A0D0(s32 item) {
             trans.y = entry->y;
             trans.z = entry->z;
             trans.scale = entry->scale;
-            type = D_800A51D0[entry->unk6];
+            type = (*(s16 **) ((u32) &D_800A51D0))[entry->unk6];
             if (type & 0x4000) {
                 object->rotation[0] = entry->unk0;
                 object->rotation[1] = entry->unk2;

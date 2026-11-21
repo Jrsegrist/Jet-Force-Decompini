@@ -947,7 +947,8 @@ void track_segment_data_free(void);
 #ifdef NON_MATCHING
 /* JFG: scroll the texture coordinates of the triangles using each queued texture (tex_scroll_queue).
    NON_MATCHING: the same code with other registers (target: outer values in t-registers, the
-   per-triangle values in s3..fp, no $ra use). */
+   per-triangle values in s3..fp, no $ra use). `value` (dead after the entry is decoded) carrying the batch's
+   face offset gives the ROM's length and frame (129 words, 0x28; aligned distance 183 -> 65). */
 void func_80013970(void) {
     s32 count;
     s32 *entry;
@@ -990,7 +991,8 @@ void func_80013970(void) {
                     while (batchCount--) {
                         if (texIndex == batch->textureIndex) {
                             triCount = batch[1].facesOffset - batch[0].facesOffset;
-                            tri = &segment->triangles[batch->facesOffset];
+                            value = batch->facesOffset;
+                            tri = &segment->triangles[value];
                             while (triCount--) {
                                 u = tri->uv[0][0];
                                 v = tri->uv[0][1];
