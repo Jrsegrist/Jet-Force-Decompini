@@ -1904,7 +1904,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05028);
 
 #ifdef NON_MATCHING
 /* Phase 2 of the first form: slides to a stop, turning its body into the motion, then turns to unk9E */
-/* 20 diffs: from the else branch on the t-registers are two lower than here, and s->unk9E/unk9A load in the other order. */
+/* Matches (staged: m068's .rodata waits for the gate 024EC). As in 05C8C, the s16 cast on unk80's value and
+   unk9A read as (&s->unk9A)[0] (which loads it after unk9E) are what the ROM's code needs. */
 static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     f32 dir[2];
     f32 rot[2];
@@ -1932,13 +1933,13 @@ static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate)
         rot[1] = -func_80049C30(s->unk9A + 0x4000);
         dot = rot[0] * dir[0] + rot[1] * dir[1];
         s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * dot, 0x100, updateRate);
-        s->unk80 = (s32) (7.75f * speed) + 100;
+        s->unk80 = (s16) (7.75f * speed) + 100;
     } else {
         if (s->flags & 8) {
-            if (s->unk9E == s->unk9A) {
+            if (s->unk9E == (&s->unk9A)[0]) {
                 rl_m068_05570(obj, s);
             }
-        } else if (s->unk9E == s->unk9A && obj->animationID == 0xD) {
+        } else if (s->unk9E == (&s->unk9A)[0] && obj->animationID == 0xD) {
             rl_m068_053AC(obj, s);
         }
         s->unk80 = 100;
