@@ -37,7 +37,7 @@ typedef struct M032Lines {
 /* A speaker's state (obj->unk68) */
 typedef struct M032Speaker {
     /* 0x00 */ u8 kind;
-    /* 0x01 */ u8 unk1; /* its settings flag is still clear (01D2C) */
+    /* 0x01 */ s8 unk1; /* its settings flag is still clear (01D2C) */
     /* 0x02 */ s16 yaw;
     /* 0x04 */ f32 x;
     /* 0x08 */ f32 y;
@@ -240,7 +240,130 @@ void func_m032_01D84(Object *obj) {
     get_settings()[byte + 8] |= bit;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m032/ro", func_m032_01DD8);
+/* A character's record, as read here */
+typedef struct M032Items {
+    /* 0x0 */ u8 pad0[0xA];
+    /* 0xA */ u16 flags; /* bit per weapon owned */
+} M032Items;
+
+/* The game settings, as read here */
+typedef struct M032Settings {
+    /* 0x000 */ u8 pad0[0x236];
+    /* 0x236 */ u16 unk236;
+} M032Settings;
+
+extern s32 char_id_of_player(s32 player);
+extern M032Items *char_record_lookup(s32 player, s32 character);
+extern s32 character_has_item(s32 player, s32 character, s32 item);
+extern s32 player_chars_have_item(s32 item);
+extern s32 game_flag_get(s32 flag);
+
+/* Whether the speaker's condition (chosen by its flag byte) holds: game flags, items, the character */
+s32 func_m032_01DD8(M032Speaker *st) {
+    s32 character;
+    M032Items *items;
+    M032Settings *settings;
+
+    character = char_id_of_player(0) & 3;
+    items = char_record_lookup(0, character);
+    settings = (M032Settings *) get_settings();
+    switch (st->flag) {
+        case 1:
+            if (character == 1 && st->unk1) {
+                break;
+            }
+            return FALSE;
+        case 2:
+            if (character == 1 && settings->unk236 == 0x400) {
+                break;
+            }
+            return FALSE;
+        case 3:
+            if (!game_flag_get(0x17) && st->unk1) {
+                break;
+            }
+            return FALSE;
+        case 4:
+            if (!character_has_item(0, character, 1)) {
+                break;
+            }
+            return FALSE;
+        case 5:
+            if (st->unk1) {
+                break;
+            }
+            return FALSE;
+        case 6:
+            if (!game_flag_get(0)) {
+                break;
+            }
+            return FALSE;
+        case 7:
+            if (!player_chars_have_item(0x15)) {
+                break;
+            }
+            return FALSE;
+        case 8:
+            return TRUE;
+        case 9:
+            if (!player_chars_have_item(0x11)) {
+                break;
+            }
+            return FALSE;
+        case 10:
+            if (!character_has_item(0, character, 1)) {
+                break;
+            }
+            return FALSE;
+        case 11:
+            if (character == 1 && !game_flag_get(0x5F)) {
+                break;
+            }
+            return FALSE;
+        case 12:
+            if (!game_flag_get(3)) {
+                break;
+            }
+            return FALSE;
+        case 13:
+            return TRUE;
+        case 14:
+            if (!game_flag_get(0x20)) {
+                break;
+            }
+            return FALSE;
+        case 15:
+            return TRUE;
+        case 16:
+            if (!game_flag_get(0x22)) {
+                break;
+            }
+            return FALSE;
+        case 17:
+            if (!game_flag_get(0x23)) {
+                break;
+            }
+            return FALSE;
+        case 18:
+            if (!game_flag_get(0x63)) {
+                break;
+            }
+            return FALSE;
+        case 19:
+            if (character == 0 && !(items->flags & 0x20)) {
+                break;
+            }
+            return FALSE;
+        case 20:
+            if (!game_flag_get(0x24)) {
+                break;
+            }
+            return FALSE;
+        case 21:
+            return TRUE;
+    }
+    return TRUE;
+}
 
 /*
  * Turns `angle` towards `target` the shorter way, an eighth of the way (at most 364) for each of `steps`
