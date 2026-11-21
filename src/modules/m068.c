@@ -693,10 +693,9 @@ extern u8 rl_m068_124CC[]; /* the two trails' parameters (.data) */
 extern u8 rl_m068_124DC[];
 extern void rl_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2);
 
-#ifdef NON_MATCHING
 /*
  * Draws the boss's trails and, while it glows, two glow models at its joints.
- * Length and frame match; the temporaries are numbered one higher from the first joint load.
+ * Each joint's matrix is found as `joint << 4` floats into the frame (as in 024EC): the ROM's registers.
  */
 void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068Effects *s;
@@ -718,7 +717,7 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             model = ((M068Header *) obj->header)->models[2];
         }
         lists = model->lists;
-        mtx = inst->frames[inst->frame] + rl_m068_12564[0];
+        mtx = (MtxF *) ((f32 *) inst->frames[inst->frame] + (rl_m068_12564[0] << 4));
         (*mtx)[0][3] = 0.0f;
         (*mtx)[1][3] = 0.0f;
         (*mtx)[2][3] = 0.0f;
@@ -733,7 +732,7 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             model = ((M068Header *) obj->header)->models[4];
         }
         lists = model->lists;
-        mtx = inst->frames[inst->frame] + rl_m068_12564[6];
+        mtx = (MtxF *) ((f32 *) inst->frames[inst->frame] + (rl_m068_12564[6] << 4));
         (*mtx)[0][3] = 0.0f;
         (*mtx)[1][3] = 0.0f;
         (*mtx)[2][3] = 0.0f;
@@ -747,9 +746,6 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         func_80055B80(dl);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0092C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_00C70);
 
