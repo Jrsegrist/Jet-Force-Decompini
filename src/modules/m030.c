@@ -203,7 +203,10 @@ typedef struct M030Plane {
 extern f32 func_80097140(f32 x); /* square root */
 
 #ifdef NON_MATCHING
-/* register allocation (the ROM keeps more of the coordinates in stack slots) */
+/*
+ * register allocation (the ROM keeps more of the coordinates in stack slots): 620 words against the ROM's 611,
+ * frame 296 against 328 (625 words and twice the aligned distance before `(&...vertices[0])[k]` in the edge loop)
+ */
 /*
  * The triangles' planes, then one plane along each edge shared with another
  * triangle (and the edge flags).
@@ -318,7 +321,7 @@ static void hit_planes_build(M030ModelInstance *inst, M030Model *model, M030Hit 
                 c = model->triangles[j].vertices[k2] + base;
                 if (other < numPlanes) {
                     po = &HIT_PLANES(hit)[other];
-                    v = &inst->vertices[model->triangles[j].vertices[k] + base];
+                    v = &inst->vertices[(&model->triangles[j].vertices[0])[k] + base];
                     ya = v->y;
                     xa = v->x;
                     za = v->z;
@@ -566,7 +569,10 @@ static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
 
 #ifdef NON_MATCHING
 /* register choice: the ROM gives lo/hi/n a0/v0/v1 and the mask t0 */
-/* 104 -> 69 diffs with the empty ifs on base, hi and lo */
+/*
+ * 104 -> 69 diffs with the empty ifs on hi and lo; aligned distance 108 -> 67 with n an s8 (it only counts
+ * 0..8; the empty ifs on base that the s16 n needed then change nothing and are gone)
+ */
 /*
  * For each triangle, a mask of the cells of an 8x8x8 grid over the model's
  * bounds that its bounding box touches (x in bits 0-7, z in 8-15, y in 16-23).
@@ -594,7 +600,7 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
     s16 lo;
     s16 hi;
     s16 step;
-    s16 n;
+    s8 n;
 
     for (i = 0; i < model->numBatches; i++) {
         start = model->batches[i].start;
@@ -607,10 +613,6 @@ static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *
             if (model->triangles[j].flags & 0x80) {
                 ((u32 *) hit->unk4)[j] = 0;
                 continue;
-            }
-            if (base) {
-            }
-            if (base) {
             }
             maxX = -32000;
             maxY = -32000;

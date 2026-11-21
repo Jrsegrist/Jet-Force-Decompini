@@ -1854,7 +1854,10 @@ extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
 
 #ifdef NON_MATCHING
-/* 21 diffs: only temp register numbers (the ROM uses one more temp from the start) */
+/*
+ * 3 diffs: the word-14 test's load and `and` are in t9/t0 where the ROM has t0/t1 (21 before the (s16) cast on
+ * the unk74 store: unk74 is a u8 and n is 0..255, so the stored byte is the same)
+ */
 /*
  * Once the troop's first member is near enough its way point: on, unless the point says to wait for
  * a player who is not within 700
@@ -1872,7 +1875,7 @@ void func_m003_03AA8(void) {
         node = &D_800FEA9C[n];
         first = sHomeData->first;
         if (NODEWORD14(node) & 2) {
-            sHomeData->unk74 = n;
+            sHomeData->unk74 = (s16) n;
         }
         if (sHomeData->unk6C == 1.0f) {
             dist = point_distance(first->trans.x_position, first->trans.y_position, first->trans.z_position,

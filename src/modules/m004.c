@@ -82,12 +82,7 @@ static void copy_models(Object *obj, M004Copy *copy, s32 arg2, s32 arg3);
 extern u8 rl_m004_01660[];
 extern s8 rl_m004_01728;             /* the number of copies waiting */
 extern M004Copy *rl_m004_01880[];     /* the copies waiting */
-#ifdef NON_MATCHING
-static void func_m004_015A8(M004Copy *copy);
-#else
-void rl_m004_015A8(M004Copy *copy);
-#define func_m004_015A8 rl_m004_015A8
-#endif
+static void shadow_texture_blur(M004Copy *copy);
 extern void func_8004DA10(void *arg0, void *arg1, s32 arg2, void *arg3); /* starts a task */
 extern s32 func_80096910(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 extern OSMesgQueue D_800FE8A8;
@@ -173,12 +168,12 @@ void func_m004_001BC(void) {
             func_8004DA10(c->unk28, c->unk30, 3, c->unk20);
             c->pending = FALSE;
             if (prev != NULL) {
-                func_m004_015A8(prev);
+                shadow_texture_blur(prev);
             }
             func_80096910(&D_800FE8A8, &msg, OS_MESG_BLOCK);
         }
     }
-    func_m004_015A8(c);
+    shadow_texture_blur(c);
     rl_m004_01728 = 0;
 }
 
@@ -415,18 +410,15 @@ static void copy_models(Object *obj, M004Copy *copy, s32 arg2, s32 arg3) {
     }
 }
 
-#ifdef NON_MATCHING
 /*
- * Blurs the copy's 64x64 shadow texture, then halves its intensities.
- * NON_MATCHING: ROM length now (the dead copy back into `sum` comes from `sum >>= 3`; sum is dead after it),
- * but the ROM copies the unshifted sum and shifts in a temporary: 8 diffs, the x counter's dead copy order
- * and the t-registers after it.
+ * Blurs the copy's 64x64 shadow texture, then halves its intensities (module m004, 0x015A8).
+ * The sum is a u16 (it is at most 9 * 255): the ROM keeps the unshifted total in sum's register.
  */
-static void func_m004_015A8(M004Copy *copy) {
+static void shadow_texture_blur(M004Copy *copy) {
     u8 *p = copy->unk20;
     s32 y;
     s32 x;
-    s32 sum;
+    u16 sum;
     u32 *q;
 
     y = 62;
@@ -435,7 +427,7 @@ static void func_m004_015A8(M004Copy *copy) {
         while (x--) {
             sum = p[0];
             sum += p[1] + p[2] + p[0x40] + p[0x42] + p[0x80] + p[0x81] + p[0x82];
-            p[0x41] = sum >>= 3;
+            p[0x41] = sum >> 3;
             p++;
         }
         p += 2;
@@ -447,9 +439,6 @@ static void func_m004_015A8(M004Copy *copy) {
         q++;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m004", func_m004_015A8);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m004", data);
 
