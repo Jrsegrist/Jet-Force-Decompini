@@ -4800,9 +4800,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
 
 #ifdef NON_MATCHING
 /*
- * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer and a continue-style inner
- * loop, which IDO doesn't unroll) and a separate counter for the last two loops; the clear loop's pointer
- * and counter have v1/a0 the other way round, and the triangle loop's registers differ.
+ * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer walked in a continue-style
+ * inner loop, which IDO doesn't unroll, stores in field order) and a separate counter for the last two
+ * loops; the triangle loop's registers differ (the ROM has k in a3, n in t0, the last counter in a0).
  */
 void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     M068Strip *m = obj->unk68;
@@ -4821,13 +4821,14 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
-            p[j].y = 0;
-            p[j].x = 0;
-            p[j].z = 0;
-            p[j].r = 255;
-            p[j].g = 255;
-            p[j].b = 255;
-            p[j].a = 255;
+            p->x = 0;
+            p->y = 0;
+            p->z = 0;
+            p->r = 255;
+            p->g = 255;
+            p->b = 255;
+            p->a = 255;
+            p++;
             j++;
             if (j < 72) continue;
             break;
