@@ -67,8 +67,69 @@ typedef struct ScreenViewport {
     /* 0x30 */ s32 flags;
 } ScreenViewport;
 
-extern ScreenViewport gScreenViewports[4];
-extern MtxF gOrthoMatrixF;
+/* DKR's Vertex (Size: 10 bytes) */
+typedef struct CameraVertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} CameraVertex;
+
+/* DKR's ObjectTransform (Size: 0x18 bytes) */
+typedef struct CameraTransform {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+} CameraTransform;
+
+/* .data: this file's from 0x800A2ED0 to 0x800A3170 (the yaml's 40240 .data piece; the rest of it is still asm).
+   DKR camera.c's .data (CC0), with JFG's changes. */
+s32 D_800A2ED0 = 0; // JFG: the number of D_800FA658 entries (DKR has gAntiPiracyViewport here)
+
+// x1, y1, x2, y2; posX, posY, width, height; scissorX1, scissorY1, scissorX2, scissorY2; flags
+#define DEFAULT_VIEWPORT 0, 0, 320, 240, 160, 120, 320, 240, 0, 0, 320 - 1, 240 - 1, 0
+
+ScreenViewport gScreenViewports[4] = {
+    { DEFAULT_VIEWPORT },
+    { DEFAULT_VIEWPORT },
+    { DEFAULT_VIEWPORT },
+    { DEFAULT_VIEWPORT },
+};
+
+s32 gViewportWithBG = FALSE;
+
+CameraVertex D_800A2FA8 = { 0, 0, 0, 255, 255, 255, 255 }; // DKR: gVehiclePartVertex (unused here)
+
+// The viewport z-range below is half of the max (511)
+#define G_HALFZ (G_MAXZ / 2)
+#define VIEWPORT_DEFAULT { { { 0, 0, G_HALFZ, 0 }, { 0, 0, G_HALFZ, 0 } } }
+
+// RSP Viewports
+Vp gViewportStack[20] = {
+    VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT,
+    VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT,
+    VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT,
+    VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT, VIEWPORT_DEFAULT,
+};
+
+CameraTransform D_800A30F8 = { { 0, 0, 0 }, 0, 1.0f, 0.0f, 0.0f, -281.0f }; // DKR: D_800DD288
+CameraTransform D_800A3110 = { { 0, 0, 0 }, 0, 1.0f, 0.0f, 0.0f, 0.0f };    // DKR: D_800DD2A0
+
+MtxF gOrthoMatrixF = {
+    { 1.0f, 0.0f, 0.0f, 0.0f },
+    { 0.0f, 1.0f, 0.0f, 0.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.0f, 0.0f, 0.0f, 160.0f },
+};
+
+f32 D_800A3168 = 1.0f; // JFG: the perspective matrix's x scale over the default one's
+u8 D_800A316C = 0;     // JFG: which of the 16 perspective matrices is current
 
 #define CAMERA_DEFAULT_FOV 60.0f
 #define CAMERA_ASPECT 1.3333334f
@@ -700,7 +761,6 @@ void set_ortho_matrix_height(f32 value) {
 }
 
 extern u16 perspNorm;   // the perspective normalisation value
-extern s16 D_800A30F8[]; // an ObjectTransform (DKR: D_800DD288)
 extern MtxF D_800FAFF8;  // DKR: gCurrentModelMatrixF
 extern MtxF gViewProjMatrixF;
 extern Vp gViewportStack[];
@@ -737,7 +797,7 @@ void mtx_ortho(Gfx **dList, Mtx **mtx) {
  */
 void mtx_perspective(Gfx **dList, Mtx **mtx) {
     gImmp1((*dList)++, G_RDPHALF_1, perspNorm);
-    func_8004A1A0(D_800A30F8, &D_800FAFF8);
+    func_8004A1A0(D_800A30F8.rotation, &D_800FAFF8);
     func_80048C7C(&D_800FAFF8, &gPerspectiveMatrixF, &gViewProjMatrixF);
     func_80048D84(&gViewProjMatrixF, *mtx);
     gSPMatrix((*dList)++, OS_K0_TO_PHYSICAL((*mtx)++), G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
@@ -1170,12 +1230,9 @@ f32 get_distance_to_camera(f32 x, f32 y, f32 z) {
     return result;
 }
 
-#ifdef NON_MATCHING
 /**
  * Copy the ortho matrix.
  * JFG: (from DKR's mtx_ortho) its last element is half the framebuffer width.
- * NON_MATCHING (20 words, from 33, after the empty ifs on always-set values below): one extra lui: the target shares %hi of gOrthoMatrixF across its first loads,
- * which needs the matrix defined in this file (an extern gets a new lui per offset).
  */
 void func_80042134(MtxF *out) {
     UNUSED s32 pad;
@@ -1185,13 +1242,9 @@ void func_80042134(MtxF *out) {
     fb_size(&width, &height);
     for (i = 0; i < 15; i++) {
         ((f32 *) out)[i] = ((f32 *) gOrthoMatrixF)[i];
-        if (i) {}
     }
     (*out)[3][3] = width >> 1;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/40240", func_80042134);
-#endif
 
 typedef struct CameraShake {
     /* 0x00 */ s16 fadeInEnd; // JFG: the end of each phase, in frames

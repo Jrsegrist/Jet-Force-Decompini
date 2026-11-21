@@ -278,6 +278,8 @@ segments:
       - [0x9E610, asm]
       - [0x9FE50, asm]
       - [0xA1260, data, main]
+      - [0xA3AD0, .data, 40240]
+      - [0xA3D70, data, data_A3D70]
       - [0xA6F80, .data, printf]
       - [0xA70B0, data]
       - [0xA73A0, .data, 69050]

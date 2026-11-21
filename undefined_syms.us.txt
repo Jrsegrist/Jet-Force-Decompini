@@ -232,8 +232,6 @@ func_800402B0 = copy_framebuffer_size_to_coords;
 func_8003FF64 = viewport_menu_set;
 func_80040FE4 = viewport_reset;
 func_80040F2C = viewport_rsp_set;
-gViewportStack = 0x800A2FB8;
-gViewportWithBG = 0x800A2FA4;
 func_80041E24 = get_projection_matrix_s16;
 func_80041E0C = cam_get_cameras;
 func_80041DE0 = cam_get_active_camera;
@@ -242,8 +240,6 @@ gPerspectiveMatrix = 0x800FAB38;
 gActiveCameraID = 0x800FA630;
 gCurCamFOV = 0x800FB078;
 gInverseViewMatrixF = 0x800FAFB8;
-gOrthoMatrixF = 0x800A3128;
-gScreenViewports = 0x800A2ED4;
 gViewMatrixF = 0x800FAF78;
 
 /* ---- 55130.c ---- */
@@ -796,3 +792,9 @@ func_80056D24 = sprite_init_frame;
 D_800A67A4 = sTransitionVtx;
 D_800A67AC = sTransitionTris;
 D_800A67B4 = sTransitionTaskNum;
+/* 40240.c (0x800A2ED0-0x800A3170) */
+D_800A2ED4 = gScreenViewports;
+D_800A2F04 = gScreenViewports + 0x30;
+D_800A2FA4 = gViewportWithBG;
+D_800A2FB8 = gViewportStack;
+D_800A313C = gOrthoMatrixF + 0x14;
