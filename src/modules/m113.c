@@ -185,9 +185,9 @@ void func_m113_00000(Object *obj, M113Setup *setup) {
 }
 
 #ifdef NON_MATCHING
-/* Same size; differs in where `rate` is spilled (0x58, ROM 0x60), the register of the hit normal's z
-   (ROM keeps it in a caller-saved register spilled to dz's slot) and the register of the light pointer.
-   `if (obj) {}` and `if (dist) {}` (both set there) take it from 296 to 66 diffs. */
+/* Same size; differs in where `rate` is spilled (0x58, ROM 0x60) and some registers (19 aligned diffs).
+   `if (obj) {}` and `if (dist) {}` (both set there) took it from 296 to 66 diffs; the hit normal's z read as
+   `(&hit.normal.z)[0]`, `!m->hit`, and the dy/dz and burst.hitFloor/unk11 statement orders from 41 to 19. */
 void func_m113_002C8(Object *obj, s32 updateRate) {
     M113Rocket *m;
     HitResult hit;
@@ -213,7 +213,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
     m = obj->unk68;
     rate = updateRate;
     m->timer -= updateRate;
-    if (m->timer > 0 && obj->interactObj->hitPoints > 0 && m->hit == 0 &&
+    if (m->timer > 0 && obj->interactObj->hitPoints > 0 && !m->hit &&
         obj->interactObj->hitPoints == OBJ_STATE(obj, M113State)->health) {
         if (m->hit == 0) {
             if (m->kind == 1) {
@@ -239,8 +239,8 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                             dz = ia->parts[m->targetPart].pos.z;
                         }
                         dx = obj->trans.x_position - dx;
-                        dz = obj->trans.z_position - dz;
                         dy = obj->trans.y_position - dy;
+                        dz = obj->trans.z_position - dz;
                         dist = sqrtf(dx * dx + dz * dz);
                         if (dz == 0.0f) {
                             yaw = 0;
@@ -315,7 +315,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 func_80009A04(obj, m->hitPos.x - obj->trans.x_position, m->hitPos.y - obj->trans.y_position,
                               m->hitPos.z - obj->trans.z_position);
                 dx = hit.normal.x;
-                dist = hit.normal.z;
+                dist = (&hit.normal.z)[0];
                 if (dist) {}
                 dy = hit.normal.y;
                 m->hitYaw = func_80049C84(dx, dist) + 0x8000;
@@ -355,8 +355,8 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 burst.pitch = m->hitPitch;
                 burst.hitSomething = m->hit & 1;
                 burst.unk12 = func_8004470C()->unkE2;
-                burst.unk11 = 1;
                 burst.hitFloor = m->hit & 2;
+                burst.unk11 = 1;
                 burst.owner = owner;
                 spawned = func_80005F14(&burst, 1);
                 if (spawned != NULL) {

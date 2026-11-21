@@ -87,12 +87,14 @@ extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
 extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
 
 /*
- * All functions but update_beam_light match. That one has the ROM's length now
- * (x and y kept in their stack words) but differs in register allocation and
- * spills (frame 0x60 vs 0x58; the ROM keeps the radius in a stack slot and
- * computes radius * 0.4f right after loading it; the `light` local gives the
- * ROM's v0 test; an `if (&radius) {}` costs more than it fixes). The matching build includes its assembly
- * from ro/, with its own .rodata.
+ * All functions but update_beam_light match. That one has the ROM's length
+ * (x and y kept in their stack words) and, with beamRadius read at the call
+ * rather than through a `radius` local, the ROM's frame (0x58); 36 aligned
+ * diffs: the ROM loads the radius and computes radius * 0.4f (kept in f18)
+ * right after the last angle call, before the position, and passes the radius
+ * from a stack word (0x34). A local for radius * 0.4f, at any position, makes
+ * the frame long again. The `light` local gives the ROM's v0 test. The matching
+ * build includes its assembly from ro/, with its own .rodata.
  */
 #ifdef NON_MATCHING
 
@@ -105,7 +107,6 @@ static void update_beam_light(Object *obj, M124Light *l) {
     f32 cosY;
     f32 sinX;
     f32 cosX;
-    f32 radius;
     f32 h;
     s32 light;
 
@@ -118,7 +119,6 @@ static void update_beam_light(Object *obj, M124Light *l) {
         cosY = func_80049C30(obj->trans.rotation.y_rotation);
         sinX = func_80049C34(obj->trans.rotation.x_rotation);
         cosX = func_80049C30(obj->trans.rotation.x_rotation);
-        radius = l->beamRadius;
         h = l->beamLength * cosX;
         x = obj->trans.x_position - h * sinY;
         y = obj->trans.y_position + l->beamLength * sinX;
@@ -126,7 +126,7 @@ static void update_beam_light(Object *obj, M124Light *l) {
         if (l->beamLight != 0) {
             track_light_set_position(l->beamLight, x, y, z);
         } else {
-            l->beamLight = track_light_create(x, y, z, radius, radius * 0.4f, (l->r * l->intensity) >> 8,
+            l->beamLight = track_light_create(x, y, z, l->beamRadius, l->beamRadius * 0.4f, (l->r * l->intensity) >> 8,
                                          (l->g * l->intensity) >> 8, (l->b * l->intensity) >> 8);
         }
     }

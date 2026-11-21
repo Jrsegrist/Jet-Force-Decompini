@@ -115,7 +115,62 @@ void func_m143_00000(s32 dist, f32 *x, f32 *y, f32 *z) {
     *z = p->z;
 }
 
+extern void func_m003_0609C(s32 joint, f32 *x, f32 *y, f32 *z); /* a joint's position */
+extern s32 rl_m143_02F78; /* the last joint picked at random (.data) */
+
+#ifdef NON_MATCHING
+/*
+ * Where a group member aims: -1/-2 are fixed points off the object, -3..-7
+ * random joints (-3 never the same one twice running), -8 a point on the
+ * trail, any other value that joint.
+ * 7 aligned diffs, ROM length and frame: in the retry loop of case -3 IDO keeps
+ * &rl_m143_02F78 in s0, where the ROM loads it with lui/lw in the loop and
+ * stores with lui/sw (loop forms, goto, a static definition, volatile, a
+ * pointer local and other spellings tried: hc30 notes).
+ */
+void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
+    s32 joint;
+
+    switch (point) {
+        case -1:
+            *x = obj->trans.x_position + 332.0f;
+            *y = obj->trans.y_position + 183.0f;
+            *z = obj->trans.z_position - 388.0f;
+            break;
+        case -2:
+            *x = obj->trans.x_position - 332.0f;
+            *y = obj->trans.y_position + 183.0f;
+            *z = obj->trans.z_position - 388.0f;
+            break;
+        case -3:
+            do {
+                joint = func_80048E2C(9, 16);
+            } while (joint == rl_m143_02F78);
+            func_m003_0609C(rl_m143_02F78 = joint, x, y, z);
+            break;
+        case -4:
+            func_m003_0609C(func_80048E2C(11, 12), x, y, z);
+            break;
+        case -6:
+            func_m003_0609C(func_80048E2C(13, 14), x, y, z);
+            break;
+        case -5:
+            func_m003_0609C(func_80048E2C(9, 10), x, y, z);
+            break;
+        case -7:
+            func_m003_0609C(func_80048E2C(15, 16), x, y, z);
+            break;
+        case -8:
+            func_m143_00000(func_80005064(0x28), x, y, z);
+            break;
+        default:
+            func_m003_0609C(point, x, y, z);
+            break;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m143/ro", func_m143_0007C);
+#endif
 
 extern void effect_slot_start(s32 arg0, void *tex);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
