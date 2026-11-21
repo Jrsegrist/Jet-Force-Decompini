@@ -848,7 +848,9 @@ void audspat_point_set_pitch(void *audioPoint, u8 pitch);
    pointer's (the ROM reads the command's low byte before that store but stores it after). 42 words (from 57: frames
    u32 (it holds a u16 or u16 * 6 / 10, so every value is the same), the clock advanced in place, empty ifs on
    rate and frames, both set there); the frame keeps the old time variable's word. The int-cast read of
-   D_800A74EC in the clock compare (keeps its address in a register) took the aligned distance 89 -> 64. */
+   D_800A74EC in the clock compare (keeps its address in a register) took the aligned distance 89 -> 64.
+   The ROM divides signed (`div`): frames * 6 is at most 65535 * 6, so the (s32) cast gives the same quotient
+   and the ROM's instruction; declaring frames s32 instead re-colours the whole command block (64 -> 115). */
 void func_80077614(s32 updateRate) {
     s32 i;
     AnimPath *path;
@@ -876,7 +878,7 @@ void func_80077614(s32 updateRate) {
                     if (osTvType == 0) {
                         frames = ((u16 *) D_800A74CC)[0] >> 1;
                     } else {
-                        frames = frames * 6 / 10;
+                        frames = (s32) (frames * 6) / 10;
                         if (frames) {}
 
                     }
