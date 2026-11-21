@@ -6,10 +6,61 @@
 // The unreferenced debug strings at the start of this file's .rodata.
 INCLUDE_RODATA("asm/nonmatchings/2BAA0", D_800ABD10);
 
-extern f32 D_800F6DC4;
-extern void *D_800F6DC0;
 extern s32 D_800A2D38;
-extern s32 D_800F6DF8[24];
+
+typedef struct ViewPoint {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 unk6;
+    /* 0x08 */ f32 position[3];
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ f32 unk1C;
+} ViewPoint;
+
+/* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
+ * range that applies when the flag is set */
+typedef struct TrackZone {
+    /* 0x00 */ f32 enterRadius;
+    /* 0x04 */ f32 enterTop;
+    /* 0x08 */ f32 enterBottom;
+    /* 0x0C */ f32 exitRadius;
+    /* 0x10 */ f32 exitTop;
+    /* 0x14 */ f32 exitBottom;
+    /* 0x18 */ s32 flags; // 0x4000: enter height range, 0x8000: exit height range
+    /* 0x1C */ f32 offsetX;
+    /* 0x20 */ f32 offsetZ;
+    /* 0x24 */ f32 pos[3];
+} TrackZone;
+
+/* Size: 0x2C bytes */
+typedef struct ZoneTrack {
+    /* 0x00 */ u8 *obj;
+    /* 0x04 */ TrackZone *zone;
+    /* 0x08 */ f32 offsetX;
+    /* 0x0C */ f32 offsetZ;
+    /* 0x10 */ f32 unk10[7]; /* [2]: the camera blend (func_8002B3F0) */
+} ZoneTrack;
+
+/* This file's .bss (the yaml's 2BAA0 .bss piece, 0x800F6DA0-0x800F6F10), in the ROM's order. The modules and
+ * this file's asm functions use these too, so they are all global. */
+s32 gPlayerButtonsHeld;      /* 0x800F6DA0 */
+s32 gPlayerButtonsPressed;   /* 0x800F6DA4 */
+s32 gPlayerButtonsReleased;  /* 0x800F6DA8 */
+s32 gPlayerStickX;           /* 0x800F6DAC */
+s32 gPlayerStickY;           /* 0x800F6DB0 */
+s32 D_800F6DB4;              /* the raw stick x */
+s32 D_800F6DB8;              /* the raw stick y */
+s32 gPlayerInputLocked;      /* 0x800F6DBC */
+void *D_800F6DC0;            /* the player camera */
+f32 D_800F6DC4;              /* gravity */
+ViewPoint D_800F6DC8;
+s32 D_800F6DE8;
+s16 D_800F6DEC;              /* the start override (player_start_override_set) */
+s16 D_800F6DEE;
+s16 D_800F6DF0;
+s16 D_800F6DF2;
+s32 D_800F6DF8[24];
+ZoneTrack D_800F6E58[4];     /* one per player */
 
 /* JFG: flag word at 0x540 of a player's state block. */
 typedef struct RacerFlags {
@@ -308,15 +359,9 @@ void anim_sound_events_play(u8 *obj, f32 from, f32 speed) {
     }
 }
 
-/* Size: 0x2C bytes */
-typedef struct CameraBlend {
-    /* 0x00 */ f32 blend;
-    /* 0x04 */ u8 pad4[0x28];
-} CameraBlend;
-extern CameraBlend D_800F6E70[];
-
+/* JFG: a player's camera blend (D_800F6E70 in the asm: 0x18 into the zone track). */
 f32 func_8002B3F0(s32 index) {
-    return D_800F6E70[index].blend;
+    return D_800F6E58[index].unk10[2];
 }
 
 typedef struct Transform2BAA0 {
@@ -603,16 +648,6 @@ void func_8002C110(void) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002C118);
 
-typedef struct ViewPoint {
-    /* 0x00 */ s16 rotation[3];
-    /* 0x06 */ s16 unk6;
-    /* 0x08 */ f32 position[3];
-    /* 0x14 */ f32 unk14;
-    /* 0x18 */ f32 unk18;
-    /* 0x1C */ f32 unk1C;
-} ViewPoint;
-
-extern ViewPoint D_800F6DC8;
 void func_80042A74(ViewPoint *view, void *transform, s32 arg2, u8 arg3);
 
 void func_8002C908(u8 *obj, u8 *racer, f32 arg2) {
@@ -626,18 +661,15 @@ void func_8002C908(u8 *obj, u8 *racer, f32 arg2) {
     func_80042A74(&D_800F6DC8, D_800F6DC0, arg2, racer[0x574]);
 }
 
-extern s32 gPlayerButtonsPressed;
 s16 angle_lerp(s16 from, s16 to, f32 t);
 f32 func_80049BEC(f32 rate, s32 updateRate);
 /* The module trap called with floats in a2/a3; needs `func_80054530_ppfff = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_ppfff(u8 *arg0, u8 *arg1, f32 x, f32 y, f32 z);
 void func_80054530();
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (4 words; was 31): the target shares one `lui at` for the four free-view angle stores through
-   %lo(D_800F6DC8), which needs D_800F6DC8 defined in this file (a .bss split); with the extern each store gets its
-   own lui (2 words longer). The float stores through `D_800F6DC8.` and the angles through `view->` give the
-   target's address-register use (IDO folds `view` back to %lo and keeps the address for the others). */
+/* The float stores through `D_800F6DC8.` and the angles through `view->` give the ROM's address-register use (IDO
+   folds `view` back to %lo and keeps the address for the others); the angles share one `lui at` because
+   D_800F6DC8 is defined in this file. */
 /* JFG: player camera update: C buttons toggle the free view (0x3D); the camera module (racer 0x1FC/0x21C) is
  * given the object's position (and angles in the free view), and the camera eases to the result */
 void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
@@ -664,8 +696,8 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
     if (((Transform2BAA0 *) D_800F6DC0)->unk3D) {
         view->rotation[0] = *(s16 *) (obj + 0);
         view->rotation[1] = *(s16 *) (obj + 2);
-        view->unk6 = 0;
         view->rotation[2] = *(s16 *) (obj + 4);
+        view->unk6 = 0;
     } else {
         view->unk6 = 2;
     }
@@ -687,9 +719,6 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
     ((Transform2BAA0 *) D_800F6DC0)->position[1] += (y - ((Transform2BAA0 *) D_800F6DC0)->position[1]) * t;
     ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * t;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002C9A0);
-#endif
 
 /* JFG: what func_80018808 writes back here (the object hit, then the point) */
 typedef struct TrackHit2BAA0 {
@@ -791,8 +820,6 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CC70);
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002CF6C);
 
-extern s32 gPlayerButtonsHeld;
-
 /* JFG: an overhead player camera: buttons 8/4 lower/raise the height level at 0x3D (0..80), the camera follows the
    object's x and z and eases its y towards 512 * (level + 40) / 40 above the object, looking straight down. */
 void player_camera_overhead_update(u8 *obj, UNUSED s32 arg1, f32 updateRate) {
@@ -823,31 +850,6 @@ void player_camera_overhead_update(u8 *obj, UNUSED s32 arg1, f32 updateRate) {
     PLAYERCAM->rotation[1] = 0x4000;
     PLAYERCAM->rotation[2] = 0;
 }
-
-/* JFG: the zone of a zone object (its 0x68 block): an entry circle and a larger exit one, each with a height
- * range that applies when the flag is set */
-typedef struct TrackZone {
-    /* 0x00 */ f32 enterRadius;
-    /* 0x04 */ f32 enterTop;
-    /* 0x08 */ f32 enterBottom;
-    /* 0x0C */ f32 exitRadius;
-    /* 0x10 */ f32 exitTop;
-    /* 0x14 */ f32 exitBottom;
-    /* 0x18 */ s32 flags; // 0x4000: enter height range, 0x8000: exit height range
-    /* 0x1C */ f32 offsetX;
-    /* 0x20 */ f32 offsetZ;
-    /* 0x24 */ f32 pos[3];
-} TrackZone;
-
-/* Size: 0x2C bytes */
-typedef struct ZoneTrack {
-    /* 0x00 */ u8 *obj;
-    /* 0x04 */ TrackZone *zone;
-    /* 0x08 */ f32 offsetX;
-    /* 0x0C */ f32 offsetZ;
-    /* 0x10 */ f32 unk10[7];
-} ZoneTrack;
-extern ZoneTrack D_800F6E58[4];
 
 void *cam_get_active_camera(void);
 void player_camera_update(u8 *obj, Racer *racer, f32 rate);
@@ -1757,8 +1759,6 @@ void player_aim_angles_ease(s16 *obj, u8 *racer, f32 *pos, s32 updateRate) {
 }
 
 extern u8 *D_800A18B0;
-extern s32 gPlayerStickX;
-extern s32 gPlayerStickY;
 f32 func_80049C34(s32 angle);
 f32 func_80049C30(s32 angle);
 
@@ -2665,20 +2665,11 @@ s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 height, f32 radius) {
     return clear;
 }
 
-extern s32 gPlayerInputLocked;
-
 /* Locks (non-zero) or unlocks a player's latched input (0x80037244). */
 void player_input_lock_set(s32 arg0) {
     gPlayerInputLocked = arg0;
 }
 
-extern s32 gPlayerButtonsHeld;
-extern s32 gPlayerButtonsPressed;
-extern s32 gPlayerButtonsReleased;
-extern s32 gPlayerStickX;
-extern s32 gPlayerStickY;
-extern s32 D_800F6DB4;
-extern s32 D_800F6DB8;
 u16 input_held(s32 player);
 u16 input_released(s32 player);
 s32 input_clamp_stick_x(s32 player);
@@ -3695,10 +3686,7 @@ void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039FCC);
 
-extern s32 D_800F6DB4;
-extern s32 D_800F6DB8;
 extern u8 *D_800A18B0;
-extern s32 gPlayerButtonsHeld;
 extern f32 D_800A2E60[20];
 
 /* JFG: stick aiming for character type 7 (when 0x18E is clear): two buttons change the zoom (0x1EC, 1..5); the
@@ -3956,10 +3944,6 @@ void func_8003B590(u8 *obj, s32 index) {
     }
 }
 
-extern s16 D_800F6DEC;
-extern s16 D_800F6DEE;
-extern s16 D_800F6DF0;
-extern s16 D_800F6DF2;
 extern u8 D_800A2EB0;
 
 /* Stores a start position and angle for the next level entry (0x8003B620). */

@@ -800,3 +800,9 @@ D_800A313C = gOrthoMatrixF + 0x14;
 
 /* ---- round 30 (lev30main): C names now defined in C (the old `load_texture = 0x80055694;` line removed) ---- */
 func_80055694 = load_texture;
+
+/* ---- split34bss: asm references into 2BAA0.c's .bss (0x800F6DA0-0x800F6F10), now defined in C ---- */
+D_800F6DCA = D_800F6DC8 + 2;
+D_800F6DCC = D_800F6DC8 + 4;
+D_800F6DCE = D_800F6DC8 + 6;
+D_800F6E70 = D_800F6E58 + 0x18;
