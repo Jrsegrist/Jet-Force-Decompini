@@ -203,7 +203,10 @@ typedef struct M030Plane {
 extern f32 func_80097140(f32 x); /* square root */
 
 #ifdef NON_MATCHING
-/* register allocation (the ROM keeps more of the coordinates in stack slots) */
+/*
+ * register allocation (the ROM keeps more of the coordinates in stack slots): 620 words against the ROM's 611,
+ * frame 296 against 328 (625 words and twice the aligned distance before `(&...vertices[0])[k]` in the edge loop)
+ */
 /*
  * The triangles' planes, then one plane along each edge shared with another
  * triangle (and the edge flags).
@@ -318,7 +321,7 @@ static void hit_planes_build(M030ModelInstance *inst, M030Model *model, M030Hit 
                 c = model->triangles[j].vertices[k2] + base;
                 if (other < numPlanes) {
                     po = &HIT_PLANES(hit)[other];
-                    v = &inst->vertices[model->triangles[j].vertices[k] + base];
+                    v = &inst->vertices[(&model->triangles[j].vertices[0])[k] + base];
                     ya = v->y;
                     xa = v->x;
                     za = v->z;
