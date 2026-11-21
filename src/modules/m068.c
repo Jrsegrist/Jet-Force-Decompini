@@ -321,8 +321,7 @@ static Object *sPieces[6];       /* 12F70: the six pieces */
 static M068PartState sParts[11]; /* 12F88 */
 static u8 sBss130E8[0x230];
 static f32 sJointPos[126];       /* 13318: the joints' positions, x y z each */
-static Vec3f sDropPoints[4];     /* 13510: where they fall */
-static Vec3f sBss13540;
+static Vec3f sDropPoints[5];     /* 13510: where they fall; [4] (13540): a point of the second form's */
 static f32 sPlanes[2][4];        /* 13550: two planes (x, y, z, d) */
 static u8 sBss13570[0x80];
 static Vec3f sLandPoints[10];    /* 135F0: the landing points */
@@ -686,6 +685,7 @@ typedef struct M068Instance {
     /* 0x10 */ MtxF *frames[1];
     /* 0x14 */ u8 pad14[0x68 - 0x14];
     /* 0x68 */ Vec3f *points; /* where its sounds play */
+    /* 0x6C */ Vec3f *points2;
 } M068Instance;
 
 extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
@@ -1104,8 +1104,10 @@ static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate)
 static void func_m068_092F0(Object *obj, s32 index, s32 on);
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame);
 extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_067B4 func_m068_067B4
+static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_06AE0 func_m068_06AE0
 extern void rl_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -2527,9 +2529,185 @@ static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_067B4);
+/* What func_80005F14 spawns object 0x313 from */
+typedef struct M068BurstEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ u8 pad14[0x20 - 0x14];
+} M068BurstEntry;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06AE0);
+/* The debris a boulder breaks into, and the ring the boss throws up (an object entry) */
+typedef struct M068DebrisEntry {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 yaw;
+    /* 0x0C */ s16 pitch;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 scale;
+    /* 0x14 */ f32 speed;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ u8 unk1C;
+    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
+    /* 0x20 */ s32 unk20;
+} M068DebrisEntry;
+
+/*
+ * A second-form phase (unkAA 10): on event 0x40 it shakes the camera and throws up a burst and a ring of
+ * seven pieces of debris round model point 4. obj also holds the objects spawned (its own value is only
+ * read in the first arm): the ROM's frame has no word for a separate variable.
+ */
+static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    M068BurstEntry burst;
+    M068DebrisEntry debris;
+    Vec3f *p;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 r;
+    s16 iy;
+    s16 angle;
+    s32 i;
+
+    if (s->unkAA != 10) {
+        s->unkB0 = 0;
+        return;
+    }
+    if (s->unkBC == 0) {
+        s->cycleKind = 1;
+        func_m068_0BDC4(obj, s, 0x27, 0.0f);
+        s->unkBC |= 1;
+    } else if (s->events & 0x40) {
+        p = &inst->points2[4];
+        y = sCentreY;
+        x = p->x;
+        z = p->z;
+        cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
+        func_80003410(0x1CC, x, y, z, 4, NULL);
+        burst.objectID = 0x313;
+        burst.size = 20;
+        burst.unk3 = 0;
+        burst.unkA = 0x200;
+        burst.unkC = 2.0f;
+        burst.unk10 = 4.0f;
+        burst.x = x;
+        burst.y = iy = y;
+        burst.z = z;
+        obj = func_80005F14(&burst, 1);
+        if (obj != NULL) {
+            obj->level_entry = NULL;
+        }
+        debris.common.objectID = 0x14A;
+        debris.unkE = 60;
+        debris.pitch = 0x2000;
+        debris.unk1C = 100;
+        debris.unk20 = 0;
+        debris.unk18 = 0.15f;
+        debris.scale = 0.2f;
+        if (s->unkF != 0) {
+            r = 60.0f;
+            debris.speed = 6.0f;
+        } else {
+            r = 30.0f;
+            debris.speed = 5.0f;
+        }
+        angle = s->unk9A - 0x4000;
+        for (i = 0; i < 7; i++) {
+            debris.common.x = x - func_80049C34(angle) * r;
+            debris.common.y = iy + 15;
+            debris.common.z = z - func_80049C30(angle) * r;
+            debris.yaw = angle;
+            obj = func_80005F14(&debris, 1);
+            if (obj != NULL) {
+                obj->level_entry = NULL;
+            }
+            angle += 0x1554;
+        }
+    }
+    if (s->events & 0x80) {
+        s->unkB0 = 0;
+    }
+}
+
+/* A model as 06AE0 sees it */
+typedef struct M068HeightModel {
+    /* 0x00 */ u8 pad0[0x34];
+    /* 0x34 */ f32 *unk34;
+} M068HeightModel;
+
+/*
+ * A second-form phase (unkAA 5): on event 0x40 it shakes the camera and throws up a burst and a ring of
+ * debris at sDropPoints[4], lowered by the model's height. As in 067B4, obj also holds the objects spawned.
+ */
+static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    M068BurstEntry burst;
+    M068DebrisEntry debris;
+    f32 x;
+    f32 y;
+    f32 z;
+    s16 iy;
+    s16 angle;
+    s32 i;
+
+    if (s->unkAA != 5) {
+        s->unkB0 = 0;
+        return;
+    }
+    s->unk60 &= ~0x10;
+    if (s->unkBC & 1) {
+        func_m068_0BDC4(obj, s, 0x14, 0.0f);
+        s->unkBC &= ~1;
+    } else if (s->unkBC & 2) {
+        func_m068_0BDC4(obj, s, 0x16, 0.0f);
+        s->unk50 |= 0x100;
+        s->unkBC &= ~2;
+    }
+    if (s->events & 0x40) {
+        y = sDropPoints[4].y - ((M068HeightModel *) model)->unk34[14] * obj->trans.scale;
+        x = sDropPoints[4].x;
+        z = sDropPoints[4].z;
+        cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
+        func_80003410(0x1CC, x, y, z, 4, NULL);
+        burst.objectID = 0x313;
+        burst.size = 20;
+        burst.unk3 = 0;
+        burst.unkA = 0x200;
+        burst.unkC = 1.0f;
+        burst.unk10 = 2.0f;
+        burst.x = x;
+        burst.y = iy = y;
+        burst.z = z;
+        obj = func_80005F14(&burst, 1);
+        if (obj != NULL) {
+            obj->level_entry = NULL;
+        }
+        debris.common.objectID = 0x14A;
+        debris.unkE = 60;
+        debris.pitch = 0x2000;
+        debris.unk1C = 100;
+        debris.unk20 = 0;
+        debris.unk18 = 0.15f;
+        debris.scale = 0.2f;
+        debris.speed = 5.0f;
+        angle = s->unk9A - 0x4000;
+        for (i = 0; i < 7; i++) {
+            debris.common.x = x - func_80049C34(angle) * 30.0f;
+            debris.common.y = iy + 15;
+            debris.common.z = z - func_80049C30(angle) * 30.0f;
+            debris.yaw = angle;
+            obj = func_80005F14(&debris, 1);
+            if (obj != NULL) {
+                obj->level_entry = NULL;
+            }
+            angle += 0x1554;
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06E14);
 
@@ -3141,7 +3319,7 @@ static void func_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance
                 entry.y = p->y;
                 entry.z = p->z;
                 if (i == 2) {
-                    next = &sBss13540;
+                    next = &sDropPoints[4];
                 } else {
                     next = p + 1;
                 }
@@ -4538,20 +4716,6 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     }
     rl_m068_125FC++;
 }
-
-/* The debris a boulder breaks into (an object entry) */
-typedef struct M068DebrisEntry {
-    /* 0x00 */ LevelObjectEntryCommon common;
-    /* 0x0A */ s16 yaw;
-    /* 0x0C */ s16 pitch;
-    /* 0x0E */ s16 unkE;
-    /* 0x10 */ f32 scale;
-    /* 0x14 */ f32 speed;
-    /* 0x18 */ f32 unk18;
-    /* 0x1C */ u8 unk1C;
-    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
-    /* 0x20 */ s32 unk20;
-} M068DebrisEntry;
 
 /* The dust a boulder leaves where it hits (an object entry) */
 typedef struct M068DustEntry {
