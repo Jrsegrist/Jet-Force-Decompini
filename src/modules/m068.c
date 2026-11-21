@@ -1214,9 +1214,11 @@ extern s16 rl_m068_12610;       /* set: find the centre's height again */
 #ifdef NON_MATCHING
 /*
  * The boss's control: its centre's height, its actions, its parts' damage and angles, and its joints.
- * Same length and saved registers as the ROM; the unrolled joint-position loop (42) is scheduled
- * differently (the ROM keeps i+1, i+2, i+3 in one register, t5), which renumbers the t-registers of
- * the matrix copies after it.
+ * Same length, frame and saved registers as the ROM, and the same code up to the joint-position loop (42).
+ * There the ROM's code generator takes one more temporary register per unrolled copy, right after loading
+ * inst->frames[inst->frame] (as `i & -1` in the index would, but with no instruction), so it keeps i+1, i+2,
+ * i+3 in one register (t5) and every t-register after the loop is numbered differently. The matrix copies'
+ * shape (base + offset order, dst/src order) is the ROM's.
  */
 void func_m068_024EC(Object *obj, s32 updateRate) {
     M068Instance *inst;
@@ -1536,19 +1538,21 @@ case 0:
         dst += 3;
     }
     if (sParts[2].scale != 0.01f && !(s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[2].joint];
+        src = (f32 *) inst->frames[inst->frame][rl_m068_1254C[2].joint];
+        dst = (f32 *) sMtx12B70;
         for (k = 0; k < 12; k++) {
-            ((f32 *) sMtx12B70)[k] = src[k];
+            dst[k] = src[k];
         }
     }
     if (sParts[3].scale != 0.01f && !(s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[3].joint];
+        src = (f32 *) inst->frames[inst->frame][rl_m068_1254C[3].joint];
+        dst = (f32 *) sMtx12BB0;
         for (k = 0; k < 12; k++) {
-            ((f32 *) sMtx12BB0)[k] = src[k];
+            dst[k] = src[k];
         }
     }
     if (sParts[6].scale != 0.01f && (s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[6].joint];
+        src = (f32 *) inst->frames[inst->frame][rl_m068_1254C[6].joint];
         dst = (f32 *) sMtx12C18;
         for (i = 0; i < 9; i++) {
             for (k = 0; k < 12; k++) {
@@ -1559,7 +1563,7 @@ case 0:
         }
     }
     if (sParts[5].scale != 0.01f && (s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[5].joint];
+        src = (f32 *) inst->frames[inst->frame][rl_m068_1254C[5].joint];
         dst = (f32 *) sMtx12E68;
         for (i = 0; i < 3; i++) {
             for (k = 0; k < 12; k++) {
@@ -1571,9 +1575,10 @@ case 0:
     }
     if (sParts[4].scale != 0.01f) {
         if (s->flags & 0x20) {
-            src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[4].joint];
+            src = (f32 *) inst->frames[inst->frame][rl_m068_1254C[4].joint];
+            dst = (f32 *) sMtx12F30;
             for (k = 0; k < 12; k++) {
-                ((f32 *) sMtx12F30)[k] = src[k];
+                dst[k] = src[k];
             }
         }
     }
