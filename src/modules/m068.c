@@ -1110,7 +1110,8 @@ static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_06AE0 func_m068_06AE0
 static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_06E14 func_m068_06E14
-extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0714C func_m068_0714C
 static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0758C func_m068_0758C
 extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -2803,7 +2804,94 @@ static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0714C);
+/*
+ * A second-form phase (unkAA 4): turns to face the player from joint section 0's joint, then (as 06E14)
+ * lays a line of pieces from model point 4 towards the player while its timer runs
+ */
+static void func_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f target;
+    Object *player;
+    Vec3f *jp;
+    M068FlameEntry entry;
+    Vec3f *p;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s16 yaw;
+    s16 pitch;
+    s32 i;
+
+    if (s->unkAA != 4) {
+        rl_m068_12608 = 1;
+        s->unkB0 = 0;
+        s->unk54 = 1;
+        s->timer = 0.0f;
+        return;
+    }
+    player = func_8000E4D0(0);
+    target.y = sCentreY + 30.0f;
+    jp = (Vec3f *) &sJointPos[rl_m068_1254C[0].joint * 3];
+    dx = player->trans.x_position - jp->x;
+    dy = target.y - jp->y;
+    dz = player->trans.z_position - jp->z;
+    yaw = func_80049C84(dx, dz) + 0x8000;
+    s->unk9A = rl_m068_0C7DC(s->unk9A, yaw, 0x200, updateRate);
+    s->unk9E = s->unk9A;
+    pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+    s->unk98 = rl_m068_0C7DC(s->unk98, pitch, 0x100, updateRate);
+    if (yaw == s->unk9A && pitch == s->unk98) {
+        s->unkBC |= 1;
+    }
+    if ((s->unkBC & 1) && !(s->unkBC & 2)) {
+        s->unkBC |= 2;
+        func_m068_0BDC4(obj, s, 0xF, 0.0f);
+    }
+    if (s->events & 0x10) {
+        rl_m068_12608 = 0;
+        s->cycleKind = 2;
+        s->timer = 2.0f;
+    }
+    if (s->timer > 0.0f) {
+        p = &inst->points[4];
+        entry.objectID = 0x252;
+        entry.size = 0x24;
+        entry.unk3 = 0;
+        entry.owner = obj;
+        dx = player->trans.x_position - p->x;
+        dy = target.y - p->y;
+        dz = player->trans.z_position - p->z;
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        dx /= d;
+        dy /= d;
+        dz /= d;
+        entry.unkA = 0x200;
+        entry.spacing = 20.0f;
+        entry.dir.x = dx;
+        entry.dir.y = dy;
+        entry.dir.z = dz;
+        for (i = 0; i < updateRate; i++) {
+            entry.x = p->x + dx * (i * entry.spacing);
+            entry.y = p->y + dy * (i * entry.spacing);
+            entry.z = p->z + dz * (i * entry.spacing);
+            entry.length = d - i * entry.spacing;
+            player = func_80005F14(&entry, 1);
+            if (player != NULL) {
+                player->level_entry = NULL;
+            }
+        }
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            s->unk1C |= 1;
+            s->unk18 = 0.5f;
+            rl_m068_12608 = 1;
+            s->unkB0 = 0;
+            s->unk54 = 1;
+            s->timer = 0.0f;
+            func_m068_0BDC4(obj, s, 0x11, 0.0f);
+        }
+    }
+}
 
 /* What func_80005F14 spawns object 0x30E from: a bolt from a model point to the player */
 typedef struct M068BoltEntry {
