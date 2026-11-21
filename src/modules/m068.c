@@ -77,8 +77,7 @@ typedef struct M068State {
     /* 0xBA */ s16 unkBA;
     /* 0xBC */ s16 unkBC;
     /* 0xBE */ s16 unkBE;
-    /* 0xC0 */ f32 unkC0;
-    /* 0xC4 */ f32 unkC4;
+    /* 0xC0 */ f32 unkC0[2]; /* a direction (x, z) */
     /* 0xC8 */ s32 unkC8; /* damage taken this frame */
 } M068State;
 
@@ -1660,7 +1659,31 @@ static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate)
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_03A78);
 #endif
 
+#ifdef NON_MATCHING
+/* Starts phase 11 of the second form: the player watches from joint section 6 */
+/* Matches; only assembly calls it, so it stays asm until its callers are C. */
+static void func_m068_03C70(Object *obj, M068State *s) {
+    M068Player *player;
+
+    player = func_8000E4D0(0)->unk68;
+    player->unk18E = 1;
+    player->unk5C8 = 0x7D00;
+    func_m006_015E0(1);
+    rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 4, 0);
+    func_m068_092F0(obj, 5, 0);
+    func_m068_092F0(obj, 6, 0);
+    s->unkA8 = 0;
+    s->unkAA = 11;
+    func_m068_0BDC4(obj, s, 0x25, 0.0f);
+    if (s->sound58 != 0) {
+        func_80003614(s->sound58);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03C70);
+#endif
 
 /* Phase 11 of the second form */
 #ifdef NON_MATCHING
@@ -1687,7 +1710,31 @@ static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate)
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03D58);
 #endif
 
+#ifdef NON_MATCHING
+/* Starts phase 12 of the second form: the player watches from joint section 5 */
+/* Matches; only assembly calls it, so it stays asm until its callers are C. */
+static void func_m068_03E24(Object *obj, M068State *s) {
+    M068Player *player;
+
+    player = func_8000E4D0(0)->unk68;
+    player->unk18E = 1;
+    player->unk5C8 = 0x7D00;
+    func_m006_015E0(1);
+    rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[5].joint * 3];
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 4, 0);
+    func_m068_092F0(obj, 5, 0);
+    func_m068_092F0(obj, 6, 0);
+    s->unkA8 = 0;
+    s->unkAA = 12;
+    func_m068_0BDC4(obj, s, 0x26, 0.0f);
+    if (s->sound58 != 0) {
+        func_80003614(s->sound58);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03E24);
+#endif
 
 /* Phase 12 of the second form */
 #ifdef NON_MATCHING
@@ -1714,11 +1761,67 @@ static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate)
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03F0C);
 #endif
 
+#ifdef NON_MATCHING
+/* Starts phase 13 of the second form: the player watches from joint section 4, 300 up */
+/* Matches; only assembly calls it, so it stays asm until its callers are C. */
+static void func_m068_03FD8(Object *obj, M068State *s) {
+    M068Player *player;
+
+    player = func_8000E4D0(0)->unk68;
+    player->unk18E = 1;
+    player->unk5C8 = 0x7D00;
+    func_m006_015E0(1);
+    rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[4].joint * 3];
+    rl_m068_12620 = 300.0f;
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 4, 0);
+    func_m068_092F0(obj, 5, 0);
+    func_m068_092F0(obj, 6, 0);
+    s->unk14 = 0;
+    s->unkA8 = 0;
+    s->unkAA = 13;
+    s->timer = 0.0f;
+    func_m068_0BDC4(obj, s, 0x2F, 0.0f);
+    if (s->sound58 != 0) {
+        func_80003614(s->sound58);
+    }
+    s->unk50 |= 0x800;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03FD8);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_040EC);
 
+#ifdef NON_MATCHING
+/* Starts phase 14 of the second form: the player watches from joint section 4, 300 up */
+/* Matches; only assembly calls it, so it stays asm until its callers are C. */
+static void func_m068_0447C(Object *obj, M068State *s) {
+    M068Player *player;
+
+    player = func_8000E4D0(0)->unk68;
+    player->unk18E = 1;
+    player->unk5C8 = 0x7D00;
+    func_m006_015E0(1);
+    rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[4].joint * 3];
+    rl_m068_12620 = 300.0f;
+    chain_object_unlink_from_players(obj);
+    func_m068_092F0(obj, 4, 0);
+    func_m068_092F0(obj, 5, 0);
+    func_m068_092F0(obj, 6, 0);
+    s->unk14 = 0;
+    s->unkA8 = 0;
+    s->unkAA = 14;
+    s->timer = 0.0f;
+    func_m068_0BDC4(obj, s, 0x32, 0.0f);
+    if (s->sound58 != 0) {
+        func_80003614(s->sound58);
+    }
+    s->unk50 |= 0x800;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0447C);
+#endif
 
 /* Phase 14 of the second form: its event ends the level */
 #ifdef NON_MATCHING
@@ -1966,9 +2069,9 @@ static void func_m068_053AC(Object *obj, M068State *s) {
         s->unkAC = 2;
         s->unk20 = 1.0f;
         s->unk24 = dx;
-        s->unkC0 = -dx;
+        s->unkC0[0] = -dx;
         s->unk28 = dz;
-        s->unkC4 = -dz;
+        s->unkC0[1] = -dz;
     } else {
         s->unkAC = 1;
     }
@@ -2026,8 +2129,8 @@ static void func_m068_05570(Object *obj, M068State *s) {
     s->unk20 = 1.0f;
     s->unk24 = dx;
     s->unk28 = dz;
-    s->unkC0 = -dx;
-    s->unkC4 = -dz;
+    s->unkC0[0] = -dx;
+    s->unkC0[1] = -dz;
     s->unk40 = sDropPoint.y;
     chain_object_unlink_from_players(obj);
     func_m068_092F0(obj, 2, 0);
@@ -2121,7 +2224,27 @@ static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate)
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0577C);
 #endif
 
+#ifdef NON_MATCHING
+/* Back to phase 4 (unkAA): lands, with no landing point picked yet */
+/* Matches; only assembly calls it, so it stays asm until its callers are C. */
+static void func_m068_05964(Object *obj, M068State *s) {
+    func_m068_092F0(obj, 2, 0);
+    s->unkBA = -1;
+    s->unk14 = 0;
+    s->unkBC = 0;
+    s->unkB0 = 0;
+    s->unkAC = 1;
+    s->unkA8 = 1;
+    s->unkAA = 4;
+    s->timer = 0.0f;
+    s->unk34 = 20.0f;
+    if (obj->animationID != 0xD) {
+        func_m068_0BDC4(obj, s, 0xD, 0.0f);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05964);
+#endif
 
 #ifdef NON_MATCHING
 /* Phase 4 of the first form: jumps between the landing points; the player in reach is caught */
@@ -2158,9 +2281,9 @@ static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate)
                 dz /= d;
                 s->unk20 = 1.0f;
                 s->unk24 = dx;
-                s->unkC0 = -dx;
+                s->unkC0[0] = -dx;
                 s->unk28 = dz;
-                s->unkC4 = -dz;
+                s->unkC0[1] = -dz;
                 s->unkAC = 2;
                 s->unk14++;
                 s->unkBA = n;
@@ -2200,8 +2323,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
 #ifdef NON_MATCHING
 /* Steers the first form towards target: slows to stop there, turns its body (unk98/unk96) into the motion; 1 while it moves */
 /*
- * Matches (staged: its callers and m068's .rodata wait for the gate 024EC). unkC0/unkC4 are a 2-vector here:
- * the first dot product reads unkC4 as (&s->unkC0)[1], the only spelling that loads it before dir[1].
+ * Matches (staged: its callers and m068's .rodata wait for the gate 024EC). unkC0 is an f32[2]: with array
+ * reads the second dot product is written unk24 term first (the order IDO loads the operands in).
  */
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate) {
     f32 dir[2];
@@ -2223,12 +2346,12 @@ static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s3
         dir[0] = 0.0f;
         dir[1] = 0.0f;
     }
-    along = dir[0] * s->unkC0 + dir[1] * (&s->unkC0)[1];
+    along = dir[0] * s->unkC0[0] + dir[1] * s->unkC0[1];
     dx = obj->trans.x_position - target->x;
     dz = obj->trans.z_position - target->z;
     dist = func_80097140(dx * dx + dz * dz);
     if (speed * along < 0.0f) {
-        along = s->unkC4 * s->unk28 + s->unk24 * s->unkC0;
+        along = s->unk24 * s->unkC0[0] + s->unkC0[1] * s->unk28;
         if (dist <= -(speed * speed) / (along + along)) {
             s->unk24 = -dir[0];
             s->unk28 = -dir[1];
@@ -2617,7 +2740,37 @@ static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_09088);
 #endif
 
+#ifdef NON_MATCHING
+/* Part i is destroyed: it shrinks away and its joints can no longer be hit (their radii scaled with it) */
+/* Matches; only assembly calls it, so it stays asm until its callers are C. */
+static void func_m068_09218(Object *obj, s32 i) {
+    M068PartState *part;
+    M068Hits *hits;
+    M068Section *sec;
+    M068Joint *joint;
+    s32 k;
+
+    sec = &rl_m068_1254C[i];
+    part = &sParts[i];
+    hits = (M068Hits *) obj->interactObj;
+    part->angle[0] = 0;
+    part->angle[1] = 0;
+    part->angle[2] = 0;
+    part->target[0] = 0;
+    part->target[1] = 0;
+    part->target[2] = 0;
+    part->scale = 0.01f;
+    part->alive = 0;
+    for (k = sec->first; k <= sec->last; k++) {
+        joint = &hits->joints[k];
+        joint->unk2F = 0;
+        joint->off = 1;
+        joint->radius = ((f32 *) sBss130E8)[k] * part->scale;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_09218);
+#endif
 
 /* Turns joint section `index` on (it can be hit, 100 damage) or off */
 #ifdef NON_MATCHING
