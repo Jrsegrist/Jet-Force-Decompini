@@ -93,20 +93,23 @@ extern u8 *func_8004AFE0(u8 *address);            /* aligns */
 extern s32 mempool_free_timer_get(s32 size);
 extern void func_8004AA08(s32 state);
 
-#ifdef NON_MATCHING
 static void model_hit_build(M030ModelInstance *inst, M030Model *model, M030Hit **slot);
+static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d);
+#ifdef NON_MATCHING
 static void hit_planes_build(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
 static void hit_edges_link(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
-static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d);
 static void hit_cells_build(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
 static s32 hit_edge_find(M030ModelInstance *inst, M030Model *model, s32 tri, M030Vertex *p, M030Vertex *q);
 s32 func_m030_01134(M030ModelInstance *inst, M030Model *model, s32 skip, s32 a, s32 b, s32 *outBatch,
                     s32 *outEdge);
 #else
-extern void rl_m030_000F4(M030ModelInstance *inst, M030Model *model, M030Hit **slot);
-#define model_hit_build rl_m030_000F4
-extern s32 rl_m030_012F0(M030Vertex *v, s32 a, s32 b, s32 c, s32 d);
-#define hit_edges_compare rl_m030_012F0
+/* the statics at 00288, 00C14 and 01508 (still assembly) */
+extern void rl_m030_00288(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
+#define hit_planes_build rl_m030_00288
+extern void rl_m030_00C14(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
+#define hit_edges_link rl_m030_00C14
+extern void rl_m030_01508(M030ModelInstance *inst, M030Model *model, M030Hit *hit);
+#define hit_cells_build rl_m030_01508
 #endif
 
 void func_m030_00000(Object *obj, s32 flags) {
@@ -135,8 +138,6 @@ void func_m030_00000(Object *obj, s32 flags) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Register choice: the ROM keeps ptr in a3 (as end), this gives v1 */
 static void model_hit_build(M030ModelInstance *inst, M030Model *model, M030Hit **slot) {
     M030Hit *block;
     s32 n;
@@ -147,6 +148,7 @@ static void model_hit_build(M030ModelInstance *inst, M030Model *model, M030Hit *
     s32 state;
 
     if (model->unk4E == 0 && *slot == NULL) {
+        if (model) {} /* register priority (model is always set) */
         block = func_8004A60C(0x8000, 0xFF0000FF);
         if (block != NULL) {
             p = (s32) block;
@@ -158,12 +160,15 @@ static void model_hit_build(M030ModelInstance *inst, M030Model *model, M030Hit *
             }
             *slot = block;
             block->unk0 = (u8 *) block + 0x14;
-            ptr = (u8 *) block + model->unk14 * 14;
-            ptr = func_8004AFE0(ptr + 0x14);
+            /* the header, then the edges (14 bytes per triangle), then aligned: 4 and 1 bytes per triangle */
+            end = (u8 *) block + model->unk14 * 14;
+            ptr = func_8004AFE0(end + 0x14);
             (*slot)->unk4 = ptr;
-            ptr += model->unk14 * 4;
-            (*slot)->unk8 = ptr;
-            end = func_8004AFE0(ptr + model->unk14);
+            end = ptr;
+            end += model->unk14 * 4;
+            (*slot)->unk8 = end;
+            end += model->unk14;
+            end = func_8004AFE0(end);
             hit_edges_link(inst, model, *slot);
             hit = *slot;
             hit->unkC = end;
@@ -184,9 +189,6 @@ static void model_hit_build(M030ModelInstance *inst, M030Model *model, M030Hit *
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_000F4);
-#endif
 
 /* A plane of the collision data (unkC) */
 typedef struct M030Plane {
@@ -524,11 +526,10 @@ s32 func_m030_01134(M030ModelInstance *inst, M030Model *model, s32 skip, s32 a, 
     return -1;
 }
 
-#ifdef NON_MATCHING
-/* load order: the ROM loads the second vertex's y and z first */
 /*
  * Compares edge (a, b) with edge (c, d): 1 if they use the same vertex
  * indices, 2 if their vertices are at the same places, else 0.
+ * (Each `p < q + 1` is p <= q: written that way, IDO loads p first as the ROM does.)
  */
 static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
     M030Vertex *pa;
@@ -541,20 +542,20 @@ static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
     }
     pc = &v[c];
     pa = &v[a];
-    if (pc->x - 1 < pa->x && pc->x >= pa->x && pc->y <= pa->y && pc->y >= pa->y && pc->z <= pa->z &&
+    if (pc->x - 1 < pa->x && pc->x >= pa->x && pc->y < pa->y + 1 && pc->y >= pa->y && pc->z < pa->z + 1 &&
         pc->z >= pa->z) {
         pb = &v[b];
         pd = &v[d];
-        if (pd->x <= pb->x && pd->x >= pb->x && pd->y <= pb->y && pd->y >= pb->y && pd->z <= pb->z &&
+        if (pd->x < pb->x + 1 && pd->x >= pb->x && pd->y < pb->y + 1 && pd->y >= pb->y && pd->z < pb->z + 1 &&
             pd->z >= pb->z) {
             return 2;
         }
     } else {
         pd = &v[d];
-        if (pd->x <= pa->x && pd->x >= pa->x && pd->y <= pa->y && pd->y >= pa->y && pd->z <= pa->z &&
+        if (pd->x < pa->x + 1 && pd->x >= pa->x && pd->y < pa->y + 1 && pd->y >= pa->y && pd->z < pa->z + 1 &&
             pd->z >= pa->z) {
             pb = &v[b];
-            if (pc->x - 1 < pb->x && pc->x >= pb->x && pc->y <= pb->y && pc->y >= pb->y && pc->z <= pb->z &&
+            if (pc->x - 1 < pb->x && pc->x >= pb->x && pc->y < pb->y + 1 && pc->y >= pb->y && pc->z < pb->z + 1 &&
                 pc->z >= pb->z) {
                 return 2;
             }
@@ -562,9 +563,6 @@ static s32 hit_edges_compare(M030Vertex *v, s32 a, s32 b, s32 c, s32 d) {
     }
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m030", func_m030_012F0);
-#endif
 
 #ifdef NON_MATCHING
 /* register choice: the ROM gives lo/hi/n a0/v0/v1 and the mask t0 */
