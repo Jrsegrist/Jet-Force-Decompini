@@ -877,8 +877,8 @@ void func_8002333C(void *arg0, void *arg1, void *arg2, void *buf);
 #ifdef NON_MATCHING
 /* JFG: shade a model instance: its lights (scaled by shade->unk0 for this call) and an environment
    direction from the camera when the model has one.
-   NON_MATCHING: the frame is 8 bytes smaller (the target has two more words below localMtx) and the
-   scaled brightness values land in v0/v1 instead of t2/t3. */
+   NON_MATCHING: one word long (47 aligned diffs, from 72); the scaled brightness values land in v0/v1 instead of
+   t2/t3. The pad after dir gives the target's frame (two more words at the bottom). */
 void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *shade, MtxF *matrix) {
     s32 n;
     s32 max;
@@ -892,6 +892,7 @@ void func_800221F0(ShadeObject *obj, ShadeModelInstance *inst, ShadeProperties *
     s32 newMax;
     s32 newMin;
     f32 dir[3];
+    UNUSED s32 pad[2];
 
     model = inst->model;
     if (shade == NULL && model->unk70 == NULL) {

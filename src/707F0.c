@@ -883,12 +883,14 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 /* JFG: find the cached glyph of the current font, or load it into free cache blocks (keeping the 16
    bytes the glyph's header overwrites in front of its block).
    NON_MATCHING (83 words, from 152, after the empty ifs on always-set values below): the target keeps the 4-word save as a loop (IDO unrolls this one), ch out of $s0,
-   and other argument registers for the counters (frame 0x70). */
+   and other argument registers for the counters. At the ROM's frame (0x70) with the pad after blocks: 90 aligned
+   diffs (93 at 0x60). */
 GlyphCacheEntry *glyph_cache_get(u8 ch) {
     GlyphCacheEntry *entry;
     FontData *font;
     s32 i;
     s32 blocks;
+    UNUSED s32 pad[4];
     s32 run;
     u32 *src;
     u32 *dst;

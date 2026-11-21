@@ -2651,7 +2651,9 @@ void func_80069BE8(Gfx **dList, void *mesh, s32 flags, u8 alpha);
 extern u8 D_800A0C2C[];
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: from the joint matrix statement on, every t-register is one lower than the target's */
+/* NON_MATCHING (46 aligned diffs, from 74): the swap temporaries of the sort are in a0/a1 (target a1/a2), and the
+   t-registers after them one lower. The joint matrix address as a pre-shifted f32 index (16 floats a matrix)
+   gives the target's extra temporary there. */
 /* JFG: draw a player's (up to four) effect meshes at their model points, farthest first, each with its joint
    matrix; then the module's extra effect (racer 0x550) if there is one. */
 void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
@@ -2676,7 +2678,7 @@ void func_8000C6E0(Gfx **dList, s32 arg1, Object *obj) {
             order[count] = count;
             depth[count] = get_distance_to_camera(point[0], point[1], point[2]);
             effects[count] = eff;
-            mtx[count] = (racer->effectMtx[i] << 6) + (u32) model->matrices[model->matrixIndex];
+            mtx[count] = (u32) ((f32 *) model->matrices[model->matrixIndex] + (racer->effectMtx[i] << 4));
             alpha[count] = racer->effectAlpha[i];
             count++;
         }
