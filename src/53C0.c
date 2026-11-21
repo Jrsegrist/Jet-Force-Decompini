@@ -2587,17 +2587,15 @@ void mtx_model_push(Gfx **dList, Mtx **mtx, f32 *in);
 void mtx_pop(Gfx **dList);
 void rendermode_reset(Gfx **dList);
 
-#ifdef NON_MATCHING
 /* JFG: draw the object's held item (slot as in func_8000BC28) with the matrix, lighting it and
-   animating its textures first when it asks.
-   NON_MATCHING: one word longer: the target keeps the 0x80000000 segment constant in one register for all four
-   display-list words (here it is materialised twice), so the later temporaries are numbered differently. */
+   animating its textures first when it asks. */
 void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     Object *held;
     ObjectAttachment *item;
     Gfx *dl;
     s16 *texOffsets;
     Object_Racer *racer;
+    u32 seg; // the KSEG0 offset, added to each address (one register for all four words, as in the ROM)
 
     if (D_800A0A20 == 0) {
         racer = obj->racer; // read before the behaviour test (the ROM loads it there too)
@@ -2631,13 +2629,13 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
                     } else {
                         texOffsets = D_800A0838;
                     }
+                    seg = 0x80000000;
                     mtx_model_push(&gObjectCurrDisplayList, &gObjectCurrMatrix, mtx);
                     fast3d_cmd(gObjectCurrDisplayList++,
-                               (((u32) item->matrices[item->matrixIndex] + 0x80000000) & 0xFFFFFF) | 0xBF000000,
-                               (u32) item->vertices + 0x80000000);
-                    fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + 0x80000000);
-                    fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + 0x80000000);
-                    if (arg2) {}
+                               (((u32) item->matrices[item->matrixIndex] + seg) & 0xFFFFFF) | 0xBF000000,
+                               (u32) item->vertices + seg);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0x02000050, (u32) texOffsets + seg);
+                    fast3d_cmd(gObjectCurrDisplayList++, 0x06000000, (u32) dl + seg);
                     fast3d_cmd(gObjectCurrDisplayList++, 0xBF000000, 0);
                     mtx_pop(&gObjectCurrDisplayList);
                     rendermode_reset(&gObjectCurrDisplayList);
@@ -2646,9 +2644,6 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000BE5C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
 
