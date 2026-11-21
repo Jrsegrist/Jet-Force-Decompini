@@ -62,7 +62,7 @@ typedef struct M068State {
     /* 0x96 */ s16 unk96;
     /* 0x98 */ s16 unk98;
     /* 0x9A */ s16 unk9A;
-    /* 0x9C */ u8 pad9C[0x9E - 0x9C];
+    /* 0x9C */ s16 unk9C; /* 07D68: how fast the strips' aim point circles */
     /* 0x9E */ s16 unk9E; /* the yaw unk9A turns to */
     /* 0xA0 */ u8 padA0[0xA8 - 0xA0];
     /* 0xA8 */ s16 unkA8;
@@ -321,8 +321,7 @@ static Object *sPieces[6];       /* 12F70: the six pieces */
 static M068PartState sParts[11]; /* 12F88 */
 static u8 sBss130E8[0x230];
 static f32 sJointPos[126];       /* 13318: the joints' positions, x y z each */
-static Vec3f sDropPoints[4];     /* 13510: where they fall */
-static Vec3f sBss13540;
+static Vec3f sDropPoints[5];     /* 13510: where they fall; [4] (13540): a point of the second form's */
 static f32 sPlanes[2][4];        /* 13550: two planes (x, y, z, d) */
 static u8 sBss13570[0x80];
 static Vec3f sLandPoints[10];    /* 135F0: the landing points */
@@ -686,6 +685,7 @@ typedef struct M068Instance {
     /* 0x10 */ MtxF *frames[1];
     /* 0x14 */ u8 pad14[0x68 - 0x14];
     /* 0x68 */ Vec3f *points; /* where its sounds play */
+    /* 0x6C */ Vec3f *points2;
 } M068Instance;
 
 extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
@@ -1037,7 +1037,7 @@ typedef struct M068ColourCycle {
     /* 0x8 */ u8 r; /* the current colour */
     /* 0x9 */ u8 g;
     /* 0xA */ u8 b;
-    /* 0xB */ u8 padB;
+    /* 0xB */ u8 unkB; /* 0758C waits for 0xE6 */
     /* 0xC */ s32 *unkC;
 } M068ColourCycle;
 
@@ -1065,7 +1065,8 @@ static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate)
 static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+static void func_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#define rl_m068_040EC func_m068_040EC
 static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_04600(Object *obj, M068State *s);
 static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
@@ -1082,12 +1083,8 @@ static void func_m068_047F8(Object *obj, M068State *s);
 static void func_m068_05028(Object *obj, M068State *s);
 #define rl_m068_05028 func_m068_05028
 extern s32 rl_m068_125DC;      /* (.data) how many landing points */
-#ifdef NON_MATCHING
 static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #define rl_m068_04A60 func_m068_04A60
-#else
-extern void rl_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
 static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #define rl_m068_05100 func_m068_05100
 static void func_m068_053AC(Object *obj, M068State *s);
@@ -1108,14 +1105,22 @@ static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate)
 static void func_m068_092F0(Object *obj, s32 index, s32 on);
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame);
 extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_067B4 func_m068_067B4
+static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_06AE0 func_m068_06AE0
+static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_06E14 func_m068_06E14
+static void func_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0714C func_m068_0714C
+static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0758C func_m068_0758C
+static void func_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_078F4 func_m068_078F4
+static void func_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_07D68 func_m068_07D68
+static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_083C8 func_m068_083C8
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -1686,7 +1691,73 @@ static void func_m068_03FD8(Object *obj, M068State *s) {
     s->unk50 |= 0x800;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_040EC);
+extern void light_toggle(void *light);
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+extern s32 transition_begin(void *transition);
+extern u8 rl_m068_12500[];     /* (.data) the transition it starts */
+extern Object *rl_m068_124F0;  /* (.data) the four objects spawned */
+extern Object *rl_m068_124F4;
+extern Object *rl_m068_124F8;
+extern Object *rl_m068_124FC;
+
+/*
+ * The boss's death (after 024EC): it slides to a stop, then bursts at joint section 1, frees the four
+ * objects it spawned and, after two seconds, goes to level 0x175
+ */
+static void func_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    sParts[1].target[0] = 0;
+    if (obj->light != NULL) {
+        light_toggle((void *) *obj->light);
+    }
+    if (s->sound5C != 0) {
+        func_800035E8(s->sound5C, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+    }
+    if (s->unk14 == 0) {
+        if (s->events & 0x2000) {
+            sParts[4].hit = 1;
+        } else if (s->events & 0x8000) {
+            rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[0].joint * 3];
+            s->unk2C = func_80049C34(s->unk9A) * 10.0f;
+            s->unk38 = 1.0f;
+            s->unk30 = func_80049C30(s->unk9A) * 10.0f;
+            s->unk3C = 1.0f;
+            s->timer = 5.0f;
+        } else if (obj->animationID == 0x30) {
+            s->unk60 |= 0xF;
+            s->unk98 += updateRate << 9;
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->unk2C = 0.0f;
+                s->unk38 = 0.0f;
+                s->unk30 = 0.0f;
+                s->timer = 0.0f;
+                s->unk14++;
+            }
+        }
+    } else if (s->unk14 == 1) {
+        Vec3f *jp = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+
+        spawn_object_from_list(0x13, jp->x, jp->y, jp->z, 100, 0);
+        cam_shake_start(0, 0.0f, 0.0f, 4.0f, 25);
+        func_80001248(0x22, 0);
+        transition_begin(rl_m068_12500);
+        func_800079B8(rl_m068_124F0);
+        func_800079B8(rl_m068_124F4);
+        func_800079B8(rl_m068_124F8);
+        func_800079B8(rl_m068_124FC);
+        obj->trans.flags |= 0x400;
+        s->unk14++;
+        s->timer = 2.0f;
+        if (s->sound5C != 0) {
+            func_80003614(s->sound5C);
+        }
+    } else if (s->unk14 == 2) {
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            level_goto(0x175, pending_level_character(), 0, menu_mode_get(), 1, 0);
+        }
+    }
+}
 
 /* Starts phase 14 of the second form: the player watches from joint section 4, 300 up */
 static void func_m068_0447C(Object *obj, M068State *s) {
@@ -1839,16 +1910,15 @@ static void func_m068_04938(Object *obj, M068State *s) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04938);
 #endif
 
-#ifdef NON_MATCHING
 static void func_m068_05964(Object *obj, M068State *s);
 #define rl_m068_05964 func_m068_05964
 
 /*
  * Phase 3 of the first form: slides along the two walls (sPlanes), turns back at a wall (unkBA picks
  * it), and the player in reach is caught. Frame (0x88) and the f20 of the ROM come from dx/dz also
- * carrying sPlanes[0] (the first arm and the func_80049C84 arguments) and the pads; 3 words short and
- * registers differ in the wall test: the ROM keeps along in f16, the wall dot in f18 (spilled across
- * the sqrt) and along * along in f20, and spills the object's x and z (0x30/0x2C).
+ * carrying sPlanes[0] (the first arm and the func_80049C84 arguments) and the pads. d also holds the
+ * two dot products (the motion along the wall's normal, and the turn's), and along * along is written
+ * out at both uses: that gives the ROM's float registers. The plane index is pre-scaled (4 floats).
  */
 static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     Object *player;
@@ -1899,18 +1969,18 @@ static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate)
             dir[0] = 0.0f;
             dir[1] = 0.0f;
         }
-        plane = sPlanes[s->unkBA];
-        along = speed * (dir[0] * plane[0] + plane[2] * dir[1]);
+        plane = (f32 *) sPlanes + (s->unkBA << 2);
+        d = dir[0] * plane[0] + dir[1] * plane[2];
+        along = speed * d;
         if (along < 0.0f) {
-            dot = plane[2] * s->unk28 + s->unk24 * plane[0];
-            dist = plane[3] + (plane[0] * obj->trans.x_position + plane[1] * obj->trans.y_position +
-                               plane[2] * obj->trans.z_position);
-            along *= along;
-            if (dist <= -along / (dot + dot) && dot < 0.0f) {
+            dot = s->unk24 * plane[0] + s->unk28 * plane[2];
+            dist = (plane[0] * obj->trans.x_position + plane[1] * obj->trans.y_position +
+                    plane[2] * obj->trans.z_position) + plane[3];
+            if (dist <= -(along * along) / (dot + dot) && dot < 0.0f) {
                 s->unk24 = plane[0];
                 s->unk28 = plane[2];
                 if (s->unkBA == 0) {
-                    s->unk20 = along / (dist + dist);
+                    s->unk20 = (along * along) / (dist + dist);
                 } else {
                     s->unk20 = 1.0f;
                 }
@@ -1934,10 +2004,12 @@ static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate)
             }
             rot[0] = -func_80049C34(s->unk9A);
             rot[1] = -func_80049C30(s->unk9A);
-            s->unk98 = rl_m068_0C7DC(s->unk98, -204.8f * speed * (dir[1] * rot[1] + rot[0] * dir[0]), 0x100, updateRate);
+            d = rot[0] * dir[0] + rot[1] * dir[1];
+            s->unk98 = rl_m068_0C7DC(s->unk98, -204.8f * speed * d, 0x100, updateRate);
             rot[0] = -func_80049C34(s->unk9A + 0x4000);
             rot[1] = -func_80049C30(s->unk9A + 0x4000);
-            s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * (dir[1] * rot[1] + rot[0] * dir[0]), 0x100, updateRate);
+            d = rot[0] * dir[0] + rot[1] * dir[1];
+            s->unk96 = rl_m068_0C7DC(s->unk96, 204.8f * speed * d, 0x100, updateRate);
         } else {
             s->unkBA ^= 1;
             if (s->unkBA == 1) {
@@ -1966,9 +2038,6 @@ static void func_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unk80 = (s16) (7.75f * speed) + 100;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_04A60);
-#endif
 
 /* Starts the first form's jump (phase 2); with flag 8 the player watches it from joint section 2 */
 static void func_m068_05028(Object *obj, M068State *s) {
@@ -2187,9 +2256,7 @@ static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-#ifdef NON_MATCHING
 /* Back to phase 4 (unkAA): lands, with no landing point picked yet */
-/* Matches; only assembly calls it, so it stays asm until its callers are C. */
 static void func_m068_05964(Object *obj, M068State *s) {
     func_m068_092F0(obj, 2, 0);
     s->unkBA = -1;
@@ -2205,9 +2272,6 @@ static void func_m068_05964(Object *obj, M068State *s) {
         func_m068_0BDC4(obj, s, 0xD, 0.0f);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05964);
-#endif
 
 /*
  * Phase 4 of the first form: jumps between the landing points; the player in reach is caught.
@@ -2537,21 +2601,785 @@ static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_067B4);
+/* What func_80005F14 spawns object 0x313 from */
+typedef struct M068BurstEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+} M068BurstEntry;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06AE0);
+/* The debris a boulder breaks into, and the ring the boss throws up (an object entry) */
+typedef struct M068DebrisEntry {
+    /* 0x00 */ LevelObjectEntryCommon common;
+    /* 0x0A */ s16 yaw;
+    /* 0x0C */ s16 pitch;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ f32 scale;
+    /* 0x14 */ f32 speed;
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ u8 unk1C;
+    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
+    /* 0x20 */ s32 unk20;
+} M068DebrisEntry;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06E14);
+/*
+ * A second-form phase (unkAA 10): on event 0x40 it shakes the camera and throws up a burst and a ring of
+ * seven pieces of debris round model point 4. obj also holds the objects spawned (its own value is only
+ * read in the first arm): the ROM's frame has no word for a separate variable. The height is a Vec3f's
+ * y (as in 06AE0 and 06E14): its frame bytes are the ROM's 12 above the entries.
+ */
+static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f pos;
+    M068BurstEntry burst;
+    M068DebrisEntry debris;
+    Vec3f *p;
+    f32 x;
+    f32 z;
+    f32 r;
+    s16 iy;
+    s16 angle;
+    s32 i;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0714C);
+    if (s->unkAA != 10) {
+        s->unkB0 = 0;
+        return;
+    }
+    if (s->unkBC == 0) {
+        s->cycleKind = 1;
+        func_m068_0BDC4(obj, s, 0x27, 0.0f);
+        s->unkBC |= 1;
+    } else if (s->events & 0x40) {
+        p = &inst->points2[4];
+        pos.y = sCentreY;
+        x = p->x;
+        z = p->z;
+        cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
+        func_80003410(0x1CC, x, pos.y, z, 4, NULL);
+        burst.objectID = 0x313;
+        burst.size = 20;
+        burst.unk3 = 0;
+        burst.unkA = 0x200;
+        burst.unkC = 2.0f;
+        burst.unk10 = 4.0f;
+        burst.x = x;
+        burst.y = iy = pos.y;
+        burst.z = z;
+        obj = func_80005F14(&burst, 1);
+        if (obj != NULL) {
+            obj->level_entry = NULL;
+        }
+        debris.common.objectID = 0x14A;
+        debris.unkE = 60;
+        debris.pitch = 0x2000;
+        debris.unk1C = 100;
+        debris.unk20 = 0;
+        debris.unk18 = 0.15f;
+        debris.scale = 0.2f;
+        if (s->unkF != 0) {
+            r = 60.0f;
+            debris.speed = 6.0f;
+        } else {
+            r = 30.0f;
+            debris.speed = 5.0f;
+        }
+        angle = s->unk9A - 0x4000;
+        for (i = 0; i < 7; i++) {
+            debris.common.x = x - func_80049C34(angle) * r;
+            debris.common.y = iy + 15;
+            debris.common.z = z - func_80049C30(angle) * r;
+            debris.yaw = angle;
+            obj = func_80005F14(&debris, 1);
+            if (obj != NULL) {
+                obj->level_entry = NULL;
+            }
+            angle += 0x1554;
+        }
+    }
+    if (s->events & 0x80) {
+        s->unkB0 = 0;
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0758C);
+/* A model as 06AE0 sees it */
+typedef struct M068HeightModel {
+    /* 0x00 */ u8 pad0[0x34];
+    /* 0x34 */ f32 *unk34;
+} M068HeightModel;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_078F4);
+/*
+ * A second-form phase (unkAA 5): on event 0x40 it shakes the camera and throws up a burst and a ring of
+ * debris at sDropPoints[4], lowered by the model's height. As in 067B4, obj also holds the objects spawned.
+ */
+static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f pos;
+    M068BurstEntry burst;
+    M068DebrisEntry debris;
+    f32 x;
+    f32 z;
+    s16 iy;
+    s16 angle;
+    s32 i;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
+    if (s->unkAA != 5) {
+        s->unkB0 = 0;
+        return;
+    }
+    s->unk60 &= ~0x10;
+    if (s->unkBC & 1) {
+        func_m068_0BDC4(obj, s, 0x14, 0.0f);
+        s->unkBC &= ~1;
+    } else if (s->unkBC & 2) {
+        func_m068_0BDC4(obj, s, 0x16, 0.0f);
+        s->unk50 |= 0x100;
+        s->unkBC &= ~2;
+    }
+    if (s->events & 0x40) {
+        pos.y = sDropPoints[4].y - ((M068HeightModel *) model)->unk34[14] * obj->trans.scale;
+        x = sDropPoints[4].x;
+        z = sDropPoints[4].z;
+        cam_shake_start(0, 0.0f, 0.0f, 2.0f, 15);
+        func_80003410(0x1CC, x, pos.y, z, 4, NULL);
+        burst.objectID = 0x313;
+        burst.size = 20;
+        burst.unk3 = 0;
+        burst.unkA = 0x200;
+        burst.unkC = 1.0f;
+        burst.unk10 = 2.0f;
+        burst.x = x;
+        burst.y = iy = pos.y;
+        burst.z = z;
+        obj = func_80005F14(&burst, 1);
+        if (obj != NULL) {
+            obj->level_entry = NULL;
+        }
+        debris.common.objectID = 0x14A;
+        debris.unkE = 60;
+        debris.pitch = 0x2000;
+        debris.unk1C = 100;
+        debris.unk20 = 0;
+        debris.unk18 = 0.15f;
+        debris.scale = 0.2f;
+        debris.speed = 5.0f;
+        angle = s->unk9A - 0x4000;
+        for (i = 0; i < 7; i++) {
+            debris.common.x = x - func_80049C34(angle) * 30.0f;
+            debris.common.y = iy + 15;
+            debris.common.z = z - func_80049C30(angle) * 30.0f;
+            debris.yaw = angle;
+            obj = func_80005F14(&debris, 1);
+            if (obj != NULL) {
+                obj->level_entry = NULL;
+            }
+            angle += 0x1554;
+        }
+    }
+}
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_083C8);
+/* What func_80005F14 spawns the flame line's pieces (object 0x252) from */
+typedef struct M068FlameEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ f32 spacing;
+    /* 0x10 */ Vec3f dir;
+    /* 0x1C */ f32 length; /* how far it still is to the player */
+    /* 0x20 */ Object *owner;
+} M068FlameEntry;
+
+extern s32 rl_m068_12608; /* set: the fire balls fade out (.data) */
+
+/*
+ * A second-form phase (unkAA 10): while its timer runs, a line of pieces from model point 4 towards the
+ * player (at the centre's height + 30), one more piece per frame step. The target is a Vec3f of which
+ * only y is set: its frame bytes are the ROM's 12 above the entry.
+ */
+static void func_m068_06E14(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f target;
+    M068FlameEntry entry;
+    Object *player;
+    Vec3f *p;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s32 i;
+
+    if (s->unkAA != 10) {
+        rl_m068_12608 = 1;
+        s->unkB0 = 0;
+        s->unk54 = 1;
+        s->timer = 0.0f;
+        return;
+    }
+    if (s->unkBC == 0) {
+        s->unkBC |= 1;
+        func_m068_0BDC4(obj, s, 0x28, 0.0f);
+    }
+    if (s->events & 0x10) {
+        rl_m068_12608 = 0;
+        s->cycleKind = 2;
+        s->timer = 1.0f;
+    }
+    if (s->timer > 0.0f) {
+        player = func_8000E4D0(0);
+        p = &inst->points[4];
+        target.y = sCentreY + 30.0f;
+        entry.objectID = 0x252;
+        entry.size = 0x24;
+        entry.unk3 = 0;
+        entry.owner = obj;
+        dx = player->trans.x_position - p->x;
+        dy = target.y - p->y;
+        dz = player->trans.z_position - p->z;
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        dx /= d;
+        dy /= d;
+        dz /= d;
+        entry.unkA = 0x200;
+        entry.spacing = 20.0f;
+        entry.dir.x = dx;
+        entry.dir.y = dy;
+        entry.dir.z = dz;
+        for (i = 0; i < updateRate; i++) {
+            entry.x = p->x + dx * (i * entry.spacing);
+            entry.y = p->y + dy * (i * entry.spacing);
+            entry.z = p->z + dz * (i * entry.spacing);
+            entry.length = d - i * entry.spacing;
+            player = func_80005F14(&entry, 1);
+            if (player != NULL) {
+                player->level_entry = NULL;
+            }
+        }
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            s->unk1C |= 1;
+            s->unk18 = 0.5f;
+            rl_m068_12608 = 1;
+            s->unkB0 = 0;
+            s->unk54 = 1;
+            s->timer = 0.0f;
+            func_m068_0BDC4(obj, s, 0x2A, 0.0f);
+        }
+    }
+}
+
+/*
+ * A second-form phase (unkAA 4): turns to face the player from joint section 0's joint, then (as 06E14)
+ * lays a line of pieces from model point 4 towards the player while its timer runs
+ */
+static void func_m068_0714C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f target;
+    Object *player;
+    Vec3f *jp;
+    M068FlameEntry entry;
+    Vec3f *p;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s16 yaw;
+    s16 pitch;
+    s32 i;
+
+    if (s->unkAA != 4) {
+        rl_m068_12608 = 1;
+        s->unkB0 = 0;
+        s->unk54 = 1;
+        s->timer = 0.0f;
+        return;
+    }
+    player = func_8000E4D0(0);
+    target.y = sCentreY + 30.0f;
+    jp = (Vec3f *) &sJointPos[rl_m068_1254C[0].joint * 3];
+    dx = player->trans.x_position - jp->x;
+    dy = target.y - jp->y;
+    dz = player->trans.z_position - jp->z;
+    yaw = func_80049C84(dx, dz) + 0x8000;
+    s->unk9A = rl_m068_0C7DC(s->unk9A, yaw, 0x200, updateRate);
+    s->unk9E = s->unk9A;
+    pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+    s->unk98 = rl_m068_0C7DC(s->unk98, pitch, 0x100, updateRate);
+    if (yaw == s->unk9A && pitch == s->unk98) {
+        s->unkBC |= 1;
+    }
+    if ((s->unkBC & 1) && !(s->unkBC & 2)) {
+        s->unkBC |= 2;
+        func_m068_0BDC4(obj, s, 0xF, 0.0f);
+    }
+    if (s->events & 0x10) {
+        rl_m068_12608 = 0;
+        s->cycleKind = 2;
+        s->timer = 2.0f;
+    }
+    if (s->timer > 0.0f) {
+        p = &inst->points[4];
+        entry.objectID = 0x252;
+        entry.size = 0x24;
+        entry.unk3 = 0;
+        entry.owner = obj;
+        dx = player->trans.x_position - p->x;
+        dy = target.y - p->y;
+        dz = player->trans.z_position - p->z;
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        dx /= d;
+        dy /= d;
+        dz /= d;
+        entry.unkA = 0x200;
+        entry.spacing = 20.0f;
+        entry.dir.x = dx;
+        entry.dir.y = dy;
+        entry.dir.z = dz;
+        for (i = 0; i < updateRate; i++) {
+            entry.x = p->x + dx * (i * entry.spacing);
+            entry.y = p->y + dy * (i * entry.spacing);
+            entry.z = p->z + dz * (i * entry.spacing);
+            entry.length = d - i * entry.spacing;
+            player = func_80005F14(&entry, 1);
+            if (player != NULL) {
+                player->level_entry = NULL;
+            }
+        }
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            s->unk1C |= 1;
+            s->unk18 = 0.5f;
+            rl_m068_12608 = 1;
+            s->unkB0 = 0;
+            s->unk54 = 1;
+            s->timer = 0.0f;
+            func_m068_0BDC4(obj, s, 0x11, 0.0f);
+        }
+    }
+}
+
+/* What func_80005F14 spawns object 0x30E from: a bolt from a model point to the player */
+typedef struct M068BoltEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 targetX;
+    /* 0x0C */ s16 targetY;
+    /* 0x0E */ s16 targetZ;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ Object *owner;
+} M068BoltEntry;
+
+/*
+ * A second-form phase (unkAA 10): once its colour cycle is bright enough, bolts at the player from model
+ * points 0 and 1 in turn, one every 0.1 s; after the fourth it ends
+ */
+static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Object *player;
+    f32 y;
+    Vec3f *pt;
+    M068BoltEntry entry;
+    Object *o;
+
+    if (s->unkAA != 10) {
+        s->unkB0 = 0;
+        s->timer = 0.0f;
+        return;
+    }
+    s->unkBC |= 1;
+    if ((s->unkBC & 1) && !(s->unkBC & 2)) {
+        s->unkBC |= 2;
+        func_m068_0BDC4(obj, s, 0x2B, 0.0f);
+    }
+    if (s->events & 0x200) {
+        s->unkBC |= 4;
+    }
+    if (s->unkBC & 4) {
+        if (!(s->unkBC & 0x30) && s->cycleKind == 0) {
+            s->cycleKind = 4;
+        }
+        if (s->cycle != NULL && s->cycle->unkB >= 0xE6) {
+            s->unkBC |= 8;
+        }
+        if (s->timer == 0.0f && (s->unkBC & 8)) {
+            player = func_8000E4D0(0);
+            y = sCentreY + 30.0f;
+            if (s->unkBE & 1) {
+                pt = &inst->points[1];
+                s->unkBC |= 0x20;
+            } else {
+                pt = &inst->points[0];
+                s->unkBC |= 0x10;
+            }
+            entry.objectID = 0x30E;
+            entry.size = 0x18;
+            entry.unk3 = 0;
+            entry.x = pt->x;
+            entry.y = pt->y;
+            entry.z = pt->z;
+            entry.targetX = player->trans.x_position;
+            entry.targetY = y;
+            entry.targetZ = player->trans.z_position;
+            entry.unk10 = 30.0f;
+            entry.owner = obj;
+            o = func_80005F14(&entry, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+            func_80003410(0x1D0, pt->x, pt->y, pt->z, 4, NULL);
+            s->unkBE++;
+            s->timer = 0.1f;
+            if ((s->unkBC & 0x30) == 0x30) {
+                s->unkBC &= ~0x38;
+            }
+        } else {
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                if (s->unkBE == 4) {
+                    s->unkB0 = 0;
+                    func_m068_0BDC4(obj, s, 0x2D, 0.0f);
+                }
+            }
+        }
+    }
+}
+
+/*
+ * A second-form phase (unkAA 4): turns to face the player from joint section 4's joint and, once its
+ * colour cycle is bright enough, fires bolts (as 0758C) from model points 0 and 1 in turn; after the
+ * sixth it ends
+ */
+static void func_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Object *player;
+    Vec3f *jp;
+    Vec3f *pt;
+    Object *o;
+    f32 d;
+    M068BoltEntry entry;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    s16 yaw;
+    s16 pitch;
+
+    if (s->unkAA != 4) {
+        s->unkB0 = 0;
+        s->timer = 0.0f;
+        return;
+    }
+    player = func_8000E4D0(0);
+    jp = (Vec3f *) &sJointPos[rl_m068_1254C[4].joint * 3];
+    dx = player->trans.x_position - jp->x;
+    dy = player->trans.y_position - jp->y;
+    dz = player->trans.z_position - jp->z;
+    yaw = func_80049C84(dx, dz) + 0x8000;
+    s->unk9A = rl_m068_0C7DC(s->unk9A, yaw, 0x200, updateRate);
+    s->unk9E = s->unk9A;
+    d = func_80097140(dx * dx + dz * dz);
+    pitch = func_80049C84(dy, d);
+    s->unk98 = rl_m068_0C7DC(s->unk98, pitch, 0x100, updateRate);
+    if (yaw == s->unk9A && pitch == s->unk98) {
+        s->unkBC |= 1;
+    }
+    if ((s->unkBC & 1) && !(s->unkBC & 2)) {
+        s->unkBC |= 2;
+        func_m068_0BDC4(obj, s, 0x1A, 0.0f);
+    }
+    if (s->events & 0x200) {
+        s->unkBC |= 4;
+    }
+    if (s->unkBC & 4) {
+        if (!(s->unkBC & 0x30) && s->cycleKind == 0) {
+            s->cycleKind = 4;
+        }
+        if (s->cycle != NULL && s->cycle->unkB >= 0xE6) {
+            s->unkBC |= 8;
+        }
+        if (s->timer == 0.0f && (s->unkBC & 8)) {
+            if (s->unkBE & 1) {
+                pt = &inst->points[1];
+                s->unkBC |= 0x20;
+            } else {
+                pt = &inst->points[0];
+                s->unkBC |= 0x10;
+            }
+            entry.objectID = 0x30E;
+            entry.size = 0x18;
+            entry.unk3 = 0;
+            entry.x = pt->x;
+            entry.y = pt->y;
+            entry.z = pt->z;
+            entry.targetX = player->trans.x_position;
+            entry.targetY = (s16) player->trans.y_position + 30.0f;
+            entry.targetZ = player->trans.z_position;
+            entry.unk10 = 30.0f;
+            entry.owner = obj;
+            o = func_80005F14(&entry, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+            func_80003410(0x1D0, pt->x, pt->y, pt->z, 4, NULL);
+            s->unkBE++;
+            s->timer = 0.1f;
+            if ((s->unkBC & 0x30) == 0x30) {
+                s->unkBC &= ~0x38;
+            }
+        } else {
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                if (s->unkBE == 6) {
+                    s->unkB0 = 0;
+                    func_m068_0BDC4(obj, s, 0x1C, 0.0f);
+                }
+            }
+        }
+    }
+}
+
+/* What func_80005F14 spawns the electric strips (objects 0x315, 0x31B) from: M068StripSetup, bytewise */
+typedef struct M068StripEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0xC - 0xA];
+    /* 0x0C */ s16 a[2];
+    /* 0x10 */ s16 b[2];
+    /* 0x14 */ s16 c[2];
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ Vec3f *point;
+    /* 0x28 */ Object *owner;
+} M068StripEntry;
+
+/*
+ * A second-form phase: turns to the centre from joint section 0's joint; on event 0x100 throws three
+ * electric strips from model points 32-34, then aims at sStripEnd as it circles the centre until the
+ * timer (the strips' life) runs out. The pad gives the ROM's frame; parts addresses sParts[6] field by
+ * field as the ROM does.
+ */
+static void func_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    UNUSED Vec3f pad;
+    Object *player;
+    Vec3f *jp;
+    Vec3f *p;
+    M068StripEntry entry;
+    M068PartState *parts;
+    f32 dy;
+    f32 dx;
+    f32 r;
+    f32 dz;
+    s16 yaw;
+    s16 angle;
+
+    if (s->unkBC == 0) {
+        jp = (Vec3f *) &sJointPos[rl_m068_1254C[0].joint * 3];
+        dx = sCentre.x - jp->x;
+        dz = sCentre.z - jp->z;
+        yaw = func_80049C84(dx, dz) + 0x8000;
+        s->unk9A = rl_m068_0C7DC(s->unk9A, yaw, 0x200, updateRate);
+        s->unk9E = s->unk9A;
+        if (yaw == s->unk9A) {
+            s->unkBC |= 1;
+        }
+    }
+    if (s->unkBC & 1) {
+        if (s->timer == 0.0f) {
+            if (!(s->unkBC & 2)) {
+                func_m068_0BDC4(obj, s, 0x17, 0.0f);
+                s->unkBC |= 2;
+                s->cycleKind = 3;
+            }
+            if (s->events & 0x100) {
+                r = func_80048E2C(5, 15);
+                entry.size = 0x2C;
+                entry.unk3 = 0;
+                entry.unk1C = r;
+                entry.unk20 = r + 0.3f;
+                entry.unk18 = 0.3f;
+                entry.owner = obj;
+                p = &inst->points[32];
+                entry.objectID = 0x315;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.point = p;
+                entry.a[0] = 0;
+                entry.b[0] = 0x800;
+                entry.c[0] = 0x1000;
+                entry.a[1] = -0x8000;
+                entry.b[1] = -0x800;
+                entry.c[1] = -0x1000;
+                obj = func_80005F14(&entry, 1);
+                if (obj != NULL) {
+                    obj->level_entry = NULL;
+                }
+                p = &inst->points[33];
+                entry.objectID = 0x31B;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.point = p;
+                entry.a[0] = 0x4000;
+                entry.b[0] = 0x400;
+                entry.c[0] = 0x1000;
+                entry.a[1] = -0x4000;
+                entry.b[1] = -0x400;
+                entry.c[1] = -0x1000;
+                obj = func_80005F14(&entry, 1);
+                if (obj != NULL) {
+                    obj->level_entry = NULL;
+                }
+                p = &inst->points[34];
+                entry.objectID = 0x315;
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                entry.point = p;
+                entry.a[0] = 0;
+                entry.b[0] = -0x800;
+                entry.c[0] = 0x1000;
+                entry.a[1] = -0x8000;
+                entry.b[1] = 0x800;
+                entry.c[1] = 0x1000;
+                obj = func_80005F14(&entry, 1);
+                if (obj != NULL) {
+                    obj->level_entry = NULL;
+                }
+                s->timer = entry.unk20;
+                player = func_8000E4D0(0);
+                dx = player->trans.x_position - sCentre.x;
+                dz = player->trans.z_position - sCentre.z;
+                angle = func_80049C84(dx, dz);
+                s->unk9C = func_80048E2C(0x50, 0x200);
+                if (angle < rl_m068_1260C) {
+                    s->unk9C = -s->unk9C;
+                }
+                sStripEnd.x = sCentre.x;
+                sStripEnd.y = sCentreY + 15.0f;
+                sBss1373C = 0;
+                sStripEnd.z = sCentre.z;
+            }
+        } else {
+            sBss1373C += s->unk9C * updateRate;
+            r = func_80049C34(sBss1373C) * sBss13750;
+            sStripEnd.x = func_80049C34(rl_m068_1260C + 0x4000) * r + sCentre.x;
+            sStripEnd.z = func_80049C30(rl_m068_1260C + 0x4000) * r + sCentre.z;
+            jp = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+            dx = sStripEnd.x - jp->x;
+            dz = sStripEnd.z - jp->z;
+            s->unk9A = rl_m068_0C7DC(s->unk9A, func_80049C84(dx, dz) + 0x8000, 0x200, updateRate);
+            s->unk9E = s->unk9A;
+            jp = (Vec3f *) &sJointPos[rl_m068_1254C[6].joint * 3];
+            dx = sStripEnd.x - jp->x;
+            dy = sStripEnd.y - jp->y;
+            dz = sStripEnd.z - jp->z;
+            parts = sParts;
+            parts[6].target[1] = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                s->unkB0 = 0;
+                s->unk54 = 1;
+                parts[6].target[1] = 0;
+                func_m068_0BDC4(obj, s, 0x19, 0.0f);
+            }
+        }
+    }
+}
+
+/* What func_80005F14 spawns the dropped items from */
+typedef struct M068ItemEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 kind;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[0x10 - 0xA];
+} M068ItemEntry;
+
+/*
+ * (.data) how often an item drops, in seconds, and the time since the last drop. The time is also
+ * named on its own (rl_m068_125F0): the ROM addresses it directly outside the compare.
+ */
+extern f32 rl_m068_125EC[2];
+extern f32 rl_m068_125F0;
+extern s16 rl_m068_125F4;      /* (.data) the item chances: a roll of 1..rl_m068_125F8 */
+extern s16 rl_m068_125F6;
+extern s16 rl_m068_125F8;
+extern s32 rl_m068_125FC;      /* (.data) the boulders made */
+
+/* A second-form phase: while its timer runs, an item drops at the trail's start every so often */
+static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    M068ItemEntry entry;
+    Object *o;
+    s16 roll;
+    f32 step;
+
+    if (s->unkBC == 0) {
+        func_m068_0BDC4(obj, s, 7, 0.0f);
+        s->unkBC |= 1;
+    }
+    if (s->events & 1) {
+        if (s->flags & 4) {
+            s->timer = 20.0f;
+        } else if (s->flags & 2) {
+            s->timer = 15.0f;
+        } else if (s->flags & 1) {
+            s->timer = 10.0f;
+        }
+        s->unkBC |= 2;
+    }
+    if (s->unkBC & 2) {
+        if (s->timer > 0.0f) {
+            step = rate / 60.0f;
+            if (rl_m068_125EC[0] <= rl_m068_125EC[1]) {
+                roll = func_80048E2C(1, rl_m068_125F8);
+                if (roll <= rl_m068_125F4) {
+                    entry.objectID = 0x18E;
+                    entry.kind = 0;
+                } else if (roll <= rl_m068_125F6) {
+                    entry.objectID = 0x1A7;
+                    entry.kind = 1;
+                } else if (roll <= rl_m068_125F8) {
+                    entry.objectID = 0x6F;
+                    entry.kind = 2;
+                }
+                entry.size = 10;
+                entry.x = sTrailStart[0].x;
+                entry.y = sTrailStart[0].y;
+                entry.z = sTrailStart[0].z;
+                o = func_80005F14(&entry, 1);
+                if (o != NULL) {
+                    o->level_entry = NULL;
+                }
+                rl_m068_125F0 = 0.0f;
+            } else {
+                rl_m068_125F0 += step;
+            }
+            s->timer -= step;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                func_m068_0BDC4(obj, s, 0x20, 0.0f);
+            }
+        } else if (rl_m068_125FC == 0) {
+            s->unkB0 = 0;
+        }
+    }
+}
 
 /* Animation 6 of the second form */
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
@@ -3072,7 +3900,7 @@ static void func_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance
                 entry.y = p->y;
                 entry.z = p->z;
                 if (i == 2) {
-                    next = &sBss13540;
+                    next = &sDropPoints[4];
                 } else {
                     next = p + 1;
                 }
@@ -3972,9 +4800,9 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
 
 #ifdef NON_MATCHING
 /*
- * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer and a continue-style inner
- * loop, which IDO doesn't unroll) and a separate counter for the last two loops; the clear loop's pointer
- * and counter have v1/a0 the other way round, and the triangle loop's registers differ.
+ * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer walked in a continue-style
+ * inner loop, which IDO doesn't unroll, stores in field order) and a separate counter for the last two
+ * loops; the triangle loop's registers differ (the ROM has k in a3, n in t0, the last counter in a0).
  */
 void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     M068Strip *m = obj->unk68;
@@ -3993,13 +4821,14 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
-            p[j].y = 0;
-            p[j].x = 0;
-            p[j].z = 0;
-            p[j].r = 255;
-            p[j].g = 255;
-            p[j].b = 255;
-            p[j].a = 255;
+            p->x = 0;
+            p->y = 0;
+            p->z = 0;
+            p->r = 255;
+            p->g = 255;
+            p->b = 255;
+            p->a = 255;
+            p++;
             j++;
             if (j < 72) continue;
             break;
@@ -4469,20 +5298,6 @@ void func_m068_0F478(Object *obj, M068BoulderSetup *setup) {
     }
     rl_m068_125FC++;
 }
-
-/* The debris a boulder breaks into (an object entry) */
-typedef struct M068DebrisEntry {
-    /* 0x00 */ LevelObjectEntryCommon common;
-    /* 0x0A */ s16 yaw;
-    /* 0x0C */ s16 pitch;
-    /* 0x0E */ s16 unkE;
-    /* 0x10 */ f32 scale;
-    /* 0x14 */ f32 speed;
-    /* 0x18 */ f32 unk18;
-    /* 0x1C */ u8 unk1C;
-    /* 0x1D */ u8 pad1D[0x20 - 0x1D];
-    /* 0x20 */ s32 unk20;
-} M068DebrisEntry;
 
 /* The dust a boulder leaves where it hits (an object entry) */
 typedef struct M068DustEntry {
