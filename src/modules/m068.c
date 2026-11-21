@@ -693,10 +693,9 @@ extern u8 rl_m068_124CC[]; /* the two trails' parameters (.data) */
 extern u8 rl_m068_124DC[];
 extern void rl_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2);
 
-#ifdef NON_MATCHING
 /*
  * Draws the boss's trails and, while it glows, two glow models at its joints.
- * Length and frame match; the temporaries are numbered one higher from the first joint load.
+ * Each joint's matrix is found as `joint << 4` floats into the frame (as in 024EC): the ROM's registers.
  */
 void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068Effects *s;
@@ -718,7 +717,7 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             model = ((M068Header *) obj->header)->models[2];
         }
         lists = model->lists;
-        mtx = inst->frames[inst->frame] + rl_m068_12564[0];
+        mtx = (MtxF *) ((f32 *) inst->frames[inst->frame] + (rl_m068_12564[0] << 4));
         (*mtx)[0][3] = 0.0f;
         (*mtx)[1][3] = 0.0f;
         (*mtx)[2][3] = 0.0f;
@@ -733,7 +732,7 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
             model = ((M068Header *) obj->header)->models[4];
         }
         lists = model->lists;
-        mtx = inst->frames[inst->frame] + rl_m068_12564[6];
+        mtx = (MtxF *) ((f32 *) inst->frames[inst->frame] + (rl_m068_12564[6] << 4));
         (*mtx)[0][3] = 0.0f;
         (*mtx)[1][3] = 0.0f;
         (*mtx)[2][3] = 0.0f;
@@ -747,9 +746,6 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         func_80055B80(dl);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0092C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_00C70);
 
@@ -1028,18 +1024,10 @@ extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned
 extern s32 rl_m068_125E0;      /* (.data) set: ... */
 extern s16 rl_m068_125E4;      /* (.data) */
 extern Object *rl_m068_12508;  /* (.data) */
-#ifdef NON_MATCHING
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate);
 #define rl_m068_05C8C func_m068_05C8C
-#else
-extern s32 rl_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate);
 #define rl_m068_0C7DC func_m068_0C7DC
-#else
-extern s16 rl_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate);
-#endif
 
 /* A colour cycle (main segment, as m107 uses it) */
 typedef struct M068ColourCycle {
@@ -1072,34 +1060,16 @@ extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 s
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 
 /* The boss's helpers */
-#ifdef NON_MATCHING
 static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
 extern void rl_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#ifdef NON_MATCHING
 static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_04600(Object *obj, M068State *s);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
 #ifdef NON_MATCHING
 static void func_m068_04938(Object *obj, M068State *s);
 #define rl_m068_04938 func_m068_04938
@@ -1120,63 +1090,29 @@ extern void rl_m068_05028(Object *obj, M068State *s);
 #endif
 extern s32 rl_m068_125DC;      /* (.data) how many landing points */
 extern void rl_m068_04A60(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#ifdef NON_MATCHING
 static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #define rl_m068_05100 func_m068_05100
-#else
-extern void rl_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_053AC(Object *obj, M068State *s);
 #define rl_m068_053AC func_m068_053AC
-#else
-extern void rl_m068_053AC(Object *obj, M068State *s);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_05570(Object *obj, M068State *s);
 #define rl_m068_05570 func_m068_05570
-#else
-extern void rl_m068_05570(Object *obj, M068State *s);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
 #ifdef NON_MATCHING
 static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #define rl_m068_059F0 func_m068_059F0
 #else
 extern void rl_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate);
 #endif
-#ifdef NON_MATCHING
 static void func_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_092F0(Object *obj, s32 index, s32 on);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame);
-#endif
 extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
 extern void rl_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -1186,37 +1122,25 @@ extern void rl_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *
 extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#ifdef NON_MATCHING
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#endif
-#ifdef NON_MATCHING
 static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#endif
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#ifdef NON_MATCHING
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
-#else
-extern void rl_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#endif
 extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 extern void rl_m068_0B4D0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#ifdef NON_MATCHING
 static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#endif
 
 /* The module's .data (still assembly) */
 extern s16 rl_m068_12610;       /* set: find the centre's height again */
 
-#ifdef NON_MATCHING
 /*
  * The boss's control: its centre's height, its actions, its parts' damage and angles, and its joints.
- * Same length and saved registers as the ROM; the unrolled joint-position loop (42) is scheduled
- * differently (the ROM keeps i+1, i+2, i+3 in one register, t5), which renumbers the t-registers of
- * the matrix copies after it.
+ * The joint matrices are read as f32 arrays offset by `joint << 4` (sixteen floats a matrix), which is what
+ * gives the ROM's registers: the shift by 4 and the array scaling are two steps for the code generator.
  */
 void func_m068_024EC(Object *obj, s32 updateRate) {
     M068Instance *inst;
@@ -1529,26 +1453,31 @@ case 0:
     }
     dst = sJointPos;
     for (i = 0; i < 42; i++) {
-        src = (f32 *) &inst->frames[inst->frame][i];
+        src = (f32 *) inst->frames[inst->frame] + (i << 4);
         dst[0] = src[12];
         dst[1] = src[13];
         dst[2] = src[14];
         dst += 3;
     }
     if (sParts[2].scale != 0.01f && !(s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[2].joint];
+        sec = &rl_m068_1254C[2];
+        src = (f32 *) inst->frames[inst->frame] + (sec->joint << 4);
+        dst = (f32 *) sMtx12B70;
         for (k = 0; k < 12; k++) {
-            ((f32 *) sMtx12B70)[k] = src[k];
+            dst[k] = src[k];
         }
     }
     if (sParts[3].scale != 0.01f && !(s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[3].joint];
+        sec = &rl_m068_1254C[3];
+        src = (f32 *) inst->frames[inst->frame] + (sec->joint << 4);
+        dst = (f32 *) sMtx12BB0;
         for (k = 0; k < 12; k++) {
-            ((f32 *) sMtx12BB0)[k] = src[k];
+            dst[k] = src[k];
         }
     }
     if (sParts[6].scale != 0.01f && (s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[6].joint];
+        sec = &rl_m068_1254C[6];
+        src = (f32 *) inst->frames[inst->frame] + (sec->joint << 4);
         dst = (f32 *) sMtx12C18;
         for (i = 0; i < 9; i++) {
             for (k = 0; k < 12; k++) {
@@ -1559,7 +1488,8 @@ case 0:
         }
     }
     if (sParts[5].scale != 0.01f && (s->flags & 0x20)) {
-        src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[5].joint];
+        sec = &rl_m068_1254C[5];
+        src = (f32 *) inst->frames[inst->frame] + (sec->joint << 4);
         dst = (f32 *) sMtx12E68;
         for (i = 0; i < 3; i++) {
             for (k = 0; k < 12; k++) {
@@ -1571,19 +1501,17 @@ case 0:
     }
     if (sParts[4].scale != 0.01f) {
         if (s->flags & 0x20) {
-            src = (f32 *) &inst->frames[inst->frame][rl_m068_1254C[4].joint];
+            sec = &rl_m068_1254C[4];
+        src = (f32 *) inst->frames[inst->frame] + (sec->joint << 4);
+            dst = (f32 *) sMtx12F30;
             for (k = 0; k < 12; k++) {
-                ((f32 *) sMtx12F30)[k] = src[k];
+                dst[k] = src[k];
             }
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_024EC);
-#endif
 
 /* Phase 0 of the second form: when its event comes, parts 4-6 go and the player's control is handed back */
-#ifdef NON_MATCHING
 static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068Player *player;
 
@@ -1601,12 +1529,8 @@ static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_039D4);
-#endif
 
 /* The second form's head (part 1) turns to the player; picks its next attack animation */
-#ifdef NON_MATCHING
 static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     Object *player;
     Vec3f *head;
@@ -1655,9 +1579,6 @@ static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unkB0 = anim;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_03A78);
-#endif
 
 #ifdef NON_MATCHING
 /* Starts phase 11 of the second form: the player watches from joint section 6 */
@@ -1686,7 +1607,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03C70);
 #endif
 
 /* Phase 11 of the second form */
-#ifdef NON_MATCHING
 static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068Player *player;
 
@@ -1706,9 +1626,6 @@ static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate)
         func_m006_015E0(0);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03D58);
-#endif
 
 #ifdef NON_MATCHING
 /* Starts phase 12 of the second form: the player watches from joint section 5 */
@@ -1737,7 +1654,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03E24);
 #endif
 
 /* Phase 12 of the second form */
-#ifdef NON_MATCHING
 static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068Player *player;
 
@@ -1757,9 +1673,6 @@ static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate)
         func_m006_015E0(0);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_03F0C);
-#endif
 
 #ifdef NON_MATCHING
 /* Starts phase 13 of the second form: the player watches from joint section 4, 300 up */
@@ -1824,7 +1737,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0447C);
 #endif
 
 /* Phase 14 of the second form: its event ends the level */
-#ifdef NON_MATCHING
 static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     UNUSED s32 pad;
 
@@ -1833,12 +1745,8 @@ static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate)
         level_goto(0x184, pending_level_character(), 0, menu_mode_get(), 1, 0);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04590);
-#endif
 
 /* The boss is beaten: parts 2 and 4-6 go and the cut camera looks at joint section 1 */
-#ifdef NON_MATCHING
 static void func_m068_04600(Object *obj, M068State *s) {
     UNUSED s32 pad;
     M068Player *player;
@@ -1857,12 +1765,8 @@ static void func_m068_04600(Object *obj, M068State *s) {
     rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
     func_m068_0BDC4(obj, s, 0x31, 0.0f);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04600);
-#endif
 
 /* Phase 15: parts 5 and 6 grow back to full size */
-#ifdef NON_MATCHING
 static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068PartState *parts = sParts;
 
@@ -1881,9 +1785,6 @@ static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_046EC);
-#endif
 
 #ifdef NON_MATCHING
 /* The player is caught: the cut camera looks at the boss, which jumps to its start */
@@ -1905,7 +1806,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_047F8);
 #endif
 
 /* Phase 0 of the first form */
-#ifdef NON_MATCHING
 static void func_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     if (s->events & 0x8000) {
         s->unkBE = 0;
@@ -1916,12 +1816,8 @@ static void func_m068_04878(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->timer = 0.0f;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_04878);
-#endif
 
 /* Phase 1 of the first form */
-#ifdef NON_MATCHING
 static void func_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     if (s->unkAE == 0) {
         s->unkA8 = 1;
@@ -1932,9 +1828,6 @@ static void func_m068_048C0(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
     s->unk80 = 255;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_048C0);
-#endif
 
 #ifdef NON_MATCHING
 /* Phase 1 of the first form, step 3: it jumps to the nearer of two walls */
@@ -2005,9 +1898,8 @@ static void func_m068_05028(Object *obj, M068State *s) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05028);
 #endif
 
-#ifdef NON_MATCHING
 /* Phase 2 of the first form: slides to a stop, turning its body into the motion, then turns to unk9E */
-/* Matches (staged: m068's .rodata waits for the gate 024EC). As in 05C8C, the s16 cast on unk80's value and
+/* As in 05C8C, the s16 cast on unk80's value and
    unk9A read as (&s->unk9A)[0] (which loads it after unk9E) are what the ROM's code needs. */
 static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     f32 dir[2];
@@ -2048,13 +1940,8 @@ static void func_m068_05100(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unk80 = 100;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05100);
-#endif
 
-#ifdef NON_MATCHING
 /* Jumps towards the boss's own target point (pos), or straight up if it is there */
-/* Matches; its only C caller is 05100 (NON_MATCHING), so it stays asm until 05100 is C. */
 static void func_m068_053AC(Object *obj, M068State *s) {
     f32 dx;
     f32 dz;
@@ -2083,12 +1970,8 @@ static void func_m068_053AC(Object *obj, M068State *s) {
     s->unk40 = 500.0f;
     s->unk34 = 20.0f;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_053AC);
-#endif
 
 /* Phase 3 of the first form */
-#ifdef NON_MATCHING
 static void func_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     s->unk60 |= 0xF;
     if (s->unkAC == 1) {
@@ -2107,13 +1990,8 @@ static void func_m068_054A0(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_054A0);
-#endif
 
-#ifdef NON_MATCHING
 /* Jumps towards the drop point sDropPoint (phase 8) */
-/* Matches; its only C caller is 05100 (NON_MATCHING), so it stays asm until 05100 is C. */
 static void func_m068_05570(Object *obj, M068State *s) {
     f32 dx;
     f32 dz;
@@ -2141,12 +2019,8 @@ static void func_m068_05570(Object *obj, M068State *s) {
     s->unkAA = 8;
     s->unk34 = 5.0f;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05570);
-#endif
 
 /* Phase 8 of the first form */
-#ifdef NON_MATCHING
 static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     if (s->unkAC == 1) {
         if (s->events & 0x400) {
@@ -2173,12 +2047,8 @@ static void func_m068_05668(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_05668);
-#endif
 
 /* Phase 9 of the first form: it falls; objects 0x13B drop at four points and the second form starts */
-#ifdef NON_MATCHING
 static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     Object *o;
     Vec3f *p;
@@ -2220,9 +2090,6 @@ static void func_m068_0577C(Object *obj, M068State *s, s32 updateRate, f32 rate)
         rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[4].joint * 3];
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0577C);
-#endif
 
 #ifdef NON_MATCHING
 /* Back to phase 4 (unkAA): lands, with no landing point picked yet */
@@ -2320,10 +2187,9 @@ static void func_m068_059F0(Object *obj, M068State *s, s32 updateRate, f32 rate)
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_059F0);
 #endif
 
-#ifdef NON_MATCHING
 /* Steers the first form towards target: slows to stop there, turns its body (unk98/unk96) into the motion; 1 while it moves */
 /*
- * Matches (staged: its callers and m068's .rodata wait for the gate 024EC). unkC0 is an f32[2]: with array
+ * unkC0 is an f32[2]: with array
  * reads the second dot product is written unk24 term first (the order IDO loads the operands in).
  */
 static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s32 updateRate, f32 rate) {
@@ -2373,12 +2239,8 @@ static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s3
     s->unk80 = (s16) (7.75f * speed) + 100;
     return result;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05C8C);
-#endif
 
 /* Phase 6 of the first form: when it lands from its jump, objects 0x13B drop at four points */
-#ifdef NON_MATCHING
 static void func_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     Object *o;
     Vec3f *p;
@@ -2421,12 +2283,8 @@ static void func_m068_05F60(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_05F60);
-#endif
 
 /* Phase 7 of the first form */
-#ifdef NON_MATCHING
 static void func_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     M068Player *player;
 
@@ -2448,12 +2306,8 @@ static void func_m068_06180(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06180);
-#endif
 
 /* Phase 0xFF of the first form */
-#ifdef NON_MATCHING
 static void func_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     if (rl_m068_125E0 != 0) {
         if (s->unkA8 == 0) {
@@ -2473,12 +2327,8 @@ static void func_m068_06244(Object *obj, M068State *s, s32 updateRate, f32 rate)
         s->unk60 |= 0x1F;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_06244);
-#endif
 
 /* A jump of the first form: takes off on event 8 with the object's vertical speed, lands at unk40 */
-#ifdef NON_MATCHING
 static void func_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     f32 g;
     f32 off;
@@ -2538,12 +2388,8 @@ static void func_m068_06310(Object *obj, M068State *s, s32 updateRate, f32 rate)
         *sJointCmdNext++ = -s->unk7E;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06310);
-#endif
 
 /* Rises or falls to unk40 (speed unk38, acceleration factor unk3C); shakes joint sections 2 and 3 while unk82 is set */
-#ifdef NON_MATCHING
 static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     f32 limit;
     f32 d;
@@ -2594,9 +2440,6 @@ static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate)
         *sJointCmdNext++ = -s->unk7E;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_06590);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_067B4);
 
@@ -2615,7 +2458,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_083C8);
 
 /* Animation 6 of the second form */
-#ifdef NON_MATCHING
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     if (s->unkAA != 10) {
         s->unkB0 = 0;
@@ -2637,12 +2479,8 @@ static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_08674);
-#endif
 
 /* Animation 7 of the second form */
-#ifdef NON_MATCHING
 static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     if (s->unkBC == 0) {
         func_m068_0BDC4(obj, s, 0x2E, 0.0f);
@@ -2658,12 +2496,8 @@ static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0873C);
-#endif
 
 /* Turns the first form's yaw towards unk9E; snaps it there within 20 */
-#ifdef NON_MATCHING
 static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate) {
     s32 a;
     s32 b;
@@ -2683,15 +2517,11 @@ static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate)
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_087E0);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_088DC);
 
-#ifdef NON_MATCHING
 /* Runs the colour cycle cycleKind picks over the model's vertices cycleFirst..cycleEnd, until it ends */
-/* Matches (staged behind the gate 024EC, its only caller). cycle->unk0 read as (&cycle->unk0)[0] gives the
+/* cycle->unk0 read as (&cycle->unk0)[0] gives the
    ROM's operand order in the end test (the plain field puts unk0's load in t6). */
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     M068ColourCycle *cycle;
@@ -2736,9 +2566,6 @@ static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_09088);
-#endif
 
 #ifdef NON_MATCHING
 /* Part i is destroyed: it shrinks away and its joints can no longer be hit (their radii scaled with it) */
@@ -2773,7 +2600,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_09218);
 #endif
 
 /* Turns joint section `index` on (it can be hit, 100 damage) or off */
-#ifdef NON_MATCHING
 static void func_m068_092F0(Object *obj, s32 index, s32 on) {
     M068Section *sec = &rl_m068_1254C[index];
     M068Hits *hits = (M068Hits *) obj->interactObj;
@@ -2797,9 +2623,6 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
         joint->off = off;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_092F0);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
 
@@ -2812,7 +2635,6 @@ INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0ADC4);
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0B4D0);
 
 /* Starts the sound unk50's lowest set bit asks for at one of the model's points, or moves the one playing */
-#ifdef NON_MATCHING
 static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     s32 sound;
     s32 volume;
@@ -2890,27 +2712,18 @@ static void func_m068_0BB4C(Object *obj, M068State *s, void *model, M068Instance
                       inst->points[s->soundPoint].z);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BB4C);
-#endif
 
 /* Starts animation `anim` unless it is playing already (and counts the change) */
-#ifdef NON_MATCHING
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame) {
     if (anim != obj->animationID) {
         obj_anim_set(obj, anim, frame);
         sBss12B38++;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0BDC4);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0BE14);
 
-#ifdef NON_MATCHING
 /* Turns angle towards target by speed * updateRate the short way round */
-/* Matches; its only C callers are 05100 and 05C8C (NON_MATCHING), so it stays asm until one of them is C. */
 static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate) {
     s32 up;
     s32 down;
@@ -2934,9 +2747,6 @@ static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate) {
     }
     return result & 0xFFFF;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0C7DC);
-#endif
 
 void func_m068_0C874(Object *obj, M068ShotSetup *setup) {
     M068Shot *s = obj->unk68;
