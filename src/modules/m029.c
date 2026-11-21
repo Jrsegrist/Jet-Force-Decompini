@@ -103,7 +103,10 @@ void func_m029_00C34(s32 updateRate);
  * 1000000.0f are this function's, so the .rodata stays assembly with it.
  */
 #ifdef NON_MATCHING
-/* 436 -> 294 diffs (and the ROM's frame) with the empty ifs on first, player, updateRate */
+/*
+ * 436 -> 294 diffs (and the ROM's frame) with the empty ifs on first, player, updateRate; aligned distance
+ * 237 -> 144 with sEffectStartZ's store and first read through its address (*(f32 *) ((u32) &...))
+ */
 void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
     s32 first;
     s32 count;
@@ -192,11 +195,11 @@ void func_m029_00000(Object *obj, M029Player *player, s32 updateRate) {
             } else {
                 sEffectStartX = sTarget->trans.x_position;
                 sEffectStartY = sTarget->trans.y_position + 2000.0f;
-                sEffectStartZ = sTarget->trans.z_position;
+                *(f32 *) ((u32) &sEffectStartZ) = sTarget->trans.z_position;
                 if (sEffect != NULL) {
                     func_80009A04(sEffect, sEffectStartX - sEffect->trans.x_position,
                                   sEffectStartY - sEffect->trans.y_position,
-                                  sEffectStartZ - sEffect->trans.z_position);
+                                  *(f32 *) ((u32) &sEffectStartZ) - sEffect->trans.z_position);
                     sEffect->trans.flags &= ~0x400;
                 }
                 player->attackState = 4;

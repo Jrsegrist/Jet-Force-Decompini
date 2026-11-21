@@ -54,12 +54,15 @@ void func_m010_00000(f32 accel) {
 }
 
 #ifdef NON_MATCHING
-/* registers only: the original keeps the texture in a0 and the reread alpha/timer in a1/a2 */
+/*
+ * registers only: the original keeps the texture in a0 and the reread alpha/timer in a1/a2 (27 diffs; 40 with
+ * h an s32: h only feeds s16 uv stores and is at most 254 << 5, so an s16 stores the same values)
+ */
 void *func_m010_0000C(SparkParams *params) {
     M010Spark *spark = NULL;
     s32 max;
     s32 w;
-    s32 h;
+    s16 h;
 
     if (D_800A4FC4) {
         max = 40;
