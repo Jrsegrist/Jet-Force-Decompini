@@ -939,7 +939,9 @@ void track_segment_data_free(void);
 /* JFG: scroll the texture coordinates of the triangles using each queued texture (tex_scroll_queue).
    NON_MATCHING: the same code with other registers (target: outer values in t-registers, the
    per-triangle values in s3..fp, no $ra use). `value` (dead after the entry is decoded) carrying the batch's
-   face offset gives the ROM's length and frame (129 words, 0x28; aligned distance 183 -> 65). */
+   face offset gives the ROM's length and frame (129 words, 0x28; aligned distance 183 -> 65). The second,
+   no-code `& 0xFF` on the texture index (a no-op on a byte) takes the code generator's extra temporary
+   (65 -> 48). */
 void func_80013970(void) {
     s32 count;
     s32 *entry;
@@ -963,7 +965,7 @@ void func_80013970(void) {
             count = D_800A0D8C;
             while (count--) {
                 value = *entry++;
-                texIndex = (value >> 24) & 0xFF;
+                texIndex = ((value >> 24) & 0xFF) & 0xFF;
                 du = (value << 8) >> 20;
                 dv = (value << 20) >> 20;
                 tex = gCurrentLevelModel->textures[texIndex].texture;

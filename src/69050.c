@@ -2285,7 +2285,101 @@ void glitch_effect_skip_redraw(void) {
     D_800A6D0C = 0;
 }
 
+#ifdef NON_MATCHING
+extern s16 D_800A6D10;
+extern s16 D_800A6D14;
+extern s16 D_800A6D18;
+/* JFG: a level header (only the field used here) */
+typedef struct LevelHeader69 {
+    /* 0x00 */ u8 pad0[0xF6];
+    /* 0xF6 */ u8 unkF6; // JFG: the strength of the wave effect below
+} LevelHeader69;
+LevelHeader69 *level_header(void);
+s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
+
+/*
+ * JFG: fill the rows top..bottom-1 between x1 and x2 with one-pixel rectangles whose colour is a wave made of
+ * three sines (phases D_800A6D10/14/18, advanced by speed each call), when the level has a strength (unkF6).
+ * NON_MATCHING: a first body written from the ROM, with the ROM's length and frame (232 words, 0xA8); aligned
+ * distance 182. IDO keeps the three phase globals' addresses in registers (lui/addiu, then lh/sh through them)
+ * where the ROM addresses each load and store on its own, so the schedule and every temporary after it differ;
+ * highA stays in fp where the ROM spills it and keeps the fill rectangle's left word there.
+ */
+void func_8006F084(Gfx **dList, s32 x1, s32 top, s32 x2, s32 bottom, s32 speed) {
+    LevelHeader69 *level;
+    s32 y;
+    s32 sin1;
+    s32 sin2;
+    s32 sin3;
+    s32 strength;
+    s32 highA;
+    s32 baseA;
+    s32 lowA;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 a;
+    s32 p1;
+    s32 p2;
+    s32 p3;
+    s16 n1;
+    s16 n2;
+    s16 n3;
+
+    level = level_header();
+    if (level == NULL || level->unkF6 == 0) {
+        return;
+    }
+    func_80055C00(dList, NULL, 4, 0);
+    gDPSetCombineMode((*dList)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    n1 = D_800A6D10 + ((speed * 0x2000) >> 4);
+    n2 = D_800A6D14 + ((speed * -0x3C00) >> 4);
+    n3 = D_800A6D18 + ((speed * 0x1800) >> 4);
+    D_800A6D10 = n1;
+    D_800A6D14 = n2;
+    D_800A6D18 = n3;
+    p1 = n1 + top * 0x400;
+    p2 = n2 + top * 0xBA2;
+    p3 = n3 + top * 0x28F;
+    highA = (level->unkF6 * 24) >> 7;
+    baseA = (level->unkF6 * 80) >> 7;
+    lowA = (level->unkF6 * 72) >> 7;
+    for (y = top; y < bottom; y++) {
+        sin1 = func_8004966C(p2);
+        sin2 = func_8004966C(p1);
+        sin3 = func_8004966C(p3);
+        strength = (sin3 * 64 + sin2 * 192 + sin1 * 96) >> 8;
+        if (strength < 0) {
+            strength = -strength;
+            r = 8;
+            g = 0x20;
+            b = 0xA0;
+            a = lowA;
+        } else {
+            r = 0x80;
+            g = 0xC0;
+            b = 0xFF;
+            a = highA;
+        }
+        if (strength > 0x10000) {
+            strength = 0x10000;
+        }
+        r = (((r - 0x20) * strength) >> 16) + 0x20;
+        g = (((g - 0x78) * strength) >> 16) + 0x78;
+        b = (((b - 0xFF) * strength) >> 16) + 0xFF;
+        a = (((a - baseA) * strength) >> 16) + baseA;
+        gDPSetPrimColor((*dList)++, 0, 0, r, g, b, a);
+        gDPFillRectangle((*dList)++, x1, y, x2, y + 1);
+        gDPPipeSync((*dList)++);
+        p1 += 0x400;
+        p2 += 0xBA2;
+        p3 += 0x28F;
+    }
+    rendermode_reset(dList);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006F084);
+#endif
 
 typedef struct ScreenEffect {
     /* 0x00 */ s32 type;
