@@ -1114,7 +1114,8 @@ static void func_m068_0714C(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_0714C func_m068_0714C
 static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0758C func_m068_0758C
-extern void rl_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_078F4 func_m068_078F4
 extern void rl_m068_07D68(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_083C8 func_m068_083C8
@@ -2983,7 +2984,98 @@ static void func_m068_0758C(Object *obj, M068State *s, void *model, M068Instance
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_078F4);
+/*
+ * A second-form phase (unkAA 4): turns to face the player from joint section 4's joint and, once its
+ * colour cycle is bright enough, fires bolts (as 0758C) from model points 0 and 1 in turn; after the
+ * sixth it ends
+ */
+static void func_m068_078F4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Object *player;
+    Vec3f *jp;
+    Vec3f *pt;
+    Object *o;
+    f32 d;
+    M068BoltEntry entry;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    s16 yaw;
+    s16 pitch;
+
+    if (s->unkAA != 4) {
+        s->unkB0 = 0;
+        s->timer = 0.0f;
+        return;
+    }
+    player = func_8000E4D0(0);
+    jp = (Vec3f *) &sJointPos[rl_m068_1254C[4].joint * 3];
+    dx = player->trans.x_position - jp->x;
+    dy = player->trans.y_position - jp->y;
+    dz = player->trans.z_position - jp->z;
+    yaw = func_80049C84(dx, dz) + 0x8000;
+    s->unk9A = rl_m068_0C7DC(s->unk9A, yaw, 0x200, updateRate);
+    s->unk9E = s->unk9A;
+    d = func_80097140(dx * dx + dz * dz);
+    pitch = func_80049C84(dy, d);
+    s->unk98 = rl_m068_0C7DC(s->unk98, pitch, 0x100, updateRate);
+    if (yaw == s->unk9A && pitch == s->unk98) {
+        s->unkBC |= 1;
+    }
+    if ((s->unkBC & 1) && !(s->unkBC & 2)) {
+        s->unkBC |= 2;
+        func_m068_0BDC4(obj, s, 0x1A, 0.0f);
+    }
+    if (s->events & 0x200) {
+        s->unkBC |= 4;
+    }
+    if (s->unkBC & 4) {
+        if (!(s->unkBC & 0x30) && s->cycleKind == 0) {
+            s->cycleKind = 4;
+        }
+        if (s->cycle != NULL && s->cycle->unkB >= 0xE6) {
+            s->unkBC |= 8;
+        }
+        if (s->timer == 0.0f && (s->unkBC & 8)) {
+            if (s->unkBE & 1) {
+                pt = &inst->points[1];
+                s->unkBC |= 0x20;
+            } else {
+                pt = &inst->points[0];
+                s->unkBC |= 0x10;
+            }
+            entry.objectID = 0x30E;
+            entry.size = 0x18;
+            entry.unk3 = 0;
+            entry.x = pt->x;
+            entry.y = pt->y;
+            entry.z = pt->z;
+            entry.targetX = player->trans.x_position;
+            entry.targetY = (s16) player->trans.y_position + 30.0f;
+            entry.targetZ = player->trans.z_position;
+            entry.unk10 = 30.0f;
+            entry.owner = obj;
+            o = func_80005F14(&entry, 1);
+            if (o != NULL) {
+                o->level_entry = NULL;
+            }
+            func_80003410(0x1D0, pt->x, pt->y, pt->z, 4, NULL);
+            s->unkBE++;
+            s->timer = 0.1f;
+            if ((s->unkBC & 0x30) == 0x30) {
+                s->unkBC &= ~0x38;
+            }
+        } else {
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->timer = 0.0f;
+                if (s->unkBE == 6) {
+                    s->unkB0 = 0;
+                    func_m068_0BDC4(obj, s, 0x1C, 0.0f);
+                }
+            }
+        }
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_07D68);
 
