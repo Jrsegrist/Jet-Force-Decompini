@@ -1065,7 +1065,8 @@ static void func_m068_039D4(Object *obj, M068State *s, s32 updateRate, f32 rate)
 static void func_m068_03A78(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_03D58(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_03F0C(Object *obj, M068State *s, s32 updateRate, f32 rate);
-extern void rl_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+static void func_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#define rl_m068_040EC func_m068_040EC
 static void func_m068_04590(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_04600(Object *obj, M068State *s);
 static void func_m068_046EC(Object *obj, M068State *s, s32 updateRate, f32 rate);
@@ -1690,7 +1691,73 @@ static void func_m068_03FD8(Object *obj, M068State *s) {
     s->unk50 |= 0x800;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_040EC);
+extern void light_toggle(void *light);
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+extern s32 transition_begin(void *transition);
+extern u8 rl_m068_12500[];     /* (.data) the transition it starts */
+extern Object *rl_m068_124F0;  /* (.data) the four objects spawned */
+extern Object *rl_m068_124F4;
+extern Object *rl_m068_124F8;
+extern Object *rl_m068_124FC;
+
+/*
+ * The boss's death (after 024EC): it slides to a stop, then bursts at joint section 1, frees the four
+ * objects it spawned and, after two seconds, goes to level 0x175
+ */
+static void func_m068_040EC(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    sParts[1].target[0] = 0;
+    if (obj->light != NULL) {
+        light_toggle((void *) *obj->light);
+    }
+    if (s->sound5C != 0) {
+        func_800035E8(s->sound5C, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+    }
+    if (s->unk14 == 0) {
+        if (s->events & 0x2000) {
+            sParts[4].hit = 1;
+        } else if (s->events & 0x8000) {
+            rl_m068_1261C = (Vec3f *) &sJointPos[rl_m068_1254C[0].joint * 3];
+            s->unk2C = func_80049C34(s->unk9A) * 10.0f;
+            s->unk38 = 1.0f;
+            s->unk30 = func_80049C30(s->unk9A) * 10.0f;
+            s->unk3C = 1.0f;
+            s->timer = 5.0f;
+        } else if (obj->animationID == 0x30) {
+            s->unk60 |= 0xF;
+            s->unk98 += updateRate << 9;
+            s->timer -= rate / 60.0f;
+            if (s->timer <= 0.0f) {
+                s->unk2C = 0.0f;
+                s->unk38 = 0.0f;
+                s->unk30 = 0.0f;
+                s->timer = 0.0f;
+                s->unk14++;
+            }
+        }
+    } else if (s->unk14 == 1) {
+        Vec3f *jp = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+
+        spawn_object_from_list(0x13, jp->x, jp->y, jp->z, 100, 0);
+        cam_shake_start(0, 0.0f, 0.0f, 4.0f, 25);
+        func_80001248(0x22, 0);
+        transition_begin(rl_m068_12500);
+        func_800079B8(rl_m068_124F0);
+        func_800079B8(rl_m068_124F4);
+        func_800079B8(rl_m068_124F8);
+        func_800079B8(rl_m068_124FC);
+        obj->trans.flags |= 0x400;
+        s->unk14++;
+        s->timer = 2.0f;
+        if (s->sound5C != 0) {
+            func_80003614(s->sound5C);
+        }
+    } else if (s->unk14 == 2) {
+        s->timer -= rate / 60.0f;
+        if (s->timer <= 0.0f) {
+            level_goto(0x175, pending_level_character(), 0, menu_mode_get(), 1, 0);
+        }
+    }
+}
 
 /* Starts phase 14 of the second form: the player watches from joint section 4, 300 up */
 static void func_m068_0447C(Object *obj, M068State *s) {
