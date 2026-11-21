@@ -1047,7 +1047,9 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E794);
 #endif
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (39 words, from 80, after the empty ifs on always-set values below): loop shape only: the target keeps j as a counter (j != 4, mtx + j * 4 recomputed); mine turns it into pointers */
+/* NON_MATCHING (13 words, ROM length; was 32): loop shape only. The target keeps j as a counter (j != 4, mtx + j * 4
+   recomputed each pass) and walks the column with one pointer; the column through a row-pointer cast keeps j (plain
+   mtx[i][j] gets j strength-reduced) but its inner loop then counts i * 16 and adds the column base each time. */
 /* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. */
 void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     f32 newMin[4];
@@ -1066,15 +1068,10 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     newMax[2] = 0.0f;
     newMin[3] = 1.0f;
     newMax[3] = 1.0f;
-    j = 0;
-    for (;;) {
-        if (!(j < 4)) {
-            break;
-        }
+    for (j = 0; j < 4; j++) {
         for (i = 0; i < 4; i++) {
-            a = mtx[i][j] * min[i];
-            if (i) {}
-            b = mtx[i][j] * max[i];
+            a = ((f32 (*)[4]) (mtx[0] + j))[i][0] * min[i];
+            b = ((f32 (*)[4]) (mtx[0] + j))[i][0] * max[i];
             if (a < b) {
                 newMin[j] += a;
                 newMax[j] += b;
@@ -1082,9 +1079,7 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
                 newMin[j] += b;
                 newMax[j] += a;
             }
-            if (i) {}
         }
-        j++;
     }
     min[0] = newMin[0];
     min[1] = newMin[1];
