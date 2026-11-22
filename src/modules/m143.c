@@ -222,12 +222,9 @@ void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
     *mtx = m;
 }
 
-#ifdef NON_MATCHING
 /*
  * A ring's init: clears its vertices and lays out its 48 triangles round them,
- * mapping the texture. ROM length and frame; 42 words differ, all t-register
- * numbers from the texture-size set-up on (the ROM's free-list order is two
- * temporaries further on).
+ * mapping the texture.
  */
 void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     M143Ring *ring;
@@ -257,7 +254,7 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     ring->hit = 0;
     effect_slot_start(2, rl_m143_032D0);
     {
-        s32 ws = (rl_m143_032D0->width - 1) << 5;
+        s16 ws = (rl_m143_032D0->width - 1) << 5;
 
         h = (rl_m143_032D0->height - 1) << 5;
         u = 0;
@@ -296,9 +293,6 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00548);
-#endif
 
 /* A ring that grows outwards along the ground and hurts a player it passes */
 void func_m143_008C0(Object *obj, s32 speed) {
