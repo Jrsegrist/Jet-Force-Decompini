@@ -41,12 +41,15 @@ typedef struct M068State {
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
     /* 0x60 */ u16 unk60;
-    /* 0x62 */ u8 pad62[0x6C - 0x62];
+    /* 0x62 */ u8 pad62[0x64 - 0x62];
+    /* 0x64 */ f32 lastDist; /* sound6C's point from the camera, for its pitch */
+    /* 0x68 */ f32 pitch;
     /* 0x6C */ s32 sound6C;
     /* 0x70 */ s32 sound70;
-    /* 0x74 */ u8 pad74[0x76 - 0x74];
-    /* 0x76 */ s16 hitByPlayer;
-    /* 0x78 */ u8 pad78[0x7E - 0x78];
+    /* 0x74 */ f32 texTimer; /* seconds to the next texture frame */
+    /* 0x78 */ s16 texStep; /* +1 or -1 */
+    /* 0x7A */ s16 texFrame; /* 0-2, back and forth */
+    /* 0x7C */ s16 texBase;
     /* 0x7E */ s16 unk7E; /* the shake angle */
     /* 0x80 */ s16 unk80;
     /* 0x82 */ s8 unk82;
@@ -686,6 +689,8 @@ typedef struct M068Instance {
     /* 0x14 */ u8 pad14[0x68 - 0x14];
     /* 0x68 */ Vec3f *points; /* where its sounds play */
     /* 0x6C */ Vec3f *points2;
+    /* 0x70 */ u8 pad70[0x74 - 0x70];
+    /* 0x74 */ struct M068TexAnim *texAnims; /* one for each of the model's textures */
 } M068Instance;
 
 extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
@@ -1127,7 +1132,8 @@ extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
 extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0A208 func_m068_0A208
 static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0A5D8 func_m068_0A5D8
 static void func_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -3545,7 +3551,99 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0A208);
+/* A texture's animation state in a model instance (8 bytes) */
+typedef struct M068TexAnim {
+    /* 0x0 */ s16 offset; /* the frame shown, in 256ths */
+    /* 0x2 */ u8 pad2[0x4 - 0x2];
+    /* 0x4 */ s32 texture; /* the low byte: which texture */
+} M068TexAnim;
+
+/* The boss's model, as used here */
+typedef struct M068ModelData {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ u8 textureCount;
+} M068ModelData;
+
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern f32 func_8008B200(s32 x);
+extern void audspat_point_set_pitch(s32 sound, s32 pitch);
+
+/*
+ * Every frame: steps texture 27's frame back and forth, and keeps the boss's two sounds at model point 15
+ * (sound6C's pitch from how fast the point closes on the camera, as 10758 does for the boulders).
+ * The integer 60s in the pitch formula give the ROM's single 60.0f register (60.0f there is rematerialised).
+ */
+static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    s32 i;
+    Vec3f *pt;
+    ObjectTransform *cam;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 v;
+    f32 max;
+    f32 p;
+
+    s->texTimer += rate / 60.0f;
+    if (0.1f <= s->texTimer) {
+        s->texFrame += s->texStep;
+        s->texTimer = 0.0f;
+        if (s->texFrame >= 3) {
+            s->texFrame = 1;
+            s->texStep = -1;
+        } else if (s->texFrame < 0) {
+            s->texFrame = 1;
+            s->texStep = 1;
+        }
+    }
+    {
+        M068TexAnim *anim;
+        s32 offset;
+
+        offset = (s->texBase + s->texFrame) << 8;
+        anim = inst->texAnims;
+        for (i = 0; i < ((M068ModelData *) model)->textureCount; i++, anim++) {
+            if ((anim->texture & 0xFF) == 27) {
+                anim->offset = offset;
+            }
+        }
+    }
+    pt = &inst->points[15];
+    if (s->unk82 != 0 && s->sound6C == 0) {
+        func_80003410(0x1C7, pt->x, pt->y, pt->z, 1, &s->sound6C);
+    } else if (s->unk82 == 0 && s->sound6C != 0) {
+        func_80003614(s->sound6C);
+    }
+    if (s->sound6C != 0) {
+        func_800035E8(s->sound6C, pt->x, pt->y, pt->z);
+        cam = func_80041DE0();
+        dx = pt->x - cam->x_position;
+        dy = pt->y - cam->y_position;
+        dz = pt->z - cam->z_position;
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        v = (s->lastDist - d) / rate;
+        v = func_8008B200((60 + v) / (60 - v) * 315.0f);
+        max = 0.8f;
+        s->pitch += (v - 1.2f - s->pitch) * 0.5f;
+        if (s->pitch > max) {
+            s->pitch = max;
+        } else if (s->pitch < -0.8f) {
+            s->pitch = -0.8f;
+        }
+        s->lastDist = d;
+        p = (s->pitch + 1.0f) * 100.0f;
+        p += 0.6666667f * s->unk38;
+        audspat_point_set_pitch(s->sound6C, (u32) p & 0xFF);
+    }
+    if (s->sound70 != 0) {
+        if (s->unk82 == 0) {
+            func_80003614(s->sound70);
+        } else {
+            func_800035E8(s->sound70, pt->x, pt->y, pt->z);
+        }
+    }
+}
 
 void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
 extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
@@ -5591,12 +5689,12 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0F7C8);
 #endif
 
-/* Called when something hits the boss: notes a hit by the player */
+/* Called when something hits a boulder: the player's shot breaks it up */
 void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
-    M068State *s = obj->unk68;
+    M068Boulder *b = obj->unk68;
 
     if (hitter->behaviorId == 1) {
-        s->hitByPlayer = 1;
+        b->state = 1;
     }
 }
 
