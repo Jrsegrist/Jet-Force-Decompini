@@ -224,9 +224,97 @@ void func_m067_0025C(void) {
     rl_m067_0456C += 2;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_00300);
-
-extern void rl_m067_00300(Object *obj, M067State *s, s32 step);
+/*
+ * Runs one step of the enemy's step list: -2 to -18 set the enemy's kind and animation (some also set the
+ * countdown, raise flags or play a sound); any other step starts a jump to that target
+ */
+static void func_m067_00300(Object *obj, M067State *s, s32 step) {
+    switch (step) {
+        case -2:
+            s->kind = 0;
+            s->unkF = 120;
+            obj_anim_set(obj, 0, 0.0f);
+            break;
+        case -3:
+            s->kind = 1;
+            obj_anim_set(obj, 15, 0.0f);
+            break;
+        case -4:
+            s->unkB |= 0xC0;
+            s->kind = 10;
+            obj_anim_set(obj, 10, 0.0f);
+            break;
+        case -5:
+            s->unkB |= 0xC0;
+            s->kind = 11;
+            obj_anim_set(obj, 11, 0.0f);
+            break;
+        case -6:
+            s->kind = 12;
+            s->unkF = 120;
+            obj_anim_set(obj, 2, 0.0f);
+            break;
+        case -7:
+            s->kind = 13;
+            obj_anim_set(obj, 8, 0.0f);
+            break;
+        case -8:
+            s->kind = 14;
+            obj_anim_set(obj, 9, 0.0f);
+            break;
+        case -9:
+            s->unkC |= 0xC0;
+            s->kind = 15;
+            obj_anim_set(obj, 20, 0.0f);
+            break;
+        case -10:
+            s->kind = 16;
+            obj_anim_set(obj, 21, 0.0f);
+            break;
+        case -11:
+            func_80003410(0x1B7, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            s->kind = 17;
+            obj_anim_set(obj, 22, 0.0f);
+            break;
+        case -12:
+            func_80003410(0x1B8, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            s->kind = 18;
+            obj_anim_set(obj, 23, 0.0f);
+            break;
+        case -13:
+            func_80003410(0x1B7, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            s->kind = 19;
+            obj_anim_set(obj, 24, 0.0f);
+            break;
+        case -18:
+            s->kind = 0;
+            s->unkF = -1;
+            obj_anim_set(obj, 0, 0.0f);
+            break;
+        case -14:
+            s->unkE |= 0xC0;
+            s->kind = 20;
+            obj_anim_set(obj, 13, 0.0f);
+            break;
+        case -15:
+            s->unkE |= 0xC0;
+            s->kind = 21;
+            obj_anim_set(obj, 14, 0.0f);
+            break;
+        case -16:
+            s->kind = 22;
+            obj_anim_set(obj, 25, 0.0f);
+            break;
+        case -17:
+            func_80003410(0x1B8, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            s->kind = 23;
+            obj_anim_set(obj, 7, 0.0f);
+            break;
+        default:
+            func_m067_00130(obj, (M067Jump *) s, step);
+            break;
+    }
+}
 
 /*
  * Runs the next step of the enemy's step list (s->unk4): -1 goes back to the
@@ -246,7 +334,7 @@ void func_m067_0064C(Object *obj, M067State *s) {
     if (((s8 *) s->unk4)[s->unk8] == s->target) {
         s->unk8++;
     }
-    rl_m067_00300(obj, s, ((s8 *) s->unk4)[s->unk8]);
+    func_m067_00300(obj, s, ((s8 *) s->unk4)[s->unk8]);
     s->unk8++;
 }
 
