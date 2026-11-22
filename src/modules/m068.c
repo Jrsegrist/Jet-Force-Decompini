@@ -41,12 +41,15 @@ typedef struct M068State {
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
     /* 0x60 */ u16 unk60;
-    /* 0x62 */ u8 pad62[0x6C - 0x62];
+    /* 0x62 */ u8 pad62[0x64 - 0x62];
+    /* 0x64 */ f32 lastDist; /* sound6C's point from the camera, for its pitch */
+    /* 0x68 */ f32 pitch;
     /* 0x6C */ s32 sound6C;
     /* 0x70 */ s32 sound70;
-    /* 0x74 */ u8 pad74[0x76 - 0x74];
-    /* 0x76 */ s16 hitByPlayer;
-    /* 0x78 */ u8 pad78[0x7E - 0x78];
+    /* 0x74 */ f32 texTimer; /* seconds to the next texture frame */
+    /* 0x78 */ s16 texStep; /* +1 or -1 */
+    /* 0x7A */ s16 texFrame; /* 0-2, back and forth */
+    /* 0x7C */ s16 texBase;
     /* 0x7E */ s16 unk7E; /* the shake angle */
     /* 0x80 */ s16 unk80;
     /* 0x82 */ s8 unk82;
@@ -686,6 +689,8 @@ typedef struct M068Instance {
     /* 0x14 */ u8 pad14[0x68 - 0x14];
     /* 0x68 */ Vec3f *points; /* where its sounds play */
     /* 0x6C */ Vec3f *points2;
+    /* 0x70 */ u8 pad70[0x74 - 0x70];
+    /* 0x74 */ struct M068TexAnim *texAnims; /* one for each of the model's textures */
 } M068Instance;
 
 extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
@@ -1126,8 +1131,14 @@ static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
+#ifdef NON_MATCHING
+static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_093B8 func_m068_093B8
+#else
 extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-extern void rl_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
+static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_0A208 func_m068_0A208
 static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0A5D8 func_m068_0A5D8
 static void func_m068_0ADC4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -3543,9 +3554,396 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
+void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0A208);
+#ifdef NON_MATCHING
+/*
+ * Phase work of the first form for part 2 (its head): each time its hit points run out with flag 1, 2
+ * or 4 set it goes to the next stage (animations 0x1E/0x1F/0x21, texture frames from 3/6/9, five
+ * objects 0x32A from the model's points 15-19); with flag 8 and event 0x400 it bursts (twelve pieces
+ * from the model's points 20-31; parts 2 and 3 are destroyed). Sparks fly from points 15-19 on every
+ * hit, and while it is damaged.
+ * Same length, frame and registers; only the two six-piece loops' pointer temporary is spilled one word
+ * lower (0x5C, the ROM 0x60: 6 diffs).
+ */
+static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f *p;
+    Vec3f *q;
+    s32 i;
+    M068PartState *parts;
+    M068PieceSetup entry2;
+    M068PieceSetup entry;
+    SparkParams spark;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s32 lo;
+    s32 hi;
+    s32 n;
+    s32 alpha;
+    s32 j;
+    Object *o;
+    s32 fx;
+    s16 yaw;
+    s16 angle;
+
+    parts = sParts;
+    if (parts[2].hit) {
+        fx = 1;
+        if (!(s->flags & 0x10)) {
+            if ((s->flags & 8) && (s->events & 0x400)) {
+                s->flags |= 0x10;
+                s->unk82 = 0;
+                func_m068_09218(obj, 2);
+                func_m068_09218(obj, 3);
+                fx = 0x1B;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 0x400;
+                parts[2].hp = rl_m068_1254C[2].hp;
+            } else if ((s->flags & 4) && parts[2].hp <= 0) {
+                s->flags |= 8;
+                func_m068_0BDC4(obj, s, 0x21, 0.0f);
+                func_m068_05028(obj, s);
+                s->texBase = 9;
+                s->texFrame = 0;
+                s->texStep = 0;
+                fx = 7;
+                s->unk44 = 150.0f;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 8;
+                parts[2].hp = rl_m068_1254C[2].hp;
+                p = &inst->points[15];
+                func_80003410(0x1CD, p->x, p->y, p->z, 1, &s->sound70);
+            } else if ((s->flags & 2) && parts[2].hp <= 0) {
+                s->flags |= 4;
+                func_m068_0BDC4(obj, s, 0x1F, 0.0f);
+                func_m068_05028(obj, s);
+                s->texBase = 6;
+                fx = 7;
+                s->unk44 = 100.0f;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 4;
+                parts[2].hp = rl_m068_1254C[2].hp;
+            } else if ((s->flags & 1) && parts[2].hp <= 0) {
+                s->flags |= 2;
+                func_m068_0BDC4(obj, s, 0x1E, 0.0f);
+                func_m068_05028(obj, s);
+                s->texBase = 3;
+                fx = 7;
+                s->unk44 = 50.0f;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 4;
+                parts[2].hp = rl_m068_1254C[2].hp;
+            } else if (s->unkC8 > 500) {
+                s->unk50 |= 0x1000;
+            } else {
+                q = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
+                func_80003410(0x1C8, q->x, q->y, q->z, 4, NULL);
+            }
+        }
+        if (fx & 1) {
+            j = func_80048E2C(15, 19);
+            p = &inst->points[j];
+            yaw = (s16) (s->unk9A + 0x8000);
+            spark.x_position = p->x;
+            spark.y_position = p->y;
+            spark.z_position = p->z;
+            spark.textureID = 20;
+            spark.lifeSteps = 15;
+            spark.alpha = 255;
+            if (s->texBase == 0) {
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFF0000FF;
+            } else if (s->texBase == 3) {
+                spark.colour1 = 0x8080FFFF;
+                spark.colour2 = 0xFF00FFFF;
+            } else if (s->texBase == 6) {
+                spark.colour1 = 0x80FFFFFF;
+                spark.colour2 = 0xFFFF00FF;
+            } else {
+                spark.colour1 = 0x808080FF;
+                spark.colour2 = 0xFF00FF;
+            }
+            lo = yaw - 0x1000;
+            hi = yaw + 0x1000;
+            for (i = 0; i < 8; i++) {
+                spark.y_rotation = func_80048E2C(lo, hi);
+                spark.x_rotation = func_80048E2C(0x1000, 0x5000);
+                spark.speed = func_80048E2C(50, 100) * 0.1f;
+                spark.sparkSize = func_80048E2C(400, 600) * 0.01f;
+                func_m010_0000C(&spark);
+            }
+        }
+        if (fx & 2) {
+            alpha = obj->shading->unk0 * 255.0f;
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+            for (i = 0; i < 8; i++) {
+                j = func_80048E2C(15, 19);
+                p = &inst->points[j];
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                d = func_80048E2C(50, 100) * 0.1f;
+                dx *= d;
+                dy *= d;
+                dz *= d;
+                func_m008_001CC(p->x, p->y, p->z, dx, dy, dz, alpha, 4, 2.0f);
+            }
+        }
+        if (fx & 4) {
+            entry2.objectID = 0x32A;
+            entry2.unk2 = 0x2C;
+            entry2.active = 1;
+            entry2.yRotation = 0;
+            entry2.xRotation = 0;
+            entry2.unk1C = 2.0f;
+            entry2.unk20 = 2.0f;
+            entry2.unk28 = 0.15f;
+            angle = 0;
+            p = &inst->points[15];
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+            for (i = 0; i < 5; i++) {
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry2.zRotation = angle;
+                entry2.velocity.x = dx;
+                entry2.velocity.y = dy;
+                entry2.velocity.z = dz;
+                entry2.speed = d / 15.0f;
+                entry2.x = p->x;
+                entry2.y = p->y;
+                entry2.z = p->z;
+                o = func_80005F14(&entry2, 1);
+                if (o != NULL) {
+                    o->level_entry = NULL;
+                }
+                angle += 0x3333;
+                p++;
+            }
+        }
+        if (fx & 8) {
+            entry.objectID = 0x305;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.mtx = (MtxF *) sMtx12B70;
+            entry.unk1C = 3.0f;
+            entry.unk20 = 2.0f;
+            entry.unk28 = 0.15f;
+            p = &inst->points[20];
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
+            for (i = 0; i < 6; i++) {
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry.velocity.x = dx;
+                entry.velocity.y = dy;
+                entry.velocity.z = dz;
+                entry.speed = d / 15.0f;
+                func_m068_10DD4(sBss12B40[i], &entry);
+                p++;
+            }
+            entry.objectID = 0x306;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.mtx = (MtxF *) sMtx12BB0;
+            entry.unk1C = 3.0f;
+            entry.unk20 = 2.0f;
+            entry.unk28 = 0.15f;
+            p = &inst->points[26];
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[3].joint * 3];
+            for (i = 0; i < 6; i++) {
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry.velocity.x = dx;
+                entry.velocity.y = dy;
+                entry.velocity.z = dz;
+                entry.speed = d / 15.0f;
+                func_m068_10DD4(sBss12B58[i], &entry);
+                p++;
+            }
+        }
+        if (fx & 0x10) {
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
+            spawn_object_from_list(3, q->x, q->y, q->z, 100, 0);
+            func_80003410(0x48, q->x, q->y, q->z, 4, NULL);
+        }
+    }
+    if (s->unk82 != 0 && (s->flags & 0xE) && updateRate < 4 && func_80048E2C(0, 20) == 10) {
+        alpha = obj->shading->unk0 * 255.0f;
+        if (s->flags & 8) {
+            n = 3;
+        } else if (s->flags & 4) {
+            n = 2;
+        } else if (s->flags & 2) {
+            n = 1;
+        }
+        q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+        for (i = 0; i < n; i++) {
+            j = func_80048E2C(15, 19);
+            p = &inst->points[j];
+            dx = p->x - q->x;
+            dy = p->y - q->y;
+            dz = p->z - q->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            d = func_80048E2C(50, 100) * 0.1f;
+            dx *= d;
+            dy *= d;
+            dz *= d;
+            func_m008_001CC(p->x, p->y, p->z, dx, dy, dz, alpha, 4, 2.0f);
+        }
+    }
+    if (s->unk82 != 0 && (s->flags & 0xE)) {
+        if (s->flags & 8) {
+            n = 3;
+        } else if (s->flags & 4) {
+            n = 2;
+        } else if (s->flags & 2) {
+            n = 1;
+        }
+        for (i = 0; i < n; i++) {
+            s->unk1C |= 1 << func_80048E2C(1, 5);
+            s->unk1C |= 1 << func_80048E2C(6, 10);
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
+#endif
+
+/* A texture's animation state in a model instance (8 bytes) */
+typedef struct M068TexAnim {
+    /* 0x0 */ s16 offset; /* the frame shown, in 256ths */
+    /* 0x2 */ u8 pad2[0x4 - 0x2];
+    /* 0x4 */ s32 texture; /* the low byte: which texture */
+} M068TexAnim;
+
+/* The boss's model, as used here */
+typedef struct M068ModelData {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ u8 textureCount;
+} M068ModelData;
+
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern f32 func_8008B200(s32 x);
+extern void audspat_point_set_pitch(s32 sound, s32 pitch);
+
+/*
+ * Every frame: steps texture 27's frame back and forth, and keeps the boss's two sounds at model point 15
+ * (sound6C's pitch from how fast the point closes on the camera, as 10758 does for the boulders).
+ * The integer 60s in the pitch formula give the ROM's single 60.0f register (60.0f there is rematerialised).
+ */
+static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    s32 i;
+    Vec3f *pt;
+    ObjectTransform *cam;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 v;
+    f32 max;
+    f32 p;
+
+    s->texTimer += rate / 60.0f;
+    if (0.1f <= s->texTimer) {
+        s->texFrame += s->texStep;
+        s->texTimer = 0.0f;
+        if (s->texFrame >= 3) {
+            s->texFrame = 1;
+            s->texStep = -1;
+        } else if (s->texFrame < 0) {
+            s->texFrame = 1;
+            s->texStep = 1;
+        }
+    }
+    {
+        M068TexAnim *anim;
+        s32 offset;
+
+        offset = (s->texBase + s->texFrame) << 8;
+        anim = inst->texAnims;
+        for (i = 0; i < ((M068ModelData *) model)->textureCount; i++, anim++) {
+            if ((anim->texture & 0xFF) == 27) {
+                anim->offset = offset;
+            }
+        }
+    }
+    pt = &inst->points[15];
+    if (s->unk82 != 0 && s->sound6C == 0) {
+        func_80003410(0x1C7, pt->x, pt->y, pt->z, 1, &s->sound6C);
+    } else if (s->unk82 == 0 && s->sound6C != 0) {
+        func_80003614(s->sound6C);
+    }
+    if (s->sound6C != 0) {
+        func_800035E8(s->sound6C, pt->x, pt->y, pt->z);
+        cam = func_80041DE0();
+        dx = pt->x - cam->x_position;
+        dy = pt->y - cam->y_position;
+        dz = pt->z - cam->z_position;
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        v = (s->lastDist - d) / rate;
+        v = func_8008B200((60 + v) / (60 - v) * 315.0f);
+        max = 0.8f;
+        s->pitch += (v - 1.2f - s->pitch) * 0.5f;
+        if (s->pitch > max) {
+            s->pitch = max;
+        } else if (s->pitch < -0.8f) {
+            s->pitch = -0.8f;
+        }
+        s->lastDist = d;
+        p = (s->pitch + 1.0f) * 100.0f;
+        p += 0.6666667f * s->unk38;
+        audspat_point_set_pitch(s->sound6C, (u32) p & 0xFF);
+    }
+    if (s->sound70 != 0) {
+        if (s->unk82 == 0) {
+            func_80003614(s->sound70);
+        } else {
+            func_800035E8(s->sound70, pt->x, pt->y, pt->z);
+        }
+    }
+}
 
 void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
 extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
@@ -5317,7 +5715,10 @@ static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate);
 
 /*
  * A boulder: follows its trail (then flies on), breaks up when shot, spent or when it hits something.
- * Same length and frame; registers differ in the flying part (the ROM keeps its turn factor on the stack).
+ * Two words long, same frame. The trail point is `unk70 * 3` floats into the trail (the ROM's separate
+ * shift temporary) and the debris position adds an (s16) of the coordinate (the same stored s16). Left: the
+ * ROM keeps b->unk70 in v1 where this has v0, and evaluates the trail-progress denominator before the
+ * numerator (two loads fewer).
  */
 void func_m068_0F7C8(Object *obj, s32 updateRate) {
     Object *o;
@@ -5445,9 +5846,9 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             debris.unk20 = 0;
             debris.unk18 = 0.15f;
             for (i = 0; i < 4; i++) {
-                debris.common.x = func_80048E2C(-15, 15) + (s32) obj->trans.x_position;
-                debris.common.y = func_80048E2C(-15, 15) + (s32) obj->trans.y_position;
-                debris.common.z = func_80048E2C(-15, 15) + (s32) obj->trans.z_position;
+                debris.common.x = func_80048E2C(-15, 15) + (s16) obj->trans.x_position;
+                debris.common.y = func_80048E2C(-15, 15) + (s16) obj->trans.y_position;
+                debris.common.z = func_80048E2C(-15, 15) + (s16) obj->trans.z_position;
                 debris.yaw = func_80048E2C(debrisYaw[0], debrisYaw[1]);
                 debris.pitch = func_80048E2C(debrisPitch[0], debrisPitch[1]);
                 debris.speed = b->speed;
@@ -5492,7 +5893,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         return;
     }
     if (b->unk70 >= 0 && b->unk70 < rl_m068_125E8) {
-        Vec3f *p = &b->trail[b->unk70];
+        Vec3f *p = (Vec3f *) &((f32 *) b->trail)[b->unk70 * 3];
 
         tx = p->x;
         ty = p->y;
@@ -5591,12 +5992,12 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0F7C8);
 #endif
 
-/* Called when something hits the boss: notes a hit by the player */
+/* Called when something hits a boulder: the player's shot breaks it up */
 void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
-    M068State *s = obj->unk68;
+    M068Boulder *b = obj->unk68;
 
     if (hitter->behaviorId == 1) {
-        s->hitByPlayer = 1;
+        b->state = 1;
     }
 }
 
