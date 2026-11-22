@@ -186,20 +186,18 @@ typedef struct M143Texture {
 
 extern M143Texture *rl_m143_032D0; /* the ring's texture (.bss) */
 
-#ifdef NON_MATCHING
 /*
- * Draws a ring: its three batches of vertices and their triangles. Same
- * instructions; the ROM adds each batch's offset to the buffer start without
- * the 0x300, and the scheduling and t-registers differ.
+ * Draws a ring: its three batches of vertices (from the current buffer) and
+ * their triangles.
  */
 void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
     M143Ring *ring;
     Gfx *g;
     Mtx *m;
-    M143Vtx *v;
+    s32 k;
 
-    g = *dl;
     ring = obj->unk68;
+    g = *dl;
     m = *mtx;
     effect_slot_start(2, rl_m143_032D0);
     func_80055C00(&g, rl_m143_032D0, 0x20E, 0);
@@ -207,14 +205,14 @@ void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
     gDPSetEnvColor(g++, 229, 0, 0, 0);
     func_80041CA0(&g, &m, obj, 1.0f, 0.0f);
     gDPPipeSync(g++);
-    v = &ring->verts[ring->buffer * 48];
-    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(v), 25, 0);
+    k = ring->buffer * 48;
+    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(&ring->verts[k]), 25, 0);
     gSPPolygon(g++, OS_K0_TO_PHYSICAL(ring), 12, 1);
     gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0xC0), 10, 1);
-    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(v + 22), 25, 0);
+    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(&ring->verts[k + 22]), 25, 0);
     gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0x160), 12, 1);
     gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0x220), 10, 1);
-    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(v + 44), 7, 0);
+    gSPVertexJFG(g++, OS_K0_TO_PHYSICAL(&ring->verts[k + 44]), 7, 0);
     gSPPolygon(g++, OS_K0_TO_PHYSICAL((u8 *) ring + 0x2C0), 4, 1);
     func_80041DC0(&g);
     gDPPipeSync(g++);
@@ -223,9 +221,6 @@ void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
     *dl = g;
     *mtx = m;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00280);
-#endif
 
 #ifdef NON_MATCHING
 /*
