@@ -1109,7 +1109,8 @@ static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate)
 static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_092F0(Object *obj, s32 index, s32 on);
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame);
-extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
+static void func_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#define rl_m068_0BE14 func_m068_0BE14
 static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_067B4 func_m068_067B4
 static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -4653,7 +4654,243 @@ static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0BE14);
+extern f32 rl_m068_113A0[]; /* each animation's speed (.data) */
+
+/*
+ * Runs the boss's animation: the events its frames pass (s->events, s->unk50), and the animation that
+ * follows when one ends
+ */
+static void func_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    s32 anim;
+    f32 speed;
+    f32 cur;
+    s32 next;
+
+    s->events = 0;
+    anim = obj->animationID;
+    speed = rl_m068_113A0[anim];
+    cur = obj->unk28 + speed * rate;
+    next = -1;
+    switch (anim) {
+        case 6:
+            if (obj->unk28 <= 0.4f && 0.4f <= cur) {
+                if (s->unkF) {
+                    s->unk50 |= 0x40;
+                } else {
+                    s->unk50 |= 0x80;
+                }
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 7:
+            if (1.0f <= cur) {
+                s->events |= 1;
+                next = 8;
+            }
+            break;
+        case 12:
+            if (obj->unk28 <= 0.45f && 0.45f <= cur) {
+                s->events |= 2;
+            }
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 14:
+            if (obj->unk28 <= 0.2f && 0.2f <= cur) {
+                s->events |= 4;
+            }
+            if (obj->unk28 <= 0.36f && 0.36f <= cur) {
+                s->events |= 8;
+            }
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 15:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x10;
+                s->unk50 |= 0x10;
+            }
+            if (1.0f <= cur) {
+                next = 16;
+            }
+            break;
+        case 17:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 18:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x20;
+            }
+            break;
+        case 19:
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 20:
+            if (1.0f <= cur) {
+                next = 21;
+            }
+            break;
+        case 22:
+            if (obj->unk28 <= 0.4f && 0.4f <= cur) {
+                s->events |= 0x40;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x80;
+                next = 13;
+            }
+            break;
+        case 23:
+            if (obj->unk28 <= 0.78f && 0.78f <= cur) {
+                s->unk50 |= 0x20;
+                s->events |= 0x100;
+            }
+            if (1.0f <= cur) {
+                next = 24;
+            }
+            break;
+        case 25:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 26:
+            if (obj->unk28 <= 0.5f && 0.5f <= cur) {
+                s->events |= 0x200;
+            }
+            if (1.0f <= cur) {
+                next = 27;
+            }
+            break;
+        case 28:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 29:
+        case 30:
+        case 31:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 32:
+            if (1.0f <= cur) {
+                next = 2;
+            }
+            break;
+        case 34:
+            if (obj->unk28 <= 0.01f && 0.01f <= cur) {
+                s->events |= 0x400;
+            }
+            if (1.0f <= cur) {
+                next = 35;
+            }
+            break;
+        case 35:
+            if (obj->unk28 <= 0.62f && 0.62f <= cur) {
+                s->unk50 |= 0x2000;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 37:
+            if (obj->unk28 <= 0.425f && 0.425f <= cur) {
+                s->unk50 |= 0x200;
+            } else if (obj->unk28 <= 0.49f && 0.49f <= cur) {
+                s->events |= 0x800;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 38:
+            if (obj->unk28 <= 0.356f && 0.356f <= cur) {
+                s->unk50 |= 0x200;
+            } else if (obj->unk28 <= 0.5f && 0.5f <= cur) {
+                s->events |= 0x1000;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 39:
+            if (obj->unk28 <= 0.5f && 0.5f <= cur) {
+                s->events |= 0x40;
+            } else if (obj->unk28 <= 0.72f && 0.72f <= cur) {
+                s->events |= 0xC0;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 40:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x10;
+                s->unk50 |= 0x10;
+            }
+            if (1.0f <= cur) {
+                next = 41;
+            }
+            break;
+        case 42:
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 43:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x200;
+            }
+            if (1.0f <= cur) {
+                next = 44;
+            }
+            break;
+        case 45:
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 47:
+            if (obj->unk28 <= 0.9f && 0.9f <= cur) {
+                s->events |= 0x2000;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+                next = 48;
+            }
+            break;
+        case 49:
+            if (obj->unk28 <= 0.42f && 0.42f <= cur) {
+                if (s->unkF) {
+                    s->unk50 |= 0x40;
+                } else {
+                    s->unk50 |= 0x80;
+                }
+            }
+            if (1.0f <= cur) {
+                next = 2;
+            }
+            break;
+        case 50:
+            if (obj->unk28 <= 0.9f && 0.9f <= cur) {
+                s->events |= 0x4000;
+            }
+            break;
+    }
+    obj_anim_frame_advance(obj, speed, rate);
+    if (next >= 0) {
+        func_m068_0BDC4(obj, s, next, 0.0f);
+    }
+}
 
 /* Turns angle towards target by speed * updateRate the short way round */
 static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate) {
