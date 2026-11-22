@@ -1085,7 +1085,79 @@ void func_m031_0242C(s32 n, s32 step) {
     }
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: ROM length and frame; rl_m031_040EC/a swap v0/v1 and the minutes' product is a3 (ROM t4) */
+extern void menu_fill_box(s32 dl, s32 x1, s32 y1, s32 x2, s32 y2, s32 arg5);
+extern void func_8006FC54(s32 font);
+extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern char *rl_m031_04088[]; /* "1st" .. "4th" */
+
+/*
+ * Racer n's result panel: a box that opens with the fade (rl_m031_040EC), then its place, its time, the reward
+ * line when one was given and the prompt, each glowing in with its bar of sBss488 (called from 02B88)
+ */
+static void func_m031_026B8(s32 dl, s32 n) {
+    s32 cy;
+    s32 h;
+    s32 y;
+    s32 a; /* the box's half width, then the minutes */
+    s32 b; /* its half height, then 60 */
+    s32 time;
+    s32 perMin;
+    char buf[32];
+    s32 secs;
+    s32 shown;
+
+    if (n < 0 || n >= D_800A4FD0) {
+        return;
+    }
+    cy = 38;
+    if (D_800A503C) {
+        cy = 120;
+        h = 22;
+        y = 120;
+        if (rl_m031_040F8) {
+            y = 112;
+            h = 30;
+        }
+    } else {
+        h = 22;
+        y = 38;
+        if (rl_m031_040F8) {
+            cy = 46;
+            h = 30;
+        }
+    }
+    menu_fill_box(dl, 160 - (a = (rl_m031_040EC << 6) >> 8), cy - (b = (h * rl_m031_040EC) >> 8), a + 160, b + cy,
+                  160);
+    perMin = 3600;
+    time = D_800FED50[n].time;
+    a = time / perMin;
+    b = 60;
+    secs = a * perMin; /* (secs carries the product until it is the seconds) */
+    shown = a;
+    if (a >= 100) {
+        shown = 99;
+    }
+    time -= secs;
+    secs = time / b;
+    time -= secs * b;
+    func_800639E8(buf, "Time: %02d:%02d.%02d", shown, secs, time * 100 / b);
+    func_8006FC54(2);
+    y -= 19;
+    func_m031_00044(dl, 160, y, rl_m031_04088[4 - sRacers[n].unk1E], 4, 0, 128, 255, 255, sBss488[0]);
+    y += 13;
+    func_m031_00044(dl, 160, y, buf, 4, 0, 128, 255, 255, sBss488[1]);
+    if (rl_m031_040F8) {
+        y += 15;
+        func_m031_00044(dl, 160, y, "WON Multiplay SECRET", 4, 255, 255, 64, 255, sBss488[2]);
+    }
+    func_m031_00044(dl, 160, y + 15, "Press the A button", 4, 255, 85, 0, 255, sBss488[3]);
+}
+#define rl_m031_026B8 func_m031_026B8
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_026B8);
+#endif
 
 /* A coloured mark of the speed gauge (12 bytes; the colour's low byte is its alpha) */
 typedef struct M031GaugeMark {
