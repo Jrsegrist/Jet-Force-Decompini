@@ -385,6 +385,15 @@ lessons apply too; [matching.md](matching.md) collects them):
   module offset (`extern s32 rl_m007_02A24;`): IDO then materialises that
   variable's address, and the builder rebases the relocation to the section
   start as the original did (m007, m031, m003's animation tables).
+- A module's .data can also be cut: `DATA_SPLITS` in `tools/runlink_split.py`
+  lists module offsets where it is split, so `data.s` ends at the first cut
+  and each later piece is `data_XXXXX.s`. The variables after a cut can then
+  be defined in C (after the `INCLUDE_ASM(..., data)` of the piece before
+  them) while ROM-derived bytes before it stay assembly. m143 is cut at
+  0x2F7C: its picture and tables stay assembly, and 02520's two flags are
+  statics inside that function, which gives the original's own `%hi/%lo`
+  per access (as file statics IDO materialised their addresses). A cut must
+  be word-aligned and inside .data.
 - An init or fini function that is still INCLUDE_ASM cannot be marked with
   `#pragma weak` (cfe ignores it: no C definition), so write that function
   in C first (m003's are short).
