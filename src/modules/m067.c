@@ -63,7 +63,7 @@ typedef struct M067JumpPoint {
 
 extern M067JumpKind rl_m067_04430[];
 extern s8 rl_m067_04580[][8]; /* the jump kind between two jump points (-1: none) */
-extern s16 func_80049D80(s16 angle, s16 target);
+extern s16 func_80049D80(s32 angle, s32 target);
 
 /* The enemy's state (obj->unk68), as far as used here */
 typedef struct M067State {
@@ -375,7 +375,7 @@ typedef struct M067MissileSetup {
 /* A missile's whole state (obj->unk68) */
 typedef struct M067MissileState {
     /* 0x00 */ u8 unk0;
-    /* 0x01 */ s8 unk1;
+    /* 0x01 */ u8 unk1;
     /* 0x02 */ u8 unk2;
     /* 0x03 */ u8 unk3;
     /* 0x04 */ f32 thrust;
@@ -448,7 +448,182 @@ void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     m->unk1 = setup->unk1A * 6;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_02FDC);
+/* The query that func_8007C2E8 takes, as used here (m069's M069Ray) */
+typedef struct M067Query {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 to[3];
+    /* 0x18 */ f32 from[3];
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ u8 pad2C[0x54 - 0x2C];
+} M067Query;
+
+/* What obj->0x78 points at: a glow whose brightness the flame sets */
+typedef struct M067Glow {
+    /* 0x00 */ u8 pad0[0x3B];
+    /* 0x3B */ u8 alpha;
+} M067Glow;
+
+/* Where the target's interaction keeps its position, as this shot reads it */
+typedef struct M067TargetInteraction {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 hitPoints;
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+} M067TargetInteraction;
+
+extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s32 func_8007C2E8(Object *obj, M067Query *query, s32 count, Object **objs, Object **hit, s32 arg5);
+extern f32 func_80097140(f32 x);                /* sqrtf */
+extern s32 func_80049C84(f32 x, f32 z);         /* the angle of a direction */
+extern f32 func_80049BEC(f32 base, s32 exponent);
+extern void effect_mesh_set_uvs(void *mesh, s16 angle);
+extern void effect_mesh_update(void *mesh, s16 depth, s32 brightness);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+
+/*
+ * A homing shot's control: it drifts to a stop, fires up its flame, then steers after its target (turning,
+ * pitching and rolling towards it), until it hits the level, hits the target (0x200 damage) or runs out of
+ * time, and then explodes. The flame's size and the shot's glow follow the thrust.
+ */
+void func_m067_02FDC(Object *obj, s32 updateRate) {
+    M067MissileState *m;
+    s32 i;
+    f32 dx;
+    f32 dz;
+    f32 dy;
+    f32 dist;
+    s32 d;
+    f32 tx;
+    f32 ty;
+    f32 tz;
+    M067Query query;
+    f32 k;
+    HitResult hit;
+    Object *hitObj;
+    M067TargetInteraction *t;
+    Object *list[1];
+    s32 v; /* the state switched on, the loops' dead counter copies, then each steering limit */
+    s32 alpha;
+    s32 step;
+
+    m = obj->unk68;
+    obj->particleEmittersEnabled = 0;
+    query.from[0] = obj->trans.x_position;
+    query.from[1] = obj->trans.y_position;
+    query.from[2] = obj->trans.z_position;
+    switch (v = m->unk0) {
+        case 0:
+            i = updateRate;
+            while (v = i, i--, v) {
+                obj->trans.x_position += obj->velocity.x;
+                obj->trans.y_position += obj->velocity.y;
+                obj->trans.z_position += obj->velocity.z;
+                obj->velocity.x *= 0.925f;
+                obj->velocity.y *= 0.925f;
+                obj->velocity.z *= 0.925f;
+            }
+            obj->segmentID = func_80015510(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
+            if (-0.1f < obj->velocity.y && obj->velocity.y < 0.1f) {
+                m->unk0 = 1;
+                func_80003410(0xBA, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            }
+            break;
+        case 1:
+            obj->particleEmittersEnabled |= 1;
+            m->thrust += updateRate * 0.2f;
+            if (2.0f < m->thrust) {
+                m->unk0 = 2;
+                m->thrust = 2.0f;
+            }
+            break;
+        case 2:
+            obj->particleEmittersEnabled |= 6;
+            t = (M067TargetInteraction *) ((Object *) m->unk20)->interactObj;
+            tx = t->x;
+            ty = t->y;
+            tz = t->z;
+            i = updateRate;
+            while (v = i, i--, v) {
+                dx = obj->trans.x_position - tx;
+                dy = obj->trans.y_position - ty;
+                dz = obj->trans.z_position - tz;
+                dist = func_80097140(dx * dx + dz * dz);
+                d = func_80049D80(obj->trans.rotation.y_rotation, func_80049C84(dx, dz));
+                v = m->unk14 * m->unkC;
+                if (d < 0 && d > -0x6000) {
+                    m->unk1A += ((-v - m->unk1A) * 5) >> 6;
+                } else if (d > 0 && d < 0x6000) {
+                    m->unk1A += ((v - m->unk1A) * 5) >> 6;
+                } else {
+                    m->unk1A -= m->unk1A >> 3;
+                }
+                obj->trans.rotation.y_rotation += m->unk1A;
+                d = func_80049D80(obj->trans.rotation.x_rotation, -func_80049C84(dy, dist));
+                v = m->unk16 * m->unkC;
+                if (d < 0 && d > -0x6000) {
+                    m->unk1C += (-v - m->unk1C) >> 3;
+                } else if (d > 0 && d < 0x6000) {
+                    m->unk1C += (v - m->unk1C) >> 3;
+                } else {
+                    m->unk1C -= m->unk1C >> 3;
+                }
+                obj->trans.rotation.x_rotation += m->unk1C;
+                m->unkC += (1.0f - m->unkC) * 0.125f;
+                m->unk1E += (m->unk18 - m->unk1E) >> 4;
+                obj->trans.rotation.z_rotation += m->unk1E;
+                obj->velocity.z = -m->unkC * m->unk10;
+                func_8004944C(&obj->trans.rotation, &obj->velocity);
+                func_80009A04(obj, obj->velocity.x, obj->velocity.y, obj->velocity.z);
+            }
+            m->unk2 += updateRate << 4;
+            k = func_80049BEC(0.9f, updateRate);
+            m->thrust += ((1.0f + 0.25f * func_80049C34(m->unk2 << 8)) - m->thrust) * (1.0f - k);
+            if (func_80018808(obj, (Vec3f *) query.from, (Vec3f *) &obj->trans.x_position, &hit, 0, 0)) {
+                func_80009A04(obj, hit.pos.x - obj->trans.x_position, hit.pos.y - obj->trans.y_position,
+                              hit.pos.z - obj->trans.z_position);
+                m->unk0 = 3;
+            }
+            query.to[0] = obj->trans.x_position;
+            query.to[1] = obj->trans.y_position;
+            query.to[2] = obj->trans.z_position;
+            query.unk24 = obj->trans.scale * 32.0f;
+            query.unk28 = obj->trans.scale * 32.0f;
+            list[0] = (Object *) m->unk20;
+            if (func_8007C2E8(obj, &query, 1, list, &hitObj, 0)) {
+                ((M067TargetInteraction *) ((Object *) m->unk20)->interactObj)->hitPoints -= 0x200;
+                m->unk0 = 3;
+            }
+            if (updateRate < m->unk1) {
+                m->unk1 -= updateRate;
+            } else {
+                m->unk0 = 3;
+            }
+            break;
+        case 3:
+            func_80003410(0x96, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 4, NULL);
+            spawn_object_from_list(3, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 100, 0);
+            func_800079B8(obj);
+            break;
+    }
+    if (m->flame != NULL && 0.0f < m->thrust) {
+        step = updateRate << 4;
+        if (1.25f < m->thrust) {
+            alpha = (m->thrust - 1.25f) * 128.0f;
+        } else {
+            alpha = 0;
+        }
+        if (*(M067Glow ***) obj->pad78 != NULL && **(M067Glow ***) obj->pad78 != NULL) {
+            (**(M067Glow ***) obj->pad78)->alpha = alpha;
+        }
+        m->unk3 += step;
+        effect_mesh_set_uvs(m->flame, m->unk3 << 8);
+        effect_mesh_update(m->flame, m->thrust * 200.0f, 0xFF);
+    }
+    func_8005F5AC(obj, updateRate);
+}
 
 /* Draws a missile's flame */
 void func_m067_03808(Gfx **dl, s32 arg1, Object *obj) {

@@ -495,7 +495,160 @@ void func_m053_028CC(UNUSED s32 arg0, M053State *state, UNUSED s32 arg2) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_028DC);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_02B48);
+/* The part of the vehicle's state that the camera (02B48) uses */
+typedef struct M053CamState {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ u8 pad1[0x104 - 0x1];
+    /* 0x104 */ s16 yaw; /* the camera's angle round the vehicle */
+    /* 0x106 */ u8 pad106[0x10A - 0x106];
+    /* 0x10A */ s16 unk10A;
+    /* 0x10C */ u8 pad10C[0x128 - 0x10C];
+    /* 0x128 */ s16 unk128;
+    /* 0x12A */ u8 pad12A[0x574 - 0x12A];
+    /* 0x574 */ u8 smooth; /* ease the camera in */
+} M053CamState;
+
+/* The camera 02B48 moves: a transform and its last position */
+typedef struct M053Camera {
+    /* 0x00 */ ObjectTransform trans;
+    /* 0x18 */ Vec3f prev;
+} M053Camera;
+
+extern void func_8003F7F4(f32 fov, s32 arg1);      /* sets the field of view */
+extern f32 func_80097140(f32 x);                   /* sqrtf */
+extern s32 func_80049C84(f32 x, f32 z);            /* the angle of a direction */
+extern void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); /* DKR vec3f_rotate */
+extern void rl_m053_028DC(f32 *from, Vec3f *to, f32 height); /* still assembly */
+extern ObjectTransform *D_800F6DC0;                /* the camera's transform */
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+
+/*
+ * The vehicle's camera: it keeps between two distances behind the vehicle (easing towards the nearer one, and
+ * swinging round behind it when it turns away), looks at a point above it, and pushes the vehicle away when it
+ * comes too close.
+ */
+void func_m053_02B48(M053Camera *cam, Object *veh, f32 updateRate) {
+    M053CamState *state;
+    s16 yaw;
+    s16 pitch;
+    s16 roll;
+    s16 target; /* the camera's angle off the vehicle's back, then the yaw to swing to */
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 r; /* the offset to the nearer of the two distances, then the distance kept */
+    f32 d1;
+    f32 d2;
+    f32 d3;
+    f32 dist;
+    f32 blend;
+    f32 blend2;
+    Vec3f tmp;
+    Vec3f pos;
+    f32 s; /* |125 - dist|, then the squared distance to the vehicle */
+
+    state = veh->unk68;
+    state->unk10A = 0;
+    blend = 1.0f;
+    blend2 = 1.0f;
+    func_8003F7F4(60.0f, 0);
+    dx = cam->trans.x_position - veh->trans.x_position;
+    dz = cam->trans.z_position - veh->trans.z_position;
+    dist = func_80097140(dx * dx + dz * dz);
+    if (dist > 225.0f || dist < 105.0f) {
+        if (state->smooth) {
+            blend = 1.0f - func_80049BEC(0.975f, updateRate);
+        }
+        rl_m053_03848[state->player] = rl_m053_03848[state->player] + (1.0f - rl_m053_03848[state->player]) * blend;
+    } else {
+        if (state->smooth) {
+            blend = 1.0f - func_80049BEC(0.9f, updateRate);
+        }
+        rl_m053_03848[state->player] = rl_m053_03848[state->player] + (0.0f - rl_m053_03848[state->player]) * blend;
+        if (rl_m053_03848[state->player] < 0.025f) {
+            rl_m053_03848[state->player] = 0.0f;
+        }
+    }
+    target = func_80049C84(dx, dz) - veh->trans.rotation.y_rotation - 0x8000;
+    if (dist > 225.0f && (target > 0x4000 || target < -0x4000)) {
+        if (state->smooth) {
+            blend2 = 1.0f - func_80049BEC(0.975f, updateRate);
+        }
+        rl_m053_03838[state->player] = rl_m053_03838[state->player] + (1.0f - rl_m053_03838[state->player]) * blend2;
+    } else {
+        if (state->smooth) {
+            blend2 = 1.0f - func_80049BEC(0.8334f, updateRate);
+        }
+        rl_m053_03838[state->player] = rl_m053_03838[state->player] + (0.0f - rl_m053_03838[state->player]) * blend2;
+        if (rl_m053_03838[state->player] < 0.025f) {
+            rl_m053_03838[state->player] = 0.0f;
+        }
+    }
+    if (0.0f < rl_m053_03838[state->player]) {
+        target = 0x8000 - state->unk128;
+        if (state->smooth) {
+            blend = 1.0f - func_80049BEC(1.0f - rl_m053_03838[state->player] * 0.125f, updateRate);
+        }
+        state->yaw = angle_lerp(state->yaw, target, blend);
+    } else if (state->smooth) {
+        state->yaw = 0x8000 - func_80049C84(dx, dz);
+    }
+    r = 205.0f - dist;
+    d1 = r;
+    if (205.0f < dist) {
+        d1 = -d1;
+    }
+    d2 = 125.0f - dist;
+    s = d2;
+    if (125.0f < dist) {
+        s = -d2;
+    }
+    if (s < d1) {
+        r = d2;
+    }
+    r = rl_m053_03848[state->player] * r + dist;
+    pos.x = func_80049C34(state->yaw) * r + veh->trans.x_position;
+    pos.y = veh->trans.y_position + 60.0f;
+    pos.z = veh->trans.z_position - func_80049C30(state->yaw) * r;
+    rl_m053_028DC(&veh->trans.x_position, &pos, 60.0f);
+    if (state->smooth) {
+        blend = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    cam->trans.x_position = (pos.x - D_800F6DC0->x_position) * blend + D_800F6DC0->x_position;
+    cam->trans.y_position = (pos.y - D_800F6DC0->y_position) * blend + D_800F6DC0->y_position;
+    cam->trans.z_position = (pos.z - D_800F6DC0->z_position) * blend + D_800F6DC0->z_position;
+    cam->prev.x = cam->trans.x_position;
+    cam->prev.y = cam->trans.y_position;
+    cam->prev.z = cam->trans.z_position;
+    tmp.x = 0.0f;
+    tmp.y = 40.0f;
+    tmp.z = 0.0f;
+    func_800496B0(1, &veh->trans.rotation, &tmp, &tmp);
+    dx = cam->trans.x_position - (tmp.x + veh->trans.x_position);
+    dy = cam->trans.y_position - (tmp.y + veh->trans.y_position);
+    dz = cam->trans.z_position - (tmp.z + veh->trans.z_position);
+    yaw = 0x8000 - func_80049C84(dx, dz);
+    roll = 0;
+    pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+    if (state->smooth) {
+        blend2 = 1.0f - func_80049BEC(0.125f, updateRate);
+    }
+    cam->trans.rotation.y_rotation = angle_lerp(cam->trans.rotation.y_rotation, yaw, blend2);
+    cam->trans.rotation.x_rotation = angle_lerp(cam->trans.rotation.x_rotation, pitch, blend2);
+    cam->trans.rotation.z_rotation = angle_lerp(cam->trans.rotation.z_rotation, roll, blend2);
+    dx = veh->trans.x_position - cam->trans.x_position;
+    dz = veh->trans.z_position - cam->trans.z_position;
+    s = dx * dx + dz * dz;
+    func_80097140(s); /* (its result is not used) */
+    if (s < 1024.0f) {
+        if (s != 0.0f) {
+            d3 = 32.0f / func_80097140(s) - 1.0f;
+            dx *= d3;
+            dz *= d3;
+        }
+        func_80009A04(veh, dx, 0.0f, dz);
+    }
+}
 
 INCLUDE_ASM("asm/nonmatchings/modules/m053", data);
 
