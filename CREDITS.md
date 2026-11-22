@@ -391,3 +391,9 @@ written from what the code does.
 | DKR file | Used for |
 | --- | --- |
 | `src/tracks.c` | func_8002EEEC's polygon loop (shadow polygons from clipped triangles, the vertex cache search), as the second half of the NON_MATCHING body of JFG's func_8001EE1C |
+
+### Round 38 (first38main)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/tracks.c` | shadow_update's shape (the heap set-up, the per-object group, distance-fade and shading tests, the closing heap counts) for the NON_MATCHING body of JFG's func_8001DA1C; JFG's per-light shadows and module choices are written from the ROM |
