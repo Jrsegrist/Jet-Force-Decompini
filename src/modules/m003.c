@@ -256,7 +256,10 @@ typedef struct M003Point {
 typedef struct M003Region {
     /* 0x00 */ M003Point *points;
     /* 0x04 */ u32 numEdges;
-    /* 0x08 */ u8 pad8[0x14 - 0x8];
+    /* 0x08 */ s16 minY; /* the lowest and highest corner heights (15ED8) */
+    /* 0x0A */ s16 maxY;
+    /* 0x0C */ struct M003Region *prev; /* the chain of regions an entry links it into (15ED8) */
+    /* 0x10 */ struct M003Region *next;
     /* 0x14 */ u32 flags;
     /* 0x18 */ void *data; /* a tree of lines down to the edge lists */
     /* 0x1C */ void *edges;
@@ -264,7 +267,10 @@ typedef struct M003Region {
         s16 pos[3]; /* a point in it */
         s32 node;   /* replaced by what func_m003_15BE8 finds there */
     } at;
-    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x28 */ u8 unk28;
+    /* 0x29 */ u8 unk29;
+    /* 0x2A */ u8 unk2A;
+    /* 0x2B */ u8 pad2B;
 } M003Region;
 
 /* An event the troops react to (size 0x10) */
@@ -445,7 +451,7 @@ typedef struct M003PathNode {
 } M003PathNode;
 
 /* The module's .bss (the assembly functions reach it by offset) */
-static u8 sBss0[0x4];
+static s32 sPointCount; /* all the regions' corners (15ED8) */
 static s32 sRegionCount;
 static u8 sBss8[0x2];
 static u8 sBssA; /* 10 or more: memory is low */
@@ -4794,7 +4800,178 @@ void func_m003_15E34(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15ED8);
+/* A level entry (the stream m154's way points are built from too) */
+typedef struct M003Setup {
+    /* 0x00 */ s16 type; /* 5: a region's corner; 0x61: a way point; 0x69: a region */
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 region; /* the region it is, or belongs to */
+    /* 0x0B */ u8 unkB;   /* corner: its number; region: its flags */
+    /* 0x0C */ u8 link;   /* region: the region whose chain it joins, 0: none */
+    /* 0x0D */ u8 hasPos; /* region: x, y, z are a point in it */
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 unkF;
+    /* 0x10 */ u8 unk10;
+} M003Setup;
+
+extern s32 D_800FEA98; /* the number of way points */
+extern void func_m154_013A8(M003Setup *setup, s32 size); /* builds the way points */
+extern void func_m142_01428(M003Region *region);
+
+/*
+ * Builds the regions from the level entries: the corners (kind 5) and their heights, each region's flags and
+ * point (kind 0x69), and the chains of regions; then nudges any corner level in x with the one before it, and
+ * builds what each region needs (m142). The way points too, if the level has any (kind 0x61).
+ */
+void func_m003_15ED8(s32 data, s32 size) {
+    s32 changed;
+    s32 i;
+    s32 j;
+    s32 off;
+    M003Region *region;
+    M003Region *last;
+    M003Point *p;
+    M003Point *next;
+    M003Setup *s;
+    M003Setup *t;
+    M003Setup *u;
+
+    D_800FEA98 = 0;
+    sPointCount = 0;
+    sRegionCount = 0;
+    sAlertKind = 0;
+    off = 0;
+    for (s = (M003Setup *) data; off < size; off += s->size, s = (M003Setup *) ((u8 *) s + s->size)) {
+        if (s->type == 0x61) {
+            func_m154_013A8((M003Setup *) data, size);
+            break;
+        }
+    }
+    for (off = 0, s = (M003Setup *) data; off < size; off += s->size, s = (M003Setup *) ((u8 *) s + s->size)) {
+        if (s->type == 5) {
+            M003Setup *corner = s;
+
+            sPointCount++;
+            if (sRegionCount < corner->region + 1) {
+                sRegionCount = corner->region + 1;
+            }
+        }
+    }
+    if (sRegionCount != 0) {
+        if (sRegions != NULL) {
+            func_8004AA80(sRegions);
+        }
+        if (sRegionData != NULL) {
+            func_8004AA80(sRegionData);
+        }
+        sRegions = func_8004A57C(sRegionCount * sizeof(M003Region), 0xFFFF00FF);
+        sRegionData = func_8004A57C(sPointCount * sizeof(M003Point), 0xFFFF00FF);
+    }
+    if (sRegionCount == 0) {
+        return;
+    }
+    j = sRegionCount;
+    while (j--) {
+        sRegions[j].points = NULL;
+        sRegions[j].numEdges = 0;
+        sRegions[j].minY = 0;
+        sRegions[j].maxY = 0;
+        sRegions[j].prev = NULL;
+        sRegions[j].next = NULL;
+        sRegions[j].flags = 0;
+        sRegions[j].data = NULL;
+        sRegions[j].edges = NULL;
+    }
+    for (off = 0, t = (M003Setup *) data; off < size; off += t->size, t = (M003Setup *) ((u8 *) t + t->size)) {
+        if (t->type == 5) {
+            sRegions[t->region].numEdges++;
+        }
+    }
+    i = 0;
+    for (j = 0; j < sRegionCount; j++) {
+        sRegions[j].points = i + (M003Point *) sRegionData;
+        i += sRegions[j].numEdges;
+    }
+    for (off = 0, t = (M003Setup *) data; off < size; off += t->size, t = (M003Setup *) ((u8 *) t + t->size)) {
+        if (t->type == 5) {
+            region = &sRegions[t->region];
+            p = &region->points[t->unkB];
+            p->x = t->x;
+            p->z = t->z;
+            if (t->y < region->minY) {
+                region->minY = t->y;
+            }
+            if (region->maxY < t->y) {
+                region->maxY = t->y;
+            }
+        }
+    }
+    i = sRegionCount - 1;
+    region = &sRegions[1];
+    while (i-- > 0) {
+        do {
+            j = region->numEdges;
+            p = region->points;
+            changed = FALSE;
+            while (j-- > 1) {
+                if (j) { /* (no code: gives the counters the ROM's registers) */
+                }
+                if (j != 0) {
+                    next = p + 1;
+                } else {
+                    next = region->points;
+                }
+                if (p->x == next->x) {
+                    next->x++;
+                    changed = TRUE;
+                }
+                p++;
+            }
+        } while (changed);
+        region++;
+    }
+    for (off = 0, u = (M003Setup *) data; off < size; off += u->size, u = (M003Setup *) ((u8 *) u + u->size)) {
+        if (u->type == 0x69) {
+            region = &sRegions[u->region];
+            region->flags = u->unkB;
+            region->unk28 = u->unkE;
+            region->unk29 = u->unkF;
+            region->unk2A = u->unk10;
+            if (u->link != 0) {
+                last = &sRegions[u->link];
+                while (last->next != NULL) {
+                    last = last->next;
+                }
+                if (last == region) {
+                    func_m003_056D4(last);
+                } else {
+                    last->next = region;
+                    region->prev = last;
+                }
+            }
+            if (u->hasPos) {
+                region->flags |= 0x20;
+                region->at.pos[0] = u->x;
+                region->at.pos[1] = u->y;
+                region->at.pos[2] = u->z;
+            } else {
+                region->flags &= ~0x20;
+                region->at.node = 0;
+            }
+        }
+    }
+    i = sRegionCount - 1;
+    region = &sRegions[1];
+    while (i-- > 0) {
+        if (region->prev == NULL || (region->flags & 0x12)) {
+            func_m142_01428(region);
+        }
+        region++;
+    }
+}
 
 /* Frees the regions */
 void func_m003_16530(void) {
