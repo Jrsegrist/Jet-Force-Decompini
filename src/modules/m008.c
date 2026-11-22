@@ -20,17 +20,38 @@ typedef struct M008Drop {
     /* 0x20 */ f32 vz;
     /* 0x24 */ f32 unk24;
     /* 0x28 */ f32 scale;
-    /* 0x2C */ u8 pad2C[0x3C - 0x2C];
+    /* 0x2C */ f32 nx; /* the surface it hit */
+    /* 0x30 */ f32 ny;
+    /* 0x34 */ f32 nz;
+    /* 0x38 */ f32 unk38;
     /* 0x3C */ s16 timer;
-    /* 0x3E */ u8 pad3E[0x4A - 0x3E];
-    /* 0x4A */ u8 state; /* 0: free */
+    /* 0x3E */ s16 corners[2][3]; /* the mark's two corners, turned to the surface */
+    /* 0x4A */ u8 state; /* 0: free, 1: falling, 2: landed, 3: fading */
     /* 0x4B */ u8 unk4B;
     /* 0x4C */ s16 unk4C;
     /* 0x4E */ s16 unk4E;
     /* 0x50 */ u8 unk50;
     /* 0x51 */ u8 unk51;
-    /* 0x52 */ u8 pad52[2];
+    /* 0x52 */ u8 mark; /* landed on the level: draw a mark */
+    /* 0x53 */ u8 pad53;
 } M008Drop;
+
+/* What func_80018808 fills in, as this module reads it (one word more than HitResult) */
+typedef struct M008Contact {
+    /* 0x00 */ Object *obj;
+    /* 0x04 */ Vec3f pos;
+    /* 0x10 */ Vec3f normal;
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ u8 pad20[4];
+    /* 0x24 */ u32 flags;
+    /* 0x28 */ s32 kind;
+} M008Contact;
+
+/* The level model, as far as this module uses it */
+typedef struct M008Level {
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ s16 minY;
+} M008Level;
 
 /* A sprite at a hit point (size 0x18) */
 typedef struct M008Hit {
@@ -211,7 +232,135 @@ void func_m008_00334(f32 x, f32 y, f32 z, s32 arg3, s32 arg4) {
     }
 }
 
+extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
+extern f32 func_80097140(f32 x);        /* sqrtf */
+extern M008Level *func_8001B650(void);  /* the level model */
+extern s32 sprite_anim_advance(void *sprite, s32 *flags, s32 speed, f32 *frame, s32 updateRate);
+
+
+#ifdef NON_MATCHING
+/*
+ * Updates the pools: drops fall (and vanish below the level), test every other frame (odd and even drops in
+ * turn) for a hit on the level, then stick there with a sound, a random size and, on flat ground, a mark
+ * turned to the surface; the mark animates, then fades out on its timer. The hit sprites animate and free
+ * themselves. (The mark's corners are (10, -10) and (10, 10) turned by a random roll, then to the surface.)
+ * NON_MATCHING: ROM length and frame, 100 aligned diffs: the corner maths' order and float registers, which
+ * uses of the constant 3 IDO keeps in a register, and the hit-sprite state test (ROM sltiu/bne).
+ */
+void func_m008_0040C(s32 updateRate) {
+    UNUSED s32 pad[2];
+    f32 rate;
+    f32 floor;
+    M008Drop *p;
+    s32 i;
+    s16 pitch;
+    s16 yaw;
+    s16 roll;
+    f32 cosR;
+    f32 sinR;
+    f32 cosP;
+    f32 sinP;
+    f32 cosY;
+    f32 sinY;
+    M008Contact hit;
+    s32 flags;
+    f32 x;
+    f32 y;
+    UNUSED f32 pad2;
+    f32 b;
+    M008Hit *h;
+
+    rate = updateRate;
+    flags = 1;
+    floor = func_8001B650()->minY - 1000.0f;
+    for (i = 0, p = sDrops; i < 64; i++, p++) {
+        switch (p->state) {
+            case 1:
+                p->y += p->vy * rate;
+                if (p->y < floor) {
+                    p->state = 0;
+                    sDropCount--;
+                    break;
+                }
+                p->x += p->vx * rate;
+                p->z += p->vz * rate;
+                p->vy -= 0.1f * updateRate;
+                if (((i & 1) && sUnk2D38) || (!(i & 1) && !sUnk2D38)) {
+                    if (func_80018808(NULL, (Vec3f *) &p->prevX, (Vec3f *) &p->x, (HitResult *) &hit, 0x2000, 0)) {
+                        p->nx = hit.normal.x;
+                        p->ny = hit.normal.y;
+                        p->nz = hit.normal.z;
+                        p->unk38 = hit.unk1C;
+                        p->x = hit.pos.x;
+                        p->y = hit.pos.y;
+                        p->z = hit.pos.z;
+                        p->unk4E = (0xFF - (((hit.flags >> 22) & 7) << 5)) << 5;
+                        p->scale *= 2.0f + (func_80048E2C(0, 255) - 128) * 0.0078f;
+                        func_80003410(func_80048E2C(0, 3) + 0xAA, p->x, p->y, p->z, 4, NULL);
+                        if (hit.obj == NULL && hit.kind != 3) {
+                            pitch = func_80049C84(hit.normal.y, func_80097140(hit.normal.z * hit.normal.z +
+                                                                               hit.normal.x * hit.normal.x)) - 0x4000;
+                            yaw = func_80049C84(-hit.normal.x, -hit.normal.z);
+                            roll = func_80048E2C(-0x8000, 0x7FFF);
+                            cosR = func_80049C30(roll);
+                            sinR = func_80049C34(roll);
+                            cosP = func_80049C30(-pitch);
+                            sinP = func_80049C34(-pitch);
+                            cosY = func_80049C30(yaw);
+                            sinY = func_80049C34(yaw);
+                            y = (10.0f * cosR - -10.0f * sinR) * p->scale;
+                            x = (10.0f * sinR + -10.0f * cosR) * p->scale;
+                            b = y * cosP;
+                            p->corners[0][2] = b * cosY - x * sinY;
+                            p->corners[0][0] = x * cosY + b * sinY;
+                            p->corners[0][1] = y * sinP;
+                            y = (10.0f * cosR - 10.0f * sinR) * p->scale;
+                            x = (10.0f * sinR + 10.0f * cosR) * p->scale;
+                            b = y * cosP;
+                            p->corners[1][2] = b * cosY - x * sinY;
+                            p->corners[1][0] = x * cosY + b * sinY;
+                            p->corners[1][1] = y * sinP;
+                            p->mark = 1;
+                        } else {
+                            p->mark = 0;
+                        }
+                        p->state = 2;
+                    } else {
+                        p->prevX = p->x;
+                        p->prevY = p->y;
+                        p->prevZ = p->z;
+                    }
+                }
+                break;
+            case 2:
+                p->unk4C += (p->unk4E - p->unk4C) >> 1;
+                if (sprite_anim_advance(sSprite, &flags, 12, &p->unk24, updateRate)) {
+                    p->state = 3;
+                }
+                break;
+            case 3:
+                p->timer -= updateRate;
+                if (p->timer < 0) {
+                    p->state = 0;
+                    sDropCount--;
+                }
+                break;
+        }
+    }
+    sUnk2D38 ^= 1;
+    flags = 1;
+    for (i = 0, h = sHits; i < 5; i++, h++) {
+        if (h->state != 0) {
+            if (sprite_anim_advance(sSprite, &flags, 15, &h->unkC, updateRate)) {
+                h->state = 0;
+                sHitCount--;
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_0040C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_00AB4);
 

@@ -125,8 +125,10 @@ extern s32 rl_m143_02F78; /* the last joint picked at random (.data) */
  * trail, any other value that joint.
  * 7 aligned diffs, ROM length and frame: in the retry loop of case -3 IDO keeps
  * &rl_m143_02F78 in s0, where the ROM loads it with lui/lw in the loop and
- * stores with lui/sw (loop forms, goto, a static definition, volatile, a
- * pointer local and other spellings tried: hc30 notes).
+ * stores with lui/sw. It matches (byte-identical test build) with the word as
+ * a static inside this function and `point` reused for the joint picked, which
+ * needs .data 0x2F78 in C (a DATA_SPLITS cut at 0x2F78 in place of 0x2F7C, with
+ * the .data block above this function): waiting for approval.
  */
 void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
     s32 joint;
@@ -225,8 +227,9 @@ void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
 #ifdef NON_MATCHING
 /*
  * A ring's init: clears its vertices and lays out its 48 triangles round them,
- * mapping the texture. The ROM unrolls the triangle loop twice and orders the
- * stores differently. (218 -> 109 aligned diffs with the clear loop's dead copy in h; 223 words, ROM 222.)
+ * mapping the texture. ROM length and frame; 48 words differ, all registers:
+ * from the texture-size set-up on the ROM's temporaries are one register higher
+ * (it combines the shifts of the width where IDO here combines the height's).
  */
 void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     M143Ring *ring;
@@ -242,7 +245,7 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     ring = obj->unk68;
     v = ring->verts;
     i = 100;
-    while (h = i, i--, h) { /* the dead copy in h's register (h is set after the loop) */
+    while (i--) {
         v->x = 0;
         v->y = 0;
         v->z = 0;
@@ -261,34 +264,34 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     k = 0;
     t = (Triangle *) ring;
     for (i = 0; i < 48; i += 2) {
-        t[0].flags = 0x40;
         t[0].vi0 = k % 24;
-        t[0].vi1 = (k + 3) % 24;
-        t[0].vi2 = (k + 1) % 24;
-        t[0].uv[0][0] = u;
-        t[0].uv[0][1] = 0;
-        t[0].uv[1][0] = w;
-        t[0].uv[1][1] = h;
-        t[0].uv[2][0] = u;
-        t[0].uv[2][1] = h;
-        t[1].flags = 0x40;
         t[1].vi0 = k % 24;
-        t[1].vi1 = (k + 2) % 24;
+        t[0].vi1 = (k + 3) % 24;
         t[1].vi2 = (k + 3) % 24;
+        t[0].vi2 = (k + 1) % 24;
+        t[1].vi1 = (k + 2) % 24;
+        t[0].uv[0][0] = u;
+        t[0].uv[2][0] = u;
         t[1].uv[0][0] = u;
-        t[1].uv[0][1] = 0;
+        t[0].uv[1][0] = w;
         t[1].uv[1][0] = w;
-        t[1].uv[1][1] = 0;
         t[1].uv[2][0] = w;
+        t[0].uv[0][1] = 0;
+        t[0].uv[1][1] = h;
+        t[0].uv[2][1] = h;
+        t[0].flags = 0x40;
+        t[1].uv[0][1] = 0;
+        t[1].uv[1][1] = 0;
         t[1].uv[2][1] = h;
+        t[1].flags = 0x40;
         t += 2;
+        tmp = u;
+        u = w;
+        w = tmp;
         k += 2;
         if (k >= 21) {
             k = 0;
         }
-        tmp = u;
-        u = w;
-        w = tmp;
     }
 }
 #else
