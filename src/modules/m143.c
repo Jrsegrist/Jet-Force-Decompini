@@ -408,9 +408,16 @@ void func_m143_02450(M143Group *group) {
 
 extern u8 *D_80102D60[4]; /* the effect slots' two buffers */
 extern u8 *D_80102D78[4];
+
+/*
+ * .data: the picture (0x380 bytes) and the tables after it up to 0x2F7C stay assembly
+ * (data.s, cut there by tools/runlink_split.py's DATA_SPLITS); the two flags of the fire
+ * handler below follow it in C.
+ */
+INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
 extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
-extern u8 rl_m143_02F7C;   /* (.data) which buffer is current */
-extern s32 rl_m143_02F80;  /* (.data) copy the picture in */
+static u8 sFireBuffer = 0;  /* 0x2F7C: which buffer is current */
+static s32 sFireCopy = 1;   /* 0x2F80: copy the picture in */
 
 #ifdef NON_MATCHING
 /*
@@ -438,7 +445,7 @@ void func_m143_02520(s32 slot, u8 *tex, s32 init) {
 
     h = tex[1];
     w = tex[0];
-    if (rl_m143_02F7C) {
+    if (sFireBuffer) {
         buf = D_80102D60[slot];
     } else {
         buf = D_80102D78[slot];
@@ -448,9 +455,9 @@ void func_m143_02520(s32 slot, u8 *tex, s32 init) {
     while (i--) {
         *p++ = func_80048E2C(0, 255);
     }
-    rl_m143_02F7C ^= 1;
+    sFireBuffer ^= 1;
     cur = buf;
-    if (rl_m143_02F7C) {
+    if (sFireBuffer) {
         buf = D_80102D60[slot];
     } else {
         buf = D_80102D78[slot];
@@ -480,14 +487,14 @@ void func_m143_02520(s32 slot, u8 *tex, s32 init) {
         }
         *p++ = c;
     }
-    if (rl_m143_02F80) {
+    if (sFireCopy) {
         cur = rl_m143_02BC0;
         p = buf;
         i = h * w;
         while (i--) {
             *p++ = *cur++;
         }
-        rl_m143_02F80 = 0;
+        sFireCopy = 0;
     }
     out = (u16 *) (tex + 0x20);
     cur = buf;
@@ -546,8 +553,6 @@ void func_m143_02B88(void) {
     }
 }
 #pragma weak __rl_fini = func_m143_02B88
-
-INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
 
 /* (.rodata: C, and the assembly functions' own from ro/) */
 
