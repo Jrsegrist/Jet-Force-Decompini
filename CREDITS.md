@@ -397,3 +397,4 @@ written from what the code does.
 | DKR file | Used for |
 | --- | --- |
 | `src/tracks.c` | shadow_update's shape (the heap set-up, the per-object group, distance-fade and shading tests, the closing heap counts) for the NON_MATCHING body of JFG's func_8001DA1C; JFG's per-light shadows and module choices are written from the ROM |
+| `src/tracks.c` | shadow_generate's shape (the size, lift and clamps, the bounding box, the segment loop, the closing heap entry) for the NON_MATCHING body of JFG's func_8001E17C; the light stretch and corner rotation are written from the ROM |
