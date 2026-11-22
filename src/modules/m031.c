@@ -120,7 +120,7 @@ extern void rumble_raise(s32 player, s32 arg1, f32 arg2);
 extern s16 rl_m031_040FC[]; /* a range of sounds per level */
 #define sHitSounds rl_m031_040FC
 extern s32 rl_m031_03F78, rl_m031_03F90, rl_m031_03FB4, rl_m031_03FCC, rl_m031_03FE4, rl_m031_03FFC, rl_m031_04014,
-    rl_m031_0402C, rl_m031_04044; /* the race's sounds */
+    rl_m031_0402C, rl_m031_04044; /* the race screen's textures (each the first word of a picture's rectangle list) */
 
 /* The module's .bss (the assembly functions reach it by offset) */
 static s32 sBss0;
@@ -139,10 +139,10 @@ s32 func_m031_00000(s32 n) {
 }
 
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 alpha);
-extern void func_8006FCA8(s32 arg0, s32 x, s32 y, s32 arg3, s32 arg4);
+extern void func_8006FCA8(s32 arg0, s32 x, s32 y, char *text, s32 arg4);
 
 /* Draws text that glows: glow 0x80..0xFF fades a white outline in and out */
-void func_m031_00044(s32 arg0, s32 x, s32 y, s32 arg3, s32 arg4, s32 r, s32 g, s32 b, s32 a, s32 glow) {
+void func_m031_00044(s32 arg0, s32 x, s32 y, char *arg3, s32 arg4, s32 r, s32 g, s32 b, s32 a, s32 glow) {
     s32 k;
 
     if (glow != 0) {
@@ -1013,7 +1013,7 @@ void func_m031_021F0(s32 updateRate) {
     }
 }
 
-/* Loads the race's sounds */
+/* Loads the race screen's textures */
 void func_m031_02388(void) {
     rl_m031_03F78 = func_80055694(0x266);
     rl_m031_03F90 = func_80055694(0x269);
@@ -1107,7 +1107,7 @@ extern void screen_line_add_raw(s32 x, s32 y, s32 value, s32 digits, s32 flag); 
 extern void menu_fill_boxes(s32 arg0, s32 count, M031GaugeMark *marks, s32 arg3);
 
 /* Draws the racer's speed gauge: the marks up to its speed lit, and the speed as a number */
-void func_m031_029FC(s32 arg0, Object *obj) {
+static void func_m031_029FC(s32 arg0, Object *obj) {
     M031Speed *s;
     s32 *scale;
     M031GaugeMark *lit;
@@ -1148,9 +1148,161 @@ void func_m031_029FC(s32 arg0, Object *obj) {
     menu_fill_boxes(arg0, 20, rl_m031_04158, 0);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m031/ro", func_m031_02B88);
+extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
+extern void func_8006FC54(s32 font);
+extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern void func_80054EA0(s32 *width, s32 *height); /* the frame buffer size */
+extern void func_8006F550(s32 dl, s32 image, s32 width, s32 height, s32 x, s32 y, s32 w, s32 h, u32 colour);
+extern void func_8004EDBC(s32 dl, void *rects, s32 x, s32 y, u8 r, u8 g, u8 b, u8 a);
+extern void func_8004F02C(s32 dl, void *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour, s32 flags);
+extern s32 fb_mode(void);
+extern s32 options_split_vertical_get(void);
+extern s32 gVideoLastFramebuffer;
+extern char **gMenuText;
+extern void rl_m031_026B8(s32 dl, s32 n);
 
-/* Frees the race's sounds */
+/* .data (still assembly): the race screen's layout */
+extern u8 rl_m031_03E18[][4];   /* each racer's colour */
+extern s16 rl_m031_03ED8[][10]; /* each racer's text positions (four players) */
+extern s16 *rl_m031_03F48[];    /* each racer's text positions (two players, the screen split vertically) */
+extern s16 *rl_m031_03F70[];    /* (two players, split horizontally) */
+extern void *rl_m031_0405C[];   /* the pick-ups' pictures */
+extern void *rl_m031_04068[];   /* the places' pictures */
+extern char *rl_m031_04078[];   /* "st", "nd", "rd", "th" */
+extern char *rl_m031_04088[];   /* "1st" .. "4th" */
+extern void *rl_m031_040A8[];   /* the countdown's pictures, per half second */
+
+/* Draws the race screen: each racer's laps, boosts, pick-up and place, the end fade and the countdown */
+void func_m031_02B88(s32 dl, UNUSED s32 arg1, UNUSED s32 arg2, s32 count) {
+    s32 i;
+    M031Racer *r;
+    s16 *pos;
+    s32 fade;
+    s32 place;
+    s32 width;
+    s32 height;
+    char buf1[16];
+    char buf2[16];
+    s32 align;
+    s32 x;
+
+    if (count <= 0) {
+        return;
+    }
+    func_8006FC8C(0, 0, 0, 0);
+    if (*(u8 *) &D_800A4FEC > 0 && *(u8 *) &D_800A4FEC < 10) {
+        func_8006FC54(0);
+        func_80054EA0(&width, &height);
+        fade = ((0xFF - ((u16 *) D_800FF1B8)[0]) << 24) | 0xFFFF00;
+        func_8006F550(dl, gVideoLastFramebuffer, width, height, 0, 0, width, height, fade);
+    }
+    if (*(u8 *) &D_800A4FB4 && !D_800A503C) {
+        r = sRacers;
+        if (r->unk1E) {
+            place = 4 - r->unk1E;
+        } else {
+            place = r->position;
+        }
+        func_m031_029FC(dl, func_8000E4D0(0));
+        func_800639E8(buf1, "laps %02d", sRacers[0].unk8);
+        func_800639E8(buf2, "%02d", sRacers[0].boosts);
+        func_8006FC54(2);
+        func_8006FC68(0, 0, 0, 255, 255);
+        func_8006FCA8(dl, 31, 17, buf1, 0);
+        func_8006FCA8(dl, 279, 43, buf2, 4);
+        func_8006FCA8(dl, 57, 193, rl_m031_04078[place], 0);
+        func_8006FC68(0, 255, 128, 255, 255);
+        func_8006FCA8(dl, 30, 16, buf1, 0);
+        func_8006FCA8(dl, 278, 42, buf2, 4);
+        func_8006FCA8(dl, 56, 192, rl_m031_04078[place], 0);
+        func_8004EDBC(dl, rl_m031_0405C[sRacers[0].pickup], 38, 34, 255, 255, 255, 255);
+        func_8004EDBC(dl, &rl_m031_03F90, 278, 28, 255, 255, 255, 255);
+        func_8004F02C(dl, rl_m031_04068[place], 43.0f, 209.0f, 1.5f, 1.5f, 0xFE, 1);
+        func_8004F02C(dl, rl_m031_04068[place], 42.0f, 208.0f, 1.5f, 1.5f, 0xFF80FE, 1);
+        if (sRacers[0].unk1E) {
+            rl_m031_026B8(dl, 0);
+        }
+    } else if (D_800A503C || count >= 3) {
+        r = sRacers;
+        i = 0;
+        pos = rl_m031_03ED8[0];
+        for (; i < count; pos += 10, r++, i++) {
+            u8 *colour = rl_m031_03E18[i];
+
+            if (r->unk1E == 0) {
+                func_800639E8(buf1, "lap %02d", r->unk8);
+                func_800639E8(buf2, "%02d", r->boosts);
+                func_8006FC68(0, 0, 0, 255, 255);
+                func_8006FC54(2);
+                func_8006FCA8(dl, pos[2] + 1, pos[3] + 1, buf1, 0);
+                func_8004EDBC(dl, &rl_m031_03F78, pos[4] + 1, pos[5] + 1, 0, 0, 0, 255);
+                func_8006FCA8(dl, pos[6] + 1, pos[7] + 1, buf2, 0);
+                func_8006FC68(colour[0], colour[1], colour[2], 255, 255);
+                func_8006FC54(2);
+                func_8006FCA8(dl, pos[2], pos[3], buf1, 0);
+                func_8004EDBC(dl, &rl_m031_03F78, pos[4], pos[5], 255, 255, 255, 255);
+                func_8006FCA8(dl, pos[6], pos[7], buf2, 0);
+                func_8004EDBC(dl, rl_m031_0405C[r->pickup], pos[8], pos[9], 255, 255, 255, 255);
+                func_8004EDBC(dl, rl_m031_04068[r->position], pos[0] + 1, pos[1] + 1, 0, 0, 0, 255);
+                func_8004EDBC(dl, rl_m031_04068[r->position], pos[0], pos[1], colour[0], colour[1], colour[2], 255);
+            } else {
+                func_800639E8(buf1, "%s %s", gMenuText[384], rl_m031_04088[4 - r->unk1E]);
+                if (i & 1) {
+                    align = 1;
+                    x = 288;
+                } else {
+                    align = 0;
+                    x = 32;
+                }
+                func_8006FC54(2);
+                func_8006FC68(0, 0, 0, 255, 255);
+                func_8006FCA8(dl, x + 1, pos[3] + 1, buf1, align);
+                func_8006FC68(colour[0], colour[1], colour[2], 255, 255);
+                func_8006FCA8(dl, x, pos[3], buf1, align);
+            }
+        }
+        if (*(u8 *) &D_800A4FB4 && sRacers[0].unk1E) {
+            rl_m031_026B8(dl, 0);
+        }
+    } else {
+        for (i = 0, r = sRacers; i < count; r++, i++) {
+            if ((fb_mode() & 1) || options_split_vertical_get()) {
+                pos = rl_m031_03F48[i];
+            } else {
+                pos = rl_m031_03F70[i];
+            }
+            if (r->unk1E) {
+                place = 4 - r->unk1E;
+            } else {
+                place = r->position;
+            }
+            func_800639E8(buf1, "laps %02d", r->unk8);
+            func_800639E8(buf2, "%02d", r->boosts);
+            func_8006FC54(2);
+            func_8006FC68(0, 0, 0, 255, 255);
+            func_8006FCA8(dl, pos[0] + 1, pos[1] + 1, buf1, 0);
+            func_8006FCA8(dl, pos[2] + 1, pos[3] + 15, buf2, 4);
+            func_8006FCA8(dl, pos[4] + 15, pos[5] - 15, rl_m031_04078[place], 0);
+            func_8006FC68(0, 255, 128, 255, 255);
+            func_8006FCA8(dl, pos[0], pos[1], buf1, 0);
+            func_8006FCA8(dl, pos[2], pos[3] + 14, buf2, 4);
+            func_8006FCA8(dl, pos[4] + 14, pos[5] - 16, rl_m031_04078[place], 0);
+            func_8004EDBC(dl, &rl_m031_03F90, pos[2], pos[3], 255, 255, 255, 255);
+            func_8004F02C(dl, rl_m031_04068[place], pos[4] + 1, pos[5] + 1, 1.5f, 1.5f, 0xFE, 1);
+            func_8004F02C(dl, rl_m031_04068[place], pos[4], pos[5], 1.5f, 1.5f, 0xFF80FE, 1);
+            func_8004EDBC(dl, rl_m031_0405C[r->pickup], pos[6], pos[7], 255, 255, 255, 255);
+        }
+    }
+    if (sCountdown > 0 && sCountdown < 361) {
+        i = sCountdown / 30;
+        if (rl_m031_040A8[i] != NULL) {
+            func_8004EDBC(dl, rl_m031_040A8[i], 161, 121, 0, 0, 0, 255);
+            func_8004EDBC(dl, rl_m031_040A8[i], 159, 119, 255, 255, 0, 255);
+        }
+    }
+}
+
+/* Frees the race screen's textures */
 void func_m031_0361C(void) {
     func_80055A00(rl_m031_03FCC);
     rl_m031_03FCC = 0;
