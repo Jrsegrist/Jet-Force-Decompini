@@ -164,7 +164,9 @@ typedef struct M003Home {
     /* 0x10 */ s8 offset[3];
     /* 0x13 */ u8 unk13; /* how far it looks round (028D4), in 16s */
     /* 0x14 */ u8 unk14; /* and up and down, in 8s */
-    /* 0x15 */ u8 pad15[0x1A - 0x15];
+    /* 0x15 */ s8 zone[3];    /* the centre of the box a target must be in (148C0), in 16s from the home */
+    /* 0x18 */ u8 zoneRadius; /* its radius */
+    /* 0x19 */ u8 zoneHeight; /* and half its height */
     /* 0x1A */ u16 kind2 : 4;
     /* 0x1A */ u16 moveKind : 4; /* 4, 5: members start facing their way (0D360) */
     /* 0x1B */ s16 unk1B : 8; /* the way its members are thrown, in 256ths of a turn (0D810) */
@@ -4746,7 +4748,128 @@ void func_m003_147B8(LevelObjectEntryCommon *entry) {
     }
 }
 
+extern s32 region_mark_get(s32 bit);
+extern s32 func_m139_002F8(s32 zone);
+
+/*
+ * Wakes the troop of home object `home`: returns 2 while it waits (its kind is marked, or no target is in
+ * its box), else sets it going (when `start`) and returns 1 or 2. The target is the closest player (kind 1)
+ * or the nearest object of category 8 (kind 5); kind 6 asks module 139 about its zone instead.
+ */
+#ifdef NON_MATCHING
+/*
+ * 290/291 words, frame and slots right: the target, inRange and the `target != NULL` temp are one register
+ * later than the ROM's (a1/a3/a0 for a0/a1/v1), and 0x3E's spacing copy is missing (a u8 block local gives
+ * it, but one frame word more)
+ */
+static s32 func_m003_148C0(Object *home, s32 start) {
+    M003Home *h;
+    Object *target;
+    s32 inRange;
+    f32 dist;
+    f32 y;
+    s32 height;
+
+    h = home->unk68;
+    if (obj_id_is_special(h->kind) && region_mark_get(h->unk64)) {
+        return 2;
+    }
+    switch (h->kind2) {
+        case 1:
+            target = (Object *) sClosestPlayer;
+            break;
+        case 5:
+            target = (Object *) obj_find_nearest_in_category(home->trans.x_position, home->trans.y_position,
+                                                             home->trans.z_position, 8);
+            break;
+        case 6:
+            /* inRange is set only here (and below with a target); the ROM reads it unset otherwise too */
+            inRange = func_m139_002F8(h->unk7A);
+        default:
+            target = NULL;
+            break;
+    }
+    if (target != NULL) {
+        dist = func_m003_03E68(target->trans.x_position, target->trans.z_position,
+                               home->trans.x_position + (h->zone[0] << 4), home->trans.z_position + (h->zone[2] << 4));
+        inRange = (h->zoneRadius << 4) * (h->zoneRadius << 4); /* the radius squared, for a moment */
+        y = home->trans.y_position + (h->zone[1] << 4);
+        height = h->zoneHeight << 4;
+        inRange = target != NULL && (s32) dist < inRange && y - height < target->trans.y_position &&
+                  target->trans.y_position < y + height;
+    }
+    if (h->unk30 == 8) {
+        if (inRange) {
+            if (start) {
+                if (h->flags & 0x40) {
+                    troop_blame_all(func_8000E4D0(0));
+                    return 1;
+                }
+                h->unk30 = 2;
+            }
+            return 1;
+        }
+        return 2;
+    }
+    if (h->kind2 == 3 || inRange) {
+        if (!start) {
+            return 1;
+        }
+        if (h->kind2 == 5) {
+            h->leader = target;
+        }
+        h->x = home->trans.x_position + (h->offset[0] << 4);
+        h->y = home->trans.y_position + (h->offset[1] << 4);
+        h->z = home->trans.z_position + (h->offset[2] << 4);
+        h->unk32 = 0x18;
+        h->unk31 = h->unk3;
+        home->trans.rotation.y_rotation = 0xC000 - (h->unk1B << 8);
+        if (h->first == NULL) {
+            h->first = func_m003_14694();
+        }
+        if (h->spacing != 0) {
+            if (h->arrived < h->count) {
+                h->unk3C = h->count - h->arrived;
+                h->unk3E = h->spacing << 1;
+                h->unk30 = 1;
+                return 2;
+            }
+            if (h->unk0 == 0) {
+                rl_m003_09840(h, 0);
+                return 2;
+            }
+            if (h->flags & 0x40) {
+                troop_blame_all(func_8000E4D0(0));
+                return 2;
+            }
+            h->unk30 = 2;
+            return 2;
+        }
+        while (h->arrived < h->count) {
+            func_m003_14694();
+        }
+        if (h->unk0 == 0) {
+            rl_m003_09840(h, 0);
+            return 2;
+        }
+        if (h->flags & 0x40) {
+            troop_blame_all(func_8000E4D0(0));
+            return 2;
+        }
+        if (h->kind2 == 2) {
+            h->unk30 = 8;
+            return 2;
+        }
+        h->unk30 = 2;
+        return 2;
+    }
+    return 2;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_148C0);
+extern s32 rl_m003_148C0(Object *home, s32 start); /* the static at 148C0 (still assembly) */
+#define func_m003_148C0 rl_m003_148C0
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_14D4C);
 
@@ -5242,8 +5365,6 @@ void func_m003_16CB4(Object *obj, s32 updateRate) {
     }
 }
 
-extern s32 rl_m003_148C0(Object *home, s32 arg1);
-
 extern u8 D_800F31E0[];
 
 /* When memory is low, sends the waiting troops none of whose members can be seen or is busy away */
@@ -5273,7 +5394,7 @@ void func_m003_16D78(void) {
                     break;
                 }
             }
-            if (ok && !(rl_m003_148C0(home, 0) & 1)) {
+            if (ok && !(func_m003_148C0(home, 0) & 1)) {
                 h->unk30 = 9;
                 h->unk2E = 10;
             }
