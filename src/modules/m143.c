@@ -227,9 +227,9 @@ void func_m143_00280(Gfx **dl, Mtx **mtx, Object *obj) {
 #ifdef NON_MATCHING
 /*
  * A ring's init: clears its vertices and lays out its 48 triangles round them,
- * mapping the texture. ROM length and frame; 48 words differ, all registers:
- * from the texture-size set-up on the ROM's temporaries are one register higher
- * (it combines the shifts of the width where IDO here combines the height's).
+ * mapping the texture. ROM length and frame; 42 words differ, all t-register
+ * numbers from the texture-size set-up on (the ROM's free-list order is two
+ * temporaries further on).
  */
 void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     M143Ring *ring;
@@ -258,9 +258,13 @@ void func_m143_00548(Object *obj, UNUSED LevelObjectEntryCommon *setup) {
     rl_m143_032D0->flags &= ~0x100;
     ring->hit = 0;
     effect_slot_start(2, rl_m143_032D0);
-    h = (rl_m143_032D0->height - 1) << 5;
-    u = 0;
-    w = (rl_m143_032D0->width - 1) << 5;
+    {
+        s32 ws = (rl_m143_032D0->width - 1) << 5;
+
+        h = (rl_m143_032D0->height - 1) << 5;
+        u = 0;
+        w = ws;
+    }
     k = 0;
     t = (Triangle *) ring;
     for (i = 0; i < 48; i += 2) {
