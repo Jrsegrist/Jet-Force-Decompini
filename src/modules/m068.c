@@ -5007,12 +5007,11 @@ void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 #endif
 
-#ifdef NON_MATCHING
 /*
- * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop. With the
- * triangle loop on its own counter n (continue-style, so IDO doesn't unroll it) and the inner counter j
- * reused for the last loop, every register is the ROM's; 5 diffs are left: the ROM increments n and does
- * its test right after v, where a `for` loop puts them, but every `for` form here is unrolled 2x.
+ * An electric strip's set-up: clears its vertices, builds its sixteen triangles (eight rows of two) and
+ * copies its points. The row's texture coordinate is `j * 64 / 8`: IDO strength-reduces j * 64, which puts
+ * that counter's step and test right after its one use, as in the ROM; the same j for the clear loop's
+ * inner counter and the last loop keeps IDO from unrolling the row loop.
  */
 void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     M068Strip *m = obj->unk68;
@@ -5023,7 +5022,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     s32 k;
     s32 v;
     s32 prev;
-    s32 n;
 
     m->unk6C0 = setup->unk24;
     m->unk6C4 = setup->unk28;
@@ -5031,13 +5029,14 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
-            p[j].x = 0;
-            p[j].y = 0;
-            p[j].z = 0;
-            p[j].r = 255;
-            p[j].g = 255;
-            p[j].b = 255;
-            p[j].a = 255;
+            p->x = 0;
+            p->y = 0;
+            p->z = 0;
+            p->r = 255;
+            p->g = 255;
+            p->b = 255;
+            p->a = 255;
+            p++;
             j++;
             if (j < 72) continue;
             break;
@@ -5046,9 +5045,8 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     tri = m->tris;
     prev = 0;
     k = 0;
-    n = 64;
-    while (TRUE) {
-        v = (n / 8 - 1) << 5;
+    for (j = 1; j < 9; j++) {
+        v = (j * 64 / 8 - 1) << 5;
         tri[0].flags = 0x40;
         tri[0].vi0 = k;
         tri[0].vi1 = k + 1;
@@ -5072,9 +5070,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         tri += 2;
         prev = v;
         k += 2;
-        n += 64;
-        if (n < 576) continue;
-        break;
     }
     for (j = 0; j < 2; j++) {
         m->a[j] = setup->a[j];
@@ -5086,9 +5081,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     m->pos.z = setup->pos.z;
     obj_collision_spheres_init(obj, 0x100, 1, 4, 0, 0, 0, 5.0f, 5.0f, -1.0f, 1.0f, 0x11);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D65C);
-#endif
 
 /* The electric strip's state (obj->unk68): the 0D65C set-up's fields, as its control uses them */
 typedef struct M068ElectroState {
@@ -5388,12 +5380,7 @@ void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
 #endif
 
-#ifdef NON_MATCHING
-/*
- * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer walked in a continue-style
- * inner loop, which IDO doesn't unroll, stores in field order) and a separate counter for the last two
- * loops; the triangle loop's registers differ (the ROM has k in a3, n in t0, the last counter in a0).
- */
+/* As 0D65C (the other kind of strip) */
 void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     M068Strip *m = obj->unk68;
     Vertex *p;
@@ -5403,7 +5390,6 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     s32 k;
     s32 v;
     s32 prev;
-    s32 n;
 
     ((M068Strip2 *) m)->unk6B8 = setup->unk1C;
     ((M068Strip2 *) m)->unk6BC = setup->unkC;
@@ -5425,10 +5411,10 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         }
     }
     tri = m->tris;
-    k = 0;
     prev = 0;
-    for (n = 64; n < 576; n += 64) {
-        v = (n / 8 - 1) << 5;
+    k = 0;
+    for (j = 1; j < 9; j++) {
+        v = (j * 64 / 8 - 1) << 5;
         tri[0].flags = 0x40;
         tri[0].vi0 = k;
         tri[0].vi1 = k + 1;
@@ -5453,16 +5439,12 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         prev = v;
         k += 2;
     }
-    for (n = 0; n < 2; n++) {
-        m->a[n] = setup->a[n];
-        m->b[n] = setup->b[n];
-        if (k) {} /* k is set above */
-        m->c[n] = setup->c[n];
+    for (j = 0; j < 2; j++) {
+        m->a[j] = setup->a[j];
+        m->b[j] = setup->b[j];
+        m->c[j] = setup->c[j];
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E520);
-#endif
 
 /* The second kind of strip's state (obj->unk68): a bolt from a random joint of a part to another part */
 typedef struct M068Bolt {
