@@ -406,7 +406,139 @@ void func_m143_02450(M143Group *group) {
     }
 }
 
+extern u8 *D_80102D60[4]; /* the effect slots' two buffers */
+extern u8 *D_80102D78[4];
+extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
+extern u8 rl_m143_02F7C;   /* (.data) which buffer is current */
+extern s32 rl_m143_02F80;  /* (.data) copy the picture in */
+
+#ifdef NON_MATCHING
+/*
+ * An effect slot's handler (effect_slot_start in 69050.c calls it with the slot, the texture and an init flag):
+ * a fire. A random bottom row; each pixel becomes the average of itself and the three below it, into the other
+ * buffer; everything dims by 3; the picture is copied in once on a flag; then the texture gets intensity/alpha
+ * pairs, every other row shifted by two pixels.
+ * ROM length and frame, 106 aligned diffs: the ROM addresses the two .data flags with their own lui/%lo at each
+ * access and keeps the post-loop load of the buffer flag partially redundant, which IDO does for statics the
+ * file defines; with the flags as file statics this body is 65 diffs (registers only), but the module's .data
+ * (which holds the picture) is still assembly, and as externs IDO materialises their addresses.
+ */
+void func_m143_02520(s32 slot, u8 *tex, s32 init) {
+    s32 i;
+    s32 j;
+    s32 w;
+    s32 h;
+    u8 *cur;
+    s16 c;
+    s32 off;
+    u8 *p;
+    u16 *out;
+    u16 *row;
+    u8 *buf;
+
+    h = tex[1];
+    w = tex[0];
+    if (rl_m143_02F7C) {
+        buf = D_80102D60[slot];
+    } else {
+        buf = D_80102D78[slot];
+    }
+    p = buf + (h - 1) * w;
+    i = w;
+    while (i--) {
+        *p++ = func_80048E2C(0, 255);
+    }
+    rl_m143_02F7C ^= 1;
+    cur = buf;
+    if (rl_m143_02F7C) {
+        buf = D_80102D60[slot];
+    } else {
+        buf = D_80102D78[slot];
+    }
+    p = buf;
+    i = h - 1;
+    while (i--) {
+        *p = (cur[w + 1] + ((cur + w)[w - 1] + (cur[0] + cur[w]))) >> 2;
+        p++;
+        cur++;
+        j = w - 2;
+        while (j--) {
+            *p = (cur[w + 1] + (cur[w - 1] + (cur[0] + cur[w]))) >> 2;
+            p++;
+            cur++;
+        }
+        *p = (cur[1] + (cur[w - 1] + (cur[0] + cur[w]))) >> 2;
+        p++;
+        cur++;
+    }
+    p = buf;
+    i = h * w;
+    while (i--) {
+        c = *p - 3;
+        if (c < 0) {
+            c = 0;
+        }
+        *p++ = c;
+    }
+    if (rl_m143_02F80) {
+        cur = rl_m143_02BC0;
+        p = buf;
+        i = h * w;
+        while (i--) {
+            *p++ = *cur++;
+        }
+        rl_m143_02F80 = 0;
+    }
+    out = (u16 *) (tex + 0x20);
+    cur = buf;
+    i = h;
+    while (i--) {
+        s16 v;
+        s16 d;
+
+        row = out;
+        if (i & 1) {
+            j = w;
+            while (j--) {
+                v = *cur;
+                c = v;
+                d = v >> 4;
+                if (d) {
+                    c = v * d;
+                }
+                if (c >= 256) {
+                    c = 255;
+                }
+                *out++ = c | (v << 8);
+                cur++;
+            }
+        } else {
+            for (j = 0; j < w; j++) {
+                if (j & 2) {
+                    off = -2;
+                } else {
+                    off = 2;
+                }
+                out = off + row + j;
+                v = *cur;
+                c = v;
+                d = v >> 4;
+                if (d) {
+                    c = v * d;
+                }
+                if (c >= 256) {
+                    c = 255;
+                }
+                *out = c | (v << 8);
+                cur++;
+            }
+            out = row + w;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_02520);
+#endif
 
 void func_m143_02B88(void) {
     if (rl_m143_02F74 != 0) {
