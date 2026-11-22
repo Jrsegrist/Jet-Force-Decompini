@@ -2646,7 +2646,231 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     }
 }
 
+#ifdef NON_MATCHING
+/* JFG: one piece of a muzzle flash (16 bytes) */
+typedef struct MuzzlePart {
+    /* 0x00 */ Vertex *vertices;
+    /* 0x04 */ Triangle *triangles;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ u8 lastVertex;
+    /* 0x0D */ u8 numTriangles;
+    /* 0x0E */ u8 texture; // JFG: the object's attachment slot holding the texture
+    /* 0x0F */ u8 padF;
+} MuzzlePart;
+
+/* JFG: the player's racer data as func_8000C0B8 reads it */
+typedef struct MuzzleRacer {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x24 - 0x2];
+    /* 0x024 */ Object *unk24;
+    /* 0x028 */ u8 pad28[0x78 - 0x28];
+    /* 0x078 */ f32 unk78[16];
+    /* 0x0B8 */ u8 padB8[0x1FA - 0xB8];
+    /* 0x1FA */ u8 unk1FA;
+    /* 0x1FB */ u8 pad1FB[0x540 - 0x1FB];
+    /* 0x540 */ u32 unk540_hi : 6;
+    /* 0x540 */ u32 unk540_25 : 1;
+    /* 0x540 */ u32 unk540_lo : 25;
+    /* 0x544 */ f32 unk544[3];
+    /* 0x550 */ u8 pad550[0x560 - 0x550];
+    /* 0x560 */ Object *unk560;
+} MuzzleRacer;
+
+typedef struct MuzzleGun {
+    /* 0x000 */ u8 pad0[2];
+    /* 0x002 */ u8 unk2;
+    /* 0x003 */ u8 pad3[0xA58 - 0x3];
+    /* 0xA58 */ f32 unkA58;
+    /* 0xA5C */ f32 unkA5C;
+    /* 0xA60 */ u8 padA60[0xA81 - 0xA60];
+    /* 0xA81 */ u8 unkA81;
+} MuzzleGun;
+
+typedef struct MuzzleState {
+    /* 0x00 */ u8 point;
+    /* 0x01 */ u8 kind;
+} MuzzleState;
+
+typedef struct MuzzleChar {
+    /* 0x00 */ u8 pad0[0x70];
+    /* 0x70 */ u8 unk70;
+} MuzzleChar;
+
+extern MuzzlePart D_800A0BEC[];
+extern MuzzlePart D_800A0C0C[];
+extern MuzzlePart D_800A0C1C[];
+extern u8 D_800A0C2C[];
+void func_80048F90(f32 *mtx, ObjectTransform *trans); // DKR: object_transform_to_matrix
+void func_800495D8(f32 *out, f32 x, f32 y, f32 z);    // DKR: mtxf_from_scale
+void func_80048C7C(f32 *a, f32 *b, f32 *out);
+void mtx_model_rotate_translate_push(Gfx **dList, Mtx **mtx, f32 *pos, f32 *rot);
+void mtx_scale_push(Gfx **dList, Mtx **mtx, f32 scale);
+
+/* JFG's vertex and triangle commands (as 12D50's): length, command and parameter or'ed in that order */
+#define gSPVertexSeg(pkt, v, last)                                                                        \
+    {                                                                                                     \
+        Gfx *_g = (Gfx *) (pkt);                                                                          \
+        _g->words.w0 = _SHIFTL(((last) << 1) + ((last) << 3) + 8, 0, 16) | _SHIFTL(G_VTX, 24, 8) |          \
+                       _SHIFTL(((last) << 3) | ((u32) (v) & 6), 16, 8);                                   \
+        _g->words.w1 = (u32) (v);                                                                         \
+    }
+#define gSPPolygonSeg(pkt, ptr, n, tex)                                                                   \
+    {                                                                                                     \
+        Gfx *_g = (Gfx *) (pkt);                                                                          \
+        _g->words.w0 = _SHIFTL((n) * 16, 0, 16) | _SHIFTL(5, 24, 8) | _SHIFTL((((n) - 1) << 4) | (tex), 16, 8); \
+        _g->words.w1 = (u32) (ptr);                                                                       \
+    }
+
+/**
+ * JFG: draw a muzzle flash for the object's owner (obj->setupIndex): for a player, at its gun (when the gun shows
+ * and the character's weapon kind is 0, 2, 4 or 7); for an 0x33 owner a module draws it; for 0x18 (scaled by its
+ * owner's 0x24 object) or a flagged one, at the owner's model joint, freeing obj after if it is flagged
+ * (setupEntrance). Then the kind's pieces (D_800A0BEC/0C0C/0C1C), each scaled and textured.
+ * As in the ROM, draw and kind are only set on the paths that draw, and kind 4 reads the player's racer data
+ * whichever path set it.
+ * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x148), 391/394 words. The ROM keeps kind in
+ * s3 (stored to its home at each path's end) and the racer data in s0; IDO here gives the racer data s3 and keeps
+ * kind in memory.
+ */
+void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
+    Object *parent;
+    MuzzleState *state;
+    MuzzleRacer *racer;
+    Gfx *dl;
+    Mtx *m;
+    f32 scales[3];
+    u8 colors[3];
+    UNUSED s32 pad;
+    s32 kind;
+    s32 count;
+    s32 draw;
+    MuzzlePart *table;
+    ObjectTransform trans;
+    f32 mf[4][4];
+    UNUSED s32 pad2;
+    UNUSED s32 pad3;
+    f32 scale;
+    f32 mf2[4][4];
+    ObjectAttachment *item;
+    f32 *joint;
+    s32 i;
+    u32 seg;
+    MuzzleGun *gun;
+
+    dl = *dList;
+    parent = (Object *) obj->setupIndex;
+    m = *mtx;
+    state = (MuzzleState *) obj->racer;
+    if (parent->behaviorId == 1) {
+        if (parent->unk60 == NULL) {
+            return;
+        }
+        racer = (MuzzleRacer *) parent->racer;
+        if ((racer->character & 3) == 3) {
+            return;
+        }
+        kind = ((MuzzleChar *) char_record_lookup(racer->player, racer->character))->unk70;
+        if (racer->unk1FA) {
+            kind = 0;
+        }
+        draw = racer->unk540_25 && parent->unk60->children[0] != NULL && (kind == 2 || kind == 0 || kind == 4 || kind == 7);
+        if (draw) {
+            mtx_model_push(&dl, &m, racer->unk78);
+            trans.y_rotation = ((s16 *) &D_800A0C2C[racer->character * 6])[0];
+            trans.x_rotation = ((s16 *) &D_800A0C2C[racer->character * 6])[1];
+            trans.z_rotation = ((s16 *) &D_800A0C2C[racer->character * 6])[2];
+            trans.x_position = 0.0f;
+            trans.y_position = 0.0f;
+            trans.z_position = 0.0f;
+            trans.scale = 1.0f;
+            func_80048F90((f32 *) mf, &trans);
+            mtx_model_rotate_translate_push(&dl, &m, racer->unk544, (f32 *) mf);
+        }
+    } else if (parent->behaviorId == 0x33) {
+        if (obj->setupEntrance != 0) {
+            func_80054530(&dl, &m, parent);
+            kind = state->kind;
+            draw = TRUE;
+            free_object(obj);
+        }
+    } else if (parent->behaviorId == 0x18 || obj->setupEntrance != 0) {
+        if (parent->behaviorId == 0x18) {
+            scale = 100.0f / ((MuzzleGun *) ((MuzzleRacer *) parent->racer)->unk24->racer)->unk2;
+        } else {
+            scale = 1.0f;
+        }
+        draw = FALSE;
+        item = parent->attachments[obj->attachmentIndex];
+        if (state->point < item->model->unk2D && item->unkA == 0) {
+            joint = (f32 *) (item->matrices[item->matrixIndex] + (item->model->unk30[state->point * 2 + 1] << 6));
+            joint[3] = 0.0f;
+            joint[7] = 0.0f;
+            joint[11] = 0.0f;
+            joint[15] = 1.0f;
+            mtx_model_push(&dl, &m, joint);
+            trans.y_rotation = 0;
+            trans.x_rotation = 0x4000;
+            trans.z_rotation = 0;
+            trans.x_position = 0.0f;
+            trans.y_position = 0.0f;
+            trans.z_position = 0.0f;
+            func_80048F90((f32 *) mf, &trans);
+            func_800495D8((f32 *) mf2, scale, scale, scale);
+            func_80048C7C((f32 *) mf, (f32 *) mf2, (f32 *) mf);
+            mtx_model_rotate_translate_push(&dl, &m, &item->point[state->point * 3], (f32 *) mf);
+            kind = state->kind;
+            draw = TRUE;
+        }
+        if (obj->setupEntrance != 0) {
+            free_object(obj);
+        }
+    }
+    if (draw) {
+        for (i = 0; i < 3; i++) {
+            colors[i] = 0xFF;
+            scales[i] = 1.0f;
+        }
+        count = 0;
+        switch (kind) {
+            case 2:
+                table = D_800A0BEC;
+                count = 2;
+                break;
+            case 0:
+                table = D_800A0C0C;
+                count = 1;
+                break;
+            case 4:
+                table = D_800A0C1C;
+                count = 1;
+                gun = (MuzzleGun *) racer->unk560->racer;
+                scales[0] = gun->unkA58 + gun->unkA5C;
+                colors[0] = gun->unkA81;
+                break;
+            case 7:
+                table = D_800A0BEC;
+                count = 2;
+                break;
+        }
+        seg = 0x80000000;
+        for (i = 0; i < count; i++) {
+            mtx_scale_push(&dl, &m, scales[i] * table->scale);
+            gDPPipeSync(dl++);
+            gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, colors[i]);
+            func_80055C00(&dl, obj->attachments[table->texture], 0x16, 0);
+            gSPVertexSeg(dl++, (u32) table->vertices + seg, table->lastVertex);
+            gSPPolygonSeg(dl++, (u32) table->triangles + seg, table->numTriangles, 1);
+            table++;
+        }
+        mtx_pop(&dl);
+        *dList = dl;
+        *mtx = m;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
+#endif
 
 f32 get_distance_to_camera(f32 x, f32 y, f32 z);
 void func_80069BE8(Gfx **dList, void *mesh, s32 flags, u8 alpha);
