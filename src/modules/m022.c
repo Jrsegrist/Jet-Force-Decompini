@@ -197,6 +197,9 @@ extern Gfx rl_m022_034C0[]; /* .data (still assembly): a display list */
 
 /* The pause screen's frame: the whole screen's scissor, then black right of and below the viewport (called
    from 018AC) */
+#ifdef NON_MATCHING
+static /* 018AC's C body calls it */
+#endif
 void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
     s32 x1;
     s32 y1;
@@ -223,7 +226,222 @@ void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_0114C);
 
+/* A task goal: a count to reach, or flags to have */
+typedef struct M022Goal {
+    /* 0x0 */ u8 text; /* its text, by rl_m022_031EC */
+    /* 0x1 */ u8 kind; /* 0, 1: the counters; else the flags */
+    /* 0x2 */ u16 value;
+} M022Goal;
+
+/* The task's goals: two lists */
+typedef struct M022Goals {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 count1;
+    /* 0x03 */ u8 count2;
+    /* 0x04 */ M022Goal list1[3];
+    /* 0x10 */ M022Goal list2[1];
+    /* 0x14 */ u8 pad14[0x1C - 0x14];
+    /* 0x1C */ struct M022Rank {
+        u16 time; /* in seconds: to beat */
+        u8 count1; /* the counters to reach */
+        u8 count2;
+        u16 flags; /* to have */
+    } ranks[5];
+} M022Goals;
+
+/* A textured rectangle for func_8004EDBC (4E610.c's TexturedRect) */
+typedef struct M022Rect {
+    /* 0x00 */ void *tex;
+    /* 0x04 */ s32 frame;
+    /* 0x08 */ s16 x;
+    /* 0x0A */ s16 y;
+} M022Rect;
+
+extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
+extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
+extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
+extern void func_8006FC54(s32 font);
+extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern void func_8004EDBC(Gfx **dList, M022Rect *rects, s32 x, s32 y, u8 r, u8 g, u8 b, u8 alpha);
+extern char **gMenuText; /* the game's texts */
+extern s32 D_800A3204; /* the task's time, in frames */
+extern u8 D_800A3208;  /* a task is running */
+extern u8 D_800FD790;
+extern u8 D_800FD791;
+extern s32 rl_m022_0340C; /* the task */
+extern M022Goals *rl_m022_03410;
+extern u8 rl_m022_03420;
+extern s8 rl_m022_03414; /* the rank shown, -1: none */
+extern s16 rl_m022_031E0[]; /* (.data) per task: its name's text */
+extern s16 rl_m022_031EC[]; /* (.data) per goal: its text */
+extern s16 rl_m022_03214[]; /* (.data) per rank: its text */
+extern s16 rl_m022_0322C[]; /* (.data) the item texts */
+extern u8 rl_m022_033D8[];  /* (.data) per rank: its colour */
+extern u8 rl_m022_033E4[];
+extern u8 rl_m022_033F0[];
+extern s32 rl_m022_03500[]; /* (.data) how the time is shown: divisors, -1 a colon, -2 a point, 0 the end */
+extern void rl_m022_0114C(Gfx **dl, s32 arg1, s32 updateRate); /* still assembly */
+
+#ifdef NON_MATCHING
+/*
+ * The task screen: fades in and out, then draws the items picked up, the goals (or the two counters), the rank,
+ * the task's name and its time.
+ * NON_MATCHING: two words short (526/528), the ROM's frame: the ROM keeps the item list's first index (`sel`) in
+ * its stack home across the two calls before the loop, where IDO gives it s6; the rest is the ROM's code
+ * (the masked compare shows 92 aligned diffs from that offset). The pad stands for the ROM's unexplained
+ * 24 bytes of frame below `time`.
+ */
+void func_m022_018AC(Gfx **dl, s32 arg1, s32 updateRate) {
+    s32 sel;
+    s32 i;
+    s32 y;
+    s32 n;
+    s32 bit;
+    s32 mode;
+    s32 t;
+    s32 d;
+    M022Goals *goals;
+    M022Goal *goal;
+    s32 *f;
+    char *p;
+    char text[4];
+    M022Rect rects[2];
+    char time[20];
+    UNUSED s32 pad[6];
+
+    if (rl_m022_03430 < 0) {
+        rl_m022_0342C -= updateRate * 8;
+        if (rl_m022_0342C < 0) {
+            rl_m022_0342C = 0;
+        }
+    } else if (rl_m022_03430 > 0) {
+        rl_m022_0342C += updateRate * 8;
+        if (rl_m022_0342C >= 256) {
+            rl_m022_0342C = 255;
+        }
+    }
+    if (rl_m022_0342C == 0) {
+        return;
+    }
+    func_8006FC8C(0, 0, 0, 0);
+    func_m022_00F18(dl, updateRate);
+    if (*(s8 *) &rl_m022_0343C > 0) {
+        sel = *(s8 *) &rl_m022_03438;
+        y = 0x5C - *(s8 *) &rl_m022_0343C * 10;
+        rects[0].frame = 0;
+        rects[0].x = -8;
+        rects[0].y = -8;
+        rects[1].tex = NULL;
+        i = 0;
+        func_8006FC54(2);
+        func_8006FC68(255, 255, 255, 255, rl_m022_0342C);
+        for (; i < *(s8 *) &rl_m022_0343C; i++) {
+            rects[0].tex = (void *) (D_800A3210 + i)[*(s8 *) &rl_m022_03440];
+            func_8004EDBC(dl, rects, 200, y, 255, 255, 255, rl_m022_0342C);
+            func_8006FCA8(dl, 212, y, gMenuText[rl_m022_0322C[sel++]], 8);
+            y += 20;
+        }
+    }
+    goals = rl_m022_03410;
+    bit = 1 << goals->count1;
+    mode = *(u8 *) &rl_m022_03434;
+    if (rl_m022_03424 != 0) {
+        if (rl_m022_03424 < bit) {
+            mode = 0;
+        } else {
+            mode = 1;
+        }
+    }
+    if (mode == 2) {
+        func_8006FC54(2);
+        func_8006FC68(255, 255, 32, 255, rl_m022_0342C);
+        func_8006FCA8(dl, 160, 158, gMenuText[515], 4);
+        func_8006FCA8(dl, 160, 183, gMenuText[516], 4);
+        func_8006FC68(255, 255, 255, 255, rl_m022_0342C);
+        func_800639E8(text, "%d", D_800FD790);
+        func_8006FCA8(dl, 160, 168, text, 4);
+        func_800639E8(text, "%d", D_800FD791);
+        func_8006FCA8(dl, 160, 193, text, 4);
+    } else {
+        if (mode == 0) {
+            y = 0x1D6;
+            i = goals->count1;
+            goal = goals->list1;
+            bit = 1;
+        } else {
+            y = 0x1D7;
+            i = goals->count2;
+            goal = goals->list2;
+        }
+        func_8006FC54(2);
+        func_8006FC68(255, 255, 32, 255, rl_m022_0342C);
+        func_8006FCA8(dl, 160, 158, gMenuText[y], 4);
+        y = 170; if (i == 0) {
+            func_8006FC68(255, 255, 255, 255, rl_m022_0342C);
+            func_8006FCA8(dl, 160, 170, gMenuText[343], 4);
+        } else {
+            /**/
+            while (i--) {
+                if (rl_m022_03424 & bit) {
+                    func_8006FC68(255, 255, 255, 255, rl_m022_0342C);
+                } else if (rl_m022_03420 & bit) {
+                    func_8006FC68(64, 255, 0, 255, rl_m022_0342C);
+                } else {
+                    func_8006FC68(255, 64, 0, 255, rl_m022_0342C);
+                }
+                func_8006FCA8(dl, 160, y, gMenuText[rl_m022_031EC[goal->text]], 4);
+                goal++;
+                y += 10;
+                bit <<= 1;
+            }
+        }
+    }
+    if (rl_m022_03414 >= 0) {
+        if (rl_m022_03414 == 0) {
+            func_8006FC54(2);
+            y = 0x54;
+        } else {
+            func_8006FC54(2);
+            y = 0x7A;
+        }
+        func_8006FC68(0, 0, 0, 255, rl_m022_0342C);
+        func_8006FCA8(dl, 0x61, y + 1, gMenuText[rl_m022_03214[rl_m022_03414]], 12);
+        func_8006FC68(rl_m022_033D8[rl_m022_03414], rl_m022_033E4[rl_m022_03414], rl_m022_033F0[rl_m022_03414], 255,
+                      rl_m022_0342C);
+        func_8006FCA8(dl, 0x60, y, gMenuText[rl_m022_03214[rl_m022_03414]], 12);
+    }
+    rl_m022_0114C(dl, arg1, updateRate);
+    func_8006FC54(2);
+    func_8006FC68(0, 0, 64, 255, rl_m022_0342C);
+    func_8006FCA8(dl, 160, 26, gMenuText[rl_m022_031E0[rl_m022_0340C]], 4);
+    func_8006FC68(0, 0, 64, 255, rl_m022_0342C);
+    func_8006FCA8(dl, 160, 134, gMenuText[469], 4);
+    if (D_800A3208 != 0) {
+        t = D_800A3204 * 100 / 60;
+        p = time;
+        f = rl_m022_03500;
+        do {
+            d = *f++;
+            if (d == -1) {
+                *p++ = ':';
+            } else if (d == -2) {
+                *p++ = '.';
+            } else if (d > 0) {
+                *p++ = t / d + '0';
+                t -= t / d * d;
+            }
+        } while (d != 0);
+        *p = '\0';
+        func_8006FC54(2);
+        func_8006FC68(0, 0, 0, 255, rl_m022_0342C);
+        func_8006FCA8(dl, 0x62, 0x2C, time, 4);
+        func_8006FC68(0xE0, 0xE0, 255, 255, rl_m022_0342C);
+        func_8006FCA8(dl, 0x60, 0x2A, time, 4);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_018AC);
+#endif
 
 struct M022Goals;
 extern struct M022Goals *rl_m022_03410;
@@ -333,28 +551,6 @@ void func_m022_02410(M022Helper *helper) {
     s->unk90 = 0;
 }
 
-/* A task goal: a count to reach, or flags to have */
-typedef struct M022Goal {
-    /* 0x0 */ u8 unk0;
-    /* 0x1 */ u8 kind; /* 0, 1: the counters; else the flags */
-    /* 0x2 */ u16 value;
-} M022Goal;
-
-/* The task's goals: two lists */
-typedef struct M022Goals {
-    /* 0x00 */ u8 pad0[2];
-    /* 0x02 */ u8 count1;
-    /* 0x03 */ u8 count2;
-    /* 0x04 */ M022Goal list1[3];
-    /* 0x10 */ M022Goal list2[1];
-    /* 0x14 */ u8 pad14[0x1C - 0x14];
-    /* 0x1C */ struct M022Rank {
-        u16 time; /* in seconds: to beat */
-        u8 count1; /* the counters to reach */
-        u8 count2;
-        u16 flags; /* to have */
-    } ranks[5];
-} M022Goals;
 typedef struct M022Rank M022Rank;
 
 extern u8 D_800FD790;  /* counters the goals count */
