@@ -390,8 +390,9 @@ lessons apply too; [matching.md](matching.md) collects them):
   and each later piece is `data_XXXXX.s`. The variables after a cut can then
   be defined in C (after the `INCLUDE_ASM(..., data)` of the piece before
   them) while ROM-derived bytes before it stay assembly. m143 is cut at
-  0x2F7C: its picture and tables stay assembly, and 02520's two flags are
-  statics inside that function, which gives the original's own `%hi/%lo`
+  0x2F78: its picture and tables stay assembly, and 0007C's last joint and
+  02520's two flags are statics inside those functions (in that order, after
+  the assembly .data), which gives the original's own `%hi/%lo`
   per access (as file statics IDO materialised their addresses). A cut must
   be word-aligned and inside .data.
 - An init or fini function that is still INCLUDE_ASM cannot be marked with

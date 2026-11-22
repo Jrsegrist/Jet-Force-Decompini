@@ -54,7 +54,7 @@ LAYOUT = {
 # and include the others, in the original order. Offsets only, no ROM data.
 DATA_SPLITS = {
     "us": {
-        143: [0x2F7C],  # the two flags of func_m143_02520 after the picture and tables
+        143: [0x2F78],  # 0007C's last joint and 02520's two flags, after the picture and tables
     },
 }
 SEC_RODATA, SEC_DATA, SEC_BSS = 4093, 4094, 4095

@@ -96,7 +96,7 @@ extern M143TrailPoint rl_m143_02FE0[41];
 extern s32 rl_m143_03270;
 
 /* The trail point about `dist` back from the newest one (or the oldest) (called from 0007C) */
-void func_m143_00000(s32 dist, f32 *x, f32 *y, f32 *z) {
+static void func_m143_00000(s32 dist, f32 *x, f32 *y, f32 *z) {
     s32 i = rl_m143_03270;
     M143TrailPoint *p;
 
@@ -116,22 +116,23 @@ void func_m143_00000(s32 dist, f32 *x, f32 *y, f32 *z) {
 }
 
 extern void func_m003_0609C(s32 joint, f32 *x, f32 *y, f32 *z); /* a joint's position */
-extern s32 rl_m143_02F78; /* the last joint picked at random (.data) */
 
-#ifdef NON_MATCHING
+/*
+ * .data: the picture (0x380 bytes) and the tables after it up to 0x2F78 stay assembly
+ * (data.s, cut there by tools/runlink_split.py's DATA_SPLITS); the rest is the statics
+ * of 0007C (0x2F78) and 02520 (0x2F7C, 0x2F80), which follow it in this order.
+ */
+INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
+extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
+
 /*
  * Where a group member aims: -1/-2 are fixed points off the object, -3..-7
  * random joints (-3 never the same one twice running), -8 a point on the
- * trail, any other value that joint.
- * 7 aligned diffs, ROM length and frame: in the retry loop of case -3 IDO keeps
- * &rl_m143_02F78 in s0, where the ROM loads it with lui/lw in the loop and
- * stores with lui/sw. It matches (byte-identical test build) with the word as
- * a static inside this function and `point` reused for the joint picked, which
- * needs .data 0x2F78 in C (a DATA_SPLITS cut at 0x2F78 in place of 0x2F7C, with
- * the .data block above this function): waiting for approval.
+ * trail, any other value that joint. (point is dead once the switch has
+ * dispatched, so case -3 reuses it for the joint it picks.)
  */
 void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
-    s32 joint;
+    static s32 sLastJoint = 0; /* .data 0x2F78 */
 
     switch (point) {
         case -1:
@@ -146,9 +147,9 @@ void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
             break;
         case -3:
             do {
-                joint = func_80048E2C(9, 16);
-            } while (joint == rl_m143_02F78);
-            func_m003_0609C(rl_m143_02F78 = joint, x, y, z);
+                point = func_80048E2C(9, 16);
+            } while (point == sLastJoint);
+            func_m003_0609C(sLastJoint = point, x, y, z);
             break;
         case -4:
             func_m003_0609C(func_80048E2C(11, 12), x, y, z);
@@ -170,9 +171,6 @@ void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
             break;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m143/ro", func_m143_0007C);
-#endif
 
 extern void effect_slot_start(s32 arg0, void *tex);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
@@ -411,14 +409,6 @@ void func_m143_02450(M143Group *group) {
 extern u8 *D_80102D60[4]; /* the effect slots' two buffers */
 extern u8 *D_80102D78[4];
 
-/*
- * .data: the picture (0x380 bytes) and the tables after it up to 0x2F7C stay assembly
- * (data.s, cut there by tools/runlink_split.py's DATA_SPLITS); the two flags of the
- * handler below follow it, as its statics: 0x2F7C (u8 0: which buffer is current) and
- * 0x2F80 (s32 1: copy the picture in).
- */
-INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
-extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
 
 /*
  * An effect slot's handler (effect_slot_start in 69050.c calls it with the slot, the texture and an init flag):
