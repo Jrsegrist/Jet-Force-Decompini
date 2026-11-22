@@ -8,6 +8,10 @@
 #   make nonmatching  compile the NON_MATCHING C bodies, main and modules (objects only, build_nm/)
 
 VERSION  ?= us
+
+# a plain `make` builds and checks the ROM (the per-file rules below would
+# otherwise make the first of them, build/src/9CA20.o, the default)
+.DEFAULT_GOAL := all
 BASENAME := jfg
 BASEROM  := baserom.$(VERSION).z64
 YAML     := $(BASENAME).$(VERSION).yaml
