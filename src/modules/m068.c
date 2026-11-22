@@ -1131,7 +1131,12 @@ static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
+#ifdef NON_MATCHING
+static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_093B8 func_m068_093B8
+#else
 extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
 static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0A208 func_m068_0A208
 static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -3549,7 +3554,302 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
     }
 }
 
+void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+
+#ifdef NON_MATCHING
+/*
+ * Phase work of the first form for part 2 (its head): each time its hit points run out with flag 1, 2
+ * or 4 set it goes to the next stage (animations 0x1E/0x1F/0x21, texture frames from 3/6/9, five
+ * objects 0x32A from the model's points 15-19); with flag 8 and event 0x400 it bursts (twelve pieces
+ * from the model's points 20-31; parts 2 and 3 are destroyed). Sparks fly from points 15-19 on every
+ * hit, and while it is damaged.
+ * Same length and frame; the two six-piece loops' pointer temporary is spilled one word lower (0x5C, the
+ * ROM 0x60), and one addu is scheduled a slot earlier.
+ */
+static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    Vec3f *p;
+    Vec3f *q;
+    s32 i;
+    M068PartState *parts;
+    M068PieceSetup entry2;
+    M068PieceSetup entry;
+    SparkParams spark;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    s32 lo;
+    s32 hi;
+    s32 n;
+    s32 alpha;
+    s32 j;
+    Object *o;
+    s32 fx;
+    s16 yaw;
+    s16 angle;
+
+    parts = sParts;
+    if (parts[2].hit) {
+        fx = 1;
+        if (!(s->flags & 0x10)) {
+            if ((s->flags & 8) && (s->events & 0x400)) {
+                s->flags |= 0x10;
+                s->unk82 = 0;
+                func_m068_09218(obj, 2);
+                func_m068_09218(obj, 3);
+                fx = 0x1B;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 0x400;
+                parts[2].hp = rl_m068_1254C[2].hp;
+            } else if ((s->flags & 4) && parts[2].hp <= 0) {
+                s->flags |= 8;
+                func_m068_0BDC4(obj, s, 0x21, 0.0f);
+                func_m068_05028(obj, s);
+                s->texBase = 9;
+                s->texFrame = 0;
+                s->texStep = 0;
+                fx = 7;
+                s->unk44 = 150.0f;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 8;
+                parts[2].hp = rl_m068_1254C[2].hp;
+                p = &inst->points[15];
+                func_80003410(0x1CD, p->x, p->y, p->z, 1, &s->sound70);
+            } else if ((s->flags & 2) && parts[2].hp <= 0) {
+                s->flags |= 4;
+                func_m068_0BDC4(obj, s, 0x1F, 0.0f);
+                func_m068_05028(obj, s);
+                s->texBase = 6;
+                fx = 7;
+                s->unk44 = 100.0f;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 4;
+                parts[2].hp = rl_m068_1254C[2].hp;
+            } else if ((s->flags & 1) && parts[2].hp <= 0) {
+                s->flags |= 2;
+                func_m068_0BDC4(obj, s, 0x1E, 0.0f);
+                func_m068_05028(obj, s);
+                s->texBase = 3;
+                fx = 7;
+                s->unk44 = 50.0f;
+                if (s->sound58 != 0) {
+                    func_80003614(s->sound58);
+                }
+                s->unk50 |= 4;
+                parts[2].hp = rl_m068_1254C[2].hp;
+            } else if (s->unkC8 > 500) {
+                s->unk50 |= 0x1000;
+            } else {
+                q = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
+                func_80003410(0x1C8, q->x, q->y, q->z, 4, NULL);
+            }
+        }
+        if (fx & 1) {
+            j = func_80048E2C(15, 19);
+            p = &inst->points[j];
+            yaw = (s16) (s->unk9A + 0x8000);
+            spark.x_position = p->x;
+            spark.y_position = p->y;
+            spark.z_position = p->z;
+            spark.textureID = 20;
+            spark.lifeSteps = 15;
+            spark.alpha = 255;
+            if (s->texBase == 0) {
+                spark.colour1 = 0xFFFF80FF;
+                spark.colour2 = 0xFF0000FF;
+            } else if (s->texBase == 3) {
+                spark.colour1 = 0x8080FFFF;
+                spark.colour2 = 0xFF00FFFF;
+            } else if (s->texBase == 6) {
+                spark.colour1 = 0x80FFFFFF;
+                spark.colour2 = 0xFFFF00FF;
+            } else {
+                spark.colour1 = 0x808080FF;
+                spark.colour2 = 0xFF00FF;
+            }
+            lo = yaw - 0x1000;
+            hi = yaw + 0x1000;
+            for (i = 0; i < 8; i++) {
+                spark.y_rotation = func_80048E2C(lo, hi);
+                spark.x_rotation = func_80048E2C(0x1000, 0x5000);
+                spark.speed = func_80048E2C(50, 100) * 0.1f;
+                spark.sparkSize = func_80048E2C(400, 600) * 0.01f;
+                func_m010_0000C(&spark);
+            }
+        }
+        if (fx & 2) {
+            alpha = obj->shading->unk0 * 255.0f;
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+            for (i = 0; i < 8; i++) {
+                j = func_80048E2C(15, 19);
+                p = &inst->points[j];
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                d = func_80048E2C(50, 100) * 0.1f;
+                dx *= d;
+                dy *= d;
+                dz *= d;
+                func_m008_001CC(p->x, p->y, p->z, dx, dy, dz, alpha, 4, 2.0f);
+            }
+        }
+        if (fx & 4) {
+            entry2.objectID = 0x32A;
+            entry2.unk2 = 0x2C;
+            entry2.active = 1;
+            entry2.yRotation = 0;
+            entry2.xRotation = 0;
+            entry2.unk1C = 2.0f;
+            entry2.unk20 = 2.0f;
+            entry2.unk28 = 0.15f;
+            p = &inst->points[15];
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+            angle = 0;
+            for (i = 0; i < 5; i++) {
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry2.zRotation = angle;
+                entry2.velocity.x = dx;
+                entry2.velocity.y = dy;
+                entry2.velocity.z = dz;
+                entry2.speed = d / 15.0f;
+                entry2.x = p->x;
+                entry2.y = p->y;
+                entry2.z = p->z;
+                o = func_80005F14(&entry2, 1);
+                if (o != NULL) {
+                    o->level_entry = NULL;
+                }
+                angle += 0x3333;
+                p++;
+            }
+        }
+        if (fx & 8) {
+            entry.objectID = 0x305;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.mtx = (MtxF *) sMtx12B70;
+            entry.unk1C = 3.0f;
+            entry.unk20 = 2.0f;
+            entry.unk28 = 0.15f;
+            p = &inst->points[20];
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
+            for (i = 0; i < 6; i++) {
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry.velocity.x = dx;
+                entry.velocity.y = dy;
+                entry.velocity.z = dz;
+                entry.speed = d / 15.0f;
+                func_m068_10DD4(sBss12B40[i], &entry);
+                p++;
+            }
+            entry.objectID = 0x306;
+            entry.active = 1;
+            entry.yRotation = 0;
+            entry.xRotation = 0;
+            entry.zRotation = 0;
+            entry.mtx = (MtxF *) sMtx12BB0;
+            entry.unk1C = 3.0f;
+            entry.unk20 = 2.0f;
+            entry.unk28 = 0.15f;
+            p = &inst->points[26];
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[3].joint * 3];
+            for (i = 0; i < 6; i++) {
+                entry.x = p->x;
+                entry.y = p->y;
+                entry.z = p->z;
+                dx = p->x - q->x;
+                dy = p->y - q->y;
+                dz = p->z - q->z;
+                d = func_80097140(dx * dx + dy * dy + dz * dz);
+                dx /= d;
+                dy /= d;
+                dz /= d;
+                entry.velocity.x = dx;
+                entry.velocity.y = dy;
+                entry.velocity.z = dz;
+                entry.speed = d / 15.0f;
+                func_m068_10DD4(sBss12B58[i], &entry);
+                p++;
+            }
+        }
+        if (fx & 0x10) {
+            q = (Vec3f *) &sJointPos[rl_m068_1254C[2].joint * 3];
+            spawn_object_from_list(3, q->x, q->y, q->z, 100, 0);
+            func_80003410(0x48, q->x, q->y, q->z, 4, NULL);
+        }
+    }
+    if (s->unk82 != 0 && (s->flags & 0xE) && updateRate < 4 && func_80048E2C(0, 20) == 10) {
+        alpha = obj->shading->unk0 * 255.0f;
+        if (s->flags & 8) {
+            n = 3;
+        } else if (s->flags & 4) {
+            n = 2;
+        } else if (s->flags & 2) {
+            n = 1;
+        }
+        q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
+        for (i = 0; i < n; i++) {
+            j = func_80048E2C(15, 19);
+            p = &inst->points[j];
+            dx = p->x - q->x;
+            dy = p->y - q->y;
+            dz = p->z - q->z;
+            d = func_80097140(dx * dx + dy * dy + dz * dz);
+            dx /= d;
+            dy /= d;
+            dz /= d;
+            d = func_80048E2C(50, 100) * 0.1f;
+            dx *= d;
+            dy *= d;
+            dz *= d;
+            func_m008_001CC(p->x, p->y, p->z, dx, dy, dz, alpha, 4, 2.0f);
+        }
+    }
+    if (s->unk82 != 0 && (s->flags & 0xE)) {
+        if (s->flags & 8) {
+            n = 3;
+        } else if (s->flags & 4) {
+            n = 2;
+        } else if (s->flags & 2) {
+            n = 1;
+        }
+        for (i = 0; i < n; i++) {
+            s->unk1C |= 1 << func_80048E2C(1, 5);
+            s->unk1C |= 1 << func_80048E2C(6, 10);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
+#endif
 
 /* A texture's animation state in a model instance (8 bytes) */
 typedef struct M068TexAnim {
