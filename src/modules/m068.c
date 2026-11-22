@@ -5715,7 +5715,10 @@ static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate);
 
 /*
  * A boulder: follows its trail (then flies on), breaks up when shot, spent or when it hits something.
- * Same length and frame; registers differ in the flying part (the ROM keeps its turn factor on the stack).
+ * Two words long, same frame. The trail point is `unk70 * 3` floats into the trail (the ROM's separate
+ * shift temporary) and the debris position adds an (s16) of the coordinate (the same stored s16). Left: the
+ * ROM keeps b->unk70 in v1 where this has v0, and evaluates the trail-progress denominator before the
+ * numerator (two loads fewer).
  */
 void func_m068_0F7C8(Object *obj, s32 updateRate) {
     Object *o;
@@ -5843,9 +5846,9 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             debris.unk20 = 0;
             debris.unk18 = 0.15f;
             for (i = 0; i < 4; i++) {
-                debris.common.x = func_80048E2C(-15, 15) + (s32) obj->trans.x_position;
-                debris.common.y = func_80048E2C(-15, 15) + (s32) obj->trans.y_position;
-                debris.common.z = func_80048E2C(-15, 15) + (s32) obj->trans.z_position;
+                debris.common.x = func_80048E2C(-15, 15) + (s16) obj->trans.x_position;
+                debris.common.y = func_80048E2C(-15, 15) + (s16) obj->trans.y_position;
+                debris.common.z = func_80048E2C(-15, 15) + (s16) obj->trans.z_position;
                 debris.yaw = func_80048E2C(debrisYaw[0], debrisYaw[1]);
                 debris.pitch = func_80048E2C(debrisPitch[0], debrisPitch[1]);
                 debris.speed = b->speed;
@@ -5890,7 +5893,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         return;
     }
     if (b->unk70 >= 0 && b->unk70 < rl_m068_125E8) {
-        Vec3f *p = &b->trail[b->unk70];
+        Vec3f *p = (Vec3f *) &((f32 *) b->trail)[b->unk70 * 3];
 
         tx = p->x;
         ty = p->y;
