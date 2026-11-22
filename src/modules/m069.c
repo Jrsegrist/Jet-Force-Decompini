@@ -34,6 +34,8 @@ typedef struct M069Score {
     /* 0x0E */ u8 padE[2];
     /* 0x10 */ f32 x; /* the crosshair, on screen */
     /* 0x14 */ f32 y;
+    /* 0x18 */ f32 vx; /* its speed */
+    /* 0x1C */ f32 vy;
 } M069Score;
 
 /* A text position */
@@ -131,7 +133,8 @@ extern u16 func_800434E4(s32 player); /* the buttons held */
 extern s32 func_80043510(s32 player); /* the buttons pressed */
 extern void music_volume_fade(f32 volume, s32 arg1);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
-extern void rl_m069_00A84(Object *obj, M069Score *score, s32 x, s32 y, s32 held, s32 pressed, s32 updateRate);
+static void func_m069_00A84(Object *obj, M069Score *score, s32 x, s32 y, s32 held, s32 pressed,
+                            s32 updateRate);
 extern f32 *rl_m069_01D38[4]; /* the targets' positions in front of the camera, by the number of players */
 extern void *rl_m069_01DE4;   /* the banner image */
 extern s16 rl_m069_01DFC[4];  /* the banner images, by winner */
@@ -229,7 +232,7 @@ void func_m069_000A8(s32 count, s32 updateRate) {
                         stickX = input_stick_x_raw(i);
                         stickY = input_stick_y_raw(i);
                         held = func_800434E4(i);
-                        rl_m069_00A84(obj, obj->unk68, stickX, stickY, held, func_80043510(i), updateRate);
+                        func_m069_00A84(obj, obj->unk68, stickX, stickY, held, func_80043510(i), updateRate);
                         offsets += 3;
                     }
                 }
@@ -270,7 +273,264 @@ void func_m069_000A8(s32 count, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m069/ro", func_m069_00A84);
+/* What func_80018808 fills in, as 00A84 reads it */
+typedef struct M069Hit {
+    /* 0x00 */ Object *obj;
+    /* 0x04 */ Vec3f pos;
+    /* 0x10 */ Vec3f normal;
+    /* 0x1C */ f32 unk1C;
+    /* 0x20 */ f32 along; /* how far along the sweep it hit */
+    /* 0x24 */ s32 flags;
+} M069Hit;
+
+/* A shot's spawn entry (size 0x24) */
+typedef struct M069Shot {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 pad2[2];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ s16 yaw;
+    /* 0x0E */ s16 pitch;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 pad12;
+    /* 0x13 */ u8 player;
+    /* 0x14 */ f32 speed;
+    /* 0x18 */ Object *owner;
+    /* 0x1C */ u8 *unk1C;
+    /* 0x20 */ u8 *unk20;
+} M069Shot;
+
+extern s8 D_800A5020; /* the stick mode: 0 points the crosshair, 1 and 2 steer it (1 inverted) */
+extern f32 func_80049BEC(f32 rate, s32 updateRate);
+extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, u8 toView); /* projects to the screen */
+extern void screen_to_view(f32 x, f32 y, f32 *outX, f32 *outY, f32 *outZ, u8 toWorld); /* and back, at depth *z */
+extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
+extern f32 func_80097140(f32 x); /* sqrtf */
+extern s32 rl_m069_0135C(); /* 0135C, still assembly (NON_MATCHING below); called with a fifth argument */
+extern f32 rl_m069_01E04[]; /* the crosshair speeds, by stick distance */
+extern u8 rl_m069_01BA0[];
+extern u8 rl_m069_01C60[];
+
+/*
+ * A player's crosshair: moves it with the stick (pointing, or steering with a dead zone and a speed table),
+ * then finds where the line through it from the camera meets the level or a target, and on the fire button
+ * (with ammo left) spawns a shot from the target object towards that point.
+ */
+static void func_m069_00A84(Object *obj, M069Score *score, s32 x, s32 y, UNUSED s32 held, s32 pressed,
+                            s32 updateRate) {
+    s32 hh;
+    s32 hw;
+    s32 i;
+    s32 hitLevel;
+    s32 hitObj;
+    u32 width;
+    u32 height;
+    s16 angles[3];
+    f32 fx;
+    f32 fy;
+    f32 k;
+    f32 sx1;
+    f32 sy1;
+    f32 sx2;
+    f32 sy2;
+    f32 kx;
+    f32 ky;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    Vec3f pts[4];
+    Vec3f near;
+    Vec3f far;
+    Vec3f aim;
+    UNUSED s32 pad;
+    M069Hit hit;
+    M069Shot shot;
+    Object *o;
+    ObjectTransform *cam;
+
+    cam = func_80041DE0();
+    func_80054EA0((s32 *) &width, (s32 *) &height);
+    hw = width >> 1;
+    hh = height >> 1;
+    if (D_800A5020 == 0) {
+        if (x > 68) {
+            x = 68;
+        }
+        if (x < -68) {
+            x = -68;
+        }
+        if (y > 52) {
+            y = 52;
+        }
+        if (y < -52) {
+            y = -52;
+        }
+        fx = x * 2 + hw;
+        fy = y * 2 + hh;
+        k = 1.0f - func_80049BEC(0.7f, updateRate);
+    } else {
+        if (x >= -5 && x < 6) {
+            x = 0;
+        } else if (x > 0) {
+            x -= 5;
+            if (x > 60) {
+                x = 60;
+            }
+        } else {
+            x += 5;
+            if (x < -60) {
+                x = -60;
+            }
+        }
+        if (y >= -5 && y < 6) {
+            y = 0;
+        } else if (y > 0) {
+            y -= 5;
+            if (y > 60) {
+                y = 60;
+            }
+        } else {
+            y += 5;
+            if (y < -60) {
+                y = -60;
+            }
+        }
+        k = 1.0f - func_80049BEC(0.6667f, updateRate);
+        if (x < 0) {
+            fx = -rl_m069_01E04[-x];
+        } else {
+            fx = rl_m069_01E04[x];
+        }
+        score->vx += (fx - score->vx) * k;
+        if (x == 0 && -0.1f < score->vx && score->vx < 0.1f) {
+            score->vx = 0.0f;
+        }
+        if (y < 0) {
+            fy = -rl_m069_01E04[-y];
+        } else {
+            fy = rl_m069_01E04[y];
+        }
+        score->vy += (fy - score->vy) * k;
+        if (y == 0 && -0.1f < score->vy && score->vy < 0.1f) {
+            score->vy = 0.0f;
+        }
+        fx = score->x;
+        fy = score->y;
+        i = updateRate;
+        while (i--) {
+            fx += score->vx;
+            if (D_800A5020 == 1) {
+                fy -= score->vy;
+            } else {
+                fy += score->vy;
+            }
+        }
+        k = 1.0f;
+        if (fx < 24.0f) {
+            fx = 24.0f;
+            score->vx = 0.0f;
+        }
+        if (296.0f < fx) {
+            fx = 296.0f;
+            score->vx = 0.0f;
+        }
+        if (fy < 16.0f) {
+            fy = 16.0f;
+            score->vy = 0.0f;
+        }
+        if (224.0f < fy) {
+            fy = 224.0f;
+            score->vy = 0.0f;
+        }
+    }
+    score->x += (fx - score->x) * k;
+    score->y += (fy - score->y) * k;
+    pts[0].x = -16.0f;
+    pts[0].y = 16.0f;
+    pts[0].z = -16.0f;
+    pts[1].x = 16.0f;
+    pts[1].y = -16.0f;
+    pts[1].z = -16.0f;
+    pts[2].z = -2048.0f;
+    pts[3].z = -2048.0f;
+    if (!func_80041E58(pts[0].x, pts[0].y, pts[0].z, &sx1, &sy1, 0)) {
+        return;
+    }
+    if (!func_80041E58(pts[1].x, pts[1].y, pts[1].z, &sx2, &sy2, 0)) {
+        return;
+    }
+    screen_to_view(sx1, sy1, &pts[2].x, &pts[2].y, &pts[2].z, 0);
+    screen_to_view(sx2, sy2, &pts[3].x, &pts[3].y, &pts[3].z, 0);
+    kx = (pts[1].x - pts[0].x) / (sx2 - sx1);
+    ky = (pts[0].y - pts[1].y) / (sy1 - sy2);
+    near.x = pts[0].x + (score->x - sx1) * kx;
+    near.y = pts[0].y + (score->y - sy1) * ky;
+    near.z = pts[0].z;
+    kx = (pts[3].x - pts[2].x) / (sx2 - sx1);
+    ky = (pts[2].y - pts[3].y) / (sy1 - sy2);
+    far.x = pts[2].x + (score->x - sx1) * kx;
+    far.y = pts[2].y + (score->y - sy1) * ky;
+    far.z = pts[2].z;
+    angles[0] = -0x8000 - cam->rotation.y_rotation;
+    angles[1] = -cam->rotation.x_rotation;
+    angles[2] = -cam->rotation.z_rotation;
+    func_800496B0(1, angles, &near.x, &near.x);
+    near.x += cam->x_position;
+    near.y += cam->y_position;
+    near.z += cam->z_position;
+    func_800496B0(1, angles, &far.x, &far.x);
+    far.x += cam->x_position;
+    far.y += cam->y_position;
+    far.z += cam->z_position;
+    hitLevel = func_80018808(NULL, &near, &far, (HitResult *) &hit, 0, 0);
+    hitObj = rl_m069_0135C(obj, &near.x, &far.x, &dist, updateRate);
+    aim.x = far.x;
+    aim.y = far.y;
+    aim.z = far.z;
+    if (hitLevel | hitObj) {
+        dx = near.x - far.x;
+        dy = near.y - far.y;
+        dz = near.z - far.z;
+        dist = 1.0f - hit.along / func_80097140(dx * dx + dy * dy + dz * dz);
+        aim.x += dx * dist;
+        aim.y += dy * dist;
+        aim.z += dz * dist;
+    }
+    if ((pressed & 0x2000) && score->ammo != 0) {
+        dx = obj->trans.x_position - aim.x;
+        dy = aim.y - obj->trans.y_position;
+        dz = obj->trans.z_position - aim.z;
+        shot.objectID = 0x50;
+        shot.x = obj->trans.x_position;
+        shot.y = obj->trans.y_position;
+        shot.z = obj->trans.z_position;
+        shot.yaw = func_80049C84(dx, dz);
+        shot.pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz));
+        shot.unkA = 1;
+        shot.unkB = 10;
+        shot.unk10 = 0;
+        shot.unk11 = 0;
+        shot.speed = 100.0f;
+        shot.owner = obj;
+        shot.unk1C = rl_m069_01BA0;
+        shot.unk20 = rl_m069_01C60;
+        shot.player = score->player;
+        o = func_80005F14((M069Entry *) &shot, 1);
+        if (o != NULL) {
+            o->level_entry = NULL;
+        }
+        score->shots++;
+        if (score->ammo > 0) {
+            score->ammo--;
+        }
+        func_80001248(0xDA, 0);
+    }
+}
 
 /* The query that func_8007C2E8 takes, as used here */
 typedef struct M069Ray {
