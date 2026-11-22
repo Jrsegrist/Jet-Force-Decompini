@@ -41,7 +41,7 @@ typedef struct M068State {
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
     /* 0x60 */ u16 unk60;
-    /* 0x62 */ u8 pad62[0x64 - 0x62];
+    /* 0x62 */ u16 unk62; /* 088DC: which of its five feet touch the ground */
     /* 0x64 */ f32 lastDist; /* sound6C's point from the camera, for its pitch */
     /* 0x68 */ f32 pitch;
     /* 0x6C */ s32 sound6C;
@@ -1109,7 +1109,8 @@ static void func_m068_06590(Object *obj, M068State *s, s32 updateRate, f32 rate)
 static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate);
 static void func_m068_092F0(Object *obj, s32 index, s32 on);
 static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame);
-extern void rl_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
+static void func_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate);
+#define rl_m068_0BE14 func_m068_0BE14
 static void func_m068_067B4(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_067B4 func_m068_067B4
 static void func_m068_06AE0(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -1128,7 +1129,12 @@ static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_083C8 func_m068_083C8
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_088DC func_m068_088DC
+#else
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
 #ifdef NON_MATCHING
@@ -3453,7 +3459,194 @@ static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
+/* A sphere the boss touches the ground with (its model's records at unk34) */
+typedef struct M068Foot {
+    /* 0x0 */ u8 pad0[3];
+    /* 0x3 */ u8 flags;
+    /* 0x4 */ u8 pad4[0x8 - 0x4];
+    /* 0x8 */ f32 radius;
+} M068Foot;
+
+typedef struct M068FootModel {
+    /* 0x00 */ u8 pad0[0x34];
+    /* 0x34 */ M068Foot *feet;
+} M068FootModel;
+
+/* What one foot touched */
+typedef struct M068GroundHit {
+    /* 0x00 */ u8 pad0[0x25];
+    /* 0x25 */ u8 kind;
+    /* 0x26 */ u8 pad26[0x28 - 0x26];
+} M068GroundHit;
+
+extern s32 func_800163FC(Object *obj, Vec3f *pos, Vec3f *prev, Vec3f *points, f32 *radii, Vec3f *offsets,
+                         s16 *flags, M068GroundHit *hits, s32 count, f32 *arg9, Vec3f *arg10);
+extern void func_80049394(Vec3s *rotation, Vec3f *vec);
+extern void func_800492DC(Object *obj, Vec3f *vec);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern u8 rl_m068_125D0; /* (.data) the ground kinds it stands on */
+
+#ifdef NON_MATCHING
+/*
+ * Moves the boss: its vertical speed (to +-15) and its speed along its heading (to unk34), then its five feet
+ * against the ground (sDropPoints keeps where they were).
+ * Same length and frame (the vertical-speed and step values reuse dx, newLen and dz, which the ROM's slots
+ * show); left: register choice (the vertical acceleration in f0, not f12; the s-registers after the feet loop),
+ * the flags store reloads its value, and the loop ends on the radii pointer where the ROM tests the flags one.
+ */
+static void func_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    f32 unk248[4];
+    M068GroundHit hits[5];
+    Vec3f points[5];
+    f32 radii[5];
+    Vec3f offsets[5];
+    Vec3f tmp;
+    Vec3f unkDC;
+    Vec3f pos;
+    f32 ax;
+    f32 ay;
+    f32 az;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 vx;
+    f32 vz;
+    f32 newLen;
+    f32 accel;
+    f32 len;
+    Vec3f *pt;
+    Vec3f *off;
+    f32 *r;
+    s16 *fl;
+    Vec3s rot1;
+    Vec3s rot2;
+    s16 flags[5];
+    s32 i;
+    u16 mask;
+    u16 bit;
+    u32 touched;
+
+    inst = obj->modelInstances[obj->modelIndex];
+    model = inst->model;
+    /* dx: the vertical acceleration, newLen: the next vertical speed (both free until later) */
+    dx = s->unk3C + -1.0f;
+    newLen = s->unk38 + dx * rate;
+    if (dx > 0.0f) {
+        if (s->unk38 < 15.0f && newLen < 15.0f) {
+            accel = dx;
+        } else if (s->unk38 < 15.0f && 15.0f <= newLen) {
+            accel = (15.0f - s->unk38) / rate;
+        } else if (15.0f <= s->unk38) {
+            accel = 0.0f;
+        }
+    } else if (dx < 0.0f) {
+        if (-15.0f < s->unk38 && -15.0f < newLen) {
+            accel = dx;
+        } else if (-15.0f < s->unk38 && newLen <= -15.0f) {
+            accel = (-15.0f - s->unk38) / rate;
+        } else if (s->unk38 <= -15.0f) {
+            accel = 0.0f;
+        }
+    } else {
+        accel = 0.0f;
+    }
+    ay = accel;
+    ax = s->unk24 * s->unk20;
+    az = s->unk28 * s->unk20;
+    len = func_80097140(s->unk2C * s->unk2C + s->unk30 * s->unk30);
+    vx = s->unk2C + ax * rate;
+    vz = s->unk30 + az * rate;
+    newLen = func_80097140(vx * vx + vz * vz);
+    accel = s->unk20;
+    if (len < newLen) {
+        if (len < s->unk34 && newLen < s->unk34) {
+        } else if (len < s->unk34 && s->unk34 <= newLen) {
+            accel = (s->unk34 - len) / rate;
+        } else if (s->unk34 <= len) {
+            accel = 0.0f;
+        }
+    }
+    ax = s->unk24 * accel;
+    az = s->unk28 * accel;
+    dz = 0.5f * rate * rate; /* dz: free until later */
+    pos.x = obj->trans.x_position + s->unk2C * rate + ax * dz;
+    pos.y = obj->trans.y_position + s->unk38 * rate + ay * dz;
+    pos.z = obj->trans.z_position + s->unk30 * rate + az * dz;
+    if (s->unk34 <= newLen) {
+        vx /= newLen;
+        vz /= newLen;
+        s->unk2C = s->unk34 * vx;
+        s->unk30 = s->unk34 * vz;
+    } else {
+        s->unk2C = vx;
+        s->unk30 = vz;
+    }
+    obj->velocity.x = s->unk2C;
+    obj->velocity.z = s->unk30;
+    s->unk38 += ay * rate;
+    rot1.y_rotation = -s->unk94;
+    rot1.x_rotation = -s->unk92;
+    rot1.z_rotation = -s->unk90;
+    rot2.y_rotation = s->unk9A;
+    rot2.x_rotation = s->unk98;
+    rot2.z_rotation = s->unk96;
+    mask = s->unk60;
+    pt = points;
+    off = offsets;
+    r = radii;
+    fl = flags;
+    for (i = 0; r < &radii[5]; i++) {
+        *r =((M068FootModel *) model)->feet[i].radius * obj->trans.scale;
+        *fl = ((M068FootModel *) model)->feet[i].flags;
+        if (mask & 1) {
+            *fl |= 0x40;
+        }
+        tmp.x = inst->points2[i].x - obj->trans.x_position;
+        tmp.y = inst->points2[i].y - obj->trans.y_position;
+        tmp.z = inst->points2[i].z - obj->trans.z_position;
+        func_80049394(&rot1, &tmp);
+        func_800492DC((Object *) &rot2, &tmp);
+        pt->x = pos.x + tmp.x;
+        pt->y = pos.y + tmp.y;
+        pt->z = pos.z + tmp.z;
+        off->x = pt->x - pos.x;
+        off->y = pt->y - pos.y;
+        off->z = pt->z - pos.z;
+        mask >>= 1;
+        pt++;
+        off++;
+        r++;
+        fl++;
+    }
+    func_8001CE10(5, sDropPoints, points, radii, 0, 0, 0);
+    touched = func_800163FC(obj, &pos, sDropPoints, points, radii, offsets, flags, hits, 5, unk248, &unkDC);
+    dx = pos.x - obj->trans.x_position;
+    dy = pos.y - obj->trans.y_position;
+    dz = pos.z - obj->trans.z_position;
+    func_80009A04(obj, dx, dy, dz);
+    obj->velocity.y = dy / rate;
+    s->unkB8 = 0;
+    s->unk62 = 0;
+    for (i = 0, bit = 1; i < 5; i++) {
+        if ((touched & 1) && (hits[i].kind & 0x12)) {
+            s->unk62 |= bit;
+        }
+        touched >>= 1;
+        bit <<= 1;
+    }
+    if (s->unk62 & rl_m068_125D0) {
+        s->unkB8 = 1;
+        s->unk38 = 0.0f;
+    }
+    for (i = 0, pt = points, off = sDropPoints; i < 5; i++, pt++, off++) {
+        off->x = pt->x;
+        off->y = pt->y;
+        off->z = pt->z;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_088DC);
+#endif
 
 /* Runs the colour cycle cycleKind picks over the model's vertices cycleFirst..cycleEnd, until it ends */
 /* cycle->unk0 read as (&cycle->unk0)[0] gives the
@@ -4461,7 +4654,243 @@ static void func_m068_0BDC4(Object *obj, M068State *s, s32 anim, f32 frame) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0BE14);
+extern f32 rl_m068_113A0[]; /* each animation's speed (.data) */
+
+/*
+ * Runs the boss's animation: the events its frames pass (s->events, s->unk50), and the animation that
+ * follows when one ends
+ */
+static void func_m068_0BE14(Object *obj, M068State *s, s32 updateRate, f32 rate) {
+    s32 anim;
+    f32 speed;
+    f32 cur;
+    s32 next;
+
+    s->events = 0;
+    anim = obj->animationID;
+    speed = rl_m068_113A0[anim];
+    cur = obj->unk28 + speed * rate;
+    next = -1;
+    switch (anim) {
+        case 6:
+            if (obj->unk28 <= 0.4f && 0.4f <= cur) {
+                if (s->unkF) {
+                    s->unk50 |= 0x40;
+                } else {
+                    s->unk50 |= 0x80;
+                }
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 7:
+            if (1.0f <= cur) {
+                s->events |= 1;
+                next = 8;
+            }
+            break;
+        case 12:
+            if (obj->unk28 <= 0.45f && 0.45f <= cur) {
+                s->events |= 2;
+            }
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 14:
+            if (obj->unk28 <= 0.2f && 0.2f <= cur) {
+                s->events |= 4;
+            }
+            if (obj->unk28 <= 0.36f && 0.36f <= cur) {
+                s->events |= 8;
+            }
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 15:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x10;
+                s->unk50 |= 0x10;
+            }
+            if (1.0f <= cur) {
+                next = 16;
+            }
+            break;
+        case 17:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 18:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x20;
+            }
+            break;
+        case 19:
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 20:
+            if (1.0f <= cur) {
+                next = 21;
+            }
+            break;
+        case 22:
+            if (obj->unk28 <= 0.4f && 0.4f <= cur) {
+                s->events |= 0x40;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x80;
+                next = 13;
+            }
+            break;
+        case 23:
+            if (obj->unk28 <= 0.78f && 0.78f <= cur) {
+                s->unk50 |= 0x20;
+                s->events |= 0x100;
+            }
+            if (1.0f <= cur) {
+                next = 24;
+            }
+            break;
+        case 25:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 26:
+            if (obj->unk28 <= 0.5f && 0.5f <= cur) {
+                s->events |= 0x200;
+            }
+            if (1.0f <= cur) {
+                next = 27;
+            }
+            break;
+        case 28:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 29:
+        case 30:
+        case 31:
+            if (1.0f <= cur) {
+                next = 13;
+            }
+            break;
+        case 32:
+            if (1.0f <= cur) {
+                next = 2;
+            }
+            break;
+        case 34:
+            if (obj->unk28 <= 0.01f && 0.01f <= cur) {
+                s->events |= 0x400;
+            }
+            if (1.0f <= cur) {
+                next = 35;
+            }
+            break;
+        case 35:
+            if (obj->unk28 <= 0.62f && 0.62f <= cur) {
+                s->unk50 |= 0x2000;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 37:
+            if (obj->unk28 <= 0.425f && 0.425f <= cur) {
+                s->unk50 |= 0x200;
+            } else if (obj->unk28 <= 0.49f && 0.49f <= cur) {
+                s->events |= 0x800;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 38:
+            if (obj->unk28 <= 0.356f && 0.356f <= cur) {
+                s->unk50 |= 0x200;
+            } else if (obj->unk28 <= 0.5f && 0.5f <= cur) {
+                s->events |= 0x1000;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 39:
+            if (obj->unk28 <= 0.5f && 0.5f <= cur) {
+                s->events |= 0x40;
+            } else if (obj->unk28 <= 0.72f && 0.72f <= cur) {
+                s->events |= 0xC0;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 40:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x10;
+                s->unk50 |= 0x10;
+            }
+            if (1.0f <= cur) {
+                next = 41;
+            }
+            break;
+        case 42:
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 43:
+            if (obj->unk28 <= 0.8f && 0.8f <= cur) {
+                s->events |= 0x200;
+            }
+            if (1.0f <= cur) {
+                next = 44;
+            }
+            break;
+        case 45:
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+            }
+            break;
+        case 47:
+            if (obj->unk28 <= 0.9f && 0.9f <= cur) {
+                s->events |= 0x2000;
+            }
+            if (1.0f <= cur) {
+                s->events |= 0x8000;
+                next = 48;
+            }
+            break;
+        case 49:
+            if (obj->unk28 <= 0.42f && 0.42f <= cur) {
+                if (s->unkF) {
+                    s->unk50 |= 0x40;
+                } else {
+                    s->unk50 |= 0x80;
+                }
+            }
+            if (1.0f <= cur) {
+                next = 2;
+            }
+            break;
+        case 50:
+            if (obj->unk28 <= 0.9f && 0.9f <= cur) {
+                s->events |= 0x4000;
+            }
+            break;
+    }
+    obj_anim_frame_advance(obj, speed, rate);
+    if (next >= 0) {
+        func_m068_0BDC4(obj, s, next, 0.0f);
+    }
+}
 
 /* Turns angle towards target by speed * updateRate the short way round */
 static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate) {
@@ -4815,12 +5244,11 @@ void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
 #endif
 
-#ifdef NON_MATCHING
 /*
- * The vertex clear loop has the ROM's shape with a row pointer and a continue-style inner loop. With the
- * triangle loop on its own counter n (continue-style, so IDO doesn't unroll it) and the inner counter j
- * reused for the last loop, every register is the ROM's; 5 diffs are left: the ROM increments n and does
- * its test right after v, where a `for` loop puts them, but every `for` form here is unrolled 2x.
+ * An electric strip's set-up: clears its vertices, builds its sixteen triangles (eight rows of two) and
+ * copies its points. The row's texture coordinate is `j * 64 / 8`: IDO strength-reduces j * 64, which puts
+ * that counter's step and test right after its one use, as in the ROM; the same j for the clear loop's
+ * inner counter and the last loop keeps IDO from unrolling the row loop.
  */
 void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     M068Strip *m = obj->unk68;
@@ -4831,7 +5259,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     s32 k;
     s32 v;
     s32 prev;
-    s32 n;
 
     m->unk6C0 = setup->unk24;
     m->unk6C4 = setup->unk28;
@@ -4839,13 +5266,14 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         p = m->verts[i];
         j = 0;
         while (TRUE) {
-            p[j].x = 0;
-            p[j].y = 0;
-            p[j].z = 0;
-            p[j].r = 255;
-            p[j].g = 255;
-            p[j].b = 255;
-            p[j].a = 255;
+            p->x = 0;
+            p->y = 0;
+            p->z = 0;
+            p->r = 255;
+            p->g = 255;
+            p->b = 255;
+            p->a = 255;
+            p++;
             j++;
             if (j < 72) continue;
             break;
@@ -4854,9 +5282,8 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     tri = m->tris;
     prev = 0;
     k = 0;
-    n = 64;
-    while (TRUE) {
-        v = (n / 8 - 1) << 5;
+    for (j = 1; j < 9; j++) {
+        v = (j * 64 / 8 - 1) << 5;
         tri[0].flags = 0x40;
         tri[0].vi0 = k;
         tri[0].vi1 = k + 1;
@@ -4880,9 +5307,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
         tri += 2;
         prev = v;
         k += 2;
-        n += 64;
-        if (n < 576) continue;
-        break;
     }
     for (j = 0; j < 2; j++) {
         m->a[j] = setup->a[j];
@@ -4894,9 +5318,6 @@ void func_m068_0D65C(Object *obj, M068StripSetup *setup) {
     m->pos.z = setup->pos.z;
     obj_collision_spheres_init(obj, 0x100, 1, 4, 0, 0, 0, 5.0f, 5.0f, -1.0f, 1.0f, 0x11);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D65C);
-#endif
 
 /* The electric strip's state (obj->unk68): the 0D65C set-up's fields, as its control uses them */
 typedef struct M068ElectroState {
@@ -5196,12 +5617,7 @@ void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E148);
 #endif
 
-#ifdef NON_MATCHING
-/*
- * As 0D65C. Length and frame match with 0D65C's clear loop (a row pointer walked in a continue-style
- * inner loop, which IDO doesn't unroll, stores in field order) and a separate counter for the last two
- * loops; the triangle loop's registers differ (the ROM has k in a3, n in t0, the last counter in a0).
- */
+/* As 0D65C (the other kind of strip) */
 void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     M068Strip *m = obj->unk68;
     Vertex *p;
@@ -5211,7 +5627,6 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
     s32 k;
     s32 v;
     s32 prev;
-    s32 n;
 
     ((M068Strip2 *) m)->unk6B8 = setup->unk1C;
     ((M068Strip2 *) m)->unk6BC = setup->unkC;
@@ -5233,10 +5648,10 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         }
     }
     tri = m->tris;
-    k = 0;
     prev = 0;
-    for (n = 64; n < 576; n += 64) {
-        v = (n / 8 - 1) << 5;
+    k = 0;
+    for (j = 1; j < 9; j++) {
+        v = (j * 64 / 8 - 1) << 5;
         tri[0].flags = 0x40;
         tri[0].vi0 = k;
         tri[0].vi1 = k + 1;
@@ -5261,16 +5676,12 @@ void func_m068_0E520(Object *obj, M068StripSetup2 *setup) {
         prev = v;
         k += 2;
     }
-    for (n = 0; n < 2; n++) {
-        m->a[n] = setup->a[n];
-        m->b[n] = setup->b[n];
-        if (k) {} /* k is set above */
-        m->c[n] = setup->c[n];
+    for (j = 0; j < 2; j++) {
+        m->a[j] = setup->a[j];
+        m->b[j] = setup->b[j];
+        m->c[j] = setup->c[j];
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0E520);
-#endif
 
 /* The second kind of strip's state (obj->unk68): a bolt from a random joint of a part to another part */
 typedef struct M068Bolt {
