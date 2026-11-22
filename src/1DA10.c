@@ -226,9 +226,462 @@ s32 func_80020890(f32 x1, f32 z1, f32 x2, f32 z2, s32 count, ShadowPoint *points
 void func_800209E4(ShadowBuild *shadow, ShadowPoint *points); // DKR: func_800304C8
 s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEdges, ShadowEdge *edges); // DKR: func_8002FF6C
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
+/* JFG: a shadow vertex, triangle and mesh entry in the shadow heaps (DKR Vertex, Triangle, ShadowHeapProperties) */
+typedef struct ShadowHeapVertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} ShadowHeapVertex;
 
+typedef struct ShadowHeapTriangle {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s32 uv0;
+    /* 0x08 */ s32 uv1;
+    /* 0x0C */ s32 uv2;
+} ShadowHeapTriangle;
+
+typedef struct ShadowHeapMesh {
+    /* 0x00 */ ShadowTexture *texture;
+    /* 0x04 */ s16 triCount;
+    /* 0x06 */ s16 vtxCount;
+} ShadowHeapMesh;
+
+extern ShadowHeapVertex *D_800A0EB0;   // DKR: gCurrShadowVerts
+extern ShadowHeapTriangle *D_800A0EB4; // DKR: gCurrShadowTris
+extern ShadowHeapMesh *D_800A0EB8;     // DKR: gCurrShadowHeapData
+extern s32 D_800A0EBC;                 // DKR: gNewShadowVtxCount
+extern s32 D_800A0EC0;                 // DKR: gNewShadowTriCount
+extern s32 D_800A0EC4;                 // DKR: gShadowTail
+extern f32 D_800F5AF0;                 // DKR: gShadowOpacity
+
+/* JFG: a light direction for a shadow (6 bytes): the level's sun, or one of the object's shading lights */
+typedef struct ShadowLight {
+    /* 0x00 */ s16 yaw;
+    /* 0x02 */ s16 pitch;
+    /* 0x04 */ s16 intensity;
+} ShadowLight;
+
+/* JFG: one light of an object's shading data (0x20 bytes) */
+typedef struct ShadingLight {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ u8 padC[0x15 - 0xC];
+    /* 0x15 */ u8 intensity;
+    /* 0x16 */ u8 pad16[0x20 - 0x16];
+} ShadingLight;
+
+/* JFG: an object's shading data (DKR ShadeProperties, obj 0x54) */
+typedef struct ShadowShading {
+    /* 0x00 */ f32 brightness;
+    /* 0x04 */ u8 pad4[0xE - 0x4];
+    /* 0x0E */ s16 numLights; // [0] is not a light
+    /* 0x10 */ ShadingLight lights[1];
+} ShadowShading;
+
+/* JFG: an object's shadow (DKR ShadowData, obj 0x50; ShadowFlags below) */
+typedef struct ShadowCaster {
+    /* 0x00 */ f32 scale;
+    /* 0x04 */ ShadowTexture *texture;
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ u8 flags; // 1, 2: the group; 4: one shadow only; 8, 0x10: a module may pick the linked shadow
+    /* 0x0D */ u8 maxShadows;
+    /* 0x0E */ u8 stretch; // how far a low light stretches the shadow
+    /* 0x0F */ u8 numShadows;
+    /* 0x10 */ s16 meshStart[3]; // per shadow built (DKR meshStart)
+    /* 0x16 */ s16 meshEnd[3];   // (DKR meshEnd)
+    /* 0x1C */ struct ShadowCaster *linked;
+} ShadowCaster;
+
+/* JFG: the object header as func_8001DA1C reads it */
+typedef struct ShadowGenHeader {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; // bit 0: no shadow
+    /* 0x16 */ u8 pad16[0x68 - 0x16];
+    /* 0x68 */ s16 shadowFadeMin; // DKR: shadowFadeMin (no shadow at or beyond)
+    /* 0x6A */ s16 shadowFadeMax; // DKR: shadowFadeMax (fading from)
+    /* 0x6C */ s16 shadowBottom;  // DKR: unk42
+    /* 0x6E */ s16 shadowTop;     // DKR: unk44
+} ShadowGenHeader;
+
+/* JFG: the object as func_8001DA1C reads it */
+typedef struct ShadowGenObj {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 flags; // 0x400: invisible
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x30 - 0x18];
+    /* 0x30 */ f32 distanceToCamera;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ ShadowGenHeader *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ s16 unk4A;
+    /* 0x4C */ u8 pad4C[0x50 - 0x4C];
+    /* 0x50 */ ShadowCaster *shadow;
+    /* 0x54 */ ShadowShading *shading;
+} ShadowGenObj;
+
+/* JFG: the level header's sun */
+typedef struct ShadowLevelHeader {
+    /* 0x00 */ u8 pad0[0xD4];
+    /* 0xD4 */ s16 sunYaw;
+    /* 0xD6 */ s16 sunPitch;
+    /* 0xD8 */ u8 padD8[0xDE - 0xD8];
+    /* 0xDE */ u8 sunIntensity;
+} ShadowLevelHeader;
+
+extern ShadowLight D_800A0ECC; // JFG: the level's sun
+extern f32 D_800F5B14;
+f32 func_80049BEC(f32 rate, s32 updateRate);
+s32 func_80049C84(f32 x, f32 z);
+f32 sqrtf(f32 x);
+ShadowLevelHeader *level_header(void);
+ShadowGenObj **objGetObjList(s32 *start, s32 *end);
+s32 get_current_viewport(void);
+f32 get_distance_to_active_camera(f32 x, f32 y, f32 z);
+s32 func_80054530();                                          // a module function (patched in by the runtime linker)
+s32 func_80054530_f32(ShadowGenObj *obj, s32 arg1, f32 rate); // the same, with a float argument
+void func_8001E17C(ShadowGenObj *obj, ShadowLight *light, ShadowCaster *shadow);
+void obj_shading_from_ground(u8 *obj);
+
+#ifdef NON_MATCHING
+/**
+ * DKR shadow_update (tracks.c), JFG's form: set up the shadow heaps for the group, then for each object whose shadow
+ * is in the group, close enough (fading between the header's two distances) and not hidden, build its shadow: once
+ * (a module may pick the linked shadow), or once per light, the level's sun and the object's shading lights above
+ * it, the brightest first when there are more than the shadow allows. Then the object's ground shading.
+ * NON_MATCHING: a first body written from the ROM: the ROM's code word for word, but a frame 16 bytes larger (0x100,
+ * ROM 0xF0): the original had three fewer locals. With level read through header, tmp through rec and x as dist
+ * (values never live together) the frame is the ROM's, but then IDO gives dist/x f24 and z/y f20/f22 (ROM f20, f22,
+ * f24); y as dist instead leaves only the fade's dist in f24 (ROM f20).
+ */
+void func_8001DA1C(s32 group, s32 updateRate) {
+    ShadowGenObj *obj;
+    ShadowCaster *shadow;
+    ShadowGenHeader *header;
+    s32 objIndex;
+    s32 count;
+    s32 numLights;
+    ShadowLight buf[6];
+    ShadowLight *lights[4];
+    s32 i;
+    s32 j;
+    ShadowGenObj **objects;
+    ShadowCaster *linked;
+    ShadowShading *shading;
+    ShadingLight *rec;
+    ShadowLight *tmp;
+    f32 dist;
+    f32 x;
+    f32 y;
+    f32 z;
+    ShadowLevelHeader *level;
+
+    count = (group & 2) | D_800A0EC8; // the heap index, until the object count
+    D_800A0EB0 = (ShadowHeapVertex *) D_800A0E80[count];
+    D_800A0EBC = 0;
+    D_800A0EB4 = (ShadowHeapTriangle *) D_800A0E90[count];
+    D_800A0EC0 = 0;
+    D_800A0EB8 = (ShadowHeapMesh *) D_800A0EA0[count];
+    D_800A0EC4 = 0;
+    D_800F5B14 = 1.0f - func_80049BEC(0.9f, updateRate);
+    level = level_header();
+    D_800A0ECC.yaw = level->sunYaw;
+    D_800A0ECC.pitch = level->sunPitch;
+    D_800A0ECC.intensity = level->sunIntensity;
+    objects = objGetObjList(&objIndex, &count);
+    while (objIndex < count) {
+        obj = objects[objIndex];
+        objIndex++;
+        shadow = obj->shadow;
+        if (shadow == NULL) {
+            continue;
+        }
+        if ((shadow->flags & group) == 0) {
+            continue;
+        }
+        header = obj->header;
+        dist = 0.0f;
+        if ((shadow->flags & group) == 1) {
+            if (get_current_viewport() == 0) {
+                dist = get_distance_to_active_camera(obj->x, obj->y, obj->z);
+            } else if (obj->behaviorId != 1 && obj->unk4A != 0x278) {
+                dist = 32768.0f;
+            }
+        }
+        if ((shadow->flags & 0x18) && shadow->linked != NULL) {
+            linked = shadow->linked;
+            linked->numShadows = 0;
+        } else {
+            linked = NULL;
+        }
+        shadow->numShadows = 0;
+        if (shadow->scale > 0.0f && !(obj->flags & 0x400) && !(header->flags & 1)) {
+            if (dist < header->shadowFadeMin) {
+                if (header->shadowFadeMax < dist) {
+                    D_800F5AF0 = (header->shadowFadeMin - dist) / (header->shadowFadeMin - header->shadowFadeMax);
+                } else {
+                    D_800F5AF0 = 1.0f;
+                }
+                if (shadow->flags & 4) {
+                    j = 0; // the module's choice
+                    if (linked != NULL) {
+                        if (linked->flags & 8) {
+                            j = func_80054530_f32(obj, 0, updateRate);
+                        } else if (linked->flags & 0x10) {
+                            j = func_80054530(obj);
+                        }
+                    }
+                    if (j) {
+                        func_8001E17C(obj, NULL, linked);
+                    } else {
+                        func_8001E17C(obj, NULL, shadow);
+                    }
+                } else if (linked != NULL && (linked->flags & 8)) {
+                    if (func_80054530_f32(obj, 1, updateRate)) {
+                        func_8001E17C(obj, NULL, linked);
+                    } else {
+                        func_8001E17C(obj, NULL, shadow);
+                    }
+                } else {
+                    numLights = 0;
+                    if (linked != NULL && (linked->flags & 0x10)) {
+                        if (func_80054530(obj)) {
+                            func_8001E17C(obj, NULL, linked);
+                        } else {
+                            func_8001E17C(obj, NULL, shadow);
+                        }
+                    } else if (D_800A0ECC.intensity > 0) {
+                        numLights = 1;
+                        lights[0] = &D_800A0ECC;
+                    }
+                    shading = obj->shading;
+                    if (shading != NULL) {
+                        for (i = 1; i < shading->numLights; i++) {
+                            rec = &shading->lights[i];
+                            if (rec->y > 0.0f) {
+                                x = rec->x;
+                                z = rec->z;
+                                y = rec->y;
+                                lights[numLights] = &buf[numLights];
+                                buf[numLights].yaw = func_80049C84(-x, -z);
+                                buf[numLights].pitch = func_80049C84(y, sqrtf(x * x + z * z));
+                                buf[numLights].intensity = rec->intensity;
+                                numLights++;
+                            }
+                        }
+                    }
+                    if (shadow->maxShadows < numLights) {
+                        for (i = numLights - 1; i > 0; i--) {
+                            for (j = 0; j < i; j++) {
+                                if (lights[j]->intensity < lights[j + 1]->intensity) {
+                                    tmp = lights[j];
+                                    lights[j] = lights[j + 1];
+                                    lights[j + 1] = tmp;
+                                }
+                            }
+                        }
+                    }
+                    for (i = 0; shadow->numShadows < shadow->maxShadows && i < numLights; i++) {
+                        func_8001E17C(obj, lights[i], shadow);
+                    }
+                }
+            }
+        }
+        if (obj->shading != NULL) {
+            obj_shading_from_ground((u8 *) obj);
+        }
+    }
+    D_800A0EB8[D_800A0EC4].triCount = D_800A0EC0;
+    D_800A0EB8[D_800A0EC4].vtxCount = D_800A0EBC;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
+#endif
+
+typedef struct ShadowSegment {
+    /* 0x00 */ ShadowVertex *vertices;
+    /* 0x04 */ ShadowTriangle *triangles;
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ ShadowBatch *batches;
+    /* 0x10 */ u32 *triangleMasks;
+    /* 0x14 */ u8 pad14[0x28 - 0x14];
+    /* 0x28 */ s16 numberOfBatches;
+    /* 0x2A */ u8 pad2A[0x48 - 0x2A];
+} ShadowSegment;
+
+typedef struct ShadowLevel {
+    /* 0x00 */ void *textures;
+    /* 0x04 */ ShadowSegment *segments;
+    /* 0x08 */ struct ShadowBox { s16 v[6]; } *segmentsBoundingBoxes;
+} ShadowLevel;
+
+struct ShadowParams;
+struct ShadowFlags;
+extern s32 D_800F5AF4; // JFG: the planes used so far (func_8001EE1C)
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+void func_80020954(s32 count, ShadowEdge *points, f32 *minX, f32 *minZ, f32 *maxX, f32 *maxZ); // the points' box
+void func_80020AF8(s32 count, ShadowCacheVertex *verts, s32 *counts, ShadowClipVertex *clipVerts); // their heights
+u32 func_8001D344(void *bb, s32 x1, s32 z1, s32 x2, s32 z2);
+s32 get_inside_segment_count_xyz(s32 *arg0, s16 xPos1, s16 yPos1, s16 zPos1, s16 xPos2, s16 yPos2, s16 zPos2);
+void func_8001E8B8(ShadowBuild *shadow, ShadowEdge *edges, ShadowSegmentCol *seg, s32 mask);
+void func_8001EE1C(ShadowBuild *shadow, ShadowEdge *edges);
+s32 func_8001FA24(ShadowBuild *shadow, struct ShadowParams *params, struct ShadowFlags *arg2);
+
+#ifdef NON_MATCHING
+/**
+ * DKR shadow_generate (tracks.c), JFG's form: one shadow of obj (for a light, or straight down without one): the
+ * shadow's size, a lift that grows with the camera distance (non-players), a stretch away from a low light, the
+ * four corners turned to the light's yaw, then the level segments and solid object models under it, the heights,
+ * and the heap entry (meshStart/meshEnd per shadow; numShadows counts the ones built).
+ * NON_MATCHING: a first body written from the ROM: 461/463 words, frame 0x170 (ROM 0x168): the corner rotation
+ * spills differently (the ROM keeps -(width * cos) and -(length * cos) in stack temps), FP registers in the lift
+ * and the ratio, and scheduling at the start.
+ */
+void func_8001E17C(ShadowGenObj *obj, ShadowLight *light, ShadowCaster *shadow) {
+    s32 yPos;
+    f32 dist;
+    s32 one;
+    s32 ok;
+    UNUSED s32 pad0;
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+    s32 segs[28];
+    s32 count;
+    s32 i;
+    f32 c;
+    f32 ratio;
+    UNUSED s32 pad3;
+    UNUSED s32 pad4;
+    f32 s;
+    UNUSED s32 pad5;
+    ShadowBuild build;
+    ShadowEdge edges[4];
+
+    yPos = obj->y;
+    build.obj = (ShadowObj *) obj;
+    build.yOffset = 2.0f;
+    shadow->meshStart[shadow->numShadows] = D_800A0EC4;
+    build.texture = shadow->texture;
+    build.y1 = obj->header->shadowBottom + yPos;
+    build.y2 = obj->header->shadowTop + yPos;
+    one = TRUE;
+    if (obj->behaviorId != one) {
+        dist = obj->distanceToCamera;
+        if (dist < 0.0f) {
+            dist = -dist;
+        }
+        dist -= 250.0f;
+        if (dist < 0.0f) {
+            dist = 0.0f;
+        }
+        if (dist > 1024.0f) {
+            dist = 1024.0f;
+        }
+        build.yOffset += dist * 0.01f;
+    }
+    build.scale = shadow->scale;
+    build.width = shadow->scale * 10.0f;
+    build.length = shadow->scale * 10.0f;
+    build.unk34 = 1.0f;
+    if (light != NULL) {
+        c = func_80049C30(light->pitch);
+        if (c > 0.0f) {
+            ratio = c;
+            s = func_80049C34(light->pitch);
+            if (s != 0.0f) {
+                ratio /= s;
+                if (ratio > 2.0f) {
+                    ratio = 2.0f;
+                }
+            } else {
+                ratio = 2.0f;
+            }
+            build.unk34 += 0.25f * ratio * shadow->stretch / build.length;
+        }
+    }
+    build.unk34 *= build.length;
+    build.area = (build.width + build.width) * (build.length + build.unk34);
+    build.unk1C = obj->header->shadowBottom * 0.125f;
+    if (build.unk1C < 0.0f) {
+        build.unk1C = -build.unk1C;
+    }
+    build.fadeDistance = 7.0f * build.unk1C;
+    build.groundY = -32768.0f;
+    build.scale = 144.0f / build.scale;
+    for (i = 0; i < 4; i++) {
+        edges[i].x = obj->x;
+        edges[i].z = obj->z;
+    }
+    if (light != NULL) {
+        s = func_80049C34(light->yaw);
+        c = func_80049C30(light->yaw);
+        edges[0].x += -(build.width * c) - build.length * s;
+        edges[0].z += build.width * s - build.length * c;
+        edges[1].x += build.width * c - build.length * s;
+        edges[1].z += -(build.length * c) - build.width * s;
+        edges[2].x += build.width * c + build.unk34 * s;
+        edges[2].z += build.unk34 * c - build.width * s;
+        edges[3].x += -(build.width * c) + build.unk34 * s;
+        edges[3].z += build.unk34 * c + build.width * s;
+    } else {
+        edges[0].x += build.width;
+        edges[0].z += build.length;
+        edges[1].x -= build.width;
+        edges[1].z += build.length;
+        edges[2].x -= build.width;
+        edges[2].z -= build.length;
+        edges[3].x += build.width;
+        edges[3].z -= build.length;
+    }
+    func_80020954(4, edges, &build.x1, &build.z1, &build.x2, &build.z2);
+    count = get_inside_segment_count_xyz(segs, build.x1, build.y1, build.z1, build.x2, build.y2, build.z2);
+    D_800F45E8 = 0;
+    D_800F33D0 = 0;
+    for (i = 0; i < 4; i++) {
+        D_800F35D8[i] = 0;
+    }
+    D_800F5AF8 = -1;
+    D_800F5AFC = -1;
+    D_800F5AF4 = 0;
+    D_800A0EFC = FALSE;
+    if (obj->unk4A == 0x3F || obj->unk4A == 0x40 || obj->unk4A == 0x41 || obj->unk4A == 0x42) {
+        D_800A0EFC = one;
+    }
+    for (i = 0; i < count; i++) {
+        if (segs[i] >= 0) {
+            func_8001E8B8(&build, edges, (ShadowSegmentCol *) &((ShadowLevel *) D_800F5B0C)->segments[segs[i]],
+                          func_8001D344(&((ShadowLevel *) D_800F5B0C)->segmentsBoundingBoxes[segs[i]], build.x1,
+                                        build.z1, build.x2, build.z2));
+        }
+    }
+    func_8001EE1C(&build, edges);
+    ok = TRUE;
+    if (D_800F45E8 > 0) {
+        func_80020AF8(D_800F33D0, D_800F33D8, D_800F35D8, D_800F35E8);
+        if (!func_8001FA24(&build, (struct ShadowParams *) light, (struct ShadowFlags *) shadow)) {
+            ok = FALSE;
+        }
+    }
+    shadow->meshEnd[shadow->numShadows] = D_800A0EC4;
+    if (ok) {
+        shadow->numShadows++;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E17C);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: 6 words longer: the target keeps the face loop's strength-reduced offsets (face * 8, face * 4) in v1/a0 and spills them once per face, mine keeps them on the stack (and the next-face bound in v1, target a2) */
@@ -655,33 +1108,6 @@ s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEd
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001F4BC);
 #endif
 
-/* JFG: a shadow vertex, triangle and mesh entry in the shadow heaps (DKR Vertex, Triangle, ShadowHeapProperties) */
-typedef struct ShadowHeapVertex {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s16 z;
-    /* 0x06 */ u8 r;
-    /* 0x07 */ u8 g;
-    /* 0x08 */ u8 b;
-    /* 0x09 */ u8 a;
-} ShadowHeapVertex;
-
-typedef struct ShadowHeapTriangle {
-    /* 0x00 */ u8 flags;
-    /* 0x01 */ u8 vi0;
-    /* 0x02 */ u8 vi1;
-    /* 0x03 */ u8 vi2;
-    /* 0x04 */ s32 uv0;
-    /* 0x08 */ s32 uv1;
-    /* 0x0C */ s32 uv2;
-} ShadowHeapTriangle;
-
-typedef struct ShadowHeapMesh {
-    /* 0x00 */ ShadowTexture *texture;
-    /* 0x04 */ s16 triCount;
-    /* 0x06 */ s16 vtxCount;
-} ShadowHeapMesh;
-
 /* JFG: an optional override of the shadow's angle and opacity */
 typedef struct ShadowParams {
     /* 0x00 */ s16 angle;
@@ -694,13 +1120,6 @@ typedef struct ShadowFlags {
     /* 0x0C */ u8 flags;
 } ShadowFlags;
 
-extern ShadowHeapVertex *D_800A0EB0;   // DKR: gCurrShadowVerts
-extern ShadowHeapTriangle *D_800A0EB4; // DKR: gCurrShadowTris
-extern ShadowHeapMesh *D_800A0EB8;     // DKR: gCurrShadowHeapData
-extern s32 D_800A0EBC;                 // DKR: gNewShadowVtxCount
-extern s32 D_800A0EC0;                 // DKR: gNewShadowTriCount
-extern s32 D_800A0EC4;                 // DKR: gShadowTail
-extern f32 D_800F5AF0;                 // DKR: gShadowOpacity
 f32 func_80049C30(s32 angle);          // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle);          // sine of a 16-bit angle
 
@@ -853,23 +1272,6 @@ s32 func_8001FA24(ShadowBuild *shadow, ShadowParams *params, ShadowFlags *arg2) 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001FA24);
 #endif
 
-
-typedef struct ShadowSegment {
-    /* 0x00 */ ShadowVertex *vertices;
-    /* 0x04 */ ShadowTriangle *triangles;
-    /* 0x08 */ u8 pad8[0xC - 0x8];
-    /* 0x0C */ ShadowBatch *batches;
-    /* 0x10 */ u32 *triangleMasks;
-    /* 0x14 */ u8 pad14[0x28 - 0x14];
-    /* 0x28 */ s16 numberOfBatches;
-    /* 0x2A */ u8 pad2A[0x48 - 0x2A];
-} ShadowSegment;
-
-typedef struct ShadowLevel {
-    /* 0x00 */ void *textures;
-    /* 0x04 */ ShadowSegment *segments;
-    /* 0x08 */ struct ShadowBox { s16 v[6]; } *segmentsBoundingBoxes;
-} ShadowLevel;
 
 extern f32 D_800A0ED4[];
 extern f32 D_800F5B14;

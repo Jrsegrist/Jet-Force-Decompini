@@ -1253,7 +1253,7 @@ typedef struct ObjectModel53 {
     /* 0x2D */ u8 unk2D; // JFG: sizes an object's property data (0x28 bytes each)
     /* 0x2E */ u8 pad2E;
     /* 0x2F */ u8 numPoints;
-    /* 0x30 */ u16 *unk30; // JFG: [1] is a joint index
+    /* 0x30 */ u16 (*unk30)[2]; // JFG: per point, [1] is its joint index
     /* 0x34 */ u8 pad34[0x38 - 0x34];
     /* 0x38 */ ModelPoint *points;
     /* 0x3C */ u8 pad3C[0x4E - 0x3C];
@@ -2540,7 +2540,7 @@ s32 func_8000BC28(Object *obj, ObjectAttachment *inst, ObjectModel53 *model, s32
     if (obj->unk60 != NULL) {
         held = obj->unk60->children[0];
         if (held != NULL) {
-            src = (f32 *) ((model->unk30[1] << 6) + inst->matrices[inst->matrixIndex]);
+            src = (f32 *) ((model->unk30[0][1] << 6) + inst->matrices[inst->matrixIndex]);
             dst = mtx;
             i = 0;
             while (TRUE) {
@@ -2729,9 +2729,8 @@ void mtx_scale_push(Gfx **dList, Mtx **mtx, f32 scale);
  * (setupEntrance). Then the kind's pieces (D_800A0BEC/0C0C/0C1C), each scaled and textured.
  * As in the ROM, draw and kind are only set on the paths that draw, and kind 4 reads the player's racer data
  * whichever path set it.
- * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x148), 391/394 words. The ROM keeps kind in
- * s3 (stored to its home at each path's end) and the racer data in s0; IDO here gives the racer data s3 and keeps
- * kind in memory.
+ * NON_MATCHING: the ROM's length and frame (0x148); what is left is t-register numbering (one temporary too many
+ * in the joint address and after) and the table copy, which IDO loads before the count test (the ROM after).
  */
 void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
     Object *parent;
@@ -2741,25 +2740,26 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
     Mtx *m;
     f32 scales[3];
     u8 colors[3];
-    UNUSED s32 pad;
+    struct ObjectModel53 *model;
     s32 kind;
     s32 count;
     s32 draw;
     MuzzlePart *table;
+    MuzzlePart *part;
+    UNUSED s32 pad;
     ObjectTransform trans;
     f32 mf[4][4];
-    UNUSED s32 pad2;
-    UNUSED s32 pad3;
-    f32 scale;
-    f32 mf2[4][4];
     ObjectAttachment *item;
     f32 *joint;
     s32 i;
     u32 seg;
+    f32 scale;
+    f32 mf2[4][4];
     MuzzleGun *gun;
+    Object *held;
 
-    dl = *dList;
     parent = (Object *) obj->setupIndex;
+    dl = *dList;
     m = *mtx;
     state = (MuzzleState *) obj->racer;
     if (parent->behaviorId == 1) {
@@ -2774,7 +2774,8 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
         if (racer->unk1FA) {
             kind = 0;
         }
-        draw = racer->unk540_25 && parent->unk60->children[0] != NULL && (kind == 2 || kind == 0 || kind == 4 || kind == 7);
+        held = parent->unk60->children[0];
+        draw = racer->unk540_25 && held != NULL && (kind == 2 || kind == 0 || kind == 4 || kind == 7);
         if (draw) {
             mtx_model_push(&dl, &m, racer->unk78);
             trans.y_rotation = ((s16 *) &D_800A0C2C[racer->character * 6])[0];
@@ -2800,10 +2801,11 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
         } else {
             scale = 1.0f;
         }
-        draw = FALSE;
         item = parent->attachments[obj->attachmentIndex];
-        if (state->point < item->model->unk2D && item->unkA == 0) {
-            joint = (f32 *) (item->matrices[item->matrixIndex] + (item->model->unk30[state->point * 2 + 1] << 6));
+        model = item->model;
+        draw = FALSE;
+        if (state->point < model->unk2D && item->unkA == 0) {
+            joint = (f32 *) ((model->unk30[state->point][1] << 6) + item->matrices[item->matrixIndex]);
             joint[3] = 0.0f;
             joint[7] = 0.0f;
             joint[11] = 0.0f;
@@ -2834,12 +2836,12 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
         count = 0;
         switch (kind) {
             case 2:
-                table = D_800A0BEC;
                 count = 2;
+                table = D_800A0BEC;
                 break;
             case 0:
-                table = D_800A0C0C;
                 count = 1;
+                table = D_800A0C0C;
                 break;
             case 4:
                 table = D_800A0C1C;
@@ -2849,19 +2851,20 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
                 colors[0] = gun->unkA81;
                 break;
             case 7:
-                table = D_800A0BEC;
                 count = 2;
+                table = D_800A0BEC;
                 break;
         }
+        part = table;
         seg = 0x80000000;
         for (i = 0; i < count; i++) {
-            mtx_scale_push(&dl, &m, scales[i] * table->scale);
+            mtx_scale_push(&dl, &m, scales[i] * part->scale);
             gDPPipeSync(dl++);
             gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, colors[i]);
-            func_80055C00(&dl, obj->attachments[table->texture], 0x16, 0);
-            gSPVertexSeg(dl++, (u32) table->vertices + seg, table->lastVertex);
-            gSPPolygonSeg(dl++, (u32) table->triangles + seg, table->numTriangles, 1);
-            table++;
+            func_80055C00(&dl, obj->attachments[part->texture], 0x16, 0);
+            gSPVertexSeg(dl++, (u32) part->vertices + seg, part->lastVertex);
+            gSPPolygonSeg(dl++, (u32) part->triangles + seg, part->numTriangles, 1);
+            part++;
         }
         mtx_pop(&dl);
         *dList = dl;
