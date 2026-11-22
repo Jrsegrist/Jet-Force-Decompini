@@ -116,7 +116,8 @@ typedef struct M014Weapons {
 
 /* A menu item (D_800FF780, size 0x20; the main segment's MenuItem), as used here */
 typedef struct M014MenuItem {
-    /* 0x00 */ u8 pad0[0x6];
+    /* 0x00 */ u8 pad0[0x4];
+    /* 0x04 */ s16 unk4;
     /* 0x06 */ s16 image;
     /* 0x08 */ f32 scale;
     /* 0x0C */ f32 posX;
@@ -130,7 +131,258 @@ extern M014MenuItem D_800FF780[];
 extern Object **func_8000E464(s32 *count); /* the players */
 extern M014Weapons *char_record_lookup(s32 a, s32 b);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_00220);
+extern void func_8005A0D0(s32 item); /* draws a menu item */
+extern s32 D_800A51CC; /* the text opacity */
+extern void screen_line_add_raw(s32 x, s32 y, s32 number, s32 digits, s32 flag); /* screen_line_add_raw */
+extern u8 rl_m014_03E70[];
+
+/* A line of the scope's overlay (size 10) */
+typedef struct M014Line {
+    /* 0x0 */ s16 x1;
+    /* 0x2 */ s16 y1;
+    /* 0x4 */ s16 x2;
+    /* 0x6 */ s16 y2;
+    /* 0x8 */ s16 colour;
+} M014Line;
+
+/* The scope's state (the held object's unk68), as 00220 reads it */
+typedef struct M014Scope {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ s16 zoom;
+    /* 0x1E */ u8 pad1E[0x48 - 0x1E];
+    /* 0x48 */ f32 x; /* the sight's offset from the screen centre */
+    /* 0x4C */ f32 y;
+    /* 0x50 */ Object *target;
+    /* 0x54 */ s32 locked;
+    /* 0x58 */ u8 pad58[0x5C - 0x58];
+    /* 0x5C */ u8 lock;
+    /* 0x5D */ s8 unk5D;
+    /* 0x5E */ s16 unk5E;
+    /* 0x60 */ u8 pad60[0x94 - 0x60];
+    /* 0x94 */ struct {
+        u32 unk31 : 1;
+        u32 marks : 1; /* draw the sight's side marks */
+        u32 rest : 30;
+    } flags;
+} M014Scope;
+
+extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
+extern void fb_scale_coords(s32 *x, s32 *y);
+extern void screen_line_add(s16 x1, s16 y1, s16 x2, s16 y2, u8 colour);
+extern void debug_text_add(s16 x, s16 y, char *text);
+extern void func_800496B0(s32 arg0, Vec3s *angles, f32 *in, f32 *out);
+extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, u8 toView); /* projects to the screen */
+extern Vertex *D_800FF3A0;
+extern u8 D_800A51BC;
+extern u8 D_800A51B4;
+extern s8 rl_m014_04798[]; /* .data (still assembly): the sight centre's vertices (x, y pairs) */
+
+/*
+ * The scope's overlay (called from 00B30 with whether it is zoomed): the sight's corners round its offset;
+ * zoomed, the frame, the compass strip with its ticks, its marker for the player's yaw and the zoom level;
+ * otherwise the sight's centre (coloured by the target's state), its side marks, and the lock-on box round
+ * the target on screen.
+ */
+static void func_m014_00220(Object *obj, s32 zoomed) {
+    s32 x1;
+    s16 cx;
+    s16 cy;
+    M014Scope *s;
+    s16 bx;
+    s16 by;
+    s32 x2;
+    s32 x;
+    s32 y;
+    s32 i;
+    s32 j;
+    M014Line *e;
+    s32 y1;
+    s32 y2;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 a;
+    s32 dr;
+    s32 dg;
+    s32 db;
+    s32 da;
+    u32 width;
+    u32 height;
+    s32 t;
+    Vertex *v;
+    s8 *p;
+    s32 off;
+    s32 px;
+    s32 py;
+    s32 n;
+    Object *target;
+    s16 *ofs;
+    Vec3f pos;
+    f32 sx;
+    f32 sy;
+
+    s = obj->unk68;
+    cx = s->x;
+    cy = s->y;
+    func_80054EA0(&width, &height);
+    bx = (width >> 1) + cx;
+    by = (height >> 1) - cy;
+    for (i = 0; i < 4; i++) {
+        e = (M014Line *) (rl_m014_03E70 + 0x7C0);
+        j = 0;
+        do {
+            if (i & 1) {
+                x1 = bx - e->x1;
+                x2 = bx - e->x2;
+            } else {
+                x1 = bx + e->x1;
+                x2 = bx + e->x2;
+            }
+            if (i & 2) {
+                y1 = by - e->y1;
+                y2 = by - e->y2;
+            } else {
+                y1 = by + e->y1;
+                y2 = by + e->y2;
+            }
+            screen_line_add(x1, y1, x2, y2, e->colour);
+            j++;
+            e++;
+        } while (j != 2);
+    }
+    if (zoomed) {
+        e = (M014Line *) (rl_m014_03E70 + 0x6BC);
+        for (i = 0; i < 26; i++) {
+            screen_line_add(e->x1, e->y1, e->x2, e->y2, e->colour);
+            e++;
+        }
+        x = 272;
+        y = 192;
+        fb_scale_coords(&x, &y);
+        e = (M014Line *) (rl_m014_03E70 + 0x808);
+        for (i = 0; i < 22; i++) {
+            screen_line_add(e->x1 + x, e->y1 + y, e->x2 + x, e->y2 + y, e->colour);
+            e++;
+        }
+        screen_line_add(52, 30, 268, 30, 0);
+        for (i = 0, x = 52; i < 37; i++, x += 6) {
+            if (i == 0 || i == 18 || i == 36) {
+                y = 24;
+            } else if (i == 9 || i == 27) {
+                y = 26;
+            } else {
+                y = 28;
+            }
+            screen_line_add(x, y, x, 29, 0);
+        }
+        debug_text_add(45, 17, "-180");
+        debug_text_add(159, 17, "0");
+        debug_text_add(264, 17, "180");
+        x = (obj->trans.rotation.y_rotation * 108) >> 15;
+        x = 160 - x;
+        screen_line_add(x, 31, x, 36, 0);
+        D_800FF780[12].posX = 114.0f;
+        D_800FF780[12].posY = -72.0f;
+        D_800FF780[12].unk4 = -(obj->trans.rotation.z_rotation * 2);
+        D_800A51B4 = D_800A51BC = 0;
+        D_800A51CC = 160;
+        func_8005A0D0(12);
+        D_800A51B4 = D_800A51BC = 255;
+        D_800A51CC = 255;
+        i = 0;
+        if (s->zoom < 100 && (s->zoom & 4)) {
+            i = 1;
+        }
+        screen_line_add_raw(32, 192, s->zoom, 4, i);
+        return;
+    }
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    func_80055C00(&D_800FF398, NULL, 0x15, 0);
+    gSPVertexJFG(D_800FF398++, (u32) D_800FF3A0 + 0x80000000, 13, 0);
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800008E8, 4, 0);
+    gDPPipeSync(D_800FF398++);
+    if (s->target != NULL) {
+        if (s->unk5D != 0) {
+            t = (s->unk5D << 16) / 20;
+            r = 255;
+            g = 32;
+            b = 16;
+            a = 192;
+            dr = -191;
+            dg = 223;
+            db = 16;
+            da = -64;
+        } else {
+            t = (s->unk5E << 16) / 90;
+            r = 64;
+            g = 255;
+            b = 32;
+            a = 128;
+            dr = 191;
+            dg = -223;
+            db = -16;
+            da = 64;
+        }
+        r = ((dr * t) >> 16) + r;
+        g = ((dg * t) >> 16) + g;
+        b = ((db * t) >> 16) + b;
+        a = ((da * t) >> 16) + a;
+    } else {
+        r = 64;
+        g = 255;
+        b = 32;
+        a = 128;
+    }
+    v = D_800FF3A0;
+    for (i = 0; i < 12; i++) {
+        v->x = rl_m014_04798[i << 1] + cx;
+        v->y = rl_m014_04798[(i << 1) + 1] + cy;
+        v->z = 0;
+        v->r = r;
+        v->g = g;
+        v->b = b;
+        v->a = a;
+        v++;
+    }
+    D_800FF3A0 = v;
+    i = 0;
+    if (s->flags.marks) {
+        e = (M014Line *) (rl_m014_03E70 + 0x7D4);
+        for (; i != 5; i++) {
+            if ((e->colour & 0xF) == 13) {
+                off = -1;
+            } else {
+                off = 0;
+            }
+            screen_line_add(bx + e->x1, by + e->y1, bx + e->x2, by + e->y2, e->colour);
+            screen_line_add(bx - e->x1 + off, by + e->y1, bx - e->x2 + off, by + e->y2, e->colour);
+            e++;
+        }
+    }
+    if (s->target != NULL && s->locked) {
+        target = s->target;
+        ofs = (s16 *) target->interactObj;
+        pos.x = ofs[0] * target->trans.scale;
+        pos.y = ofs[1] * target->trans.scale;
+        pos.z = ofs[2] * target->trans.scale;
+        func_800496B0(1, &target->trans.rotation, &pos.x, &pos.x);
+        pos.x += target->trans.x_position;
+        pos.y += target->trans.y_position;
+        pos.z += target->trans.z_position;
+        if (func_80041E58(pos.x, pos.y, pos.z, &sx, &sy, 1)) {
+            px = sx;
+            py = sy;
+            j = 0x21 - s->lock; /* (j: now the box's size) */
+            p = (s8 *) (rl_m014_03E70 + 0x940);
+            n = 16;
+            while (n--) {
+                screen_line_add(p[0] * j + px, p[1] * j + py, p[2] * j + px, p[3] * j + py, 16);
+                p += 4;
+            }
+        }
+    }
+}
 
 extern s32 is_game_paused(void);    /* is the game paused */
 extern u8 D_800A321C;
@@ -151,7 +403,6 @@ extern void func_m013_00008(Object *obj, M014Player *p, s32 updateRate);
 extern void func_m006_00000(Object *obj, s32 health, s32 arg2, s32 updateRate);
 extern void func_m006_012D4(M014Player *p, s32 updateRate);
 extern void func_m006_0107C(s32 *x, s32 *y);
-extern void rl_m014_00220(Object *obj, s32 arg1);
 static void hud_weapon_wheel_update(s32 updateRate);
 static s32 results_screen_update(s32 updateRate);
 static void hud_weapon_panel(s32 updateRate);
@@ -187,7 +438,7 @@ void func_m014_00B30(Object *obj, s32 updateRate) {
                 func_80040D64(&D_800FF398, &D_800FF39C);
                 if (p->unk50C != NULL &&
                     (p->unk10D == 1 || (((M014Held *) p->unk50C->unk68)->unk94 >> 31))) {
-                    rl_m014_00220(p->unk50C, p->unk10D & 1);
+                    func_m014_00220(p->unk50C, p->unk10D & 1);
                 }
                 if (p->unk10D == 0 && p->unk1F9 == 0) {
                     if (p->unk568 != 5) {

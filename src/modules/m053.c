@@ -493,7 +493,80 @@ void func_m053_028CC(UNUSED s32 arg0, M053State *state, UNUSED s32 arg2) {
     state->unk538 = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053", func_m053_028DC);
+extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights); /* the floor heights at (x, z) */
+
+/*
+ * Moves `to` out of the way of what lies between `from` and it: a sweep from `from` (repeated through the
+ * vehicles' own objects, behaviours 0x30 and 0x31, once) stops it at the first hit; then its height is put
+ * on a floor just below or above it, and, if nothing was hit, kept no lower than it was. (Called from 02B48.)
+ * The last loop over the floors does nothing: its test has an empty body, as in the ROM.
+ */
+static void func_m053_028DC(f32 *from, Vec3f *to, UNUSED f32 height) {
+    s32 mode;
+    HitResult hit;
+    UNUSED s32 pad;
+    s32 done;
+    s32 n;
+    s32 i;
+    f32 y0;
+    Vec3f pos;
+    f32 **heights;
+
+    pos.x = from[0];
+    pos.y = from[1];
+    pos.z = from[2];
+    y0 = to->y;
+    mode = 1;
+    done = 0;
+    do {
+        if (!func_80018808(NULL, &pos, to, &hit, 0, 0)) {
+            done = 1;
+        } else if (mode != 2 && hit.obj != NULL && (hit.obj->behaviorId == 0x30 || hit.obj->behaviorId == 0x31)) {
+            mode = 2;
+            pos.x = hit.pos.x;
+            pos.y = hit.pos.y;
+            pos.z = hit.pos.z;
+            to->y = hit.pos.y;
+        } else {
+            mode = 3;
+            to->x = hit.pos.x;
+            done = 1;
+            to->y = hit.pos.y;
+            to->z = hit.pos.z;
+        }
+    } while (!done);
+    n = func_8001B078(to->x, to->z, 0xC00, &heights);
+    while (n--) {
+        f32 lim = *heights[n] + 1.0f;
+        f32 h = *heights[n];
+
+        if (h < to->y && to->y < lim) {
+            to->y = h;
+        }
+    }
+    n = func_8001B078(to->x, to->z, 0xC00, &heights);
+    while (n--) {
+        f32 h = *heights[n];
+        f32 lim = *heights[n] - 1.0f;
+
+        if (lim < to->y && to->y < h) {
+            to->y = h;
+        }
+    }
+    if (mode == 1) {
+        n = func_8001B078(to->x, to->z, 0xC00, &heights);
+        if (n != 0) {
+            done = 0;
+            for (i = 0; i < n && !done; i++) {
+                if (*heights[i] < from[1]) {
+                }
+            }
+        }
+        if (to->y < y0) {
+            to->y = y0;
+        }
+    }
+}
 
 /* The part of the vehicle's state that the camera (02B48) uses */
 typedef struct M053CamState {
@@ -518,7 +591,6 @@ extern void func_8003F7F4(f32 fov, s32 arg1);      /* sets the field of view */
 extern f32 func_80097140(f32 x);                   /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);            /* the angle of a direction */
 extern void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); /* DKR vec3f_rotate */
-extern void rl_m053_028DC(f32 *from, Vec3f *to, f32 height); /* still assembly */
 extern ObjectTransform *D_800F6DC0;                /* the camera's transform */
 extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 
@@ -610,7 +682,7 @@ void func_m053_02B48(M053Camera *cam, Object *veh, f32 updateRate) {
     pos.x = func_80049C34(state->yaw) * r + veh->trans.x_position;
     pos.y = veh->trans.y_position + 60.0f;
     pos.z = veh->trans.z_position - func_80049C30(state->yaw) * r;
-    rl_m053_028DC(&veh->trans.x_position, &pos, 60.0f);
+    func_m053_028DC(&veh->trans.x_position, &pos, 60.0f);
     if (state->smooth) {
         blend = 1.0f - func_80049BEC(0.875f, updateRate);
     }

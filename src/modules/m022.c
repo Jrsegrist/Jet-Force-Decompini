@@ -262,11 +262,9 @@ extern void func_80055B80(Gfx **dl); /* resets the render settings */
 extern u8 D_800A0838[];
 extern s8 rl_m022_03414;
 
-#ifdef NON_MATCHING
 /*
  * The task screen's models, in their own viewport: the plate's model, then, when a rank is shown, the rank's
  * object, spinning (and growing in), with a two-copy fading trail of its last yaws for rank 5.
- * NON_MATCHING: ROM length and frame; about 170 words differ, nearly all t-register numbers (the ROM keeps t0-t2 for 0x80000000, the trail count and the list).
  */
 void func_m022_0114C(Gfx **dl, Mtx **mtx, s32 updateRate) {
     s32 n;
@@ -315,15 +313,14 @@ void func_m022_0114C(Gfx **dl, Mtx **mtx, s32 updateRate) {
     func_80041CA0(dl, mtx, &trans, 1.0f, 0.0f);
     {
         Gfx *_g = (*dl)++;
-        _g->words.w0 = (((u32) model->frames[model->frame] + 0x80000000) & 0xFFFFFF) | 0xBF000000;
-        _g->words.w1 = (u32) model->vertices + 0x80000000;
+        _g->words.w0 = (((u32) (model->frames[model->frame] + 0x80000000)) & 0xFFFFFF) | 0xBF000000;
+        _g->words.w1 = (u32) (model->vertices + 0x80000000);
     }
     {
         Gfx *_g = (*dl)++;
-        _g->words.w0 = 0x02000050;
-        _g->words.w1 = (u32) (D_800A0838 + 0x80000000);
+        _g->words.w0 = 0x02000050; _g->words.w1 = (u32) (D_800A0838 + 0x80000000);
     }
-    gSPDisplayList((*dl)++, (u32) header->dl + 0x80000000);
+    gSPDisplayList((*dl)++, (u8 *) header->dl + 0x80000000);
     if (rl_m022_03414 >= 0 && (obj = rl_m022_03418) != NULL) {
         model = *(M022Model **) obj->modelInstances;
         header = model->header;
@@ -389,21 +386,21 @@ void func_m022_0114C(Gfx **dl, Mtx **mtx, s32 updateRate) {
         gDPPipeSync((*dl)++);
         {
             Gfx *_g = (*dl)++;
-            _g->words.w0 = (((u32) model->frames[model->frame] + 0x80000000) & 0xFFFFFF) | 0xBF000000;
-            _g->words.w1 = (u32) model->vertices + 0x80000000;
+            _g->words.w0 = (((u32) (model->frames[model->frame] + 0x80000000)) & 0xFFFFFF) | 0xBF000000;
+            _g->words.w1 = (u32) (model->vertices + 0x80000000);
         }
-        while (n-- != 0) {
+        while (n--) {
             if (n == 2) {
-                trans.rotation.y_rotation = OBJ_STATE(obj, M022Spin)->prev2;
                 list = header->dlFaint;
+                trans.rotation.y_rotation = OBJ_STATE(obj, M022Spin)->prev2;
                 gDPSetPrimColor((*dl)++, 0, 0, 255, 85, 85, 85);
             } else if (n == 1) {
-                trans.rotation.y_rotation = OBJ_STATE(obj, M022Spin)->prev;
                 list = header->dlFaint;
+                trans.rotation.y_rotation = OBJ_STATE(obj, M022Spin)->prev;
                 gDPSetPrimColor((*dl)++, 0, 0, 255, 170, 170, 170);
             } else {
-                trans.rotation.y_rotation = obj->trans.rotation.y_rotation;
                 list = header->dl;
+                trans.rotation.y_rotation = obj->trans.rotation.y_rotation;
                 gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
             }
             if (header->noMatrix == 0) {
@@ -414,16 +411,13 @@ void func_m022_0114C(Gfx **dl, Mtx **mtx, s32 updateRate) {
     }
     {
         Gfx *_g = (*dl)++;
-        _g->words.w0 = 0xBF000000;
         _g->words.w1 = 0;
+        _g->words.w0 = 0xBF000000;
     }
     mtx_pop(dl);
     func_80055B80(dl);
     func_8003F7F4(fov, 1);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_0114C);
-#endif
 
 /* A task goal: a count to reach, or flags to have */
 typedef struct M022Goal {
