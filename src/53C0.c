@@ -2729,10 +2729,10 @@ void mtx_scale_push(Gfx **dList, Mtx **mtx, f32 scale);
  * (setupEntrance). Then the kind's pieces (D_800A0BEC/0C0C/0C1C), each scaled and textured.
  * As in the ROM, draw and kind are only set on the paths that draw, and kind 4 reads the player's racer data
  * whichever path set it.
- * NON_MATCHING: the ROM's length and frame (0x148), 10 diffs: the table copy, which IDO loads before the count test
- * (the ROM after), and the polygon command's pointer and count in a1/a2 (the ROM a2/a1). The joint address as an
- * f32 pointer plus the pre-shifted index and the point as a row of f32[3] (one multiply by 12) gave the ROM's
- * temporaries.
+ * NON_MATCHING: the ROM's length and frame (0x148), 7 diffs: the polygon command's pointer and count are in a1/a2
+ * (the ROM a2/a1). The joint address as an f32 pointer plus the pre-shifted index and the point as a row of
+ * f32[3] (one multiply by 12) gave the ROM's temporaries; the guarded do-while puts the table copy after the
+ * count test, as the ROM.
  */
 void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
     Object *parent;
@@ -2857,16 +2857,20 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
                 table = D_800A0BEC;
                 break;
         }
-        part = table;
         seg = 0x80000000;
-        for (i = 0; i < count; i++) {
-            mtx_scale_push(&dl, &m, scales[i] * part->scale);
-            gDPPipeSync(dl++);
-            gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, colors[i]);
-            func_80055C00(&dl, obj->attachments[part->texture], 0x16, 0);
-            gSPVertexSeg(dl++, (u32) part->vertices + seg, part->lastVertex);
-            gSPPolygonSeg(dl++, (u32) part->triangles + seg, part->numTriangles, 1);
-            part++;
+        i = 0;
+        if (count > 0) {
+            part = table;
+            do {
+                mtx_scale_push(&dl, &m, scales[i] * part->scale);
+                gDPPipeSync(dl++);
+                gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, colors[i]);
+                func_80055C00(&dl, obj->attachments[part->texture], 0x16, 0);
+                gSPVertexSeg(dl++, (u32) part->vertices + seg, part->lastVertex);
+                gSPPolygonSeg(dl++, (u32) part->triangles + seg, part->numTriangles, 1);
+                i++;
+                part++;
+            } while (i < count);
         }
         mtx_pop(&dl);
         *dList = dl;
