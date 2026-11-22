@@ -350,7 +350,353 @@ void func_m143_008C0(Object *obj, s32 speed) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00C2C);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m143/ro", func_m143_01940);
+/* The flag word of a hit zone */
+typedef struct M143ZoneFlags {
+    u32 unk31 : 1;
+    u32 shotAway : 1;
+    u32 active : 1; /* can be hit */
+    u32 unk0 : 29;
+} M143ZoneFlags;
+
+/* A hit zone of the boss's model (size 0x34) */
+typedef struct M143HitZone {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ Vec3f pos;
+    /* 0x18 */ u8 pad18[0x2F - 0x18];
+    /* 0x2F */ u8 unk2F;
+    /* 0x30 */ M143ZoneFlags flags;
+} M143HitZone;
+
+/* What obj->interactObj points at, for this boss */
+typedef struct M143BossInteraction {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ s16 zoneCount;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ M143HitZone *zones;
+} M143BossInteraction;
+
+#define INTERACT(obj) ((M143BossInteraction *) (obj)->interactObj)
+
+/* The boss's own state */
+typedef struct M143BossState {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 phase; /* low nibble: the phase; the high nibble counts up */
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ u8 pad4[0x8 - 0x4];
+    /* 0x08 */ Object *parts[8];
+} M143BossState;
+
+/* The enemy record (obj->unk68) */
+typedef struct M143Enemy {
+    /* 0x00 */ u8 pad0[0x4B];
+    /* 0x4B */ u8 unk4B;
+    /* 0x4C */ u8 pad4C[0x5A - 0x4C];
+    /* 0x5A */ u16 parts; /* the zones shot away */
+    /* 0x5C */ u8 pad5C[0xA4 - 0x5C];
+    /* 0xA4 */ u16 unkA4;
+    /* 0xA6 */ u8 padA6[2];
+    /* 0xA8 */ M143BossState *state;
+} M143Enemy;
+
+/* A troop record of module 3, as used here */
+typedef struct M143Troop {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 pad1[0x30 - 0x1];
+    /* 0x30 */ u8 unk30;
+    /* 0x31 */ u8 pad31[0x63 - 0x31];
+    /* 0x63 */ u8 arrived;
+    /* 0x64 */ u8 pad64[0x91 - 0x64];
+    /* 0x91 */ u8 unk91;
+} M143Troop;
+
+/* A shot's object entry */
+typedef struct M143ShotEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ s16 vx;
+    /* 0x0E */ s16 vy;
+    /* 0x10 */ s16 vz;
+    /* 0x12 */ u8 pad12[2];
+    /* 0x14 */ Object *owner;
+} M143ShotEntry;
+
+/* A short object entry */
+typedef struct M143Entry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 padA;
+} M143Entry;
+
+/* A part's object entry */
+typedef struct M143PartEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 pad12[2];
+    /* 0x14 */ Object *owner;
+} M143PartEntry;
+
+/* A part's state (in the object at 0x88) */
+typedef struct M143PartState {
+    /* 0x0 */ s32 unk0;
+    /* 0x4 */ s32 unk4;
+} M143PartState;
+
+extern void func_8000C9B4(s32, s32, s32, s32);
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+extern void func_m087_011B0(s32, s32);
+extern void func_m003_04398(s32, s32);
+
+/* .bss (still assembly) */
+extern s32 rl_m143_03274;
+extern M143Troop *rl_m143_032B0;
+extern M143Troop *rl_m143_032B4;
+extern Object *rl_m143_032C0;
+extern Object *rl_m143_032C4;
+extern s32 rl_m143_032CC; /* which side */
+
+/* What the boss does when module 3 tells it an event */
+void func_m143_01940(Object *obj, s32 event) {
+    M143Enemy *e;
+    M143BossState *state;
+    Object *player;
+    M143ShotEntry shot;
+    f32 px;
+    f32 py;
+    f32 pz;
+    Object *spawned;
+    M143HitZone *zone;
+    UNUSED s32 padA;
+    M143Entry entry;
+    UNUSED s32 padB;
+    f32 x;
+    f32 y;
+    f32 z;
+    M143PartEntry part;
+    s32 i;
+
+    e = obj->unk68;
+    state = e->state;
+    player = func_m003_053C4();
+    switch (event) {
+        case 3:
+            if (rl_m143_032CC) {
+                if (e->parts & 2) {
+                    rl_m143_032CC = 0;
+                }
+            } else if (e->parts & 4) {
+                rl_m143_032CC = 1;
+            }
+            if (rl_m143_032CC) {
+                obj->particleEmittersEnabled |= 4;
+                INTERACT(obj)->zones[21].flags.active = 0;
+                INTERACT(obj)->zones[21].unk2F = 100;
+                e->unkA4 |= 2;
+            } else {
+                obj->particleEmittersEnabled |= 8;
+                INTERACT(obj)->zones[22].flags.active = 0;
+                INTERACT(obj)->zones[22].unk2F = 100;
+                e->unkA4 |= 4;
+            }
+            func_8000C9B4(0xFF, 0xFF, 0xFF, 1);
+            rl_m143_032C8 = 1;
+            break;
+        case 4:
+            rl_m143_032C8 = 0;
+            if (rl_m143_032CC) {
+                if (rl_m143_032B0->unk30 != 10) {
+                    rl_m143_032B0->unk30 = 0;
+                    rl_m143_032B0->arrived = 0;
+                    rl_m143_032B0->unk0 = 0;
+                    rl_m143_032B0->unk91 = 3;
+                }
+            } else {
+                if (rl_m143_032B4->unk30 != 10) {
+                    rl_m143_032B4->unk30 = 0;
+                    rl_m143_032B4->arrived = 0;
+                    rl_m143_032B4->unk0 = 0;
+                    rl_m143_032B4->unk91 = 3;
+                }
+            }
+            break;
+        case 5:
+            obj->particleEmittersEnabled = 0;
+            INTERACT(obj)->zones[21].flags.active = 1;
+            INTERACT(obj)->zones[21].unk2F = 0;
+            INTERACT(obj)->zones[22].flags.active = 1;
+            INTERACT(obj)->zones[22].unk2F = 0;
+            state->phase += 0x10;
+            break;
+        case 1:
+            if (rl_m143_032CC) {
+                if (e->parts & 8) {
+                    rl_m143_032CC = 0;
+                }
+            } else if (e->parts & 0x10) {
+                rl_m143_032CC = 1;
+            }
+            if (rl_m143_032CC) {
+                obj->particleEmittersEnabled |= 2;
+                INTERACT(obj)->zones[20].flags.active = 0;
+                INTERACT(obj)->zones[20].unk2F = 100;
+                e->unkA4 |= 0x20;
+            } else {
+                obj->particleEmittersEnabled |= 1;
+                INTERACT(obj)->zones[18].flags.active = 0;
+                INTERACT(obj)->zones[18].unk2F = 100;
+                e->unkA4 |= 0x10;
+            }
+            func_8000C9B4(0xFF, 0xFF, 0xFF, 1);
+            break;
+        case 2:
+            state->phase += 0x10;
+            obj->particleEmittersEnabled = 0;
+            if (rl_m143_032CC) {
+                if (e->parts & 8) {
+                    break;
+                }
+                INTERACT(obj)->zones[20].flags.active = 1;
+                INTERACT(obj)->zones[20].unk2F = 0;
+                px = INTERACT(obj)->zones[20].pos.x;
+                py = INTERACT(obj)->zones[20].pos.y;
+                pz = INTERACT(obj)->zones[20].pos.z;
+            } else {
+                if (e->parts & 0x10) {
+                    break;
+                }
+                INTERACT(obj)->zones[18].flags.active = 1;
+                INTERACT(obj)->zones[18].unk2F = 0;
+                px = INTERACT(obj)->zones[18].pos.x;
+                py = INTERACT(obj)->zones[18].pos.y;
+                pz = INTERACT(obj)->zones[18].pos.z;
+            }
+            shot.objectID = 0x2D4;
+            shot.size = 0x18;
+            shot.unk3 = 0;
+            shot.x = px;
+            shot.y = py;
+            shot.z = pz;
+            shot.vx = (player->trans.x_position - px) / 10.0f;
+            shot.vy = (player->trans.y_position - py) / 10.0f;
+            shot.vz = (player->trans.z_position - pz) / 10.0f;
+            shot.unkA = 0;
+            shot.unkB = 100;
+            shot.owner = obj;
+            func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL);
+            spawned = func_80005F14(&shot, 1);
+            if (spawned != NULL) {
+                spawned->level_entry = NULL;
+            }
+            break;
+        case 6:
+            if (INTERACT(obj)->zones[15].flags.active) {
+                i = INTERACT(obj)->zoneCount;
+                while (i--) {
+                    zone = &INTERACT(obj)->zones[i];
+                    if (!zone->flags.shotAway) {
+                        zone->unk2F = 100;
+                        zone->flags.active = 0;
+                    }
+                }
+                e->unkA4 = 0xFFFF;
+                func_8000C9B4(0xFF, 0xFF, 0xFF, 11);
+            }
+            func_m087_011B0(0x2CC, 1);
+            rl_m143_03274 = 1;
+            if (!rl_m143_032C0->modelIndex || !rl_m143_032C4->modelIndex) {
+                state->unk0 = 1;
+                state->unk2 = 0;
+            } else {
+                func_m003_04398(1, 0);
+                e->unk4B = 0;
+                state->phase += 0x10;
+            }
+            break;
+        case 7:
+            state->unk2 = 1;
+            break;
+        case 8:
+            state->unk2 = 2;
+            break;
+        case 10:
+            entry.objectID = 0x2CA;
+            entry.size = 10;
+            func_m003_0609C(14, &x, &y, &z);
+            entry.x = x;
+            entry.y = obj->trans.y_position;
+            entry.z = z;
+            spawned = func_80005F14(&entry, 1);
+            if (spawned != NULL) {
+                spawned->level_entry = NULL;
+            }
+            func_m003_0609C(12, &x, &y, &z);
+            entry.x = x;
+            entry.y = obj->trans.y_position;
+            entry.z = z;
+            spawned = func_80005F14(&entry, 1);
+            if (spawned != NULL) {
+                spawned->level_entry = NULL;
+            }
+            func_80001248(0x1CC, 0);
+            obj->particleEmittersEnabled |= 0x30;
+            state->unk3 = 2;
+            state->phase &= 0xF;
+            rl_m143_032CC ^= 1;
+            switch (state->phase) {
+                case 1:
+                    if ((e->parts & 6) == 6) {
+                        state->phase = 2;
+                    }
+                    break;
+                case 2:
+                    if ((e->parts & 0x18) == 0x18) {
+                        state->phase = 3;
+                        part.objectID = 0xDB;
+                        part.size = 0x18;
+                        part.x = 0;
+                        part.y = 0;
+                        part.z = 0;
+                        part.unkA = 0;
+                        part.unkC = 0;
+                        part.unkE = 0;
+                        part.unk10 = 0x28;
+                        part.unk11 = 2;
+                        part.owner = obj;
+                        i = 8;
+                        while (i--) {
+                            state->parts[i] = func_80005F14(&part, 1);
+                            OBJ_STATE(state->parts[i], M143PartState)->unk4 = 100;
+                        }
+                    }
+                    break;
+                case 3:
+                    if (rl_m143_032C0->modelIndex && rl_m143_032C4->modelIndex) {
+                        state->phase = 4;
+                    }
+                    break;
+            }
+            break;
+    }
+}
 
 /* Follows its leader's position until its time is up or it is told to stop */
 void func_m143_02394(Object *obj) {
