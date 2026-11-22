@@ -2363,7 +2363,138 @@ s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags) {
     return 0;
 }
 
+/* JFG: a triangle's entry in the segment's plane index (8 bytes) */
+typedef struct TrianglePlaneRef {
+    /* 0x00 */ u16 plane;
+    /* 0x02 */ u8 pad2[6];
+} TrianglePlaneRef;
+
+/* JFG: a plane a*x + b*y + c*z + d = 0 */
+typedef struct Plane {
+    /* 0x00 */ f32 a, b, c, d;
+} Plane;
+
+/* JFG: a level edge crossed by a line (func_80019888) */
+typedef struct EdgeHit {
+    /* 0x00 */ f32 x0, y0, z0; // the edge's ends
+    /* 0x0C */ f32 x1, y1, z1;
+    /* 0x18 */ f32 along;      // where the line crosses it, 0..1 from the first end
+    /* 0x1C */ Plane *plane;   // the plane of the edge's triangle
+} EdgeHit;
+
+#ifdef NON_MATCHING
+/**
+ * JFG: the first level edge (among the entries' triangle edges marked in edgeFlags >> 3, walked as
+ * track_edge_find_next does) that the line from..to passes through, taking each edge as a wall 10 units high:
+ * its ends, the crossing point along it and its triangle's plane go to out. Returns 1 or -1 for the side the
+ * line crosses from, 0 if none. As in the ROM, segment is only set by an earlier entry.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (353 words, 0xB0); the
+ * crossing fraction gets f16 where the ROM uses f12, so the three constants move up one FP register (an extra
+ * saved f22/f23) and the FP temporaries follow.
+ */
+s32 func_80019888(f32 *from, f32 *to, EdgeHit *out) {
+    LevelModelSegment *segment;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 result;
+    f32 n[3];
+    f32 dir[3];
+    f32 v[3];
+    f32 a[3];
+    f32 b[3];
+    f32 e[3];
+    s32 tri;
+    s32 batch;
+    Triangle *triangle;
+    Vertex *verts;
+    Vertex *va;
+    Vertex *vb;
+    u8 flags;
+    f32 d;
+    f32 t;
+    s32 side;
+
+    dir[0] = to[0] - from[0];
+    dir[1] = to[1] - from[1];
+    dir[2] = to[2] - from[2];
+    result = 0;
+    for (i = 0; i < D_800F33C4 && !result; i++) {
+        if (D_800F33B8[i] > 0) {
+            segment = (LevelModelSegment *) (D_800F33B8[i] | 0x80000000);
+        } else {
+            batch = D_800F33BC[i];
+            tri = D_800F33C0[i];
+            triangle = &segment->triangles[tri];
+            verts = &segment->vertices[segment->batches[batch].verticesOffset];
+            flags = (u32) segment->edgeFlags[tri] >> 3;
+            j = 0;
+            if (flags & 7) {
+                for (; j < 3; j++) {
+                    if (flags & (1 << j)) {
+                        k = j + 1;
+                        if (k >= 3) {
+                            k = 0;
+                        }
+                        va = &verts[(&triangle->vi0)[j]];
+                        vb = &verts[(&triangle->vi0)[k]];
+                        a[0] = va->x;
+                        a[1] = va->y;
+                        a[2] = va->z;
+                        b[0] = vb->x;
+                        b[1] = vb->y;
+                        b[2] = vb->z;
+                        v[0] = 0.0f;
+                        v[1] = 10.0f;
+                        v[2] = 0.0f;
+                        e[0] = b[0] - a[0];
+                        e[1] = b[1] - a[1];
+                        e[2] = b[2] - a[2];
+                        n[0] = v[1] * e[2] - v[2] * e[1];
+                        n[1] = v[2] * e[0] - v[0] * e[2];
+                        n[2] = v[0] * e[1] - v[1] * e[0];
+                        d = dir[0] * n[0] + dir[1] * n[1] + dir[2] * n[2];
+                        if (d != 0.0f) {
+                            side = 1;
+                            if (d < 0.0f) {
+                                side = -1;
+                            }
+                            v[0] = n[0] * (a[0] - from[0]);
+                            v[1] = n[1] * (a[1] - from[1]);
+                            v[2] = n[2] * (a[2] - from[2]);
+                            t = (v[0] + v[1] + v[2]) / d;
+                            if (t >= 0.0f && t <= 1.0f) {
+                                v[0] = dir[0] * t + from[0];
+                                v[1] = dir[1] * t + from[1];
+                                v[2] = dir[2] * t + from[2];
+                                d = e[0] * e[0] + e[1] * e[1] + e[2] * e[2];
+                                v[0] = e[0] * (v[0] - a[0]);
+                                v[1] = e[1] * (v[1] - a[1]);
+                                v[2] = e[2] * (v[2] - a[2]);
+                                t = v[0] + v[1] + v[2];
+                                if (t / d >= 0.0f && t / d <= 1.0f) {
+                                    result = side;
+                                    out->x0 = a[0];
+                                    out->y0 = a[1];
+                                    out->z0 = a[2];
+                                    out->x1 = b[0];
+                                    out->y1 = b[1];
+                                    out->z1 = b[2];
+                                    out->plane = &segment->planes[segment->trianglePlanes[tri].plane];
+                                    out->along = t / d;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80019888);
+#endif
 
 /**
  * JFG: find the level edge (among the entries' triangle edges, as track_edges_build walks them) that continues
@@ -2454,17 +2585,6 @@ s32 track_edge_find_next(TrackEdge *edge, TrackEdge *out) {
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001A218);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001AB84);
-
-/* JFG: a triangle's entry in the segment's plane index (8 bytes) */
-typedef struct TrianglePlaneRef {
-    /* 0x00 */ u16 plane;
-    /* 0x02 */ u8 pad2[6];
-} TrianglePlaneRef;
-
-/* JFG: a plane a*x + b*y + c*z + d = 0 */
-typedef struct Plane {
-    /* 0x00 */ f32 a, b, c, d;
-} Plane;
 
 u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
