@@ -197,10 +197,7 @@ extern Gfx rl_m022_034C0[]; /* .data (still assembly): a display list */
 
 /* The pause screen's frame: the whole screen's scissor, then black right of and below the viewport (called
    from 018AC) */
-#ifdef NON_MATCHING
-static /* 018AC's C body calls it */
-#endif
-void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
+static void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
     s32 x1;
     s32 y1;
     s32 x2;
@@ -282,32 +279,26 @@ extern u8 rl_m022_033F0[];
 extern s32 rl_m022_03500[]; /* (.data) how the time is shown: divisors, -1 a colon, -2 a point, 0 the end */
 extern void rl_m022_0114C(Gfx **dl, s32 arg1, s32 updateRate); /* still assembly */
 
-#ifdef NON_MATCHING
 /*
  * The task screen: fades in and out, then draws the items picked up, the goals (or the two counters), the rank,
- * the task's name and its time.
- * NON_MATCHING: two words short (526/528), the ROM's frame: the ROM keeps the item list's first index (`sel`) in
- * its stack home across the two calls before the loop, where IDO gives it s6; the rest is the ROM's code
- * (the masked compare shows 92 aligned diffs from that offset). The pad stands for the ROM's unexplained
- * 24 bytes of frame below `time`.
+ * the task's name and its time. `mode` holds first the item list's first text, then which goals are shown
+ * (2: the two counters instead).
  */
 void func_m022_018AC(Gfx **dl, s32 arg1, s32 updateRate) {
-    s32 sel;
+    s32 mode;
     s32 i;
     s32 y;
-    s32 n;
     s32 bit;
-    s32 mode;
     s32 t;
     s32 d;
     M022Goals *goals;
     M022Goal *goal;
     s32 *f;
     char *p;
-    char text[4];
+    char text[12];
     M022Rect rects[2];
     char time[20];
-    UNUSED s32 pad[6];
+    UNUSED s32 pad[6]; /* the ROM's frame has 24 more bytes below `time` */
 
     if (rl_m022_03430 < 0) {
         rl_m022_0342C -= updateRate * 8;
@@ -326,19 +317,19 @@ void func_m022_018AC(Gfx **dl, s32 arg1, s32 updateRate) {
     func_8006FC8C(0, 0, 0, 0);
     func_m022_00F18(dl, updateRate);
     if (*(s8 *) &rl_m022_0343C > 0) {
-        sel = *(s8 *) &rl_m022_03438;
+        mode = *(s8 *) &rl_m022_03438;
+        i = 0;
         y = 0x5C - *(s8 *) &rl_m022_0343C * 10;
         rects[0].frame = 0;
         rects[0].x = -8;
         rects[0].y = -8;
         rects[1].tex = NULL;
-        i = 0;
         func_8006FC54(2);
         func_8006FC68(255, 255, 255, 255, rl_m022_0342C);
         for (; i < *(s8 *) &rl_m022_0343C; i++) {
             rects[0].tex = (void *) (D_800A3210 + i)[*(s8 *) &rl_m022_03440];
             func_8004EDBC(dl, rects, 200, y, 255, 255, 255, rl_m022_0342C);
-            func_8006FCA8(dl, 212, y, gMenuText[rl_m022_0322C[sel++]], 8);
+            func_8006FCA8(dl, 212, y, gMenuText[rl_m022_0322C[mode++]], 8);
             y += 20;
         }
     }
@@ -418,8 +409,8 @@ void func_m022_018AC(Gfx **dl, s32 arg1, s32 updateRate) {
     func_8006FCA8(dl, 160, 134, gMenuText[469], 4);
     if (D_800A3208 != 0) {
         t = D_800A3204 * 100 / 60;
-        p = time;
-        f = rl_m022_03500;
+        /**/
+        f = rl_m022_03500; p = time;
         do {
             d = *f++;
             if (d == -1) {
@@ -439,9 +430,6 @@ void func_m022_018AC(Gfx **dl, s32 arg1, s32 updateRate) {
         func_8006FCA8(dl, 0x60, 0x2A, time, 4);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_018AC);
-#endif
 
 struct M022Goals;
 extern struct M022Goals *rl_m022_03410;
