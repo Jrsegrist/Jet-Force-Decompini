@@ -408,61 +408,68 @@ void func_m143_02450(M143Group *group) {
 
 extern u8 *D_80102D60[4]; /* the effect slots' two buffers */
 extern u8 *D_80102D78[4];
-extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
-extern u8 rl_m143_02F7C;   /* (.data) which buffer is current */
-extern s32 rl_m143_02F80;  /* (.data) copy the picture in */
 
-#ifdef NON_MATCHING
+/*
+ * .data: the picture (0x380 bytes) and the tables after it up to 0x2F7C stay assembly
+ * (data.s, cut there by tools/runlink_split.py's DATA_SPLITS); the two flags of the
+ * handler below follow it, as its statics: 0x2F7C (u8 0: which buffer is current) and
+ * 0x2F80 (s32 1: copy the picture in).
+ */
+INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
+extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
+
 /*
  * An effect slot's handler (effect_slot_start in 69050.c calls it with the slot, the texture and an init flag):
- * a fire. A random bottom row; each pixel becomes the average of itself and the three below it, into the other
+ * a rising-heat blur. A random bottom row; each pixel becomes the average of itself and the three below it, into the other
  * buffer; everything dims by 3; the picture is copied in once on a flag; then the texture gets intensity/alpha
- * pairs, every other row shifted by two pixels.
- * ROM length and frame, 106 aligned diffs: the ROM addresses the two .data flags with their own lui/%lo at each
- * access and keeps the post-loop load of the buffer flag partially redundant, which IDO does for statics the
- * file defines; with the flags as file statics this body is 65 diffs (registers only), but the module's .data
- * (which holds the picture) is still assembly, and as externs IDO materialises their addresses.
+ * pairs, every other row shifted by two pixels. The countdown loops' dead copies go through `off` (their register
+ * in the ROM is off's); off is set before every read of it in the shifted rows.
  */
 void func_m143_02520(s32 slot, u8 *tex, s32 init) {
+    static u8 sCurBuffer = 0;
+    static s32 sCopyPicture = 1;
     s32 i;
     s32 j;
     s32 w;
     s32 h;
     u8 *cur;
     s16 c;
+    s16 d;
     s32 off;
     u8 *p;
     u16 *out;
     u16 *row;
     u8 *buf;
+    u8 *q;
 
     h = tex[1];
     w = tex[0];
-    if (rl_m143_02F7C) {
+    if (sCurBuffer) {
         buf = D_80102D60[slot];
     } else {
         buf = D_80102D78[slot];
     }
     p = buf + (h - 1) * w;
     i = w;
-    while (i--) {
+    while (off = i, i--, off) {
         *p++ = func_80048E2C(0, 255);
     }
-    rl_m143_02F7C ^= 1;
-    cur = buf;
-    if (rl_m143_02F7C) {
+    q = buf;
+    sCurBuffer ^= 1;
+    if (sCurBuffer) {
         buf = D_80102D60[slot];
     } else {
         buf = D_80102D78[slot];
     }
+    cur = q;
     p = buf;
     i = h - 1;
-    while (i--) {
+    while (off = i, i--, off) {
         *p = (cur[w + 1] + ((cur + w)[w - 1] + (cur[0] + cur[w]))) >> 2;
         p++;
         cur++;
         j = w - 2;
-        while (j--) {
+        while (off = j, j--, off) {
             *p = (cur[w + 1] + (cur[w - 1] + (cur[0] + cur[w]))) >> 2;
             p++;
             cur++;
@@ -473,33 +480,32 @@ void func_m143_02520(s32 slot, u8 *tex, s32 init) {
     }
     p = buf;
     i = h * w;
-    while (i--) {
-        c = *p - 3;
-        if (c < 0) {
-            c = 0;
+    while (off = i, i--, off) {
+        d = *p - 3;
+        if (d < 0) {
+            d = 0;
         }
-        *p++ = c;
+        *p++ = d;
     }
-    if (rl_m143_02F80) {
+    if (sCopyPicture) {
         cur = rl_m143_02BC0;
         p = buf;
         i = h * w;
-        while (i--) {
+        while (off = i, i--, off) {
             *p++ = *cur++;
         }
-        rl_m143_02F80 = 0;
+        sCopyPicture = 0;
     }
     out = (u16 *) (tex + 0x20);
     cur = buf;
     i = h;
-    while (i--) {
+    while (off = i, i--, off) {
         s16 v;
-        s16 d;
 
         row = out;
         if (i & 1) {
             j = w;
-            while (j--) {
+            while (off = j, j--, off) {
                 v = *cur;
                 c = v;
                 d = v >> 4;
@@ -536,9 +542,6 @@ void func_m143_02520(s32 slot, u8 *tex, s32 init) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_02520);
-#endif
 
 void func_m143_02B88(void) {
     if (rl_m143_02F74 != 0) {
@@ -546,8 +549,6 @@ void func_m143_02B88(void) {
     }
 }
 #pragma weak __rl_fini = func_m143_02B88
-
-INCLUDE_ASM("asm/nonmatchings/modules/m143", data);
 
 /* (.rodata: C, and the assembly functions' own from ro/) */
 

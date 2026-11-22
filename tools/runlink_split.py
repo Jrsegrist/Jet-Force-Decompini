@@ -9,8 +9,8 @@ recreates them from the assembled objects. See docs/runlink.md.
 
 For work in C, every module is also split per function into
 asm/nonmatchings/modules/mNNN/func_mNNN_XXXXX.s (for INCLUDE_ASM), with
-data.s, rodata.s and bss.s (the module's sections, as far as it has them)
-and functions.txt (the function list) next to them; and, where the
+data.s, rodata.s and bss.s (the module's sections, as far as it has them;
+.data cut into data.s and data_XXXXX.s where DATA_SPLITS says) and functions.txt (the function list) next to them; and, where the
 module's .rodata can be split per function, mNNN/ro/: each function that
 uses .rodata together with its own items, so that functions still in
 assembly bring their .rodata while the rest is C (write_ro_dir;
@@ -47,6 +47,15 @@ LAYOUT = {
     "us": dict(symtab=0x1ED0270, modtab=0x1ED2780, modules=0x1ED3B20,
                nameoffs=0x1FEB040, names=0x1FED550,
                text=0x80000450, data=0x800A0660, bss=0x800B0B50),
+}
+# Where a module's .data.s is cut into pieces, by module offset: data.s runs
+# from the .data start to the first cut, data_XXXXX.s from each cut to the
+# next (or to .rodata). A C file can then define the variables of one piece
+# and include the others, in the original order. Offsets only, no ROM data.
+DATA_SPLITS = {
+    "us": {
+        143: [0x2F7C],  # the two flags of func_m143_02520 after the picture and tables
+    },
 }
 SEC_RODATA, SEC_DATA, SEC_BSS = 4093, 4094, 4095
 R_MIPS_32, R_MIPS_26, R_MIPS_HI16, R_MIPS_LO16 = 2, 4, 5, 6
@@ -326,7 +335,7 @@ def write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames,
     return None
 
 
-def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
+def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir, data_splits=()):
     me = m + 1
     w0, off, tsize, dsize, bsize, r1, r2, init, fini = mods[m]
     base = L["modules"] + off
@@ -600,7 +609,13 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir):
             f.write("\n".join(out) + "\n")
         flist.append("%s 0x%X 0x%X" % (fnames[a], a, b - a))
     dend = rodata_start if rodata_start is not None else tsize + dsize
-    for fn, sec, lo, hi in (("data", ".data", tsize, dend), ("rodata", ".rodata", dend, tsize + dsize)):
+    cuts = sorted(data_splits)
+    if any(c % 4 or not tsize < c < dend for c in cuts) or len(set(cuts)) != len(cuts):
+        raise SystemExit("m%03d: bad .data cut in DATA_SPLITS: %s (.data 0x%X-0x%X)" % (
+            me, [hex(c) for c in cuts], tsize, dend))
+    pieces = [("data" if lo == tsize else "data_%05X" % lo, ".data", lo, hi)
+              for lo, hi in zip([tsize] + cuts, cuts + [dend])]
+    for fn, sec, lo, hi in pieces + [("rodata", ".rodata", dend, tsize + dsize)]:
         if hi > lo:
             with open("%s/%s.s" % (nm_dir, fn), "w") as f:
                 f.write("\n".join([".section %s" % sec] + data_lines(lo, hi, True)) + "\n")
@@ -643,7 +658,7 @@ def main():
     ro_notes = []
     for m in range(len(mods)):
         nf, nj, note = split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
-                                    args.build_dir)
+                                    args.build_dir, DATA_SPLITS.get(args.version, {}).get(m + 1, ()))
         nfuncs += nf
         njtbls += nj
         if os.path.isdir("%s/m%03d/ro" % (args.nonmatchings_dir, m + 1)):
