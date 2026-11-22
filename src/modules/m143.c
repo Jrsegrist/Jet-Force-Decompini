@@ -131,7 +131,7 @@ extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
  * trail, any other value that joint. (point is dead once the switch has
  * dispatched, so case -3 reuses it for the joint it picks.)
  */
-void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
+static void func_m143_0007C(Object *obj, s32 point, f32 *x, f32 *y, f32 *z) {
     static s32 sLastJoint = 0; /* .data 0x2F78 */
 
     switch (point) {
@@ -493,8 +493,6 @@ extern s32 rl_m143_032CC; /* which side */
 extern u8 rl_m143_02F70[];       /* how many parts, per unk2 */
 extern s8 (*rl_m143_02F64[])[2]; /* their points, per unk2 */
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: ROM length and frame; t-registers rotated from the troop-list loop on (&rl_m143_032B0 is t0 in the ROM, t1 here) */
 /*
  * The boss's update: sets up its state, its two troops and its two objects 0x5B the first time; then its
  * parts' positions between their points, the troops following its zones, the zones shot away for its
@@ -568,12 +566,14 @@ void func_m143_00C2C(Object *obj) {
             }
         }
         for (n = first; n < count; n++) {
-            if (objs[n]->behaviorId == 0x5B) {
+            Object *o = objs[n];
+
+            if (o->behaviorId == 0x5B) {
                 if (rl_m143_032C0 != NULL) {
-                    rl_m143_032C4 = objs[n];
+                    rl_m143_032C4 = o;
                     break;
                 }
-                rl_m143_032C0 = objs[n];
+                rl_m143_032C0 = o;
             }
         }
         func_m087_011B0(0x2CC, 0x7FFF);
@@ -611,8 +611,8 @@ void func_m143_00C2C(Object *obj) {
     }
     if (state->unk0) {
         n = rl_m143_02F70[state->unk2];
-        pts = rl_m143_02F64[state->unk2];
         m = n >> 1; /* half of them (m is the count again below) */
+        pts = rl_m143_02F64[state->unk2];
         if (rl_m143_032C0->modelIndex) {
             n -= m;
         }
@@ -649,7 +649,7 @@ void func_m143_00C2C(Object *obj) {
             h = func_80097140(h);
             link->trans.rotation.y_rotation = 0x4000 - func_80049C84(dz, dx);
             link->trans.rotation.x_rotation = func_80049C84(h, dy) + 0x4000;
-            linkData->unkA78 = linkData->unkA7A = d;
+            linkData->unkA7A = linkData->unkA78 = d;
             link->segmentID = player->segmentID;
             OBJ_STATE(part, M143PartState)->unk4 = (s32) d;
             part->trans.flags &= ~0x400;
@@ -759,9 +759,6 @@ void func_m143_00C2C(Object *obj) {
         func_m003_0512C(6, 1.0f, action);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m143", func_m143_00C2C);
-#endif
 
 /* A shot's object entry */
 typedef struct M143ShotEntry {
