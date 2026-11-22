@@ -221,7 +221,209 @@ static void func_m022_00F18(Gfx **dl, UNUSED s32 arg1) {
     func_800408C0(dl);
 }
 
+/* A model as 0114C draws it (59060.c's MenuDrawModel) */
+typedef struct M022ModelHeader {
+    /* 0x00 */ u8 pad0[0x4E];
+    /* 0x4E */ s8 noMatrix; /* draw without pushing the transform */
+    /* 0x4F */ u8 pad4F[0x74 - 0x4F];
+    /* 0x74 */ Gfx *dl;
+    /* 0x78 */ Gfx *dlFaint; /* drawn for the trail copies */
+} M022ModelHeader;
+
+typedef struct M022Model {
+    /* 0x00 */ M022ModelHeader *header;
+    /* 0x04 */ u8 *vertices;
+    /* 0x08 */ u8 pad8[3];
+    /* 0x0B */ s8 frame;
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ u8 *frames[1];
+} M022Model;
+
+/* The rank object's last two yaws (in the object at 0x88) */
+typedef struct M022Spin {
+    /* 0x88 */ s32 prev;
+    /* 0x8C */ s32 prev2;
+} M022Spin;
+
+extern f32 func_8003F7C4(void);              /* the field of view */
+extern void func_8003F7F4(f32 fov, s32 arg1); /* sets the field of view */
+extern void cam_fov_scale_set(f32 x, f32 y);
+extern void set_active_camera(s32 camera);
+extern void viewport_apply(Gfx **dl, Mtx **mtx);
+extern void func_80040FE4(Gfx **dl);              /* viewport_reset */
+extern void func_80040E64(Gfx **dl, Mtx **mtx);   /* mtx_perspective */
+extern void zbuffer_clear_rect(Gfx **dList, u32 width, u32 height, s32 ulx, s32 uly, s32 lrx, s32 lry);
+extern void func_80041CA0(Gfx **dl, Mtx **mtx, ObjectTransform *trans, f32 scale, f32 arg4);
+extern s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 rate);
+extern void func_8003D21C(M022Model *inst, M022ModelHeader *model, Object *obj, f32 arg3, f32 arg4);
+extern void func_800221F0(Object *obj, M022Model *inst, ObjectShading *shading, void *arg3);
+extern void mtx_pop(Gfx **dl);
+extern void func_80055B80(Gfx **dl); /* resets the render settings */
+extern u8 D_800A0838[];
+extern s8 rl_m022_03414;
+
+#ifdef NON_MATCHING
+/*
+ * The task screen's models, in their own viewport: the plate's model, then, when a rank is shown, the rank's
+ * object, spinning (and growing in), with a two-copy fading trail of its last yaws for rank 5.
+ * NON_MATCHING: ROM length and frame; about 170 words differ, nearly all t-register numbers (the ROM keeps t0-t2 for 0x80000000, the trail count and the list).
+ */
+void func_m022_0114C(Gfx **dl, Mtx **mtx, s32 updateRate) {
+    s32 n;
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+    s32 width;
+    s32 height;
+    f32 ratio;
+    f32 fov;
+    ObjectTransform trans;
+    Gfx *list;
+    Object *obj;
+    M022Model *model;
+    M022ModelHeader *header;
+
+
+    model = (M022Model *) D_800A320C;
+    if (model == NULL) {
+        return;
+    }
+    header = model->header;
+    if (header == NULL) {
+        return;
+    }
+    fov = func_8003F7C4();
+    func_80054EA0((u32 *) &width, (u32 *) &height);
+    transition_values_get(&x1, &y1, &x2, &y2);
+    ratio = (f32) (x2 - x1 - 144) / (f32) (width - 144);
+    trans.rotation.y_rotation = -0x8000;
+    trans.rotation.x_rotation = 0;
+    trans.rotation.z_rotation = 0;
+    trans.scale = 1.2222f * ratio + 1.0f;
+    trans.x_position = 360.0f * ratio;
+    trans.y_position = -240.0f * ratio;
+    trans.z_position = -520.0f;
+    set_active_camera(0);
+    cam_fov_scale_set(1.0f, 1.0f);
+    func_8003F7F4(45.0f, 1);
+    viewport_apply(dl, NULL);
+    func_80040FE4(dl);
+    func_80040E64(dl, mtx);
+    zbuffer_clear_rect(dl, width, height, x1, y1, x2, y2);
+    gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    func_80041CA0(dl, mtx, &trans, 1.0f, 0.0f);
+    {
+        Gfx *_g = (*dl)++;
+        _g->words.w0 = (((u32) model->frames[model->frame] + 0x80000000) & 0xFFFFFF) | 0xBF000000;
+        _g->words.w1 = (u32) model->vertices + 0x80000000;
+    }
+    {
+        Gfx *_g = (*dl)++;
+        _g->words.w0 = 0x02000050;
+        _g->words.w1 = (u32) (D_800A0838 + 0x80000000);
+    }
+    gSPDisplayList((*dl)++, (u32) header->dl + 0x80000000);
+    if (rl_m022_03414 >= 0 && (obj = rl_m022_03418) != NULL) {
+        model = *(M022Model **) obj->modelInstances;
+        header = model->header;
+
+        OBJ_STATE(obj, M022Spin)->prev2 = OBJ_STATE(obj, M022Spin)->prev;
+        OBJ_STATE(obj, M022Spin)->prev = obj->trans.rotation.y_rotation;
+        if (rl_m022_03414 == 10) {
+            obj->trans.scale += updateRate * 0.002f;
+            if (0.2f < obj->trans.scale) {
+                obj->trans.scale = 0.2f;
+            }
+            obj_anim_frame_advance(obj, 0.01f, updateRate);
+            obj->trans.x_position = -80.0f;
+            obj->trans.y_position = 10.0f;
+            obj->trans.z_position = -106.0f;
+            func_8003D21C(model, header, obj, 1.0f, 0.0f);
+        } else if (rl_m022_03414 == 8) {
+            obj->trans.scale += updateRate * 0.002f;
+            if (0.2f < obj->trans.scale) {
+                obj->trans.scale = 0.2f;
+            }
+            trans.scale = obj->trans.scale;
+            trans.x_position = -168.0f;
+            trans.y_position = 102.0f;
+            trans.z_position = -500.0f;
+        } else if (rl_m022_03414 == 7) {
+            obj->trans.scale += updateRate * 0.002f;
+            if (0.2f < obj->trans.scale) {
+                obj->trans.scale = 0.2f;
+            }
+            obj_anim_frame_advance(obj, 0.01f, updateRate);
+            obj->trans.x_position = -132.0f;
+            obj->trans.y_position = 34.0f;
+            obj->trans.z_position = -350.0f;
+            func_8003D21C(model, header, obj, 1.0f, 0.0f);
+        } else if (rl_m022_03414 == 6 || rl_m022_03414 == 9) {
+            obj->trans.scale += updateRate * 0.002f;
+            if (0.2f < obj->trans.scale) {
+                obj->trans.scale = 0.2f;
+            }
+            trans.scale = obj->trans.scale;
+            trans.x_position = -42.0f;
+            trans.y_position = 6.0f;
+            trans.z_position = 88.0f;
+        } else {
+            obj->trans.scale += updateRate * 0.01f;
+            if (1.25f < obj->trans.scale) {
+                obj->trans.scale = 1.25f;
+            }
+            trans.scale = obj->trans.scale;
+            trans.x_position = -168.0f;
+            trans.y_position = 102.0f;
+            trans.z_position = -500.0f;
+        }
+        func_800221F0(obj, model, obj->shading, NULL);
+        if (rl_m022_03414 == 5) {
+            n = 3;
+            obj->trans.rotation.y_rotation += updateRate << 9;
+        } else {
+            n = 1;
+            obj->trans.rotation.y_rotation += updateRate << 8;
+        }
+        gDPPipeSync((*dl)++);
+        {
+            Gfx *_g = (*dl)++;
+            _g->words.w0 = (((u32) model->frames[model->frame] + 0x80000000) & 0xFFFFFF) | 0xBF000000;
+            _g->words.w1 = (u32) model->vertices + 0x80000000;
+        }
+        while (n-- != 0) {
+            if (n == 2) {
+                trans.rotation.y_rotation = OBJ_STATE(obj, M022Spin)->prev2;
+                list = header->dlFaint;
+                gDPSetPrimColor((*dl)++, 0, 0, 255, 85, 85, 85);
+            } else if (n == 1) {
+                trans.rotation.y_rotation = OBJ_STATE(obj, M022Spin)->prev;
+                list = header->dlFaint;
+                gDPSetPrimColor((*dl)++, 0, 0, 255, 170, 170, 170);
+            } else {
+                trans.rotation.y_rotation = obj->trans.rotation.y_rotation;
+                list = header->dl;
+                gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+            }
+            if (header->noMatrix == 0) {
+                func_80041CA0(dl, mtx, &trans, 1.0f, 0.0f);
+            }
+            gSPDisplayList((*dl)++, (u32) list + 0x80000000);
+        }
+    }
+    {
+        Gfx *_g = (*dl)++;
+        _g->words.w0 = 0xBF000000;
+        _g->words.w1 = 0;
+    }
+    mtx_pop(dl);
+    func_80055B80(dl);
+    func_8003F7F4(fov, 1);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_0114C);
+#endif
 
 /* A task goal: a count to reach, or flags to have */
 typedef struct M022Goal {
