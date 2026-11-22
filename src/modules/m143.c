@@ -420,7 +420,7 @@ extern u8 rl_m143_02BC0[]; /* (.data) a picture copied in once */
 
 /*
  * An effect slot's handler (effect_slot_start in 69050.c calls it with the slot, the texture and an init flag):
- * a fire. A random bottom row; each pixel becomes the average of itself and the three below it, into the other
+ * a rising-heat blur. A random bottom row; each pixel becomes the average of itself and the three below it, into the other
  * buffer; everything dims by 3; the picture is copied in once on a flag; then the texture gets intensity/alpha
  * pairs, every other row shifted by two pixels. The countdown loops' dead copies go through `off` (their register
  * in the ROM is off's); off is set before every read of it in the shifted rows.
