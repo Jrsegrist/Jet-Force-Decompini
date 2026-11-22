@@ -360,10 +360,12 @@ void obj_shading_from_ground(u8 *obj);
  * is in the group, close enough (fading between the header's two distances) and not hidden, build its shadow: once
  * (a module may pick the linked shadow), or once per light, the level's sun and the object's shading lights above
  * it, the brightest first when there are more than the shadow allows. Then the object's ground shading.
- * NON_MATCHING: a first body written from the ROM: the ROM's code word for word, but a frame 16 bytes larger (0x100,
- * ROM 0xF0): the original had three fewer locals. With level read through header, tmp through rec and x as dist
- * (values never live together) the frame is the ROM's, but then IDO gives dist/x f24 and z/y f20/f22 (ROM f20, f22,
- * f24); y as dist instead leaves only the fade's dist in f24 (ROM f20).
+ * NON_MATCHING: ROM length and frame, 6 diffs: the fade's dist is in f24 (ROM f20). The level header goes through
+ * header, the sort's swap through rec and the light's height through dist (each pair is never live together): with
+ * level, tmp and y as locals of their own the code is the ROM's word for word but the frame is 0x100. Below objects
+ * the ROM has 14 words (locals and IDO's reserved temporaries); this body has 6 locals there and IDO reserves 8
+ * temporary words, so the original had one temporary fewer or merged other values (x as dist instead of y: dist/x
+ * f24, z/y f20/f22, 14 diffs).
  */
 void func_8001DA1C(s32 group, s32 updateRate) {
     ShadowGenObj *obj;
@@ -380,12 +382,9 @@ void func_8001DA1C(s32 group, s32 updateRate) {
     ShadowCaster *linked;
     ShadowShading *shading;
     ShadingLight *rec;
-    ShadowLight *tmp;
     f32 dist;
     f32 x;
-    f32 y;
     f32 z;
-    ShadowLevelHeader *level;
 
     count = (group & 2) | D_800A0EC8; // the heap index, until the object count
     D_800A0EB0 = (ShadowHeapVertex *) D_800A0E80[count];
@@ -395,10 +394,10 @@ void func_8001DA1C(s32 group, s32 updateRate) {
     D_800A0EB8 = (ShadowHeapMesh *) D_800A0EA0[count];
     D_800A0EC4 = 0;
     D_800F5B14 = 1.0f - func_80049BEC(0.9f, updateRate);
-    level = level_header();
-    D_800A0ECC.yaw = level->sunYaw;
-    D_800A0ECC.pitch = level->sunPitch;
-    D_800A0ECC.intensity = level->sunIntensity;
+    header = (ShadowGenHeader *) level_header(); // header holds the level header until the loop
+    D_800A0ECC.yaw = ((ShadowLevelHeader *) header)->sunYaw;
+    D_800A0ECC.pitch = ((ShadowLevelHeader *) header)->sunPitch;
+    D_800A0ECC.intensity = ((ShadowLevelHeader *) header)->sunIntensity;
     objects = objGetObjList(&objIndex, &count);
     while (objIndex < count) {
         obj = objects[objIndex];
@@ -472,10 +471,10 @@ void func_8001DA1C(s32 group, s32 updateRate) {
                             if (rec->y > 0.0f) {
                                 x = rec->x;
                                 z = rec->z;
-                                y = rec->y;
+                                dist = rec->y; // the light's height (dist is dead here)
                                 lights[numLights] = &buf[numLights];
                                 buf[numLights].yaw = func_80049C84(-x, -z);
-                                buf[numLights].pitch = func_80049C84(y, sqrtf(x * x + z * z));
+                                buf[numLights].pitch = func_80049C84(dist, sqrtf(x * x + z * z));
                                 buf[numLights].intensity = rec->intensity;
                                 numLights++;
                             }
@@ -485,9 +484,9 @@ void func_8001DA1C(s32 group, s32 updateRate) {
                         for (i = numLights - 1; i > 0; i--) {
                             for (j = 0; j < i; j++) {
                                 if (lights[j]->intensity < lights[j + 1]->intensity) {
-                                    tmp = lights[j];
+                                    rec = (ShadingLight *) lights[j]; // rec as the swap temporary
                                     lights[j] = lights[j + 1];
-                                    lights[j + 1] = tmp;
+                                    lights[j + 1] = (ShadowLight *) rec;
                                 }
                             }
                         }

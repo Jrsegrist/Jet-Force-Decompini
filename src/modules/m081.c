@@ -60,12 +60,11 @@ static u8 *sTexture = NULL;
 static M081Effect sEffects[4];
 
 /*
- * NON_MATCHING: func_m081_00080 (the stack slot of `effect`, 0x18 rather than
- * 0x1C, and the registers of the vertex colour loop differ). load_textures is
- * 2 diffs off (measured at its own address; 25 before): the four sparks resets
- * as a loop give the ROM's separate lui per store, and `if (tris) {}` (tris is
- * set above) in it gives the ROM's tris base; the texture pointer's copy is in
- * a0 here, a2 in the ROM. Only func_m081_00080 calls it, so it stays assembly with it.
+ * NON_MATCHING: load_textures is 2 diffs off (measured at its own address; 25
+ * before): the four sparks resets as a loop give the ROM's separate lui per
+ * store, and `if (tris) {}` (tris is set above) in it gives the ROM's tris
+ * base; the texture pointer's copy is in a0 here, a2 in the ROM. Its C caller
+ * func_m081_00080 reaches the assembly by its offset name.
  */
 #ifdef NON_MATCHING
 static void load_textures(void) {
@@ -89,40 +88,48 @@ static void load_textures(void) {
         }
     }
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m081", func_m081_00000);
+extern void rl_m081_00000(void); /* load_textures (still assembly) */
+#define load_textures rl_m081_00000
+#endif
 
+/*
+ * Creates an effect of `count` sparks (NULL when four exist or the memory runs out). The new effect is
+ * written through sEffects[j] and returned through ret: the ROM's stack keeps no word for an effect
+ * pointer, and j is the counter of the search and of the sparks loop as well as the vertex loop's.
+ */
 M081Effect *func_m081_00080(s32 count, s32 minSize, s32 maxSize, f32 spread, f32 speed) {
-    M081Effect *effect;
     Vertex *v;
     s32 i;
-    M081Effect *ret;
     s32 j;
+    M081Effect *ret;
 
     ret = NULL;
     if (sEffectCount < 4) {
         if (sEffectCount == 0) {
             load_textures();
         }
-        i = 0;
-        while (sEffects[i].sparks != NULL) {
-            i++;
+        j = 0;
+        while (sEffects[j].sparks != NULL) {
+            j++;
         }
-        effect = &sEffects[i];
-        effect->liveCount = 0;
-        effect->unk1 = 0;
-        effect->targetCount = 0;
-        effect->count = count;
-        effect->buffer = 0;
-        effect->minSize = minSize;
-        effect->maxSize = maxSize;
-        effect->spread = (s32) (spread * 1.4223f);
-        effect->speed = speed * -0.01f;
-        ret = effect;
-        effect->sparks = func_8004A57C(count * (sizeof(M081Spark) + 8 * sizeof(Vertex)), 0xFF00FF);
-        if (effect->sparks == NULL) {
+        sEffects[j].liveCount = 0;
+        sEffects[j].unk1 = 0;
+        sEffects[j].targetCount = 0;
+        sEffects[j].count = count;
+        sEffects[j].buffer = 0;
+        sEffects[j].minSize = minSize;
+        sEffects[j].maxSize = maxSize;
+        sEffects[j].spread = (s32) (spread * 1.4223f);
+        sEffects[j].speed = speed * -0.01f;
+        ret = &sEffects[j];
+        sEffects[j].sparks = func_8004A57C(count * (sizeof(M081Spark) + 8 * sizeof(Vertex)), 0xFF00FF);
+        if (sEffects[j].sparks == NULL) {
             return NULL;
         }
-        for (i = 0; i < count; i++) {
-            ret->sparks[i].active = 0;
+        for (j = 0; j < count; j++) {
+            ret->sparks[j].active = 0;
         }
         ret->verts[0] = (Vertex *) &ret->sparks[count];
         ret->verts[1] = (Vertex *) ((u8 *) ret->verts[0] + (count << 2) * sizeof(Vertex));
@@ -140,14 +147,6 @@ M081Effect *func_m081_00080(s32 count, s32 minSize, s32 maxSize, f32 spread, f32
     }
     return ret;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m081", func_m081_00000);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m081", func_m081_00080);
-
-/* The two float constants of func_m081_00080, which come first in the .rodata */
-static const f32 sCreateConsts[2] = { 1.4223f, -0.01f };
-#endif
 
 void func_m081_0034C(M081Effect *effect) {
     if (effect->sparks != NULL) {
