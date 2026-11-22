@@ -4821,13 +4821,10 @@ extern s32 D_800FEA98; /* the number of way points */
 extern void func_m154_013A8(M003Setup *setup, s32 size); /* builds the way points */
 extern void func_m142_01428(M003Region *region);
 
-#ifdef NON_MATCHING
 /*
  * Builds the regions from the level entries: the corners (kind 5) and their heights, each region's flags and
  * point (kind 0x69), and the chains of regions; then nudges any corner level in x with the one before it, and
  * builds what each region needs (m142). The way points too, if the level has any (kind 0x61).
- * NON_MATCHING: ROM length and frame, 2 diffs: in the corner-counting loop the ROM stores the region count with
- * its own lui (`sw v0, %lo(...)($at)`) where IDO stores through the register already holding its address.
  */
 void func_m003_15ED8(s32 data, s32 size) {
     s32 changed;
@@ -4855,9 +4852,11 @@ void func_m003_15ED8(s32 data, s32 size) {
     }
     for (off = 0, s = (M003Setup *) data; off < size; off += s->size, s = (M003Setup *) ((u8 *) s + s->size)) {
         if (s->type == 5) {
+            M003Setup *corner = s;
+
             sPointCount++;
-            if (sRegionCount < s->region + 1) {
-                sRegionCount = s->region + 1;
+            if (sRegionCount < corner->region + 1) {
+                sRegionCount = corner->region + 1;
             }
         }
     }
@@ -4918,7 +4917,7 @@ void func_m003_15ED8(s32 data, s32 size) {
             p = region->points;
             changed = FALSE;
             while (j-- > 1) {
-                if (j) {
+                if (j) { /* (no code: gives the counters the ROM's registers) */
                 }
                 if (j != 0) {
                     next = p + 1;
@@ -4973,9 +4972,6 @@ void func_m003_15ED8(s32 data, s32 size) {
         region++;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_15ED8);
-#endif
 
 /* Frees the regions */
 void func_m003_16530(void) {
