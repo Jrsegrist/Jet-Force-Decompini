@@ -574,7 +574,265 @@ s32 line_count_solid_hits(CollObj *self, Vec3f *start, Vec3f *end, f32 *dist, s3
     return count;
 }
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007BCD0);
+/* JFG: an object hit by the player's aim line, as func_8007BCD0 reads it */
+typedef struct AimObj {
+    /* 0x00 */ u8 pad0[0x40];
+    /* 0x40 */ CollObjHeader *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 type;
+    /* 0x4A */ s16 unk4A;
+    /* 0x4C */ struct AimInteract *interact;
+    /* 0x50 */ u8 pad50[0x93 - 0x50];
+    /* 0x93 */ u8 unk93[4]; // JFG: per player
+    /* 0x97 */ u8 unk97[4]; // JFG: per player: the part index, or 0xFF
+    /* 0x9B */ u8 unk9B[4]; // JFG: per player
+} AimObj;
+
+typedef struct AimInteract {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 unk6;
+} AimInteract;
+
+/* JFG: one part of a hit object (0x34 bytes) */
+typedef struct AimPart {
+    /* 0x00 */ u8 pad0[0x2F];
+    /* 0x2F */ u8 enabled;
+    /* 0x30 */ u32 unk30_31 : 1;
+    /* 0x30 */ u32 unk30_30 : 1;
+    /* 0x30 */ u32 unk30_29 : 1;
+    /* 0x30 */ u32 unk30_rest : 29;
+} AimPart;
+
+typedef struct AimTarget {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ u32 unk8_31 : 1;
+    /* 0x08 */ u32 unk8_30 : 1;
+    /* 0x08 */ u32 unk8_rest : 30;
+    /* 0x0C */ u8 padC[0x2F - 0xC];
+    /* 0x2F */ u8 enabled;
+    /* 0x30 */ u8 pad30[0x40 - 0x30];
+    /* 0x40 */ AimPart *parts;
+} AimTarget;
+
+/* JFG: what func_8007C2E8 reports for the object hit */
+typedef struct AimHit {
+    /* 0x00 */ AimObj *obj;
+    /* 0x04 */ AimTarget *target;
+    /* 0x08 */ AimPart *part;
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ Vec3f pos;
+} AimHit;
+
+/* JFG: the line query as func_8007BCD0 lays it out on its stack */
+typedef struct AimQuery {
+    /* 0x00 */ Vec3f unk0;
+    /* 0x0C */ Vec3f end;
+    /* 0x18 */ Vec3f start;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ f32 unk28;
+    /* 0x2C */ u8 pad2C[0x44 - 0x2C];
+} AimQuery;
+
+typedef struct AimRacer {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0xC4 - 0x2];
+    /* 0x0C4 */ s32 soundHandle;
+    /* 0x0C8 */ u8 padC8[0x1A8 - 0xC8];
+    /* 0x1A8 */ AimObj *targets[6];
+    /* 0x1C0 */ u8 targetParts[6];
+    /* 0x1C6 */ s16 unk1C6; // JFG: the aim angles
+    /* 0x1C8 */ s16 unk1C8;
+} AimRacer;
+
+typedef struct AimChar {
+    /* 0x00 */ u8 pad0[0x70];
+    /* 0x70 */ u8 unk70;
+} AimChar;
+
+typedef struct AimModelHeader {
+    /* 0x00 */ u8 pad0[0x2F];
+    /* 0x2F */ u8 unk2F;
+} AimModelHeader;
+
+typedef struct AimModel {
+    /* 0x00 */ AimModelHeader *header;
+} AimModel;
+
+typedef struct AimSelf {
+    /* 0x00 */ u8 pad0[0x3A];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ u8 pad3B[0x68 - 0x3B];
+    /* 0x68 */ AimRacer *racer;
+    /* 0x6C */ AimModel **modelInstances;
+} AimSelf;
+
+AimChar *char_record_lookup(s32 player, s32 character);
+void player_aim_origin_get(AimSelf *obj, AimRacer *racer, f32 *x, f32 *y, f32 *z);
+void func_8004944C(s16 *rotation, f32 *vec); // DKR: vec3f_rotate_py
+u16 input_held(s32 player);
+void sound_play(u16 soundID, s32 *handlePtr);
+
+/**
+ * JFG: the line from the player's aim origin, range units along its aim angles, against the solid objects;
+ * *dist (if given) gets the distance to the object hit. Returns whether it hits one (0 if that object or part is
+ * one the aim ignores), and records the object (and part) in the racer's target slots.
+ * As in the ROM, only vec[2] is set before func_8004944C reads vec, and the count is cleared (to return 0) where
+ * the part is to be ignored.
+ */
+s32 func_8007BCD0(AimSelf *self, f32 range, f32 *dist) {
+    s32 first;
+    s32 last;
+    AimRacer *racer;
+    s32 count;
+    s32 i;
+    s16 rot[3];
+    f32 vec[3];
+    AimQuery query;
+    AimHit *hit;
+    AimObj *obj;
+    AimModel *model;
+    AimObj **list;
+    u8 part;
+    u8 bit30;
+    u8 enabled;
+    u8 bit29;
+    UNUSED s32 pad;
+    AimChar *ch;
+    AimObj **objs;
+
+    racer = self->racer;
+    ch = char_record_lookup(racer->player, racer->character);
+    count = 0;
+    player_aim_origin_get(self, racer, &query.start.x, &query.start.y, &query.start.z);
+    rot[0] = racer->unk1C6;
+    rot[1] = racer->unk1C8;
+    rot[2] = 0;
+    vec[2] = -range;
+    func_8004944C(rot, vec);
+    query.end.x = vec[0] + query.start.x;
+    query.end.y = vec[1] + query.start.y;
+    query.end.z = vec[2] + query.start.z;
+    query.unk24 = 1.0f;
+    query.unk28 = 1.0f;
+    objs = (AimObj **) objGetObjList(&first, &last);
+    list = D_801047EC;
+    while (first < last) {
+        obj = objs[first++];
+        if (obj->interact != NULL && (obj->header->flags & 0x40)) {
+            list[count++] = obj;
+        }
+    }
+    if (count > 0) {
+        count = func_8007C2E8(0, &query, count, (CollObj **) list, (CollObj **) &hit, (CollObj *) self);
+        if (count > 0 && dist != NULL) {
+            vec[0] = query.start.x - hit->pos.x;
+            vec[1] = query.start.y - hit->pos.y;
+            vec[2] = query.start.z - hit->pos.z;
+            *dist = sqrtf(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]);
+        }
+    }
+    if (count != 0) {
+        obj = hit->obj;
+        if (ch->unk70 == 9) {
+            if (obj->type != 1 && obj->type != 0x5A && obj->type != 0x18) {
+                return FALSE;
+            }
+        }
+        if (obj->type == 0x18 && obj->unk4A == 0xE6) {
+            return FALSE;
+        }
+        if (obj->type == 1 && obj->interact != NULL && obj->interact->unk6 < 0x100) {
+            return FALSE;
+        }
+        model = self->modelInstances[self->modelIndex];
+        part = 0xFF;
+        if ((AimPart *) hit->target == hit->part || model->header == NULL || !model->header->unk2F) {
+            bit30 = hit->target->unk8_30;
+            enabled = hit->target->enabled;
+            bit29 = FALSE;
+        } else {
+            part = hit->part - hit->target->parts;
+            enabled = hit->part->enabled;
+            bit30 = hit->part->unk30_30;
+            bit29 = hit->part->unk30_29;
+        }
+        if (bit29) {
+            count = 0;
+        }
+        if (!bit29 && enabled) {
+            if (!bit30 && (ch->unk70 == 1 || ch->unk70 == 9) && (input_held(0) & 0x10)) {
+                i = 5;
+                do {
+                    if (racer->targets[i] == NULL ||
+                        ((obj->header->flags & 0x4000) && obj == racer->targets[i] && part != racer->targetParts[i])) {
+                        if (racer->soundHandle == 0) {
+                            sound_play(0x1D, &racer->soundHandle);
+                        }
+                        racer->targets[i] = obj;
+                        racer->targetParts[i] = part;
+                        if (ch->unk70 == 9) {
+                            obj->unk93[racer->player] = 3;
+                            obj->unk9B[racer->player] = 1;
+                            obj->unk97[racer->player] = 0xFF;
+                        } else {
+                            obj->unk93[racer->player] = 4;
+                            obj->unk9B[racer->player] = 1;
+                            obj->unk97[racer->player] = part;
+                        }
+                        break;
+                    }
+                    if (obj == racer->targets[i]) {
+                        break;
+                    }
+                } while (i--);
+            } else if (obj != racer->targets[5]) {
+                if (racer->targets[5] != NULL) {
+                    racer->targets[5]->unk93[racer->player] = 0;
+                }
+                if (racer->soundHandle == 0) {
+                    sound_play(0x1D, &racer->soundHandle);
+                }
+                racer->targets[5] = obj;
+                racer->targetParts[5] = part;
+                switch (ch->unk70) {
+                    case 0:
+                    case 2:
+                    case 3:
+                    case 5:
+                    case 7:
+                    case 8:
+                        obj->unk93[racer->player] = 2;
+                        break;
+                    case 4:
+                    case 6:
+                    case 11:
+                    case 12:
+                    case 14:
+                        obj->unk93[racer->player] = 1;
+                        break;
+                    case 1:
+                        obj->unk93[racer->player] = 4;
+                        break;
+                    case 9:
+                        obj->unk93[racer->player] = 3;
+                        break;
+                    case 10:
+                    case 13:
+                        obj->unk93[racer->player] = 5;
+                        break;
+                }
+                obj->unk97[racer->player] = 0xFF;
+                obj->unk9B[racer->player] = 1;
+                if (obj->type == 0x6C || obj->type == 0x82) {
+                    obj->unk97[racer->player] = part;
+                    racer->targetParts[5] = part;
+                }
+            }
+        }
+    }
+    return count != 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007C2E8);
 
@@ -1384,9 +1642,10 @@ void func_8004A2FC(f32 *mtx, f32 *in, f32 *out);
  * holds the point (up to 16), then each up-facing triangle of their current model (batches with any of flags, or
  * 0x880, are skipped) whose transformed corners hold the point in x/z, up to 20; sorted from the highest down,
  * *heights gets the sorted list and the count is returned. inside doubles as the sort's done flag.
- * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x198), 537/536 words. The ROM keeps the model
- * header in s6 and the total in s7 and scales the vertex indices by shifts; IDO here keeps 10 in a register and
- * multiplies, which moves the saved registers round.
+ * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x198) and length (536 words; the plane's
+ * a/b/c are read before the up-facing test, as the ROM loads them). The ROM keeps the model header in s6 and the
+ * total in s7 and scales the vertex indices by shifts; IDO here keeps 10 in a saved register and multiplies,
+ * which moves the saved registers round (written out as shifts, the indices give the ROM's s2-s6).
  */
 s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
     Obj7E *list[16];
@@ -1419,6 +1678,7 @@ s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
     f32 x2;
     f32 y2;
     f32 z2;
+    Vertex7E *verts;
     Triangle7E *tri;
     Vertex7E *v0;
     s32 m;
@@ -1480,14 +1740,18 @@ s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
             for (; f < end; f++) {
                 func_8004A2FC(mtx, normals[*(u16 *) (planes->faces + f * 14)], plane);
                 inside = FALSE;
-                if (0.0f < plane[1]) {
+                nx = plane[0];
+                ny = plane[1];
+                nz = plane[2];
+                if (0.0f < ny) {
+                    verts = &model->vertices[vOff];
                     tri = &header->triangles[f];
-                    v0 = &model->vertices[vOff] + tri->vi[0];
-                    v1 = &model->vertices[vOff] + tri->vi[1];
-                    v2 = &model->vertices[vOff] + tri->vi[2];
-                    nx = plane[0] * scale;
-                    ny = plane[1] * scale;
-                    nz = plane[2] * scale;
+                    v0 = verts + tri->vi[0];
+                    v1 = verts + tri->vi[1];
+                    v2 = verts + tri->vi[2];
+                    nx *= scale;
+                    ny *= scale;
+                    nz *= scale;
                     d = plane[3] * scale;
                     func_80048B60(pointMtx, v0->x, v0->y, v0->z, &x0, &y0, &z0);
                     func_80048B60(pointMtx, v1->x, v1->y, v1->z, &x1, &y1, &z1);
