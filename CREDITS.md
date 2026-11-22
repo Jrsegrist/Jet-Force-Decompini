@@ -385,3 +385,9 @@ written from what the code does.
 | `src/objects.c` | set_world_shading (0x800224D0: JFG passes the shading as bytes, 0xAA/0x55 for DKR's 0.67/0.33) |
 | `src/weather.c` | snow_init (0x8005CBBC: JFG only clears the snow state and loads its texture) |
 | `src/audio_spatial.c` | audspat_calculate_echo (0x800037F8: empty in JFG, called with DKR's arguments from the same places) |
+
+### Round 37 (first37main)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/tracks.c` | func_8002EEEC's polygon loop (shadow polygons from clipped triangles, the vertex cache search), as the second half of the NON_MATCHING body of JFG's func_8001EE1C |

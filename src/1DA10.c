@@ -340,7 +340,187 @@ void func_8001E8B8(ShadowBuild *shadow, ShadowEdge *edges, ShadowSegmentCol *seg
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001E8B8);
 #endif
 
+#ifdef NON_MATCHING
+/* JFG: an object whose model can take shadows, as func_8001EE1C reads it */
+typedef struct ShadowColFlags {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 flags; // bit 0: solid
+} ShadowColFlags;
+
+typedef struct ShadowColData {
+    /* 0x000 */ u8 pad0[0x100];
+    /* 0x100 */ f32 bboxMin[3];
+    /* 0x10C */ f32 bboxMax[3];
+} ShadowColData;
+
+typedef struct ShadowColObj {
+    /* 0x00 */ u8 pad0[0x4C];
+    /* 0x4C */ ShadowColFlags *flags;
+    /* 0x50 */ u8 pad50[0x5C - 0x50];
+    /* 0x5C */ ShadowColData *data;
+} ShadowColObj;
+
+struct HitObj;
+ShadowColObj **collision_objects_get(s32 *count);
+s32 func_800203C4(struct HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f32 z2);
+extern s16 D_800F48F0[][10]; // JFG: the model faces under the shadow (three corners each)
+extern f32 D_800F52F0[][4];  // JFG: their planes
+extern s32 D_800F5AF4;       // JFG: the planes used so far
+
+/**
+ * JFG: the shadow on solid object models: the (up to 15) solid objects whose box overlaps 20 units around the
+ * shadow's object, nearest first (by the box half-size less the position, as the ROM computes it), then each one's
+ * up-facing faces under the shadow (func_800203C4) are clipped to the edges and added as shadow polygons, as
+ * DKR's func_8002EEEC does for water. As in DKR's, a few variables carry two values each (inside is also the
+ * vertex counter, minY the clipped count, maxY the cached-vertex index, dx the swap temporary): that gives the
+ * ROM's frame.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (424 words, 0x1D8); uopt picks
+ * other argument/temporary registers for the loop counter, the flag and the object data (a3/v1/a1 in the ROM).
+ */
+void func_8001EE1C(ShadowBuild *shadow, ShadowEdge *edges) {
+    ShadowColObj **list;
+    ShadowColObj *obj;
+    ShadowObj *self;
+    ShadowPoint points[8];
+    f32 dists[16];
+    ShadowColData *data;
+    s32 inside;
+    f32 lo[2];
+    f32 hi[2];
+    f32 dx;
+    f32 dz;
+    s32 j;
+    s32 minY;
+    s32 numFound;
+    s32 numTris;
+    s32 count;
+    s32 t;
+    s16 *tri;
+    s32 maxY;
+    s32 i;
+    s32 tempIdx;
+    s32 ids[16];
+
+    self = shadow->obj;
+    lo[0] = self->x - 20.0f;
+    lo[1] = self->z - 20.0f;
+    hi[0] = self->x + 20.0f;
+    hi[1] = self->z + 20.0f;
+    list = collision_objects_get(&count);
+    numFound = 0;
+    for (i = 0; i < count; i++) {
+        obj = list[i];
+        if ((obj->flags->flags & 1) && (data = obj->data) != NULL) {
+            inside = TRUE;
+            if (lo[0] < data->bboxMin[0] && hi[0] < data->bboxMin[0]) {
+                inside = FALSE;
+            } else if (data->bboxMax[0] < lo[0] && data->bboxMax[0] < hi[0]) {
+                inside = FALSE;
+            }
+            if (lo[1] < data->bboxMin[2] && hi[1] < data->bboxMin[2]) {
+                inside = FALSE;
+            } else if (data->bboxMax[2] < lo[1] && data->bboxMax[2] < hi[1]) {
+                inside = FALSE;
+            }
+            if (inside) {
+                dx = (data->bboxMax[0] - data->bboxMin[0]) / 2.0f - self->x;
+                dz = (data->bboxMax[2] - data->bboxMin[2]) / 2.0f - self->z;
+                ids[numFound] = i;
+                dists[numFound] = dx * dx + dz * dz;
+                j = numFound;
+                while (j > 0 && dists[j] < dists[j - 1]) {
+                    dx = dists[j];
+                    dists[j] = dists[j - 1];
+                    dists[j - 1] = dx;
+                    inside = ids[j];
+                    ids[j] = ids[j - 1];
+                    ids[j - 1] = inside;
+                    j--;
+                }
+                numFound++;
+                if (numFound >= 15) {
+                    i = count;
+                }
+            }
+        }
+    }
+    for (i = 0; i < numFound; i++) {
+        obj = list[ids[i]];
+        if (self != (ShadowObj *) obj) {
+            numTris = func_800203C4((struct HitObj *) obj, D_800F48F0[0], D_800F52F0[D_800F5AF4], shadow->x1,
+                                    shadow->z1, shadow->x2, shadow->z2);
+            for (t = 0; t < numTris; t++) {
+                tri = D_800F48F0[t];
+                maxY = minY = tri[1];
+                if (tri[4] < minY) {
+                    minY = tri[4];
+                } else if (maxY < tri[4]) {
+                    maxY = tri[4];
+                }
+                if (tri[7] < minY) {
+                    minY = tri[7];
+                } else if (maxY < tri[7]) {
+                    maxY = tri[7];
+                }
+                if (shadow->y2 >= minY && maxY >= shadow->y1) {
+                    points[0].x = tri[0];
+                    points[0].z = tri[2];
+                    points[0].unkE = -1;
+                    points[1].x = tri[3];
+                    points[1].z = tri[5];
+                    points[1].unkE = -1;
+                    points[2].x = tri[6];
+                    points[2].z = tri[8];
+                    points[2].unkE = -1;
+                    shadow->plane = (f32 *) (D_800F52F0 + D_800F5AF4 + t);
+                    if ((D_800F52F0 + D_800F5AF4 + t)[0][1] > 0.5f) {
+                        if (shadow->unk1C > 0.0f) {
+                            func_800209E4(shadow, points);
+                        }
+                        minY = func_8001F4BC(shadow, 3, points, 4, edges);
+                        if (minY >= 3) {
+                            tempIdx = D_800F45E8;
+                            D_800F45F0[tempIdx].sharedMask = 0;
+                            for (inside = 0; inside < minY; inside++) {
+                                if (points[inside].unkE < 0) {
+                                    maxY = -1;
+                                    j = 0;
+                                    while (j < D_800F33D0 && maxY == -1) {
+                                        if (D_800F33D8[j].x == points[inside].x && D_800F33D8[j].z == points[inside].z) {
+                                            maxY = j;
+                                        }
+                                        j++;
+                                    }
+                                    if (maxY == -1) {
+                                        if (D_800F33D0 >= 32) {
+                                            D_800F33D0 = 31;
+                                        }
+                                        D_800F33D8[D_800F33D0].x = points[inside].x;
+                                        D_800F33D8[D_800F33D0].plane = shadow->plane;
+                                        D_800F33D8[D_800F33D0].z = points[inside].z;
+                                        D_800F45F0[tempIdx].verts[inside] = D_800F33D0++;
+                                    } else {
+                                        D_800F45F0[tempIdx].verts[inside] = maxY;
+                                    }
+                                } else {
+                                    D_800F45F0[tempIdx].verts[inside] = points[inside].unkE;
+                                    D_800F45F0[tempIdx].sharedMask |= 1 << inside;
+                                }
+                            }
+                            D_800F45F0[tempIdx].numVerts = minY;
+                            D_800F45F0[tempIdx].shade = 0;
+                            D_800F45E8 = tempIdx + 1;
+                        }
+                    }
+                }
+            }
+            D_800F5AF4 += numTris;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001EE1C);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: an FP register swap only: dz and the edge offset get f24/f20 (target f20/f24); the empty

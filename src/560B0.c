@@ -48,14 +48,19 @@ typedef struct TextureHeader {
 /* DKR's Sprite (renamed: libultra's sp.h has a Sprite too), JFG layout */
 typedef struct SpriteAsset {
     /* 0x00 */ u8 numberOfFrames;
-    /* 0x01 */ s8 unk1; // JFG: copied from the first tile's texture (unk18)
+    /* 0x01 */ u8 unk1; // JFG: copied from the first tile's texture (unk18): the animation loops
     /* 0x02 */ s16 numberOfTextures;
     /* 0x04 */ s16 numberOfInstances;
     /* 0x06 */ s16 drawFlags;
-    /* 0x08 */ u8 unk8[6]; // JFG: copied from the asset
+    /* 0x08 */ u8 primRed; // JFG: the tint colours (func_80056070), copied from the asset
+    /* 0x09 */ u8 primGreen;
+    /* 0x0A */ u8 primBlue;
+    /* 0x0B */ u8 envRed;
+    /* 0x0C */ u8 envGreen;
+    /* 0x0D */ u8 envBlue;
     /* 0x0E */ u8 padE[2];
     /* 0x10 */ TextureHeader **textures;
-    /* 0x14 */ s8 *unk14; // JFG: with draw flag 0x40, the command counts of the frame's parts, 0-terminated
+    /* 0x14 */ u8 *unk14; // JFG: with draw flag 0x40, the command counts of the frame's parts, 0-terminated
     /* 0x18 */ Gfx *frames[1]; // Actual size varies.
 } SpriteAsset;
 
@@ -608,7 +613,151 @@ void draw_tint_pair_off(void) {
 extern MaterialMode D_800A4CE0[]; // JFG: the sprite render modes
 void effect_slot_start(s32 slot, u8 *dims);
 
-INCLUDE_ASM("asm/nonmatchings/560B0", func_80056070);
+extern s32 D_800A4E68; // JFG: render flags kept off for sprites
+
+/**
+ * JFG: set the render mode for a sprite frame and draw it. The frame wraps to the frame count (a negative one is
+ * 0); with flag 0x40 the fraction past the whole frame goes to the environment alpha (blending into the next
+ * frame), with flag 0x200 the sprite's tint colours (or the override pair, D_800A4E74) and primAlpha are set.
+ * The mode comes from D_800A4CE0 (skipped when unchanged); then with draw flag 0x40 each part loads its two
+ * textures' commands (this frame's and the next one's) followed by its own commands, else the frame's display
+ * list is called. As material_set (func_80055C00) for sprites.
+ * (index first holds the whole number of wraps, frameInt becomes the next frame, and `if (mode) {}` keeps the
+ * ROM's register order in the final copy; the two pads give the ROM's frame.)
+ */
+void func_80056070(Gfx **dList, SpriteAsset *sprite, s32 flags, f32 frame, u8 primAlpha) {
+    s32 frameInt;
+    s32 alpha;
+    s32 index;
+    MaterialMode *mode;
+    s32 bits;
+    s32 key;
+    s32 count;
+    s32 base;
+    TextureHeader *tex;
+    TextureHeader *tex2;
+    Gfx *gfx;
+    s32 i;
+    s32 j;
+    Gfx *cmds;
+    UNUSED s32 pad;
+    UNUSED s32 pad2;
+
+    if (sprite->numberOfFrames <= frame) {
+        index = frame / sprite->numberOfFrames;
+        frame -= index * sprite->numberOfFrames;
+    } else if (frame < 0.0f) {
+        frame = 0.0f;
+    }
+    frameInt = frame;
+    gfx = *dList;
+    flags |= sprite->drawFlags;
+    flags &= ~D_800A4E68;
+    index = 0;
+    if (flags & 0x40) {
+        index = 1;
+        alpha = (u8) ((frame - frameInt) * 255.0f);
+    } else {
+        alpha = 255;
+    }
+    switch (flags & 0xC000) {
+        case 0x4000:
+            index |= 8;
+            break;
+        case 0x8000:
+            index |= 0x10;
+            break;
+    }
+    if (D_800A4E64 == 0) {
+        index |= 2;
+    }
+    if (flags & 0x200) {
+        index |= 4;
+        if (D_800A4E74 == 0) {
+            gDPSetPrimColor(gfx++, 0, 0, sprite->primRed, sprite->primGreen, sprite->primBlue, primAlpha);
+            gDPSetEnvColor(gfx++, sprite->envRed, sprite->envGreen, sprite->envBlue, alpha);
+        } else {
+            gDPSetPrimColor(gfx++, 0, 0, D_800FED48, D_800FED49, D_800FED4A, primAlpha);
+            gDPSetEnvColor(gfx++, D_800FED4B, D_800FED4C, D_800FED4D, alpha);
+        }
+    } else if (flags & 0x40) {
+        gDPSetEnvColor(gfx++, 255, 255, 255, alpha);
+    }
+    mode = &D_800A4CE0[index];
+    bits = mode->bits | (flags & mode->mask);
+    key = (index << 8) | bits;
+    if (key != D_800FED3C || D_800FED30 != (u32) D_800A4CE0) {
+        D_800FED3C = key;
+        D_800FED30 = (s32) D_800A4CE0;
+        gDPPipeSync(gfx++);
+        if (bits & 2) {
+            if (!D_800FED40) {
+                gSPSetGeometryMode(gfx++, G_ZBUFFER);
+            }
+            D_800FED40 = TRUE;
+        } else {
+            if (D_800FED40) {
+                gSPClearGeometryMode(gfx++, G_ZBUFFER);
+            }
+            D_800FED40 = FALSE;
+        }
+        if (bits & 8) {
+            if (!D_800FED44) {
+                gSPSetGeometryMode(gfx++, G_FOG);
+            }
+            D_800FED44 = TRUE;
+        } else {
+            if (D_800FED44) {
+                gSPClearGeometryMode(gfx++, G_FOG);
+            }
+            D_800FED44 = FALSE;
+        }
+        gfx[0].words.w0 = mode->combine[bits >> 3].words.w0;
+        if (mode) {}
+        gfx[0].words.w1 = mode->combine[bits >> 3].words.w1;
+        gfx[1].words.w0 = mode->otherMode[bits].words.w0;
+        gfx[1].words.w1 = mode->otherMode[bits].words.w1;
+        gfx += 2;
+    }
+    D_800FED34 = 0;
+    D_800FED38 = 0;
+    tex = sprite->textures[0];
+    if (tex->unk5) {
+        effect_slot_start(tex->unk5, (u8 *) tex);
+    }
+    if (sprite->drawFlags & 0x40) {
+        count = sprite->numberOfTextures / sprite->numberOfFrames;
+        cmds = sprite->frames[0];
+        base = count * frameInt;
+        frameInt++;
+        if (frameInt >= sprite->numberOfFrames) {
+            if (sprite->unk1) {
+                frameInt = 0;
+            } else {
+                frameInt--;
+            }
+        }
+        for (i = 0; i < count; i++) {
+            tex = sprite->textures[base + i];
+            tex2 = sprite->textures[count * frameInt + i];
+            gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(tex->cmd), 7);
+            gDkrDmaDisplayList(gfx++, OS_K0_TO_PHYSICAL(tex2->cmd + 7), 7);
+            for (j = 0; j < sprite->unk14[i]; j++) {
+                gfx->words.w0 = cmds->words.w0;
+                gfx->words.w1 = cmds->words.w1;
+                gfx++;
+                cmds++;
+            }
+        }
+        gDPPipeSync(gfx++);
+    } else {
+        gSPDisplayList(gfx++, sprite->frames[frameInt]);
+    }
+    if (flags & 0x200) {
+        gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    }
+    *dList = gfx;
+}
 
 /* Element sizes of the sprite's buffers */
 typedef struct SpriteTriangle {
@@ -716,7 +865,7 @@ SpriteAsset *tex_load_sprite(s32 spriteID, s32 arg1) {
     gSpriteDLists = (Gfx *) ((u8 *) sprite + dlistsOffset);
     gSpriteVertices = (SpriteVertex *) ((u8 *) sprite + verticesOffset);
     sprite->textures = (TextureHeader **) ((u8 *) sprite + texturesOffset);
-    sprite->unk14 = (s8 *) ((u8 *) sprite + unk14Offset);
+    sprite->unk14 = (u8 *) sprite + unk14Offset;
 
     allocFailed = FALSE;
     for (i = 0; i < numTextures; i++) {
@@ -746,12 +895,12 @@ SpriteAsset *tex_load_sprite(s32 spriteID, s32 arg1) {
     }
 
     sprite->numberOfTextures = numTextures;
-    sprite->unk8[0] = spriteAsset->unk8[0];
-    sprite->unk8[1] = spriteAsset->unk8[1];
-    sprite->unk8[2] = spriteAsset->unk8[2];
-    sprite->unk8[3] = spriteAsset->unk8[3];
-    sprite->unk8[4] = spriteAsset->unk8[4];
-    sprite->unk8[5] = spriteAsset->unk8[5];
+    sprite->primRed = spriteAsset->unk8[0];
+    sprite->primGreen = spriteAsset->unk8[1];
+    sprite->primBlue = spriteAsset->unk8[2];
+    sprite->envRed = spriteAsset->unk8[3];
+    sprite->envGreen = spriteAsset->unk8[4];
+    sprite->envBlue = spriteAsset->unk8[5];
     sprite->numberOfFrames = spriteAsset->numberOfFrames;
     for (i = 0; i < spriteAsset->numberOfFrames; i++) {
         sprite->frames[i] = gSpriteDLists;
