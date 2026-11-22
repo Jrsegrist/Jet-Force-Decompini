@@ -24,7 +24,13 @@ typedef struct M009Icon {
     /* 0x05 */ u8 pad5;
     /* 0x06 */ s16 x;
     /* 0x08 */ s16 y;
-    /* 0x0A */ u8 padA[0x22 - 0xA];
+    /* 0x0A */ s8 frameTime;  /* the frames between steps of the model's texture scroll (02978) */
+    /* 0x0B */ u8 padB;
+    /* 0x0C */ s16 scrollU;   /* that step */
+    /* 0x0E */ s16 scrollV;
+    /* 0x10 */ s16 glowScrollU; /* the glow's scroll, per frame */
+    /* 0x12 */ s16 glowScrollV;
+    /* 0x14 */ u8 pad14[0x22 - 0x14];
     /* 0x22 */ s16 unk22;
     /* 0x24 */ s16 unk24;
     /* 0x26 */ u8 pad26[0x30 - 0x26];
@@ -247,7 +253,12 @@ void func_m009_00408(void) {
 extern Gfx *D_800FF398;
 extern void *D_800FF39C;
 extern void func_80040D64(Gfx **dl, void *mtx);
-extern void rl_m009_02978(M009Model *model, s32 updateRate);
+#ifdef NON_MATCHING
+static void func_m009_02978(M009Model *model, s32 updateRate);
+#else
+extern void rl_m009_02978(M009Model *model, s32 updateRate); /* the static at 02978 (still assembly) */
+#define func_m009_02978 rl_m009_02978
+#endif
 static void map_world_model_draw(M009Model *model);
 static void map_item_draw(s32 index);
 
@@ -270,7 +281,7 @@ void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate) {
                     model->x = x;
                     model->y = y;
                     func_80040D64(&D_800FF398, &D_800FF39C);
-                    rl_m009_02978(model, updateRate);
+                    func_m009_02978(model, updateRate);
                     map_world_model_draw(model);
                 } else {
                     D_800FF780[p->index].posX = x;
@@ -316,7 +327,81 @@ static void map_place_pick(s32 index) {
     }
 }
 
+/*
+ * Scrolls the textures of a world model on the map: the glow's every frame, the disc's a step at a time
+ * (each triangle's first UV wraps within the texture, the other two keep their offsets from it)
+ */
+#ifdef NON_MATCHING
+/*
+ * ROM length and frame, other registers: the ROM keeps updateRate in its home slot (reloaded at both uses)
+ * and gives a1 to the triangle pointer, so it needs one saved register fewer (`if (&updateRate) {}` gives
+ * that, 573 -> 242 aligned, but is not kept)
+ */
+static void func_m009_02978(M009Model *model, s32 updateRate) {
+    s32 i;
+    s32 du, dv;
+    s32 maskU, maskV;
+    s32 u, v;
+    s32 du1, dv1, du2, dv2;
+    M009Icon *icon;
+    Triangle *tri;
+
+    icon = model->icon;
+    if (model->glowTex != NULL) {
+        du = icon->glowScrollU * updateRate;
+        dv = icon->glowScrollV * updateRate;
+        maskU = (model->glowTex[0] << 5) - 1;
+        maskV = (model->glowTex[1] << 5) - 1;
+        tri = model->glowTris;
+        for (i = 0; i < 23; i++) {
+            u = tri->uv[0][0];
+            v = tri->uv[0][1];
+            du1 = tri->uv[1][0] - u;
+            dv1 = tri->uv[1][1] - v;
+            du2 = tri->uv[2][0] - u;
+            dv2 = tri->uv[2][1] - v;
+            u = (u + du) & maskU;
+            v = (v + dv) & maskV;
+            tri->uv[0][0] = u;
+            tri->uv[0][1] = v;
+            tri->uv[1][0] = du1 + u;
+            tri->uv[1][1] = dv1 + v;
+            tri->uv[2][0] = du2 + u;
+            tri->uv[2][1] = dv2 + v;
+            tri++;
+        }
+    }
+    model->unk4D2 -= updateRate;
+    if (model->tex != NULL && model->unk4D2 < 0) {
+        model->unk4D2 += icon->frameTime;
+        maskU = (model->tex[0] << 5) - 1;
+        maskV = (model->tex[1] << 5) - 1;
+        du = icon->scrollU;
+        dv = icon->scrollV;
+        tri = model->tris;
+        for (i = 0; i < 23; i++) {
+            u = tri->uv[0][0];
+            v = tri->uv[0][1];
+            du1 = tri->uv[1][0] - u;
+            dv1 = tri->uv[1][1] - v;
+            du2 = tri->uv[2][0] - u;
+            dv2 = tri->uv[2][1] - v;
+            u = (u + du) & maskU;
+            v = (v + dv) & maskV;
+            tri->uv[0][0] = u;
+            tri->uv[0][1] = v;
+            tri->uv[1][0] = du1 + u;
+            tri->uv[1][1] = dv1 + v;
+            tri->uv[2][0] = du2 + u;
+            tri->uv[2][1] = dv2 + v;
+            tri++;
+        }
+    }
+}
+#else
+#undef func_m009_02978
 INCLUDE_ASM("asm/nonmatchings/modules/m009", func_m009_02978);
+#endif
 
 /* Fills the rectangle between two corners (in any order), clipped to the 320x240 screen (called from 00690) */
 void func_m009_02FB0(s16 x1, s16 y1, s16 x2, s16 y2) {
