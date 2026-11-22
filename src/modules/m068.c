@@ -3564,8 +3564,8 @@ extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32
  * objects 0x32A from the model's points 15-19); with flag 8 and event 0x400 it bursts (twelve pieces
  * from the model's points 20-31; parts 2 and 3 are destroyed). Sparks fly from points 15-19 on every
  * hit, and while it is damaged.
- * Same length and frame; the two six-piece loops' pointer temporary is spilled one word lower (0x5C, the
- * ROM 0x60), and one addu is scheduled a slot earlier.
+ * Same length, frame and registers; only the two six-piece loops' pointer temporary is spilled one word
+ * lower (0x5C, the ROM 0x60: 6 diffs).
  */
 static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     Vec3f *p;
@@ -3713,9 +3713,9 @@ static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance
             entry2.unk1C = 2.0f;
             entry2.unk20 = 2.0f;
             entry2.unk28 = 0.15f;
+            angle = 0;
             p = &inst->points[15];
             q = (Vec3f *) &sJointPos[rl_m068_1254C[1].joint * 3];
-            angle = 0;
             for (i = 0; i < 5; i++) {
                 dx = p->x - q->x;
                 dy = p->y - q->y;
