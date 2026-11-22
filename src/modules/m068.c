@@ -681,7 +681,8 @@ typedef struct M068Effects {
 /* The boss's model instance */
 typedef struct M068Instance {
     /* 0x00 */ void *model;
-    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x04 */ Vertex *vertices;
+    /* 0x08 */ u8 pad8[0xA - 0x8];
     /* 0x0A */ s8 hidden;
     /* 0x0B */ s8 frame;
     /* 0x0C */ u8 padC[0x10 - 0xC];
@@ -967,7 +968,304 @@ void func_m068_01628(s32 arg0, Object *cam, s32 updateRate) {
     cam->trans.rotation.z_rotation = angle_lerp(cam->trans.rotation.z_rotation, 0, f);
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_017EC);
+/* The boss spawner's set-up (its level entry) */
+typedef struct M068BossSetup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ u8 padA;
+    /* 0x0B */ u8 unkB; /* set: the second form */
+} M068BossSetup;
+
+/* The set-up of a marker object the boss's init reads (behaviours 0x6B and 0x61) */
+typedef struct M068MarkSetup {
+    LevelObjectEntryCommon common;
+    /* 0x0A */ s16 unkA;
+    /* 0x0C */ u16 unkC;
+    /* 0x0E */ u8 kind;
+    /* 0x0F */ u8 index;
+} M068MarkSetup;
+
+/* A minimal object entry (what func_80005F14 spawns from) */
+typedef struct M068BossEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 active;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+} M068BossEntry;
+
+extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
+
+/* The boss's object header: its collision spheres */
+typedef struct M068BossHeader {
+    /* 0x00 */ u8 pad0[0xB4];
+    /* 0xB4 */ s16 unkB4;
+    /* 0xB6 */ s16 unkB6;
+    /* 0xB8 */ s16 unkB8;
+    /* 0xBA */ u8 padBA[0xBC - 0xBA];
+    /* 0xBC */ f32 unkBC;
+    /* 0xC0 */ f32 unkC0;
+} M068BossHeader;
+
+/* A part record of the boss's model (16 bytes) */
+typedef struct M068ModelPart {
+    /* 0x00 */ u8 kind;
+    /* 0x01 */ u8 pad1[0x6 - 0x1];
+    /* 0x06 */ s16 first; /* its first vertex */
+    /* 0x08 */ u8 pad8[0x10 - 0x8];
+} M068ModelPart;
+
+typedef struct M068BossModel {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 partCount;
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x24 */ M068ModelPart *parts;
+} M068BossModel;
+
+typedef struct M068HitList {
+    /* 0x00 */ u8 pad0[0x32];
+    /* 0x32 */ s16 count;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ M068Joint *joints;
+} M068HitList;
+
+extern s32 func_800968C0(void);
+extern void func_80048E20(s32 seed);
+extern void func_8003D21C(M068Instance *inst, void *model, Object *obj, f32 arg3, f32 arg4);
+extern s32 rl_m068_125D8;  /* (.data) how many walls */
+extern s32 rl_m068_125DC;
+extern s32 rl_m068_125E0;
+extern s16 rl_m068_125E4;
+extern s32 rl_m068_125E8;
+extern Object *rl_m068_12508;
+extern s16 rl_m068_1260C;
+
+/* Spawns the boss (from its spawner object) and its pieces, and reads the level's markers */
+void func_m068_017EC(Object *obj) {
+    M068BossSetup *setup;
+    Object *boss;
+    Object *o;
+    Object **objs;
+    M068MarkSetup *le;
+    M068BossModel *model;
+    M068HitList *hits;
+    M068State *s;
+    M068Instance *inst;
+    M068BossHeader *hdr;
+    M068Joint *joint;
+    M068ModelPart *part;
+    UNUSED s32 pad1;
+    s32 j;
+    s32 i;
+    f32 *dst;
+    M068BossEntry entry;
+    M068PieceSetup entry2;
+    s32 first;
+    s32 count;
+    s32 k;
+    UNUSED s32 pad;
+    Vec3s rot;
+
+    entry.objectID = 0x1A3;
+    entry.unk2 = 12;
+    entry.active = 0;
+    entry.x = obj->trans.x_position;
+    entry.y = obj->trans.y_position;
+    entry.z = obj->trans.z_position;
+    boss = func_80005F14(&entry, 1);
+    if (boss == NULL) {
+        return;
+    }
+    s = boss->unk68;
+    setup = (M068BossSetup *) obj->level_entry;
+    boss->level_entry = NULL;
+    s->unk9A = obj->trans.rotation.y_rotation;
+    s->unk9E = s->unk9A;
+    hdr = (M068BossHeader *) boss->header;
+    obj_collision_spheres_init(boss, 0x7D00, 2, 1, hdr->unkB4, hdr->unkB6, hdr->unkB8, hdr->unkBC, hdr->unkC0, -1.0f,
+                               1.0f, 1);
+    s->unkF = setup->unkB;
+    if (s->unkF != 0) {
+        obj_anim_set(boss, 6, 0);
+        s->flags |= 0x20;
+    } else {
+        obj_anim_set(boss, 6, 0);
+        s->flags |= 1;
+    }
+    s->unkAA = 0;
+    s->unkE = ((u8 *) boss->shadow)[0xC];
+    func_80048E20(func_800968C0());
+    for (j = 0; j < 11; j++) {
+        sParts[j].target[0] = 0;
+        sParts[j].target[1] = 0;
+        sParts[j].target[2] = 0;
+        sParts[j].angle[0] = 0;
+        sParts[j].angle[1] = 0;
+        sParts[j].angle[2] = 0;
+        sParts[j].scale = 1.0f;
+        sParts[j].hp = rl_m068_1254C[j].hp;
+        sParts[j].hit = 0;
+        sParts[j].alive = 0;
+        sParts[j].rate[0] = 0.96f;
+        sParts[j].rate[1] = 0.96f;
+        sParts[j].rate[2] = 0.96f;
+    }
+    s->pos.x = obj->trans.x_position;
+    s->pos.y = obj->trans.y_position;
+    s->pos.z = obj->trans.z_position;
+    s->unkC = obj->trans.rotation.y_rotation;
+    s->unk34 = 20.0f;
+    inst = boss->modelInstances[boss->modelIndex];
+    model = (M068BossModel *) inst->model;
+    part = model->parts;
+    for (k = 0; k < model->partCount; k++, part++) {
+        if (part->kind == 0x1F) {
+            s->cycleFirst = part[0].first;
+            s->cycleEnd = part[1].first;
+            k = model->partCount;
+        }
+    }
+    for (i = s->cycleFirst; i < s->cycleEnd; i++) {
+        inst->vertices[i].r = 0;
+        inst->vertices[i].g = 0;
+        inst->vertices[i].b = 0;
+        inst->vertices[i].a = 255;
+    }
+    ((Vec3f **) rl_m068_124CC)[0] = &inst->points[0];
+    ((Vec3f **) rl_m068_124CC)[1] = &inst->points[2];
+    ((Vec3f **) rl_m068_124DC)[0] = &inst->points[1];
+    ((Vec3f **) rl_m068_124DC)[1] = &inst->points[3];
+    s->texStep = 1;
+    entry2.unk2 = 0x30;
+    entry2.active = 0;
+    entry2.x = 0;
+    entry2.y = 0;
+    entry2.z = 0;
+    entry2.objectID = 0x305;
+    for (i = 0; i < 6; i++) {
+        o = func_80005F14(&entry2, 1);
+        if (o != NULL) {
+            sBss12B40[i] = o;
+            o->level_entry = NULL;
+            o->modelIndex = i;
+        }
+    }
+    entry2.objectID = 0x306;
+    for (i = 0; i < 6; i++) {
+        o = func_80005F14(&entry2, 1);
+        if (o != NULL) {
+            sBss12B58[i] = o;
+            o->level_entry = NULL;
+            o->modelIndex = i;
+        }
+    }
+    entry2.objectID = 0x339;
+    for (i = 0; i < 9; i++) {
+        o = func_80005F14(&entry2, 1);
+        if (o != NULL) {
+            sBss12BF0[i] = o;
+            o->level_entry = NULL;
+            o->modelIndex = i;
+        }
+    }
+    entry2.objectID = 0x7A;
+    for (i = 0; i < 3; i++) {
+        o = func_80005F14(&entry2, 1);
+        if (o != NULL) {
+            sBss12E58[i] = o;
+            o->level_entry = NULL;
+            o->modelIndex = i;
+        }
+    }
+    entry2.objectID = 0x59;
+    o = func_80005F14(&entry2, 1);
+    if (o != NULL) {
+        sBss12F28 = o;
+        o->level_entry = NULL;
+        o->modelIndex = 0;
+    }
+    entry2.objectID = 0x65;
+    for (i = 0; i < 6; i++) {
+        o = func_80005F14(&entry2, 1);
+        if (o != NULL) {
+            sPieces[i] = o;
+            o->level_entry = NULL;
+            o->modelIndex = i;
+        }
+    }
+    hits = (M068HitList *) boss->interactObj;
+    for (i = 0; i < hits->count; i++) {
+        joint = &hits->joints[i];
+        joint->unk2F = 0;
+        joint->off = 1;
+        ((f32 *) sBss130E8)[i] = joint->radius;
+    }
+    func_8003D21C(inst, model, obj, 1.0f, 0.0f);
+    inst->hidden = 0;
+    dst = (f32 *) sDropPoints;
+    for (i = 0; i < 5; i++) {
+        dst[0] = inst->points2[i].x;
+        dst[1] = inst->points2[i].y;
+        dst[2] = inst->points2[i].z;
+        dst += 3;
+    }
+    objs = func_80005E98(&first, &count);
+    while (first < count) {
+        o = objs[first++];
+        if (o->behaviorId == 0x6B) {
+            switch (((M068MarkSetup *) o->level_entry)->kind) {
+                case 0:
+                    dst = (f32 *) sTrailStart + ((M068MarkSetup *) o->level_entry)->index * 3;
+                    dst[0] = o->trans.x_position;
+                    dst[1] = o->trans.y_position;
+                    dst[2] = o->trans.z_position;
+                    rl_m068_125E8++;
+                    break;
+                case 1:
+                    dst = (f32 *) sPlanes + (((M068MarkSetup *) o->level_entry)->index << 2);
+                    rot.y_rotation = o->trans.rotation.y_rotation;
+                    rot.x_rotation = o->trans.rotation.x_rotation;
+                    dst[0] = 0.0f;
+                    dst[1] = 0.0f;
+                    dst[2] = -1.0f;
+                    func_8004944C(&rot, (Vec3f *) dst);
+                    dst[3] = -(o->trans.x_position * dst[0] + o->trans.y_position * dst[1] +
+                               dst[2] * o->trans.z_position);
+                    rl_m068_125D8++;
+                    break;
+                case 2:
+                    dst = (f32 *) sLandPoints + ((M068MarkSetup *) o->level_entry)->index * 3;
+                    dst[0] = o->trans.x_position;
+                    dst[1] = o->trans.y_position;
+                    dst[2] = o->trans.z_position;
+                    rl_m068_125DC++;
+                    break;
+                case 3:
+                    sDropPoint.x = o->trans.x_position;
+                    sDropPoint.y = o->trans.y_position;
+                    sDropPoint.z = o->trans.z_position;
+                    rl_m068_125E4 = o->trans.rotation.y_rotation;
+                    break;
+                case 4:
+                    dst = (f32 *) &sBss13678 + ((M068MarkSetup *) o->level_entry)->index * 3;
+                    dst[0] = o->trans.x_position;
+                    dst[1] = o->trans.y_position;
+                    dst[2] = o->trans.z_position;
+                    rl_m068_125E0++;
+                    break;
+            }
+        } else if (o->behaviorId == 0x61) {
+            le = (M068MarkSetup *) o->level_entry;
+            sCentre.x = o->trans.x_position;
+            sCentre.y = o->trans.y_position;
+            sCentre.z = o->trans.z_position;
+            rl_m068_1260C = le->unkA;
+            sBss13750 = le->unkC;
+        } else if (o->behaviorId == 0x8E) {
+            rl_m068_12508 = o;
+        }
+    }
+}
 
 /* Stops the boss's sounds */
 void func_m068_023D4(Object *obj) {
