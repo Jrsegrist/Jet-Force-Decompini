@@ -41,7 +41,7 @@ typedef struct M068State {
     /* 0x58 */ s32 sound58;
     /* 0x5C */ s32 sound5C;
     /* 0x60 */ u16 unk60;
-    /* 0x62 */ u8 pad62[0x64 - 0x62];
+    /* 0x62 */ u16 unk62; /* 088DC: which of its five feet touch the ground */
     /* 0x64 */ f32 lastDist; /* sound6C's point from the camera, for its pitch */
     /* 0x68 */ f32 pitch;
     /* 0x6C */ s32 sound6C;
@@ -1128,7 +1128,12 @@ static void func_m068_083C8(Object *obj, M068State *s, void *model, M068Instance
 #define rl_m068_083C8 func_m068_083C8
 static void func_m068_08674(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 static void func_m068_0873C(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#ifdef NON_MATCHING
+static void func_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#define rl_m068_088DC func_m068_088DC
+#else
 extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
+#endif
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
 #ifdef NON_MATCHING
@@ -3453,7 +3458,194 @@ static void func_m068_087E0(Object *obj, M068State *s, s32 updateRate, f32 rate)
     }
 }
 
+/* A sphere the boss touches the ground with (its model's records at unk34) */
+typedef struct M068Foot {
+    /* 0x0 */ u8 pad0[3];
+    /* 0x3 */ u8 flags;
+    /* 0x4 */ u8 pad4[0x8 - 0x4];
+    /* 0x8 */ f32 radius;
+} M068Foot;
+
+typedef struct M068FootModel {
+    /* 0x00 */ u8 pad0[0x34];
+    /* 0x34 */ M068Foot *feet;
+} M068FootModel;
+
+/* What one foot touched */
+typedef struct M068GroundHit {
+    /* 0x00 */ u8 pad0[0x25];
+    /* 0x25 */ u8 kind;
+    /* 0x26 */ u8 pad26[0x28 - 0x26];
+} M068GroundHit;
+
+extern s32 func_800163FC(Object *obj, Vec3f *pos, Vec3f *prev, Vec3f *points, f32 *radii, Vec3f *offsets,
+                         s16 *flags, M068GroundHit *hits, s32 count, f32 *arg9, Vec3f *arg10);
+extern void func_80049394(Vec3s *rotation, Vec3f *vec);
+extern void func_800492DC(Object *obj, Vec3f *vec);
+extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern u8 rl_m068_125D0; /* (.data) the ground kinds it stands on */
+
+#ifdef NON_MATCHING
+/*
+ * Moves the boss: its vertical speed (to +-15) and its speed along its heading (to unk34), then its five feet
+ * against the ground (sDropPoints keeps where they were).
+ * Same length and frame (the vertical-speed and step values reuse dx, newLen and dz, which the ROM's slots
+ * show); left: register choice (the vertical acceleration in f0, not f12; the s-registers after the feet loop),
+ * the flags store reloads its value, and the loop ends on the radii pointer where the ROM tests the flags one.
+ */
+static void func_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
+    f32 unk248[4];
+    M068GroundHit hits[5];
+    Vec3f points[5];
+    f32 radii[5];
+    Vec3f offsets[5];
+    Vec3f tmp;
+    Vec3f unkDC;
+    Vec3f pos;
+    f32 ax;
+    f32 ay;
+    f32 az;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 vx;
+    f32 vz;
+    f32 newLen;
+    f32 accel;
+    f32 len;
+    Vec3f *pt;
+    Vec3f *off;
+    f32 *r;
+    s16 *fl;
+    Vec3s rot1;
+    Vec3s rot2;
+    s16 flags[5];
+    s32 i;
+    u16 mask;
+    u16 bit;
+    u32 touched;
+
+    inst = obj->modelInstances[obj->modelIndex];
+    model = inst->model;
+    /* dx: the vertical acceleration, newLen: the next vertical speed (both free until later) */
+    dx = s->unk3C + -1.0f;
+    newLen = s->unk38 + dx * rate;
+    if (dx > 0.0f) {
+        if (s->unk38 < 15.0f && newLen < 15.0f) {
+            accel = dx;
+        } else if (s->unk38 < 15.0f && 15.0f <= newLen) {
+            accel = (15.0f - s->unk38) / rate;
+        } else if (15.0f <= s->unk38) {
+            accel = 0.0f;
+        }
+    } else if (dx < 0.0f) {
+        if (-15.0f < s->unk38 && -15.0f < newLen) {
+            accel = dx;
+        } else if (-15.0f < s->unk38 && newLen <= -15.0f) {
+            accel = (-15.0f - s->unk38) / rate;
+        } else if (s->unk38 <= -15.0f) {
+            accel = 0.0f;
+        }
+    } else {
+        accel = 0.0f;
+    }
+    ay = accel;
+    ax = s->unk24 * s->unk20;
+    az = s->unk28 * s->unk20;
+    len = func_80097140(s->unk2C * s->unk2C + s->unk30 * s->unk30);
+    vx = s->unk2C + ax * rate;
+    vz = s->unk30 + az * rate;
+    newLen = func_80097140(vx * vx + vz * vz);
+    accel = s->unk20;
+    if (len < newLen) {
+        if (len < s->unk34 && newLen < s->unk34) {
+        } else if (len < s->unk34 && s->unk34 <= newLen) {
+            accel = (s->unk34 - len) / rate;
+        } else if (s->unk34 <= len) {
+            accel = 0.0f;
+        }
+    }
+    ax = s->unk24 * accel;
+    az = s->unk28 * accel;
+    dz = 0.5f * rate * rate; /* dz: free until later */
+    pos.x = obj->trans.x_position + s->unk2C * rate + ax * dz;
+    pos.y = obj->trans.y_position + s->unk38 * rate + ay * dz;
+    pos.z = obj->trans.z_position + s->unk30 * rate + az * dz;
+    if (s->unk34 <= newLen) {
+        vx /= newLen;
+        vz /= newLen;
+        s->unk2C = s->unk34 * vx;
+        s->unk30 = s->unk34 * vz;
+    } else {
+        s->unk2C = vx;
+        s->unk30 = vz;
+    }
+    obj->velocity.x = s->unk2C;
+    obj->velocity.z = s->unk30;
+    s->unk38 += ay * rate;
+    rot1.y_rotation = -s->unk94;
+    rot1.x_rotation = -s->unk92;
+    rot1.z_rotation = -s->unk90;
+    rot2.y_rotation = s->unk9A;
+    rot2.x_rotation = s->unk98;
+    rot2.z_rotation = s->unk96;
+    mask = s->unk60;
+    pt = points;
+    off = offsets;
+    r = radii;
+    fl = flags;
+    for (i = 0; r < &radii[5]; i++) {
+        *r =((M068FootModel *) model)->feet[i].radius * obj->trans.scale;
+        *fl = ((M068FootModel *) model)->feet[i].flags;
+        if (mask & 1) {
+            *fl |= 0x40;
+        }
+        tmp.x = inst->points2[i].x - obj->trans.x_position;
+        tmp.y = inst->points2[i].y - obj->trans.y_position;
+        tmp.z = inst->points2[i].z - obj->trans.z_position;
+        func_80049394(&rot1, &tmp);
+        func_800492DC((Object *) &rot2, &tmp);
+        pt->x = pos.x + tmp.x;
+        pt->y = pos.y + tmp.y;
+        pt->z = pos.z + tmp.z;
+        off->x = pt->x - pos.x;
+        off->y = pt->y - pos.y;
+        off->z = pt->z - pos.z;
+        mask >>= 1;
+        pt++;
+        off++;
+        r++;
+        fl++;
+    }
+    func_8001CE10(5, sDropPoints, points, radii, 0, 0, 0);
+    touched = func_800163FC(obj, &pos, sDropPoints, points, radii, offsets, flags, hits, 5, unk248, &unkDC);
+    dx = pos.x - obj->trans.x_position;
+    dy = pos.y - obj->trans.y_position;
+    dz = pos.z - obj->trans.z_position;
+    func_80009A04(obj, dx, dy, dz);
+    obj->velocity.y = dy / rate;
+    s->unkB8 = 0;
+    s->unk62 = 0;
+    for (i = 0, bit = 1; i < 5; i++) {
+        if ((touched & 1) && (hits[i].kind & 0x12)) {
+            s->unk62 |= bit;
+        }
+        touched >>= 1;
+        bit <<= 1;
+    }
+    if (s->unk62 & rl_m068_125D0) {
+        s->unkB8 = 1;
+        s->unk38 = 0.0f;
+    }
+    for (i = 0, pt = points, off = sDropPoints; i < 5; i++, pt++, off++) {
+        off->x = pt->x;
+        off->y = pt->y;
+        off->z = pt->z;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_088DC);
+#endif
 
 /* Runs the colour cycle cycleKind picks over the model's vertices cycleFirst..cycleEnd, until it ends */
 /* cycle->unk0 read as (&cycle->unk0)[0] gives the
