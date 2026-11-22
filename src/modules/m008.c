@@ -44,7 +44,7 @@ typedef struct M008Contact {
     /* 0x1C */ f32 unk1C;
     /* 0x20 */ u8 pad20[4];
     /* 0x24 */ u32 flags;
-    /* 0x28 */ s32 kind;
+    /* 0x28 */ u32 kind;
 } M008Contact;
 
 /* The level model, as far as this module uses it */
@@ -237,15 +237,11 @@ extern f32 func_80097140(f32 x);        /* sqrtf */
 extern M008Level *func_8001B650(void);  /* the level model */
 extern s32 sprite_anim_advance(void *sprite, s32 *flags, s32 speed, f32 *frame, s32 updateRate);
 
-
-#ifdef NON_MATCHING
 /*
  * Updates the pools: drops fall (and vanish below the level), test every other frame (odd and even drops in
  * turn) for a hit on the level, then stick there with a sound, a random size and, on flat ground, a mark
  * turned to the surface; the mark animates, then fades out on its timer. The hit sprites animate and free
  * themselves. (The mark's corners are (10, -10) and (10, 10) turned by a random roll, then to the surface.)
- * NON_MATCHING: ROM length and frame, 100 aligned diffs: the corner maths' order and float registers, which
- * uses of the constant 3 IDO keeps in a register, and the hit-sprite state test (ROM sltiu/bne).
  */
 void func_m008_0040C(s32 updateRate) {
     UNUSED s32 pad[2];
@@ -308,18 +304,18 @@ void func_m008_0040C(s32 updateRate) {
                             sinP = func_80049C34(-pitch);
                             cosY = func_80049C30(yaw);
                             sinY = func_80049C34(yaw);
+                            x = (-10.0f * cosR + 10.0f * sinR) * p->scale;
                             y = (10.0f * cosR - -10.0f * sinR) * p->scale;
-                            x = (10.0f * sinR + -10.0f * cosR) * p->scale;
-                            b = y * cosP;
-                            p->corners[0][2] = b * cosY - x * sinY;
-                            p->corners[0][0] = x * cosY + b * sinY;
                             p->corners[0][1] = y * sinP;
-                            y = (10.0f * cosR - 10.0f * sinR) * p->scale;
-                            x = (10.0f * sinR + 10.0f * cosR) * p->scale;
                             b = y * cosP;
-                            p->corners[1][2] = b * cosY - x * sinY;
-                            p->corners[1][0] = x * cosY + b * sinY;
+                            p->corners[0][0] = x * cosY + b * sinY;
+                            p->corners[0][2] = b * cosY - x * sinY;
+                            x = (10.0f * cosR + 10.0f * sinR) * p->scale;
+                            y = (10.0f * cosR - 10.0f * sinR) * p->scale;
                             p->corners[1][1] = y * sinP;
+                            b = y * cosP;
+                            p->corners[1][0] = x * cosY + b * sinY;
+                            p->corners[1][2] = b * cosY - x * sinY;
                             p->mark = 1;
                         } else {
                             p->mark = 0;
@@ -350,7 +346,7 @@ void func_m008_0040C(s32 updateRate) {
     sUnk2D38 ^= 1;
     flags = 1;
     for (i = 0, h = sHits; i < 5; i++, h++) {
-        if (h->state != 0) {
+        if (!h->state == FALSE) {
             if (sprite_anim_advance(sSprite, &flags, 15, &h->unkC, updateRate)) {
                 h->state = 0;
                 sHitCount--;
@@ -358,9 +354,6 @@ void func_m008_0040C(s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_0040C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_00AB4);
 
