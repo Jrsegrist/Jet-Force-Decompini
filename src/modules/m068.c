@@ -5867,12 +5867,12 @@ extern void func_80041DC0(Gfx **dl);
 #ifdef NON_MATCHING
 /*
  * Draws the boss's electric effect: a core model, the arcs in two colours and a glow sprite.
- * Length and frame match; the effect, the colour table's end and 0xFB000000 rotate through
- * s1..s3 (as in 0ED10).
+ * Length and frame match. A second pointer to the state (arcs) for the arcs and the glow gives the
+ * ROM's s-registers; left: the colour table pointer is a3 in the ROM, t0 here (5 diffs, as in 0ED10).
  */
 void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068Electro *e = obj->unk68;
-    s32 pad;
+    M068Electro *arcs;
     Vertex *v;
     s32 i;
     M068Sprite *sprite;
@@ -5886,24 +5886,25 @@ void func_m068_0E148(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
         gDPPipeSync((*dl)++);
         func_80041DC0(dl);
         obj->trans.scale = 1.0f;
+        arcs = e;
         func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
-        v = e->verts[e->buffer];
+        v = arcs->verts[arcs->buffer];
         func_80055C00(dl, *((M068Header *) obj->header)->models, 0x206, 0);
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 190);
         for (i = 0; i < 2; i++) {
             gDPSetColor((*dl)++, G_SETENVCOLOR, rl_m068_12720[i]);
             gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
-            gSPPolygon((*dl)++, (u32) e + 0x80000000, 16, 1);
+            gSPPolygon((*dl)++, (u32) arcs + 0x80000000, 16, 1);
             gDPPipeSync((*dl)++);
             v += 18;
             gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
-            gSPPolygon((*dl)++, (u32) e + 0x80000000, 16, 1);
+            gSPPolygon((*dl)++, (u32) arcs + 0x80000000, 16, 1);
             gDPPipeSync((*dl)++);
             v += 18;
         }
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[2];
         draw_tint_pair_set(255, 255, 255, sLightColour[0], sLightColour[1], sLightColour[2]);
-        render_sprite_billboard_at(dl, arg1, arg2, sprite, e->x, e->y, e->z, 0, e->scale * 3.0f, 0.0f, 12, 255);
+        render_sprite_billboard_at(dl, arg1, arg2, sprite, arcs->x, arcs->y, arcs->z, 0, arcs->scale * 3.0f, 0.0f, 12, 255);
         draw_tint_pair_off();
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
@@ -6134,37 +6135,34 @@ typedef struct M068Death {
 #ifdef NON_MATCHING
 /*
  * Draws the boss's death effect: the same triangles over four runs of
- * vertices, in two colours. Frame and code match but for registers: d, the end
- * of the colour table and the table pointer are s1/s3/a3 in the ROM (s3/s1/t0
- * here, as in 0E148). The empty ifs on arg1 and d (both always set) and the
- * pad (the ROM's frame is 0x40, v's spill at 0x34) take it from 128 to 12 diffs.
+ * vertices, in two colours. A second pointer to the state (arcs, the triangles'
+ * and vertices' base) gives the ROM's s-registers and frame; left: the colour
+ * table pointer is a3 in the ROM, t0 here (5 diffs, as in 0E148).
  */
 void func_m068_0ED10(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068Death *d = obj->unk68;
-    UNUSED s32 pad;
+    M068Death *arcs;
     Vertex *v;
     s32 i;
 
     if (d->visible) {
         obj->trans.scale = 1.0f;
+        arcs = d;
         func_80041CA0(dl, arg1, obj, 1.0f, 0.0f);
-        if (arg1) {}
-        if (arg1) {}
-        v = d->verts[d->buffer];
+        v = arcs->verts[arcs->buffer];
         func_80055C00(dl, *((M068Header *) obj->header)->models, 0x206, 0);
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 190);
         for (i = 0; i < 2; i++) {
             gDPSetColor((*dl)++, G_SETENVCOLOR, rl_m068_12720[i]);
             gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
-            gSPPolygon((*dl)++, (u32) d + 0x80000000, 16, 1);
+            gSPPolygon((*dl)++, (u32) arcs + 0x80000000, 16, 1);
             gDPPipeSync((*dl)++);
             v += 18;
             gSPVertexJFG((*dl)++, (u32) v + 0x80000000, 19, 0);
-            gSPPolygon((*dl)++, (u32) d + 0x80000000, 16, 1);
+            gSPPolygon((*dl)++, (u32) arcs + 0x80000000, 16, 1);
             gDPPipeSync((*dl)++);
             v += 18;
         }
-        if (d) {}
         gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor((*dl)++, 255, 255, 255, 255);
         func_80041DC0(dl);
