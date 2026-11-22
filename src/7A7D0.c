@@ -1642,9 +1642,10 @@ void func_8004A2FC(f32 *mtx, f32 *in, f32 *out);
  * holds the point (up to 16), then each up-facing triangle of their current model (batches with any of flags, or
  * 0x880, are skipped) whose transformed corners hold the point in x/z, up to 20; sorted from the highest down,
  * *heights gets the sorted list and the count is returned. inside doubles as the sort's done flag.
- * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x198), 537/536 words. The ROM keeps the model
- * header in s6 and the total in s7 and scales the vertex indices by shifts; IDO here keeps 10 in a register and
- * multiplies, which moves the saved registers round.
+ * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x198) and length (536 words; the plane's
+ * a/b/c are read before the up-facing test, as the ROM loads them). The ROM keeps the model header in s6 and the
+ * total in s7 and scales the vertex indices by shifts; IDO here keeps 10 in a saved register and multiplies,
+ * which moves the saved registers round (written out as shifts, the indices give the ROM's s2-s6).
  */
 s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
     Obj7E *list[16];
@@ -1677,6 +1678,7 @@ s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
     f32 x2;
     f32 y2;
     f32 z2;
+    Vertex7E *verts;
     Triangle7E *tri;
     Vertex7E *v0;
     s32 m;
@@ -1738,14 +1740,18 @@ s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
             for (; f < end; f++) {
                 func_8004A2FC(mtx, normals[*(u16 *) (planes->faces + f * 14)], plane);
                 inside = FALSE;
-                if (0.0f < plane[1]) {
+                nx = plane[0];
+                ny = plane[1];
+                nz = plane[2];
+                if (0.0f < ny) {
+                    verts = &model->vertices[vOff];
                     tri = &header->triangles[f];
-                    v0 = &model->vertices[vOff] + tri->vi[0];
-                    v1 = &model->vertices[vOff] + tri->vi[1];
-                    v2 = &model->vertices[vOff] + tri->vi[2];
-                    nx = plane[0] * scale;
-                    ny = plane[1] * scale;
-                    nz = plane[2] * scale;
+                    v0 = verts + tri->vi[0];
+                    v1 = verts + tri->vi[1];
+                    v2 = verts + tri->vi[2];
+                    nx *= scale;
+                    ny *= scale;
+                    nz *= scale;
                     d = plane[3] * scale;
                     func_80048B60(pointMtx, v0->x, v0->y, v0->z, &x0, &y0, &z0);
                     func_80048B60(pointMtx, v1->x, v1->y, v1->z, &x1, &y1, &z1);
