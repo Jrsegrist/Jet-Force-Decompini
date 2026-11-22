@@ -361,9 +361,9 @@ void obj_shading_from_ground(u8 *obj);
  * (a module may pick the linked shadow), or once per light, the level's sun and the object's shading lights above
  * it, the brightest first when there are more than the shadow allows. Then the object's ground shading.
  * NON_MATCHING: a first body written from the ROM: the ROM's code word for word, but a frame 16 bytes larger (0x100,
- * ROM 0xF0): the original had four fewer locals. With level read through header, tmp through rec and x as dist
+ * ROM 0xF0): the original had three fewer locals. With level read through header, tmp through rec and x as dist
  * (values never live together) the frame is the ROM's, but then IDO gives dist/x f24 and z/y f20/f22 (ROM f20, f22,
- * f24).
+ * f24); y as dist instead leaves only the fade's dist in f24 (ROM f20).
  */
 void func_8001DA1C(s32 group, s32 updateRate) {
     ShadowGenObj *obj;
