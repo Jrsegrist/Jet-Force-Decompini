@@ -440,7 +440,7 @@ a NON_MATCHING body, such as m017 or m091, does not count as all C here):
 | --- | --- | --- |
 | switches and targets | 3 of 3 | 11/11 |
 | pickups | 5 of 5 | 16/16 |
-| enemy behaviours | 11 of 19 | 267/304 |
+| enemy behaviours | 11 of 19 | 268/304 |
 | bosses | 3 of 4 | 106/124 |
 | weapons (character control) | 2 of 3 | 77/78 |
 | menus and screens | 6 of 14 | 112/136 |
