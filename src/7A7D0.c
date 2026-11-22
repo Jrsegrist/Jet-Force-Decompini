@@ -1334,7 +1334,212 @@ void falling_objects_hit_box(f32 *a, f32 *b, Obj7E *self) {
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800822D8);
 
+/* JFG: an object height under a point: the plane's height there, its scaled a/b/c and the object */
+typedef struct ObjHeight {
+    /* 0x00 */ f32 y;
+    /* 0x04 */ f32 a;
+    /* 0x08 */ f32 b;
+    /* 0x0C */ f32 c;
+    /* 0x10 */ Obj7E *obj;
+} ObjHeight;
+
+typedef struct ModelPlanes7E {
+    /* 0x00 */ u8 *faces; // JFG: 14 bytes per triangle, the plane index first
+    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x0C */ f32 (*normals)[4];
+} ModelPlanes7E;
+
+typedef struct ModelHeader2D8 {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 numberOfBatches;
+    /* 0x18 */ u8 pad18[0x20 - 0x18];
+    /* 0x20 */ Triangle7E *triangles;
+    /* 0x24 */ struct ModelBatch2D8 *batches;
+    /* 0x28 */ u8 pad28[0x60 - 0x28];
+    /* 0x60 */ ModelPlanes7E *planes;
+} ModelHeader2D8;
+
+typedef struct ModelBatch2D8 {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 verticesOffset;
+    /* 0x08 */ s16 facesOffset;
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ u32 flags;
+} ModelBatch2D8;
+
+typedef struct ObjModel2D8 {
+    /* 0x00 */ ModelHeader2D8 *header;
+    /* 0x04 */ Vertex7E *vertices;
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ ModelPlanes7E *planes; // JFG: this instance's own planes (else the header's)
+} ObjModel2D8;
+
+extern ObjHeight D_80104C68[20];
+extern ObjHeight *D_80104DF8[20];
+void func_8004A2FC(f32 *mtx, f32 *in, f32 *out);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: every object height under (x, z), as func_8001B078 (12D50) finds the level's: the moving objects whose box
+ * holds the point (up to 16), then each up-facing triangle of their current model (batches with any of flags, or
+ * 0x880, are skipped) whose transformed corners hold the point in x/z, up to 20; sorted from the highest down,
+ * *heights gets the sorted list and the count is returned. inside doubles as the sort's done flag.
+ * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x198), 537/536 words. The ROM keeps the model
+ * header in s6 and the total in s7 and scales the vertex indices by shifts; IDO here keeps 10 in a register and
+ * multiplies, which moves the saved registers round.
+ */
+s32 func_80082D80(f32 x, f32 z, s32 flags, ObjHeight ***heights) {
+    Obj7E *list[16];
+    Obj7E *obj;
+    s32 i;
+    Obj7EData *data;
+    ObjModel2D8 *model;
+    ModelPlanes7E *planes;
+    ModelHeader2D8 *header;
+    s32 inside;
+    s32 total;
+    f32 (*normals)[4];
+    f32 *pointMtx;
+    f32 *mtx;
+    ModelBatch2D8 *batch;
+    s32 vOff;
+    s32 end;
+    f32 plane[4];
+    f32 scale;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 d;
+    f32 x0;
+    f32 y0;
+    f32 z0;
+    f32 x1;
+    f32 y1;
+    f32 z1;
+    f32 x2;
+    f32 y2;
+    f32 z2;
+    Triangle7E *tri;
+    Vertex7E *v0;
+    s32 m;
+    s32 count;
+    Vertex7E *v1;
+    Vertex7E *v2;
+    s32 test1;
+    s32 test2;
+    ObjHeight **waves;
+    s32 b;
+    s32 f;
+    ObjHeight *wave;
+
+    *heights = NULL;
+    count = 0;
+    for (i = 0; i < D_801047E0; i++) {
+        obj = D_801047E4[i];
+        if (obj->flags->flags & 1) {
+            data = obj->data;
+            inside = FALSE;
+            if (data->bboxMin[0] <= x && x <= data->bboxMax[0] && data->bboxMin[2] <= z && z <= data->bboxMax[2]) {
+                inside = TRUE;
+            }
+            if (inside) {
+                list[count++] = obj;
+            }
+            if (count >= 16) {
+                i = D_801047E0;
+            }
+        }
+    }
+    if (count == 0) {
+        return 0;
+    }
+    flags |= 0x880;
+    total = 0;
+    for (m = 0; m < count; m++) {
+        obj = list[m];
+        data = obj->data;
+        model = (ObjModel2D8 *) obj->modelInstances[data->modelIndex];
+        header = model->header;
+        if (model->planes != NULL) {
+            planes = model->planes;
+        } else {
+            planes = header->planes;
+        }
+        normals = planes->normals;
+        mtx = data->mtx[data->mtxIndex][0];
+        pointMtx = data->mtx2[data->mtxIndex][0];
+        scale = obj->scale;
+        for (b = 0; b < header->numberOfBatches; b++) {
+            batch = &header->batches[b];
+            f = batch->facesOffset;
+            vOff = batch->verticesOffset;
+            end = batch[1].facesOffset;
+            if (batch->flags & flags) {
+                f = end;
+            }
+            for (; f < end; f++) {
+                func_8004A2FC(mtx, normals[*(u16 *) (planes->faces + f * 14)], plane);
+                inside = FALSE;
+                if (0.0f < plane[1]) {
+                    tri = &header->triangles[f];
+                    v0 = &model->vertices[vOff] + tri->vi[0];
+                    v1 = &model->vertices[vOff] + tri->vi[1];
+                    v2 = &model->vertices[vOff] + tri->vi[2];
+                    nx = plane[0] * scale;
+                    ny = plane[1] * scale;
+                    nz = plane[2] * scale;
+                    d = plane[3] * scale;
+                    func_80048B60(pointMtx, v0->x, v0->y, v0->z, &x0, &y0, &z0);
+                    func_80048B60(pointMtx, v1->x, v1->y, v1->z, &x1, &y1, &z1);
+                    func_80048B60(pointMtx, v2->x, v2->y, v2->z, &x2, &y2, &z2);
+                    test1 = (x2 - x1) * (z - z1) <= (z2 - z1) * (x - x1);
+                    test2 = (x1 - x0) * (z - z0) <= (z1 - z0) * (x - x0);
+                    if (test2 == test1) {
+                        test2 = (x0 - x2) * (z - z2) <= (z0 - z2) * (x - x2);
+                        if (test1 == test2) {
+                            inside = TRUE;
+                        }
+                    }
+                    if (inside) {
+                        D_80104C68[total].a = nx;
+                        D_80104C68[total].b = ny;
+                        D_80104C68[total].c = nz;
+                        D_80104C68[total].obj = obj;
+                        D_80104C68[total].y = -((nx * x + nz * z + d) / ny);
+                        total++;
+                    }
+                    if (total >= 20) {
+                        f = end;
+                        b = header->numberOfBatches;
+                        m = count;
+                    }
+                }
+            }
+        }
+    }
+    waves = D_80104DF8;
+    wave = D_80104C68;
+    // clang-format off
+    for (m = 0; m < total; m++) { waves[m] = &wave[m]; }
+    // clang-format on
+    do {
+        m = 0;
+        inside = TRUE;
+        for (; m < total - 1; m++) {
+            if (waves[m]->y < waves[m + 1]->y) {
+                wave = waves[m];
+                waves[m] = waves[m + 1];
+                waves[m + 1] = wave;
+                inside = FALSE;
+            }
+        }
+    } while (!inside);
+    *heights = D_80104DF8;
+    return total;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80082D80);
+#endif
 
 /* JFG: the C form of func_8001D464 for three axes: clamp the range to the box, split each axis of the box into
  * 8 cells and return a 24-bit mask of the cells the range overlaps (x in bits 0-7, z in 8-15, y in 16-23). */
