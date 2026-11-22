@@ -668,14 +668,26 @@ static void func_m068_004D8(Object *obj, M068Light *light, f32 *x, f32 *y, f32 *
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_004D8);
 #endif
 
+/* A colour cycle (main segment, as m107 uses it) */
+typedef struct M068ColourCycle {
+    /* 0x0 */ s32 unk0;
+    /* 0x4 */ u8 pad4[0x8 - 0x4];
+    /* 0x8 */ u8 r; /* the current colour */
+    /* 0x9 */ u8 g;
+    /* 0xA */ u8 b;
+    /* 0xB */ u8 unkB; /* 0758C waits for 0xE6 */
+    /* 0xC */ s32 *unkC;
+} M068ColourCycle;
+
 /* The boss's state fields its effects use (obj->unk68) */
 typedef struct M068Effects {
     /* 0x00 */ u8 pad0[0x80];
     /* 0x80 */ s16 alpha;
     /* 0x82 */ s8 glowing;
     /* 0x83 */ s8 glowKind;
-    /* 0x84 */ u8 pad84[0x88 - 0x84];
+    /* 0x84 */ M068ColourCycle *cycle;
     /* 0x88 */ s16 trails;
+    /* 0x8A */ s16 unk8A; /* how fast the trails' glows turn */
 } M068Effects;
 
 /* The boss's model instance */
@@ -697,7 +709,12 @@ typedef struct M068Instance {
 extern s16 rl_m068_12564[]; /* the joints the two glows are drawn at (.data) */
 extern u8 rl_m068_124CC[]; /* the two trails' parameters (.data) */
 extern u8 rl_m068_124DC[];
+#ifdef NON_MATCHING
+static void func_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2);
+#define rl_m068_00C70 func_m068_00C70
+#else
 extern void rl_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2);
+#endif
 
 /*
  * Draws the boss's trails and, while it glows, two glow models at its joints.
@@ -753,7 +770,89 @@ void func_m068_0092C(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     }
 }
 
+/* A trail's parameters (.data, rl_m068_124CC and rl_m068_124DC) */
+typedef struct M068Flare {
+    /* 0x0 */ Vec3f *from;
+    /* 0x4 */ Vec3f *to;
+    /* 0x8 */ s16 unk8;
+    /* 0xA */ s16 size;
+    /* 0xC */ s16 roll;
+} M068Flare;
+
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern MtxF *get_projection_matrix_f32(void);
+
+#ifdef NON_MATCHING
+/*
+ * Draws a trail's glow: a sprite at its start, as bright as the camera looks along it (from the start
+ * towards its end) and along the view direction; it turns by the colour cycle's alpha.
+ * Length, frame and the order of every instruction match; left are registers (the integer and float
+ * temporaries of the first half, the object pointer's t4, and which of f2/f12/f14 the dot products, the
+ * size and the scale get). The dot products' variables are reused for the scale (scale) and the size (t),
+ * which is what the ROM's registers show.
+ */
+static void func_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2) {
+    M068Flare *flare;
+    ObjectTransform *cam;
+    MtxF *m;
+    f32 a[3];
+    f32 b[3];
+    f32 c[3];
+    f32 d;
+    f32 t;
+    f32 k;
+    f32 alpha;
+    f32 scale;
+    f32 turn;
+    M068Sprite *sprite;
+    s32 x;
+    s32 y;
+    s32 z;
+
+    flare = params;
+    cam = func_80041DE0();
+    m = get_projection_matrix_f32();
+    a[0] = cam->x_position - flare->from->x;
+    a[1] = cam->y_position - flare->from->y;
+    a[2] = cam->z_position - flare->from->z;
+    d = func_80097140(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
+    a[0] /= d;
+    a[1] /= d;
+    a[2] /= d;
+    b[0] = flare->to->x - flare->from->x;
+    b[1] = flare->to->y - flare->from->y;
+    b[2] = flare->to->z - flare->from->z;
+    d = func_80097140(b[0] * b[0] + b[1] * b[1] + b[2] * b[2]);
+    b[0] /= d;
+    b[1] /= d;
+    b[2] /= d;
+    scale = b[0] * a[0] + b[1] * a[1] + b[2] * a[2];
+    c[0] = (*m)[2][0];
+    c[1] = (*m)[2][1];
+    c[2] = (*m)[2][2];
+    turn = c[0] * a[0] + c[1] * a[1] + c[2] * a[2];
+    t = scale * turn;
+    if (t > 0.7071f) {
+        k = t * ((t - 0.7071f) * 3.4141414f);
+        sprite = *(M068Sprite **) ((M068Header *) obj->header)->models;
+        t = flare->size * 0.0625f;
+        alpha = s->cycle->unkB;
+        scale = alpha * 0.007843138f;
+        scale = scale * (k * t);
+        alpha *= 0.003921569f;
+        flare->roll += (s32) (s->unk8A * alpha);
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, s->cycle->unkB);
+        x = flare->from->x;
+        y = flare->from->y;
+        z = flare->from->z;
+        render_sprite_billboard_at(dl, arg1, arg2, sprite, (s16) x, (s16) y, (s16) z, flare->roll, scale, 0.0f, 12,
+                                   s->cycle->unkB);
+        gDPSetPrimColor((*dl)++, 0, 0, 255, 255, 255, 255);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_00C70);
+#endif
 
 /* What hit the boss */
 typedef struct M068HitSource {
@@ -1332,17 +1431,6 @@ static s32 func_m068_05C8C(Object *obj, M068State *s, Vec3f *target, s16 yaw, s3
 #define rl_m068_05C8C func_m068_05C8C
 static s16 func_m068_0C7DC(s16 angle, s16 target, s16 speed, s32 updateRate);
 #define rl_m068_0C7DC func_m068_0C7DC
-
-/* A colour cycle (main segment, as m107 uses it) */
-typedef struct M068ColourCycle {
-    /* 0x0 */ s32 unk0;
-    /* 0x4 */ u8 pad4[0x8 - 0x4];
-    /* 0x8 */ u8 r; /* the current colour */
-    /* 0x9 */ u8 g;
-    /* 0xA */ u8 b;
-    /* 0xB */ u8 unkB; /* 0758C waits for 0xE6 */
-    /* 0xC */ s32 *unkC;
-} M068ColourCycle;
 
 extern void colour_cycle_reset(M068ColourCycle *cycle);
 extern void func_80057D58(M068ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
