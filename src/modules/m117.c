@@ -125,19 +125,26 @@ static u8 sCloudColours[4][4] = {
 };
 
 /*
- * NON_MATCHING: only func_m117_00154 matches. The static light spawner (6
- * diffs: the original keeps the level entry in a3, here v0; with the entry's
- * stores in field order the rest is the ROM's),
- * func_m117_003F8 (the f20/f22 registers of base and range are swapped) and
- * func_m117_0070C (a first draft) do not; the matching build includes them
- * (003F8 and 0070C from ro/, with their .rodata floats).
+ * NON_MATCHING: the static light spawner matches, but only func_m117_003F8
+ * calls it, so it waits for that body (IDO drops a static only assembly
+ * calls); func_m117_003F8 (17 aligned diffs: in the angle step and after
+ * the loop the integer and FP temporaries come in another order) and
+ * func_m117_0070C (a first draft) do not match; the matching build includes
+ * them (003F8 and 0070C from ro/, with their .rodata floats).
  */
 #ifdef NON_MATCHING
-static void spawnLight(Object *obj) {
-    M117Cloud *cloud;
+/*
+ * A K&R definition: setup is a second parameter that the one caller never
+ * passes; its incoming value is never read (setup is set first). As a
+ * parameter it gets a3 for the level entry, as in the ROM (a local gets v0).
+ */
+static void spawnLight(obj, setup)
+    Object *obj;
     M117Setup *setup;
-    M117LightEntry entry;
+{
+    M117Cloud *cloud;
     Object *light;
+    M117LightEntry entry;
     s32 unused[2]; /* never used, but takes stack space */
 
     setup = (M117Setup *) obj->level_entry;
@@ -258,8 +265,9 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
     }
     cloud->brightness = brightness;
     if (brightness != 0) {
-        range = ((f32) cloud->sizeX - cloud->sizeZ) * 0.5f;
+        swell = cloud->sizeX; /* swell is not yet in use: it holds the box's width */
         base = cloud->sizeZ;
+        range = (swell - base) * 0.5f;
         mote = cloud->motes;
         i = 20;
         while (i--) {
@@ -268,9 +276,9 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
                 mote->phase += mote->phaseSpeed;
                 swell = func_80049C30(mote->phase) + 1.0f;
                 r = (range * swell + base) * mote->scale;
+                mote->angle += (s32) ((f32) (mote->radius << 16) * (3.0f - swell) / (6.283186f * r));
                 mote->spin += mote->spinSpeed;
                 mote->roll += mote->rollSpeed;
-                mote->angle += (s32) ((f32) (mote->radius << 16) * (3.0f - swell) / (6.283186f * r));
             }
             mote++;
         }
