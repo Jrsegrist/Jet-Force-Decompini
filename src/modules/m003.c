@@ -44,7 +44,8 @@ typedef struct M003Member {
     /* 0x06 */ u8 unk6_5 : 1;
     /* 0x06 */ u8 unk6_4 : 1;
     /* 0x06 */ u8 partLost : 1; /* it has lost a body part */
-    /* 0x06 */ u8 unk6_0 : 3;
+    /* 0x06 */ u8 unk6_2 : 1; /* set while it burns or is shocked (058A4) */
+    /* 0x06 */ u8 unk6_0 : 2;
     /* 0x07 */ s8 group; /* < 0: not active */
     /* 0x08 */ u8 flags8; /* bit flags, read as the word M003Flags8 */
     /* 0x09 */ u8 unk9;
@@ -2143,7 +2144,8 @@ static void func_m003_044F4(Object *obj) {
 typedef struct M003Word4 {
     u32 pad31 : 20;
     u32 bit11 : 1;
-    u32 pad10 : 4;
+    u32 bit10 : 1;
+    u32 pad9 : 3;
     u32 bit6 : 1;
     u32 bit5 : 1;
     u32 rest : 5;
@@ -2610,7 +2612,245 @@ s32 func_m003_057CC(f32 x, f32 z) {
     return FALSE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_058A4);
+/* An object header, as 058A4, 0C1A0 and 0C324 use it */
+typedef struct M003TargetHeader {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; /* 0x80: (0C324) */
+    /* 0x16 */ u8 pad16[0x1E - 0x16];
+    /* 0x1E */ s8 useOrigin; /* aim at the object itself, not its interaction centre; 4: not drawn here (058A4) */
+} M003TargetHeader;
+
+/* A model instance, as 058A4 draws it */
+typedef struct M003DrawModel {
+    /* 0x00 */ u8 pad0[0x11];
+    /* 0x11 */ u8 numTexAnims;
+    /* 0x12 */ u8 pad12[0x4E - 0x12];
+    /* 0x4E */ s8 animated;
+} M003DrawModel;
+
+typedef struct M003DrawInst {
+    /* 0x00 */ M003DrawModel *model;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA; /* frames since it was last drawn */
+    /* 0x0B */ s8 unkB; /* the matrix buffer in use */
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ void *unk10[2];
+    /* 0x18 */ u8 pad18[0x68 - 0x18];
+    /* 0x68 */ f32 *unk68;
+} M003DrawInst;
+
+/* A level object entry built on the stack (the member's fire object) */
+typedef struct M003FireEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ u8 unkC;
+    /* 0x0D */ u8 padD[0x10 - 0xD];
+} M003FireEntry;
+
+extern void func_8003D21C(M003DrawInst *inst, M003DrawModel *model, Object *obj, f32 a, f32 b);
+extern void func_800221F0(Object *obj, M003DrawInst *inst, void *shading, void *arg3);
+extern void obj_tex_animate(Object *obj, M003DrawModel *model, M003DrawInst *inst, s32 frames);
+extern s32 track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b);
+extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
+extern void track_light_off(s32 light);
+extern void func_8002179C(s32 handle);
+extern s32 func_800210A4(Object *obj, LightParams *params);
+extern void func_800212E4(s32 handle);
+extern void func_800212D0(s32 handle);
+/* .data (still assembly) */
+#define sData1A3C (*(s32 *) (rl_m003_17A10 + 0x1A3C))
+
+/*
+ * Draws the member's model, and keeps its lights (and its fire object) in step with it. (While it burns or is
+ * shocked, all three light coordinates are read from centre[0], as in the ROM.)
+ */
+void func_m003_058A4(Object *obj) {
+    M003Member *m;
+    M003DrawInst *inst;
+    M003DrawModel *model;
+    f32 x;
+    f32 y;
+    f32 z;
+    Object *fire;
+    M003Home *h;
+
+    m = obj->unk68;
+    if (((M003TargetHeader *) obj->header)->useOrigin == 4) {
+        return;
+    }
+    inst = obj->modelInstances[obj->modelIndex];
+    if (inst->unkA) {
+        model = inst->model;
+        if (model->animated) {
+            func_8003D21C(inst, model, obj, 1.0f, 0.0f);
+            func_800221F0(obj, inst, obj->shading, inst->unk10[inst->unkB]);
+        } else {
+            if (model->numTexAnims) {
+                inst->unkB = 1 - inst->unkB;
+            }
+            func_800221F0(obj, inst, obj->shading, inst->unk10[inst->unkB]);
+        }
+        if (model->numTexAnims > 0) {
+            obj_tex_animate(obj, model, inst, inst->unkA);
+        }
+        inst->unkA = 0;
+    }
+    if (m->home != NULL && (h = m->home->unk68)->kind == 0x70) {
+        fire = m->unkA8;
+        x = inst->unk68[0];
+        y = inst->unk68[1];
+        z = inst->unk68[2];
+        if (((M003Word4 *) &m->unk4)->bit11) {
+            if (fire != NULL) {
+                func_800079B8(fire);
+                m->unkA8 = NULL;
+            }
+            if (m->light != 0 && !((M003Word4 *) &m->unk4)->bit10) {
+                track_light_off(m->light);
+                m->light = 0;
+            }
+            if (m->unkC4 != 0 && !((M003Word4 *) &m->unk4)->bit10) {
+                func_8002179C(m->unkC4);
+                m->unkC4 = 0;
+            }
+        } else {
+            if (fire != NULL) {
+                fire->trans.x_position = x;
+                fire->trans.y_position = y;
+                fire->trans.z_position = z;
+            } else {
+                M003FireEntry entry;
+
+                entry.objectID = 0x76;
+                entry.size = 0xE;
+                entry.unk3 = 0;
+                entry.x = x;
+                entry.y = y;
+                entry.z = z;
+                entry.unkC = 0;
+                entry.unkA = 0x28;
+                entry.unkB = 8;
+                if ((fire = func_80005F14(&entry, 1)) != NULL) {
+                    fire->level_entry = NULL;
+                    m->unkA8 = fire;
+                }
+            }
+            if (m->light != 0) {
+                track_light_set_position(m->light, x, y, z);
+            } else if ((m->light = track_light_create(x, y, z, 150.0f, 100.0f, 0xFF, 0xE0, 0)) != 0) {
+                track_light_set_position(m->light, x, y, z);
+            }
+            if (m->unkC4 == 0) {
+                LightParams p;
+
+                p.type = 1;
+                p.unk1 = 3;
+                p.flags = 0x71;
+                p.unk3 = 0;
+                p.unk4 = 0;
+                p.unk6 = x;
+                p.unk8 = y;
+                p.unkA = z;
+                p.radius = 0xA0;
+                p.radius2 = 0xA0;
+                p.r = 0xFF;
+                p.g = 0xFF;
+                p.b = 0;
+                p.a = 0xFF;
+                p.unk14 = -1;
+                p.unk16 = 0;
+                p.unk17 = 0;
+                m->unkC4 = func_800210A4(obj, &p);
+            }
+        }
+    }
+    if (m->onFire) {
+        x = ((M003Interact *) obj->interactObj)->centre[0];
+        y = ((M003Interact *) obj->interactObj)->centre[0];
+        z = ((M003Interact *) obj->interactObj)->centre[0];
+        if (m->light != 0) {
+            track_light_set_position(m->light, x, y, z);
+        } else if ((m->light = track_light_create(x, y, z, 250.0f, 125.0f, 0xFF, 0xC0, 0)) != 0) {
+            track_light_set_position(m->light, x, y, z);
+        }
+        if (m->unkC4 == 0) {
+            LightParams p;
+
+            p.type = 1;
+            p.unk1 = 3;
+            p.flags = 0x71;
+            p.unk3 = 0;
+            p.unk4 = 0;
+            p.unk6 = x;
+            p.unk8 = y;
+            p.unkA = z;
+            p.radius = 0xA0;
+            p.radius2 = 0xA0;
+            p.r = 0xFF;
+            p.g = 0xD2;
+            p.b = 0x96;
+            p.a = 0xFF;
+            p.unk14 = -1;
+            p.unk16 = 0;
+            p.unk17 = 0;
+            m->unkC4 = func_800210A4(obj, &p);
+        }
+        m->unk6_2 = 1;
+    } else if (FLAGS8(m)->shocked) {
+        x = ((M003Interact *) obj->interactObj)->centre[0];
+        y = ((M003Interact *) obj->interactObj)->centre[0];
+        z = ((M003Interact *) obj->interactObj)->centre[0];
+        FLAGS8(m)->unk24 = 3;
+        if (sData1A3C) {
+            if (m->light != 0) {
+                track_light_set_position(m->light, x, y, z);
+            } else if ((m->light = track_light_create(x, y, z, 250.0f, 125.0f, 0, 0xD4, 0xFF)) != 0) {
+                track_light_set_position(m->light, x, y, z);
+            }
+        } else {
+            if (m->light != 0) {
+                track_light_off(m->light);
+            }
+            m->light = 0;
+        }
+        if (m->unkC4 == 0) {
+            LightParams p;
+
+            p.type = 1;
+            p.unk1 = 3;
+            p.flags = 0x71;
+            p.unk3 = 0;
+            p.unk4 = 0;
+            p.unk6 = x;
+            p.unk8 = y;
+            p.unkA = z;
+            p.radius = 0xA0;
+            p.radius2 = 0xA0;
+            p.r = 0;
+            p.g = 0xD4;
+            p.b = 0xFF;
+            p.a = 0xFF;
+            p.unk14 = -1;
+            p.unk16 = 0;
+            p.unk17 = 0;
+            m->unkC4 = func_800210A4(obj, &p);
+        }
+        if (sData1A3C) {
+            if (m->unkC4 != 0) {
+                func_800212E4(m->unkC4);
+            }
+        } else if (m->unkC4 != 0) {
+            func_800212D0(m->unkC4);
+        }
+        m->unk6_2 = 1;
+    }
+}
 
 /* A model instance as used here */
 typedef struct M003Model {
@@ -3692,14 +3932,6 @@ void func_m003_0C0A0(Object *obj) {
         }
     }
 }
-
-/* An object header, as 0C1A0 uses it */
-typedef struct M003TargetHeader {
-    /* 0x00 */ u8 pad0[0x14];
-    /* 0x14 */ u16 flags; /* 0x80: (0C324) */
-    /* 0x16 */ u8 pad16[0x1E - 0x16];
-    /* 0x1E */ s8 useOrigin; /* aim at the object itself, not its interaction centre */
-} M003TargetHeader;
 
 extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
