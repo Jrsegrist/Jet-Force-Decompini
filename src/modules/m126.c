@@ -49,7 +49,8 @@ typedef struct M126State {
     /* 0xF9C */ f32 unkF9C[4];
     /* 0xFAC */ f32 unkFAC[4];
     /* 0xFBC */ f32 unkFBC;
-    /* 0xFC0 */ u8 padFC0[0xFC8 - 0xFC0];
+    /* 0xFC0 */ Object *unkFC0; /* the nearest player or queued object */
+    /* 0xFC4 */ s32 unkFC4;     /* a sound handle */
     /* 0xFC8 */ u8 buffer; /* which of verts the beams use */
     /* 0xFC9 */ u8 unkFC9;
     /* 0xFCA */ s16 unkFCA;
@@ -174,7 +175,221 @@ void func_m126_00000(Object *obj, M126Setup *setup) {
 INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_00000);
 #endif
 
+/* A light as the beams move it (func_800210A4's) */
+typedef struct M126Light {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ f32 x;
+    /* 0x1C */ f32 y;
+    /* 0x20 */ f32 z;
+} M126Light;
+
+extern Object **func_8000E464(s32 *count); /* the players */
+extern Object **obj_queue_get(s32 *count);
+extern void func_800212D0(M126Light *light); /* turns a light off */
+extern void func_800212E4(M126Light *light); /* turns it on */
+extern void light_colour_set(M126Light *light, u8 red, u8 green, u8 blue);
+extern void light_intensity_set(M126Light *light, u8 intensity);
+extern void func_80057D58(M126ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern void transition_begin(void *transition);
+extern void sound_stop(s32 handle);
+extern void func_80001500(s32 handle, f32 pitch);
+extern u8 rl_m126_01254[]; /* control's transition (.data) */
+
+/*
+ * NON_MATCHING: ROM length and frame; 16 instructions: the constant 0xFF and
+ * the colour cycle / band row pointer are s4/s3 here, s3/s4 in the ROM. The
+ * empty `else { continue; }` at the end of the lift loop does nothing; it
+ * gives the loop the ROM's blocks, and with them step in f20 and y in f22 (a
+ * real spelling for it is not found yet). Written from the ROM: dy and step
+ * share a variable (never live together), the bands' 1 and -1 are int
+ * literals (with 1.0f IDO keeps 1.0 in a saved register), and the lift's
+ * height is written out at both uses so that top stays a variable.
+ */
+#ifdef NON_MATCHING
+/*
+ * Control: finds the nearest player or queued object once, swaps the vertex
+ * buffers, then for each beam turns and lifts it (or lets it fall back),
+ * fades it in, moves its light and builds its three bands of vertices; at the
+ * end of the effect it lifts the object through its height and fades out.
+ */
+void func_m126_003D0(Object *obj, s32 updateRate) {
+    M126State *s;
+    Object **list;
+    Object *o;
+    s32 count;
+    s32 k;
+    s32 i;
+    f32 bands[3][2];
+    s32 n;
+    s32 a;
+    f32 wobble;
+    f32 prevY;
+    f32 vel;
+    f32 rate;
+    f32 dx;
+    f32 minDist;
+    f32 dz;
+    f32 d;
+    UNUSED f32 pad;
+    f32 top;
+    f32 y;
+    f32 step;
+    Vertex *v;
+    M126Light *light;
+
+    s = obj->unk68;
+    minDist = 100000000.0f;
+    if (s->unkFC0 == NULL) {
+        list = func_8000E464(&count);
+        for (k = 0; k < 2; k++) {
+            for (i = 0; i < count; i++) {
+                o = list[i];
+                dx = o->trans.x_position - obj->trans.x_position;
+                step = o->trans.y_position - obj->trans.y_position;
+                dz = o->trans.z_position - obj->trans.z_position;
+                d = dx * dx + step * step + dz * dz;
+                if (d < minDist) {
+                    minDist = d;
+                    s->unkFC0 = o;
+                }
+            }
+            list = obj_queue_get(&count);
+        }
+    }
+    s->buffer ^= 1;
+    v = s->verts[s->buffer][0];
+    rate = updateRate;
+    for (i = 0; i < 4; i++) {
+        s->angles[i] += updateRate << 8;
+        light = (M126Light *) s->lights[i];
+        if (updateRate < s->unkF44[i]) {
+            s->unkF44[i] -= updateRate;
+            func_800212D0(light);
+            continue;
+        }
+        s->unkF44[i] = 0;
+        prevY = s->unkF20[i];
+        if (s->unkFAC[i] == 0.0f) {
+            s->unkF00[i] += s->unkF08[i] * updateRate * s->unkFBC;
+            s->angles[i] += updateRate << 8;
+            s->unkF10[i] += s->unkF18[i] * updateRate;
+            wobble = func_80049C34(s->angles[i]);
+            s->unkF9C[i] = func_80049C30(s->unkF00[i]) * 0.2f + (s->scaleA + 0.2f * wobble);
+            s->unkF20[i] = (s16) (func_80049C34(s->unkF00[i]) * s->halfHeight + (obj->trans.y_position + s->halfHeight));
+        } else {
+            s->unkF20[i] -= rate * s->unkFAC[i];
+            s->unkFAC[i] += rate * 0.1f;
+            if (s->unkF20[i] < obj->trans.y_position) {
+                s->unkF20[i] = obj->trans.y_position;
+                s->unkFAC[i] = 0.0f;
+            }
+        }
+        for (count = 0; count < updateRate; count++) {
+            s->unkF40[i] += (0xFF - s->unkF40[i]) >> 3;
+        }
+        s->unkF40[i] = 0xFF;
+        func_80057D58(&s->cycles[i], updateRate);
+        light->x = obj->trans.x_position;
+        light->y = s->unkF20[i];
+        light->z = obj->trans.z_position;
+        func_800212E4(light);
+        light_colour_set(light, s->cycles[i].r, s->cycles[i].g, s->cycles[i].b);
+        light_intensity_set(light, s->unkF40[i]);
+        bands[0][0] = 8.0f;
+        bands[0][1] = 1;
+        bands[1][0] = 1;
+        bands[1][1] = -1;
+        bands[2][0] = -1;
+        bands[2][1] = -8.0f;
+        vel = (s->unkF20[i] - prevY) / rate;
+        if (vel < 0.0f) {
+            if (vel < -0.4f) {
+                vel = -0.4f;
+            }
+            bands[0][0] *= 1.0f - vel;
+            bands[2][1] = -4.0f;
+        } else {
+            if (vel > 0.4f) {
+                vel = 0.4f;
+            }
+            bands[2][1] *= 1.0f + vel;
+            bands[0][0] = 4.0f;
+        }
+        for (k = 0; k < 3; k++) {
+            a = 0;
+            for (n = 0; n < 8; n++) {
+                v->x = func_80049C34(a) * 15.0f;
+                v->y = bands[k][0];
+                v->z = func_80049C30(a) * 15.0f;
+                v->r = 0xFF;
+                v->g = 0xFF;
+                v->b = 0xFF;
+                v->a = 0xFF;
+                v++;
+                v->x = func_80049C34(a) * 15.0f;
+                v->y = bands[k][1];
+                v->z = func_80049C30(a) * 15.0f;
+                v->r = 0xFF;
+                v->g = 0xFF;
+                v->b = 0xFF;
+                v->a = 0xFF;
+                v++;
+                a += 0x2000;
+            }
+        }
+    }
+    s->unkFBC += 0.01f * rate;
+    s->unkFCA += updateRate;
+    if (s->unkFCA >= 0x164) {
+        y = obj->trans.y_position;
+        obj->trans.y_position += s->unkF20[0];
+        obj->particleEmittersEnabled = 1;
+        func_8005F5AC(obj, updateRate);
+        obj->trans.y_position = y;
+        if (!s->unkFC9) {
+            transition_begin(rl_m126_01254);
+            top = s->halfHeight * 2.0f + y;
+            step = s->halfHeight * 2.0f / 5.0f;
+            s->unkFC9 = 1;
+            obj->particleEmittersEnabled = 3;
+            for (i = 0; i < 20; i++) {
+                func_8005F5AC(obj, 2);
+                obj->trans.y_position += step;
+                if (top < obj->trans.y_position) {
+                    obj->trans.y_position = top - (obj->trans.y_position - top);
+                    step = -step;
+                } else if (obj->trans.y_position < y) {
+                    obj->trans.y_position = (y - obj->trans.y_position) + y;
+                    step = -step;
+                } else {
+                    continue;
+                }
+            }
+        }
+        if (s->unkFCA >= 0x168) {
+            s->unkFCA = 0x168;
+            s->unkFC0->trans.flags |= 0x400;
+            if (s->unkFC4 != 0) {
+                sound_stop(s->unkFC4);
+            }
+        }
+    } else {
+        if (s->unkFC4 == 0) {
+            func_80001248(0xDC, (s32) &s->unkFC4);
+        }
+        func_80001500(s->unkFC4, s->unkFCA / 360.0f + 0.5f);
+        if (s->unkFCA >= 0x12D) {
+            func_80001248(0xDB, 0);
+        }
+    }
+    if (s->unkFBC >= 5.0f) {
+        s->unkFBC = 5.0f;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_003D0);
+#endif
 
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* sets a texture */
 extern void func_8004959C(MtxF *mtx, f32 x, f32 y, f32 z);                 /* translation */
