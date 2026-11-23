@@ -112,7 +112,7 @@ extern void func_80055B80(Gfx **dl);                     /* resets the render se
 extern void set_active_camera(s32 camera);                   /* sets the active camera */
 extern void cam_fov_scale_set(f32 x, f32 y);                 /* scales the field of view */
 extern void func_8003F7F4(f32 fov, s32 arg1);            /* sets the field of view */
-extern void viewport_apply(Gfx **dl, s32 arg1);
+extern void viewport_apply(Gfx **dl, Mtx **mtx);
 extern void func_80040E64(Gfx **dl, Mtx **mtx);
 extern void func_8003F1C8(void *model, s32 id, s32 value); /* sets a texture's frame */
 extern void func_8005A0D0(s32 item);                     /* draws a menu item */
@@ -1049,8 +1049,16 @@ typedef struct M018Part {
 
 /* The shown object's model instance */
 typedef struct M018ShownModel {
-    /* 0x00 */ u8 pad0[0x68];
+    /* 0x00 */ M018ModelHeader *header;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 unkB;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ void *unk10[(0x68 - 0x10) / 4];
     /* 0x68 */ M018Part *parts;
+    /* 0x6C */ u8 pad6C[0x74 - 0x6C];
+    /* 0x74 */ M018TexAnim *anims;
+    /* 0x78 */ s16 *frames[1];
 } M018ShownModel;
 
 /* A highlighted part (three in the module's .bss) */
@@ -1072,9 +1080,9 @@ extern s8 rl_m018_06920[];
 extern s8 rl_m018_06BD0;
 extern s8 rl_m018_06BD2;
 extern s8 rl_m018_06BD3;
-extern u8 rl_m018_06BD4;
-extern u8 rl_m018_06BD5;
-extern u8 rl_m018_06BD6;
+extern s8 rl_m018_06BD4;
+extern s8 rl_m018_06BD5;
+extern s8 rl_m018_06BD6;
 extern s16 rl_m018_06BD8;
 extern s16 rl_m018_06BE0;
 extern s16 rl_m018_06BE8;
@@ -1132,7 +1140,259 @@ void func_m018_048E4(void) {
     rl_m018_06BF6 = 0;
 }
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: ROM frame, 809/806 words, 35 aligned diffs: the text lines' y wants s0, where IDO puts &gMenuText */
+extern u8 rl_m018_06670[];   /* .data: a display list of the box behind the shown object */
+extern s8 rl_m018_06914[];   /* the second view's y, per part */
+extern s16 rl_m018_06880[];  /* the shown object's turn target, per part */
+extern s16 rl_m018_068B0[][2]; /* per part: its first text line, its number of lines */
+extern ObjectTransform *func_80041DE0(void); /* the camera */
+extern s32 game_flag_get(s32 flag);
+extern void viewport_menu_set(s32 viewPortIndex, s32 x1, s32 y1, s32 x2, s32 y2);
+extern void camEnableUserView(s32 viewPortIndex, s32 arg1);
+extern void camDisableUserView(s32 viewPortIndex, s32 arg1);
+extern void copy_viewports_to_stack(void);
+extern void set_viewport_properties(s32 viewPortIndex, s32 posX, s32 posY, s32 width, s32 height);
+extern void func_8003D21C(void *inst, void *model, Object *obj, f32 arg3, f32 arg4);
+extern void func_800221F0(Object *obj, void *inst, void *shading, void *arg3);
+extern s16 angle_lerp(s16 from, s16 to, f32 t);
+extern void func_800408C0(Gfx **dl); /* sets the viewport's scissor */
+extern void func_80055C00(Gfx **dl, void *tex, s32 arg2, s32 arg3);
+static void func_m018_05850(M018Part *part);
+static void func_m018_05880(s32 updateRate);
+
+/*
+ * The screen that shows object 0x7B: the stick picks a part (its highlight moves), the object turns to the
+ * part, a second view shows the part's model, with the part's text lines
+ */
+void func_m018_04AF0(s32 updateRate) {
+    Object *obj2;
+    Object *obj;
+    M018Tex *tex;
+    M018ModelHeader *header;
+    M018ShownModel *model;
+    M018Model *model2;
+    s32 i;
+    s32 k;
+    s32 n;
+    s32 j;
+    s32 v;
+    f32 target;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 yRot;
+    f32 xRot;
+    f32 zRot;
+    ObjectTransform *cam;
+    M018TexAnim *anim;
+    s32 ty;
+    s16 *frame;
+    s8 flagB;
+    s8 flagA;
+
+    func_m018_040A8(updateRate, 0x21);
+    fe_screen_backdrop();
+    obj = D_800FF3F8[0x7B];
+    model = *(M018ShownModel **) obj->modelInstances;
+    header = model->header;
+    model->unkA = updateRate;
+    obj_anim_frame_advance(obj, rl_m018_06BF0, updateRate);
+    flagA = game_flag_get(rl_m018_06BD0 + 0x20);
+    flagB = game_flag_get(rl_m018_06BD1 + 0x20);
+    if (D_800FF3D8[D_m019_013D8] < -32) {
+        if (!rl_m018_06BF6) {
+            func_m018_05850(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+            rl_m018_06BD3--;
+            if (rl_m018_06BD3 < 0) {
+                rl_m018_06BD3 = 11;
+            }
+            rl_m018_06BD0 = rl_m018_06874[rl_m018_06BD3];
+            fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+            rl_m018_06BD2 = 1;
+            rl_m018_06BD4 = 0x78;
+            func_80001248(0x16B, 0);
+        }
+    } else if (D_800FF3D8[D_m019_013D8] > 32) {
+        if (!rl_m018_06BF6) {
+            func_m018_05850(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+            rl_m018_06BD3++;
+            if (rl_m018_06BD3 >= 12) {
+                rl_m018_06BD3 = 0;
+            }
+            rl_m018_06BD0 = rl_m018_06874[rl_m018_06BD3];
+            fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+            rl_m018_06BD2 = 2;
+            rl_m018_06BD4 = 0x78;
+            func_80001248(0x16B, 0);
+        }
+    }
+    if (rl_m018_06BCC) {
+        rl_m018_06BD6 += updateRate;
+        if (rl_m018_06BD6 > 0x60) {
+            rl_m018_06BD6 = 0x60;
+        }
+        func_80055C00(&D_800FF398, NULL, 0, 0);
+        gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, rl_m018_06BD6);
+        gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m018_06670 + 0x80000000); }
+        gDPFillRectangle(D_800FF398++, 39, 31, 123, 133);
+        set_active_camera(0);
+        viewport_menu_set(0, 0x88, 0x20, 0x116, 0x84);
+        camEnableUserView(0, 1);
+        copy_viewports_to_stack();
+        cam = func_80041DE0();
+        x = cam->x_position;
+        y = cam->y_position;
+        z = cam->z_position;
+        zRot = cam->rotation.z_rotation;
+        xRot = cam->rotation.x_rotation;
+        yRot = cam->rotation.y_rotation;
+        cam->rotation.z_rotation = 0;
+        cam->rotation.x_rotation = 0;
+        cam->rotation.y_rotation = 0;
+        cam->x_position = 0.0f;
+        cam->y_position = 30.0f;
+        cam->z_position = rl_m018_06BEC;
+        viewport_apply(&D_800FF398, &D_800FF39C);
+        func_8003D21C(model, header, obj, 1.0f, 0.0f);
+        func_800221F0(obj, model, obj->shading, model->unk10[model->unkB]);
+        model->unkA = 0;
+        anim = model->anims;
+        frame = model->frames[model->unkB];
+        if (game_flag_get(0x25)) {
+            if (updateRate < rl_m018_06BD5) {
+                rl_m018_06BD5 -= updateRate;
+            } else {
+                rl_m018_06BD5 += 30;
+                rl_m018_06BE8 ^= 0x100;
+            }
+        } else {
+            rl_m018_06BE8 = 0x100;
+        }
+        for (i = 0; i < header->numBatches; i++) {
+            k = anim->unk4 & 0xFF;
+            tex = header->textures[k].tex;
+            if (k == 2 || k == 12 || k == 13) {
+                anim->unk0 = rl_m018_06BE8;
+            }
+            *frame++ = (anim->unk0 >> 8) * tex->unk16;
+            v = anim->unk2;
+            if (v >= 0) {
+                *frame++ = (v >> 8) * tex->unk16;
+            }
+            anim++;
+        }
+        func_8005A0D0(0x26);
+        func_m018_05880(updateRate);
+        if (D_800FF3F8[rl_m018_06BD1 + 0x6F] == NULL) {
+            D_800FF780[37].unk6 = rl_m018_06BD1 + 0x6F;
+            D_800FF780[37].unk10 = 0.0f;
+            menu_item_load(D_800FF780[37].unk6);
+        }
+        cam->x_position = x;
+        cam->y_position = y;
+        cam->z_position = z;
+        cam->rotation.y_rotation = yRot;
+        cam->rotation.x_rotation = xRot;
+        cam->rotation.z_rotation = zRot;
+        set_active_camera(1);
+        cam = func_80041DE0();
+        set_viewport_properties(1, 0x51, rl_m018_06914[rl_m018_06BD1], 0x8000, 0x8000);
+        camEnableUserView(1, 1);
+        copy_viewports_to_stack();
+        cam->x_position = 0.0f;
+        cam->y_position = 0.0f;
+        cam->z_position = -281.0f;
+        cam->rotation.z_rotation = 0;
+        cam->rotation.x_rotation = 0;
+        cam->rotation.y_rotation = 0;
+        viewport_apply(&D_800FF398, &D_800FF39C);
+        gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, 40, 20, 122, 132);
+        obj2 = D_800FF3F8[D_800FF780[37].unk6];
+        model2 = *(M018Model **) obj2->modelInstances;
+        model2->unkA = updateRate;
+        func_800221F0(obj2, model2, obj2->shading, NULL);
+        model2->unkA = 0;
+        if (!flagB) {
+            gDPSetFogColor(D_800FF398++, 0x00, 0x60, 0x00, 0xFF);
+            gSPFogFactor(D_800FF398++, 0x500, 0x500);
+        }
+        D_800A51CC = rl_m018_06BF4;
+        func_8005A0D0(0x25);
+        D_800A51CC = 255;
+        gSPFogFactor(D_800FF398++, 4, 4);
+        camDisableUserView(0, 1);
+        camDisableUserView(1, 1);
+        func_80040E64(&D_800FF398, &D_800FF39C);
+        viewport_apply(&D_800FF398, NULL);
+        if (rl_m018_06BD1 != rl_m018_06BD0) {
+            if (updateRate * 8 < rl_m018_06BF4) {
+                rl_m018_06BF4 -= updateRate * 8;
+            } else {
+                rl_m018_06BF4 = 0;
+                menu_item_free(rl_m018_06BD1 + 0x6F);
+                rl_m018_06BD1 = rl_m018_06BD0;
+            }
+            rl_m018_06BD8 = rl_m018_0682C[rl_m018_06BD1 * 3];
+            rl_m018_06BE0 = rl_m018_06898[rl_m018_06BD0][0];
+            if (rl_m018_06BE0 == -1 || !flagA) {
+                rl_m018_06BE0 = 0;
+                rl_m018_06BF0 = 0.0f;
+            } else {
+                rl_m018_06BF0 = rl_m018_068E0[rl_m018_06BE0];
+            }
+            obj_anim_set(obj, rl_m018_06BE0, 0.0f);
+        } else if (rl_m018_06BF4 < 255 - updateRate * 4) {
+            rl_m018_06BF4 += updateRate * 4;
+        } else {
+            rl_m018_06BF4 = 255;
+        }
+        target = rl_m018_06880[rl_m018_06BD0];
+        if (rl_m018_06BD4 > 0) {
+            rl_m018_06BD4 -= updateRate;
+        }
+        i = updateRate;
+        while (i--) {
+            D_800FF780[37].unkC += (0.0f - D_800FF780[37].unkC) * 0.25f;
+            if (rl_m018_06BD4 > 0) {
+                D_800FF780[38].unk0 = angle_lerp(D_800FF780[38].unk0, rl_m018_06BD8, 0.0325f);
+            }
+            rl_m018_06BEC += (target - rl_m018_06BEC) * 0.125f;
+        }
+        if (rl_m018_06BD4 <= 0) {
+            D_800FF780[38].unk0 += updateRate * 112;
+        }
+        D_800FF780[37].unk0 += updateRate * 192;
+        func_800408C0(&D_800FF398);
+        func_8006FC54(2);
+        ty = 160;
+        n = rl_m018_068B0[rl_m018_06BD0][1];
+        func_8006FC68(255, 255, 0, 255, 255);
+        j = rl_m018_068B0[rl_m018_06BD0][0];
+        func_8006FCA8(&D_800FF398, 0x3C, 0x96, gMenuText[j++], 0);
+        func_8006FC68(255, 255, 255, 255, 255);
+        for (i = 1; i < n; i++) {
+            func_8006FCA8(&D_800FF398, 0x3C, ty, gMenuText[j++], 0);
+            ty += 10;
+        }
+    }
+    cam_fov_scale_set(1.0f, 1.0f);
+    func_8003F7F4(52.0f, 1);
+    func_80040E64(&D_800FF398, &D_800FF39C);
+    func_8005A0D0(0x21);
+    func_8005A0D0(0x22);
+    func_8005A0D0(0x23);
+    func_8005A0D0(0x24);
+    func_8003F7F4(52.0f, 1);
+    if (func_80043510(D_m019_013D8) & 0x4000) {
+        func_m019_001B0(1);
+        rl_m018_06BF6 = 1;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_04AF0);
+#endif
 
 void func_m018_05788(void) {
     menu_assetgroup_free(rl_m018_06810);
@@ -1178,7 +1438,22 @@ extern s8 rl_m018_06BFA;
 extern s8 rl_m018_06BFB;
 extern M018Part *rl_m018_06BFC;
 
+#ifdef NON_MATCHING
+/* (matches; static, staged until 04AF0, its only caller, matches) */
+/* Clears the first highlight if it is on `part` (module m018, 0x05850; it looks at the first slot each time) */
+static void func_m018_05850(M018Part *part) {
+    s32 i = 3;
+
+    while (i--) {
+        if (part == rl_m018_06BFC) {
+            rl_m018_06BF8_active = 0;
+            return;
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05850);
+#endif
 
 /* A rectangle for menu_fill_boxes */
 typedef struct M018Rect {
@@ -1193,9 +1468,126 @@ extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 ar
 extern void menu_fill_boxes(Gfx **dl, s32 count, M018Rect *rects, s32 arg3);      /* draws rectangles */
 
 
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05880);
+#ifdef NON_MATCHING
+/* NON_MATCHING: the ROM shares one `lui at` for the three size stores, which needs this .bss defined in C */
+static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour);
 
+/*
+ * Ages the first highlight's three sizes and draws its three boxes, fading outwards, around its part's screen
+ * position (module m018, 0x05880; like m046's marker brackets, but `g` never moves on: it looks at the first
+ * slot each time)
+ */
+static void func_m018_05880(s32 updateRate) {
+    M018Glow *g;
+    s32 i;
+    UNUSED s32 pad[3];
+    s8 *sizes;
+    f32 screenX;
+    f32 screenY;
+    s32 alpha;
+    s32 j;
+    s32 size;
+    s32 prev;
+
+    g = rl_m018_06BF8;
+    i = 3;
+    while (i--) {
+        if (g->active) {
+            g->b = g->g;
+            g->g = g->r;
+            g->r -= updateRate;
+        }
+        if (g->r < 0) {
+            g->r = 0;
+        }
+        if (func_80041E58(g->part->x, g->part->y, g->part->z, &screenX, &screenY, 1)) {
+            sizes = &g->r;
+            alpha = 0xA0;
+            prev = -1;
+            j = 3;
+            while (j--) {
+                if (g->active) {
+                    size = *sizes * 2 + 8;
+                    if (size != prev) {
+                        func_m018_05A24((s32) screenX - size, (s32) screenY - size, size * 2, size * 2,
+                                        0xFF0000 | alpha);
+                        prev = size;
+                    }
+                }
+                alpha -= 0x34;
+                sizes++;
+            }
+        }
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05880);
+#endif
+
+#ifdef NON_MATCHING
+/* (matches; static, staged until 05880, its only caller, matches) */
+/* Draws a w x h bracket box at (x, y) in the colour, with a black shadow under each side (module m018, 0x05A24) */
+static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour) {
+    s32 right;
+    s32 bottom;
+    M018Rect *rect;
+    M018Rect rects[8];
+
+    right = x + w;
+    bottom = y + h;
+    rect = rects;
+    rect->x0 = x - 2;
+    rect->y0 = y - 2;
+    rect->x1 = right + 2;
+    rect->y1 = y + 3;
+    rect->colour = 0;
+    rect++;
+    rect->x0 = x;
+    rect->y0 = y;
+    rect->x1 = right + 1;
+    rect->y1 = y + 1;
+    rect->colour = colour;
+    rect++;
+    rect->x0 = x - 2;
+    rect->y0 = y - 2;
+    rect->x1 = x + 3;
+    rect->y1 = bottom + 2;
+    rect->colour = 0;
+    rect++;
+    rect->x0 = x;
+    rect->y0 = y + 1;
+    rect->x1 = x + 1;
+    rect->y1 = bottom;
+    rect->colour = colour;
+    rect++;
+    rect->x0 = right - 2;
+    rect->y0 = y - 2;
+    rect->x1 = right + 3;
+    rect->y1 = bottom + 2;
+    rect->colour = 0;
+    rect++;
+    rect->x0 = right;
+    rect->y0 = y + 1;
+    rect->x1 = right + 1;
+    rect->y1 = bottom;
+    rect->colour = colour;
+    rect++;
+    rect->x0 = x - 2;
+    rect->y0 = bottom - 2;
+    rect->x1 = right + 2;
+    rect->y1 = bottom + 3;
+    rect->colour = 0;
+    rect++;
+    rect->x0 = x;
+    rect->y0 = bottom;
+    rect->x1 = right + 1;
+    rect->y1 = bottom + 1;
+    rect->colour = colour;
+    menu_fill_boxes(&D_800FF398, 8, rects, 0);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05A24);
+#endif
 
 void func_m018_05B40(void) {
     menu_assetgroup_load(rl_m018_0692C);
