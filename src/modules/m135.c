@@ -273,12 +273,11 @@ void func_m135_00298(Object *obj, LevelObjectEntryCommon *entry) {
 
 s32 func_m135_01754(Object *obj, s32 dir);
 
-#ifdef NON_MATCHING
 /*
- * 6 diffs (31 before the fog values became statements and the yaw store got its 16-bit mask): the fog
- * call loads R, G, B into t5/t3/t4 where the ROM has t3/t4/t5 (the ROM's copied value is R>>20, ours G>>20)
+ * The room camera's control: chooses and confirms the targets, and moves the camera, its fog and its view.
+ * After the fog loop, g, b and y (whose loop values are dead) carry the fog's red, green and blue to the
+ * fog call: the ROM keeps red in the loop's green register.
  */
-/* The room camera's control: chooses and confirms the targets, and moves the camera, its fog and its view */
 void func_m135_002BC(Object *obj, s32 updateRate) {
     f32 fov;
     f32 f;
@@ -481,10 +480,10 @@ void func_m135_002BC(Object *obj, s32 updateRate) {
     }
     x = cam->fogNear >> 20;
     z = cam->fogFar >> 20;
-    g = cam->fogG >> 20;
-    b = cam->fogB >> 20;
-    y = cam->fogR >> 20;
-    func_8001BB30(0, x, z, cam->unk48, y, g, b, cam->unk55);
+    g = cam->fogR >> 20;
+    b = cam->fogG >> 20;
+    y = cam->fogB >> 20;
+    func_8001BB30(0, x, z, cam->unk48, g, b, y, cam->unk55);
     func_8003F7F4(fov, 1);
     yaw1 = aimEntry->yaw;
     pitch1 = aimEntry->pitch;
@@ -552,9 +551,6 @@ void func_m135_002BC(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m135/ro", func_m135_002BC);
-#endif
 
 /* Turns the camera to the next target that can be shown (dir 0: forwards); TRUE if it changed */
 s32 func_m135_01754(Object *obj, s32 dir) {
