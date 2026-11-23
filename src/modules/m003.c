@@ -17,7 +17,8 @@ typedef struct M003Member {
     /* 0x00 */ u32 unk0_26 : 1; /* (0B70C) */
     /* 0x00 */ u32 unk0_25 : 1; /* (0E3CC: not moved) */
     /* 0x00 */ u32 unk0_24 : 1; /* it has joined its troop (0D360) */
-    /* 0x00 */ u32 pad0_22 : 2;
+    /* 0x00 */ u32 unk0_23 : 1; /* (06D28: set with unk0_18 when it is placed mirrored) */
+    /* 0x00 */ u32 pad0_22 : 1;
     /* 0x00 */ u32 unk0_21 : 1;
     /* 0x00 */ u32 unk0_20 : 1;
     /* 0x00 */ u32 placed : 1; /* its level entry gave a place (0DF84) */
@@ -25,7 +26,7 @@ typedef struct M003Member {
     /* 0x00 */ u32 unk0_17 : 1; /* (0A850: the member moves five times as fast) */
     /* 0x00 */ u32 pad0_7 : 2;
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
-    /* 0x00 */ u32 pad0_5 : 1;
+    /* 0x00 */ u32 wandering : 1; /* it has a wander point (069B0) */
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
     /* 0x00 */ u32 unk0_11 : 1; /* (0B70C) */
     /* 0x00 */ u32 partsSet : 1; /* set when 10160 or 10354 picked a part (bit 10) */
@@ -394,7 +395,7 @@ extern s32 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
 extern void func_m155_02BB0(Object *home);
 s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
 extern s32 func_m003_04F88(s32 arg0, f32 arg1);
-extern void func_m003_06D28(Object *home, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
+void func_m003_06D28(Object *home, s32 index, f32 *x, f32 *y, f32 *z);
 extern s32 func_m003_0C324(); /* (Object *obj); 0CF40 calls it with no argument */
 extern s32 func_m003_15BE8(f32 x, f32 y, f32 z);
 extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 arg3); /* the way point nearest a point */
@@ -773,7 +774,7 @@ void func_m003_00AF4(Object *obj, f32 *x, f32 *y, f32 *z) {
 }
 
 void func_m003_00C20(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {
-    func_m003_06D28(sHome, sMember->unk15, arg1, arg2, arg3);
+    func_m003_06D28(sHome, sMember->unk15, (f32 *) arg1, (f32 *) arg2, (f32 *) arg3);
 }
 
 /* An object's position; heads for way point 0x20 */
@@ -2970,9 +2971,277 @@ M003Event *func_m003_06754(Object *obj, f32 *loudness) {
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06754);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_069B0);
+/* Picks a new wander point for obj's member when the way ahead is blocked or the point is reached */
+static void func_m003_069B0(Object *obj) {
+    Object *saved = sObj;
+    s32 blocked;
+    M003Region *region;
+    s32 i;
+    s32 k;
+    s32 d;
+    s32 angle;
+    f32 r;
+    f32 x;
+    f32 z;
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_06D28);
+    blocked = FALSE;
+    if (func_m003_05450(obj)) {
+        region = func_m003_0569C(sHomeData->unk7A);
+        i = 6;
+        do {
+            k = i - 3;
+            angle = (s16) (sObj->trans.rotation.y_rotation + (k << 12));
+            if (k > 0) {
+                d = k;
+            } else {
+                d = -k;
+            }
+            r = (5.0f - d) * ((M003Interact *) sObj->interactObj)->radius;
+            x = sObj->trans.x_position - func_80049C34(angle) * r;
+            z = sObj->trans.z_position - func_80049C30(angle) * r;
+            if (func_m003_16F44(x, z, region) != 0 && func_m003_057CC(x, z) == 0) {
+                blocked = TRUE;
+                break;
+            }
+        } while (d = i, i--, d);
+        if (func_m003_03E68(sObj->trans.x_position, sObj->trans.z_position, sMember->unk38, sMember->unk40) < 600.0f) {
+            blocked = TRUE;
+            sMember->wandering = FALSE;
+        }
+        if (blocked) {
+            if (!sMember->wandering) {
+                i = 4; do {
+                    if (i == 4 && func_m003_16F44(((Object *) sClosestPlayer)->trans.x_position,
+                                                  ((Object *) sClosestPlayer)->trans.z_position, region) != 0) {
+                        d = func_80049C84(sObj->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position,
+                                          sObj->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position);
+                        angle = func_80048E2C(-6000, 6000) + d;
+                    } else {
+                        angle = func_80048E2C(-0x8000, 0x7FFF);
+                    }
+                    r = func_80048E2C(200, 1000);
+                    x = sObj->trans.x_position - func_80049C34(angle) * r;
+                    z = sObj->trans.z_position - func_80049C30(angle) * r;
+                    if (func_m003_175E8(sObj->trans.x_position, sObj->trans.z_position, x, z, region, NULL, -1, 0xFF) == 0) {
+                        sMember->unk38 = x;
+                        sMember->unk40 = z;
+                        sMember->wandering = TRUE;
+                        func_m003_05450(saved);
+                        return;
+                    }
+                } while (d = i, i--, d);
+                sMember->unk38 = sObj->trans.x_position;
+                sMember->unk40 = sObj->trans.z_position;
+            }
+        } else {
+            sMember->wandering = FALSE;
+        }
+        func_m003_05450(saved);
+    }
+}
+
+extern void troop_member_colours_get(Object *obj, u8 *r, u8 *g, u8 *b);
+extern void func_m138_00000(Object *obj);
+extern void func_m141_00084(Object *obj);
+extern void func_m143_02394(Object *obj);
+extern void func_m145_000D0(Object *obj);
+extern void func_m146_00350(Object *obj);
+extern void func_m151_00154(Object *obj);
+extern void func_m155_02FD0(Object *obj, s32 order);
+
+/*
+ * Where member `index` of home's troop should stand (*x, *y, *z). The member's kind (the third colour byte)
+ * may place it itself: at its object, at the one that shot it, mirrored round its object, or at a point its
+ * behaviour picks. Otherwise the first colour byte picks a pattern round the home and the second its spacing.
+ * row also carries case 5's angle; n the member count, then the angle of cases 6, 7 and 10; col the column
+ * count, then the column (their lives do not overlap).
+ */
+void func_m003_06D28(Object *home, s32 index, f32 *x, f32 *y, f32 *z) {
+    M003Home *hd;
+    Object *obj;
+    M003Member *m;
+    s32 sine;
+    s32 cosine;
+    u8 shape;
+    u8 spacing;
+    u8 kind;
+    s32 row;
+    s32 n;
+    f32 radius;
+    s32 col;
+
+    hd = home->unk68;
+    obj = hd->first;
+    sine = func_8004966C(home->trans.rotation.y_rotation) >> 8;
+    cosine = func_80049668(home->trans.rotation.y_rotation) >> 8;
+    troop_member_colours_get(home, &shape, &spacing, &kind);
+    if (obj != NULL && !(m = obj->unk68)->unk0_28) {
+        n = hd->unk0 - 1;
+        while (n--) {
+            if (index == m->unk15) {
+                break;
+            }
+            obj = m->next;
+            if (obj == NULL) {
+                return;
+            }
+            m = obj->unk68;
+        }
+        m->unk0_7 = FALSE;
+        if (m->unk4B >= 9) {
+            *x = obj->trans.x_position;
+            *y = obj->trans.y_position;
+            *z = obj->trans.z_position;
+            m->unk0_7 = TRUE;
+            sObj->velocity.x = 0.0f;
+            sObj->velocity.z = 0.0f;
+            return;
+        }
+        switch (kind) {
+            case 9:
+            case 10:
+            case 11:
+            case 14:
+            case 15:
+            case 33:
+                *x = obj->trans.x_position;
+                *y = obj->trans.y_position;
+                *z = obj->trans.z_position;
+                m->unk0_7 = TRUE;
+                return;
+            case 6:
+            case 7:
+                *x = ((Object *) sShotBy)->trans.x_position;
+                *y = ((Object *) sShotBy)->trans.y_position;
+                *z = ((Object *) sShotBy)->trans.z_position;
+                return;
+            case 8:
+                *x = obj->trans.x_position - (((Object *) sShotBy)->trans.x_position - obj->trans.x_position);
+                *y = obj->trans.y_position - (((Object *) sShotBy)->trans.y_position - obj->trans.y_position);
+                *z = obj->trans.z_position - (((Object *) sShotBy)->trans.z_position - obj->trans.z_position);
+                if (!m->unk0_23) {
+                    m->unk0_18 = TRUE;
+                    m->unk0_23 = TRUE;
+                    m->unk17 = 0;
+                }
+                return;
+            case 13:
+                func_m003_069B0(obj);
+                *x = m->unk38;
+                *y = m->unk3C;
+                *z = m->unk40;
+                return;
+            case 16:
+                switch (hd->kind) {
+                    case 0xE1:
+                        func_m151_00154(obj);
+                        break;
+                    case 0xF2:
+                        func_m141_00084(obj);
+                        break;
+                    case 0x112:
+                        func_m146_00350(obj);
+                        break;
+                    case 0x6D:
+                        func_m138_00000(obj);
+                        break;
+                    case 0x2CE:
+                        func_m143_02394(obj);
+                        break;
+                }
+                *x = m->unk38;
+                *y = m->unk3C;
+                *z = m->unk40;
+                return;
+            case 18:
+                func_m145_000D0(obj);
+                *x = m->unk38;
+                *y = m->unk3C;
+                *z = m->unk40;
+                return;
+            case 17:
+                func_m155_02FD0(obj, 0);
+                *x = m->unk38;
+                *y = m->unk3C;
+                *z = m->unk40;
+                return;
+        }
+    }
+    *x = 0.0f;
+    *y = 0.0f;
+    *z = 0.0f;
+    switch (shape) {
+        case 0:
+            break;
+        case 1: /* a line ahead */
+            *x = (spacing * sine * index) >> 8;
+            *z = (spacing * cosine * index) >> 8;
+            break;
+        case 2: /* a square block */
+            col = func_80097140(hd->count);
+            if (col == 0) {
+                break;
+            }
+            row = index / col;
+            row = ((row & 1) ? 1 : -1) * ((row + 1) >> 1);
+            col = index % col;
+            *x = ((spacing * cosine * row) >> 8) + ((sine * spacing * col) >> 7);
+            *z = ((-sine * spacing * row) >> 8) + ((cosine * spacing * col) >> 7);
+            break;
+        case 3: /* a line across, alternating sides */
+            row = ((index & 1) ? 1 : -1) * ((index + 1) >> 1);
+            *x = (spacing * cosine * row) >> 8;
+            *z = (-sine * spacing * row) >> 8;
+            break;
+        case 4: /* a wedge */
+            row = ((index & 1) ? 1 : -1) * ((index + 1) >> 1);
+            *x = ((spacing * cosine * row) >> 8) + ((sine * spacing * index) >> 10);
+            *z = ((-sine * spacing * row) >> 8) + ((cosine * spacing * index) >> 10);
+            break;
+        case 5: /* a circle */
+            row = (0xFFFF / hd->count) * index;
+            *x = func_80049C34(row) * (f32) (spacing * 4);
+            *z = func_80049C30(row) * (f32) (spacing * 4);
+            break;
+        case 6:
+        case 7: /* a ring as big as the troop needs */
+            radius = (f32) (hd->unk0 * spacing) / 6.2831855f;
+            if (radius < 80.0f) {
+                radius = 80.0f;
+            }
+            n = (0x10000 / hd->unk0) * index;
+            *x = func_80049C34(n) * radius;
+            *z = func_80049C30(n) * radius;
+            break;
+        case 10: /* the same, one member fewer */
+            radius = (f32) ((hd->unk0 - 1) * spacing) / 6.2831855f;
+            if (radius < 80.0f) {
+                radius = 80.0f;
+            }
+            n = (0x10000 / (hd->unk0 - 1)) * index;
+            *x = func_80049C34(n) * radius;
+            *z = func_80049C30(n) * radius;
+            break;
+        case 8: /* a square block stacked upwards */
+            col = func_80097140(hd->count);
+            if (col == 0) {
+                break;
+            }
+            row = index / col;
+            row = ((row & 1) ? 1 : -1) * ((row + 1) >> 1);
+            col = index % col;
+            *x = (spacing * cosine * row) >> 8;
+            *y = spacing * col;
+            *z = (-sine * spacing * row) >> 8;
+            break;
+        case 9: /* a column upwards */
+            *y = spacing * index;
+            break;
+    }
+    *x += hd->x;
+    *y += hd->y;
+    *z += hd->z;
+}
 
 
 /* The change from `speed` towards a speed for going from `from` to `to`, at most `max` either way */
@@ -4523,7 +4792,7 @@ static Object *func_m003_0D810(void) {
                 sHomeData->y = sHome->trans.y_position;
                 sHomeData->z = sHome->trans.z_position;
             }
-            func_m003_06D28(sHome, sMember->unk15, (s32) &ox, (s32) &oy, (s32) &oz);
+            func_m003_06D28(sHome, sMember->unk15, &ox, &oy, &oz);
             sHomeData->x = x;
             sHomeData->y = y;
             sHomeData->z = z;
