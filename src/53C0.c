@@ -2528,10 +2528,10 @@ void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g,
  * 0x20000000); object 0x18 is drawn by a module with a flash fog while module 2 is loaded and the object's fog bits
  * are set; objects 0x91, 0x86, 0x3D (by setup player), 0x26 (sprite flag 0x200), 0x39 (its level entry's colour
  * cycles) and 0x3A get a tint pair instead of the prim/env colours; a second module pass for object 0x18.
- * NON_MATCHING: a first body written from the ROM, at the ROM's frame (0xB8, every stack slot right), 497/495 words,
- * 136 aligned diffs: the display-list temporaries are in v1 (ROM v0) and the tint flag in t0 (ROM t1: the ROM
- * gives t0 to the alpha byte passed to the module), a few constants are hoisted differently (the alpha clamp's 255,
- * the 0xFB000000 commands) and a load-delay nop is missing at the second behaviour chain.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (495 words, 0xB8, every stack slot
+ * right), 119 aligned diffs: the display-list temporaries are in v1 (ROM v0) and the tint flag in t0 (ROM t1: the
+ * ROM gives t0 to the alpha byte passed to the module), and a few constants are hoisted differently (the alpha
+ * clamp's 255, the 0xFB000000 commands).
  * Not portable as is: the level entry (an s32 field) is read as a pointer.
  */
 void func_8000B46C(Object *obj) {
@@ -2585,23 +2585,27 @@ void func_8000B46C(Object *obj) {
     }
     sprite = obj->attachments[obj->attachmentIndex];
     if (obj->behaviorId == 0x18) {
-        racer = obj->racer;
-        if (!runlink_module_loaded(2)) {
-            return;
-        }
-        if (D_800A3334 == 0) {
-            if (racer->fogFlags == 0) {
+        /* a multi-statement block (a macro in the original?): the do/while (0) gives the ROM's length */
+        do {
+            racer = obj->racer;
+            if (!runlink_module_loaded(2)) {
                 return;
             }
-            get_fog_settings(0, &near, &far, &unk, &r, &g, &b, &unk2);
-            gDPSetFogColor(gObjectCurrDisplayList++, 255, 50, 50, 255);
-            gMoveWd(gObjectCurrDisplayList++, G_MW_FOG, G_MWO_FOG, (0x500 << 16) | 0x500);
-            func_80054530(obj, &gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, sprite, flags, alpha, 1);
-            gDPSetFogColor(gObjectCurrDisplayList++, r, g, b, 255);
-            gSPFogPosition(gObjectCurrDisplayList++, near, far);
-            racer->fogFlags = 0;
-            return;
-        }
+            if (D_800A3334 == 0) {
+                if (racer->fogFlags == 0) {
+                    return;
+                }
+                get_fog_settings(0, &near, &far, &unk, &r, &g, &b, &unk2);
+                gDPSetFogColor(gObjectCurrDisplayList++, 255, 50, 50, 255);
+                gMoveWd(gObjectCurrDisplayList++, G_MW_FOG, G_MWO_FOG, (0x500 << 16) | 0x500);
+                func_80054530(obj, &gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, sprite, flags,
+                              alpha, 1);
+                gDPSetFogColor(gObjectCurrDisplayList++, r, g, b, 255);
+                gSPFogPosition(gObjectCurrDisplayList++, near, far);
+                racer->fogFlags = 0;
+                return;
+            }
+        } while (0);
     }
     if (obj->behaviorId == 0x91) {
         draw_tint_pair_set(255, 255, 255, ((u8 *) obj->racer)[1], ((u8 *) obj->racer)[2], ((u8 *) obj->racer)[3]);
