@@ -1335,7 +1335,258 @@ void func_8003E398(Gfx **dList, s8 *ids, s8 *slots, BatchModel3E *model, s32 bat
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E398);
 #endif
 
+/* JFG: a limb model instance (the fields used here; InstanceC1 with the matrix bank signed) */
+typedef struct LimbInst3C {
+    /* 0x00 */ DrawModel3C *model;
+    /* 0x04 */ VertexC1 *vertices;
+    /* 0x08 */ u8 pad8[3];
+    /* 0x0B */ s8 bank;
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ MtxF *matrices[2];
+} LimbInst3C;
+
+typedef struct LimbTarget3C {
+    /* 0x00 */ u8 pad0[0x3A];
+    /* 0x3A */ s8 index;
+    /* 0x3B */ u8 pad3B[0x6C - 0x3B];
+    /* 0x6C */ LimbInst3C **insts;
+} LimbTarget3C;
+
+/* JFG: the object's own vertex and triangle buffers */
+typedef struct LimbBuf3C {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ VertexC1 *vertices;
+    /* 0x08 */ u8 *triangles;
+} LimbBuf3C;
+
+typedef struct LimbObj3C {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x68 - 0x18];
+    /* 0x68 */ LimbBuf3C *buf;
+} LimbObj3C;
+
+/* JFG: a model triangle (DKR Triangle) */
+typedef struct LimbTri3C {
+    /* 0x00 */ u8 flags;
+    /* 0x01 */ u8 vi0;
+    /* 0x02 */ u8 vi1;
+    /* 0x03 */ u8 vi2;
+    /* 0x04 */ s16 uv[6];
+} LimbTri3C;
+
+#ifdef NON_MATCHING
+/* JFG: build a display list for the batches of the target's current instance whose first id is in
+ * [minId, maxId], with every vertex transformed by its joint's matrix into the object's own vertex buffer and
+ * the triangles renumbered into its triangle buffer (loaded 24 vertices at a time), copy the list to a new
+ * block (*out), then centre the vertices on their average, which becomes the object's position.
+ * NON_MATCHING: ROM length, frame and stack slots, 94 aligned diffs: from the vertex loop on t7/t8 are swapped
+ * (the code generator's free list one step off) and the prologue loads in another order. */
+void func_8003E638(Gfx **out, LimbObj3C *obj, LimbTarget3C *target, s32 flags, s32 clearFlags, s32 minId, s32 maxId) {
+    LimbInst3C *inst;
+    DrawModel3C *model;
+    s32 count;
+    DrawBatch3C *batch;
+    Gfx *dl;
+    LimbBuf3C *buf;
+    VertexC1 *vtxOut;
+    LimbTri3C *triOut;
+    BatchTexture3C *prevTex;
+    DrawTexAnim3C *anim;
+    s32 prevOffset;
+    s32 j;
+    BatchTexture3C *tex;
+    s32 texOffset;
+    s32 facesOffset;
+    s32 texIndex;
+    f32 x;
+    s32 batchFlags;
+    u8 *triCmd;
+    s32 k;
+    s32 hasTexture;
+    VertexC1 *src;
+    VertexC1 *vtxStart;
+    u8 *tris;
+    s32 joint;
+    s32 vi;
+    f32 ox;
+    f32 oy;
+    f32 oz;
+    s32 sumX;
+    s32 sumY;
+    s32 sumZ;
+    UNUSED s32 pad; // a register-only word the frame has here
+    s32 n;
+    Gfx *gsrc;
+    VertexC1 *verts;
+    s32 nv;
+    s32 numVerts;
+    f32 y;
+    f32 z;
+
+    inst = target->insts[target->index];
+    model = inst->model;
+    count = model->numBatches;
+    batch = model->batches;
+    dl = (Gfx *) D_800F6F58;
+    buf = obj->buf;
+    vtxOut = buf->vertices;
+    triCmd = buf->triangles;
+    prevTex = (BatchTexture3C *) -1;
+    anim = model->texAnims;
+    prevOffset = -1;
+    batchFlags = 0;
+    numVerts = 0;
+    clearFlags = ~clearFlags;
+    vtxStart = vtxOut;
+    triOut = (LimbTri3C *) triCmd;
+    rendermode_reset(&dl);
+    while (count--) {
+        if (batch->ids[0] >= minId && maxId >= batch->ids[0] && !(batch->flags & 0x400)) {
+            texIndex = batch->textureIndex;
+            if (texIndex == 0xFF) {
+                texOffset = 0;
+                tex = NULL;
+                hasTexture = FALSE;
+            } else {
+                texOffset = batch->texOffset << 14;
+                tex = model->textures[texIndex].texture;
+                hasTexture = TRUE;
+            }
+            batchFlags = (batchFlags | flags | D_800A2EC0) & clearFlags;
+            if (model->animateTextures != 0 && tex != NULL && (tex != prevTex || texOffset != prevOffset)) {
+                anim->offset = texOffset;
+                anim->frame = -1;
+                anim->flags = (batch->flags & ~0xFF) | texIndex;
+                if (tex->flags & 0x40) {
+                    anim->frame = texOffset + 0x100;
+                    if (anim->frame >= tex->numOfTextures) {
+                        if (tex->unk18) {
+                            anim->frame = 0;
+                        } else {
+                            anim->frame -= 0x100;
+                        }
+                    }
+                }
+                anim++;
+            }
+            prevTex = tex;
+            prevOffset = texOffset;
+            func_80055C00(&dl, tex, batchFlags, texOffset);
+            facesOffset = batch->facesOffset;
+            tris = &model->triangles[facesOffset * 16];
+            for (j = 0; j < batch[1].facesOffset - facesOffset; j++) {
+                sumX = 0;
+                sumY = 0;
+                sumZ = 0;
+                for (k = 0; k < 3; k++) {
+                    vi = tris[k + 1];
+                    src = &inst->vertices[vi + batch->verticesOffset];
+                    if (vi < batch->splits[0]) {
+                        joint = batch->ids[0];
+                    } else if (vi < batch->splits[1]) {
+                        joint = batch->ids[1];
+                    } else {
+                        joint = batch->ids[2];
+                    }
+                    guMtxXFMF((f32 (*)[4]) (inst->matrices[inst->bank] + joint), src->x, src->y, src->z, &ox, &oy, &oz);
+                    sumX += ox;
+                    sumY += oy;
+                    sumZ += oz;
+                    vtxOut->x = ox;
+                    vtxOut->y = oy;
+                    vtxOut->z = oz;
+                    vtxOut->r = src->r;
+                    vtxOut->g = src->g;
+                    vtxOut->b = src->b;
+                    vtxOut->a = src->a;
+                    vtxOut++;
+                }
+                triOut->flags = 0x40;
+                triOut->vi0 = numVerts;
+                triOut->vi1 = numVerts + 1;
+                triOut->vi2 = numVerts + 2;
+                triOut->uv[0] = ((LimbTri3C *) tris)->uv[0];
+                triOut->uv[1] = ((LimbTri3C *) tris)->uv[1];
+                triOut->uv[2] = ((LimbTri3C *) tris)->uv[2];
+                triOut->uv[3] = ((LimbTri3C *) tris)->uv[3];
+                triOut->uv[4] = ((LimbTri3C *) tris)->uv[4];
+                triOut->uv[5] = ((LimbTri3C *) tris)->uv[5];
+                numVerts += 3;
+                triOut++;
+                tris += 16;
+                if (numVerts == 24) {
+                    gDma1p(dl++, G_VTX, (u32) vtxStart & 0x0FFFFFFF, (24 << 3) + (24 << 1) + 8,
+                           (24 << 3) | (((u32) vtxStart & 0x0FFFFFFF) & 6));
+                    k = 8;
+                    while (k--) {
+                        gSPPolygon(dl++, (u32) triCmd & 0x0FFFFFFF, 1, hasTexture);
+                        triCmd += 16;
+                    }
+                    vtxStart = vtxOut;
+                    numVerts = 0;
+                }
+            }
+            if (numVerts != 0) {
+                gDma1p(dl++, G_VTX, (u32) vtxStart & 0x0FFFFFFF, (numVerts << 3) + (numVerts << 1) + 8,
+                       (numVerts << 3) | (((u32) vtxStart & 0x0FFFFFFF) & 6));
+                k = numVerts / 3;
+                while (k--) {
+                    gSPPolygon(dl++, (u32) triCmd & 0x0FFFFFFF, 1, hasTexture);
+                    triCmd += 16;
+                }
+                numVerts = 0;
+                vtxStart = vtxOut;
+            }
+        }
+        batch++;
+    }
+    gDPPipeSync(dl++);
+    gSPEndDisplayList(dl++);
+    n = dl - (Gfx *) D_800F6F58;
+    dl = *out = mempool_alloc(n * 8, 0xFF0000FF);
+    if (dl != NULL) {
+        gsrc = (Gfx *) D_800F6F58;
+        while (n--) {
+            dl->words.w0 = gsrc->words.w0;
+            dl->words.w1 = gsrc->words.w1;
+            gsrc++;
+            dl++;
+        }
+    }
+    verts = buf->vertices;
+    nv = vtxOut - verts;
+    vtxOut = verts;
+    x = 0.0f;
+    y = 0.0f;
+    z = 0.0f;
+    k = nv;
+    while (k--) {
+        x += vtxOut->x;
+        y += vtxOut->y;
+        z += vtxOut->z;
+        vtxOut++;
+    }
+    x /= nv;
+    y /= nv;
+    z /= nv;
+    vtxOut = verts;
+    k = nv;
+    while (k--) {
+        vtxOut->x = vtxOut->x - x;
+        vtxOut->y = vtxOut->y - y;
+        vtxOut->z = vtxOut->z - z;
+        vtxOut++;
+    }
+    obj->x = x;
+    obj->y = y;
+    obj->z = z;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003E638);
+#endif
 
 extern s32 *D_800F6F3C; // JFG: the second cache of (id, asset) pairs
 extern s32 D_800F6F44;
