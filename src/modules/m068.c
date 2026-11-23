@@ -789,7 +789,9 @@ extern MtxF *get_projection_matrix_f32(void);
  * Length, frame and the order of every instruction match; left are registers (the integer and float
  * temporaries of the first half, the object pointer's t4, and which of f2/f12/f14 the dot products, the
  * size and the scale get). The dot products' variables are reused for the scale (scale) and the size (t),
- * which is what the ROM's registers show.
+ * which is what the ROM's registers show. The empty `if (k) {}` (k is set just above) stands for a block
+ * boundary the ROM's allocation shows between the two scale statements (204 -> 111 diffs); the real
+ * construct is not found yet (a do/while(0) around either side does the same).
  */
 static void func_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl, s32 arg1, s32 arg2) {
     M068Flare *flare;
@@ -838,6 +840,8 @@ static void func_m068_00C70(Object *obj, M068Effects *s, void *params, Gfx **dl,
         t = flare->size * 0.0625f;
         alpha = s->cycle->unkB;
         scale = alpha * 0.007843138f;
+        if (k) {
+        }
         scale = scale * (k * t);
         alpha *= 0.003921569f;
         flare->roll += (s32) (s->unk8A * alpha);
@@ -6505,16 +6509,25 @@ extern Object *rl_m068_12604;    /* the boulder it follows (.data) */
 extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 strength);
 extern void audspat_point_set_pitch(s32 sound, s32 pitch);
 
-#ifdef NON_MATCHING
 static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate);
+
+/* A boulder heads for its next trail point: past the last one it has left the trail (-1) */
+#define BOULDER_NEXT_POINT(obj, b)                                  \
+    do {                                                            \
+        (b)->unk70++;                                               \
+        if (rl_m068_125E8 == (b)->unk70) {                          \
+            ((ObjectInteraction *) (obj)->interactObj)->flags |= 1; \
+        } else if (rl_m068_125E8 < (b)->unk70) {                    \
+            (b)->unk70 = -1;                                        \
+        }                                                           \
+    } while (0)
 
 /*
  * A boulder: follows its trail (then flies on), breaks up when shot, spent or when it hits something.
- * Same length and frame. The trail point is `unk70 * 3` floats into the trail (the ROM's separate
- * shift temporary) and the debris position adds an (s16) of the coordinate (the same stored s16). The
- * trail progress keeps the denominator in d and the numerator's products in dx/dy/dz (all dead after),
- * the speed's square sum adds z*z to x*x + y*y, and case 3 reads unk70 into lo: 128 -> 3 diffs. Left:
- * case 3's unk70 is v0 here, v1 in the ROM (and its compare's operands swap).
+ * The trail point is `unk70 * 3` floats into the trail (the ROM's separate shift temporary) and the
+ * debris position adds an (s16) of the coordinate (the same stored s16). The trail progress keeps the
+ * denominator in d and the numerator's products in dx/dy/dz (all dead there), the speed's square sum adds
+ * z*z to x*x + y*y, and the step to the next trail point is a do/while(0) macro (its two copies).
  */
 void func_m068_0F7C8(Object *obj, s32 updateRate) {
     Object *o;
@@ -6564,8 +6577,8 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         switch (b->state) {
             case 1:
                 flags = 0x11;
-                yaw[0] = lo = -0x8000;
-                yaw[1] = hi = 0x7FFF;
+                yaw[0] = -0x8000;
+                yaw[1] = 0x7FFF;
                 pitch[0] = -0x3000;
                 pitch[1] = 0x3000;
                 break;
@@ -6585,8 +6598,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
                 break;
             case 3:
                 flags = 0x13;
-                lo = b->unk70;
-                if (lo == -1 || rl_m068_125E8 == lo) {
+                if (b->unk70 == -1 || rl_m068_125E8 == b->unk70) {
                     flags = 0x1B;
                 }
                 if (0.866f <= b->hit.y) {
@@ -6755,12 +6767,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             dz = (tz - from.z) * dz;
             d = (dx + dy + dz) / d;
             if (b->unk70 != -1 && d >= 0.0f && d <= 1.0f) {
-                b->unk70++;
-                if (rl_m068_125E8 == b->unk70) {
-                    ((ObjectInteraction *) obj->interactObj)->flags |= 1;
-                } else if (rl_m068_125E8 < b->unk70) {
-                    b->unk70 = -1;
-                }
+                BOULDER_NEXT_POINT(obj, b);
             }
             if (b->kind != 0 && rl_m068_125E8 == b->unk70) {
                 func_8005F5A0(obj->trans.scale);
@@ -6769,12 +6776,7 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             }
         }
     } else {
-        b->unk70++;
-        if (rl_m068_125E8 == b->unk70) {
-            ((ObjectInteraction *) obj->interactObj)->flags |= 1;
-        } else if (rl_m068_125E8 < b->unk70) {
-            b->unk70 = -1;
-        }
+        BOULDER_NEXT_POINT(obj, b);
     }
     if (obj == rl_m068_12604 && rl_m068_12600 != 0) {
         soundPitch = func_m068_10758(obj, b, rate);
@@ -6788,9 +6790,6 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_0F7C8);
-#endif
 
 /* Called when something hits a boulder: the player's shot breaks it up */
 void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
@@ -6804,11 +6803,7 @@ void func_m068_10734(Object *hitter, Object *obj, s32 arg2) {
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern f32 func_8008B200(s32 x);
 
-#ifdef NON_MATCHING
-/*
- * The followed boulder's rumble pitch: from how fast it closes on the camera (a Doppler shift).
- * This matches, but it is a static that only 0F7C8 calls, so it waits for 0F7C8.
- */
+/* The followed boulder's rumble pitch: from how fast it closes on the camera (a Doppler shift) */
 static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate) {
     ObjectTransform *cam;
     f32 dx;
@@ -6835,9 +6830,6 @@ static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate) {
     b->lastDist = d;
     return (b->pitch + 1.0f) * 100.0f;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_10758);
-#endif
 
 void func_m068_108C8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     M068DrawModel *model;
