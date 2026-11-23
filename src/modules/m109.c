@@ -103,9 +103,11 @@ extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a sound */
  * NON_MATCHING: func_m109_00B44 (fini), .data and .rodata match. In the init
  * the original keeps the hit box size in its stack slot (0x4C) rather than a
  * register, which shifts the temporaries (a1/a2/a3); in the control function
- * the fly-by loop has s0/s1 swapped and the bounce's spilled temporaries sit
- * at different offsets (0x54/0x5C, 0x40/0x44). The default build uses the
- * assembly for those two and for .rodata.
+ * (7 aligned diffs, 13 before: j as the players loop's counter and updateRate
+ * as the split table's index gave the loop's s0/s1) the bounce's spilled
+ * temporaries sit one word lower (0x58/0x50, ROM 0x5C/0x54) and two of its
+ * loads swap f6/f8. The default build uses the assembly for those two and
+ * for .rodata.
  */
 s32 D_m109_00B90 = 109; /* the module's number */
 static s32 sLightColours[4] = { 0x0040FF00, 0x00FF4000, 0xFF400000, 0xFFE00000 };
@@ -223,9 +225,9 @@ void func_m109_00298(Object *obj, s32 updateRate) {
     M109Setup entry;
     M109Shot *b;
     Object **list; /* the players, then a spawned shot */
-    s32 i;         /* also the surface hit */
+    s32 i;         /* the surface hit */
     f32 dot;
-    s32 j;
+    s32 j;         /* the players loop */
 
     runlink_unload_timer_set(D_m109_00B90, 500, 2);
     b = obj->unk68;
@@ -245,10 +247,10 @@ void func_m109_00298(Object *obj, s32 updateRate) {
             } else if (b->shooter->behaviorId == 0x18 && b->flybyPlayed == 0 && sFlybySound == 0 &&
                        b->distance > 900.0f) {
                 list = func_8000E464(&count);
-                for (i = 0; i < count; i++) {
-                    fx = obj->trans.x_position - list[i]->trans.x_position;
-                    fy = obj->trans.y_position - list[i]->trans.y_position;
-                    fz = obj->trans.z_position - list[i]->trans.z_position;
+                for (j = 0; j < count; j++) {
+                    fx = obj->trans.x_position - list[j]->trans.x_position;
+                    fy = obj->trans.y_position - list[j]->trans.y_position;
+                    fz = obj->trans.z_position - list[j]->trans.z_position;
                     if (fx * fx + fy * fy + fz * fz < 20000.0f) {
                         func_80003410(func_80048E2C(0x219, 0x21B), obj->trans.x_position, obj->trans.y_position,
                                       obj->trans.z_position, 4, &sFlybySound);
@@ -301,12 +303,13 @@ void func_m109_00298(Object *obj, s32 updateRate) {
                     if (entry.strength >= 2) {
                         entry.strength >>= 1;
                     }
-                    j = remaining * 4;
+                    /* updateRate (not read again on this path) is the table index */
+                    updateRate = remaining * 4;
                     entry.splitCount--;
                     while (remaining--) {
-                        entry.yRotation = sSplitYRotations[j] + yRot;
-                        entry.xRotation = sSplitXRotations[j] + xRot;
-                        j++;
+                        entry.yRotation = sSplitYRotations[updateRate] + yRot;
+                        entry.xRotation = sSplitXRotations[updateRate] + xRot;
+                        updateRate++;
                         list = (Object **) func_80005F14(&entry, 1);
                         if (list != NULL) {
                             ((Object *) list)->level_entry = NULL;
