@@ -196,17 +196,12 @@ extern void sound_stop(s32 handle);
 extern void func_80001500(s32 handle, f32 pitch);
 extern u8 rl_m126_01254[]; /* control's transition (.data) */
 
-/*
- * NON_MATCHING: ROM length and frame; 16 instructions: the constant 0xFF and
- * the colour cycle / band row pointer are s4/s3 here, s3/s4 in the ROM. The
- * empty `else { continue; }` at the end of the lift loop does nothing; it
- * gives the loop the ROM's blocks, and with them step in f20 and y in f22 (a
- * real spelling for it is not found yet). Written from the ROM: dy and step
- * share a variable (never live together), the bands' 1 and -1 are int
- * literals (with 1.0f IDO keeps 1.0 in a saved register), and the lift's
- * height is written out at both uses so that top stays a variable.
- */
-#ifdef NON_MATCHING
+/* A vertex's colour and alpha, all `c` */
+#define VERTEX_COLOUR(v, c) do { (v)->r = (c); (v)->g = (c); (v)->b = (c); (v)->a = (c); } while (0)
+/* Bounces `pos` back down off `top` / up off `bottom`, turning `step` round */
+#define BOUNCE_DOWN(pos, top, step) do { (pos) = (top) - ((pos) - (top)); (step) = -(step); } while (0)
+#define BOUNCE_UP(pos, bottom, step) do { (pos) = ((bottom) - (pos)) + (bottom); (step) = -(step); } while (0)
+
 /*
  * Control: finds the nearest player or queued object once, swaps the vertex
  * buffers, then for each beam turns and lifts it (or lets it fall back),
@@ -231,7 +226,7 @@ void func_m126_003D0(Object *obj, s32 updateRate) {
     f32 minDist;
     f32 dz;
     f32 d;
-    UNUSED f32 pad;
+    UNUSED f32 pad; /* (the ROM's frame has this word) */
     f32 top;
     f32 y;
     f32 step;
@@ -322,18 +317,12 @@ void func_m126_003D0(Object *obj, s32 updateRate) {
                 v->x = func_80049C34(a) * 15.0f;
                 v->y = bands[k][0];
                 v->z = func_80049C30(a) * 15.0f;
-                v->r = 0xFF;
-                v->g = 0xFF;
-                v->b = 0xFF;
-                v->a = 0xFF;
+                VERTEX_COLOUR(v, 0xFF);
                 v++;
                 v->x = func_80049C34(a) * 15.0f;
                 v->y = bands[k][1];
                 v->z = func_80049C30(a) * 15.0f;
-                v->r = 0xFF;
-                v->g = 0xFF;
-                v->b = 0xFF;
-                v->a = 0xFF;
+                VERTEX_COLOUR(v, 0xFF);
                 v++;
                 a += 0x2000;
             }
@@ -357,13 +346,9 @@ void func_m126_003D0(Object *obj, s32 updateRate) {
                 func_8005F5AC(obj, 2);
                 obj->trans.y_position += step;
                 if (top < obj->trans.y_position) {
-                    obj->trans.y_position = top - (obj->trans.y_position - top);
-                    step = -step;
+                    BOUNCE_DOWN(obj->trans.y_position, top, step);
                 } else if (obj->trans.y_position < y) {
-                    obj->trans.y_position = (y - obj->trans.y_position) + y;
-                    step = -step;
-                } else {
-                    continue;
+                    BOUNCE_UP(obj->trans.y_position, y, step);
                 }
             }
         }
@@ -387,9 +372,6 @@ void func_m126_003D0(Object *obj, s32 updateRate) {
         s->unkFBC = 5.0f;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m126/ro", func_m126_003D0);
-#endif
 
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* sets a texture */
 extern void func_8004959C(MtxF *mtx, f32 x, f32 y, f32 z);                 /* translation */
