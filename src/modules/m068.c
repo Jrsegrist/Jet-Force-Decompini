@@ -6510,10 +6510,11 @@ static f32 func_m068_10758(Object *obj, M068Boulder *b, f32 rate);
 
 /*
  * A boulder: follows its trail (then flies on), breaks up when shot, spent or when it hits something.
- * Two words long, same frame. The trail point is `unk70 * 3` floats into the trail (the ROM's separate
- * shift temporary) and the debris position adds an (s16) of the coordinate (the same stored s16). Left: the
- * ROM keeps b->unk70 in v1 where this has v0, and evaluates the trail-progress denominator before the
- * numerator (two loads fewer).
+ * Same length and frame. The trail point is `unk70 * 3` floats into the trail (the ROM's separate
+ * shift temporary) and the debris position adds an (s16) of the coordinate (the same stored s16). The
+ * trail progress keeps the denominator in d and the numerator's products in dx/dy/dz (all dead after),
+ * the speed's square sum adds z*z to x*x + y*y, and case 3 reads unk70 into lo: 128 -> 3 diffs. Left:
+ * case 3's unk70 is v0 here, v1 in the ROM (and its compare's operands swap).
  */
 void func_m068_0F7C8(Object *obj, s32 updateRate) {
     Object *o;
@@ -6584,7 +6585,8 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
                 break;
             case 3:
                 flags = 0x13;
-                if (b->unk70 == -1 || rl_m068_125E8 == b->unk70) {
+                lo = b->unk70;
+                if (lo == -1 || rl_m068_125E8 == lo) {
                     flags = 0x1B;
                 }
                 if (0.866f <= b->hit.y) {
@@ -6716,8 +6718,8 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
         b->velocity.x += (dx - b->velocity.x) * k;
         b->velocity.y += (dy - b->velocity.y) * k;
         b->velocity.z += (dz - b->velocity.z) * k;
-        d = func_80097140(b->velocity.x * b->velocity.x + b->velocity.y * b->velocity.y +
-                          b->velocity.z * b->velocity.z);
+        d = func_80097140(b->velocity.z * b->velocity.z +
+                          (b->velocity.x * b->velocity.x + b->velocity.y * b->velocity.y));
         b->velocity.x /= d;
         b->velocity.y /= d;
         b->velocity.z /= d;
@@ -6747,9 +6749,12 @@ void func_m068_0F7C8(Object *obj, s32 updateRate) {
             dz = to.z - from.z;
             obj->trans.rotation.x_rotation += b->unk72 * updateRate;
             func_80009A04(obj, dx, dy, dz);
-            k = dx * dx + dy * dy + dz * dz;
-            k = ((tx - from.x) * dx + (ty - from.y) * dy + (tz - from.z) * dz) / k;
-            if (b->unk70 != -1 && k >= 0.0f && k <= 1.0f) {
+            d = dx * dx + dy * dy + dz * dz;
+            dx = (tx - from.x) * dx;
+            dy = (ty - from.y) * dy;
+            dz = (tz - from.z) * dz;
+            d = (dx + dy + dz) / d;
+            if (b->unk70 != -1 && d >= 0.0f && d <= 1.0f) {
                 b->unk70++;
                 if (rl_m068_125E8 == b->unk70) {
                     ((ObjectInteraction *) obj->interactObj)->flags |= 1;
