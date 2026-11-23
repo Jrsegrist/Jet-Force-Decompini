@@ -50,7 +50,8 @@ typedef struct M155Enemy {
     /* 0x00 */ u32 pad0d : 3;
     /* 0x04 */ u16 unk4;
     /* 0x06 */ u8 pad6;
-    /* 0x07 */ u8 unk7;
+    /* 0x07 */ u32 pad7 : 7;
+    /* 0x07 */ u32 unk7 : 1; /* set by order 8 (02FD0) */
     /* 0x08 */ u8 pad8[0x15 - 0x8];
     /* 0x15 */ u8 unk15; /* bit 0: its side of the troop */
     /* 0x16 */ u8 pad16[0x18 - 0x16];
@@ -1046,7 +1047,7 @@ extern s32 rl_m155_018C4(M155Node *node);
 extern void rl_m155_026D8(M155Node *node, s16 x, s16 z, s16 *outX, s16 *outZ);
 
 /* Heads for the node nearest the target that 018C4 accepts (or (x, z) when there is none) */
-void func_m155_02748(s16 x, s16 z, s16 *outX, s16 *outZ) {
+static void func_m155_02748(s16 x, s16 z, s16 *outX, s16 *outZ) {
     M155Node *node = rl_m155_04D50;
     M155Node *best = NULL;
     u32 bestDist = -1;
@@ -1080,7 +1081,7 @@ extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
  * marked and its point (or (x, z)) goes to outX/outZ. (As in the original, with no current node
  * the unk8 limit is never set, and the angle test always passes.)
  */
-M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
+static M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
     UNUSED s32 pad[2];
     M155Node *best = NULL;
     M155Node *node = rl_m155_04D50;
@@ -1128,7 +1129,7 @@ M155Node *func_m155_0289C(s16 x, s16 z, s16 *outX, s16 *outZ) {
 }
 
 /* The node with the highest unk8 that 018C4 accepts; its point (or (x, z)) goes to outX/outZ */
-M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
+static M155Node *func_m155_02AEC(s16 x, s16 z, s16 *outX, s16 *outZ) {
     M155Node *node = rl_m155_04D50;
     M155Node *best = NULL;
     u32 bestValue = 0;
@@ -1263,7 +1264,179 @@ stop:
     troop->order[1] = 8;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m155/ro", func_m155_02FD0);
+extern s32 func_m003_0CAA4(f32 dist, f32 arg1, s16 maxAngle);
+extern f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2);
+extern s32 func_m003_04260(s32 mission, s32 kind, u8 arg2, u8 arg3, u8 arg4);
+extern s32 D_800FE9F8; /* frames this update */
+
+/*
+ * An enemy's movement for one order (`order` 0: its side's, from its troop): where it heads for (its
+ * target, a path node or where it stands), kept inside its region; the region's alarms; a new path when
+ * it needs one; and its goal (module 3's 06D28 calls it)
+ */
+void func_m155_02FD0(Object *obj, s32 order) {
+    f32 x;
+    f32 z;
+    s16 tx;
+    s16 tz;
+    M155Area *r;
+    u32 dist;
+    s32 n;
+
+    x = obj->trans.x_position;
+    z = obj->trans.z_position;
+    if (!soldier_enemy_select(obj, TRUE)) {
+        return;
+    }
+    if (sEnemy->unk0_4000000 && !rl_m155_04FD8->unk24_200 && !sEnemy->unk0_800) {
+        return;
+    }
+    if (sEnemy->target != NULL) {
+        tx = sEnemy->target->trans.x_position;
+        tz = sEnemy->target->trans.z_position;
+    } else {
+        tx = obj->trans.x_position;
+        tz = obj->trans.z_position;
+    }
+    if (order == 0) {
+        if (!(sEnemy->unk15 & 1)) {
+            order = rl_m155_04F78->order[0];
+        } else {
+            order = rl_m155_04F78->order[1];
+        }
+    }
+    sFlags->unk0 = order;
+    if (region_point_inside(x, z, (M155Region *) rl_m155_04F80)) {
+        sFlags->unk8 = x;
+        sFlags->unkA = z;
+    } else {
+        x = sFlags->unk8;
+        z = sFlags->unkA;
+    }
+    region_point_inside(x, z, (M155Region *) rl_m155_04F80);
+    switch (order) {
+        case 2:
+            if (rl_m155_04F84 != NULL) {
+                tx = rl_m155_04F84->unk4;
+                tz = rl_m155_04F84->unk6;
+            } else {
+                tx = obj->trans.x_position;
+                tz = obj->trans.z_position;
+            }
+            sFlags->unk18 = 0;
+            break;
+        case 3:
+            if (sFlags->go && func_m155_0289C(x, z, &sFlags->unk10, &sFlags->unk12)) {
+                sFlags->unk18 = -1;
+                tx = sFlags->unk10;
+                tz = sFlags->unk12;
+                break;
+            }
+            /* fallthrough */
+        case 1:
+            if (sFlags->go) {
+                func_m155_02748(x, z, &sFlags->unk10, &sFlags->unk12);
+                sFlags->unk18 = -1;
+            }
+            tx = sFlags->unk10;
+            tz = sFlags->unk12;
+            break;
+        case 4:
+            if (sFlags->go) {
+                func_m155_02AEC(x, z, &sFlags->unk10, &sFlags->unk12);
+                sFlags->unk18 = -1;
+            }
+            tx = sFlags->unk10;
+            tz = sFlags->unk12;
+            break;
+        case 5:
+            if (sEnemy->target != NULL) {
+                if (func_m003_0CAA4(0.0f, 0.0f, 0x2000)) {
+                    tx = obj->trans.x_position;
+                    tz = obj->trans.z_position;
+                } else if (func_m003_03E68(obj->trans.x_position, obj->trans.z_position,
+                                           sEnemy->target->trans.x_position,
+                                           sEnemy->target->trans.z_position) > 20000.0f) {
+                    tx = sEnemy->target->trans.x_position;
+                    tz = sEnemy->target->trans.z_position;
+                } else {
+                    tx = obj->trans.x_position;
+                    tz = obj->trans.z_position;
+                }
+                break;
+            }
+            /* fallthrough */
+        case 8:
+            tx = obj->trans.x_position;
+            tz = obj->trans.z_position;
+            sEnemy->unk7 = 1;
+            break;
+        case 6:
+        case 7:
+            break;
+    }
+    r = rl_m155_04F80;
+    for (r = r->next; r != NULL; r = r->next) {
+        if ((r->flags & 2) && func_m003_16F44(obj->trans.x_position, obj->trans.z_position, (M155Region *) r)) {
+            if (sEnemy->state != 0x13) {
+                func_m003_04260(2, 0x13, r->unk28, r->unk29, r->unk2A);
+            }
+        }
+    }
+    if (sEnemy->unk18 & 4) {
+        sFlags->unk2++;
+        if ((s32) sFlags->unk2 >= 6) {
+            tx = obj->trans.x_position;
+            tz = obj->trans.z_position;
+            sFlags->alerted = 1;
+        }
+    } else {
+        sFlags->unk2 = 0;
+    }
+    if (region_point_inside(tx, tz, (M155Region *) rl_m155_04F80)) {
+        sFlags->unkC = tx;
+        sFlags->unkE = tz;
+    } else {
+        tx = sFlags->unkC;
+        tz = sFlags->unkE;
+    }
+    dist = func_m003_03E68(x, z, sFlags->nextX, sFlags->nextZ);
+    if (order != 8) {
+        if (sFlags->go || dist >= sFlags->unk18 || (sEnemy->unk18 & 4)) {
+            sFlags->nextX = tx;
+            sFlags->nextZ = tz;
+            func_m155_02458(obj, x, z, sFlags->nextX, sFlags->nextZ);
+            sFlags->unk18 = -1;
+            sFlags->go = 0;
+        }
+    }
+    sFlags->unk18 = dist;
+    if (sFlags->unk1 != 0) {
+        n = sFlags->unk1;
+        if (n < D_800FE9F8) {
+            sFlags->unk1 = 0;
+        } else {
+            sFlags->unk1 = n - D_800FE9F8;
+        }
+        sEnemy->goalX = x;
+        sEnemy->goalZ = z;
+        sFlags->unk18 = -1;
+        return;
+    }
+    if (sFlags->alerted) {
+        sEnemy->goalX = x;
+        sEnemy->goalZ = z;
+        return;
+    }
+    if (func_m003_03E68(x, z, tx, tz) < 200.0f) {
+        sFlags->alerted = 1;
+        sEnemy->goalX = x;
+        sEnemy->goalZ = z;
+        return;
+    }
+    sEnemy->goalX = sFlags->nextX;
+    sEnemy->goalZ = sFlags->nextZ;
+}
 
 /* The way `obj` faces: at the enemy's target once it is alerted, else `yaw` */
 s16 func_m155_03B94(Object *obj, s16 yaw) {
