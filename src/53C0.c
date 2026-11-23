@@ -1111,36 +1111,37 @@ void emitter_init(ParticleEmitter *emitter, s32 behaviourID, s32 particleID);
 void emitter_init_with_pos(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s16 posX, s16 posY, s16 posZ);
 void emitter_init_at_origin(ParticleEmitter *emitter, s32 behaviourID, s32 particleID, s32 arg3);
 
-#ifdef NON_MATCHING
 /**
  * JFG: a third kind of entry (0xFFFE....) goes to emitter_init_at_origin.
- * DKR: obj_init_emitter
- * NON_MATCHING: 2 words: the two induction variables are stepped in the other order at the loop end.
+ * DKR: obj_init_emitter (JFG walks the entries with a copy of the pointer, in a guarded do-while)
  */
 s32 func_800072B4(Object *obj, ParticleEmitter *emitter) {
     ObjHeaderParticleEntry *particleDataEntry;
     s32 i;
+    ObjHeaderParticleEntry *entry;
 
     obj->particleEmitter = emitter;
     particleDataEntry = obj->header->objectParticles;
-    for (i = 0; i < obj->header->particleCount; i++) {
-        if ((particleDataEntry[i].upper & 0xFFFF0000) == 0xFFFF0000) {
-            emitter_init(&obj->particleEmitter[i], (particleDataEntry[i].upper >> 8) & 0xFF,
-                         particleDataEntry[i].upper & 0xFF);
-        } else if ((particleDataEntry[i].upper & 0xFFFF0000) == 0xFFFE0000) {
-            emitter_init_at_origin(&obj->particleEmitter[i], (particleDataEntry[i].upper >> 8) & 0xFF,
-                          particleDataEntry[i].upper & 0xFF, particleDataEntry[i].lower & 0xFF);
-        } else {
-            emitter_init_with_pos(&obj->particleEmitter[i], (particleDataEntry[i].upper >> 0x18) & 0xFF,
-                                  (particleDataEntry[i].upper >> 0x10) & 0xFF, particleDataEntry[i].upper & 0xFFFF,
-                                  (particleDataEntry[i].lower >> 0x10) & 0xFFFF, particleDataEntry[i].lower & 0xFFFF);
-        }
+    i = 0;
+    if (obj->header->particleCount > 0) {
+        entry = particleDataEntry;
+        do {
+            if ((entry->upper & 0xFFFF0000) == 0xFFFF0000) {
+                emitter_init(&obj->particleEmitter[i], (entry->upper >> 8) & 0xFF, entry->upper & 0xFF);
+            } else if ((entry->upper & 0xFFFF0000) == 0xFFFE0000) {
+                emitter_init_at_origin(&obj->particleEmitter[i], (entry->upper >> 8) & 0xFF, entry->upper & 0xFF,
+                                       entry->lower & 0xFF);
+            } else {
+                emitter_init_with_pos(&obj->particleEmitter[i], (entry->upper >> 0x18) & 0xFF,
+                                      (entry->upper >> 0x10) & 0xFF, entry->upper & 0xFFFF,
+                                      (entry->lower >> 0x10) & 0xFFFF, entry->lower & 0xFFFF);
+            }
+            i++;
+            entry++;
+        } while (i < obj->header->particleCount);
     }
     return ((obj->header->particleCount * sizeof(ParticleEmitter)) + 3) & ~3;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_800072B4);
-#endif
 
 /* JFG: attach a block to the object, mark it, and return a size. */
 s32 func_8000740C(Object *obj, u8 *arg1) {
