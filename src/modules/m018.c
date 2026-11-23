@@ -1616,9 +1616,10 @@ extern Triangle rl_m018_06A30[];
 /*
  * The screen of the player's character's things, two pages (the stick turns the page): its items
  * (from the table at rl_m018_06938) and counts, or its keys and the game's flags.
- * NON_MATCHING: first body, 661/663 words, frame 8 bytes big, 127 aligned diffs: in the items loop the ROM
- * keeps the record kind in v0 (reloaded after a position record) and the s16 copy in s2; the settings pointer
- * stays on the stack; the three item counts are called in the order 0x18, 0x17, 0x19
+ * NON_MATCHING: 667/663 words, ROM frame, 47 aligned diffs: the page-1 loop counter i stays in v0 and is
+ * saved around the call (the ROM gives it s2), the constant 1 takes s4 (ROM s5), id and width swap s2/s3,
+ * and the item-count call results go two temp words lower. (`if (settings) {}` keeps settings on the stack,
+ * as in the ROM.)
  */
 void func_m018_05C0C(s32 updateRate) {
     s8 *state;
@@ -1629,13 +1630,12 @@ void func_m018_05C0C(s32 updateRate) {
     s32 i;
     char buf[100];
     M018Character *record;
-    s32 kind;
+    u8 *p;
     s32 width;
     s32 item;
     u8 *settings;
     s32 n;
     s16 id;
-    s16 angle;
     s32 any;
 
     state = func_8000E4D0(0)->unk68;
@@ -1670,16 +1670,14 @@ void func_m018_05C0C(s32 updateRate) {
                 obj = D_800FF3F8[0x91];
                 D_800FF780[50].unk6 = 0x91;
                 e = rl_m018_06938;
-                kind = rl_m018_06938[0];
                 while (*e != -1) {
-                    if (kind == 0) {
+                    if (*e == 0) {
                         D_800FF780[50].unkC = e[2];
                         D_800FF780[50].unk10 = e[3];
                         e += 4;
-                        kind = *e;
                     }
+                    id = *e;
                     rl_m018_067B8 = e[1] * 0.0078125f;
-                    id = kind;
                     width = e[2];
                     item = e[3];
                     e += 5;
@@ -1687,8 +1685,7 @@ void func_m018_05C0C(s32 updateRate) {
                     pos->y = D_800FF780[50].unk10;
                     pos++;
                     if (item == 0x17) {
-                        n = character_has_item(state[0], character, 0x19) + character_has_item(state[0], character, 0x17) +
-                            character_has_item(state[0], character, 0x18);
+                        n = character_has_item(state[0], character, 0x17) + character_has_item(state[0], character, 0x18) + character_has_item(state[0], character, 0x19);
                         if (n != 0) {
                             obj->modelIndex = id + n - 1;
                             D_800FF780[50].unk8 = rl_m018_067B8;
@@ -1701,9 +1698,8 @@ void func_m018_05C0C(s32 updateRate) {
                         func_8005A0D0(0x32);
                         D_800FF780[50].unkC += width;
                     }
-                    kind = *e;
                 }
-                angle = D_800FF780[50].unk0;
+                id = D_800FF780[50].unk0;
                 D_800FF780[50].unk0 = -0x8000;
                 obj->modelIndex = 15;
                 D_800FF780[50].unk8 = 0.38f;
@@ -1712,7 +1708,7 @@ void func_m018_05C0C(s32 updateRate) {
                 func_8005A0D0(0x32);
                 D_800FF780[50].unkC = 90.0f;
                 func_8005A0D0(0x32);
-                D_800FF780[50].unk0 = angle;
+                D_800FF780[50].unk0 = id;
                 obj->modelIndex = 13;
                 D_800FF780[50].unk8 = 0.12f;
                 D_800FF780[50].unkC = -101.0f;
@@ -1734,13 +1730,13 @@ void func_m018_05C0C(s32 updateRate) {
                 obj = D_800FF3F8[0xA0];
                 D_800FF780[50].unk6 = 0xA0;
                 obj->modelIndex = 10;
-                angle = D_800FF780[50].unk0;
-                D_800FF780[50].unk0 = -0x8000;
                 D_800FF780[50].unk8 = 0.38f;
+                id = D_800FF780[50].unk0;
+                D_800FF780[50].unk0 = -0x8000;
                 D_800FF780[50].unkC = 0.0f;
                 D_800FF780[50].unk10 = 61.0f;
                 func_8005A0D0(0x32);
-                D_800FF780[50].unk0 = angle;
+                D_800FF780[50].unk0 = id;
                 func_800639E8(buf, "%d", record->unk12);
                 func_8006FCA8(&D_800FF398, 0xA0, 0x3C, buf, 4);
                 obj->modelIndex = 0;
@@ -1751,11 +1747,13 @@ void func_m018_05C0C(s32 updateRate) {
                 D_800FF780[50].unk8 = 0.135f;
                 D_800FF780[50].unkC = -100.0f;
                 D_800FF780[50].unk10 = -6.0f;
+                p = settings;
                 for (i = 0; i < 5; i++) {
-                    if (settings[0x28 + i]) {
-                        obj->modelIndex = rl_m018_069D0[settings[0x28 + i]];
+                    if (p[0x28]) {
+                        obj->modelIndex = rl_m018_069D0[p[0x28]];
                         func_8005A0D0(0x32);
                     }
+                    p++;
                     D_800FF780[50].unkC += 48.0f;
                 }
                 D_800FF780[50].unk8 = 0.6f;
@@ -1784,6 +1782,7 @@ void func_m018_05C0C(s32 updateRate) {
     } else if (rl_m018_06C7C < 3) {
         rl_m018_06C7C++;
     }
+    if (settings) {}
     switch (rl_m018_06C64) {
         case 1:
             rl_m018_06C68 += updateRate * 16;
