@@ -1924,10 +1924,107 @@ void point_particle_set_update(PointParticleSet *set, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5DA60", func_80062178);
+/* JFG: a point particle as func_80062178 reads it */
+typedef struct PointParticle {
+    /* 0x00 */ Vec3s angles;
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x64 - 0x18];
+    /* 0x64 */ s16 alpha; // 8.8 fixed point
+    /* 0x66 */ u8 pad66[0x71 - 0x66];
+    /* 0x71 */ u8 r;
+    /* 0x72 */ u8 g;
+    /* 0x73 */ u8 b;
+} PointParticle;
+
+/**
+ * JFG: render a point set (at least two particles): the set's shape (numVerts points) scaled by each particle,
+ * turned by its angles and moved to it, as vertices in the particle's colour; each particle after the first also
+ * draws the strip between it and the one before (the triangle lists for numVerts at D_800A5F48, used alternately,
+ * with the vertices loaded alternately at 0 and numVerts).
+ * Not portable as is: the set's points are particle pointers held in s32s.
+ */
+void func_80062178(Gfx **dList, Vertex **vtxList, PointParticleSet *set) {
+    Gfx *gfx;
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 a;
+    Vertex *start;
+    Vec3f out[8];
+    f32 pts[8 * 3];
+    Vec3f *o;
+    s32 i;
+    s32 j;
+    s32 buf;
+    s32 numTris;
+    PointParticle *p;
+    Vertex *vtx;
+    Triangle *tris[2];
+    s32 n;
+    s32 vStart;
+
+    if (set->count >= 2) {
+        gfx = *dList;
+        n = set->numVerts;
+        vtx = *vtxList;
+        tris[0] = ((Triangle *(*)[2]) &D_800A5F48)[n - 2][0];
+        tris[1] = ((Triangle *(*)[2]) &D_800A5F48)[n - 2][1];
+        if (set->numVerts == 2) {
+            numTris = 2;
+        } else {
+            numTris = set->numVerts * 2;
+        }
+        vStart = 0;
+        buf = 0;
+        func_80055C00(&gfx, set->texture, 0x12, set->frame * 65536.0f);
+        for (i = 0; i < set->count; i++) {
+            p = (PointParticle *) set->points[i];
+            j = 0;
+            o = out;
+            start = vtx;
+            for (; j < n; j++) {
+                pts[j * 3 + 0] = ((f32 *) set->verts)[j * 3 + 0] * p->scale;
+                pts[j * 3 + 1] = ((f32 *) set->verts)[j * 3 + 1] * p->scale;
+                pts[j * 3 + 2] = ((f32 *) set->verts)[j * 3 + 2] * p->scale;
+            }
+            r = p->r;
+            g = p->g;
+            b = p->b;
+            a = (p->alpha >> 8) & 0xFF;
+            func_800496B0(n, &p->angles, (Vec3f *) pts, out);
+            for (j = 0; j < n; j++) {
+                vtx->x = o->x + p->x;
+                vtx->y = o->y + p->y;
+                vtx->z = o->z + p->z;
+                vtx->r = r;
+                vtx->g = g;
+                vtx->b = b;
+                vtx->a = a;
+                o++;
+                vtx++;
+            }
+            gDma1p(gfx++, G_VTX, (u8 *) start + 0x80000000, ((n << 3) + (n << 1) + 8) | (vStart << 9),
+                   (n << 3) | ((u32) ((u8 *) start + 0x80000000) & 6));
+            if (i > 0) {
+                gSPPolygon(gfx++, (u8 *) tris[buf] + 0x80000000, numTris, 1);
+                buf ^= 1;
+            }
+            if (vStart == 0) {
+                vStart = n;
+            } else {
+                vStart = 0;
+            }
+        }
+        *dList = gfx;
+        *vtxList = vtx;
+    }
+}
 
 extern s32 D_800A5D80;
-void func_80062178(Gfx **dList, Vertex **vtx, PointParticleSet *set);
 
 /* JFG: render the flagged point particle sets (0x80062A00). */
 void point_particle_sets_render(Gfx **dList, Vertex **vtx) {

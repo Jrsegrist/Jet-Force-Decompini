@@ -646,7 +646,150 @@ void player_camera_follow_target(UNUSED u8 *obj, u8 *racer, UNUSED f32 updateRat
 void func_8002C110(void) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002C118);
+/* JFG: what func_80018808 writes back here (the object hit, then the point) */
+typedef struct TrackHit2BAA0 {
+    /* 0x00 */ struct {
+        u8 pad0[0x48];
+        s16 behaviorId;
+    } *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ u8 pad10[0x28 - 0x10];
+} TrackHit2BAA0;
+
+s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags, s32 arg5);
+void func_8002F450(s32 index, f32 scale);
+extern f32 D_800A2C60[]; /* four 9-float camera records: 0x800A2C60, 0x800A2C84, 0x800A2CA8, 0x800A2CCC */
+extern f32 D_800A2C84[];
+extern f32 D_800A2CA8[];
+
+/**
+ * JFG: the aiming camera (racer 0x568 states 5 and 11): the zone track's blend (unk10[2]) eases to 1 and picks a
+ * camera record between record 0 and record 2 (state 5) or record 1; the eye is the record's offset turned by the
+ * player's angles, pitched with the aim (0x1E2, less for weapon 7), or the override position for character 2 with
+ * weapon 7; a hit between the eye and the target pulls the target in; the camera then eases to it.
+ * The tilt worked out from the aim (as player_camera_eye_place does) is never used: IDO keeps only its two compare
+ * branches, and its two 3640.8882f literals (0x45638E36; IDO turns 3640.8884f into the next float up) stay in the
+ * .rodata.
+ */
+void func_8002C118(u8 *obj, Racer *racer, f32 updateRate) {
+    UNUSED s32 pad;
+    f32 target[3];
+    f32 off[3];
+    f32 pos[3];
+    f32 cam[9];
+    f32 tilt;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    s32 i;
+    s16 angles[3];
+    UNUSED s32 pad2;
+    TrackHit2BAA0 hit;
+    ZoneTrack *track;
+    u8 *chr;
+
+    chr = char_record_lookup(racer->player, racer->character);
+    track = &D_800F6E58[racer->player & 3];
+    racer->unk10A = 0;
+    func_8002F450(racer->character, 1.0f);
+    track->unk10[2] += (1.0f - track->unk10[2]) * (1.0f - func_80049BEC(0.98f, updateRate));
+    track->unk10[3] = 0.0f;
+    if (racer->unk568 == 5) {
+        for (i = 0; i < 9; i++) {
+            cam[i] = D_800A2C60[i] + track->unk10[2] * (D_800A2CA8[i] - D_800A2C60[i]);
+        }
+    } else {
+        for (i = 0; i < 9; i++) {
+            cam[i] = D_800A2C60[i] + track->unk10[2] * (D_800A2C84[i] - D_800A2C60[i]);
+        }
+    }
+    *(f32 *) ((u8 *) cam_get_active_camera() + 0x2C) = track->unk10[2] * 8.0f + 52.0f;
+    if ((racer->character & 3) == 2 && chr[0x70] == 7) {
+        angles[0] = ((s16 *) obj)[0];
+        angles[1] = -((s16 *) obj)[1] - racer->unk1E2;
+        angles[2] = 0;
+        angles[1] = -angles[1];
+        off[0] = 0.0f;
+        off[1] = 6.0f;
+        off[2] = 16.0f;
+        func_800496B0(1, angles, off, (u8 *) off);
+        pos[0] = racer->overridePos[0];
+        pos[1] = racer->overridePos[1];
+        pos[2] = racer->overridePos[2];
+    } else {
+        angles[0] = ((s16 *) obj)[0];
+        angles[1] = -((s16 *) obj)[1];
+        angles[2] = 0;
+        if (chr[0x70] != 7) {
+            if (racer->unk1E2 > 0) {
+                angles[1] -= (racer->unk1E2 * 0x120) >> 8;
+            } else {
+                angles[1] -= (racer->unk1E2 * 0x120) >> 8;
+            }
+        } else {
+            angles[1] -= racer->unk1E2;
+        }
+        tilt = 0.0f;
+        if (racer->unk1E2 > 0x38E) {
+            tilt = (racer->unk1E2 - 0x38E) / 3640.8882f;
+        }
+        if (racer->unk1E2 < -0x38E) {
+            tilt = (-0x38E - racer->unk1E2) / 3640.8882f;
+        }
+        if (tilt > 1.0f) {
+            tilt = 1.0f;
+        }
+        off[0] = 0.0f;
+        off[1] = 0.0f;
+        off[2] = cam[3];
+        angles[1] = -angles[1];
+        func_800496B0(1, angles, off, (u8 *) off);
+        func_800496B0(1, (s16 *) obj, cam, (u8 *) pos);
+        pos[0] += *(f32 *) (obj + 0xC);
+        pos[1] += *(f32 *) (obj + 0x10);
+        pos[2] += *(f32 *) (obj + 0x14);
+    }
+    target[0] = off[0] + pos[0];
+    target[1] = off[1] + pos[1];
+    target[2] = off[2] + pos[2];
+    if (func_80018808((s32) obj, pos, target, &hit, 0x2000, 0)) {
+        dx = pos[0] - hit.pos[0];
+        dy = pos[1] - hit.pos[1];
+        dz = pos[2] - hit.pos[2];
+        if (dx * dx + dy * dy + dz * dz > 1024.0f) {
+            target[0] = hit.pos[0];
+            target[1] = hit.pos[1];
+            target[2] = hit.pos[2];
+        } else {
+            target[0] = 0.0f;
+            target[1] = 0.0f;
+            target[2] = 32.0f;
+            func_800496B0(1, angles, target, (u8 *) target);
+            target[0] += pos[0];
+            target[1] += pos[1];
+            target[2] += pos[2];
+        }
+    }
+    tilt = 1.0f;
+    if (racer->unk574) {
+        tilt = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[0] =
+        angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[0], 0x8000 - angles[0], tilt);
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[1] =
+        angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[1], -angles[1], tilt);
+    ((Transform2BAA0 *) D_800F6DC0)->rotation[2] = angle_lerp(((Transform2BAA0 *) D_800F6DC0)->rotation[2], angles[2], tilt);
+    tilt = 1.0f;
+    if (racer->unk574) {
+        tilt = 1.0f - func_80049BEC(0.875f, updateRate);
+    }
+    ((Transform2BAA0 *) D_800F6DC0)->position[0] =
+        ((Transform2BAA0 *) D_800F6DC0)->position[0] + (target[0] - ((Transform2BAA0 *) D_800F6DC0)->position[0]) * tilt;
+    ((Transform2BAA0 *) D_800F6DC0)->position[1] =
+        ((Transform2BAA0 *) D_800F6DC0)->position[1] + (target[1] - ((Transform2BAA0 *) D_800F6DC0)->position[1]) * tilt;
+    ((Transform2BAA0 *) D_800F6DC0)->position[2] =
+        ((Transform2BAA0 *) D_800F6DC0)->position[2] + (target[2] - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * tilt;
+}
 
 void func_80042A74(ViewPoint *view, void *transform, s32 arg2, u8 arg3);
 
@@ -720,17 +863,6 @@ void func_8002C9A0(u8 *obj, u8 *racer, f32 updateRate) {
     ((Transform2BAA0 *) D_800F6DC0)->position[2] += (z - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * t;
 }
 
-/* JFG: what func_80018808 writes back here (the object hit, then the point) */
-typedef struct TrackHit2BAA0 {
-    /* 0x00 */ struct {
-        u8 pad0[0x48];
-        s16 behaviorId;
-    } *obj;
-    /* 0x04 */ f32 pos[3];
-    /* 0x10 */ u8 pad10[0x28 - 0x10];
-} TrackHit2BAA0;
-
-s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags, s32 arg5);
 s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
 #ifdef NON_MATCHING
@@ -1374,7 +1506,7 @@ extern u8 D_800A4FEC;
 extern s8 D_800FED63[][0xA0];
 s32 player_count_get(void);
 void func_80048518(s32 arg0);
-u32 input_pressed(s32 player);
+u16 input_pressed(s32 player);
 void player_restart(s32 arg0, s8 *player);
 
 /* Restarts the player when one of its restart buttons is pressed (0x80033920). */
@@ -2700,8 +2832,8 @@ void player_input_latch(s32 player) {
 
 extern u8 D_800A2DD8[8];
 extern u8 D_800A2DE8[8];
-extern s32 D_800A2DF0[8];
-void rumble_raise(s32 arg0, u8 arg1, s32 arg2);
+extern f32 D_800A2DF0[8]; /* the rumble times */
+void rumble_raise(s32 pad, s32 strength, f32 time);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: 2 words: the table byte is loaded into t7 (target t6, with t7 unused after it); the

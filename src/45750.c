@@ -3,7 +3,10 @@
  * and the save flags (DKR's thread3_main.c).
  */
 #include "common.h"
+#define input_pressed input_pressed_joypad_h /* joypad.h says u32; the definition returns u16 */
 #include "joypad.h"
+#undef input_pressed
+u16 input_pressed(s32 player);
 
 /*
  * The strings that main's .data (still asm) points at: a version, a build date and a list of names. They open
@@ -1164,7 +1167,7 @@ extern s32 D_800A3928;
 extern u8 D_800A32EC[];
 extern u8 D_800A32F4[];
 extern u8 D_800A32FC[];
-u32 input_pressed(s32 player);
+u16 input_pressed(s32 player);
 extern u8 D_800A326C;
 s32 leveltable_type(s32 level);
 void settings_map_ids_store(s32 player, s32 arg1, s32 arg2);
@@ -2153,11 +2156,9 @@ extern s32 D_800A3398;
 extern s32 D_800A339C[];
 extern s32 D_800A32D0;
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (12 words, was 20; one word short): the target copies the pressed buttons to v1 and keeps
-   &D_800A3398 in v0 (mine: pressed stays in v0, the address in v1, so no move). The increment as its own
-   statement gives the target's code otherwise. */
-/* JFG: a button sequence on controller 1 (zero-terminated list D_800A339C) toggles D_800A32D0. */
+/* JFG: a button sequence on controller 1 (zero-terminated list D_800A339C) toggles D_800A32D0. The pressed
+   buttons come back as a u16 (input_pressed's type, as in DKR) and are widened into an s32 here: that
+   conversion is what keeps them out of v0. */
 void func_800487B8(void) {
     s32 pressed = input_pressed(0);
 
@@ -2173,9 +2174,6 @@ void func_800487B8(void) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/45750", func_800487B8);
-#endif
 
 typedef struct DebugPosObj {
     /* 0x00 */ u8 pad0[0xC];

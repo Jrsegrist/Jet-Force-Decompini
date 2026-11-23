@@ -4,7 +4,12 @@
  * Mostly the Diddy Kong Racing decompilation's src/joypad.c (CC0 1.0), which
  * compiles to the same code here. Functions marked "JFG" are not in DKR.
  */
+/* input_pressed returns a u16 (DKR's type, and gControllerButtonsPressed's): func_800487B8 needs it. joypad.h
+   still says u32 (a shared header), so its declaration is renamed out of the way here and in 45750.c. */
+#define input_pressed input_pressed_joypad_h
 #include "joypad.h"
+#undef input_pressed
+u16 input_pressed(s32 player);
 
 /************ .data ************/
 
@@ -246,7 +251,7 @@ u16 input_held(s32 player) {
  * Returns the buttons that are newly pressed during that frame.
  * Official name: joyGetPressed
  */
-u32 input_pressed(s32 player) {
+u16 input_pressed(s32 player) {
     return gControllerButtonsPressed[sPlayerID[player]];
 }
 
