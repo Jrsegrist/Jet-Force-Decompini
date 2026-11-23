@@ -125,19 +125,18 @@ static u8 sCloudColours[4][4] = {
 };
 
 /*
- * NON_MATCHING: only func_m117_00154 matches. The static light spawner (6
- * diffs: the original keeps the level entry in a3, here v0; with the entry's
- * stores in field order the rest is the ROM's),
- * func_m117_003F8 (the f20/f22 registers of base and range are swapped) and
- * func_m117_0070C (a first draft) do not; the matching build includes them
- * (003F8 and 0070C from ro/, with their .rodata floats).
+ * Spawns the cloud's light object. A K&R definition: setup is a second
+ * parameter that the one caller never passes; its incoming value is never
+ * read (setup is set first). As a parameter it gets a3 for the level entry,
+ * as in the ROM (a local gets v0).
  */
-#ifdef NON_MATCHING
-static void spawnLight(Object *obj) {
-    M117Cloud *cloud;
+static void spawnLight(obj, setup)
+    Object *obj;
     M117Setup *setup;
-    M117LightEntry entry;
+{
+    M117Cloud *cloud;
     Object *light;
+    M117LightEntry entry;
     s32 unused[2]; /* never used, but takes stack space */
 
     setup = (M117Setup *) obj->level_entry;
@@ -172,9 +171,6 @@ static void spawnLight(Object *obj) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m117", func_m117_00000);
-#endif
 
 void func_m117_00154(Object *obj, M117Setup *setup) {
     M117Cloud *cloud;
@@ -216,16 +212,19 @@ void func_m117_00154(Object *obj, M117Setup *setup) {
     obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, obj->trans.scale * 96.0f, obj->trans.scale * 96.0f, -1.0f, 1.0f, 1);
 }
 
-#ifdef NON_MATCHING
+/*
+ * i holds the inside test's result before it counts the motes; step is the
+ * angle step's numerator.
+ */
 void func_m117_003F8(Object *obj, s32 updateRate) {
     M117Cloud *cloud;
     M117Mote *mote;
     M117LightData *data;
     s32 old;
-    s32 inside;
     s32 brightness;
     s32 i;
     s32 j;
+    f32 step;
     f32 base;
     f32 range;
     Object *list[11];
@@ -233,11 +232,11 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
     f32 r;
 
     cloud = obj->unk68;
-    inside = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, cloud->radius, 0,
-                           list);
+    i = obj_dist_racer(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, cloud->radius, 0,
+                       list);
     brightness = cloud->brightness;
     old = brightness;
-    if (inside) {
+    if (i) {
         brightness += updateRate * 4;
         if (brightness >= 256) {
             brightness = 255;
@@ -258,8 +257,9 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
     }
     cloud->brightness = brightness;
     if (brightness != 0) {
-        range = ((f32) cloud->sizeX - cloud->sizeZ) * 0.5f;
+        swell = cloud->sizeX; /* swell is not yet in use: it holds the box's width */
         base = cloud->sizeZ;
+        range = (swell - base) * 0.5f;
         mote = cloud->motes;
         i = 20;
         while (i--) {
@@ -268,9 +268,10 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
                 mote->phase += mote->phaseSpeed;
                 swell = func_80049C30(mote->phase) + 1.0f;
                 r = (range * swell + base) * mote->scale;
+                step = (f32) (mote->radius << 16) * (3.0f - swell);
+                mote->angle += (s32) (step / (6.283186f * r));
                 mote->spin += mote->spinSpeed;
                 mote->roll += mote->rollSpeed;
-                mote->angle += (s32) ((f32) (mote->radius << 16) * (3.0f - swell) / (6.283186f * r));
             }
             mote++;
         }
@@ -288,6 +289,8 @@ void func_m117_003F8(Object *obj, s32 updateRate) {
     }
 }
 
+/* NON_MATCHING: a first draft (51 aligned diffs); the build takes the assembly from ro/ with its .rodata floats */
+#ifdef NON_MATCHING
 void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
     M117Cloud *cloud;
     M117Mote *mote;
@@ -374,7 +377,5 @@ void func_m117_0070C(s32 arg0, s32 arg1, s32 arg2, Object *obj) {
     }
 }
 #else
-INCLUDE_ASM("asm/nonmatchings/modules/m117/ro", func_m117_003F8);
-
 INCLUDE_ASM("asm/nonmatchings/modules/m117/ro", func_m117_0070C);
 #endif

@@ -71,7 +71,10 @@ static M137Reflected sReflected[60];
 static s16 sSurfaceHeights[15];
 
 #ifdef NON_MATCHING
-/* the loop invariants get t-registers instead of s0-s4, and (vi0 + offset) * 10 is distributed */
+/*
+ * 23 aligned diffs (33 before): the t-registers of the surface test (offset, the end pointer, isNew, next and
+ * the height) are numbered differently. height first holds the batch's vertex offset (both s16).
+ */
 void func_m137_00000(M137Level *level) {
     s32 i;
     s32 j;
@@ -81,8 +84,8 @@ void func_m137_00000(M137Level *level) {
     s32 next;
     M137Segment *seg;
     M137Batch *batch;
-    s32 vi;
     s32 face;
+    struct Vertex *v;
 
     sSurfaceCount = 0;
     for (i = 0; i < level->numberOfSegments; i++) {
@@ -91,11 +94,11 @@ void func_m137_00000(M137Level *level) {
             batch = &seg->batches[j];
             if (batch->flags & 0x20000000) {
                 face = batch->facesOffset;
-                vi = batch->verticesOffset;
-                vi += seg->triangles[face].vi0;
-                height = seg->vertices[vi].y;
-                isNew = TRUE;
                 next = sSurfaceCount + 1;
+                height = batch->verticesOffset;
+                v = &seg->vertices[seg->triangles[face].vi0 + height];
+                isNew = TRUE;
+                height = v->y;
                 for (k = 0; k < sSurfaceCount; k++) {
                     if (height == sSurfaceHeights[k]) {
                         isNew = FALSE;
