@@ -41,8 +41,11 @@ typedef struct TextureHeader {
     /* 0x16 */ s16 textureSize;
     /* 0x18 */ u8 unk18; // JFG: a looping animation runs up to numberOfFrames, not one less (see sprite_anim_advance)
     /* 0x19 */ u8 pad19[2];
-    /* 0x1B */ u8 unk1B;
-    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
+    /* 0x1B */ u8 unk1B; // JFG: the number of mipmap levels
+    /* 0x1C */ u8 cms;   // JFG: the tile's clamp/mirror and mask in s and t (gDPSetTile)
+    /* 0x1D */ u8 masks;
+    /* 0x1E */ u8 cmt;
+    /* 0x1F */ u8 maskt;
 } TextureHeader;
 
 /* DKR's Sprite (renamed: libultra's sp.h has a Sprite too), JFG layout */
@@ -1140,7 +1143,121 @@ void tex_dlist_build(TextureHeader *tex, Gfx *dList) {
     tex->numberOfCommands = dl - tex->cmd;
 }
 
-INCLUDE_ASM("asm/nonmatchings/560B0", func_8005719C);
+/*
+ * JFG: append the commands that load tex to *dList, at tmem, with its first level in tile: with mipmaps, one block load
+ * of every level and a tile per level (then the texture command and the end of the list); otherwise one level. The
+ * no-op & 0xFF on the sizes is needed to match (as in tex_dlist_build).
+ */
+void func_8005719C(Gfx **dList, TextureHeader *tex, s32 tile, s32 tmem) {
+    s32 width;
+    s32 height;
+    s32 siz;
+    s32 loadSiz;
+    s32 incr;
+    s32 shift;
+    s32 lineBytes;
+    s32 imFmt;
+    s32 fmt;
+    s32 renderMode;
+    s32 lineSize;
+    s32 size;
+    s32 i;
+    Gfx *dl;
+
+    dl = *dList;
+    fmt = tex->format & 0xF;
+    renderMode = (tex->format >> 4) & 0xF;
+    height = tex->height & 0xFF;
+    width = tex->width & 0xFF;
+    switch (fmt) {
+        case 0:
+            siz = G_IM_SIZ_32b;
+            loadSiz = G_IM_SIZ_32b;
+            incr = 0;
+            shift = 0;
+            lineBytes = 2;
+            break;
+        case 1:
+        case 4:
+            siz = G_IM_SIZ_16b;
+            loadSiz = G_IM_SIZ_16b;
+            incr = 0;
+            shift = 0;
+            lineBytes = 2;
+            break;
+        case 2:
+        case 5:
+            siz = G_IM_SIZ_8b;
+            loadSiz = G_IM_SIZ_16b;
+            incr = 1;
+            shift = 1;
+            lineBytes = 1;
+            break;
+        case 3:
+        default:
+            siz = G_IM_SIZ_4b;
+            loadSiz = G_IM_SIZ_16b;
+            incr = 3;
+            shift = 2;
+            lineBytes = 0;
+            break;
+    }
+    switch (fmt) {
+        case 0:
+        case 1:
+            imFmt = G_IM_FMT_RGBA;
+            if (renderMode == 0 || renderMode == 2) {
+                tex->flags |= 4;
+            }
+            break;
+        case 4:
+        case 5:
+        case 6:
+            imFmt = G_IM_FMT_IA;
+            tex->flags |= 4;
+            break;
+        default:
+            imFmt = G_IM_FMT_I;
+            break;
+    }
+    if (siz == G_IM_SIZ_4b) {
+        lineSize = width >> 1;
+    } else {
+        lineSize = width * lineBytes;
+    }
+    if (tex->unk1B >= 2) {
+        for (i = 0, size = 0; i < tex->unk1B; i++) {
+            size +=(width >> i) * (height >> i);
+        }
+        gDPSetTextureImage(dl++, imFmt, loadSiz, 1, OS_K0_TO_PHYSICAL(tex + 1));
+        gDPSetTile(dl++, imFmt, loadSiz, 0, tmem, G_TX_LOADTILE, 0, 0, 0, 0, 0, 0, 0);
+        gDPLoadSync(dl++);
+        gDPLoadBlock(dl++, G_TX_LOADTILE, 0, 0, ((size + incr) >> shift) - 1, 0);
+        gDPPipeSync(dl++);
+        for (i = 0; i < tex->unk1B; i++) {
+            gDPSetTile(dl++, imFmt, siz, (lineSize + 7) >> 3, tmem, tile, 0, tex->cmt, tex->maskt - i, i, tex->cms,
+                       tex->masks - i, i);
+            gDPSetTileSize(dl++, tile, 0, 0, (width - 1) << 2, (height - 1) << 2);
+            tmem += ((lineSize + 7) >> 3) * height;
+            tile++;
+            width >>= 1;
+            height >>= 1;
+            lineSize >>= 1;
+        }
+        gSPTexture(dl++, 0, 0, tex->unk1B - 1, G_TX_RENDERTILE, G_ON);
+        gSPEndDisplayList(dl++);
+    } else {
+        gDPSetTextureImage(dl++, imFmt, loadSiz, 1, OS_K0_TO_PHYSICAL(tex + 1));
+        gDPSetTile(dl++, imFmt, loadSiz, 0, tmem, G_TX_LOADTILE, 0, tex->cmt, tex->maskt, 0, tex->cms, tex->masks, 0);
+        gDPLoadSync(dl++);
+        gDPLoadBlock(dl++, G_TX_LOADTILE, 0, 0, ((width * height + incr) >> shift) - 1, 0);
+        gDPPipeSync(dl++);
+        gDPSetTile(dl++, imFmt, siz, (lineSize + 7) >> 3, tmem, tile, 0, tex->cmt, tex->maskt, 0, tex->cms, tex->masks,
+                   0);
+        gDPSetTileSize(dl++, tile, 0, 0, (width - 1) << 2, (height - 1) << 2);
+    }
+    *dList = dl;
+}
 
 
 /**
