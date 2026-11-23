@@ -1480,22 +1480,23 @@ static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour);
 static void func_m018_05880(s32 updateRate) {
     M018Glow *g;
     s32 i;
-    UNUSED s32 pad[3];
+    s32 old;
     s8 *sizes;
-    f32 screenX;
-    f32 screenY;
     s32 alpha;
     s32 j;
     s32 size;
     s32 prev;
+    f32 screenX;
+    f32 screenY;
 
     g = rl_m018_06BF8;
     i = 3;
     while (i--) {
         if (g->active) {
-            g->b = g->g;
+            old = g->g;
             g->g = g->r;
             g->r -= updateRate;
+            g->b = old;
         }
         if (g->r < 0) {
             g->r = 0;
