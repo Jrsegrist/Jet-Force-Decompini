@@ -60,13 +60,12 @@ extern void colour_cycle_init(void *arg0, s32 arg1);
 extern s32 func_800210A4(Object *obj, LightParams *params); /* adds a light */
 
 /*
- * NON_MATCHING: init. The code matches except that the ROM keeps its 0.2f
- * (a literal, the first word of .rodata) in a saved register, where this
- * version reads it from sConsts after each call (frame 8 bytes smaller, f22
- * not saved), and the order of two increments in the triangle loop. With a
- * literal, IDO places it after sConsts; the literal works once control and
- * draw are C too. The triangle loop is written with a break so that IDO
- * does not unroll it (the ROM's isn't).
+ * NON_MATCHING: init. ROM frame, one word long (245/244, 46 aligned diffs):
+ * setup stays in a3 through the beams loop (stored to its home at each call)
+ * where the ROM reloads it from its home for each height, and the triangle
+ * loop's increments are scheduled differently. Its 0.2f is a literal now that
+ * control and draw are C (it was a .rodata stand-in). The triangle loop is
+ * written with a break so that IDO does not unroll it (the ROM's isn't).
  */
 #ifdef NON_MATCHING
 static u8 sTrisMade = FALSE;
@@ -75,12 +74,6 @@ static u8 sControlData[8] = { 0x40, 0xFF, 0xFF, 0xFF, 0x00, 0x01, 0x00, 0x05 }; 
 s16 D_m126_0125C[5][2] = { { 0, 0xC0 }, { 0xC0, 0x100 }, { 0x100, 0x1E0 } };
 
 static Triangle sTris[3][16];
-
-/*
- * The module's .rodata: init's 0.2f, then the constants of the control and
- * draw functions (still assembly).
- */
-static const f32 sConsts[] = { 0.2f, 100000000.0f, 0.2f, 0.1f, -0.4f, -0.4f, 0.4f, 0.4f, 0.01f, 4.8f };
 
 void func_m126_00000(Object *obj, M126Setup *setup) {
     s16 angle;
@@ -125,11 +118,12 @@ void func_m126_00000(Object *obj, M126Setup *setup) {
                 tri[1].uv[1][1] = row[1];
                 tri[1].uv[2][0] = u - 0xFC;
                 tri[1].uv[2][1] = row[1];
+                j++;
                 unused += 0x2000;
                 v += 2;
                 u -= 0xFC;
                 tri += 2;
-                if (++j == 8) {
+                if (j == 8) {
                     break;
                 }
             }
@@ -152,7 +146,7 @@ void func_m126_00000(Object *obj, M126Setup *setup) {
         s->unkF40[i] = 0;
         s->unkF20[i] = (s16) (obj->trans.y_position + setup->height);
         s->unkFAC[i] = 1.0f;
-        s->unkF9C[i] = s->scaleA - sConsts[0];
+        s->unkF9C[i] = s->scaleA - 0.2f;
         colour_cycle_init(&s->cycles[i], setup->unk1E[i]);
         light.type = 1;
         light.unk1 = 3;
