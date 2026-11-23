@@ -72,21 +72,31 @@ typedef struct Triangle7E {
     /* 0x04 */ s16 uv[3][2];
 } Triangle7E;
 
-/* JFG: a model's triangle batch (0x10 bytes; only the field used here) */
+/* JFG: a model's triangle batch (0x10 bytes; only the fields used here) */
 typedef struct ModelBatch7E {
     /* 0x00 */ u8 pad0[6];
     /* 0x06 */ s16 verticesOffset;
-    /* 0x08 */ u8 pad8[8];
+    /* 0x08 */ s16 facesOffset; // the batch's first triangle (DKR facesOffset)
+    /* 0x0A */ u8 padA[2];
+    /* 0x0C */ u32 flags;
 } ModelBatch7E;
 
-/* JFG: a model's collision edge info (only the field used here) */
+/* JFG: a 14-byte record per triangle of a model's collision edge info (contents not used here) */
+typedef struct EdgeRecord7E {
+    /* 0x00 */ u8 pad0[14];
+} EdgeRecord7E;
+
+/* JFG: a model's collision edge info (only the fields used here) */
 typedef struct ModelEdges7E {
-    /* 0x00 */ u8 pad0[8];
+    /* 0x00 */ EdgeRecord7E *records; // per triangle
+    /* 0x04 */ u32 *cellMasks;        // JFG: per triangle, the box cells it touches (as box_range_cell_mask)
     /* 0x08 */ u8 *edgeFlags; // JFG: per triangle, bit n = edge n is a collision edge
 } ModelEdges7E;
 
 typedef struct ModelHeader7E {
-    /* 0x00 */ u8 pad0[0x20];
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ s16 numBatches;
+    /* 0x18 */ u8 pad18[0x20 - 0x18];
     /* 0x20 */ Triangle7E *triangles;
     /* 0x24 */ ModelBatch7E *batches;
     /* 0x28 */ u8 pad28[0x38 - 0x28];
@@ -1352,7 +1362,175 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E9E0);
 #endif
 
+extern s32 D_801047F0; // JFG: the number of entries
+s32 box_range_cell_mask(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: collect the collision objects whose boxes the box from a to b touches (not exclude; at most 16, nearest
+ * first), then list each object and those of its triangles in the cells the box covers (in batches matching mask1
+ * unless they match mask2; mask1 -1: every batch, triangles with an edge flag 0x38), up to the level's limit.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (453 words, 0x1C8), 24 diffs: register
+ * choice only. In the object loop the ROM has i in a3 (here t0, and the other loop values one register on), and the
+ * cell-mask call's stack arguments in v0/v1/t0 (here v1/t0/t1).
+ */
+void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
+    LevelHeader *level;
+    Obj7E *objs[16];
+    s32 count;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 inside;
+    f32 dists[16];
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    Obj7E *obj;
+    f32 boxA[4];
+    f32 boxB[4];
+    Obj7EData *data;
+    Obj7EModel *model;
+    ModelHeader7E *header;
+    ModelEdges7E *edges;
+    s32 n;
+    s32 batch;
+    s32 tri;
+    s32 start;
+    s32 end;
+    s32 useAll;
+    s32 flags;
+    u32 mask;
+    s32 minX;
+    s32 minY;
+    s32 minZ;
+    s32 maxX;
+    s32 maxY;
+    s32 maxZ;
+    u32 masks[16];
+
+    level = level_header();
+    count = 0;
+    for (i = 0; i < D_801047E0; i++) {
+        obj = D_801047E4[i];
+        if (obj == exclude) {
+            continue;
+        }
+        if (!(obj->flags->flags & 1)) {
+            continue;
+        }
+        data = obj->data;
+        inside = TRUE;
+        for (k = 0; k < 3 && inside; k++) {
+            if (a[k] < data->bboxMin[k] && b[k] < data->bboxMin[k]) {
+                inside = FALSE;
+            } else if (data->bboxMax[k] < a[k] && data->bboxMax[k] < b[k]) {
+                inside = FALSE;
+            }
+        }
+        if (inside && count < 16) {
+            dx = data->bboxMin[0] - a[0];
+            dy = data->bboxMin[1] - a[1];
+            dz = data->bboxMin[2] - a[2];
+            objs[count] = obj;
+            dists[count] = dx * dx + dy * dy + dz * dz;
+            j = count;
+            while (j > 0 && dists[j] < dists[j - 1]) {
+                dx = dists[j]; // dx as the swap temporary
+                dists[j] = dists[j - 1];
+                dists[j - 1] = dx;
+                obj = objs[j];
+                objs[j] = objs[j - 1];
+                objs[j - 1] = obj;
+                j--;
+            }
+            count++;
+            if (count >= 16) {
+                i = D_801047E0;
+            }
+        }
+    }
+    for (n = 0; n < count; n++) {
+        obj = objs[n];
+        data = obj->data;
+        model = obj->modelInstances[data->modelIndex];
+        boxA[0] = a[0];
+        boxA[1] = a[1];
+        boxA[2] = a[2];
+        boxA[3] = 1.0f;
+        boxB[0] = b[0];
+        boxB[1] = b[1];
+        boxB[2] = b[2];
+        boxB[3] = 1.0f;
+        func_8007E9E0(data->mtx[data->mtxIndex], boxA, boxB);
+        minX = boxA[0];
+        minY = boxA[1];
+        minZ = boxA[2];
+        maxX = boxB[0];
+        maxY = boxB[1];
+        maxZ = boxB[2];
+        masks[n] = box_range_cell_mask(model->bboxMin, minX, minY, minZ, maxX, maxY, maxZ);
+    }
+    if (mask1 == -1) {
+        useAll = TRUE;
+    } else {
+        useAll = FALSE;
+    }
+    D_801047F0 = 0;
+    for (n = 0; n < count; n++) {
+        obj = objs[n];
+        data = obj->data;
+        model = obj->modelInstances[data->modelIndex];
+        header = model->header;
+        if (model->edges != NULL) {
+            edges = model->edges;
+        } else {
+            edges = header->edges;
+        }
+        mask = masks[n];
+        D_801047F4[D_801047F0] = (s32) obj & 0x7FFFFFFF;
+        D_801047F0++;
+        for (batch = 0; batch < header->numBatches; batch++) {
+            flags = header->batches[batch].flags;
+            start = header->batches[batch].facesOffset;
+            end = header->batches[batch + 1].facesOffset;
+            if (!(flags & mask2) && !useAll && (flags & mask1)) {
+                start = end;
+            }
+            for (tri = start; tri < end; tri++) {
+                start = edges->cellMasks[tri] & mask; // start (dead here) holds the triangle's cells
+                if (useAll) {
+                    if ((edges->edgeFlags[tri] & 0x38) && (start & 0xFF) && (start & 0xFF00)) {
+                        D_801047F4[D_801047F0] = (s32) &edges->records[tri];
+                        D_801047F8[D_801047F0] = batch;
+                        D_801047FC[D_801047F0] = tri;
+                        D_801047F0++;
+                    }
+                } else if (obj->type == 0x37) {
+                    if ((start & 0xFF) && (start & 0xFF00)) {
+                        D_801047F4[D_801047F0] = (s32) &edges->records[tri];
+                        D_801047F8[D_801047F0] = batch;
+                        D_801047FC[D_801047F0] = tri;
+                        D_801047F0++;
+                    }
+                } else if ((start & 0xFF) && (start & 0xFF00) && (start & 0xFF0000)) {
+                    D_801047F4[D_801047F0] = (s32) &edges->records[tri];
+                    D_801047F8[D_801047F0] = batch;
+                    D_801047FC[D_801047F0] = tri;
+                    D_801047F0++;
+                }
+                if (D_801047F0 >= level->unkEE) {
+                    batch = header->numBatches;
+                    tri = end;
+                    n = count;
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007EB6C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007F280);
 
