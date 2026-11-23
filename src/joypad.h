@@ -17,7 +17,7 @@ void input_assign_players(void);
 void charselect_assign_players(s8 *activePlayers);
 u8 input_player_id(s32 player);
 u16 input_held(s32 player);
-u32 input_pressed(s32 player);
+u16 input_pressed(s32 player);
 u16 input_released(s32 player);
 s32 input_clamp_stick_x(s32 player);
 s32 input_clamp_stick_y(s32 player);

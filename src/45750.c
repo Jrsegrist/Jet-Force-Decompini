@@ -3,10 +3,7 @@
  * and the save flags (DKR's thread3_main.c).
  */
 #include "common.h"
-#define input_pressed input_pressed_joypad_h /* joypad.h says u32; the definition returns u16 */
 #include "joypad.h"
-#undef input_pressed
-u16 input_pressed(s32 player);
 
 /*
  * The strings that main's .data (still asm) points at: a version, a build date and a list of names. They open
