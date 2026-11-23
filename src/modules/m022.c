@@ -11,14 +11,14 @@ typedef struct M022Plate {
     /* 0x00 */ f32 radius;
     /* 0x04 */ f32 yMin;
     /* 0x08 */ f32 yMax;
-    /* 0x0C */ s32 unkC;
+    /* 0x0C */ struct M022Helper *helper; /* the helper it handed control to */
     /* 0x10 */ s32 sound; /* a positioned sound's handle, or 0 */
     /* 0x14 */ u8 unk14;
     /* 0x15 */ u8 unk15;
     /* 0x16 */ u8 unk16;
     /* 0x17 */ u8 unk17;
     /* 0x18 */ u8 bob; /* the angle of the bobbing seen by the player it carries */
-    /* 0x19 */ u8 unk19;
+    /* 0x19 */ s8 unk19; /* a countdown */
     /* 0x1A */ s8 unk1A;
     /* 0x1B */ u8 unk1B;
     /* 0x1C */ Object *marker; /* the marker shown over the plate (00000) */
@@ -41,10 +41,18 @@ typedef struct M022Header {
 
 /* The helper (the player-like object the task runs on) */
 typedef struct M022Helper {
-    /* 0x000 */ u8 pad0[0x10D];
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x104 - 0x2];
+    /* 0x104 */ s16 unk104;
+    /* 0x106 */ u8 pad106[0x10D - 0x106];
     /* 0x10D */ u8 state;
     /* 0x10E */ u8 pad10E[0x50C - 0x10E];
     /* 0x50C */ Object *obj;
+    /* 0x510 */ u8 pad510[0x568 - 0x510];
+    /* 0x568 */ u8 unk568;
+    /* 0x569 */ u8 pad569[0x5C8 - 0x569];
+    /* 0x5C8 */ s16 unk5C8;
 } M022Helper;
 
 /* The helper object's behaviour data, as far as the task uses it */
@@ -91,7 +99,7 @@ extern s16 rl_m022_03430;
 extern s8 rl_m022_03434;
 extern u8 rl_m022_03438;
 extern u8 rl_m022_0343C;
-extern u8 rl_m022_03440;
+extern s8 rl_m022_03440;
 
 /* .bss, still assembly: the plate camera */
 extern f32 rl_m022_035B0;
@@ -121,7 +129,7 @@ typedef struct M022Marker {
 } M022Marker;
 
 /* Spawns the plate's marker when it is due, and fades it in while unk17 is set, out otherwise */
-void func_m022_00000(Object *obj, M022Plate *plate, s32 updateRate) {
+static void func_m022_00000(Object *obj, M022Plate *plate, s32 updateRate) {
     M022Marker *m;
 
     if (plate->unk1B) {
@@ -153,7 +161,7 @@ void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     plate->radius = entry->radius;
     plate->yMin = obj->trans.y_position + entry->yMin;
     plate->yMax = obj->trans.y_position + entry->yMax;
-    plate->unkC = 0;
+    plate->helper = NULL;
     plate->sound = 0;
     plate->unk14 = 0;
     plate->unk15 = entry->unkD;
@@ -171,7 +179,323 @@ void func_m022_00154(Object *obj, M022PlateEntry *entry) {
     OBJ_STATE(obj, s32)[0] = 0;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m022/ro", func_m022_002A4);
+/* The player's character record (char_record_lookup), as used here */
+typedef struct M022CharRecord {
+    /* 0x00 */ u8 pad0[0x12];
+    /* 0x12 */ s16 lives;
+} M022CharRecord;
+
+/* The level header (func_8004470C), as used here */
+typedef struct M022LevelHeader {
+    /* 0x00 */ u8 pad0[0x72];
+    /* 0x72 */ u8 song;
+} M022LevelHeader;
+
+extern M022CharRecord *char_record_lookup(s32 player, s32 character);
+extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern u8 D_800A4FC8;                 /* a second player plays */
+extern void func_80048518(s32 arg0);
+extern void func_80001248(s32 sound, s32 arg1);
+extern s32 transition_values_time_left(void);
+extern void transition_begin(void *transition);
+extern void func_m046_0049C(s32 r, s32 g, s32 b, s32 alpha, s32 duration);
+extern void sequence_start(s32 arg0);
+extern s32 func_80000F98(void); /* the music playing */
+extern void music_volume_fade_scaled(f32 rate, s32 volume);
+extern M022LevelHeader *func_8004470C(void);
+extern void func_80000510(u8 song); /* plays a song */
+extern void func_80000FE4(s32 arg0);
+extern void func_80001170(u8 sound);
+extern s32 pending_level_character(void);
+extern s32 menu_mode_get(void);
+extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+extern void func_8005F5AC(Object *obj, s32 updateRate);
+extern s32 D_801046F8;
+extern s32 rl_m022_0340C; /* the task */
+extern s8 rl_m022_03414;  /* the rank shown, -1: none */
+extern u8 rl_m022_0341C;
+extern u8 rl_m022_033FC[];
+static void func_m022_020EC(s32 task);
+static void func_m022_022C4(M022Helper *helper);
+static void func_m022_02410(M022Helper *helper);
+static void func_m022_025B8(s8 *player);
+void func_m022_02C0C(Object *obj, s32 yaw, s32 useAngle);
+void func_m022_02D14(Object *obj, s32 updateRate);
+
+/*
+ * The plate's update: a player standing on it presses A to hand control to the helper, then the task's
+ * states (the camera, the letterbox, the pause and result screens, the end); its sound plays while it runs
+ */
+void func_m022_002A4(Object *obj, s32 updateRate) {
+    s32 buttons;
+    f32 dx;
+    f32 dz;
+    f32 y;
+    s32 state;
+    Object *player;
+    M022Helper *helper;
+    M022CharRecord *record;
+    M022Plate *plate;
+    UNUSED u8 pad1;
+    UNUSED u8 pad2;
+    u8 song;
+
+    plate = obj->unk68;
+    player = func_8000E4D0(0);
+    helper = player->unk68;
+    record = char_record_lookup(helper->player, helper->character);
+    buttons = func_80043510(helper->player);
+    if (D_800A4FC8) {
+        buttons |= func_80043510(1);
+    }
+    plate->unk16 = 0;
+    obj->particleEmittersEnabled = 0;
+    func_m022_00000(obj, plate, updateRate);
+    state = plate->unk17;
+    switch (state) {
+        case 0:
+            dx = player->trans.x_position - obj->trans.x_position;
+            dz = player->trans.z_position - obj->trans.z_position;
+            y = player->trans.y_position;
+            if (dx * dx + dz * dz < 90000.0f) {
+                plate->unk16 = 1;
+                if ((buttons & 0x8000) && helper->obj != NULL && !helper->unk568 &&
+                    player->interactObj->hitPoints >= 0x100 && (record->lives > 0 || plate->unk15 == 5) &&
+                    dx * dx + dz * dz < plate->radius * plate->radius && y < plate->yMax && plate->yMin < y) {
+                    plate->helper = helper;
+                    plate->unk17 = 1;
+                    helper->state = 2;
+                    func_m022_02C0C(obj, 0, 1);
+                    func_80048518(10);
+                    func_m022_020EC(plate->unk15);
+                }
+            }
+            break;
+        case 1:
+            func_80048518(10);
+            rl_m022_03428 -= updateRate;
+            if (rl_m022_03428 <= 0) {
+                rl_m022_03430 = 0;
+                rl_m022_0342C = 1;
+                rl_m022_0343C = 0;
+                transition_values_start(0, 0, 320, 240, 24, 30, 168, 138, 32);
+                plate->unk17 = 2;
+            }
+            break;
+        case 2:
+            func_80048518(10);
+            if (!transition_values_time_left()) {
+                rl_m022_03430 = 1;
+                rl_m022_03438 = 0;
+                rl_m022_0343C = 2;
+                rl_m022_03440 = 0;
+                plate->unk17 = 3;
+                func_m046_0049C(0, 0x40, 0xFF, 0xFF, 20);
+            }
+            break;
+        case 3:
+            func_80048518(10);
+            if (D_801046EE == 0xFF) {
+                sequence_start(1);
+                D_801046EE = 0xFF;
+                plate->unk17 = 4;
+            }
+            break;
+        case 4:
+            func_80048518(10);
+            rl_m022_03424 = D_801046F8;
+            if (buttons & 0x9000) {
+                func_80001248(0x16B, 0);
+                if (func_80000F98() != 0x59) {
+                    music_volume_fade_scaled(0.25f, 0);
+                    plate->unk19 = 15;
+                    plate->unk1A = 0x59;
+                } else {
+                    plate->unk19 = 0;
+                    plate->unk1A = -1;
+                }
+                plate->unk17 = 5;
+            } else if (buttons & 0x4000) {
+                func_80001248(0x16B, 0);
+                song = func_80000F98();
+                if (song != func_8004470C()->song) {
+                    music_volume_fade_scaled(0.25f, 0);
+                    plate->unk19 = 15;
+                    plate->unk1A = func_8004470C()->song;
+                } else {
+                    plate->unk19 = 0;
+                    plate->unk1A = -1;
+                }
+                plate->unk17 = 6;
+            }
+            break;
+        case 5:
+            func_80048518(10);
+            plate->unk19 -= updateRate;
+            if (plate->unk19 <= 0) {
+                func_m022_022C4(plate->helper);
+                sequence_start(0);
+                transition_begin(rl_m022_033FC);
+                transition_values_start(24, 30, 168, 138, 0, 0, 320, 240, -1);
+                rl_m022_03430 = 0;
+                rl_m022_0342C = 0;
+                plate->unk17 = 7;
+                if (plate->unk15 != 5) {
+                    record->lives--;
+                }
+                if (plate->unk1A != -1) {
+                    func_80000510(plate->unk1A);
+                    func_80000FE4(0x7F);
+                    plate->unk1A = -1;
+                }
+            }
+            break;
+        case 6:
+            func_80048518(10);
+            plate->unk19 -= updateRate;
+            if (plate->unk19 <= 0) {
+                helper = plate->helper;
+                helper->state = 4;
+                func_m022_02C0C(obj, helper->unk104, 0);
+                func_m022_02D14((Object *) func_80041DE0(), 2);
+                sequence_start(0);
+                transition_begin(rl_m022_033FC);
+                transition_values_start(24, 30, 168, 138, 0, 0, 320, 240, -1);
+                rl_m022_03430 = 0;
+                rl_m022_0342C = 0;
+                plate->unk17 = 0;
+                if (plate->unk1A != -1) {
+                    func_80000510(plate->unk1A);
+                    func_80000FE4(0x7F);
+                    plate->unk1A = -1;
+                }
+            }
+            break;
+        case 7:
+            if (plate->helper->state == 0) {
+                plate->unk17 = 0;
+            } else if (plate->helper->state == 5) {
+                rl_m022_0343C = 0;
+                plate->unk17 = 8;
+                rl_m022_03414 = 0;
+                rl_m022_03434 = 2;
+            } else if (plate->helper->state == 3) {
+                func_m022_025B8((s8 *) plate->helper);
+                if (rl_m022_0340C == 5 && rl_m022_03414) {
+                    plate->unk17 = 11;
+                    level_goto(0x157, pending_level_character(), 0, menu_mode_get(), 0, 0);
+                } else if (rl_m022_0340C == 4 && rl_m022_03414) {
+                    plate->unk17 = 11;
+                    level_goto(0x134, pending_level_character(), 0, menu_mode_get(), 0, 0);
+                } else {
+                    rl_m022_0343C = 0;
+                    rl_m022_0342C = 1;
+                    rl_m022_03430 = 0;
+                    plate->unk17 = 8;
+                    rl_m022_03434 = 2;
+                    if (rl_m022_03414) {
+                        func_m046_0049C(0, 0x40, 0xFF, 0xFF, 60);
+                        music_volume_fade_scaled(0.5f, 0x28);
+                        if (*(s8 *) &rl_m022_0341C == 2) {
+                            func_80001170(0x2B);
+                        } else {
+                            func_80001170(0xF);
+                        }
+                    }
+                    transition_values_start(0, 0, 320, 240, 24, 30, 168, 138, 32);
+                }
+            }
+            plate->unk16 = 1;
+            break;
+        case 8:
+            func_80048518(10);
+            if (!transition_values_time_left()) {
+                rl_m022_03430 = 1;
+                if (record->lives > 0 || plate->unk15 == 5) {
+                    rl_m022_03438 = 7;
+                    rl_m022_0343C = 3;
+                    rl_m022_03440 = 0;
+                } else {
+                    rl_m022_03438 = 8;
+                    rl_m022_0343C = 2;
+                    rl_m022_03440 = 1;
+                }
+                rl_m022_03424 = 0;
+                if ((buttons & 0x9000) && *(s8 *) &rl_m022_03438 == 7) {
+                    func_80001248(0x16B, 0);
+                    plate->unk17 = 9;
+                    if (!rl_m022_03414) {
+                        func_m046_0049C(0, 0x40, 0xFF, 0xFF, 20);
+                    }
+                    if (rl_m022_03418 != NULL) {
+                        func_800079B8(rl_m022_03418);
+                        rl_m022_03418 = NULL;
+                    }
+                    music_volume_fade_scaled(1.0f, 0x7F);
+                } else if (buttons & 0x4000) {
+                    func_80001248(0x16B, 0);
+                    music_volume_fade_scaled(0.25f, 0);
+                    plate->unk19 = 15;
+                    plate->unk17 = 10;
+                } else if (buttons & 0x2000) {
+                    func_80001248(0x16C, 0);
+                    if (++*(u8 *) &rl_m022_03434 >= 3) {
+                        *(u8 *) &rl_m022_03434 = 0;
+                    }
+                }
+            }
+            break;
+        case 9:
+            func_80048518(10);
+            if (D_801046EE == 0xFF) {
+                rl_m022_03438 = 0;
+                rl_m022_0343C = 2;
+                rl_m022_03440 = 0;
+                sequence_start(1);
+                D_801046EE = 0xFF;
+                plate->unk17 = 4;
+                func_m022_02410(helper);
+                helper->state = 2;
+                func_m022_020EC(plate->unk15);
+            }
+            break;
+        case 10:
+            func_80048518(10);
+            plate->unk19 -= updateRate;
+            if (plate->unk19 <= 0) {
+                func_m022_02C0C(obj, helper->unk104, 0);
+                func_m022_02D14((Object *) func_80041DE0(), 2);
+                func_m022_02410(helper);
+                transition_begin(rl_m022_033FC);
+                transition_values_start(24, 30, 168, 138, 0, 0, 320, 240, -1);
+                rl_m022_03430 = 0;
+                rl_m022_0342C = 0;
+                D_801046F4 = 0;
+                D_801046EE = 0;
+                plate->unk17 = 0;
+                if (rl_m022_03418 != NULL) {
+                    func_800079B8(rl_m022_03418);
+                    rl_m022_03418 = NULL;
+                }
+                func_80000510(func_8004470C()->song);
+                func_80000FE4(0x7F);
+            }
+            break;
+        case 11:
+            func_80048518(10);
+            break;
+    }
+    state = plate->unk17;
+    if (state && helper->unk5C8 < 10) {
+        helper->unk5C8 = 10;
+    }
+    if (plate->unk17) {
+        func_80003410(0xFC, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 1, &plate->sound);
+    } else if (plate->sound != 0) {
+        func_80003614(plate->sound);
+    }
+    func_8005F5AC(obj, updateRate);
+}
 
 void func_m022_00EA0(Object *obj) {
     M022Plate *plate;
@@ -644,7 +968,7 @@ extern void func_m101_009F8(Object *obj, LevelObjectEntryCommon *entry);
 
 /* Starts task `task`: clears the goal counters and sets up again the objects of kinds 0x66, 0x67, 0x60
    and 0x4E (called from 002A4) */
-void func_m022_020EC(s32 task) {
+static void func_m022_020EC(s32 task) {
     s32 first;
     s32 count;
     Object **objs;
@@ -686,7 +1010,7 @@ void func_m022_020EC(s32 task) {
 extern void rl_m022_02310(M022HelperState *s);
 
 /* Puts the helper in state 1 and starts its task (called from 002A4) */
-void func_m022_022C4(M022Helper *helper) {
+static void func_m022_022C4(M022Helper *helper) {
     M022HelperState *s;
 
     D_800A3208 = 1;
@@ -726,7 +1050,7 @@ void func_m022_023FC(M022Helper *helper) {
 }
 
 /* Puts the helper in state 4 (called from 002A4) */
-void func_m022_02410(M022Helper *helper) {
+static void func_m022_02410(M022Helper *helper) {
     M022HelperState *s;
 
     D_800A3208 = 0;
@@ -821,7 +1145,7 @@ extern s16 rl_m022_033C0[]; /* .data (still assembly): the object shown for each
  * The end of the task: its rank (the ranks it meets in turn), the record, the rewards, and the
  * object that shows the rank
  */
-void func_m022_025B8(s8 *player) {
+static void func_m022_025B8(s8 *player) {
     LevelObjectEntryCommon entry;
     M022Rank *r;
     M022Record *rec;
