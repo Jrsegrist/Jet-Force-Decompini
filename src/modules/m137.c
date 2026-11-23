@@ -72,8 +72,9 @@ static s16 sSurfaceHeights[15];
 
 #ifdef NON_MATCHING
 /*
- * 23 aligned diffs (33 before): the t-registers of the surface test (offset, the end pointer, isNew, next and
- * the height) are numbered differently. height first holds the batch's vertex offset (both s16).
+ * 10 aligned diffs (23 before): `next` gets t4 where the ROM has t9, and the k loop's start pointer and
+ * isNew's 1 are scheduled before the end pointer instead of after. k first holds the batch's face offset and
+ * face its vertex offset (the ROM's a3 and t0); next is computed last (statement order from the ROM's loads).
  */
 void func_m137_00000(M137Level *level) {
     s32 i;
@@ -93,12 +94,12 @@ void func_m137_00000(M137Level *level) {
         for (j = 0; j < seg->numberOfBatches; j++) {
             batch = &seg->batches[j];
             if (batch->flags & 0x20000000) {
-                face = batch->facesOffset;
-                next = sSurfaceCount + 1;
-                height = batch->verticesOffset;
-                v = &seg->vertices[seg->triangles[face].vi0 + height];
-                isNew = TRUE;
+                k = batch->facesOffset;
+                face = batch->verticesOffset;
+                v = &seg->vertices[seg->triangles[k].vi0 + face];
                 height = v->y;
+                isNew = TRUE;
+                next = sSurfaceCount + 1;
                 for (k = 0; k < sSurfaceCount; k++) {
                     if (height == sSurfaceHeights[k]) {
                         isNew = FALSE;

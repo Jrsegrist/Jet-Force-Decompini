@@ -83,11 +83,13 @@ extern s32 D_m089_00460;
 INCLUDE_ASM("asm/nonmatchings/modules/m089", data);
 #endif
 
-#ifdef NON_MATCHING
 /*
  * The world position of vertex `index` of obj's model; 0 if it has none.
- * Equivalent; only the evaluation order of the transform call's arguments
- * and the operand order of the index compare differ.
+ * The bone's matrix is addressed as an f32 pointer plus a pre-shifted index
+ * (the same address as &matrices[...][bone]), which gives the ROM's
+ * temporaries and argument order. The stubbed print's format string stays in
+ * the assembly .data (sLookupFormat is only defined in the NON_MATCHING build,
+ * so the print, which compiles to no code, is written only there).
  */
 s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
     M089Instance *inst = ((M089Instance **) obj->modelInstances)[obj->modelIndex];
@@ -123,7 +125,8 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
                         } else {
                             bone = batch->bones[2];
                         }
-                        func_80048B60(&inst->matrices[inst->matrixIndex][bone], v->x, v->y, v->z, x, y, z);
+                        func_80048B60((MtxF *) ((f32 *) inst->matrices[inst->matrixIndex] + (bone << 4)), v->x, v->y,
+                                      v->z, x, y, z);
                         return 1;
                     }
                 }
@@ -131,12 +134,11 @@ s32 func_m089_00000(Object *obj, s32 index, f32 *x, f32 *y, f32 *z) {
         }
         batch++;
     }
+#ifdef NON_MATCHING
     stubbed_printf(sLookupFormat, obj, NULL, index); /* only its format string is in the ROM (.data) */
+#endif
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m089", func_m089_00000);
-#endif
 
 void func_m089_001D0(Object *obj, M089Setup *setup) {
     M089Shock *s = obj->unk68;
