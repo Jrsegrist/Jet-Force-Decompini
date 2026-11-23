@@ -72,37 +72,99 @@ extern u8 rl_m018_06930[];
 
 /* The module's .rodata (still assembly) */
 
-/* The module's .bss (still assembly) */
-extern u8 rl_m018_06BB0[];
-extern s32 rl_m018_06BCC;
-extern s8 rl_m018_06BD1;
-extern s32 rl_m018_06BDC;
-extern s32 rl_m018_06BE4;
-extern u8 rl_m018_06BF5;
-extern s32 rl_m018_06C60;
-extern s32 rl_m018_06C64;
-extern s32 rl_m018_06C68;
-extern s32 rl_m018_06C6C;
-extern s32 rl_m018_06C70;
-extern s32 rl_m018_06C74;
-extern s32 rl_m018_06C78;
-extern s32 rl_m018_06C7C;
-extern s32 rl_m018_06C80;
-extern s32 rl_m018_06C84;
-extern s32 rl_m018_06C88;
-extern s32 rl_m018_06C8C;
-extern s32 rl_m018_06C90;
-extern s32 rl_m018_06C94;
-extern s16 rl_m018_06C98[4]; /* the images loaded for the d-pad */
-extern f32 rl_m018_06CA0;
-extern f32 rl_m018_06CA4;
-extern s16 rl_m018_06CA8;
-extern Object *rl_m018_06CB0[8];
-extern u8 rl_m018_06CF8;
-extern void *rl_m018_06D10;
-extern s16 rl_m018_06D18;
-extern s8 rl_m018_06D1A;
-extern s8 rl_m018_06D1B;
+/* A part of the shown object's model (12 bytes) */
+typedef struct M018Part {
+    /* 0x0 */ f32 x;
+    /* 0x4 */ f32 y;
+    /* 0x8 */ f32 z;
+} M018Part;
+
+/* A highlighted part (three in the module's .bss) */
+typedef struct M018Glow {
+    /* 0x0 */ s8 active;
+    /* 0x1 */ s8 r;
+    /* 0x2 */ s8 g;
+    /* 0x3 */ s8 b;
+    /* 0x4 */ M018Part *part;
+} M018Glow;
+
+/* A position on the screen (four per page) */
+typedef struct M018Pos {
+    /* 0x0 */ s16 x;
+    /* 0x2 */ s16 y;
+} M018Pos;
+
+/* The module's .bss, at its module offsets (the assembly functions reach it by offset; 0409C returns its start) */
+static u8 sBss0[0x1C];
+static s32 rl_m018_06BCC; /* the panels are in place */
+static s8 rl_m018_06BD0;
+static s8 rl_m018_06BD1;
+static s8 rl_m018_06BD2;
+static s8 rl_m018_06BD3;
+static s8 rl_m018_06BD4;
+static s8 rl_m018_06BD5;
+static s8 rl_m018_06BD6;
+static u8 sBss27;
+static s16 rl_m018_06BD8;
+static s16 sBss2A;
+static s32 rl_m018_06BDC;
+static s16 rl_m018_06BE0;
+static s16 sBss32;
+static s32 rl_m018_06BE4;
+static s16 rl_m018_06BE8;
+static s16 sBss3A;
+static f32 rl_m018_06BEC;
+static f32 rl_m018_06BF0;
+static u8 rl_m018_06BF4;
+static u8 rl_m018_06BF5;
+static u8 rl_m018_06BF6;
+static u8 sBss47;
+static M018Glow rl_m018_06BF8[3];
+static M018Pos rl_m018_06C10[20];
+static s32 rl_m018_06C60;
+static s32 rl_m018_06C64;
+static s32 rl_m018_06C68;
+static s32 rl_m018_06C6C;
+static s32 rl_m018_06C70;
+static s32 rl_m018_06C74;
+static s32 rl_m018_06C78;
+static s32 rl_m018_06C7C;
+static s32 rl_m018_06C80;
+static s32 rl_m018_06C84;
+static s32 rl_m018_06C88;
+static s32 rl_m018_06C8C;
+static s32 rl_m018_06C90;
+static s32 rl_m018_06C94;
+static s16 rl_m018_06C98[4]; /* the images loaded for the d-pad */
+static f32 rl_m018_06CA0;
+static f32 rl_m018_06CA4;
+static s16 rl_m018_06CA8;
+static s16 sBssFA;
+static s32 sBssFC;
+static Object *rl_m018_06CB0[8];
+static f32 rl_m018_06CD0[8];
+static f32 rl_m018_06CF0;
+static f32 rl_m018_06CF4;
+static u8 rl_m018_06CF8;
+static u8 sBss149;
+static s16 sBss14A;
+static s32 rl_m018_06CFC;
+static s32 rl_m018_06D00;
+static u8 rl_m018_06D04;
+static s8 rl_m018_06D05;
+static u8 sBss156;
+static s8 rl_m018_06D07;
+static u8 rl_m018_06D08;
+static u8 rl_m018_06D09;
+static s16 rl_m018_06D0A;
+static s16 rl_m018_06D0C;
+static s16 rl_m018_06D0E;
+static void *rl_m018_06D10;
+static s16 rl_m018_06D14;
+static s16 rl_m018_06D16;
+static s16 rl_m018_06D18;
+static s8 rl_m018_06D1A;
+static s8 rl_m018_06D1B;
 
 extern Gfx *D_800FF398; /* the display list being built */
 extern Mtx *D_800FF39C;
@@ -647,21 +709,6 @@ extern s32 rl_m018_06680;
 extern u8 rl_m018_06724[];
 extern f32 rl_m018_0675C[];
 extern M018Pair rl_m018_06774[8];
-extern f32 rl_m018_06CD0[8];
-extern f32 rl_m018_06CF0;
-extern f32 rl_m018_06CF4;
-extern s32 rl_m018_06CFC;
-extern s32 rl_m018_06D00;
-extern u8 rl_m018_06D04;
-extern s8 rl_m018_06D05;
-extern s8 rl_m018_06D07;
-extern u8 rl_m018_06D08;
-extern u8 rl_m018_06D09;
-extern s16 rl_m018_06D0A;
-extern s16 rl_m018_06D0C;
-extern s16 rl_m018_06D0E;
-extern s16 rl_m018_06D14;
-extern s16 rl_m018_06D16;
 
 void func_m018_020C0(void) {
     s8 *state;
@@ -761,7 +808,7 @@ s32 func_m018_03B44(s32 i, s32 dir) {
 INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_03BB4);
 
 void *func_m018_0409C(void) {
-    return rl_m018_06BB0;
+    return sBss0;
 }
 
 /* A texture of a shown model */
@@ -1040,13 +1087,6 @@ void func_m018_04408(s32 updateRate) {
     }
 }
 
-/* A part of the shown object's model (12 bytes) */
-typedef struct M018Part {
-    /* 0x0 */ f32 x;
-    /* 0x4 */ f32 y;
-    /* 0x8 */ f32 z;
-} M018Part;
-
 /* The shown object's model instance */
 typedef struct M018ShownModel {
     /* 0x00 */ M018ModelHeader *header;
@@ -1061,15 +1101,6 @@ typedef struct M018ShownModel {
     /* 0x78 */ s16 *frames[1];
 } M018ShownModel;
 
-/* A highlighted part (three in the module's .bss) */
-typedef struct M018Glow {
-    /* 0x0 */ s8 active;
-    /* 0x1 */ s8 r;
-    /* 0x2 */ s8 g;
-    /* 0x3 */ s8 b;
-    /* 0x4 */ M018Part *part;
-} M018Glow;
-
 /* This screen's .data, .rodata and .bss (still assembly) */
 extern u8 rl_m018_0681C[];
 extern s16 rl_m018_0682C[];
@@ -1077,20 +1108,6 @@ extern s8 rl_m018_06874[];
 extern s8 rl_m018_06898[][2];
 extern f32 rl_m018_068E0[];
 extern s8 rl_m018_06920[];
-extern s8 rl_m018_06BD0;
-extern s8 rl_m018_06BD2;
-extern s8 rl_m018_06BD3;
-extern s8 rl_m018_06BD4;
-extern s8 rl_m018_06BD5;
-extern s8 rl_m018_06BD6;
-extern s16 rl_m018_06BD8;
-extern s16 rl_m018_06BE0;
-extern s16 rl_m018_06BE8;
-extern f32 rl_m018_06BEC;
-extern f32 rl_m018_06BF0;
-extern u8 rl_m018_06BF4;
-extern u8 rl_m018_06BF6;
-extern M018Glow rl_m018_06BF8[3];
 
 static void fe_highlights_clear(void);
 static void fe_highlight_add(M018Part *part);
@@ -1431,13 +1448,6 @@ static void fe_highlight_add(M018Part *part) {
     }
 }
 
-/* The first highlight's fields, as the functions below read them */
-#define rl_m018_06BF8_active (*(s8 *) rl_m018_06BF8)
-extern s8 rl_m018_06BF9;
-extern s8 rl_m018_06BFA;
-extern s8 rl_m018_06BFB;
-extern M018Part *rl_m018_06BFC;
-
 #ifdef NON_MATCHING
 /* (matches; static, staged until 04AF0, its only caller, matches) */
 /* Clears the first highlight if it is on `part` (module m018, 0x05850; it looks at the first slot each time) */
@@ -1445,8 +1455,8 @@ static void func_m018_05850(M018Part *part) {
     s32 i = 3;
 
     while (i--) {
-        if (part == rl_m018_06BFC) {
-            rl_m018_06BF8_active = 0;
+        if (part == rl_m018_06BF8[0].part) {
+            rl_m018_06BF8[0].active = 0;
             return;
         }
     }
@@ -1612,19 +1622,12 @@ void func_m018_05BD8(void) {
     menu_item_free(rl_m018_06C74);
 }
 
-/* A position on the screen (four per page) */
-typedef struct M018Pos {
-    /* 0x0 */ s16 x;
-    /* 0x2 */ s16 y;
-} M018Pos;
-
 extern s32 character_has_item(s32 player, s32 character, s32 item);
 extern void mempool_free_timer(s32 frames);
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80055C00(Gfx **dl, void *tex, s32 arg2, s32 arg3);
 extern s32 D_800A51CC; /* the text opacity */
 extern s8 D_800FF3D8[]; /* the stick moves this frame, per player */
-extern M018Pos rl_m018_06C10[];
 extern f32 rl_m018_067B8;
 extern s16 rl_m018_06938[];
 extern s32 rl_m018_069D0[];
@@ -1637,6 +1640,4 @@ INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_05C0C);
 INCLUDE_ASM("asm/nonmatchings/modules/m018", data);
 
 /* (.rodata: C, and the assembly functions' own from ro/) */
-
-INCLUDE_ASM("asm/nonmatchings/modules/m018", bss);
 
