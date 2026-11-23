@@ -741,7 +741,7 @@ typedef struct RippleChild {
     /* 0x0A */ s16 texStep;
     /* 0x0C */ f32 unkC;
     /* 0x10 */ RippleStrip *strips;
-    /* 0x14 */ u8 *unk14;
+    /* 0x14 */ struct RippleSeg *unk14; // the trail's segments, a ring of numSegments
     /* 0x18 */ Vertex *vtx[4];
     /* 0x28 */ Triangle *tris[2];
     /* 0x30 */ RippleTexture *tex;
@@ -803,7 +803,7 @@ RippleChild *ripple_trail_create(s32 type, f32 length, f32 start, f32 end, s32 t
         child->strips = (RippleStrip *) p;
         p += stripsSize;
         child->vtx[3] = NULL;
-        child->unk14 = p;
+        child->unk14 = (struct RippleSeg *) p;
         p += size14;
         for (i = 0; i < count; i++) {
             child->vtx[i] = (Vertex *) (p + i * vtxSize);
@@ -1018,10 +1018,204 @@ void ripple_quad_free(u8 *ripple) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/69050", func_8006A924);
+/* JFG: one segment of a ripple's trail (20 bytes) */
+typedef struct RippleSeg {
+    /* 0x00 */ u8 life;   // frames left
+    /* 0x01 */ u8 flags;  // 0x80: starts a strip; 0x7F: alpha
+    /* 0x02 */ s16 angle; // the heading it was laid at
+    /* 0x04 */ s16 v;     // texture v, scrolled each frame
+    /* 0x06 */ s16 y;
+    /* 0x08 */ f32 x;
+    /* 0x0C */ f32 z;
+    /* 0x10 */ f32 width; // half-width, growing each frame
+} RippleSeg;
+
+extern s32 D_800A6950;
+
+/* JFG: update a ripple's trail: drop the segments that ran out, fade the trail in or out, lay a new segment at
+   x, y, z across the heading, then build the current vertex frame and triangles from the live segments (one
+   strip per run, starting a new one at a flagged segment and every 16 triangles), and animate the texture. */
+void func_8006A924(RippleChild *child, f32 x, f32 y, f32 z, s16 angle, s32 updateRate) {
+    Vertex *vtx;
+    Vertex *vtx2;
+    Triangle *tri;
+    s32 started;
+    s32 k;
+    s32 numTris;
+    s32 numVerts;
+    s32 i;
+    s32 uMax;
+    RippleSeg *seg;
+    s32 n;
+    s32 restart;
+    s32 alpha;
+    s32 v;
+    f32 s;
+    f32 c;
+
+    n = child->unk3B;
+    i = child->unk39;
+    while (n--) {
+        seg = &child->unk14[i];
+        i++;
+        if (i >= child->numSegments) {
+            i = 0;
+        }
+        if (seg->life <= updateRate) {
+            child->unk39 = i;
+            child->unk3B--;
+        } else {
+            n = 0;
+        }
+    }
+    restart = FALSE;
+    child->unk14[child->unk39].flags |= 0x80;
+    if (child->unk0 & 2) {
+        if (child->unk8 == 0) {
+            restart = TRUE;
+        }
+        child->unk8 += 0x40;
+        if (child->unk8 >= 256) {
+            child->unk8 = 255;
+        }
+        D_800A6950 += updateRate << 4;
+        if (D_800A6950 >= 256) {
+            D_800A6950 = 255;
+        }
+    } else {
+        child->unk8 -= 0x40;
+        if (child->unk8 < 0) {
+            child->unk8 = 0;
+        }
+        D_800A6950 -= updateRate << 4;
+        if (D_800A6950 < 0) {
+            D_800A6950 = 0;
+        }
+    }
+    if (child->unk8 != 0 && child->unk3B < child->numSegments) {
+        seg = &child->unk14[child->unk3A];
+        seg->life = child->numFrames;
+        seg->flags = child->unk8 >> 1;
+        if (restart) {
+            seg->flags |= 0x80;
+        }
+        seg->angle = angle;
+        seg->v = (child->tex->height - 1) << 8;
+        seg->y = y;
+        seg->x = x;
+        seg->z = z;
+        seg->width = child->unk4;
+        child->unk3A++;
+        if (child->unk3A >= child->numSegments) {
+            child->unk3A = 0;
+        }
+        child->unk3B++;
+    }
+    child->unk2 = 1 - child->unk2;
+    child->numStrips = 0;
+    if (child->unk3B != 0) {
+        i = child->unk39;
+        vtx = child->vtx[child->unk2];
+        vtx2 = child->vtx[child->unk2 + 2];
+        tri = child->tris[child->unk2];
+        k = 0;
+        numTris = 0;
+        numVerts = 0;
+        started = FALSE;
+        uMax = (child->tex->width - 1) << 5;
+        if (i != child->unk3A) {
+            do {
+                seg = &child->unk14[i];
+                i++;
+                if (i >= child->numSegments) {
+                    i = 0;
+                }
+                if (seg->flags & 0x80) {
+                    k = 0;
+                    if (started) {
+                        child->strips[child->numStrips].unkC = numVerts;
+                        child->strips[child->numStrips].numTris = numTris;
+                        child->numStrips++;
+                    }
+                    started = TRUE;
+                    child->strips[child->numStrips].vtx = (u8 *) vtx;
+                    child->strips[child->numStrips].vtx2 = (u8 *) vtx2;
+                    child->strips[child->numStrips].tris = (u8 *) tri;
+                    numTris = 0;
+                    numVerts = 0;
+                }
+                if (vtx2) {} // (no code; vtx2 is set before the loop) gives vtx2 its saved register over child
+                seg->life -= updateRate;
+                seg->width += child->unkC * updateRate;
+                seg->v -= child->texStep * updateRate;
+                s = func_80049C34(seg->angle) * seg->width;
+                c = func_80049C30(seg->angle) * seg->width;
+                alpha = ((seg->flags & 0x7F) * D_800A6950) >> 7;
+                vtx->x = seg->x - c;
+                vtx->y = seg->y;
+                vtx->z = seg->z + s;
+                vtx->a = alpha;
+                vtx++;
+                numVerts += 2;
+                if (vtx2 == NULL) {
+                    vtx->x = seg->x + c;
+                    vtx->z = seg->z - s;
+                } else {
+                    vtx2 += 2;
+                    vtx->x = seg->x;
+                    vtx->z = seg->z;
+                    vtx2[-2].x = seg->x + c;
+                    vtx2[-2].y = seg->y;
+                    vtx2[-2].z = seg->z - s;
+                    vtx2[-2].a = alpha;
+                    vtx2[-1].x = vtx->x;
+                    vtx2[-1].y = seg->y;
+                    vtx2[-1].z = vtx->z;
+                    vtx2[-1].a = alpha;
+                }
+                vtx->y = seg->y;
+                vtx->a = alpha;
+                v = seg->v >> 3;
+                vtx++;
+                if (k != 0) {
+                    tri[0].vi2 = k;
+                    tri[0].uv[2][0] = 0;
+                    tri[0].uv[2][1] = v;
+                    tri[1].vi1 = k;
+                    tri[1].uv[1][0] = 0;
+                    tri[1].uv[1][1] = v;
+                    tri[1].vi2 = k + 1;
+                    tri[1].uv[2][0] = uMax;
+                    tri[1].uv[2][1] = v;
+                    tri += 2;
+                    numTris += 2;
+                    if (k + 2 >= 17) {
+                        k = 0;
+                    }
+                }
+                tri[0].vi0 = k;
+                tri[0].uv[0][0] = 0;
+                tri[0].uv[0][1] = v;
+                tri[0].vi1 = k + 1;
+                tri[0].uv[1][0] = uMax;
+                tri[0].uv[1][1] = v;
+                tri[1].vi0 = k + 1;
+                tri[1].uv[0][0] = uMax;
+                tri[1].uv[0][1] = v;
+                k += 2;
+            } while (i != child->unk3A);
+        }
+        child->strips[child->numStrips].unkC = numVerts;
+        child->strips[child->numStrips].numTris = numTris;
+        child->numStrips++;
+        child->texFrame += child->texSpeed * updateRate;
+        while (child->texFrame >= child->tex->numFrames) {
+            child->texFrame -= child->tex->numFrames;
+        }
+    }
+}
 
 s16 func_80049C84(f32 x, f32 z);
-void func_8006A924(void *child, f32 x, f32 y, f32 z, s32 angle, s32 updateRate);
 
 /* JFG: update a ripple: fade it in or out, animate its texture, flip its vertex frame and lay the new one as a
    square of half-size unk7C around the object at the level height, then update its child along the heading. */
