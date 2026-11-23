@@ -1455,6 +1455,7 @@ void func_8003E638(Gfx **out, LimbObj3C *obj, LimbTarget3C *target, s32 flags, s
                 tex = model->textures[texIndex].texture;
                 hasTexture = TRUE;
             }
+            // (unlike its sibling, the flags carry over from batch to batch and never take the batch's own)
             batchFlags = (batchFlags | flags | D_800A2EC0) & clearFlags;
             if (model->animateTextures != 0 && tex != NULL && (tex != prevTex || texOffset != prevOffset)) {
                 anim->offset = texOffset;
@@ -1492,7 +1493,7 @@ void func_8003E638(Gfx **out, LimbObj3C *obj, LimbTarget3C *target, s32 flags, s
                         joint = batch->ids[2];
                     }
                     guMtxXFMF((f32 (*)[4]) (inst->matrices[inst->bank] + joint), src->x, src->y, src->z, &ox, &oy, &oz);
-                    sumX += ox;
+                    sumX += ox; // (the sums are never read; the ROM computes them too)
                     sumY += oy;
                     sumZ += oz;
                     vtxOut->x = ox;
