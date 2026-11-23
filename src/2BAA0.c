@@ -2832,8 +2832,8 @@ void player_input_latch(s32 player) {
 
 extern u8 D_800A2DD8[8];
 extern u8 D_800A2DE8[8];
-extern s32 D_800A2DF0[8];
-void rumble_raise(s32 arg0, u8 arg1, s32 arg2);
+extern f32 D_800A2DF0[8]; /* the rumble times */
+void rumble_raise(s32 pad, s32 strength, f32 time);
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: 2 words: the table byte is loaded into t7 (target t6, with t7 unused after it); the

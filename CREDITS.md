@@ -398,3 +398,10 @@ written from what the code does.
 | --- | --- |
 | `src/tracks.c` | shadow_update's shape (the heap set-up, the per-object group, distance-fade and shading tests, the closing heap counts) for the NON_MATCHING body of JFG's func_8001DA1C; JFG's per-light shadows and module choices are written from the ROM |
 | `src/tracks.c` | shadow_generate's shape (the size, lift and clamps, the bounding box, the segment loop, the closing heap entry) for the NON_MATCHING body of JFG's func_8001E17C; the light stretch and corner rotation are written from the ROM |
+
+### Round 43 (main43)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/objects.c` | render_3d_billboard's shape (the intensity, flags and alpha set-up, the prim/env colour choice and the resets after render_sprite_billboard) for the NON_MATCHING body of JFG's func_8000B46C; JFG's module, fog and tint-pair cases are written from the ROM |
+| `src/joypad.c` | input_pressed's u16 return type, now used by JFG's definition (src/joypad.c), which func_800487B8 needs |

@@ -2506,7 +2506,176 @@ void obj_draw_twin(Object *obj) {
     }
 }
 
+/* JFG: one of the level's colour cycles (level_colour_cycles_get), 16 bytes */
+typedef struct LevelColourCycle {
+    /* 0x00 */ u8 pad0[8];
+    /* 0x08 */ u8 r;
+    /* 0x09 */ u8 g;
+    /* 0x0A */ u8 b;
+    /* 0x0B */ u8 padB[0x10 - 0xB];
+} LevelColourCycle;
+
+extern s32 D_800A3334;
+void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj, void *sprite, s32 flags, u8 alpha);
+void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
+void draw_tint_pair_off(void);
+void *level_colour_cycles_get(void);
+void get_fog_settings(s32 playerID, s16 *near, s16 *far, s16 *unk, u8 *r, u8 *g, u8 *b, u8 *unk2);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: DKR's render_3d_billboard, extended: object 0xA3 goes to a module; a negative scale flips the sprite (flag
+ * 0x20000000); object 0x18 is drawn by a module with a flash fog while module 2 is loaded and the object's fog bits
+ * are set; objects 0x91, 0x86, 0x3D (by setup player), 0x26 (sprite flag 0x200), 0x39 (its level entry's colour
+ * cycles) and 0x3A get a tint pair instead of the prim/env colours; a second module pass for object 0x18.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's frame (0xB8, every stack slot right), 497/495 words,
+ * 136 aligned diffs: the display-list temporaries are in v1 (ROM v0) and the tint flag in t0 (ROM t1: the ROM
+ * gives t0 to the alpha byte passed to the module), a few constants are hoisted differently (the alpha clamp's 255,
+ * the 0xFB000000 commands) and a load-delay nop is missing at the second behaviour chain.
+ * Not portable as is: the level entry (an s32 field) is read as a pointer.
+ */
+void func_8000B46C(Object *obj) {
+    s32 flags;
+    s32 intensity;
+    s32 alpha;
+    s32 hasPrimCol;
+    s32 hasEnvCol;
+    s32 tinted;
+    LevelColourCycle *cycles;
+    void *sprite;
+    u8 *shade;
+    Object_Racer *racer;
+    s16 near;
+    s16 far;
+    s16 unk;
+    u8 r;
+    u8 g;
+    u8 b;
+    u8 unk2;
+    LevelColourCycle *col1;
+    LevelColourCycle *col2;
+    UNUSED u8 pad[0x14];
+
+    tinted = FALSE;
+    if (obj->behaviorId == 0xA3) {
+        func_80054530(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj);
+        return;
+    }
+    intensity = 255;
+    hasPrimCol = FALSE;
+    flags = obj->trans.flags | 8;
+    hasEnvCol = FALSE;
+    if (obj->trans.scale < 0.0f) {
+        flags |= 0x20000000;
+        obj->trans.scale = -obj->trans.scale;
+    }
+    if (obj->shade != NULL) {
+        shade = obj->shade;
+        intensity = *(f32 *) shade * 255.0f;
+        hasPrimCol = TRUE;
+        hasEnvCol = TRUE;
+    }
+    alpha = obj->opacity;
+    if (alpha > 255) {
+        alpha = 255;
+    }
+    if (alpha < 255) {
+        flags |= 4;
+        hasPrimCol = TRUE;
+    }
+    sprite = obj->attachments[obj->attachmentIndex];
+    if (obj->behaviorId == 0x18) {
+        racer = obj->racer;
+        if (!runlink_module_loaded(2)) {
+            return;
+        }
+        if (D_800A3334 == 0) {
+            if (racer->fogFlags == 0) {
+                return;
+            }
+            get_fog_settings(0, &near, &far, &unk, &r, &g, &b, &unk2);
+            gDPSetFogColor(gObjectCurrDisplayList++, 255, 50, 50, 255);
+            gMoveWd(gObjectCurrDisplayList++, G_MW_FOG, G_MWO_FOG, (0x500 << 16) | 0x500);
+            func_80054530(obj, &gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, sprite, flags, alpha, 1);
+            gDPSetFogColor(gObjectCurrDisplayList++, r, g, b, 255);
+            gSPFogPosition(gObjectCurrDisplayList++, near, far);
+            racer->fogFlags = 0;
+            return;
+        }
+    }
+    if (obj->behaviorId == 0x91) {
+        draw_tint_pair_set(255, 255, 255, ((u8 *) obj->racer)[1], ((u8 *) obj->racer)[2], ((u8 *) obj->racer)[3]);
+        tinted = TRUE;
+    } else if (obj->behaviorId == 0x86) {
+        draw_tint_pair_set(0xE0, 255, 255, 0x10, 0xA0, 0x40);
+        tinted = TRUE;
+    } else if (obj->behaviorId == 0x3D) {
+        switch (obj->setupIndex) {
+            case 1:
+                draw_tint_pair_set(255, 255, 255, 0x80, 0, 0xCC);
+                break;
+            case 2:
+                draw_tint_pair_set(255, 255, 255, 0xD0, 0, 0);
+                break;
+            default:
+                draw_tint_pair_set(255, 255, 255, 0, 0x28, 255);
+                break;
+        }
+        tinted = TRUE;
+    } else if (obj->behaviorId == 0x26 && (((s16 *) sprite)[3] & 0x200)) {
+        draw_tint_pair_set(((u8 *) obj->racer)[0x28], ((u8 *) obj->racer)[0x29], ((u8 *) obj->racer)[0x2A],
+                           ((u8 *) obj->racer)[0x18], ((u8 *) obj->racer)[0x19], ((u8 *) obj->racer)[0x1A]);
+        tinted = TRUE;
+    } else if (obj->behaviorId == 0x39 && obj->levelEntry != 0 && (((u8 *) obj->levelEntry)[0xD] & 0x80)) {
+        cycles = level_colour_cycles_get();
+        if (obj->levelEntry != 0) {
+            col1 = &cycles[((u8 *) obj->levelEntry)[0xD] & 7];
+            col2 = &cycles[(((u8 *) obj->levelEntry)[0xD] >> 3) & 7];
+        } else {
+            col1 = cycles;
+            col2 = cycles;
+        }
+        draw_tint_pair_set(col1->r, col1->g, col1->b, col2->r, col2->g, col2->b);
+        tinted = TRUE;
+    } else if (obj->behaviorId == 0x3A) {
+        if (obj->unk4A == 0x32B) {
+            draw_tint_pair_set(255, 255, 0, 0xE5, 0, 0);
+        } else {
+            draw_tint_pair_set(0x28, 255, 0x3C, 5, 0x46, 0xB);
+        }
+        tinted = TRUE;
+    } else {
+        if (hasPrimCol || alpha < 255) {
+            gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, intensity, intensity, intensity, alpha);
+        } else {
+            gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, 255, 255, 255, 255);
+        }
+        if (hasEnvCol) {
+            gDPSetEnvColor(gObjectCurrDisplayList++, shade[4], shade[5], shade[6], shade[7]);
+        } else {
+            gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+        }
+    }
+    render_sprite_billboard(&gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, obj, sprite, flags, alpha);
+    if (obj->behaviorId == 0x18) {
+        if (*(u16 *) ((u8 *) (*(Object **) ((u8 *) obj->racer + 0x24))->racer + 0x2C) == 0xE6) {
+            func_80054530(obj, &gObjectCurrDisplayList, &gObjectCurrMatrix, &gObjectCurrVertexList, sprite, flags,
+                          (u8) alpha, 0);
+        }
+    }
+    if (tinted) {
+        draw_tint_pair_off();
+    }
+    if (hasPrimCol) {
+        gDPSetPrimColor(gObjectCurrDisplayList++, 0, 0, 255, 255, 255, 255);
+    }
+    if (hasEnvCol) {
+        gDPSetEnvColor(gObjectCurrDisplayList++, 255, 255, 255, 0);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000B46C);
+#endif
 
 extern s16 D_800A0BD8[]; // JFG: the type 0x33 object IDs that take the point's position, -1 ends
 s32 func_8003B740(Object *obj, Object_Racer *racer);
