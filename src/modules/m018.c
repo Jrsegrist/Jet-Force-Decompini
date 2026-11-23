@@ -929,6 +929,7 @@ static void func_m018_040A8(f32 rate, s32 item) {
 #else
 #undef func_m018_040A8
 INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_040A8);
+#define func_m018_040A8 rl_m018_040A8
 #endif
 
 void func_m018_042D4(void) {
@@ -1157,12 +1158,10 @@ void func_m018_048E4(void) {
     rl_m018_06BF6 = 0;
 }
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: ROM frame, 809/806 words, 35 aligned diffs: the text lines' y wants s0, where IDO puts &gMenuText */
 extern u8 rl_m018_06670[];   /* .data: a display list of the box behind the shown object */
 extern s8 rl_m018_06914[];   /* the second view's y, per part */
 extern s16 rl_m018_06880[];  /* the shown object's turn target, per part */
-extern s16 rl_m018_068B0[][2]; /* per part: its first text line, its number of lines */
+extern s16 rl_m018_068B0[];  /* per part, two halves: its first text line, its number of lines */
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern s32 game_flag_get(s32 flag);
 extern void viewport_menu_set(s32 viewPortIndex, s32 x1, s32 y1, s32 x2, s32 y2);
@@ -1217,32 +1216,28 @@ void func_m018_04AF0(s32 updateRate) {
     obj_anim_frame_advance(obj, rl_m018_06BF0, updateRate);
     flagA = game_flag_get(rl_m018_06BD0 + 0x20);
     flagB = game_flag_get(rl_m018_06BD1 + 0x20);
-    if (D_800FF3D8[D_m019_013D8] < -32) {
-        if (!rl_m018_06BF6) {
-            func_m018_05850(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
-            rl_m018_06BD3--;
-            if (rl_m018_06BD3 < 0) {
-                rl_m018_06BD3 = 11;
-            }
-            rl_m018_06BD0 = rl_m018_06874[rl_m018_06BD3];
-            fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
-            rl_m018_06BD2 = 1;
-            rl_m018_06BD4 = 0x78;
-            func_80001248(0x16B, 0);
+    if (D_800FF3D8[D_m019_013D8] < -32 && !rl_m018_06BF6) {
+        func_m018_05850(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+        rl_m018_06BD3--;
+        if (rl_m018_06BD3 < 0) {
+            rl_m018_06BD3 = 11;
         }
-    } else if (D_800FF3D8[D_m019_013D8] > 32) {
-        if (!rl_m018_06BF6) {
-            func_m018_05850(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
-            rl_m018_06BD3++;
-            if (rl_m018_06BD3 >= 12) {
-                rl_m018_06BD3 = 0;
-            }
-            rl_m018_06BD0 = rl_m018_06874[rl_m018_06BD3];
-            fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
-            rl_m018_06BD2 = 2;
-            rl_m018_06BD4 = 0x78;
-            func_80001248(0x16B, 0);
+        rl_m018_06BD0 = rl_m018_06874[rl_m018_06BD3];
+        fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+        rl_m018_06BD2 = 1;
+        rl_m018_06BD4 = 0x78;
+        func_80001248(0x16B, 0);
+    } else if (D_800FF3D8[D_m019_013D8] > 32 && !rl_m018_06BF6) {
+        func_m018_05850(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+        rl_m018_06BD3++;
+        if (rl_m018_06BD3 >= 12) {
+            rl_m018_06BD3 = 0;
         }
+        rl_m018_06BD0 = rl_m018_06874[rl_m018_06BD3];
+        fe_highlight_add(&model->parts[rl_m018_06920[rl_m018_06BD0]]);
+        rl_m018_06BD2 = 2;
+        rl_m018_06BD4 = 0x78;
+        func_80001248(0x16B, 0);
     }
     if (rl_m018_06BCC) {
         rl_m018_06BD6 += updateRate;
@@ -1384,9 +1379,9 @@ void func_m018_04AF0(s32 updateRate) {
         func_800408C0(&D_800FF398);
         func_8006FC54(2);
         ty = 160;
-        n = rl_m018_068B0[rl_m018_06BD0][1];
+        n = rl_m018_068B0[rl_m018_06BD0 * 2 + 1];
         func_8006FC68(255, 255, 0, 255, 255);
-        j = rl_m018_068B0[rl_m018_06BD0][0];
+        j = rl_m018_068B0[rl_m018_06BD0 * 2];
         func_8006FCA8(&D_800FF398, 0x3C, 0x96, gMenuText[j++], 0);
         func_8006FC68(255, 255, 255, 255, 255);
         for (i = 1; i < n; i++) {
@@ -1407,9 +1402,6 @@ void func_m018_04AF0(s32 updateRate) {
         rl_m018_06BF6 = 1;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_04AF0);
-#endif
 
 void func_m018_05788(void) {
     menu_assetgroup_free(rl_m018_06810);
@@ -1448,8 +1440,6 @@ static void fe_highlight_add(M018Part *part) {
     }
 }
 
-#ifdef NON_MATCHING
-/* (matches; static, staged until 04AF0, its only caller, matches) */
 /* Clears the first highlight if it is on `part` (module m018, 0x05850; it looks at the first slot each time) */
 static void func_m018_05850(M018Part *part) {
     s32 i = 3;
@@ -1461,9 +1451,6 @@ static void func_m018_05850(M018Part *part) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05850);
-#endif
 
 /* A rectangle for menu_fill_boxes */
 typedef struct M018Rect {
@@ -1478,8 +1465,6 @@ extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 ar
 extern void menu_fill_boxes(Gfx **dl, s32 count, M018Rect *rects, s32 arg3);      /* draws rectangles */
 
 
-#ifdef NON_MATCHING
-/* (matches; static, staged until 04AF0, its only caller, matches) */
 static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour);
 
 /*
@@ -1531,12 +1516,7 @@ static void func_m018_05880(s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05880);
-#endif
 
-#ifdef NON_MATCHING
-/* (matches; static, staged until 05880, its only caller, matches) */
 /* Draws a w x h bracket box at (x, y) in the colour, with a black shadow under each side (module m018, 0x05A24) */
 static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour) {
     s32 right;
@@ -1596,9 +1576,6 @@ static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour) {
     rect->colour = colour;
     menu_fill_boxes(&D_800FF398, 8, rects, 0);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_05A24);
-#endif
 
 void func_m018_05B40(void) {
     menu_assetgroup_load(rl_m018_0692C);
@@ -1635,7 +1612,223 @@ extern s16 rl_m018_069EC[];
 extern Vertex rl_m018_069F0[];
 extern Triangle rl_m018_06A30[];
 
+#ifdef NON_MATCHING
+/*
+ * The screen of the player's character's things, two pages (the stick turns the page): its items
+ * (from the table at rl_m018_06938) and counts, or its keys and the game's flags.
+ * NON_MATCHING: first body, 661/663 words, frame 8 bytes big, 127 aligned diffs: in the items loop the ROM
+ * keeps the record kind in v0 (reloaded after a position record) and the s16 copy in s2; the settings pointer
+ * stays on the stack; the three item counts are called in the order 0x18, 0x17, 0x19
+ */
+void func_m018_05C0C(s32 updateRate) {
+    s8 *state;
+    s32 character;
+    Object *obj;
+    s16 *e;
+    M018Pos *pos;
+    s32 i;
+    char buf[100];
+    M018Character *record;
+    s32 kind;
+    s32 width;
+    s32 item;
+    u8 *settings;
+    s32 n;
+    s16 id;
+    s16 angle;
+    s32 any;
+
+    state = func_8000E4D0(0)->unk68;
+    character = fe_player_character(state);
+    record = char_record_lookup(state[0], character);
+    settings = get_settings();
+    fe_screen_backdrop();
+    cam_fov_scale_set(1.0f, 1.0f);
+    func_8003F7F4(52.0f, 1);
+    func_80040E64(&D_800FF398, &D_800FF39C);
+    func_8005A0D0(0x1F);
+    func_8006FC54(2);
+    func_8006FC68(0, 0, 255, 255, rl_m018_06C68);
+    D_800A51CC = rl_m018_06C68;
+    D_800FF780[50].unk0 += updateRate << 8;
+    pos = rl_m018_06C10;
+    if (rl_m018_06C78) {
+        mempool_free_timer(0);
+        menu_item_free(rl_m018_06C74);
+        mempool_free_timer(2);
+        rl_m018_06C74 = rl_m018_069EC[rl_m018_06C60];
+        menu_item_load(rl_m018_06C74);
+        rl_m018_06C78 = 0;
+    }
+    if (rl_m018_06C68 > 0) {
+        rl_m018_06C7C = 0;
+        switch (rl_m018_06C60) {
+            case 0:
+                func_8006FCA8(&D_800FF398, 0xA0, 0x21, gMenuText[438], 4);
+                func_8006FCA8(&D_800FF398, 0xA0, 0x5D, gMenuText[439], 4);
+                func_8006FCA8(&D_800FF398, 0xA0, 0x98, gMenuText[440], 4);
+                obj = D_800FF3F8[0x91];
+                D_800FF780[50].unk6 = 0x91;
+                e = rl_m018_06938;
+                kind = rl_m018_06938[0];
+                while (*e != -1) {
+                    if (kind == 0) {
+                        D_800FF780[50].unkC = e[2];
+                        D_800FF780[50].unk10 = e[3];
+                        e += 4;
+                        kind = *e;
+                    }
+                    rl_m018_067B8 = e[1] * 0.0078125f;
+                    id = kind;
+                    width = e[2];
+                    item = e[3];
+                    e += 5;
+                    pos->x = D_800FF780[50].unkC;
+                    pos->y = D_800FF780[50].unk10;
+                    pos++;
+                    if (item == 0x17) {
+                        n = character_has_item(state[0], character, 0x19) + character_has_item(state[0], character, 0x17) +
+                            character_has_item(state[0], character, 0x18);
+                        if (n != 0) {
+                            obj->modelIndex = id + n - 1;
+                            D_800FF780[50].unk8 = rl_m018_067B8;
+                            func_8005A0D0(0x32);
+                        }
+                        D_800FF780[50].unkC += width;
+                    } else if (character_has_item(state[0], character, item)) {
+                        obj->modelIndex = id;
+                        D_800FF780[50].unk8 = rl_m018_067B8;
+                        func_8005A0D0(0x32);
+                        D_800FF780[50].unkC += width;
+                    }
+                    kind = *e;
+                }
+                angle = D_800FF780[50].unk0;
+                D_800FF780[50].unk0 = -0x8000;
+                obj->modelIndex = 15;
+                D_800FF780[50].unk8 = 0.38f;
+                D_800FF780[50].unkC = -30.0f;
+                D_800FF780[50].unk10 = -75.0f;
+                func_8005A0D0(0x32);
+                D_800FF780[50].unkC = 90.0f;
+                func_8005A0D0(0x32);
+                D_800FF780[50].unk0 = angle;
+                obj->modelIndex = 13;
+                D_800FF780[50].unk8 = 0.12f;
+                D_800FF780[50].unkC = -101.0f;
+                D_800FF780[50].unk10 = -82.0f;
+                func_8005A0D0(0x32);
+                func_800639E8(buf, "%d", record->unk8);
+                func_8006FCA8(&D_800FF398, 0x86, 0xB7, buf, 4);
+                obj->modelIndex = 12;
+                D_800FF780[50].unkC = 35.0f;
+                D_800FF780[50].unk10 = -82.0f;
+                func_8005A0D0(0x32);
+                func_800639E8(buf, "%d", record->unk6);
+                func_8006FCA8(&D_800FF398, 0xF2, 0xB7, buf, 4);
+                break;
+            case 1:
+                func_8006FCA8(&D_800FF398, 0xA0, 0x21, gMenuText[441], 4);
+                func_8006FCA8(&D_800FF398, 0xA0, 0x5D, gMenuText[442], 4);
+                func_8006FCA8(&D_800FF398, 0xA0, 0x98, gMenuText[443], 4);
+                obj = D_800FF3F8[0xA0];
+                D_800FF780[50].unk6 = 0xA0;
+                obj->modelIndex = 10;
+                angle = D_800FF780[50].unk0;
+                D_800FF780[50].unk0 = -0x8000;
+                D_800FF780[50].unk8 = 0.38f;
+                D_800FF780[50].unkC = 0.0f;
+                D_800FF780[50].unk10 = 61.0f;
+                func_8005A0D0(0x32);
+                D_800FF780[50].unk0 = angle;
+                func_800639E8(buf, "%d", record->unk12);
+                func_8006FCA8(&D_800FF398, 0xA0, 0x3C, buf, 4);
+                obj->modelIndex = 0;
+                D_800FF780[50].unk8 = 0.25f;
+                D_800FF780[50].unkC = -70.0f;
+                D_800FF780[50].unk10 = 58.0f;
+                func_8005A0D0(0x32);
+                D_800FF780[50].unk8 = 0.135f;
+                D_800FF780[50].unkC = -100.0f;
+                D_800FF780[50].unk10 = -6.0f;
+                for (i = 0; i < 5; i++) {
+                    if (settings[0x28 + i]) {
+                        obj->modelIndex = rl_m018_069D0[settings[0x28 + i]];
+                        func_8005A0D0(0x32);
+                    }
+                    D_800FF780[50].unkC += 48.0f;
+                }
+                D_800FF780[50].unk8 = 0.6f;
+                D_800FF780[50].unkC = 0.0f;
+                D_800FF780[50].unk10 = -83.0f;
+                any = settings[9] & 0x10;
+                any |= game_flag_get(0x2D) | (game_flag_get(0x2E) | game_flag_get(0x2C));
+                if (game_flag_get(0x2D)) {
+                    obj->modelIndex = 2;
+                    func_8005A0D0(0x32);
+                }
+                if (game_flag_get(0x2E)) {
+                    obj->modelIndex = 3;
+                    func_8005A0D0(0x32);
+                }
+                if (any) {
+                    obj->modelIndex = 1;
+                    func_8005A0D0(0x32);
+                }
+                if (game_flag_get(0x2C)) {
+                    obj->modelIndex = 4;
+                    func_8005A0D0(0x32);
+                }
+                break;
+        }
+    } else if (rl_m018_06C7C < 3) {
+        rl_m018_06C7C++;
+    }
+    switch (rl_m018_06C64) {
+        case 1:
+            rl_m018_06C68 += updateRate * 16;
+            rl_m018_06C7C = 0;
+            if (rl_m018_06C68 >= 255) {
+                rl_m018_06C68 = 255;
+                rl_m018_06C64 = 0;
+            }
+            break;
+        case 2:
+            rl_m018_06C68 -= updateRate * 16;
+            if (rl_m018_06C7C == 2) {
+                rl_m018_06C68 = 0;
+                rl_m018_06C60 ^= 1;
+                rl_m018_06C78 = 1;
+                rl_m018_06C64 = 1;
+            }
+            rl_m018_06C6C = 0;
+            break;
+        default:
+            rl_m018_06C6C += updateRate;
+            if (rl_m018_06C6C & 0x20) {
+                func_80040D64(&D_800FF398, &D_800FF39C);
+                func_80055C00(&D_800FF398, NULL, 0, 0);
+                gSPVertexJFG(D_800FF398++, (u8 *) &rl_m018_069F0[rl_m018_06C60 * 3] + 0x80000000, 4, 0);
+                gSPPolygon(D_800FF398++, (u8 *) rl_m018_06A30 + 0x80000000, 1, 0);
+                gDPPipeSync(D_800FF398++);
+            }
+            if (func_80043510(D_m019_013D8) & 0x4000) {
+                func_m019_001B0(1);
+                rl_m018_06C84 = 1;
+            } else if (rl_m018_06C60 == 0 && D_800FF3D8[D_m019_013D8] > 32 && !rl_m018_06C84) {
+                func_80001248(0x16B, 0);
+                rl_m018_06C64 = 2;
+            } else if (rl_m018_06C60 == 1 && D_800FF3D8[D_m019_013D8] < -32 && !rl_m018_06C84) {
+                func_80001248(0x16B, 0);
+                rl_m018_06C64 = 2;
+            }
+            break;
+    }
+    D_800A51CC = 255;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_05C0C);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m018", data);
 
