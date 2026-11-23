@@ -1374,7 +1374,7 @@ extern u8 D_800A4FEC;
 extern s8 D_800FED63[][0xA0];
 s32 player_count_get(void);
 void func_80048518(s32 arg0);
-u32 input_pressed(s32 player);
+u16 input_pressed(s32 player);
 void player_restart(s32 arg0, s8 *player);
 
 /* Restarts the player when one of its restart buttons is pressed (0x80033920). */
