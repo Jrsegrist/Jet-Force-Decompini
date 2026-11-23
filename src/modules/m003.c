@@ -113,7 +113,7 @@ typedef struct M003Member {
 
 /* The member's word at 0x8 as bit fields */
 typedef struct M003Flags8 {
-    u32 pad4 : 4;
+    u32 unk28 : 4; /* (0C324) */
     u32 unk27 : 1;
     u32 shocked : 1;
     u32 unk24 : 2;
@@ -125,7 +125,8 @@ typedef struct M003Flags8 {
 typedef struct M003Flags4 {
     u32 pad20 : 12;
     u32 landed : 3; /* 7 once it has hit the ground (0E3CC: the thud plays while 0) */
-    u32 pad13 : 4;
+    u32 unk16 : 1;  /* bit 0 of unk4: set on every member of the troop once one sees its target (0C324) */
+    u32 pad13 : 3;
     u32 unk12 : 1; /* (00384: it picks places near its last one) */
     u32 pad7 : 5;
     u32 unk6 : 1;
@@ -160,7 +161,10 @@ typedef struct M003Home {
     /* 0x01 */ u8 count; /* members */
     /* 0x02 */ u8 unk2; /* its members' size, in hundredths (0D360) */
     /* 0x03 */ u8 unk3;
-    /* 0x04 */ u8 pad4[0x10 - 0x4];
+    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x0C */ u8 unkC; /* (0C324: against the sum of two random 0-50s) */
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 padE[0x10 - 0xE];
     /* 0x10 */ s8 offset[3];
     /* 0x13 */ u8 unk13; /* how far it looks round (028D4), in 16s */
     /* 0x14 */ u8 unk14; /* and up and down, in 8s */
@@ -173,7 +177,8 @@ typedef struct M003Home {
     /* 0x1C */ s8 unk1C;     /* and how steeply */
     /* 0x1D */ s8 unk1D;     /* and how fast (0: they are not thrown) */
     /* 0x1E */ u8 spacing; /* how many trail steps apart its members follow the leader (0237C) */
-    /* 0x1F */ u8 pad1F[0x21 - 0x1F];
+    /* 0x1F */ u8 unk1F; /* how far its members see, in 64s (0C324) */
+    /* 0x20 */ u8 unk20; /* and how far they see round, in half degrees */
     /* 0x21 */ u8 unk21; /* how loud an event its members notice must be */
     /* 0x22 */ u8 pad22[0x24 - 0x22];
     /* 0x24 */ s8 maxSpeed; /* its members' (0AD38) */
@@ -222,7 +227,7 @@ typedef struct M003Home {
     /* 0x7B */ u8 unk7B;
     /* 0x7C */ u8 pad7C[0x8C - 0x7C];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
-    /* 0x90 */ u8 pad90;
+    /* 0x90 */ u8 unk90;
     /* 0x91 */ u8 unk91; /* bit 0: members blame the closest player */
 } M003Home;
 
@@ -3690,7 +3695,9 @@ void func_m003_0C0A0(Object *obj) {
 
 /* An object header, as 0C1A0 uses it */
 typedef struct M003TargetHeader {
-    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; /* 0x80: (0C324) */
+    /* 0x16 */ u8 pad16[0x1E - 0x16];
     /* 0x1E */ s8 useOrigin; /* aim at the object itself, not its interaction centre */
 } M003TargetHeader;
 
@@ -3698,8 +3705,8 @@ extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 
 /* Where the member hears/aims at `target` from: the way to it, its distance and its point (each output
    is optional); FALSE with no target */
-s32 func_m003_0C1A0(Object *obj, Object *target, s16 *yaw, s16 *pitch, f32 *dist, f32 *tx, f32 *ty,
-                    f32 *tz) {
+static s32 func_m003_0C1A0(Object *obj, Object *target, s16 *yaw, s16 *pitch, f32 *dist, f32 *tx, f32 *ty,
+                           f32 *tz) {
     M003Member *m = obj->unk68;
     f32 ex = m->earPos[0];
     f32 ey = m->earPos[1];
@@ -3743,7 +3750,150 @@ s32 func_m003_0C1A0(Object *obj, Object *target, s16 *yaw, s16 *pitch, f32 *dist
     return TRUE;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0C324);
+extern u8 D_800F31E0[];
+extern s32 collision_line_test_objects(Object *obj, Object *other, f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
+extern void func_m155_03C4C(s16 x, s16 z);
+extern void func_m146_00C34(Object *obj);
+/* .data (still assembly): while set, no member sees anything */
+#define sData1A20 (*(u8 *) (rl_m003_17A10 + 0x1A20))
+
+/*
+ * Whether the member sees its target (whoever shot it, else the nearest player): within its home's range and
+ * view angle, with nothing in the way. Then it may raise the troop's alert and react.
+ * A K&R definition because 0CF40 calls it with no argument (then `obj` is whatever is in a0: not portable C).
+ */
+s32 func_m003_0C324(obj)
+    Object *obj;
+{
+    M003Member *m;
+    Object *homeObj;
+    M003Home *h;
+    Object *target;
+    Object *o;
+    f32 ex;
+    f32 ey;
+    f32 ez;
+    f32 tx;
+    f32 ty;
+    f32 tz;
+    f32 dist;
+    s16 yaw;
+
+    m = obj->unk68;
+    homeObj = m->home;
+    target = (Object *) m->shotBy;
+    h = homeObj->unk68;
+    ex = m->earPos[0];
+    ey = m->earPos[1];
+    ez = m->earPos[2];
+    if (sData1A20) {
+        return FALSE;
+    }
+    if (m->unk0_1) {
+        return m->unk0_0;
+    }
+    m->unk0_0 = 0;
+    m->unk0_1 = 1;
+    if (!D_800F31E0[obj->segmentID + 1]) {
+        return FALSE;
+    }
+    if (target == NULL) {
+        target = (Object *) troop_player_nearest(obj->trans.x_position, obj->trans.y_position,
+                                                 obj->trans.z_position);
+    }
+    if (target == NULL) {
+        return FALSE;
+    }
+    if (!func_m003_0C1A0(obj, target, &yaw, NULL, &dist, &tx, &ty, &tz)) {
+        return FALSE;
+    }
+    yaw -= m->unk9C;
+    if (yaw < 0) {
+        yaw = -yaw;
+    }
+    if (dist > (h->unk1F << 6) || yaw > h->unk20 * 91) {
+        return FALSE;
+    }
+    if (collision_line_test_objects(obj, target, tx, ty, tz, ex, ey, ez)) {
+        return FALSE;
+    }
+    if (D_800FE9FC == 0) {
+        h->unk90 = 1;
+        if (!(h->unk91 & 1)) {
+            h->unk91 = m->headless ? 2 : 3;
+        }
+    } else if (h->unk90 == 0) {
+        if (D_800FE9FC == 1) {
+            h->unk90 = 2;
+            h->unk91 = m->headless ? 1 : 2;
+        } else {
+            h->unk90 = 3;
+            h->unk91 = 2;
+        }
+    }
+    if (sAlertKind && h->unk91 != 3) {
+        if (m->headless) {
+            if (sAlert == 1) {
+                m->shotBy = (s32) target;
+                h->unk91 = 3;
+            } else if (sAlert == 2) {
+                m->shotBy = (s32) target;
+                h->unk91 = 2;
+            }
+        } else if (sAlert == 2 || sAlert == 3) {
+            m->shotBy = (s32) target;
+            h->unk91 = 3;
+        }
+    }
+    if (m->shotBy == 0) {
+        return FALSE;
+    }
+    m->unk0_0 = 1;
+    if (sBody->unk2B == 5 && h->unk30 == 2) {
+        h->unk30 = 3;
+    }
+    if (((Object *) m->shotBy)->behaviorId == 1 || ((Object *) m->shotBy)->behaviorId == 2) {
+        if (h->unk30 == 1 && !(h->flags & 0x40)) {
+            h->flags |= 0x40;
+        }
+        func_m155_03C4C(((Object *) m->shotBy)->trans.x_position, ((Object *) m->shotBy)->trans.z_position);
+        if (!(m->unk4 & 1) && sBody->unk2B != 5) {
+            if (m->headless && h->unk30 == 2) {
+                h->unk30 = 3;
+            }
+            if (h->kind == 0x112) {
+                func_m146_00C34(obj);
+            } else if (sBssD0 < 300.0f && h->unkD - 10 < func_80048E2C(0, 50) + func_80048E2C(0, 50) &&
+                       (h->unk91 & 1) && troop_anim_pick(0x20, 1) != -1) {
+                func_m003_04260(0x11, 0x17, 0, 0, 0);
+                m->unk0_29 = 1;
+            } else if (650.0f < sBssD0 && FLAGS8(m)->unk28 == 0 &&
+                       h->unkC < func_80048E2C(0, 50) + func_80048E2C(0, 50) && 0.0f == obj->velocity.x &&
+                       0.0f == obj->velocity.z) {
+                func_m003_04260(0x11, 0x15, 0x2D, 0, 0);
+                m->unk0_29 = 1;
+            } else if (1200.0f < sBssD0) {
+                func_m003_04260(0x11, 0x10, 0, 0, 0);
+                m->unk0_29 = 1;
+            }
+            if (h->unk30 == 2) {
+                h->unk30 = 3;
+            }
+            FLAGS4(m)->unk16 = 1;
+            for (o = h->first; o != NULL; o = ((M003Member *) o->unk68)->next) {
+                if (o != obj) {
+                    FLAGS4((M003Member *) o->unk68)->unk16 = 1;
+                }
+            }
+            if ((((M003TargetHeader *) obj->header)->flags & 0x80) && h->unk30 == 4) {
+                h->unk30 = 3;
+            }
+        }
+    } else {
+        h->unk30 = 3;
+    }
+    return TRUE;
+}
 
 extern u8 D_800FE9EE;
 extern s32 obj_id_is_special(s32 id);
