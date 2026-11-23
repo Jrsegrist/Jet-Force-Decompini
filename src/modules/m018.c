@@ -1479,7 +1479,7 @@ extern void menu_fill_boxes(Gfx **dl, s32 count, M018Rect *rects, s32 arg3);    
 
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the ROM shares one `lui at` for the three size stores, which needs this .bss defined in C */
+/* (matches; static, staged until 04AF0, its only caller, matches) */
 static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour);
 
 /*
@@ -1490,7 +1490,7 @@ static void func_m018_05A24(s32 x, s32 y, s32 w, s32 h, s32 colour);
 static void func_m018_05880(s32 updateRate) {
     M018Glow *g;
     s32 i;
-    s32 old;
+    M018Part *p;
     s8 *sizes;
     s32 alpha;
     s32 j;
@@ -1503,15 +1503,15 @@ static void func_m018_05880(s32 updateRate) {
     i = 3;
     while (i--) {
         if (g->active) {
-            old = g->g;
+            g->b = g->g;
             g->g = g->r;
             g->r -= updateRate;
-            g->b = old;
         }
         if (g->r < 0) {
             g->r = 0;
         }
-        if (func_80041E58(g->part->x, g->part->y, g->part->z, &screenX, &screenY, 1)) {
+        p = g->part;
+        if (func_80041E58(p->x, p->y, p->z, &screenX, &screenY, 1)) {
             sizes = &g->r;
             alpha = 0xA0;
             prev = -1;
