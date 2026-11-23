@@ -15,7 +15,9 @@ typedef struct M018MenuItem {
     /* 0x08 */ f32 unk8;
     /* 0x0C */ f32 unkC;
     /* 0x10 */ f32 unk10;
-    /* 0x14 */ u8 pad14[0x20 - 0x14];
+    /* 0x14 */ u8 pad14[0x18 - 0x14];
+    /* 0x18 */ f32 unk18; /* the frame of its image */
+    /* 0x1C */ u8 pad1C[0x20 - 0x1C];
 } M018MenuItem;
 
 /* A character's record (char_record_lookup) */
@@ -223,7 +225,241 @@ void func_m018_0015C(void) {
     func_m009_0066C();
 }
 
+/* A level's best result in the saved settings (8 bytes from 0x334) */
+typedef struct M018Record {
+    /* 0x0 */ u8 score;
+    /* 0x1 */ u8 unk1;
+    /* 0x2 */ u8 pad2[2];
+    /* 0x4 */ s32 time;
+} M018Record;
+
+/* What func_8004470C returns, as used here */
+typedef struct M018Level {
+    /* 0x000 */ u8 pad0[0x20];
+    /* 0x020 */ s8 world;
+    /* 0x021 */ u8 pad21[0x102 - 0x21];
+    /* 0x102 */ u8 record; /* 0xFF, 0: none */
+} M018Level;
+
+extern M018Level *func_8004470C(void);
+extern void cam_fov_scale_set(f32 x, f32 y);
+extern void func_m009_00478(s32 world, s32 x, s32 y, s32 updateRate);
+extern char *get_world_name(s32 world); /* the world's name */
+extern s32 game_flag_get(s32 flag);
+extern void func_80040D64(Gfx **dl, Mtx **mtx);
+extern s32 leveltable_world_regions(s32 world, u8 *levels); /* the world's levels; returns their number */
+extern void func_m006_017AC(s32 time, char *hours, char *minutes, char *seconds, char *hundredths);
+extern s8 D_800FF3D8[]; /* the stick moves this frame, per player */
+extern s8 *D_800FD7B8;  /* per level: its total */
+
+#ifdef NON_MATCHING
+/*
+ * A world's results screen: the stick picks a world the player has reached; for each of its levels the
+ * best result (and the current level's, in green), then the world's totals.
+ * NON_MATCHING: 600/601 words, frame 0x100 (ROM 0xF8), 132 aligned diffs: one temporary word too many below
+ * the locals (the stick loops' conditions make it; the ROM puts the level loop's end pointer first), the
+ * right/old and the left registers differ (ROM s2/s3, v1), and two stores scheduled differently. Several
+ * locals are reused for later values (found as the level counter, left as the level id, right as the row's
+ * y; the ROM keeps right and y in one register).
+ */
+void func_m018_00188(s32 updateRate) {
+    u8 levels[0x38];
+    u8 *settings;
+    s32 old;
+    s32 sumTime;
+    s32 n;
+    s32 missed;
+    s32 sumScore;
+    s32 sumMissed;
+    s32 sumB;
+    char buf[36];
+    char hours[8];
+    char minutes[4];
+    char seconds[4];
+    char hundredths[4];
+    s32 found;
+    s32 left;
+    M018Level *level;
+    f32 scale;
+    s32 right;
+    M018MenuItem *item;
+
+    sumTime = 0;
+    sumScore = 0;
+    sumMissed = 0;
+    sumB = 0;
+    level = func_8004470C();
+    fe_screen_backdrop();
+    cam_fov_scale_set(1.0f, 1.0f);
+    func_8003F7F4(52.0f, 1);
+    func_80040E64(&D_800FF398, &D_800FF39C);
+    func_8005A0D0(0x1F);
+    switch (rl_m018_06BDC) {
+        case 1:
+        case 2:
+        case 3:
+        case 6:
+        case 8:
+        case 9:
+        case 12:
+            func_m009_00478(rl_m018_06BDC, -0x55, 0x3C, updateRate);
+            break;
+        case 4:
+        case 5:
+        case 7:
+        case 10:
+        case 11:
+        default:
+            func_m009_00478(rl_m018_06BDC, -0x46, 0x3C, updateRate);
+            break;
+    }
+    func_8006FC54(2);
+    func_8006FC68(255, 255, 255, 255, 255);
+    func_8006FCA8(&D_800FF398, 0x5A, 0x5A, get_world_name(rl_m018_06BDC), 4);
+    settings = get_settings();
+    if (rl_m018_06BE4) {
+        left = FALSE;
+        right = FALSE;
+    } else {
+        right = D_800FF3D8[D_m019_013D8] > 32;
+        left = D_800FF3D8[D_m019_013D8] < -32;
+    }
+    old = rl_m018_06BDC;
+    if (left) {
+        found = FALSE;
+        do {
+            rl_m018_06BDC--;
+            if (rl_m018_06BDC < 0) {
+                rl_m018_06BDC = 14;
+            }
+            if ((*(u16 *) (settings + 0x236) & (1 << rl_m018_06BDC)) ||
+                (game_flag_get(0) && (*(u16 *) (settings + 0x1C0) & (1 << rl_m018_06BDC))) ||
+                (game_flag_get(2) && (*(u16 *) (settings + 0x2AC) & (1 << rl_m018_06BDC)))) {
+                found = TRUE;
+            }
+        } while (!found);
+        if (old != rl_m018_06BDC) {
+            func_80001248(0x16B, 0);
+        } else {
+            func_80001248(0x16E, 0);
+        }
+    }
+    if (right) {
+        found = FALSE;
+        do {
+            rl_m018_06BDC++;
+            if (rl_m018_06BDC >= 15) {
+                rl_m018_06BDC = 0;
+            }
+            if ((*(u16 *) (settings + 0x236) & (1 << rl_m018_06BDC)) ||
+                (game_flag_get(0) && (*(u16 *) (settings + 0x1C0) & (1 << rl_m018_06BDC))) ||
+                (game_flag_get(2) && (*(u16 *) (settings + 0x2AC) & (1 << rl_m018_06BDC)))) {
+                found = TRUE;
+            }
+        } while (!found);
+        if (old != rl_m018_06BDC) {
+            func_80001248(0x16B, 0);
+        } else {
+            func_80001248(0x16E, 0);
+        }
+    }
+    func_80040D64(&D_800FF398, &D_800FF39C);
+    item = &D_800FF780[13];
+    D_800FF780[13].unkC = 13.0f;
+    D_800FF780[13].unk10 = 68.0f;
+    D_800FF780[13].unk18 = 0.0f;
+    func_8005A0D0(13);
+    item->unk18 = 1.0f;
+    item->unkC += 41.0f;
+    func_8005A0D0(13);
+    item->unk18 = 2.0f;
+    item->unkC += 41.0f;
+    func_8005A0D0(13);
+    scale = item->unk8;
+    item->unkC = -13.0f;
+    item->unk10 = -5.0f;
+    item->unk18 = 0.0f;
+    item->unk8 *= 0.75f;
+    func_8005A0D0(13);
+    item->unk18 = 1.0f;
+    item->unkC += 30.0f;
+    func_8005A0D0(13);
+    item->unk18 = 2.0f;
+    item->unkC += 30.0f;
+    func_8005A0D0(13);
+    item->unk8 = scale;
+    item = &D_800FF780[53];
+    D_800FF780[53].unkC = 18.0f;
+    D_800FF780[53].unk10 = 28.0f;
+    func_8005A0D0(0x35);
+    scale = item->unk8;
+    item->unkC = 90.0f;
+    item->unk10 = -5.0f;
+    item->unk8 *= 0.75f;
+    func_8005A0D0(0x35);
+    item->unk8 = scale;
+    n = leveltable_world_regions(rl_m018_06BDC, levels);
+    for (found = 0, right = 0x88; found < n; found++, right += 14) {
+        left = levels[found];
+        sumScore += settings[left * 8 + 0x334];
+        sumB += settings[left * 8 + 0x335];
+        missed = D_800FD7B8[left] - settings[left * 8 + 0x334] - settings[left * 8 + 0x335];
+        sumMissed += missed;
+        sumTime += *(s32 *) (settings + left * 8 + 0x338);
+        func_8006FCA8(&D_800FF398, 0x82, right, gMenuText[left + 407], 1);
+        func_800639E8(buf, "%d", missed);
+        func_8006FCA8(&D_800FF398, 0x96, right, buf, 1);
+        func_800639E8(buf, "%d", ((M018Record *) (settings + left * 8 + 0x334))->score);
+        func_8006FCA8(&D_800FF398, 0xB4, right, buf, 1);
+        func_800639E8(buf, "%d", ((M018Record *) (settings + left * 8 + 0x334))->unk1);
+        func_8006FCA8(&D_800FF398, 0xD2, right, buf, 1);
+        func_m006_017AC(((M018Record *) (settings + left * 8 + 0x334))->time, hours, minutes, seconds, hundredths);
+        func_800639E8(buf, "%s:%s:%s", hours, minutes, seconds);
+        func_8006FCA8(&D_800FF398, 0x10E, right, buf, 1);
+    }
+    if (rl_m018_06BDC == level->world && level->record != 0xFF && level->record != 0) {
+        func_8006FC68(0, 255, 0, 255, 255);
+        func_8006FCA8(&D_800FF398, 0x82, right, gMenuText[level->record + 407], 1);
+        func_800639E8(buf, "%d", settings[6]);
+        func_8006FCA8(&D_800FF398, 0x96, right, buf, 1);
+        func_800639E8(buf, "%d", settings[4]);
+        func_8006FCA8(&D_800FF398, 0xB4, right, buf, 1);
+        func_800639E8(buf, "%d", settings[5]);
+        func_8006FCA8(&D_800FF398, 0xD2, right, buf, 1);
+        func_m006_017AC(*(s32 *) (settings + 0x514), hours, minutes, seconds, hundredths);
+        func_800639E8(buf, "%s:%s:%s", hours, minutes, seconds);
+        func_8006FCA8(&D_800FF398, 0x10E, right, buf, 1);
+        func_8006FC68(255, 255, 255, 255, 255);
+    }
+    func_800639E8(buf, "%d", sumMissed);
+    func_8006FCA8(&D_800FF398, 0xAF, 0x48, buf, 4);
+    func_800639E8(buf, "%d", sumScore);
+    func_8006FCA8(&D_800FF398, 0xD8, 0x48, buf, 4);
+    func_800639E8(buf, "%d", sumB);
+    func_8006FCA8(&D_800FF398, 0x101, 0x48, buf, 4);
+    func_m006_017AC(sumTime, hours, minutes, seconds, hundredths);
+    func_800639E8(buf, "%s:%s:%s", hours, minutes, seconds);
+    func_8006FCA8(&D_800FF398, 0xF0, 0x5A, buf, 1);
+    if (func_80043510(D_m019_013D8) & 0x4000) {
+        func_m019_001B0(1);
+        rl_m018_06BE4 = 1;
+    }
+    /* The memory report, compiled out of the retail game (only its strings are in the ROM) */
+    stubbed_printf("In Memory : ");
+    stubbed_printf("%d ");
+    stubbed_printf("\n");
+    stubbed_printf("Needed : ");
+    stubbed_printf("%d ");
+    stubbed_printf("\n");
+    stubbed_printf("Free %d\n");
+    stubbed_printf("Load %d\n");
+    stubbed_printf("**************\n");
+    stubbed_printf("FREED %d\n");
+    stubbed_printf("**************\n");
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_00188);
+#endif
 
 extern u8 *get_settings(void);
 
