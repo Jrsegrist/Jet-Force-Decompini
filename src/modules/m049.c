@@ -89,12 +89,13 @@ extern void *func_8004A60C(s32 size, u32 colour); /* allocates */
 extern void func_8004AA80(void *data);            /* frees */
 
 /*
- * NON_MATCHING: func_m049_00000, func_m049_001C8 and the static circle
- * functions (0069C, 0078C, 00878) match, as do .data and .rodata. Still
- * different (register allocation only): func_m049_00204 (the extent loop's
- * temporaries and the spilled sphere offset), 00668 (the unrolled clear
- * schedules its pointer step differently), 009A8 (a0/a1 swapped) and 00A84
- * (the order the blur sums are formed in). The default build uses the
+ * NON_MATCHING: func_m049_00000, func_m049_001C8 and the static functions
+ * 00668, 0069C, 0078C, 00878 and 009A8 match, as do .data and .rodata. Still
+ * different (register allocation only): func_m049_00204 (36 aligned diffs:
+ * the FP registers and the frame are the ROM's; hdr, numSpheres and the loop
+ * counters are one register off, and the second loop's offset temporary is at
+ * 0x50 for the ROM's 0x54) and 00A84 (the order the blur sums are formed in;
+ * two words long). The default build uses the
  * assembly for everything from 00204 on (the static functions are only
  * called from there) and for the data.
  */
@@ -187,6 +188,7 @@ void func_m049_001C8(M049Shadow *s) {
 
 #ifdef NON_MATCHING
 
+/* (the empty ifs test values set on every path: they only steer the register allocation) */
 s32 func_m049_00204(Object *obj) {
     M049Model *model;
     M049ModelHeader *hdr;
@@ -202,14 +204,14 @@ s32 func_m049_00204(Object *obj) {
     f32 dx;
     f32 pixelScale;
     f32 dz;
-    f32 r;
     f32 size;
     f32 diff;
     s32 radius;
+    s32 j;
     s32 i;
     s32 x;
     s32 z;
-    s32 pad[4];
+    s32 pad[3];
 
     model =((M049Model **) obj->modelInstances)[obj->modelIndex];
     if (model->animated) {
@@ -228,24 +230,27 @@ s32 func_m049_00204(Object *obj) {
     }
     x0 = obj->trans.x_position;
     z0 = obj->trans.z_position;
-    if (hdr->numSpheres != 0) {
+    if (hdr->numSpheres) {
+        if (n) {}
         minZ = minX = 32000.0f;
         maxZ = maxX = -32000.0f;
-        for (i = 0; i < hdr->numSpheres; i++) {
-            r = hdr->spheres[i].radius * obj->trans.scale;
-            dx = model->positions[i].x - x0;
-            dz = model->positions[i].z - z0;
-            if (maxX < dx + r) {
-                maxX = dx + r;
+        for (j = 0; j < hdr->numSpheres; j++) {
+            if (j) {}
+            size = hdr->spheres[j].radius * obj->trans.scale;
+            dx = model->positions[j].x - x0;
+            dz = model->positions[j].z - z0;
+            if (maxX < dx + size) {
+                maxX = dx + size;
             }
-            if (dx - r < minX) {
-                minX = dx - r;
+            if (dx - size < minX) {
+                if (model) {}
+                minX = dx - size;
             }
-            if (maxZ < dz + r) {
-                maxZ = dz + r;
+            if (maxZ < dz + size) {
+                maxZ = dz + size;
             }
-            if (dz - r < minZ) {
-                minZ = dz - r;
+            if (dz - size < minZ) {
+                minZ = dz - size;
             }
         }
         if (minX < 0.0f) {
@@ -266,7 +271,8 @@ s32 func_m049_00204(Object *obj) {
             size = maxZ + 2.0f;
         }
         size += size;
-        diff = 100.0f / s->size * size - 100.0f;
+        diff = 100.0f / s->size * size;
+        diff -= 100.0f;
         if (diff > -5.0f && diff < 5.0f) {
             size = s->size;
         } else {
@@ -279,8 +285,12 @@ s32 func_m049_00204(Object *obj) {
     sHalfHeight = sHeight >> 1;
     sPixels = (u8 *) s->current + 0x20;
     for (i = 0; i < hdr->numSpheres; i++) {
-        dx = (model->positions[i].x - x0) * pixelScale;
-        dz = (model->positions[i].z - z0) * pixelScale;
+        dx = model->positions[i].x;
+        dx -= x0;
+        dx *= pixelScale;
+        dz = model->positions[i].z;
+        dz -= z0;
+        dz *= pixelScale;
         radius = hdr->spheres[i].radius * obj->trans.scale * pixelScale;
         x = dx;
         if (-sHalfWidth - radius < x && x < sHalfWidth + radius) {
