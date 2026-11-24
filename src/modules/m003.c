@@ -228,7 +228,10 @@ typedef struct M003Home {
     /* 0x79 */ u8 unk79; /* the node count of its group's path last seen (021C8), 0-3 */
     /* 0x7A */ s8 unk7A; /* the zone module 139 tests (148C0) */
     /* 0x7B */ u8 unk7B;
-    /* 0x7C */ u8 pad7C[0x8C - 0x7C];
+    /* 0x7C */ f32 unk7C; /* the nearest sounding member's distance last frame (1398C) */
+    /* 0x80 */ f32 unk80; /* the sound's pitch ratio */
+    /* 0x84 */ s32 sound; /* the troop's positioned sound, 0: none */
+    /* 0x88 */ u8 pad88[0x8C - 0x88];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
     /* 0x90 */ u8 unk90;
     /* 0x91 */ u8 unk91; /* bit 0: members blame the closest player */
@@ -5229,7 +5232,98 @@ static void troop_blame_all(Object *shotBy) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_10600);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_1398C);
+/* Per troop slot (troop_slot_get): the sound its kind's members make, 0: none */
+typedef struct M003SlotSound {
+    /* 0x0 */ u8 pad0[6];
+    /* 0x6 */ u16 sound;
+} M003SlotSound;
+extern M003SlotSound rl_m003_19460[];
+extern void func_800035E8(s32 handle, f32 x, f32 y, f32 z); /* moves a positioned sound */
+extern void audspat_point_set_pitch(s32 handle, u8 pitch);
+extern f32 func_8008B200(s32 cents); /* alCents2Ratio */
+
+/*
+ * The troop's sound, for the kinds that have one: played at (or moved to) its nearest member with unkA6 above
+ * 0, its pitch following how fast that member closes in on the closest player; stopped when none is left
+ */
+void func_m003_1398C(void) {
+    Object *obj;
+    f32 bestDist;
+    s32 kind;
+    s32 foundKind;
+    Object *best;
+    s32 sound;
+    M003Member *m;
+    f32 d;
+    f32 v;
+    s32 cents;
+    f32 ratio;
+    f32 pitch;
+    f32 dist;
+
+    best = NULL;
+    bestDist = 5000000000.0f;
+    kind = sHomeData->kind;
+    if (kind == 0x2B || kind == 0x2D || kind == 0x54 || kind == 0x6D || kind == 0x83 || kind == 0x150 ||
+        kind == 0x152) {
+        for (obj = sHomeData->first; obj != NULL; obj = m->next) {
+            m = obj->unk68;
+            if (m->unkA6 > 0) {
+                d = point_distance_squared(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
+                                           ((Object *) sClosestPlayer)->trans.x_position,
+                                           ((Object *) sClosestPlayer)->trans.y_position,
+                                           ((Object *) sClosestPlayer)->trans.z_position);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = obj;
+                    foundKind = kind;
+                }
+            }
+        }
+        if (best != NULL) {
+            sound = rl_m003_19460[troop_slot_get(foundKind)].sound;
+            if (sound == 0) {
+                return;
+            }
+            if (sHomeData->sound == 0) {
+                func_80003410(sound, best->trans.x_position, best->trans.y_position, best->trans.z_position, 1,
+                              &sHomeData->sound);
+            } else {
+                func_800035E8(sHomeData->sound, best->trans.x_position, best->trans.y_position,
+                              best->trans.z_position);
+            }
+            if (sHomeData->sound == 0) {
+                return;
+            }
+            dist = func_80097140((best->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position) *
+                                     (best->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position) +
+                                 (best->trans.y_position - ((Object *) sClosestPlayer)->trans.y_position) *
+                                     (best->trans.y_position - ((Object *) sClosestPlayer)->trans.y_position) +
+                                 (best->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position) *
+                                     (best->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position));
+            v = (sHomeData->unk7C - dist) / sUpdateRate;
+            if (v > 15.0f) {
+                v = 15.0f;
+            } else if (v < -15.0f) {
+                v = -15.0f;
+            }
+            cents = (10.0f + v) / (10.0f - v) * 165.0f;
+            func_8008B200(cents);
+            ratio = func_8008B200(cents);
+            sHomeData->unk80 += (ratio - sHomeData->unk80) * 0.5f;
+            if (sHomeData->unk80 > 2.0f) {
+                sHomeData->unk80 = 2.0f;
+            } else if (sHomeData->unk80 < 0.2f) {
+                sHomeData->unk80 = 0.2f;
+            }
+            sHomeData->unk7C = dist;
+            pitch = sHomeData->unk80 * 100.0f;
+            audspat_point_set_pitch(sHomeData->sound, pitch);
+        } else if (sHomeData->sound != 0) {
+            func_80003614(sHomeData->sound);
+        }
+    }
+}
 
 extern void func_m143_01940(void *obj, s32 event);
 extern void func_m149_009A4(void *obj, s32 event);
