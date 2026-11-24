@@ -4078,11 +4078,9 @@ extern s32 (*rl_m003_19678[])(Object *obj, s16 *angle, f32 arg1, f32 arg2);
 extern s16 func_m155_03B94(Object *obj, s16 yaw);
 extern s16 func_m146_00B34(Object *obj, f32 x, f32 z);
 
-#ifdef NON_MATCHING
 /*
- * The way the member should head.
- * NON_MATCHING (first body; ROM length and frame, 9 aligned diffs): the troop state at 0x32 is in a2 and the
- * flags in v0 where the ROM has them the other way round. The pad words are the ROM's two extra temp words.
+ * The way the member should head. `r` holds the handler's result and then (its old value dead) the troop's
+ * state; the pad words are the ROM's two extra stack words.
  */
 s16 func_m003_0B040(f32 dist, f32 arg1, f32 arg2) {
     s16 angle;
@@ -4099,9 +4097,8 @@ s16 func_m003_0B040(f32 dist, f32 arg1, f32 arg2) {
         if (r == 1) {
             return angle;
         }
-    } else if (sHomeData->unk33 != 0x19 && !sMember->unk0_22 && sHomeData->unk32 != 0xB &&
-               sHomeData->unk32 != 0x12 &&
-               (sHomeData->unk32 != 0xC || sMember->unk0_21 || (sHomeData->flags & 0x1000))) {
+    } else if (sHomeData->unk33 != 0x19 && !sMember->unk0_22 && (r = sHomeData->unk32) != 0xB && r != 0x12 &&
+               (r != 0xC || sMember->unk0_21 || (sHomeData->flags & 0x1000))) {
         if (sHomeData->unk33 == 0x21) {
             e = &sEvents[sHomeData->event];
             return func_80049C84(sObj->trans.x_position - e->x, sObj->trans.z_position - e->z);
@@ -4112,17 +4109,16 @@ s16 func_m003_0B040(f32 dist, f32 arg1, f32 arg2) {
             }
             return sObj->trans.rotation.y_rotation;
         }
-        r = sHomeData->flags; /* (r is free here: the handler's result is only read above) */
-        if (!(r & 0x400) && (sHomeData->unk30 != 3 || !sMember->unk0_7)) {
-            if (sHomeData->unk32 == 0x11) {
+        if (!(sHomeData->flags & 0x400) && (sHomeData->unk30 != 3 || !sMember->unk0_7)) {
+            if (r == 0x11) {
                 return func_m155_03B94(sObj, sBssD6);
             }
             if (!sMember->unk0_2) {
                 if (sHomeData->kind == 0x112) {
                     return func_m146_00B34(sObj, sBss14, sBss1C);
                 }
-                if (dist < sBody->unk14 && !(r & 0x1000)) {
-                    if (sHomeData->unk32 == 9 && sHomeData->unk30 != 3 && sHomeData->unk30 != 4) {
+                if (dist < sBody->unk14 && !(sHomeData->flags & 0x1000)) {
+                    if (r == 9 && sHomeData->unk30 != 3 && sHomeData->unk30 != 4) {
                         if (sMember->placed && sObj->level_entry != NULL) {
                             return ((u8 *) sObj->level_entry)[0xD] << 8;
                         }
@@ -4155,9 +4151,6 @@ s16 func_m003_0B040(f32 dist, f32 arg1, f32 arg2) {
     }
     return sObj->trans.rotation.y_rotation;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B040);
-#endif
 
 extern f32 rl_m003_07980(f32 from, f32 to, f32 speed, f32 max);
 
