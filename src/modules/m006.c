@@ -25,7 +25,10 @@ typedef struct M006Queue {
 typedef struct M006MenuItem {
     /* 0x00 */ u8 pad0[0xC];
     /* 0x0C */ f32 y;
-    /* 0x10 */ u8 pad10[0x10];
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ u8 pad14[4];
+    /* 0x18 */ f32 unk18;
+    /* 0x1C */ u8 pad1C[4];
 } M006MenuItem;
 
 extern M006Queue D_800FF1D0[];
@@ -73,7 +76,163 @@ static s16 sMeterTimer[4];
 static s16 sMeterTimer2[4];
 static u8 sMeterAlpha[4];
 
-INCLUDE_ASM("asm/nonmatchings/modules/m006", func_m006_00000);
+extern Gfx *D_800FF398;
+extern Mtx *D_800FF39C;
+extern void *D_800FF3F8[]; /* the loaded menu images */
+extern s32 D_800A51CC;     /* the text opacity */
+extern void func_80055B80(Gfx **dl);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 arg3); /* sets a texture */
+extern void func_8005A0D0(s32 item);                                 /* draws a menu item */
+extern void func_80042134(MtxF *mtx);                                /* identity */
+extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx);           /* scale */
+extern void func_800498E8(f32 x, f32 y, f32 z, MtxF *mtx);           /* translation */
+extern void func_80048D84(MtxF *mtx, Mtx *out);                      /* to a fixed-point Mtx */
+extern void func_80040D64(Gfx **dl, Mtx **mtx);
+void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y);
+
+/*
+ * Draws a player's health meter: the ring of 12 segments (two triangles each, from 00C74's vertices) round the
+ * HUD corner, fading in for a while after the health changes and out after. With one player each segment is a
+ * unit of health (max of them, the empty ones dimmed) and item 2 shows the count of full rings; with more, five
+ * units make a segment and the last one fades with what is left of it. Each segment eases towards its place.
+ */
+void func_m006_00000(Object *obj, s32 health, s32 max, s32 updateRate) {
+    s32 count;
+    s32 i;
+    s32 n;
+    s32 target;
+    s32 x;
+    s32 y;
+    s8 *player;
+    Triangle *tri;
+    s32 left;
+    s32 seg;
+    s32 c;
+    M006MenuItem *item;
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+    UNUSED s32 pad3;
+    UNUSED s32 pad4;
+    MtxF mtx;
+    u32 width;
+    u32 height;
+
+    if (health < 0) {
+        health = 0;
+    }
+    item = &D_800FF780[2];
+    player = obj->unk68;
+    tri = D_m006_019A0;
+    left = 12;
+    if (health != sMeterTimer2[*player]) {
+        sMeterTimer2[*player] = health;
+        sMeterTimer[*player] = normalise_time(900);
+    }
+    if (updateRate < sMeterTimer[*player]) {
+        sMeterTimer[*player] -= updateRate;
+        if (sMeterTimer[*player] > 700) {
+            for (i = 0; i < updateRate; i++) {
+                sMeterAlpha[*player] += (255 - sMeterAlpha[*player]) / 8;
+            }
+        } else if (sMeterTimer[*player] < 200) {
+            for (i = 0; i < updateRate; i++) {
+                sMeterAlpha[*player] -= sMeterAlpha[*player] / 8;
+            }
+        }
+        func_80055B80(&D_800FF398);
+        func_80042134(&mtx);
+        func_80054EA0(&width, &height);
+        mtx[3][3] = width >> 1; /* (as the ROM does: the matrix's w is set to half the screen width) */
+        if (D_800A4FD0 == 1) {
+            func_800498E8(item->y + 1.0f, item->unk10 - 2.0f, 0.0f, &mtx);
+        } else {
+            func_m006_00F30(0, *player, &x, &y);
+            func_800498E8(x, y, 0.0f, &mtx);
+            func_80049874(*(f32 *) (rl_m006_01AC0 + 0x34), *(f32 *) (rl_m006_01AC0 + 0x34), 1.0f, &mtx);
+        }
+        func_80048D84(&mtx, D_800FF39C);
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0x01000040;
+            _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+        }
+        D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+        gSPVertexJFG(D_800FF398++, (u32) D_m006_01A60 + 0x80000000, 15, 0);
+        if (D_800A4FD0 != 1) {
+            n = health;
+            count = (max * 5 + 4) / 5;
+            for (i = 0; i < count; i++) {
+                target = i << 17;
+                if (n < 5) {
+                    c = (sMeterAlpha[*player] * (n * 92 / 5 + 100)) >> 8;
+                    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, c);
+                    sMeterSegments[*player][i] = ((5 - n) << 16) / 5 + target;
+                } else {
+                    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, (sMeterAlpha[*player] * 192) >> 8);
+                }
+                seg = sMeterSegments[*player][i];
+                seg = (target - seg) / 8 + seg;
+                sMeterSegments[*player][i] = seg;
+                if (n >= 6) {
+                    n -= 5;
+                } else {
+                    n = 0;
+                }
+                func_80055C00(&D_800FF398, D_800FF3F8[2], 5, seg);
+                gDPPipeSync(D_800FF398++);
+                c = (seg >> 8) & 0xFF;
+                gDPSetEnvColor(D_800FF398++, c, c, c, c);
+                gSPPolygon(D_800FF398++, (u8 *) tri + 0x80000000, 2, 1);
+                left -= 2;
+                tri += 2;
+                /* the second half of the ring's vertices, unless this was the last segment */
+                if (left == 0 && count - 1 != i) {
+                    gSPVertexJFG(D_800FF398++, (u32) D_m006_01A60 + 0x8000008C, 15, 0);
+                    tri = D_m006_019A0;
+                    left = 12;
+                }
+            }
+        } else {
+            gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, (sMeterAlpha[*player] * 192) >> 8);
+            n = health % (max + 1);
+            for (i = 0; i < max; i++) {
+                target = i << 17;
+                if (n <= 0) {
+                    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, (sMeterAlpha[*player] * 128) >> 8);
+                    target += 0x10000;
+                }
+                sMeterSegments[*player][i] += (target - sMeterSegments[*player][i]) >> 2;
+                seg = sMeterSegments[*player][i];
+                func_80055C00(&D_800FF398, D_800FF3F8[2], 5, seg);
+                gDPPipeSync(D_800FF398++);
+                c = (seg >> 8) & 0xFF;
+                gDPSetEnvColor(D_800FF398++, c, c, c, c);
+                gSPPolygon(D_800FF398++, (u8 *) tri + 0x80000000, 2, 1);
+                left -= 2;
+                tri += 2;
+                if (left == 0) {
+                    if (i != 11) {
+                        gSPVertexJFG(D_800FF398++, (u32) D_m006_01A60 + 0x8000008C, 15, 0);
+                        tri = D_m006_019A0;
+                        left = 12;
+                    }
+                }
+                n--;
+            }
+            func_80040D64(&D_800FF398, &D_800FF39C);
+            if (D_800FF780[2].unk18 == -1000.0f) {
+                item->unk18 = health / (max + 1);
+            } else {
+                for (i = 0; i < updateRate; i++) {
+                    item->unk18 += ((f32) (health / (max + 1)) - item->unk18) * 0.125f;
+                }
+            }
+            D_800A51CC = (sMeterAlpha[*player] * 164) >> 8;
+            func_8005A0D0(2);
+            D_800A51CC = 255;
+        }
+    }
+}
 
 void func_m006_00C74(void) {
     Vertex *v;
