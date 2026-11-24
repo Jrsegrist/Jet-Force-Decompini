@@ -811,3 +811,5 @@ D_800F6E70 = D_800F6E58 + 0x18;
    two u8s and an int, for a result ---- */
 func_80054530_fffr = 0x80054530;
 func_80054530_bbr = 0x80054530;
+/* 2BAA0.c func_80032130: three ints and two floats, for a result */
+func_80054530_iiiffr = 0x80054530;
