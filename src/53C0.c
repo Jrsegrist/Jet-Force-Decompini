@@ -3900,7 +3900,6 @@ void func_8000BE5C(Object *obj, s32 arg1, s32 arg2, s32 slot, f32 *mtx) {
     }
 }
 
-#ifdef NON_MATCHING
 /* JFG: one piece of a muzzle flash (16 bytes) */
 typedef struct MuzzlePart {
     /* 0x00 */ Vertex *vertices;
@@ -3969,12 +3968,6 @@ void mtx_scale_push(Gfx **dList, Mtx **mtx, f32 scale);
                        _SHIFTL(((last) << 3) | ((u32) (v) & 6), 16, 8);                                   \
         _g->words.w1 = (u32) (v);                                                                         \
     }
-#define gSPPolygonSeg(pkt, ptr, n, tex)                                                                   \
-    {                                                                                                     \
-        Gfx *_g = (Gfx *) (pkt);                                                                          \
-        _g->words.w0 = _SHIFTL((n) * 16, 0, 16) | _SHIFTL(5, 24, 8) | _SHIFTL((((n) - 1) << 4) | (tex), 16, 8); \
-        _g->words.w1 = (u32) (ptr);                                                                       \
-    }
 
 /**
  * JFG: draw a muzzle flash for the object's owner (obj->setupIndex): for a player, at its gun (when the gun shows
@@ -3983,10 +3976,10 @@ void mtx_scale_push(Gfx **dList, Mtx **mtx, f32 scale);
  * (setupEntrance). Then the kind's pieces (D_800A0BEC/0C0C/0C1C), each scaled and textured.
  * As in the ROM, draw and kind are only set on the paths that draw, and kind 4 reads the player's racer data
  * whichever path set it.
- * NON_MATCHING: the ROM's length and frame (0x148), 7 diffs: the polygon command's pointer and count are in a1/a2
- * (the ROM a2/a1). The joint address as an f32 pointer plus the pre-shifted index and the point as a row of
- * f32[3] (one multiply by 12) gave the ROM's temporaries; the guarded do-while puts the table copy after the
- * count test, as the ROM.
+ * The joint address as an f32 pointer plus the pre-shifted index and the point as a row of f32[3] (one multiply
+ * by 12) give the ROM's temporaries; the guarded do-while puts the table copy after the count test, as the ROM.
+ * The triangle command is written out with an empty if between its two stores: that gives the ROM's count/pointer
+ * registers (a1/a2).
  */
 void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
     Object *parent;
@@ -4121,7 +4114,13 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
                 gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, colors[i]);
                 func_80055C00(&dl, obj->attachments[part->texture], 0x16, 0);
                 gSPVertexSeg(dl++, (u32) part->vertices + seg, part->lastVertex);
-                gSPPolygonSeg(dl++, (u32) part->triangles + seg, part->numTriangles, 1);
+                {
+                    Gfx *_g = dl++;
+                    _g->words.w0 = _SHIFTL(part->numTriangles * 16, 0, 16) | _SHIFTL(5, 24, 8) |
+                                   _SHIFTL(((part->numTriangles - 1) << 4) | 1, 16, 8);
+                    if (part) {} // part is always set (the table entry); splits the block as the ROM's code does
+                    _g->words.w1 = (u32) part->triangles + seg;
+                }
                 i++;
                 part++;
             } while (i < count);
@@ -4131,9 +4130,6 @@ void func_8000C0B8(Gfx **dList, Mtx **mtx, Object *obj) {
         *mtx = m;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_8000C0B8);
-#endif
 
 f32 get_distance_to_camera(f32 x, f32 y, f32 z);
 void func_80069BE8(Gfx **dList, void *mesh, s32 flags, u8 alpha);
