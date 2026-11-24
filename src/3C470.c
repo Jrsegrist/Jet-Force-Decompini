@@ -809,13 +809,9 @@ s8 *asset_cache_get(s16 id);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *model_asset_block_load(s32 index);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (20 words, from 73, after the two empty ifs on offset, which is set on every path there): register
-   allocation around the calls */
 /* JFG: load model `id`'s asset list (tables 0x28/0x29) into the model: its 0x58 block, the ids (0x5C) and, unless
  * 0x64 is set, the cached assets (0x50); returns 1 when something could not be had (all freed again). */
 s32 func_8003CB04(Model3C7 *model, s32 id) {
-    s32 offset;
     s32 start;
     s32 end;
     s32 size;
@@ -829,18 +825,17 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
     if (start == end) {
         return 0;
     }
-    offset = start & 3;
-    size = ((model->numAssets & ~3) + 4) * 2;
-    if (offset) {
+    size = ((model->numAssets & ~3) + 4) << 1;
+    if (start & 3) {
         size += 8;
     }
     asset_load(0x29, (u32) D_800F6F28, (start & ~3) * 2, size);
+    start &= 3; // from here: the first id's place in the loaded block
     if ((model->unk58 = model_asset_block_load(id)) == NULL) {
         return 1;
     }
     if (!model->unk64) {
         model->assets = mempool_alloc(model->numAssets * 4, 0xFF0000FF);
-        if (offset) {}
     }
     model->unk5C = mempool_alloc(model->numAssets * 2, 0xFF0000FF);
     if (!model->unk64) {
@@ -850,7 +845,7 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
         }
         i = 0;
         do {
-            model->assets[i] = asset_cache_get(((s16 *) D_800F6F28)[offset]);
+            model->assets[i] = asset_cache_get(((s16 *) D_800F6F28)[start]);
             if (model->assets[i] == NULL) {
                 for (j = 0; j < i; j++) {
                     asset_cache_release(model->assets[j]);
@@ -861,22 +856,18 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
                 model->assets = NULL;
                 return 1;
             }
-            ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset];
-            offset++;
+            ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[start];
+            start++;
             i++;
         } while (i < model->numAssets);
         return 0;
     }
     for (i = 0; i < model->numAssets; i++) {
-        ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[offset];
-        offset++;
+        ((s16 *) model->unk5C)[i] = ((s16 *) D_800F6F28)[start];
+        start++;
     }
-    if (offset) {}
     return 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/3C470", func_8003CB04);
-#endif
 
 /* JFG: reset a model instance's animation state and select its first animation (shared assets are fetched
  * through the cache when the model has unk64 set). */
