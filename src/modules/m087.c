@@ -83,7 +83,7 @@ static M087Entry *breakable_entry_find(s32 id) {
 }
 
 /* Moves `count` points from the object's space into the world (its yaw, scale and position) */
-void func_m087_000D4(Object *obj, s32 count, Vec3f *in, Vec3f *out) {
+static void func_m087_000D4(Object *obj, s32 count, Vec3f *in, Vec3f *out) {
     f32 ix;
     f32 iy;
     f32 iz;
@@ -210,11 +210,10 @@ void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
     }
 }
 
-#ifdef NON_MATCHING
 extern s32 D_m087_01220;  /* the module's number (.data, still assembly) */
 extern Vec3f rl_m087_01384; /* where the default kind's particles come from, in its own space */
 extern void runlink_unload_timer_set(s32, s32, s32);
-extern void objflag_set(s32 flag, s32 value);
+extern void objflag_set(s32 flag); /* as defined in 44350.c */
 extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
 extern void spawn_object_from_list(s16 id, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern void zone_add(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7); /* shakes the camera */
@@ -311,7 +310,7 @@ void func_m087_00510(Object *obj, s32 updateRate) {
             }
             if (flags & 0x10) {
                 obj->interactObj->flags &= ~1;
-                objflag_set(state->flag, -1);
+                objflag_set(state->flag);
             }
             if ((flags & 0x20) && state->unk2 == 0x20) {
                 state->unk2 = 0;
@@ -338,13 +337,13 @@ void func_m087_00510(Object *obj, s32 updateRate) {
                 func_8005F5AC(obj, 2);
             }
             if (count > 0) {
+                i = 0;
                 if (pieceKind == 0) {
                     piece.lifetime = 60;
                     piece.emitters = 1;
                     piece.gravity = -0.3f;
                     piece.yaw = func_80048E2C(0, 0x10000);
                 }
-                i = 0;
                 if ((dirs & 7) && !(dirs & 1)) {
                     do {
                         i = (i + 1) & 7;
@@ -454,9 +453,6 @@ void func_m087_00510(Object *obj, s32 updateRate) {
         obj->trans.z_position = to.z;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m087/ro", func_m087_00510);
-#endif
 
 void func_m087_01060(Object *obj, M087PieceSetup *setup) {
     obj->trans.rotation.y_rotation = setup->yaw;
