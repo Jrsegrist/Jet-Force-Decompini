@@ -5838,11 +5838,14 @@ extern s32 func_m139_002F8(s32 zone);
  */
 #ifdef NON_MATCHING
 /*
- * 290/291 words, frame and slots right, 53 aligned diffs, all from 0x3E's spacing on: the ROM keeps the
- * spacing in v0 and shifts a t-register copy of it, with arrived/count in v1/a0 (ours: v1, a0/a1, no copy;
- * a u8 local puts the spacing in v0 but gives no copy and one frame word more), and every later t-register
- * follows from that. The radius squared in place (`inRange *= inRange`) gave the ROM's argument registers
- * for target/inRange. The position sums are written offset first with (*home). as in 0D810.
+ * 290/291 words, frame and slots right, 16 aligned diffs (8 are the measure's module-relative jal words), the
+ * rest at 0x3E's spacing: the ROM keeps the spacing in
+ * v0 and shifts a t-register copy of it (`or t4, v0, zero`), with arrived/count in v1/a0 (ours: v1, a0/a1, no
+ * copy). The (s16) cast takes the copy's t-register, so the later t-registers are the ROM's. A u8 spacing
+ * local with the cast gives the ROM's length, the copy and v0 (24 diffs, only arrived/count) but one frame
+ * word more; no local we tried to drop or block-scope brings the frame back. The radius squared in place
+ * (`inRange *= inRange`) gave the ROM's registers for target/inRange; the position sums are written offset
+ * first with (*home). as in 0D810.
  */
 static s32 func_m003_148C0(Object *home, s32 start) {
     M003Home *h;
@@ -5913,7 +5916,7 @@ static s32 func_m003_148C0(Object *home, s32 start) {
         if (h->spacing != 0) {
             if (h->arrived < h->count) {
                 h->unk3C = h->count - h->arrived;
-                h->unk3E = h->spacing << 1;
+                h->unk3E = (s16) h->spacing << 1;
                 h->unk30 = 1;
                 return 2;
             }
