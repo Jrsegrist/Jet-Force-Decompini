@@ -45,7 +45,7 @@ INCLUDE_RODATA("asm/nonmatchings/audio", D_800A9FB0);
 #define VOLUME_LOWER 1
 #define VOLUME_LOWER_AMBIENT 2
 
-void sndp_set_group_volume(s32 group, s32 volume);
+void sndp_set_group_volume(u8 group, u16 volume);
 extern u8 gAudioVolumeSetting;
 
 /**
@@ -528,7 +528,7 @@ void sound_stop(SoundHandle soundHandle) {
 }
 
 s32 sound_volume_half(s32 volume);
-void sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
+void *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
 
 /**
  * Plays the requested sound from the sound table.
@@ -559,7 +559,7 @@ void sound_play(u16 soundID, SoundHandle *handlePtr) {
 }
 
 s32 sound_volume_half(s32 volume);
-void sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
+void *sndp_play(ALBank *bank, s16 sndIndx, u16 volume, u8 pan, f32 pitch, u8 fxMix, SoundHandle *handlePtr);
 
 /**
  * Official Name: amSndPlayDirect
@@ -662,7 +662,7 @@ void func_800899F0(ALCSeq *seq, void *data);       // DKR: alCSeqNew
 void func_8008A3C0(ALCSPlayer *seqp, ALCSeq *seq); // DKR: alCSPSetSeq
 void func_8008A410(ALCSPlayer *seqp);              // DKR: alCSPPlay
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
-s32 asset_rom_offset(u32 assetIndex, s32 offset);
+u8 *asset_rom_offset(u32 assetIndex, u32 assetOffset); // a ROM address
 
 /**
  * If the sequence player is currently inactive, start a new sequence with the current properties.
@@ -673,7 +673,7 @@ void music_sequence_init(ALCSPlayer *seqp, void *sequence, u8 *seqID, ALCSeq *se
     s32 i;
 
     if ((func_800899D0(seqp) == AL_STOPPED) && (*seqID != 0)) {
-        asset_load(0x34, (u32) sequence, (u32) gSequenceTable->seqArray[*seqID].offset - asset_rom_offset(0x34, 0),
+        asset_load(0x34, (u32) sequence, (u32) gSequenceTable->seqArray[*seqID].offset - (u32) asset_rom_offset(0x34, 0),
                    gSequenceLengths[*seqID]);
         func_800899F0(seq, sequence);
         func_8008A3C0(seqp, seq);

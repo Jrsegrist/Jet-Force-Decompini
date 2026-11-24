@@ -144,7 +144,7 @@ extern f32 D_800AF8A0;
 extern f32 D_800AF8A4;
 extern f32 D_800AF8A8;
 NParam *func_8008AF34(void);                                       // n_audio: allocate a parameter update
-void func_80090B14(NPVoiceRef *pvoice, s32 paramID, void *param);  // n_audio: the envelope mixer's param handler
+s32 func_80090B14(NPVoiceRef *pvoice, s32 paramID, void *param);  // n_audio: the envelope mixer's param handler
 f32 func_80091280(f32 y, f32 x);                                   // n_audio: arc tangent of y/x
 void func_8008DB64(NLowPass *lp);
 

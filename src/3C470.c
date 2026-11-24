@@ -1703,7 +1703,7 @@ typedef struct TexEntry3C {
 
 extern TexEntry3C *D_800A2EC8;
 extern s16 D_800A2ECC;
-s32 tex_find_id(void *texture);
+s32 tex_find_id(s32 texture); // the texture's address, as the texture cache keeps it
 
 /* JFG: free the textures of every cached model whose id is not in `keep` (ended by -1), noting each one's id
  * and address in a new D_800A2EC8 table (at most 125). */
@@ -1730,7 +1730,7 @@ void model_cache_textures_release(s16 *keep) {
             if (!found) {
                 for (j = 0; j < model->numberOfTextures && D_800A2ECC < 125; j++) {
                     entry->address = (s32) model->textures[j].texture;
-                    entry->id = tex_find_id(model->textures[j].texture);
+                    entry->id = tex_find_id((s32) model->textures[j].texture);
                     tex_free(model->textures[j].texture);
                     D_800A2ECC++;
                     entry++;

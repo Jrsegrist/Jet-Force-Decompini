@@ -25,7 +25,7 @@ extern f32 D_800AF978; // .rodata: the ratio used below it
 
 Acmd *func_80092D30(void *filter, s16 *outp, Acmd *p); // n_audio: the resampler's pull
 void func_8008DD48(void *lp, f32 outputRate);         // n_audio: initialise a mono low-pass filter
-s32 func_8009238C(void *filter, s32 paramID, void *param); // n_audio: the load stage's parameter handler
+void func_8009238C(void *filter, s32 paramID, void *param); // n_audio: the load stage's parameter handler
 f32 sqrtf(f32 x);
 
 Acmd *func_80092830(NLPFilter *filter, s16 *outp, s32 outCount, Acmd *p) {

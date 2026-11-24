@@ -76,6 +76,8 @@ typedef struct RacerFlags {
     u32 unk0 : 7;
 } RacerFlags;
 
+struct ALSoundState; // audio.h's SoundHandle
+
 /* JFG: a player's state block (the object's 0x68 block); only the fields used here. */
 typedef struct Racer {
     /* 0x000 */ s8 player;
@@ -97,7 +99,7 @@ typedef struct Racer {
     /* 0x0B8 */ u16 lastVoice;
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
-    /* 0x0C0 */ s32 sound;
+    /* 0x0C0 */ struct ALSoundState *sound; // audio.h's SoundHandle
 /* 0x0C4 */ u8 padC4[0xFC - 0xC4];
     /* 0x0FC */ s32 unkFC;
     /* 0x100 */ u8 pad100[0x104 - 0x100];
@@ -219,8 +221,8 @@ u8 *char_record_lookup(s32 player, s32 character);
 void player_drop_held_object(u8 *obj);
 void *spawn_object(void *entry, s32 arg1);
 void stats_shot_add(s32 weapon);
-void sound_stop(s32 soundHandle);
-void sound_play(u16 soundID, s32 *handlePtr);
+void sound_stop(struct ALSoundState *soundHandle);
+void sound_play(u16 soundID, struct ALSoundState **handlePtr);
 
 typedef struct SoundSet {
     /* 0x00 */ u8 count;
@@ -232,7 +234,7 @@ extern SoundSet D_800A26C4[];
 s32 rand_range(s32 min, s32 max);
 f32 sqrtf(f32 x);
 void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
-void enemy_module_notify(u8 *arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
+void enemy_module_notify(s32 a0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6); // a0: an object address
 void audspat_point_stop(void *handle);
 
 /* JFG: play a random sound of set `index` (per character, never the last one again) at obj, keeping its handle
@@ -261,7 +263,7 @@ void player_voice_play(s32 owner, u8 index) {
     }
     audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4,
                                    &racer->voice);
-    enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
+    enemy_module_notify((s32) (obj + 1),*(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     racer->lastVoice = sound;
 }
 
@@ -278,7 +280,7 @@ void obj_play_move_sound(u8 *obj, u8 index) {
     sound = sounds[rand_range(0, set->count - 1)];
     if (0.7f < sqrtf(*(f32 *) (obj + 0x24) * *(f32 *) (obj + 0x24) + *(f32 *) (obj + 0x1C) * *(f32 *) (obj + 0x1C))) {
         audspat_play_sound_at_position(sound, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 4, NULL);
-        enemy_module_notify(obj + 1, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
+        enemy_module_notify((s32) (obj + 1),*(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10), *(f32 *) (obj + 0x14), 1, 1, sound);
     }
 }
 
@@ -397,7 +399,7 @@ typedef struct LevelModel2B {
 u8 camera_count_get(void); // the number of cameras
 void player_zone_track_update(s32 player, f32 x, f32 y, f32 z);
 void *cam_point_copy_to_camera(s32 index, void *camera);
-s32 view_override_get(void);
+void *view_override_get(void);
 void view_override_copy_reversed(void *trans);
 s32 camera_follow_get(void);
 LevelModel2B *get_current_level_model(void);
@@ -791,7 +793,7 @@ void func_8002C118(u8 *obj, Racer *racer, f32 updateRate) {
         ((Transform2BAA0 *) D_800F6DC0)->position[2] + (target[2] - ((Transform2BAA0 *) D_800F6DC0)->position[2]) * tilt;
 }
 
-void func_80042A74(ViewPoint *view, void *transform, s32 arg2, u8 arg3);
+void func_80042A74(ViewPoint *view, void *transform, s32 updateRate, s32 smooth);
 
 void func_8002C908(u8 *obj, u8 *racer, f32 arg2) {
     D_800F6DC8.position[0] = *(f32 *) (obj + 0xC);
@@ -1213,8 +1215,8 @@ extern u8 D_800A4FC8;
 void camera_point_around_player(u8 *obj, f32 *x, f32 *y, f32 *z, s32 arg4);
 void ignore_bounds_check(void);
 s32 move_object(u8 *obj, f32 xPos, f32 yPos, f32 zPos);
-void obj_collision_spheres_init(u8 *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
-                   f32 arg9, f32 argA, s32 argB);
+void obj_collision_spheres_init(u8 *obj, s32 arg1, s32 arg2, s32 arg3, s16 rx, s16 ry, s16 rz, f32 radius, f32 radius2,
+                   f32 arg9, f32 arg10, u16 argB);
 
 void func_8002F5F0(u8 *obj, u8 *arg1) {
     f32 *state = *(f32 **) (obj + 0x68);
@@ -1369,7 +1371,9 @@ s32 line_aim_lock_test(u8 *obj, f32 *start, f32 *end, f32 *dist, s32 updateRate)
 extern f32 D_800A2D74[5][3];
 void func_800496B0(s32, s16 *, void *, u8 *);
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
-s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
+/* Defined (12D50.c) with u16 flags; the ROM passes the flags below without the u16 conversion, so this
+   function's match needs the s32 declaration. */
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 flags, void *hit);
 
 /* JFG: the camera position around the player: five points around the target object (state 0x24) at heights
  * scaled by D_800A2D40; keeps the last one (0x88, from 1) that the level doesn't block from the first, skipping 1 */
@@ -1854,7 +1858,7 @@ INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80032A48);
 extern u8 D_800A4FC4;
 extern u8 D_800A4FEC;
 extern s8 D_800FED63[][0xA0];
-s32 player_count_get(void);
+u8 player_count_get(void);
 void func_80048518(s32 arg0);
 u16 input_pressed(s32 player);
 void player_restart(s32 arg0, s8 *player);
@@ -1925,9 +1929,9 @@ void player_restart(s32 owner, s8 *player) {
     }
 }
 
-s32 options_player_toggle_get(s32 player);
+u8 options_player_toggle_get(s32 player);
 s32 camera_follow_get(void);
-s32 view_override_get(void);
+void *view_override_get(void);
 
 /* JFG: counts unk19C up by rate (to 40, or 64 when arg1's 0x70 is 7 in states 11/5) while the 0x540 low bits
  * are set and nothing blocks it, otherwise down by 16*rate to 0. */
@@ -2088,7 +2092,7 @@ void func_80034164(s16 *pos, u8 *obj) {
 void obj_spawn_particle(u8 *obj, s32 updateRate);
 s32 func_8004966C(s16 angle); /* sine of a 16-bit angle (fixed point) */
 void effect_mesh_set_uvs(void *handle, s16 pitch);
-void effect_mesh_update(void *handle, s16 value, u8 volume);
+void effect_mesh_update(void *handle, s16 value, s32 volume);
 
 /* JFG: the player's four engine-like loops (0x598, state at 0x5B8, volume 0x5AC, phase 0x5A8): 0 waits for its
  * bit in 0x14A (spawning particles), 1 fades in, 2 plays (wobbling with the phase), 3 fades out. */
@@ -2788,7 +2792,7 @@ void func_80035E14(u8 *obj, Racer *racer, f32 arg2, f32 arg3, UNUSED s32 arg4, H
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80035E14);
 #endif
 
-void func_8007EB6C(f32 *min, f32 *max, s32 arg2, s32 arg3, s32 arg4); // JFG: collects the objects in a box
+void func_8007EB6C(f32 *min, f32 *max, s32 arg2, s32 arg3, void *exclude); // JFG: collects the objects in a box
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: ROM length and frame (with `u16 pitch`; one word short before); the ROM loads the platform object once (the reload here shifts the
@@ -3124,7 +3128,7 @@ f32 *p = (f32 *) (obj + 0x48);
 }
 
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
-s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 flags, void *hit); // see above
 
 /* JFG: 1 unless a collision test from (x, y, z) up by `height` hits a surface with flags 0x48 (0x80037194). */
 s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 height, f32 radius) {
@@ -3789,7 +3793,7 @@ void weapon_fire_triple_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 a
     racer->soundId = 0x95;
 }
 
-void *chain_slot_find_shortest(s32 obj, u8 *id);
+void *chain_slot_find_shortest(void *obj, u8 *id);
 
 /* JFG: fire object 0xA4 at (x, y, z), attached to the owner's shortest chain; weaker without one. */
 void weapon_fire_chain_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 arg6, f32 arg7, s32 arg8,
@@ -3802,7 +3806,7 @@ void weapon_fire_chain_shot(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 ar
     setup.objectID = 0xA4;
     setup.size = sizeof(SpawnA4);
     setup.unk3 = 0;
-    setup.chain = chain_slot_find_shortest(owner, &id);
+    setup.chain = chain_slot_find_shortest((void *) owner, &id); // the owner object's address is passed as an s32
     setup.chainId = id;
     setup.unk24 = 1;
     setup.unkB = arg9;

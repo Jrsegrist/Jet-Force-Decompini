@@ -147,7 +147,7 @@ void audspat_reset(void) {
 }
 
 extern MtxF gAudioListenerMtx; // JFG: the listener's matrix
-s32 camera_count_get(void); // the number of cameras
+s32 camera_count_get(void); // the number of cameras (defined u8 in 45750.c; the match needs s32 here)
 
 /* The cameras (only the position is read here; 40240.c has the whole struct). */
 typedef struct Camera {

@@ -97,7 +97,7 @@ s32 func_8008B160(ALPlayer **client);
 void func_8008B014(void);
 Acmd *func_80090150(s32 sampleOffset, Acmd *p);
 Acmd *func_8008EB40(s32 sampleOffset, Acmd *p, s32 bus);    // n_audio: an auxiliary bus's effect pull
-void *func_8008EAB0(s32 bus, NSynConfig *c, ALHeap *hp);    // n_audio: allocate a bus's effect
+void *func_8008EAB0(s16 bus, NSynConfig *c, ALHeap *hp);    // n_audio: allocate a bus's effect
 void func_8008E4F8(NPVoiceLink *pv, ALDMANew dmaNew, ALHeap *hp); // n_audio: initialise a physical voice
 
 /* libultra alSynNew (n_audio form): set up the synthesizer, its buses, physical voices and parameter pool */

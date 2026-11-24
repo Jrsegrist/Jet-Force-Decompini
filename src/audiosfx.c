@@ -116,12 +116,12 @@ s32 func_8008B55C(SfxEventQueue *evtq, SfxEvent *evt);  // n_audio: next event (
 void func_8008B610(void *evtq, void *evt, s32 delta);   // n_audio: post an event (alEvtqPostEvent)
 void func_8008BB80(SfxPlayer *player);                  // n_audio: add a sound player to the synthesizer
 s32 func_8008BC60(void *voice, ALVoiceConfig *config);  // n_audio: allocate a voice (alSynAllocVoice)
-void func_8008BF70(void *voice, s32 vol, s32 t);        // n_audio: ramp a voice's volume (alSynSetVol)
-void func_8008C040(void *voice, void *wave, f32 pitch, s32 vol, s32 pan, s32 fxmix, s32 lpGain, f32 lpCutoff,
-                   s32 lpRate, s32 t);                  // n_audio: start a voice with all its settings
-void func_8008C170(void *voice, s32 pan);               // n_audio: set a voice's pan (alSynSetPan)
+void func_8008BF70(void *voice, s16 vol, s32 t);        // n_audio: ramp a voice's volume (alSynSetVol)
+void func_8008C040(void *voice, void *wave, f32 pitch, s16 vol, u8 pan, u8 fxmix, u8 lpGain, f32 lpCutoff,
+                   u8 lpRate, s32 t);                   // n_audio: start a voice with all its settings
+void func_8008C170(void *voice, u8 pan);                // n_audio: set a voice's pan (alSynSetPan)
 void func_8008C220(void *voice, f32 pitch);             // n_audio: set a voice's pitch (alSynSetPitch)
-void func_8008C2D0(void *voice, s32 fxmix);             // n_audio: set a voice's effect mix (alSynSetFXMix)
+void func_8008C2D0(void *voice, u8 fxmix);              // n_audio: set a voice's effect mix (alSynSetFXMix)
 void func_8008C380(void *voice);                        // n_audio: stop a voice (alSynStopVoice)
 void func_8008C420(void *voice);                        // n_audio: free a voice (alSynFreeVoice)
 void osSyncPrintf(const char *fmt, ...);

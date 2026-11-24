@@ -23,7 +23,7 @@ extern u16 D_800A999C[]; // finer steps near the end
 extern u16 D_800A9A1C[]; // finest steps at the end
 
 Acmd *func_80091CE0(void *filter, s16 *outp, s32 count, Acmd *p);   // n_audio: the ADPCM stage's pull
-s32 func_8009238C(void *filter, s32 paramID, void *param);           // n_audio: the load stage's parameter handler
+void func_8009238C(void *filter, s32 paramID, void *param);           // n_audio: the load stage's parameter handler
 
 Acmd *func_80092D30(NResampler *r, s16 *outp, Acmd *p) {
     Acmd *ptr = p;

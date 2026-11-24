@@ -766,14 +766,14 @@ void func_80077614(s32 updateRate);
 void obj_update(s32 updateRate);
 void particles_update_all(s32 updateRate);
 void *cam_get_active_camera(void);
-void cam_point_copy_to_camera(s32 arg0, void *camera);
+void *cam_point_copy_to_camera(s32 index, void *camera);
 void track_module_effects_run(s32 updateRate);
 void rumble_stop_all(s32 arg0);
 void objects_update_special(s32 updateRate);
 void func_80008FE8(void);
 void gParticlePtrList_flush(void);
 void func_800121C0(Gfx **dList, void *mtx, void *vtx, void *arg3, s32 updateRate);
-void process_subtitles(s32 updateRate);
+void process_subtitles(u32 updateRate);
 void splitscreen_dividers_draw(Gfx **dList);
 /* The module trap called with three floats; needs `func_80054530_fff = 0x80054530;` in undefined_syms.us.txt. */
 void func_80054530_fff(f32 x, f32 y, f32 z, s32 updateRate);
@@ -957,7 +957,7 @@ extern GameStats *gSettingsPtr;
 extern u8 D_800A32A0;
 extern u8 D_800A3304[];
 s32 level_redirect_get(s16 level, s16 *newLevel, s16 *arg2, s16 *arg3, s16 *arg4);
-void transition_begin(void *arg0);
+s32 transition_begin(void *transition);
 
 /* JFG: once (until D_800A3294 is cleared): pick the next level: a fixed one for some levels, the current
  * D_800FD7A4 setup (counting D_800A3280 down while it lasts) or the saved one (D_800A3270..7C); then the
@@ -1045,9 +1045,9 @@ void player_start_override_clear(void);
 s32 leveltable_region(s32 level);
 void set_game_paused(s32 arg0);
 u8 music_current_sequence(void);
-u8 leveltable_tune(s32 level);
+u8 leveltable_tune(s32 level); // defined s32 (44350.c, returns a u8 field); the match needs u8 here
 s8 is_game_paused(void);
-void music_volume_fade(f32 arg0, s32 arg1);
+void music_volume_fade(f32 time, u8 volume);
 void rumble_stop_all(s32 arg0);
 void rumble_allow_set(s32 arg0);
 
@@ -1179,7 +1179,7 @@ void free_message_box(void);
 u8 music_current_sequence(void);
 void music_stop(void);
 void settings_clear_stats(void);
-s32 display_setting_resolved();
+s32 display_setting_resolved(s32 level);
 s32 leveltable_blur(s32 level);
 void func_800551E8(s32 arg0);
 s32 fb_mode(void);
@@ -2002,18 +2002,18 @@ void mark_read_save_file(s32 saveFileIndex) {
     gSaveDataFlags |= (0x80000000 | (saveFileIndex & 7));
 }
 
-extern s32 gSavefileData;
+extern u8 *gSavefileData;
 
 /* Marks all save files to be read into the given buffer (0x800483F8). */
-void mark_read_all_save_files(s32 games) {
+void mark_read_all_save_files(u8 *games) {
     gSavefileData = games;
     gSaveDataFlags |= 0x8000000;
 }
 
-extern s32 gSavefileData;
+extern u8 *gSavefileData;
 
 /* Returns the buffer all save files are read into (0x8004841C). */
-s32 get_all_save_files_ptr(void) {
+u8 *get_all_save_files_ptr(void) {
     return gSavefileData;
 }
 

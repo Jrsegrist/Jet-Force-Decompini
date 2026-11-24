@@ -577,7 +577,7 @@ typedef struct TroopEntry {
 
 void func_800118F4(s32 *a, s32 *b, s32 index);
 LeaderObject **objGetObjList(s32 *arg0, s32 *cnt);
-s32 objflags_reserve_ids(u8 arg0);
+s32 objflags_reserve_ids(s32 count);
 s32 obj_group_flag_first(s32 id, u16 flag);
 s16 obj_header_field_get(s32 type);
 
@@ -1140,7 +1140,7 @@ extern ModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
 extern u32 D_800FEAB0;          // JFG: their number
 extern s32 gForcedColourTag2;   // JFG: the module being allocated (-1 for none)
 void mempool_free(void *data);
-s32 mempool_free_timer_get();
+s32 mempool_free_timer_get(void);
 void mempool_free_timer(s32 state);
 s32 func_80052AB8(ModuleReloc *reloc, s32 module);
 
@@ -1575,7 +1575,7 @@ void module_system_init(void) {
     D_800A38F4 = 0;
 }
 
-s32 mempool_free_timer_get();
+s32 mempool_free_timer_get(void);
 void runlink_module_release(s32 module);
 void mempool_free_timer(s32 state);
 void *mempool_alloc_fixed(s32 size, u8 *address, u32 colourTag);

@@ -454,7 +454,6 @@ func_8001BB30 = set_fog;
 func_8001BC2C = get_fog_settings;
 func_8001C3D0 = slowly_change_fog;
 func_8001C0D8 = obj_loop_fogchanger;
-spawn_object = 0x80005F14;
 gSkydomeSegment = 0x800F2F88;
 gFogData = 0x800F3260;
 
@@ -813,3 +812,6 @@ func_80054530_fffr = 0x80054530;
 func_80054530_bbr = 0x80054530;
 /* 2BAA0.c func_80032130: three ints and two floats, for a result */
 func_80054530_iiiffr = 0x80054530;
+
+/* ---- main45 (round 45): spawn_object now defined in C (the old `spawn_object = 0x80005F14;` line removed) ---- */
+func_80005F14 = spawn_object;

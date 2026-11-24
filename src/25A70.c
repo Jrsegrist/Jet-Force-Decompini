@@ -160,13 +160,13 @@ void obj_init_torch_mist(Object *obj, LevelObjectEntry_Torch_Mist *entry) {
     obj->unk28 = entry->unkC;
 }
 
-void sprite_anim_advance(void *sprite, s32 *arg1, void *arg2, void *arg3, s32 arg4); // JFG: animate a sprite
+s32 sprite_anim_advance(void *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed); // JFG: animate a sprite
 
 /* JFG: animate the object's sprite (mode 9) by the update rate. */
 void obj_sprite_animate(u8 *obj, s32 updateRate) {
     s32 flags = 9;
 
-    sprite_anim_advance(**(void ***) (obj + 0x6C), &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+    sprite_anim_advance(**(void ***) (obj + 0x6C), &flags, *(u32 *) (obj + 0x88), (f32 *) (obj + 0x28), updateRate);
 }
 
 /* JFG: init: scale from byte 0xB (DKR's radius scaling, see obj_init_torch_mist) (0x80024F40). */
@@ -189,7 +189,7 @@ void sprite_anim_once_update(u8 *obj, s32 updateRate) {
 
     sprite = **(void ***) (obj + 0x6C);
     prevFrame = *(f32 *) (obj + 0x28);
-    sprite_anim_advance(sprite, &flags, *(void **) (obj + 0x88), obj + 0x28, updateRate);
+    sprite_anim_advance(sprite, &flags, *(u32 *) (obj + 0x88), (f32 *) (obj + 0x28), updateRate);
     if (*(f32 *) (obj + 0x28) < prevFrame) {
         free_object((Object *) obj);
     }
@@ -576,11 +576,11 @@ typedef struct GroupState26 {
     /* 0x3E */ u16 flags;
 } GroupState26;
 
-Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, s32 type);
+Object *obj_find_nearest_of_type(f32 x, f32 y, f32 z, u8 type);
 s32 normalise_time(s32 timer);
 void func_80054530();
-void music_jingle_play(s32 jingle);
-void obj_anim_frame_advance(Object *obj, f32 level, f32 updateRate);
+void music_jingle_play(u8 seqID);
+s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 rate);
 
 /* JFG: loop: find the group object nearby, then follow its flags: light up (setting a level, or a module
    effect with a jingle after a delay) and pass the lit state to the model's flagged batches. */
@@ -669,7 +669,7 @@ void obj_loop_skycontrol(Object *obj, UNUSED s32 updateRate) {
     }
 }
 
-void tex_scroll_queue(s32 segmentId, s32 xSpeed, s32 ySpeed, s32 updateRate);
+void tex_scroll_queue(s32 segmentId, s32 xSpeed, s32 ySpeed);
 
 /* JFG: a texture animator loop (DKR obj_loop_animator, the update rate passed instead of the batch). */
 void obj_loop_texture_animator(Object *obj, s32 updateRate) {
@@ -686,7 +686,7 @@ void obj_loop_texture_animator(Object *obj, s32 updateRate) {
     t1 += animator->ySpeed;
     animator->ySpeed = t1 & 0x3;
     t1 >>= 2;
-    tex_scroll_queue(animator->segmentId, t0, t1, updateRate);
+    tex_scroll_queue(animator->segmentId, t0, t1);
 }
 
 /**
@@ -794,7 +794,8 @@ ChainObject *chain_slot_find_shortest(Object *obj, u8 *id) {
     return found;
 }
 
-void func_80026FD4(s32 arg0, s32 arg1) {
+/* JFG: an empty object loop. */
+void func_80026FD4(UNUSED Object *obj, UNUSED s32 updateRate) {
 }
 
 typedef struct ModelSwapState {
@@ -831,10 +832,11 @@ void obj_init_model_swap(Object *obj, s16 *entry) {
     *p = 0x1000;
 }
 
-void func_800270C8(s32 arg0, s32 arg1) {
+/* JFG: an empty object loop. */
+void func_800270C8(UNUSED Object *obj, UNUSED s32 updateRate) {
 }
 
-void func_800270D4(Object *obj, s32 arg1) {
+void func_800270D4(Object *obj, UNUSED void *entry) {
     s16 *speed = (s16 *) obj->animator + 2;
     *speed = 0x1000;
 }
@@ -907,12 +909,14 @@ typedef struct LevelObjectEntry_ZoneTrigger {
 } LevelObjectEntry_ZoneTrigger;
 
 s32 zone_sphere_touches(f32 x, f32 y, f32 z, f32 radius, s32 arg4);
-void func_80076928(s32 id);
+void func_80076928(u8 index);
 void sequence_hold(void);
-void anim_path_sound_stop(s32 id);
-void anim_path_enable_run(s32 id);
+void anim_path_sound_stop(u8 index);
+void anim_path_enable_run(u8 index);
 void sequence_start(s32 id);
-void anim_path_sound_play(s32 id, s32 arg1);
+/* Defined (76C20.c) with a u16 soundId: the ROM passes the s16 field without the u16 conversion, so the
+   match needs this s32 declaration. */
+void anim_path_sound_play(u8 index, s32 soundId);
 void sequence_resume(void);
 void sound_play(u16 soundID, s32 *handlePtr);
 
@@ -963,8 +967,8 @@ void obj_loop_zone_trigger(Object *obj, UNUSED s32 updateRate) {
     }
 }
 
-void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7, f32 arg8,
-                   f32 arg9, f32 argA, s32 argB);
+void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s16 rx, s16 ry, s16 rz, f32 radius, f32 radius2,
+                   f32 arg9, f32 arg10, u16 argB);
 
 void func_800274FC(Object *obj, UNUSED s32 arg1) {
     obj_collision_spheres_init(obj, -1, 0, 8, 0, 0, 0, 20.0f, 20.0f, -1.0f, 1.0f, 0x11);
@@ -981,7 +985,7 @@ void func_800275CC(Object *obj, u8 *entry) {
 }
 
 void *mempool_alloc(s32 size, u32 colourTag);
-s32 func_8003E638(void *out, Object *obj, u8 *target, s32 arg3, s32 arg4, s32 lo, s32 hi);
+void func_8003E638(void *out, Object *obj, u8 *target, s32 arg3, s32 arg4, s32 lo, s32 hi);
 s32 rand_range(s32 min, s32 max);
 s32 obj_id_is_special(s32 objectID);
 
@@ -1278,7 +1282,7 @@ typedef struct HitResult {
 } HitResult;
 
 s32 func_80018808(s32 arg0, f32 *from, f32 *to, HitResult *result, s32 flags, s32 arg5);
-void move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos);
+s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos);
 
 /* JFG: loop: fall along the velocity; every unkE frames test the path since the last check, and on a hit put
  * the object there, emit particles by surface type and free it. */

@@ -323,7 +323,7 @@ s32 func_8004BAE0(s32 arg0, s32 arg1, s32 arg2) {
 }
 
 s32 is_reset_pressed(void);
-void func_80083EB0(s32 sector);
+s32 func_80083EB0(u32 page_num);
 void flash_write_page(u32 page, u8 *data);
 void flash_read_page(u32 page, u8 *data);
 extern s32 gSaveFilePages[]; // JFG: the first flash page of each save slot
@@ -398,7 +398,7 @@ s32 func_8004BC10(s32 slot, u8 *data) {
 }
 
 /* JFG: erase a save slot's flash sector (fill its pages with 0xFF) (0x8004BCB4). */
-void erase_save_file(s32 slot, UNUSED s32 arg1) {
+void erase_save_file(s32 slot, UNUSED u8 *data) {
     s32 page = gSaveFilePages[slot];
     u8 *buf = mempool_alloc_safe(0x80, -1);
     s32 i;

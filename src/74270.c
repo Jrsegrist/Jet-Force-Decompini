@@ -79,7 +79,7 @@ void set_current_dialogue_background_colour(s32 dialogueBoxID, s32 red, s32 gree
 void set_current_text_background_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha);
 void set_dialogue_font(s32 dialogueBoxID, s32 font);
 void set_current_text_colour(s32 dialogueBoxID, s32 red, s32 green, s32 blue, s32 alpha, s32 opacity);
-void render_dialogue_text(s32 dialogueBoxID, s32 posX, s32 posY, char *text, s32 number, s32 flags);
+void *render_dialogue_text(s32 dialogueBoxID, s32 posX, s32 posY, char *text, s32 number, s32 flags);
 void open_dialogue_box(s32 dialogueBoxID);
 
 /**

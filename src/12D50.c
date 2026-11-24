@@ -1753,7 +1753,9 @@ s32 block_visible(LevelModelSegmentBoundingBox *bb) {
 }
 
 extern u8 D_800A4FC4;
-s32 cam_get_active_camera_id(); // the current camera (called with two arguments it ignores)
+/* The current camera. Defined with no parameters (40240.c), but called below with two it ignores: the ROM's
+   code needs the two-argument call (not portable C; a1 is set to the racer for nothing). */
+s32 cam_get_active_camera_id();
 
 /* JFG: the opacity to draw a racer with (255 = opaque) (0x80015E3C). */
 s32 player_get_draw_alpha(Object *obj) {

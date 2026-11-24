@@ -397,7 +397,7 @@ typedef struct ParticleSprite {
 void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
 void draw_tint_pair_off(void);
 void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **vtx, SpriteParticle *particle, ParticleSprite *sprite, s32 flags,
-                   s32 alpha);
+                   u8 alpha);
 
 /* JFG: draw a list's sprite particles (kind 2) with their colours (brightness-scaled, and with an environment
    colour or the sprite's own colours), then reset the colours. The environment colours of a particle without
@@ -936,7 +936,8 @@ typedef struct TrigParticle {
 extern f32 D_801008F4; // JFG: a velocity taken off a new particle while it catches up (x, y, z)
 extern f32 D_801008F8;
 extern f32 D_801008FC;
-s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
+struct GenObj;
+void *func_80060434(struct GenObj *obj, ParticleEmitter *emitter, s32 assetID);
 s32 particle_update(s32 particle, s32 updateRate);
 void func_80061698(ParticleObj *obj, ParticleEmitter *emitter);
 void point_particle_set_add(void *arg0, ParticleEmitter *emitter);
@@ -967,7 +968,7 @@ void obj_trigger_emitter(ParticleObj *obj, ParticleEmitter *emitter) {
         while (emitter->colourIndex >= behaviour->spawnInterval) {
             emitter->colourIndex -= behaviour->spawnInterval;
             for (i = 0; i < behaviour->burstCount; i++) {
-                particle = (TrigParticle *) func_80060434(obj, emitter, -1);
+                particle = (TrigParticle *) func_80060434((struct GenObj *) obj, emitter, -1);
                 if (particle != NULL) {
                     if (emitter->colourIndex != 0) {
                         particle->velocity.x -= D_801008F4;
@@ -1316,7 +1317,7 @@ typedef struct EmittedParticle {
     /* 0x1C */ Vec3f velocity;
 } EmittedParticle;
 
-s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
+void *func_80060434(struct GenObj *obj, ParticleEmitter *emitter, s32 assetID);
 
 /* JFG: set up one of an object's emitters from its header's table and fire it, giving the new particle a velocity. */
 void obj_fire_emitter(EmitterObj *obj, f32 velX, f32 velY, f32 velZ, s32 index) {
@@ -1342,7 +1343,7 @@ void obj_fire_emitter(EmitterObj *obj, f32 velX, f32 velY, f32 velZ, s32 index) 
         emitter->emissionDirection.x_rotation = behaviour->emissionDirection.x_rotation;
         emitter->emissionDirection.z_rotation = behaviour->emissionDirection.z_rotation;
         emitter->unk23 = -1;
-        particle = (EmittedParticle *) func_80060434(obj, emitter, obj->header->emitters[index].trigger);
+        particle = (EmittedParticle *) func_80060434((struct GenObj *) obj, emitter, obj->header->emitters[index].trigger);
         if (particle != NULL && (velX != 0.0f || velY != 0.0f || velZ != 0.0f)) {
             particle->velocity.x = velX;
             particle->velocity.y = velY;
@@ -1351,7 +1352,338 @@ void obj_fire_emitter(EmitterObj *obj, f32 velX, f32 velY, f32 velZ, s32 index) 
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/5DA60", func_80060434);
+/* JFG: a particle description, as create_particle reads it */
+typedef struct GenDesc {
+    /* 0x00 */ s32 flags;
+    /* 0x04 */ u32 kind : 4;  // the particle list (5: none)
+    /* 0x04 */ u32 movementType : 4;
+    /* 0x05 */ u32 unk5 : 8;
+    /* 0x06 */ s32 textureID : 16;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ s16 lifeTime;
+    /* 0x0C */ s16 lifeTimeRange;
+    /* 0x0E */ u8 opacity;
+    /* 0x0F */ u8 opacityVel;
+    /* 0x10 */ s16 opacityTimer;
+    /* 0x12 */ s16 unk12;
+    /* 0x14 */ f32 scale;
+    /* 0x18 */ u8 unk18;
+    /* 0x19 */ u8 colour[3];
+    /* 0x1C */ u8 unk1C[3];
+    /* 0x1F */ u8 unk1F;
+    /* 0x20 */ u32 *colourLoop;
+    /* 0x24 */ u8 pad24[2];
+    /* 0x26 */ u8 emitterParticleID;
+    /* 0x27 */ u8 emitterBehaviourID;
+} GenDesc;
+
+/* JFG: the parts of a behaviour create_particle reads */
+typedef struct GenBehaviour {
+    /* 0x00 */ s32 flags;
+    /* 0x04 */ u8 pad4[0x18 - 0x4];
+    /* 0x18 */ s16 sourceRotationVelZ;
+    /* 0x1A */ s16 sourceRotationPeriod;
+    /* 0x1C */ s16 sourceRotationVelY;
+    /* 0x1E */ s16 sourceRotationVelX;
+    /* 0x20 */ u8 pad20[0x28 - 0x20];
+    /* 0x28 */ s16 emissionDirPeriod;
+    /* 0x2A */ s16 emissionDirVel[3];
+    /* 0x30 */ u8 pad30[0x44 - 0x30];
+    /* 0x44 */ s16 rotation[3];
+    /* 0x4A */ s16 rotationVel[3];
+    /* 0x50 */ f32 scale;
+    /* 0x54 */ f32 scaleVelocity;
+    /* 0x58 */ u8 pad58[0x5C - 0x58];
+    /* 0x5C */ s32 randomizationFlags;
+    /* 0x60 */ u8 pad60[0x80 - 0x60];
+    /* 0x80 */ s16 rotationRange[3];
+    /* 0x86 */ s16 rotationVelRange[3];
+    /* 0x8C */ s32 scaleRange;
+    /* 0x90 */ s32 scaleVelocityRange;
+    /* 0x94 */ u8 pad94[0x98 - 0x94];
+    /* 0x98 */ u8 colourRange[3];
+} GenBehaviour;
+
+/* JFG: the object a particle is emitted from, as create_particle reads it */
+typedef struct GenObj {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ u8 pad6[0x1C - 0x6];
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ u8 pad28[0x54 - 0x28];
+    /* 0x54 */ f32 *shading; // [0]: the brightness
+    /* 0x58 */ u8 pad58[0xA2 - 0x58];
+    /* 0xA2 */ u8 hasModelParticle;
+} GenObj;
+
+/* JFG: a new particle (particle_alloc's), as create_particle sets it up */
+typedef struct GenParticle {
+    /* 0x00 */ s16 rotation[3];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ u8 padC[0x18 - 0xC];
+    /* 0x18 */ f32 scaleVelocity;
+    /* 0x1C */ Vec3f velocity;
+    /* 0x28 */ f32 textureFrame;
+    /* 0x2C */ s16 kind; // 0/1 texture, 2 sprite, 3 model, 4 none
+    /* 0x2E */ u8 movementType;
+    /* 0x2F */ u8 unk2F;
+    /* 0x30 */ u8 pad30[0x3C - 0x30];
+    /* 0x3C */ f32 speed;
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ u32 *colourLoop;
+    /* 0x48 */ GenObj *parentObj;
+    /* 0x4C */ void *asset;
+    /* 0x50 */ s32 descFlags;
+    /* 0x54 */ s32 unk54;
+    /* 0x58 */ ParticleEmitter *emitter;
+    /* 0x5C */ s16 destroyTimer;
+    /* 0x5E */ s16 rotationVel[3];
+    /* 0x64 */ s16 opacity;
+    /* 0x66 */ s16 opacityVel;
+    /* 0x68 */ s16 opacityTimer;
+    /* 0x6A */ s16 unk6A;
+    /* 0x6C */ s16 unk6C;
+    /* 0x6E */ u8 unk6E;
+    /* 0x6F */ u8 brightness;
+    /* 0x70 */ u8 unk70;
+    /* 0x71 */ u8 colour[3];
+    /* 0x74 */ u8 unk74[3];
+    /* 0x77 */ u8 unk77;
+} GenParticle;
+
+/* JFG: a sprite's first frame texture, for its flags */
+typedef struct GenSpriteTex {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 flags;
+} GenSpriteTex;
+
+typedef struct GenSprite {
+    /* 0x00 */ u8 numFrames;
+    /* 0x01 */ u8 pad1[0x10 - 1];
+    /* 0x10 */ GenSpriteTex **textures;
+} GenSprite;
+
+extern f32 D_800A5DB8[8]; // JFG: the particle unk40 speeds, by descFlags bits 4-6
+WeatherParticle *particle_alloc(s32 kind, s32 slot);
+void particle_free(WeatherParticle *p);
+void *tex_load_sprite(s32 id, s32 arg1);
+void *object_model_init(s32 id, s32 flags);
+void func_8005F960(VelParticle *particle, VelObject *obj, ParticleEmitter *emitter, ParticleBehaviour *behaviour);
+
+/**
+ * Creates a particle from the emitter's description and behaviour (texture or asset `assetID`, -1 for the
+ * description's) and initializes its fields.
+ * DKR: create_general_particle (JFG: one function for every kind, the list and slot from the description)
+ */
+void *func_80060434(GenObj *obj, ParticleEmitter *emitter, s32 assetID) {
+    s32 randomizationFlags;
+    GenDesc *descriptor;
+    GenParticle *particle;
+    GenBehaviour *behaviour;
+    f32 scale;
+    GenSpriteTex *tex;
+    s32 kind;
+
+    descriptor = (GenDesc *) D_800A5D9C[emitter->descriptorID];
+    kind = descriptor->kind;
+    if (kind == 5) {
+        return NULL;
+    }
+    if (assetID == -1) {
+        assetID = descriptor->textureID;
+    }
+    behaviour = (GenBehaviour *) emitter->behaviour;
+    particle = (GenParticle *) particle_alloc(kind, assetID);
+    if (particle == NULL) {
+        return particle;
+    }
+    particle->movementType = descriptor->movementType;
+    particle->descFlags = descriptor->flags;
+    particle->unk2F = 0;
+    particle->parentObj = obj;
+    particle->colourLoop = descriptor->colourLoop;
+    particle->unk6E = descriptor->unk1F;
+    if ((particle->descFlags & 0x800) && obj->shading != NULL) {
+        particle->brightness = (s32) (obj->shading[0] * 255.0f);
+    } else {
+        particle->brightness = 255;
+    }
+    scale = behaviour->scale;
+    if (behaviour->randomizationFlags & 0x20000) {
+        scale += (f32) rand_range(-behaviour->scaleRange, behaviour->scaleRange) * 0.0000152587890625f;
+    }
+    particle->scale = descriptor->scale * scale;
+    scale = behaviour->scaleVelocity;
+    if (behaviour->randomizationFlags & 0x40000) {
+        scale += (f32) rand_range(-behaviour->scaleVelocityRange, behaviour->scaleVelocityRange) * 0.0000152587890625f;
+    }
+    if (behaviour->flags & 0x1000) {
+        particle->scaleVelocity = sqrtf((obj->velocity.x * obj->velocity.x) + (obj->velocity.y * obj->velocity.y) +
+                                        (obj->velocity.z * obj->velocity.z)) *
+                                  scale * 0.1f;
+    } else {
+        particle->scaleVelocity = descriptor->scale * scale;
+    }
+    if (D_800A5DDC != 0.0f) {
+        particle->scale *= D_800A5DDC;
+        particle->scaleVelocity *= D_800A5DDC;
+    }
+    particle->destroyTimer = rand_range(-descriptor->lifeTimeRange, descriptor->lifeTimeRange) + descriptor->lifeTime;
+    particle->unk70 = descriptor->unk18;
+    if (particle->descFlags & 0x400) {
+        particle->colour[0] = (*particle->colourLoop & 0xFF000000) >> 24;
+        particle->colour[1] = (*particle->colourLoop & 0xFF0000) >> 16;
+        particle->colour[2] = (*particle->colourLoop & 0xFF00) >> 8;
+    } else {
+        particle->colour[0] = descriptor->colour[0];
+        particle->colour[1] = descriptor->colour[1];
+        particle->colour[2] = descriptor->colour[2];
+    }
+    particle->unk74[0] = descriptor->unk1C[0];
+    particle->unk74[1] = descriptor->unk1C[1];
+    particle->unk74[2] = descriptor->unk1C[2];
+    randomizationFlags = behaviour->randomizationFlags & 0xF00000;
+    if (randomizationFlags) {
+        if (randomizationFlags & 0x100000) {
+            particle->colour[0] += rand_range(-behaviour->colourRange[0], behaviour->colourRange[0]);
+        }
+        if (randomizationFlags & 0x200000) {
+            particle->colour[1] += rand_range(-behaviour->colourRange[1], behaviour->colourRange[1]);
+        }
+        if (randomizationFlags & 0x400000) {
+            particle->colour[2] += rand_range(-behaviour->colourRange[2], behaviour->colourRange[2]);
+        }
+    }
+    particle->opacityTimer = descriptor->opacityTimer;
+    particle->unk6C = descriptor->unk12;
+    particle->unk6A = 0;
+    particle->opacity = descriptor->opacity << 8;
+    if (particle->opacityTimer < particle->destroyTimer) {
+        particle->opacityVel = ((descriptor->opacityVel - descriptor->opacity) << 8) /
+                               (particle->destroyTimer - particle->opacityTimer);
+    } else {
+        particle->opacityVel = 0;
+    }
+    particle->unk77 = descriptor->unk8;
+    if (particle->kind == 2) {
+        particle->asset = tex_load_sprite(assetID, 0);
+        if (particle->asset != NULL) {
+            if (((GenSprite *) particle->asset)->textures[0]->flags & 4) {
+                if (particle->descFlags & 0x1000) {
+                    particle->flags |= 8;
+                } else {
+                    particle->flags |= 4;
+                }
+            }
+            if (behaviour->flags & 0x800) {
+                particle->textureFrame = rand_range(0, ((GenSprite *) particle->asset)->numFrames - 1);
+            } else if ((particle->descFlags & 1) == 2) {
+                particle->textureFrame = (u32) ((GenSprite *) particle->asset)->numFrames - 0.01f;
+            } else {
+                particle->textureFrame = 0.0f;
+            }
+        }
+    } else if (particle->kind == 1 || particle->kind == 0) {
+        if (assetID < 0) {
+            particle->asset = NULL;
+        } else {
+            tex = (GenSpriteTex *) load_texture(assetID);
+            if (tex->flags & 4) {
+                if (particle->descFlags & 0x1000) {
+                    particle->flags |= 8;
+                } else {
+                    particle->flags |= 4;
+                }
+            }
+            particle->asset = tex;
+            particle->textureFrame = 0.0f;
+        }
+    } else if (particle->kind == 3) {
+        particle->asset = object_model_init(assetID, 0);
+    }
+    setup_particle_position((PosParticle *) particle, (PosObject *) obj, emitter, (ParticleBehaviour *) behaviour);
+    if (behaviour->flags & 0x80) {
+        particle->rotation[0] = behaviour->rotation[0];
+        particle->rotation[1] = behaviour->rotation[1];
+        particle->rotation[2] = behaviour->rotation[2];
+    } else {
+        particle->rotation[0] = behaviour->rotation[0] + obj->rotation[0];
+        particle->rotation[1] = behaviour->rotation[1] + obj->rotation[1];
+        particle->rotation[2] = behaviour->rotation[2] + obj->rotation[2];
+    }
+    randomizationFlags = behaviour->randomizationFlags & 0x3800;
+    if (randomizationFlags) {
+        if (randomizationFlags & 0x800) {
+            particle->rotation[0] += rand_range(-behaviour->rotationRange[0], behaviour->rotationRange[0]);
+        }
+        if (randomizationFlags & 0x1000) {
+            particle->rotation[1] += rand_range(-behaviour->rotationRange[1], behaviour->rotationRange[1]);
+        }
+        if (randomizationFlags & 0x2000) {
+            particle->rotation[2] += rand_range(-behaviour->rotationRange[2], behaviour->rotationRange[2]);
+        }
+    }
+    particle->rotationVel[0] = behaviour->rotationVel[0];
+    particle->rotationVel[1] = behaviour->rotationVel[1];
+    particle->rotationVel[2] = behaviour->rotationVel[2];
+    randomizationFlags = behaviour->randomizationFlags & 0x1C000;
+    if (randomizationFlags) {
+        if (randomizationFlags & 0x4000) {
+            particle->rotationVel[0] += rand_range(-behaviour->rotationVelRange[0], behaviour->rotationVelRange[0]);
+        }
+        if (randomizationFlags & 0x8000) {
+            particle->rotationVel[1] += rand_range(-behaviour->rotationVelRange[1], behaviour->rotationVelRange[1]);
+        }
+        if (randomizationFlags & 0x10000) {
+            particle->rotationVel[2] += rand_range(-behaviour->rotationVelRange[2], behaviour->rotationVelRange[2]);
+        }
+    }
+    func_8005F960((VelParticle *) particle, (VelObject *) obj, emitter, (ParticleBehaviour *) behaviour);
+    particle->unk40 = D_800A5DB8[(particle->descFlags >> 4) & 7];
+    if (particle->descFlags & 0x80) {
+        particle->unk40 = -particle->unk40;
+    }
+    if (particle->movementType == 5) {
+        particle->speed = sqrtf((particle->velocity.x * particle->velocity.x) +
+                                (particle->velocity.y * particle->velocity.y) +
+                                (particle->velocity.z * particle->velocity.z));
+    }
+    if (descriptor->flags & 0x40000) {
+        particle->emitter = emitter_alloc_from_pool(descriptor->emitterBehaviourID, descriptor->emitterParticleID);
+    } else {
+        particle->emitter = NULL;
+    }
+    if (behaviour->flags & 2) {
+        emitter->sourceRotationCounter++;
+        if (emitter->sourceRotationCounter >= behaviour->sourceRotationPeriod) {
+            emitter->sourceRotation.y_rotation += behaviour->sourceRotationVelY;
+            emitter->sourceRotation.x_rotation += behaviour->sourceRotationVelX;
+            emitter->sourceRotation.z_rotation += behaviour->sourceRotationVelZ;
+            emitter->sourceRotationCounter -= behaviour->sourceRotationPeriod;
+        }
+    }
+    if (behaviour->flags & 8) {
+        emitter->emissionDirRotationCounter++;
+        if (emitter->emissionDirRotationCounter >= behaviour->emissionDirPeriod) {
+            emitter->emissionDirection.y_rotation += behaviour->emissionDirVel[0];
+            emitter->emissionDirection.x_rotation += behaviour->emissionDirVel[1];
+            emitter->emissionDirection.z_rotation += behaviour->emissionDirVel[2];
+            emitter->emissionDirRotationCounter -= behaviour->emissionDirPeriod;
+        }
+    }
+    if (particle->asset == NULL && particle->kind != 4) {
+        particle_free((WeatherParticle *) particle);
+        return NULL;
+    }
+    particle->unk54 = 8;
+    if (behaviour->flags & 0x10000) {
+        particle->descFlags |= 0x200000;
+    }
+    if (particle->movementType == 3) {
+        obj->hasModelParticle = TRUE;
+    }
+    return particle;
+}
 
 /**
  * JFG: take a free particle of a kind from its list: the lowest free slot when slot is -1,
@@ -1516,7 +1848,7 @@ void move_particle_attached_to_parent(struct Particle *particle);
 void move_particle_with_acceleration(struct Particle *particle);
 void move_particle_basic(struct Particle *particle);
 void move_particle_forward(struct Particle *particle);
-s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
+s32 sprite_anim_advance(void *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed);
 s32 texture_anim_advance(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 extern s32 gParticleUpdateRate;
 
@@ -2097,7 +2429,7 @@ struct ParticleDesc {
     /* 0x04 */ u32 flags; // top 4 bits: kind (4 = point)
 };
 extern ParticleDesc **D_800A5D9C;
-s32 func_80060434(void *arg0, ParticleEmitter *emitter, s32 arg2);
+void *func_80060434(struct GenObj *obj, ParticleEmitter *emitter, s32 assetID);
 
 /* JFG: add a new particle to the emitter's point set (at most 15) (0x80062D5C). */
 void point_particle_set_add(void *arg0, ParticleEmitter *emitter) {
@@ -2109,7 +2441,7 @@ void point_particle_set_add(void *arg0, ParticleEmitter *emitter) {
         if ((desc->flags >> 28) == 4) {
             set = &D_800A5D88[emitter->index];
             if (set->count != 15) {
-                particle = func_80060434(arg0, emitter, -1);
+                particle = (s32) func_80060434((struct GenObj *) arg0, emitter, -1); // the set keeps them as s32
                 if (particle != 0) {
                     set->points[set->count] = particle;
                     set->count++;
@@ -2299,7 +2631,7 @@ typedef struct ParticleHit {
 void line_particle_set_update(LineParticleSet *set, s32 updateRate);
 void point_particle_set_update(PointParticleSet *set, s32 updateRate);
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
-s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, void *hit);
 f32 sqrtf(f32 x);
 
 /*

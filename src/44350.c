@@ -127,8 +127,8 @@ typedef struct LevelHeaderListFields {
 #define COLOUR_TAG_YELLOW 0xFFFF00FF
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 void mempool_free(void *data);
-s32 align4(s32 value);
-extern u32 *gTempAssetTable;     // DKR: gTempAssetTable
+u8 *align4(u8 *address); // also rounds sizes up (passed as addresses)
+extern u32 *gTempAssetTable;    // DKR: gTempAssetTable
 extern s32 gNumberOfWorlds;      // DKR: gNumberOfWorlds
 extern s32 gRaceTypeCountTable[16];  // DKR: gRaceTypeCountTable
 extern char **gLevelNames;   // DKR: gLevelNames
@@ -185,8 +185,8 @@ void level_global_init(void) {
     for (i = 0; (s32) gTempAssetTable[i] != -1; i++) {}
     i--;
     size = gTempAssetTable[i] - gTempAssetTable[0];
-    names = mempool_alloc_safe(align4(size) + i * sizeof(char *), COLOUR_TAG_YELLOW);
-    gLevelNames = (char **) (align4(size) + names);
+    names = mempool_alloc_safe((s32) align4((u8 *) size) + i * sizeof(char *), COLOUR_TAG_YELLOW);
+    gLevelNames = (char **) ((s32) align4((u8 *) size) + names);
     asset_load(0x23, (u32) names, 0, size);
     for (size = 0; size < i; size++) {
         gLevelNames[size] = &names[gTempAssetTable[size]];
@@ -298,7 +298,7 @@ void func_80054530_fi(f32 arg0, s32 arg1);
 void sequence_start(s32 id);
 void func_80051EA4(void);
 void reset_fog(s32 playerID);
-void set_fog(s32 fogIdx, s16 near, s16 far, s16 unk, u8 red, u8 green, u8 blue, u8 unk2);
+void set_fog(s32 fogIdx, s16 near, s16 far, s16 unk, u8 red, u8 green, u8 blue, s8 unk2);
 void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity);
 void weather_clip_planes(s16 near, s16 far);
 void *load_texture(s32 assetIndex);
@@ -311,9 +311,10 @@ void set_active_camera(s32 index);
 void cam_set_fov(f32 camFieldOfView, s32 force);
 void glitch_effect_start(s32 arg0);
 void runlink_module_release(s32 module);
-void sound_stop(s32 soundHandle);
+struct ALSoundState; // audio.h's SoundHandle
+void sound_stop(struct ALSoundState *soundHandle);
 void sound_play(u16 soundID, s32 *handlePtr);
-extern s32 D_800A31B0[3]; // JFG: the handles of the looping level sounds
+extern s32 D_800A31B0[3]; // JFG: the handles (sound handles kept as s32) of the looping level sounds
 extern s16 D_800A31BC[3]; // JFG: the IDs of the looping level sounds (-1: none)
 
 /**
@@ -465,7 +466,7 @@ void level_load(s32 level, s32 arg1, UNUSED s32 arg2, s32 arg3) {
         }
         if (missing && D_800A31B0[i] != 0) {
             D_800A31BC[i] = -1;
-            sound_stop(D_800A31B0[i]);
+            sound_stop((struct ALSoundState *) D_800A31B0[i]);
         }
     }
     if (func_80054530() == 0) {

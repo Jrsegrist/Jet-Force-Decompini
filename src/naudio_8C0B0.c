@@ -98,7 +98,7 @@ typedef struct NParam {
 extern NSynth *D_800A97C4; // JFG: the n_audio synthesizer
 extern s32 D_80105020;     // JFG: the external event clock
 NParam *func_8008AF34(void);                                   // n_audio: allocate a parameter update
-void func_80090B14(NPVoice *pvoice, s32 paramID, void *param); // n_audio: the envelope mixer's param handler
+s32 func_80090B14(NPVoice *pvoice, s32 paramID, void *param); // n_audio: the envelope mixer's param handler
 
 /* JFG: an empty event queue with the given free entries (libultra alEvtqNew). */
 void func_8008B4B0(NEventQueue *evtq, NEventListItem *items, s32 itemCount) {

@@ -306,7 +306,7 @@ void func_8008B610(NEventQueue *evtq, NEvent *evt, s32 delta);          // n_aud
 s16 func_8008CD60(NVoiceState *vs, NCSPlayer *seqp);                     // n_audio: a voice state's volume
 s32 func_8008CF90(NVoiceState *vs, s32 t);                               // n_audio: a voice state's delta
 void func_8008BF70(NVoice *voice, s16 vol, s32 delta);                   // n_audio: set a voice's volume
-void func_8008D950(NVoice *voice, s16 gain);                             // n_audio: set a voice's filter gain
+void func_8008D950(NVoice *voice, u8 gain);                             // n_audio: set a voice's filter gain
 void func_8008D8A0(NVoice *voice, f32 freq);                             // n_audio: set a voice's filter frequency
 f32 func_8008DCB4(s32 semitones);                                        // n_audio: semitones to a ratio
 s32 func_8008E9B0(NCSeq *seq, s32 *deltaTicks);                          // n_audio: __alCSeqNextDelta
@@ -328,9 +328,9 @@ void func_8008C220(NVoice *v, f32 pitch);                                // n_au
 u8 func_8008CE88(NVoiceState *vs, NCSPlayer *seqp);                      // n_audio: a voice state's effect mix
 void func_8008C2D0(NVoice *v, u8 fxmix);                                 // n_audio: alSynSetFXMix
 void *func_8008E710(s16 bus);                                            // n_audio: an effect bus's effect
-void func_8008E800(void *fx, s32 paramID, void *param);                  // n_audio: set an effect parameter
+void func_8008E800(void *fx, s16 paramID, void *param);                  // n_audio: set an effect parameter
 void *func_8008E788(s16 bus);                                            // n_audio: an effect bus's output low-pass
-void func_8008E844(void *lp, s32 paramID, void *param);                  // n_audio: set an output low-pass parameter
+void func_8008E844(void *lp, s16 paramID, s32 *param);                  // n_audio: set an output low-pass parameter
 void func_8008BA30(NEventQueue *evtq, s16 type);                         // n_audio: alEvtqFlushType
 char func_8008C974(NCSPlayer *seqp, NVoice *voice, s32 killTime);        // n_audio: __voiceNeedsNoteKill
 void func_8008C800(NCSPlayer *seqp, NVoice *voice, s32 deltaTime);       // n_audio: __seqpReleaseVoice

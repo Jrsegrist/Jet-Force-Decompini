@@ -126,7 +126,7 @@ void amCreateAudioMgr(AMSynConfig *c, OSPri pri, void *audSched) {
 void __amHandleFrameMsg(void);
 void __amHandleDoneMsg(void);
 void func_8008A5AC(void *synth); // DKR: alClose
-void osScAddClient();
+void osScAddClient(void *sc, void *c, OSMesgQueue *msgQ, u8 id);
 
 /* The audio manager thread: handles each retrace message until told to quit (0x80001D7C). */
 /**

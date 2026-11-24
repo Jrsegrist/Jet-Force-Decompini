@@ -26,12 +26,13 @@ void debug_trace_flip(void) {
     D_801012A0[D_800A64B8] = 0;
 }
 
-/* JFG: add an entry to the current list (up to 128). */
-void debug_trace_add(s32 a, s32 b, s32 c) {
+/* JFG: add an entry to the current list (up to 128): a display list position, a source file name and a line.
+   The entries keep the two addresses as s32 words. */
+void debug_trace_add(Gfx *dList, char *file, s32 line) {
     if (D_800A64B0[D_800A64B8] != NULL && D_801012A0[D_800A64B8] < 128) {
-        D_800A64B0[D_800A64B8][D_801012A0[D_800A64B8]].a = a;
-        D_800A64B0[D_800A64B8][D_801012A0[D_800A64B8]].b = b;
-        D_800A64B0[D_800A64B8][D_801012A0[D_800A64B8]].c = c;
+        D_800A64B0[D_800A64B8][D_801012A0[D_800A64B8]].a = (s32) dList;
+        D_800A64B0[D_800A64B8][D_801012A0[D_800A64B8]].b = (s32) file;
+        D_800A64B0[D_800A64B8][D_801012A0[D_800A64B8]].c = line;
         D_801012A0[D_800A64B8]++;
     }
 }
