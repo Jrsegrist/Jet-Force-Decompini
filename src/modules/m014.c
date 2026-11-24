@@ -592,7 +592,129 @@ extern Mtx *D_800FF39C;
 extern s32 D_800A51CC; /* the text opacity */
 extern u8 rl_m014_03E70[]; /* .data (still assembly): the weapon wheel's display list, vertices and triangles */
 
+#ifdef NON_MATCHING
+/*
+ * Matches (staged: its only caller, 01AD8, is still assembly). The weapon wheel (item 4's strip, when one player
+ * plays): the owned weapons above and below the one in hand, 27 apart, each image loaded while shown and freed
+ * otherwise, the one in hand full size and the others at 0.75. (The scissor is written out: the ROM ors its
+ * second word bottom edge first.)
+ */
+static void func_m014_01328(UNUSED s32 updateRate) {
+    M014MenuItem *items;
+    s32 i;
+    s32 n;
+    u16 mask;
+    s32 count;
+    f32 y;
+    Object **players;
+    M014Weapons *w;
+    s32 start;
+    MtxF mtx;
+    f32 scaleY;
+    s16 ys[8];
+    s16 ids[6];
+
+    items = D_800FF780;
+    players = func_8000E464(&count);
+    if (count != 1) {
+        return;
+    }
+    if (items[4].posY >= 46.0f) {
+        return;
+    }
+    w = char_record_lookup(((M014Player *) (*players)->unk68)->unk0, ((M014Player *) (*players)->unk68)->unk1);
+    scaleY = 46.0f - items[4].posY;
+    func_80042134(&mtx);
+    func_800498E8(-121.0f, items[4].posY + 2.0f, items[4].unk14, &mtx);
+    func_80049874(1.0f, scaleY, 1.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(D_800FF398++, 0, 0, 0, 255);
+    func_80055C00(&D_800FF398, NULL, 0, 0);
+    gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, 0x60);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m014_03E70 + 0x80000000); }
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x01000040;
+        _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+    }
+    D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+    gSPVertexJFG(D_800FF398++, rl_m014_03E70 + 0x800002F8, 5, 0);
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x80000320, 2, 1);
+    gDPPipeSync(D_800FF398++);
+    func_80040D64(&D_800FF398, &D_800FF39C);
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = (G_SETSCISSOR << 24) | (((s32) ((items[4].posX + 160.0f - 16.0f) * 4.0f) & 0xFFF) << 12) | 0x120;
+        _g->words.w1 = ((s32) ((120.0f - items[4].posY) * 4.0f) & 0xFFF) | (((s32) ((items[4].posX + 160.0f + 16.0f) * 4.0f) & 0xFFF) << 12);
+    }
+    start = (D_800FF780[0].unk1C + 12.0f) + (D_800FF780[4].posY - -30.0f);
+    n = 0;
+    mask = 1 << w->weapon;
+    y = start;
+    i = w->weapon;
+    while (y > -46.0f) {
+        if (w->owned & (1 << i)) {
+            mask |= 1 << i;
+            ys[n] = y;
+            ids[n] = i;
+            n++;
+            y -= 27.0f;
+        }
+        if (i == 0) {
+            i = 15;
+        } else {
+            i--;
+        }
+    }
+    i = w->weapon + 1;
+    if (i >= 15) {
+        i = 0;
+    }
+    y = start + 27;
+    while (y < 62.0f) {
+        if (w->owned & (1 << i)) {
+            mask |= 1 << i;
+            ys[n] = y;
+            ids[n] = i;
+            n++;
+            y += 27.0f;
+        }
+        if (i == 15) {
+            i = 0;
+        } else {
+            i++;
+        }
+    }
+    for (i = 0; i < 16; i++) {
+        if (mask & (1 << i)) {
+            if (D_800FF3F8[i + 10] == NULL) {
+                menu_item_load(i + 10);
+            }
+        } else if (D_800FF3F8[i + 10] != NULL) {
+            menu_item_free(i + 10);
+        }
+    }
+    items->scale = 1.0f;
+    func_80056000(0);
+    D_800A51CC = 255;
+    for (i = 0; i < n; i++) {
+        items->posY = ys[i];
+        items->image = ids[i] + 10;
+        func_8005A0D0(0);
+        items->scale = 0.75f;
+        D_800A51CC = 160;
+        func_80056000(1);
+    }
+    D_800A51CC = 255;
+    func_80056000(0);
+    func_800408C0(&D_800FF398);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01328);
+#endif
 
 /* Frees the images 10 to 25 */
 static void free_images(void) {
@@ -630,7 +752,231 @@ static void hud_item6_slide(s32 updateRate) {
     }
 }
 
+/* A level's best result (size 8) */
+typedef struct M014Record {
+    /* 0x0 */ u8 score;
+    /* 0x1 */ u8 unk1;
+    /* 0x2 */ u16 unk2;
+    /* 0x4 */ u32 time;
+} M014Record;
+
+/* The saved game, as far as used here */
+typedef struct M014Save {
+    /* 0x000 */ u8 pad0[3];
+    /* 0x003 */ s8 unk3;
+    /* 0x004 */ u8 score;
+    /* 0x005 */ u8 unk5;
+    /* 0x006 */ u8 unk6;
+    /* 0x007 */ u8 pad7[0x334 - 0x7];
+    /* 0x334 */ M014Record records[32];
+    /* 0x434 */ u8 pad434[0x474 - 0x434];
+    /* 0x474 */ u32 unk474[16];
+    /* 0x4B4 */ u32 unk4B4[16];
+    /* 0x4F4 */ u16 unk4F4[16];
+    /* 0x514 */ u32 time;
+} M014Save;
+
+/* A player's message queue (D_800FF1D0, one per player; m006's M006Queue) */
+typedef struct M014Queue {
+    /* 0x00 */ s16 timer;
+    /* 0x02 */ s16 current; /* the message shown */
+    /* 0x04 */ u8 pad4[0x50 - 0x4];
+} M014Queue;
+
+extern M014Queue D_800FF1D0[];
+extern M014Save *get_settings(void);
+extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+
+#ifdef NON_MATCHING
+/*
+ * ROM length and frame, 19 words off: two of the three address temporaries' stack words sit two words lower
+ * than the ROM's (the ROM has two fewer words above them: `it` and `left` are block locals here), and in the
+ * second panel's matrix command &D_800FF39C and 0x80000000 are in a3/t0 where the ROM has t0/t1.
+ * The HUD's side panels (called from 0292C): the message panel (item 5, the player's current message in a
+ * scissor box while it is out), the counts panel (item 6: its sliding vertices, item 13's three images and the
+ * save's three counts) and the fixed panel round the weapon wheel (01328). The ROM's definition takes two
+ * parameters (a2 is never homed) although 0292C passes the image as a third.
+ */
+static void func_m014_01AD8(M014Player *p, s32 updateRate) {
+    MtxF mtx;
+    f32 x;
+    f32 textX;
+    f32 textY;
+    s32 *xs;
+    Vertex *src;
+    M014MenuItem *item5;
+    M014MenuItem *item13;
+    M014MenuItem *item6;
+    s32 n;
+    char *text;
+    M014Queue *queue;
+    s32 shown;
+    s32 right;
+    s32 top;
+    char buf[12];
+    M014Save *save;
+
+    item5 = &D_800FF780[5];
+    item13 = &D_800FF780[13];
+    item6 = &D_800FF780[6];
+    save = get_settings();
+    x = item5->posX - -78.0f;
+    func_80042134(&mtx);
+    func_800498E8(-82.0f, item5->posY, item5->unk14, &mtx);
+    func_80049874(x, 1.0f, 1.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(D_800FF398++, 0, 0, 0, 255);
+    func_80055C00(&D_800FF398, D_800FF3F8[27], 0, 0);
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x01000040;
+        _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+    }
+    D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+    gSPVertexJFG(D_800FF398++, rl_m014_03E70 + 0x80000248, 9, 0);
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x80000298, 4, 1);
+    gDPPipeSync(D_800FF398++);
+    func_80055C00(&D_800FF398, NULL, 0, 0);
+    gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, 0x60);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m014_03E70 + 0x80000000); }
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800002D8, 2, 1);
+    if (item5->posX > -78.0f) {
+        queue = &D_800FF1D0[p->unk0];
+        text = gMenuText[queue->current];
+        gDPPipeSync(D_800FF398++);
+        func_8006FC54(2);
+        textX = item5->posX - 122.0f + 90.0f;
+        textY = 120.0f - item5->posY;
+        gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, 82, 120.0f - (item5->posY + 8.0f),
+                      item5->posX + 160.0f, 120.0f - (item5->posY - 8.0f));
+        func_8006FC68(0, 0, 0, 255, 255);
+        func_8006FCA8(&D_800FF398, textX, textY, text, 8);
+        func_8006FC68(0, 255, 255, 255, 255);
+        func_8006FCA8(&D_800FF398, textX + 1.0f, textY + 1.0f, text, 8);
+        func_800408C0(&D_800FF398);
+    }
+    shown = item6->posX > -91.0f;
+    if (shown) {
+        func_80042134(&mtx);
+        {
+            M014MenuItem *it = &D_800FF780[6];
+
+            x = it->posX - -91.0f;
+            func_800498E8(-91.0f, it->posY, it->unk14, &mtx);
+        }
+        func_80048D84(&mtx, D_800FF39C);
+        gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+        gDPSetEnvColor(D_800FF398++, 0, 0, 0, 255);
+        func_80055C00(&D_800FF398, D_800FF3F8[27], 0, 0);
+        {
+            Gfx *_g = D_800FF398++;
+            _g->words.w0 = 0x01000040;
+            _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+        }
+        D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+        /* the panel's vertices: the right four follow its slide */
+        gSPVertexJFG(D_800FF398++, (u32) D_800FF3A0 + 0x80000000, 9, 0);
+        src = (Vertex *) (rl_m014_03E70 + 0x248);
+        for (xs = (s32 *) (rl_m014_03E70 + 0x980); xs < (s32 *) (rl_m014_03E70 + 0x9A0); xs++) {
+            if (xs < (s32 *) (rl_m014_03E70 + 0x990)) {
+                D_800FF3A0->x = *xs;
+            } else {
+                D_800FF3A0->x = *xs + x;
+            }
+            D_800FF3A0->y = src->y;
+            D_800FF3A0->z = src->z;
+            D_800FF3A0->r = src->r;
+            D_800FF3A0->g = src->g;
+            D_800FF3A0->b = src->b;
+            D_800FF3A0->a = src->a;
+            src++;
+            D_800FF3A0++;
+        }
+        right = item6->posX - 5.0f + 160.0f;
+        top = 120.0f - item6->posY - 8.0f;
+        gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x80000298, 4, 1);
+        gDPPipeSync(D_800FF398++);
+        func_80055C00(&D_800FF398, NULL, 0, 0);
+        gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, 0x60);
+        gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m014_03E70 + 0x80000000); }
+        gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800002D8, 2, 1);
+        {
+            s16 left = 69; /* (the ROM converts 69 at run time) */
+
+            gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, left, top, right, top + 17);
+        }
+        func_80040D64(&D_800FF398, &D_800FF39C);
+        D_800FF780[13].posX = D_800FF780[6].posX - -91.0f + -251.0f + 20.0f;
+        textY = 62.0f; /* (a constant the ROM doesn't fold into 117 - 62) */
+        D_800FF780[13].posY = textY;
+        n = D_800FF780[13].posX + 180.0f;
+        D_800FF780[13].unk18 = 1.0f;
+        func_8005A0D0(13);
+        item13->posX += 48.0f;
+        item13->unk18 = 2.0f;
+        func_8005A0D0(13);
+        item13->posX += 48.0f;
+        item13->unk18 = 0.0f;
+        func_8005A0D0(13);
+        func_8006FC54(2);
+        func_8006FC68(255, 255, 255, 255, 255);
+        func_8006FC8C(0, 0, 0, 0);
+        func_800639E8(buf, "%d", save->score);
+        func_8006FCA8(&D_800FF398, n, 117.0f - textY, buf, 0);
+        n += 48;
+        func_800639E8(buf, "%d", save->unk5);
+        func_8006FCA8(&D_800FF398, n, 117.0f - textY, buf, 0);
+        n += 48;
+        func_800639E8(buf, "%d", save->unk6);
+        func_8006FCA8(&D_800FF398, n, 117.0f - textY, buf, 0);
+        D_800A51CC = 255;
+        func_800408C0(&D_800FF398);
+    }
+    func_80042134(&mtx);
+    func_800498E8(-141.0f, 107.0f, 0.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    {
+        Gfx *_g = D_800FF398++;
+        _g->words.w0 = 0x01000040;
+        _g->words.w1 = (u32) D_800FF39C + 0x80000000;
+    }
+    D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+    func_80055C00(&D_800FF398, D_800FF3F8[26], 0, 0);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    gDPSetEnvColor(D_800FF398++, 0, 0, 0, 255);
+    gSPVertexJFG(D_800FF398++, rl_m014_03E70 + 0x80000010, 21, 0);
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800000D8, 6, 1);
+    func_80055C00(&D_800FF398, D_800FF3F8[27], 0, 0);
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x80000138, 10, 1);
+    func_80055C00(&D_800FF398, D_800FF3F8[29], 0, 0);
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800001D8, 4, 1);
+    func_80055C00(&D_800FF398, NULL, 0, 0);
+    gDPPipeSync(D_800FF398++);
+    gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, 0x60);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m014_03E70 + 0x80000000); }
+    gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x80000218, 3, 0);
+    func_m014_01328(updateRate);
+    func_80040D64(&D_800FF398, &D_800FF39C);
+    gDPPipeSync(D_800FF398++);
+    gDPSetEnvColor(D_800FF398++, 0, 0, 0, 255);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    func_80056000(1);
+    func_8005A0D0(4);
+    func_8005A0D0(5);
+    func_8005A0D0(6);
+}
+
+/* (0292C passes a third argument the definition doesn't take) */
+#define rl_m014_01AD8(p, updateRate, image) func_m014_01AD8(p, updateRate)
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_01AD8);
+#endif
 
 /* A filled box (59060.c's MenuBox) */
 typedef struct M014Box {
@@ -731,30 +1077,6 @@ void func_m014_02CC0(void) {
     free_images();
     func_m006_00EFC();
 }
-
-/* A level's best result (size 8) */
-typedef struct M014Record {
-    /* 0x0 */ u8 score;
-    /* 0x1 */ u8 unk1;
-    /* 0x2 */ u16 unk2;
-    /* 0x4 */ u32 time;
-} M014Record;
-
-/* The saved game, as far as used here */
-typedef struct M014Save {
-    /* 0x000 */ u8 pad0[3];
-    /* 0x003 */ s8 unk3;
-    /* 0x004 */ u8 score;
-    /* 0x005 */ u8 unk5;
-    /* 0x006 */ u8 unk6;
-    /* 0x007 */ u8 pad7[0x334 - 0x7];
-    /* 0x334 */ M014Record records[32];
-    /* 0x434 */ u8 pad434[0x474 - 0x434];
-    /* 0x474 */ u32 unk474[16];
-    /* 0x4B4 */ u32 unk4B4[16];
-    /* 0x4F4 */ u16 unk4F4[16];
-    /* 0x514 */ u32 time;
-} M014Save;
 
 extern M014Save *get_settings(void);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
