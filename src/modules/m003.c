@@ -5,11 +5,7 @@
  * and handles hits, deaths and missions. Most of it is still in assembly.
  * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
-/* module.h declares anim_path_enable_run unprototyped; its definition (76C20.c) takes a u8 */
-#define anim_path_enable_run anim_path_enable_run_unprototyped
 #include "module.h"
-#undef anim_path_enable_run
-extern void anim_path_enable_run(u8 index);
 
 /* What a troop member keeps in obj->unk68 */
 typedef struct M003Member {
