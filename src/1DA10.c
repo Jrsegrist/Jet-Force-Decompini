@@ -354,18 +354,14 @@ s32 func_80054530_f32(ShadowGenObj *obj, s32 arg1, f32 rate); // the same, with 
 void func_8001E17C(ShadowGenObj *obj, ShadowLight *light, ShadowCaster *shadow);
 void obj_shading_from_ground(u8 *obj);
 
-#ifdef NON_MATCHING
 /**
  * DKR shadow_update (tracks.c), JFG's form: set up the shadow heaps for the group, then for each object whose shadow
  * is in the group, close enough (fading between the header's two distances) and not hidden, build its shadow: once
  * (a module may pick the linked shadow), or once per light, the level's sun and the object's shading lights above
  * it, the brightest first when there are more than the shadow allows. Then the object's ground shading.
- * NON_MATCHING: ROM length and frame, 6 diffs: the fade's dist is in f24 (ROM f20). The level header goes through
- * header, the sort's swap through rec and the light's height through dist (each pair is never live together): with
- * level, tmp and y as locals of their own the code is the ROM's word for word but the frame is 0x100. Below objects
- * the ROM has 14 words (locals and IDO's reserved temporaries); this body has 6 locals there and IDO reserves 8
- * temporary words, so the original had one temporary fewer or merged other values (x as dist instead of y: dist/x
- * f24, z/y f20/f22, 14 diffs).
+ * The level header goes through header and the sort's swap through rec (each pair is never live together); dist,
+ * dead after the fade, holds the light's ground distance (sqrtf's result as a local, not a nested call: a nested
+ * call costs IDO one more reserved temporary word).
  */
 void func_8001DA1C(s32 group, s32 updateRate) {
     ShadowGenObj *obj;
@@ -385,6 +381,7 @@ void func_8001DA1C(s32 group, s32 updateRate) {
     f32 dist;
     f32 x;
     f32 z;
+    f32 y;
 
     count = (group & 2) | D_800A0EC8; // the heap index, until the object count
     D_800A0EB0 = (ShadowHeapVertex *) D_800A0E80[count];
@@ -471,10 +468,11 @@ void func_8001DA1C(s32 group, s32 updateRate) {
                             if (rec->y > 0.0f) {
                                 x = rec->x;
                                 z = rec->z;
-                                dist = rec->y; // the light's height (dist is dead here)
+                                y = rec->y;
                                 lights[numLights] = &buf[numLights];
                                 buf[numLights].yaw = func_80049C84(-x, -z);
-                                buf[numLights].pitch = func_80049C84(dist, sqrtf(x * x + z * z));
+                                dist = sqrtf(x * x + z * z); // the light's ground distance (the fade's dist is dead)
+                                buf[numLights].pitch = func_80049C84(y, dist);
                                 buf[numLights].intensity = rec->intensity;
                                 numLights++;
                             }
@@ -504,9 +502,6 @@ void func_8001DA1C(s32 group, s32 updateRate) {
     D_800A0EB8[D_800A0EC4].triCount = D_800A0EC0;
     D_800A0EB8[D_800A0EC4].vtxCount = D_800A0EBC;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001DA1C);
-#endif
 
 typedef struct ShadowSegment {
     /* 0x00 */ ShadowVertex *vertices;
