@@ -592,9 +592,8 @@ extern Mtx *D_800FF39C;
 extern s32 D_800A51CC; /* the text opacity */
 extern u8 rl_m014_03E70[]; /* .data (still assembly): the weapon wheel's display list, vertices and triangles */
 
-#ifdef NON_MATCHING
 /*
- * Matches (staged: its only caller, 01AD8, is still assembly). The weapon wheel (item 4's strip, when one player
+ * The weapon wheel (item 4's strip, when one player
  * plays): the owned weapons above and below the one in hand, 27 apart, each image loaded while shown and freed
  * otherwise, the one in hand full size and the others at 0.75. (The scissor is written out: the ROM ors its
  * second word bottom edge first.)
@@ -712,9 +711,6 @@ static void func_m014_01328(UNUSED s32 updateRate) {
     func_80056000(0);
     func_800408C0(&D_800FF398);
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m014", func_m014_01328);
-#endif
 
 /* Frees the images 10 to 25 */
 static void free_images(void) {
@@ -788,42 +784,44 @@ extern M014Save *get_settings(void);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 
-#ifdef NON_MATCHING
+extern s32 rl_m014_047F0[]; /* .data (still assembly): the counts panel's eight vertex x positions */
+
 /*
- * ROM length and frame, 19 words off: two of the three address temporaries' stack words sit two words lower
- * than the ROM's (the ROM has two fewer words above them: `it` and `left` are block locals here), and in the
- * second panel's matrix command &D_800FF39C and 0x80000000 are in a3/t0 where the ROM has t0/t1.
  * The HUD's side panels (called from 0292C): the message panel (item 5, the player's current message in a
  * scissor box while it is out), the counts panel (item 6: its sliding vertices, item 13's three images and the
- * save's three counts) and the fixed panel round the weapon wheel (01328). The ROM's definition takes two
- * parameters (a2 is never homed) although 0292C passes the image as a third.
+ * save's three counts) and the fixed panel round the weapon wheel (01328). `item` points at item 5, then 6, then
+ * 13.
+ * Not portable as the ROM has it: the definition is old-style with two parameters (the ROM never homes a2), and
+ * 0292C calls it with the image as a third argument.
  */
-static void func_m014_01AD8(M014Player *p, s32 updateRate) {
+static void func_m014_01AD8(p, updateRate)
+    M014Player *p;
+    s32 updateRate;
+{
     MtxF mtx;
     f32 x;
     f32 textX;
     f32 textY;
-    s32 *xs;
+    s32 i;
     Vertex *src;
-    M014MenuItem *item5;
-    M014MenuItem *item13;
+    M014MenuItem *item;
+    s32 shown;
     M014MenuItem *item6;
     s32 n;
     char *text;
     M014Queue *queue;
-    s32 shown;
+    s16 left; /* (an s16, so the ROM converts its 69 at run time) */
     s32 right;
     s32 top;
     char buf[12];
     M014Save *save;
 
-    item5 = &D_800FF780[5];
-    item13 = &D_800FF780[13];
+    item = &D_800FF780[5];
     item6 = &D_800FF780[6];
     save = get_settings();
-    x = item5->posX - -78.0f;
+    x = item->posX - -78.0f;
     func_80042134(&mtx);
-    func_800498E8(-82.0f, item5->posY, item5->unk14, &mtx);
+    func_800498E8(-82.0f, item->posY, item->unk14, &mtx);
     func_80049874(x, 1.0f, 1.0f, &mtx);
     func_80048D84(&mtx, D_800FF39C);
     func_80055B80(&D_800FF398);
@@ -844,15 +842,15 @@ static void func_m014_01AD8(M014Player *p, s32 updateRate) {
     gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
     { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m014_03E70 + 0x80000000); }
     gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800002D8, 2, 1);
-    if (item5->posX > -78.0f) {
+    if (item->posX > -78.0f) {
         queue = &D_800FF1D0[p->unk0];
         text = gMenuText[queue->current];
         gDPPipeSync(D_800FF398++);
         func_8006FC54(2);
-        textX = item5->posX - 122.0f + 90.0f;
-        textY = 120.0f - item5->posY;
-        gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, 82, 120.0f - (item5->posY + 8.0f),
-                      item5->posX + 160.0f, 120.0f - (item5->posY - 8.0f));
+        textX = item->posX - 122.0f + 90.0f;
+        textY = 120.0f - item->posY;
+        gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, 82, 120.0f - (item->posY + 8.0f),
+                      item->posX + 160.0f, 120.0f - (item->posY - 8.0f));
         func_8006FC68(0, 0, 0, 255, 255);
         func_8006FCA8(&D_800FF398, textX, textY, text, 8);
         func_8006FC68(0, 255, 255, 255, 255);
@@ -862,12 +860,9 @@ static void func_m014_01AD8(M014Player *p, s32 updateRate) {
     shown = item6->posX > -91.0f;
     if (shown) {
         func_80042134(&mtx);
-        {
-            M014MenuItem *it = &D_800FF780[6];
-
-            x = it->posX - -91.0f;
-            func_800498E8(-91.0f, it->posY, it->unk14, &mtx);
-        }
+        item = &D_800FF780[6];
+        x = item->posX - -91.0f;
+        func_800498E8(-91.0f, item->posY, item->unk14, &mtx);
         func_80048D84(&mtx, D_800FF39C);
         gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
         gDPSetEnvColor(D_800FF398++, 0, 0, 0, 255);
@@ -881,11 +876,12 @@ static void func_m014_01AD8(M014Player *p, s32 updateRate) {
         /* the panel's vertices: the right four follow its slide */
         gSPVertexJFG(D_800FF398++, (u32) D_800FF3A0 + 0x80000000, 9, 0);
         src = (Vertex *) (rl_m014_03E70 + 0x248);
-        for (xs = (s32 *) (rl_m014_03E70 + 0x980); xs < (s32 *) (rl_m014_03E70 + 0x9A0); xs++) {
-            if (xs < (s32 *) (rl_m014_03E70 + 0x990)) {
-                D_800FF3A0->x = *xs;
+        /* (i < 8, written as the ROM's loop test: the entry's address against the table's end) */
+        for (i = 0; &rl_m014_047F0[i] < &rl_m014_047F0[8]; i++) {
+            if (i < 4) {
+                D_800FF3A0->x = rl_m014_047F0[i];
             } else {
-                D_800FF3A0->x = *xs + x;
+                D_800FF3A0->x = rl_m014_047F0[i] + x;
             }
             D_800FF3A0->y = src->y;
             D_800FF3A0->z = src->z;
@@ -905,23 +901,21 @@ static void func_m014_01AD8(M014Player *p, s32 updateRate) {
         gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
         { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m014_03E70 + 0x80000000); }
         gSPPolygon(D_800FF398++, rl_m014_03E70 + 0x800002D8, 2, 1);
-        {
-            s16 left = 69; /* (the ROM converts 69 at run time) */
-
-            gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, left, top, right, top + 17);
-        }
+        left = 69;
+        gDPSetScissor(D_800FF398++, G_SC_NON_INTERLACE, left, top, right, top + 17);
         func_80040D64(&D_800FF398, &D_800FF39C);
         D_800FF780[13].posX = D_800FF780[6].posX - -91.0f + -251.0f + 20.0f;
         textY = 62.0f; /* (a constant the ROM doesn't fold into 117 - 62) */
         D_800FF780[13].posY = textY;
         n = D_800FF780[13].posX + 180.0f;
         D_800FF780[13].unk18 = 1.0f;
+        item = &D_800FF780[13];
         func_8005A0D0(13);
-        item13->posX += 48.0f;
-        item13->unk18 = 2.0f;
+        item->posX += 48.0f;
+        item->unk18 = 2.0f;
         func_8005A0D0(13);
-        item13->posX += 48.0f;
-        item13->unk18 = 0.0f;
+        item->posX += 48.0f;
+        item->unk18 = 0.0f;
         func_8005A0D0(13);
         func_8006FC54(2);
         func_8006FC68(255, 255, 255, 255, 255);
@@ -972,12 +966,6 @@ static void func_m014_01AD8(M014Player *p, s32 updateRate) {
     func_8005A0D0(6);
 }
 
-/* (0292C passes a third argument the definition doesn't take) */
-#define rl_m014_01AD8(p, updateRate, image) func_m014_01AD8(p, updateRate)
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m014/ro", func_m014_01AD8);
-#endif
-
 /* A filled box (59060.c's MenuBox) */
 typedef struct M014Box {
     s16 x1, y1, x2, y2;
@@ -987,7 +975,6 @@ typedef struct M014Box {
 extern s32 weapon_ammo_capacity(M014Weapons *w, s32 weapon); /* the weapon's ammo capacity */
 extern void menu_fill_boxes(Gfx **dl, s32 count, M014Box *boxes, s32 arg3);
 extern void menu_digits_draw(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 arg5, s32 arg6); /* draws a number */
-extern void rl_m014_01AD8(M014Player *p, s32 updateRate, s32 image);
 #define rl_m014_04810 (*(s32 *) (rl_m014_03E70 + 0x9A0)) /* .data (still assembly): the weapon last shown */
 extern M014Box rl_m014_0447C[7]; /* the ammo bar's boxes */
 
@@ -1022,7 +1009,7 @@ static void hud_weapon_panel(s32 updateRate) {
         }
     }
     D_800FF780[1].image = image;
-    rl_m014_01AD8(p, updateRate, image);
+    func_m014_01AD8(p, updateRate, image); /* (a third argument the old-style definition doesn't take) */
     if (D_800FF3F8[image] == NULL) {
         menu_item_load(image);
     }
