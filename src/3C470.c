@@ -810,8 +810,10 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *model_asset_block_load(s32 index);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (20 words, from 73, after the two empty ifs on offset, which is set on every path there): register
-   allocation around the calls */
+/* NON_MATCHING (10 words, from 20; one word long): `start & 3` written twice (the first CSE'd into s0 across the
+   second asset_load, as the ROM has it) and the size's `<< 1` give the ROM's code up to the calls. Left: offset is
+   kept in v1 (ROM t0) around the calls, and the last loop still steps it (the ROM drops it there; without the
+   trailing empty if, offset lives in memory between the calls instead) */
 /* JFG: load model `id`'s asset list (tables 0x28/0x29) into the model: its 0x58 block, the ids (0x5C) and, unless
  * 0x64 is set, the cached assets (0x50); returns 1 when something could not be had (all freed again). */
 s32 func_8003CB04(Model3C7 *model, s32 id) {
@@ -829,18 +831,17 @@ s32 func_8003CB04(Model3C7 *model, s32 id) {
     if (start == end) {
         return 0;
     }
-    offset = start & 3;
-    size = ((model->numAssets & ~3) + 4) * 2;
-    if (offset) {
+    size = ((model->numAssets & ~3) + 4) << 1;
+    if (start & 3) {
         size += 8;
     }
     asset_load(0x29, (u32) D_800F6F28, (start & ~3) * 2, size);
+    offset = start & 3;
     if ((model->unk58 = model_asset_block_load(id)) == NULL) {
         return 1;
     }
     if (!model->unk64) {
         model->assets = mempool_alloc(model->numAssets * 4, 0xFF0000FF);
-        if (offset) {}
     }
     model->unk5C = mempool_alloc(model->numAssets * 2, 0xFF0000FF);
     if (!model->unk64) {
