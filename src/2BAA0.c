@@ -3190,12 +3190,13 @@ extern f32 D_800A2DF0[8]; /* the rumble times */
 void rumble_raise(s32 pad, s32 strength, f32 time);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the table byte is loaded into t7 (target t6, with t7 unused after it); the
-   `if (arg2) {}` stops the home store of the unused parameter and the no-op mask fixes the later temps */
-void func_8003733C(s32 arg0, s32 flags, UNUSED s32 arg2, s32 index, s32 level) {
-    if (arg2) {}
+/* NON_MATCHING: 2 words: the table byte is loaded into t7 (target t6, with t7 unused after it). arg2 holds the
+   incoming flags (IDO homes a parameter that gets no register, and the ROM doesn't home arg2); the no-op mask
+   fixes the later temps (without it every later t-register is one early) */
+void func_8003733C(s32 arg0, s32 flags, s32 arg2, s32 index, s32 level) {
+    arg2 = flags;
     if (index >= 0 && index < 8) {
-        flags |= D_800A2DD8[index] & 0xFF;
+        flags = arg2 | (D_800A2DD8[index] & 0xFF);
     }
     if (level >= 0x20) {
         if (level >= 0x80) {

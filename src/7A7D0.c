@@ -1266,12 +1266,11 @@ void obj_update_matrices(Obj7E *obj, s32 force) {
     }
 }
 
-#ifdef NON_MATCHING
 /* JFG: the object's world bounding box: its model's box transformed by its current matrix
- * (same pattern as func_8007E9E0).
- * NON_MATCHING: ROM length and frame, 7 diffs: i and the column pointer are in a0/a2 (the ROM a2/a0). xform[j][i]
- * read as the byte offset (j * 4 + i) * 4 (as func_8007E9E0) gives the ROM's loop shape and min pointer; the frame
- * needs one more word above min/max (pad). */
+ * (same pattern as func_8007E9E0). xform[j][i] is read as the byte offset (j * 4 + i) * 4 (as func_8007E9E0),
+ * which gives the ROM's loop shape and min pointer. The model and matrix are looked up through cur, a second
+ * pointer to the object's data (the ROM's frame has its word); with data alone, i and the column pointer swap
+ * registers. */
 void func_8007E794(Obj7E *obj) {
     Obj7EData *data;
     f32 (*xform)[4];
@@ -1282,13 +1281,14 @@ void func_8007E794(Obj7E *obj) {
     f32 *hi;
     f32 a;
     f32 b;
-    UNUSED s32 pad;
+    Obj7EData *cur;
     s16 min[3];
     s16 max[3];
 
-    data = obj->data;
-    model = obj->modelInstances[data->modelIndex];
-    xform = data->mtx2[data->mtxIndex];
+    cur = obj->data;
+    model = obj->modelInstances[cur->modelIndex];
+    xform = cur->mtx2[cur->mtxIndex];
+    data = cur;
     data->bboxMin[0] = xform[3][0];
     data->bboxMin[1] = xform[3][1];
     data->bboxMin[2] = xform[3][2];
@@ -1317,9 +1317,6 @@ void func_8007E794(Obj7E *obj) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E794);
-#endif
 
 /* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. The element
  * mtx[i][j] is read as a byte offset, (i * 4 + j) * 4 from mtx: that keeps j as the outer counter (mtx + j * 4
