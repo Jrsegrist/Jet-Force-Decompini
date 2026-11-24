@@ -65,15 +65,20 @@ typedef struct M053Flags {
     u32 rest : 26;
 } M053Flags;
 
-/* The vehicle's state (the object's unk68: a player's state block, as m016's Racer), as far as 00038 uses it */
+/* The vehicle's state (the object's unk68: a player's state block, as m016's Racer), as far as 00038, 00EA0
+   and 01BB4 use it */
 typedef struct M053Vehicle {
     /* 0x000 */ s8 player;
     /* 0x001 */ u8 pad1[0x4 - 0x1];
-    /* 0x004 */ f32 unk4;
-    /* 0x008 */ f32 unk8;
-    /* 0x00C */ u8 padC[0x14 - 0xC];
+    /* 0x004 */ f32 unk4; /* forward speed */
+    /* 0x008 */ f32 unk8; /* sideways speed */
+    /* 0x00C */ f32 unkC; /* speed limit */
+    /* 0x010 */ f32 unk10;
     /* 0x014 */ f32 unk14;
-    /* 0x018 */ u8 pad18[0x48 - 0x18];
+    /* 0x018 */ u8 pad18[0x3C - 0x18];
+    /* 0x03C */ f32 unk3C; /* the position before the move */
+    /* 0x040 */ f32 unk40;
+    /* 0x044 */ f32 unk44;
     /* 0x048 */ f32 unk48;
     /* 0x04C */ u8 pad4C[0x50 - 0x4C];
     /* 0x050 */ f32 unk50;
@@ -81,17 +86,26 @@ typedef struct M053Vehicle {
     /* 0x058 */ f32 unk58;
     /* 0x05C */ f32 unk5C;
     /* 0x060 */ f32 unk60;
-    /* 0x064 */ u8 pad64[0xBC - 0x64];
+    /* 0x064 */ u8 pad64[0x6C - 0x64];
+    /* 0x06C */ f32 unk6C;
+    /* 0x070 */ f32 unk70;
+    /* 0x074 */ u8 pad74[0xBC - 0x74];
     /* 0x0BC */ s32 unkBC; /* sound handle */
     /* 0x0C0 */ u8 padC0[0xCC - 0xC0];
     /* 0x0CC */ s32 unkCC; /* sound handle */
     /* 0x0D0 */ u8 padD0[0x10D - 0xD0];
     /* 0x10D */ u8 unk10D;
     /* 0x10E */ u8 pad10E[0x11C - 0x10E];
-    /* 0x11C */ s16 unk11C;
+    /* 0x11C */ s16 unk11C; /* yaw */
     /* 0x11E */ s16 unk11E;
     /* 0x120 */ s16 unk120;
-    /* 0x122 */ u8 pad122[0x149 - 0x122];
+    /* 0x122 */ u8 pad122[0x128 - 0x122];
+    /* 0x128 */ s16 unk128;
+    /* 0x12A */ u8 pad12A[0x13C - 0x12A];
+    /* 0x13C */ s16 unk13C;
+    /* 0x13E */ u8 unk13E;
+    /* 0x13F */ u8 unk13F;
+    /* 0x140 */ u8 pad140[0x149 - 0x140];
     /* 0x149 */ s8 unk149;
     /* 0x14A */ s8 unk14A;
     /* 0x14B */ s8 unk14B;
@@ -101,14 +115,31 @@ typedef struct M053Vehicle {
     /* 0x188 */ u8 unk188;
     /* 0x189 */ u8 pad189[0x198 - 0x189];
     /* 0x198 */ u8 unk198;
-    /* 0x199 */ u8 pad199[0x1F4 - 0x199];
+    /* 0x199 */ u8 pad199[0x1C6 - 0x199];
+    /* 0x1C6 */ s16 unk1C6;
+    /* 0x1C8 */ s16 unk1C8;
+    /* 0x1CA */ s16 unk1CA;
+    /* 0x1CC */ s16 unk1CC;
+    /* 0x1CE */ s16 unk1CE;
+    /* 0x1D0 */ s16 unk1D0;
+    /* 0x1D2 */ u8 pad1D2[0x1DC - 0x1D2];
+    /* 0x1DC */ s16 unk1DC;
+    /* 0x1DE */ s16 unk1DE;
+    /* 0x1E0 */ s16 unk1E0;
+    /* 0x1E2 */ s16 unk1E2;
+    /* 0x1E4 */ f32 unk1E4;
+    /* 0x1E8 */ f32 unk1E8;
+    /* 0x1EC */ u8 pad1EC[0x1F4 - 0x1EC];
     /* 0x1F4 */ s8 unk1F4;
     /* 0x1F5 */ u8 pad1F5[0x1F9 - 0x1F5];
     /* 0x1F9 */ u8 unk1F9;
     /* 0x1FA */ u8 unk1FA;
     /* 0x1FB */ u8 pad1FB[0x240 - 0x1FB];
     /* 0x240 */ s16 cmds[0x80]; /* the camera command list */
-    /* 0x340 */ u8 pad340[0x360 - 0x340];
+    /* 0x340 */ u8 pad340[0x354 - 0x340];
+    /* 0x354 */ f32 unk354;
+    /* 0x358 */ f32 unk358;
+    /* 0x35C */ f32 unk35C;
     /* 0x360 */ M053Pose *pose;
     /* 0x364 */ u8 pad364[0x532 - 0x364];
     /* 0x532 */ u8 unk532;
@@ -116,13 +147,17 @@ typedef struct M053Vehicle {
     /* 0x540 */ M053Flags flags;
     /* 0x544 */ u8 pad544[0x568 - 0x544];
     /* 0x568 */ u8 state;
-    /* 0x569 */ u8 pad569;
+    /* 0x569 */ u8 pad569[0x56A - 0x569];
     /* 0x56A */ u8 unk56A;
-    /* 0x56B */ u8 pad56B[0x57C - 0x56B];
+    /* 0x56B */ u8 pad56B[0x576 - 0x56B];
+    /* 0x576 */ s8 unk576;
+    /* 0x577 */ u8 pad577[0x57C - 0x577];
     /* 0x57C */ f32 unk57C;
     /* 0x580 */ u8 pad580[0x58C - 0x580];
-    /* 0x58C */ s16 unk58C;
-    /* 0x58E */ u8 pad58E[0x5BC - 0x58E];
+    /* 0x58C */ s16 unk58C; /* the boost's timer */
+    /* 0x58E */ u8 pad58E[0x594 - 0x58E];
+    /* 0x594 */ f32 unk594;
+    /* 0x598 */ u8 pad598[0x5BC - 0x598];
     /* 0x5BC */ void *unk5BC;
     /* 0x5C0 */ u8 pad5C0[0x5E0 - 0x5C0];
     /* 0x5E0 */ s32 sounds[3]; /* positioned sound handles */
@@ -172,8 +207,8 @@ extern void func_m107_00D08(void *arg0, f32 a, f32 b, s32 c);
 extern void func_8003D21C(M053ModelInst *inst, void *model, Object *obj, f32 a, f32 b);
 extern void func_800221F0(Object *obj, M053ModelInst *inst, void *shading, void *arg3);
 extern void player_loop_sounds_update(Object *obj, M053Vehicle *s, s32 a, s32 b, s32 updateRate);
-extern void rl_m053_00EA0(Object *obj, M053Vehicle *s, f32 speed, s16 angle, f32 updateRateF);
-extern void rl_m053_01BB4(Object *obj, M053Vehicle *s, f32 updateRateF);
+static void func_m053_00EA0(Object *obj, M053Vehicle *s, f32 speed, s16 angle, f32 updateRateF);
+static void func_m053_01BB4(Object *obj, M053Vehicle *s, f32 updateRate);
 
 /*
  * The vehicle's control function, called every frame (a shorter form of m016's player control function): input
@@ -343,7 +378,7 @@ void func_m053_00038(Object *obj, s32 updateRate) {
     switch (s->state) {
         case 0:
         case 3:
-            rl_m053_00EA0(obj, s, speed, angle, updateRate);
+            func_m053_00EA0(obj, s, speed, angle, updateRate);
             break;
         case 5:
         case 11:
@@ -355,7 +390,7 @@ void func_m053_00038(Object *obj, s32 updateRate) {
     }
     func_m053_0271C(obj, (struct M053Anim *) s, speed, updateRate);
     player_platform_ride(obj, s, updateRate);
-    rl_m053_01BB4(obj, s, updateRate);
+    func_m053_01BB4(obj, s, updateRate);
     if (D_800A503C != 0) {
         if (s->unkCC == 0) {
             func_80001248(0x18E, (s32) &s->unkCC);
@@ -461,7 +496,132 @@ void func_m053_00038(Object *obj, s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_00EA0);
+extern s32 func_m031_01C20(s32 n); /* uses one of racer n's boosts */
+
+/*
+ * The vehicle on the move (states 0 and 3): the button that starts aiming (state 11), the boost button, steering
+ * towards the stick's angle (or the turn's) and the forward speed towards the stick's, with the camera's tilt
+ * angles from the acceleration and the turn. Called from 00038.
+ */
+static void func_m053_00EA0(Object *obj, M053Vehicle *s, f32 speed, s16 angle, f32 updateRateF) {
+    UNUSED f32 pad3C;
+    UNUSED s16 pad3A;
+    s16 d;
+    f32 accel;
+    f32 rate; /* a rate, then the blend factor from it */
+
+    s->unk594 = 0.4f;
+    if ((D_800A4FC4 == 0 || D_800A4FD8 != 4) && D_800A4FB4 == 0 && (gPlayerButtonsHeld & 0x10)) {
+        s->unk1E2 = 0;
+        s->unk1E0 = 0;
+        s->state = 11;
+        s->unk1CE = 0;
+        s->unk1D0 = 0;
+        s->unk1E4 = 0.0f;
+        s->unk1E8 = 0.0f;
+        s->unk1C6 = obj->trans.rotation.y_rotation;
+        s->unk1C8 = obj->trans.rotation.x_rotation;
+        s->unk1CA = s->unk1C6;
+        s->unk1CC = s->unk1C8;
+        s->unk1DC = s->unk1CE;
+        s->unk1DE = s->unk1D0;
+    } else {
+        if (gPlayerButtonsPressed & 0x8000) {
+            if ((D_800A4FC4 != 0 && D_800A4FD8 == 4) || D_800A4FB4 != 0) {
+                if (func_m031_01C20(s->player)) {
+                    s->unk58C = 420;
+                    if (D_800A503C != 0) {
+                        func_80001248(0x18F, 0);
+                    } else {
+                        audspat_play_sound_at_position(0x18F, obj->trans.x_position, obj->trans.y_position,
+                                                       obj->trans.z_position, 4, NULL);
+                    }
+                }
+            } else if (s->unk58C == 0) {
+                s->unk58C = 420;
+                func_80001248(0x18F, 0);
+            }
+        }
+        if ((D_800A4FC4 == 0 || D_800A4FD8 != 4) && D_800A4FB4 == 0 && (D_800A18B0->unk0 & gPlayerButtonsHeld)) {
+            s->unk1F4 = 15;
+        }
+        if (s->unk13E >= 2) {
+            angle = s->unk13C;
+        }
+        speed = -speed;
+        if (s->unk13E >= 2 && s->unk576 != 0) {
+            d = (s32) updateRateF * 2188;
+            if (s->unk13F < 8) {
+                s->unk11C -= d;
+            } else {
+                s->unk11C += d;
+            }
+            s->unk576 -= (s32) updateRateF;
+            if (s->unk576 < 0) {
+                s->unk576 = 0;
+            }
+        } else {
+            if (s->unk13E) {
+                rate = 0.925f;
+            } else {
+                rate = 0.94f;
+            }
+            d = angle_lerp(s->unk11C, angle, 1.0f - rate) - s->unk11C;
+            rate = 1.0f - func_80049BEC(rate, updateRateF);
+            if (s->unk13E == 0) {
+                if (d < -0x280) {
+                    if (s->unk13F > 0) {
+                        s->unk13F--;
+                    }
+                } else if (d > 0x280) {
+                    if (s->unk13F < 16) {
+                        s->unk13F++;
+                    }
+                } else {
+                    s->unk13F = 8;
+                }
+            }
+            s->unk11C = angle_lerp(s->unk11C, angle, rate);
+        }
+        if (speed > 0.0f) {
+            rate = 0.0f;
+        } else {
+            rate = 1.0f - func_80049BEC(speed * 0.0075f + 0.99f, updateRateF);
+        }
+        s->unk128 = angle_lerp(s->unk128, s->unk11C, rate);
+        speed *= func_80049C30((s16) (s->unk11C - s->unk128));
+        if (speed > 0.0f) {
+            speed = 0.0f;
+        }
+        if (gPlayerButtonsHeld & 0x4000) {
+            rate = 0.9625f;
+            speed = 0.0f;
+        } else if (speed < s->unk4) {
+            rate = 0.9725f;
+        } else {
+            rate = 0.985f;
+        }
+        accel = (s->unk4 - speed) * (1.0f - rate);
+        s->unk4 += (speed - s->unk4) * (1.0f - func_80049BEC(rate, updateRateF));
+        if (-0.05f < s->unk4 && -0.05f < speed) {
+            s->unk4 = 0.0f;
+        }
+        rl_m053_03824 = accel * 8192.0f;
+        if (rl_m053_03824 < -0xC00) {
+            rl_m053_03824 = -0xC00;
+        }
+        if (rl_m053_03824 > 0xE00) {
+            rl_m053_03824 = 0xE00;
+        }
+        rl_m053_03826 = d * 6.0f;
+        if (rl_m053_03826 < -0x1100) {
+            rl_m053_03826 = -0x1100;
+        }
+        if (rl_m053_03826 > 0x1100) {
+            rl_m053_03826 = 0x1100;
+        }
+    }
+}
 
 /* The part of the vehicle's state that 014F4 uses */
 typedef struct M053Steer {
@@ -673,7 +833,130 @@ static f32 func_m053_019B0(s16 *yaw, M053Turn *s, f32 speed, s16 target, UNUSED 
     return speed;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_01BB4);
+extern f32 D_800F6DC4; /* gravity */
+extern s32 gPlayerInputLocked;
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+extern s32 func_80034BB0(Object *obj, M053Vehicle *s, f32 updateRate);
+
+/*
+ * Moves the vehicle (a form of m016's move): gravity, the slope, the speeds turned into a velocity, the move and
+ * its collision, then the speed limit eased towards 0.5 on the ground (rumbling when fast) or 25 in the air.
+ * Called from 00038.
+ */
+static void func_m053_01BB4(Object *obj, M053Vehicle *s, f32 updateRate) {
+    s32 hit;
+    f32 dx;
+    f32 dz;
+    f32 x; /* the turned velocity's sideways part */
+    UNUSED s32 pad;
+    Vec3f vec;
+    f32 t; /* also 1 / updateRate */
+    s16 angle;
+    Vec3s rot;
+
+    obj->velocity.y -= (1.0f - s->unk594) * (D_800F6DC4 * updateRate);
+    if (obj->velocity.y > 2.5f) {
+        obj->velocity.y += (2.5f - obj->velocity.y) * (1.0f - func_80049BEC(0.9f, updateRate));
+    }
+    if (s->unk50 < 0.0f) {
+        t = -s->unk50 - 0.3f;
+        if (t < 0.0f) {
+            t = 0.0f;
+        }
+        if (t > 0.1f) {
+            t = 0.1f;
+        }
+        t *= 35.0f;
+    } else {
+        t = 0.0f;
+    }
+    s->unk8 = 0.0f;
+    s->unk4 += D_800F6DC4 * (s->unk50 / (4.0f - t)) * updateRate;
+    obj->trans.rotation.y_rotation = s->unk11C;
+    angle = s->unk128;
+    obj->velocity.x = func_80049C34(angle) * s->unk4;
+    obj->velocity.z = func_80049C30(angle) * s->unk4;
+    angle = s->unk128;
+    if (angle) {}
+    obj->velocity.x += s->unk10 * func_80049C30(angle);
+    obj->velocity.z -= s->unk10 * func_80049C34(angle);
+    dx = obj->velocity.x;
+    dz = obj->velocity.z;
+    if (s->unk149 != 0) {
+        dx += s->unk6C;
+        dz += s->unk70;
+    }
+    if (gPlayerInputLocked == 1) {
+        dx *= 0.65f;
+        dz *= 0.65f;
+        if (s->unk4 < -0.5f || s->unk4 > 0.5f) {
+            s->unk4 *= 0.65f;
+        } else {
+            s->unk4 = 0.0f;
+        }
+        if (s->unk8 < -0.5f || s->unk8 > 0.5f) {
+            s->unk8 *= 0.65f;
+        } else {
+            s->unk8 = 0.0f;
+        }
+    }
+    func_80009A04(obj, dx * updateRate + s->unk354, obj->velocity.y * updateRate, dz * updateRate + s->unk35C);
+    t = 1.0f / updateRate;
+    dx = (obj->trans.x_position - s->unk3C) * t;
+    dz = (obj->trans.z_position - s->unk44) * t;
+    hit = func_80034BB0(obj, s, updateRate);
+    obj->velocity.y = (obj->trans.y_position - s->unk40) * t;
+    angle = s->unk128;
+    rot.y_rotation = -angle;
+    rot.x_rotation = -obj->trans.rotation.x_rotation;
+    rot.z_rotation = -obj->trans.rotation.z_rotation;
+    vec.x = dx; vec.y = 0.0f; vec.z = dz; func_80049394(&rot, &vec);
+    x = vec.x;
+    if (s->unk149 != 0) {
+        s->unk149 -= (s32) updateRate;
+        if (s->unk149 < 0) {
+            s->unk149 = 0;
+        }
+    } else {
+        t = s->unk4 - vec.z;
+        if (t > 0.5f) {
+            s->unk4 -= t - 0.5f;
+        }
+        if (t < -0.5f) {
+            s->unk4 -= t + 0.5f;
+        }
+        t = s->unk8 - x;
+        if (t > 0.5f) {
+            s->unk8 -= t - 0.5f;
+        }
+        if (t < -0.5f) {
+            s->unk8 -= t + 0.5f;
+        }
+    }
+    if (hit & 3) {
+        /* (.5f: a literal text of its own; written 0.5f it shares the slope limits' register-allocated 0.5f) */
+        s->unkC += (.5f - s->unkC) * (1.0f - func_80049BEC(0.95f, updateRate));
+        if (s->unk4 < -s->unkC) {
+            s->unk4 = -s->unkC;
+        }
+        if (s->unk4 > s->unkC) {
+            s->unk4 = s->unkC;
+        }
+        if (s->unk8 < -s->unkC) {
+            s->unk8 = -s->unkC;
+        }
+        if (s->unk8 > s->unkC) {
+            s->unk8 = s->unkC;
+        }
+        if ((D_800A4FC4 == 0 && D_800A4FB4 == 0) || !func_m031_00000(s->player)) {
+            if (s->unk4 < -5.0f || s->unk4 > 5.0f) {
+                rumble_raise(s->player, 50, 0.2f);
+            }
+        }
+    } else {
+        s->unkC += (25.0f - s->unkC) * (1.0f - func_80049BEC(0.875f, updateRate));
+    }
+}
 
 /* A hit record (0x34 bytes) of the vehicle's interaction */
 typedef struct M053Hit {
