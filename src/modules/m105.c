@@ -474,7 +474,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m105", func_m105_01260);
 #endif
 
 #ifdef NON_MATCHING
-/* the ROM keeps the two heights in stack slots (0x48/0x4C); this gives registers */
+/* the ROM keeps the two heights in stack slots (0x48/0x4C); this gives registers (3 words short,
+   18 aligned diffs; a computed in two steps, 27 before) */
 /* Moves a point held by the object with the object's sag */
 void func_m105_01474(Object *obj, f32 *x, f32 *y, f32 *z, f32 *ox, f32 *oy, f32 *oz) {
     M105Model *m;
@@ -497,7 +498,8 @@ void func_m105_01474(Object *obj, f32 *x, f32 *y, f32 *z, f32 *ox, f32 *oy, f32 
         i = (*x - first) / spacing;
         p = &d->points[i];
         t = (*x - p->x) / spacing;
-        a = p->unk1C + t * (p[1].unk1C - p->unk1C);
+        a = p[1].unk1C - p->unk1C;
+        a = p->unk1C + t * a;
         b = p->unk18 + t * (p[1].unk18 - p->unk18);
         *y += b - a;
     }
