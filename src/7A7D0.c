@@ -81,16 +81,23 @@ typedef struct ModelBatch7E {
     /* 0x0C */ u32 flags;
 } ModelBatch7E;
 
-/* JFG: a 14-byte record per triangle of a model's collision edge info (contents not used here) */
+/* JFG: a 14-byte record per triangle of a model's collision edge info (only the plane index is used here) */
 typedef struct EdgeRecord7E {
-    /* 0x00 */ u8 pad0[14];
+    /* 0x00 */ u16 plane; // the triangle's plane in ModelEdges7E.planes
+    /* 0x02 */ u8 pad2[12];
 } EdgeRecord7E;
+
+/* JFG: a plane a*x + b*y + c*z + d = 0 */
+typedef struct Plane7E {
+    /* 0x00 */ f32 a, b, c, d;
+} Plane7E;
 
 /* JFG: a model's collision edge info (only the fields used here) */
 typedef struct ModelEdges7E {
     /* 0x00 */ EdgeRecord7E *records; // per triangle
     /* 0x04 */ u32 *cellMasks;        // JFG: per triangle, the box cells it touches (as box_range_cell_mask)
     /* 0x08 */ u8 *edgeFlags; // JFG: per triangle, bit n = edge n is a collision edge
+    /* 0x0C */ Plane7E *planes;
 } ModelEdges7E;
 
 typedef struct ModelHeader7E {
@@ -1643,7 +1650,148 @@ INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800805F4);
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800809F4);
 
+/* JFG: an object edge crossed by a line (func_80081658) */
+typedef struct EdgeHit7E {
+    /* 0x00 */ f32 x0, y0, z0; // the edge's ends, in the object's space
+    /* 0x0C */ f32 x1, y1, z1;
+    /* 0x18 */ f32 along;      // where the line crosses it, 0..1 from the first end
+    /* 0x1C */ Plane7E *plane; // the plane of the edge's triangle
+} EdgeHit7E;
+
+#ifdef NON_MATCHING
+/**
+ * JFG: the object twin of func_80019888: the first object edge (among the entries' triangle edges marked in
+ * edgeFlags >> 3) that the line from..to, taken into the object's space by its inverse transform, passes through,
+ * taking each edge as a wall 10 units high: its ends, the crossing point along it and its triangle's plane go to
+ * out, the object to outObj. Returns 1 or -1 for the side the line crosses from, 0 if none. As in the ROM, the
+ * object values are only set by an earlier object entry.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (408 words, 0x158), 279 aligned
+ * diffs: the t-registers from the loop top on and the FP temporaries of the triangle code (the ROM's 0.0/1.0
+ * constants are f22/f24, here f24/f26, and t / d is in f0 there).
+ */
+s32 func_80081658(f32 *from, f32 *to, EdgeHit7E *out, Obj7E **outObj) {
+    s32 result;
+    s32 j;
+    s32 k;
+    s32 side;
+    ModelHeader7E *header;
+    Obj7EModel *model;
+    ModelEdges7E *edges;
+    Obj7E *obj;
+    f32 *mtx;
+    s32 tri;
+    f32 p[3];
+    f32 q[3];
+    f32 dir[3];
+    f32 n[3];
+    f32 v[3];
+    f32 a[3];
+    f32 b[3];
+    f32 e[3];
+    s32 batch;
+    Triangle7E *triangle;
+    Vertex7E *verts;
+    u8 flags;
+    s32 i;
+    Vertex7E *va;
+    Vertex7E *vb;
+    f32 d;
+    f32 t;
+    s32 addr;
+    UNUSED s32 pad1;
+
+    result = 0;
+    for (i = 0; i < D_801047F0 && !result; i++) {
+        addr = D_801047F4[i];
+        if (addr > 0) {
+            obj = (Obj7E *) (addr | 0x80000000);
+            model = obj->modelInstances[obj->data->modelIndex];
+            header = model->header;
+            if (model->edges != NULL) {
+                edges = model->edges;
+            } else {
+                edges = header->edges;
+            }
+            mtx = obj->data->mtx[obj->data->mtxIndex][0];
+            func_80048B60(mtx, from[0], from[1], from[2], &p[0], &p[1], &p[2]);
+            func_80048B60(mtx, to[0], to[1], to[2], &q[0], &q[1], &q[2]);
+            dir[0] = q[0] - p[0];
+            dir[1] = q[1] - p[1];
+            dir[2] = q[2] - p[2];
+        } else {
+            batch = D_801047F8[i];
+            tri = D_801047FC[i];
+            triangle = &header->triangles[tri];
+            verts = &model->vertices[header->batches[batch].verticesOffset];
+            flags = (u32) edges->edgeFlags[tri] >> 3;
+            j = 0;
+            if (flags & 7) {
+                for (; j < 3; j++) {
+                    if (flags & (1 << j)) {
+                        k = j + 1;
+                        if (k >= 3) {
+                            k = 0;
+                        }
+                        va = &verts[triangle->vi[j]];
+                        vb = &verts[triangle->vi[k]];
+                        a[0] = va->x;
+                        a[1] = va->y;
+                        a[2] = va->z;
+                        b[0] = vb->x;
+                        b[1] = vb->y;
+                        b[2] = vb->z;
+                        e[0] = b[0] - a[0];
+                        e[1] = b[1] - a[1];
+                        e[2] = b[2] - a[2];
+                        v[0] = 0.0f;
+                        v[1] = 10.0f;
+                        v[2] = 0.0f;
+                        n[0] = v[1] * e[2] - v[2] * e[1];
+                        n[1] = v[2] * e[0] - v[0] * e[2];
+                        n[2] = v[0] * e[1] - v[1] * e[0];
+                        d = dir[0] * n[0] + dir[1] * n[1] + dir[2] * n[2];
+                        if (d != 0.0f) {
+                            side = 1;
+                            if (d < 0.0f) {
+                                side = -1;
+                            }
+                            v[0] = n[0] * (a[0] - p[0]);
+                            v[1] = n[1] * (a[1] - p[1]);
+                            v[2] = n[2] * (a[2] - p[2]);
+                            t = (v[0] + v[1] + v[2]) / d;
+                            if (t >= 0.0f && t <= 1.0f) {
+                                v[0] = dir[0] * t + p[0];
+                                v[1] = dir[1] * t + p[1];
+                                v[2] = dir[2] * t + p[2];
+                                d = e[0] * e[0] + e[1] * e[1] + e[2] * e[2];
+                                v[0] = e[0] * (v[0] - a[0]);
+                                v[1] = e[1] * (v[1] - a[1]);
+                                v[2] = e[2] * (v[2] - a[2]);
+                                t = v[0] + v[1] + v[2];
+                                if (t / d >= 0.0f && t / d <= 1.0f) {
+                                    result = side;
+                                    out->x0 = a[0];
+                                    out->y0 = a[1];
+                                    out->z0 = a[2];
+                                    out->x1 = b[0];
+                                    out->y1 = b[1];
+                                    out->z1 = b[2];
+                                    out->plane = &edges->planes[edges->records[tri].plane];
+                                    out->along = t / d;
+                                    *outObj = obj;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_80081658);
+#endif
 
 #ifdef NON_MATCHING
 /* JFG: find the object edge (flag bits 3-5 of its triangle) that continues the line: one ending at

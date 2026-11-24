@@ -452,4 +452,185 @@ void corona_flare_draw(CoronaFlare *flare, f32 x, f32 y, f32 z, f32 dirX, f32 di
     }
 }
 
+#ifdef NON_MATCHING
+extern CoronaFlare D_800A1088[]; // JFG: the flare of coronas with flag 4
+extern CoronaFlare D_800A1048[]; // JFG: the flare of coronas with flag 2
+extern Gfx D_800A1020[];         // JFG: the render mode for the screen tint
+MtxF *get_projection_matrix_f32(void);
+f32 sqrtf(f32 x);
+void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
+void draw_tint_pair_off(void);
+void fb_size(u32 *width, u32 *height);
+void rendermode_reset(Gfx **dList);
+
+/**
+ * JFG: draw the active coronas: each faces the camera by its direction (screen-space ones, 0x20, by the camera's
+ * view of their direction), fades with distance and facing, adds its colour to the screen tint, draws its sprite
+ * and (flags 4/2) a flare along the reflected view; then the brightest colours tint the screen. As in the ROM, a
+ * screen-space corona tests the distance left from the previous corona.
+ * NON_MATCHING: a first body written from the ROM (rounds 44-47), 511/524 words at the ROM's frame (0x1F8, with
+ * the pad), 324 aligned diffs: the ROM keeps dist in f18 (caller-saved, spilled at each call) and dx/dy in f28/f30,
+ * dirX/dirY in memory, count/i in s3/s4 the other way round.
+ */
+void func_80024634(Gfx **dList, Mtx **mtx, void **verts) {
+    CoronaCamera *cam;
+    MtxF *m;
+    u32 width;
+    u32 height;
+    u8 red;
+    u8 green;
+    u8 blue;
+    UNUSED s32 pad;
+    u8 alpha;
+    f32 viewX;
+    f32 viewY;
+    f32 viewZ;
+    f32 dirX;
+    f32 dirY;
+    f32 dirZ;
+    f32 fade;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    f32 a;
+    f32 b;
+    f32 c;
+    f32 t;
+    SpriteTransform trans;
+    u8 colours[50][4];
+    Corona *corona;
+    CoronaFlare *flare;
+    s32 i;
+    s32 count;
+    f32 facing;
+
+    if (D_800A1108 > 0) {
+        D_800F5B50 = *dList;
+        D_800F5B54 = *mtx;
+        D_800F5B58 = *verts;
+        cam = cam_get_active_camera();
+        m = get_projection_matrix_f32();
+        viewX = -(*m)[2][0];
+        viewY = -(*m)[2][1];
+        viewZ = -(*m)[2][2];
+        count = 0;
+        corona = D_800F5B60;
+        i = 49;
+        do {
+            if (corona->active && corona->opacity > 0 && corona->colour[3] > 0) {
+                if (corona->active & 0x20) {
+                    trans.z = -1.0f;
+                    func_8004944C(corona->rotation, &trans.x);
+                    dirX = -trans.x;
+                    dirY = -trans.y;
+                    dirZ = -trans.z;
+                    trans.x *= -256.0f;
+                    trans.y *= -256.0f;
+                    trans.z *= -256.0f;
+                    facing = 1.0f;
+                    trans.x += cam->x;
+                    trans.y += cam->y;
+                    trans.z += cam->z;
+                } else {
+                    trans.x = corona->pos[0];
+                    trans.y = corona->pos[1];
+                    trans.z = corona->pos[2];
+                    facing = 1.0f;
+                    dx = corona->pos[0] - cam->x;
+                    dy = corona->pos[1] - cam->y;
+                    dz = corona->pos[2] - cam->z;
+                    dist = dx * dx + dy * dy + dz * dz;
+                    if (0.0f < dist) {
+                        dist = sqrtf(dist);
+                        facing = 1.0f / dist;
+                    }
+                    dirX = dx * facing;
+                    dirY = dy * facing;
+                    dirZ = dz * facing;
+                    facing = 1.0f;
+                    if (corona->active & 0x80) {
+                        facing = corona->direction[0] * dirX + corona->direction[1] * dirY +
+                                 corona->direction[2] * dirZ;
+                    }
+                }
+                facing *= viewX * dirX + viewY * dirY + viewZ * dirZ;
+                if (0.7071f < facing) {
+                    trans.rotation[0] = 0;
+                    trans.rotation[1] = 0;
+                    trans.rotation[2] = 0;
+                    trans.unk28 = 0.0f;
+                    fade = corona->opacity * 0.0625f;
+                    facing *= (facing - 0.7071f) * 3.414134502f;
+                    if (dist < corona->unk48) {
+                        t = corona->unk48Inv * dist;
+                        if (t < 0.5f) {
+                            t = facing;
+                        } else {
+                            t = (1.0f - t) * facing;
+                            t += t;
+                        }
+                        colours[count][0] = corona->colour[0];
+                        colours[count][1] = corona->colour[1];
+                        colours[count][2] = corona->colour[2];
+                        colours[count][3] = (s32) (corona->colour[3] * t);
+                        count++;
+                    }
+                    if (!(corona->active & 0x20)) {
+                        dist *= corona->unk40Inv;
+                        if (0.5f < dist) {
+                            dist = 1.0f - dist;
+                            dist += dist;
+                        } else {
+                            dist = 1.0f;
+                        }
+                    } else {
+                        dist = 1.0f;
+                    }
+                    if (corona->sprite != NULL) {
+                        trans.scale = corona->scale * facing * fade;
+                        draw_tint_pair_set(255, 255, 255, corona->colour[0], corona->colour[1], corona->colour[2]);
+                        render_sprite_billboard(&D_800F5B50, &D_800F5B54, &D_800F5B58, &trans, corona->sprite, 0x204,
+                                                (s32) (255.0f * facing * dist));
+                        draw_tint_pair_off();
+                    }
+                    if (corona->active & 4) {
+                        flare = D_800A1088;
+                    } else if (corona->active & 2) {
+                        flare = D_800A1048;
+                    } else {
+                        flare = NULL;
+                    }
+                    if (0.7795f < facing && flare != NULL) {
+                        t = (facing - 0.7795f) * 4.53514719f;
+                        facing *= facing;
+                        a = (viewX * dirX + viewY * dirY + viewZ * dirZ) * 2.0f * viewX - dirX;
+                        b = (viewX * dirX + viewY * dirY + viewZ * dirZ) * 2.0f * viewY - dirY;
+                        c = (viewX * dirX + viewY * dirY + viewZ * dirZ) * 2.0f * viewZ - dirZ;
+                        corona_flare_draw(flare, trans.x, trans.y, trans.z, a, b, c, facing, t * t * fade * dist);
+                        dx = (a * dirX + b * dirY + c * dirZ) * 2.0f * dirX - a;
+                        dy = (a * dirX + b * dirY + c * dirZ) * 2.0f * dirY - b;
+                        dz = (a * dirX + b * dirY + c * dirZ) * 2.0f * dirZ - c;
+                        corona_flare_draw(flare, trans.x, trans.y, trans.z, dx, dy, dz, facing, t * t * fade * dist);
+                    }
+                }
+            }
+            corona++;
+        } while (i--);
+        if (count > 0) {
+            fb_size(&width, &height);
+            colours_brightest_channels(count, colours[0], &red, &green, &blue, &alpha);
+            gSPDisplayList(D_800F5B50++, D_800A1020);
+            gDPSetPrimColor(D_800F5B50++, 0, 0, red, green, blue, alpha);
+            gDPFillRectangle(D_800F5B50++, 0, 0, width, height);
+            gDPPipeSync(D_800F5B50++);
+        }
+        rendermode_reset(&D_800F5B50);
+        *dList = D_800F5B50;
+        *mtx = D_800F5B54;
+        *verts = D_800F5B58;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/245D0", func_80024634);
+#endif
