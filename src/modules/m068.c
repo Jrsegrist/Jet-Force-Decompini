@@ -1531,12 +1531,8 @@ extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *
 #endif
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
-#ifdef NON_MATCHING
 static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_093B8 func_m068_093B8
-#else
-extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#endif
 static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0A208 func_m068_0A208
 static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -4144,15 +4140,12 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
 void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
 extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 
-#ifdef NON_MATCHING
 /*
  * Phase work of the first form for part 2 (its head): each time its hit points run out with flag 1, 2
  * or 4 set it goes to the next stage (animations 0x1E/0x1F/0x21, texture frames from 3/6/9, five
  * objects 0x32A from the model's points 15-19); with flag 8 and event 0x400 it bursts (twelve pieces
  * from the model's points 20-31; parts 2 and 3 are destroyed). Sparks fly from points 15-19 on every
  * hit, and while it is damaged.
- * Same length, frame and registers; only the two six-piece loops' pointer temporary is spilled one word
- * lower (0x5C, the ROM 0x60: 6 diffs).
  */
 static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     Vec3f *p;
@@ -4429,14 +4422,13 @@ static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance
             n = 1;
         }
         for (i = 0; i < n; i++) {
-            s->unk1C |= 1 << func_80048E2C(1, 5);
-            s->unk1C |= 1 << func_80048E2C(6, 10);
+            j = func_80048E2C(1, 5);
+            s->unk1C |= 1 << j;
+            j = func_80048E2C(6, 10);
+            s->unk1C |= 1 << j;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
-#endif
 
 /* A texture's animation state in a model instance (8 bytes) */
 typedef struct M068TexAnim {
