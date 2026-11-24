@@ -52,7 +52,8 @@ typedef struct M003Member {
     /* 0x09 */ u8 unk9;
     /* 0x0A */ u8 unkA;
     /* 0x0B */ u8 mission;
-    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x0C */ s16 unkC; /* turned by the way it faces (0BBC4), kept within 0x6978 */
+    /* 0x0E */ u8 padE[0x10 - 0xE];
     /* 0x10 */ s16 unk10;
     /* 0x12 */ u8 pad12[0x14 - 0x12];
     /* 0x14 */ u8 troop; /* its troop's tag (0DF84) */
@@ -4147,7 +4148,73 @@ void func_m003_0BB50(void) {
     rl_m003_0AD38();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0BBC4);
+extern void rl_m003_0ABF4(void);
+extern void rl_m003_0B70C(void);
+
+/*
+ * Another member update. In troop state 0x11, for a member in way state 0, 0xD or 5: stopped (as below) or,
+ * for a body with the fireproof bit, the usual steps; else it faces sBssD6, its unkC taking the turn, and backs
+ * off at sBssCC (at most the troop's top speed). Otherwise it stops when it need not get anywhere or is in
+ * state 5-7, and takes the usual steps if not.
+ */
+void func_m003_0BBC4(void) {
+    f32 speed;
+    M003Anim *anim;
+
+    anim = func_m003_04428(sObj);
+    if (sHomeData->unk32 == 0x11 && (sMember->unk1A == 0 || sMember->unk1A == 0xD || sMember->unk1A == 5)) {
+        if ((anim->unk4_25 && sBssCC == 0.0f) || sMember->unkA == 5 || sMember->unkA == 6 || sMember->unkA == 7 ||
+            sMember->unk0_7) {
+            sBssD6 = sObj->trans.rotation.y_rotation;
+            sObj->velocity.x = 0.0f;
+            sObj->velocity.z = 0.0f;
+            rl_m003_03CAC(sObj);
+        } else if (((M003BodyFlags *) &sBody->unk24)->fireproof) {
+            rl_m003_0A5EC();
+            rl_m003_0A850();
+            rl_m003_0AF34();
+            rl_m003_0ABF4();
+            rl_m003_0AABC(0.5f, 1.0f);
+            rl_m003_0B70C();
+            rl_m003_0AD38();
+        } else {
+            sMember->unkC -= func_80049D80(sObj->trans.rotation.y_rotation, sBssD6);
+            if (sMember->unkC > 0x6978) {
+                sMember->unkC = 0x6978;
+            } else if (sMember->unkC < -0x6978) {
+                sMember->unkC = -0x6978;
+            }
+            sObj->trans.rotation.y_rotation = sBssD6;
+            if (sBssCC < sHomeData->maxSpeed) {
+                speed = -sBssCC;
+            } else {
+                speed = -sHomeData->maxSpeed;
+            }
+            sObj->velocity.x = func_80049C34(sObj->trans.rotation.y_rotation) * speed;
+            sObj->velocity.z = func_80049C30(sObj->trans.rotation.y_rotation) * speed;
+            sMember->unk1C = func_80049C84(sObj->velocity.x, sObj->velocity.z);
+            sMember->unk20 = func_80097140(sObj->velocity.x * sObj->velocity.x + sObj->velocity.z * sObj->velocity.z);
+            sMember->unk4C = 0;
+            rl_m003_0ABF4();
+            rl_m003_0AABC(0.7f, 1.0f);
+            rl_m003_0B70C();
+        }
+    } else if ((anim->unk4_25 && sBssCC == 0.0f) || sMember->unkA == 5 || sMember->unkA == 6 ||
+               sMember->unkA == 7) {
+        sBssD6 = sObj->trans.rotation.y_rotation;
+        sObj->velocity.x = 0.0f;
+        sObj->velocity.z = 0.0f;
+        rl_m003_03CAC(sObj);
+    } else {
+        rl_m003_0A5EC();
+        rl_m003_0A850();
+        rl_m003_0AF34();
+        rl_m003_0ABF4();
+        rl_m003_0AABC(0.5f, 1.0f);
+        rl_m003_0B70C();
+        rl_m003_0AD38();
+    }
+}
 
 /* As 0BB50, with another factor */
 void func_m003_0BFC4(void) {
