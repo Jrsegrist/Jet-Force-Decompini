@@ -25,7 +25,6 @@ typedef struct M114Target {
     /* 0x6 */ s16 health;
 } M114Target;
 
-extern void func_80001248(s32 sound, s32 arg1);
 
 /* Init (first kind): sets the angles, delay, duration, health and points from the level entry */
 void func_m114_00000(Object *obj, M114Setup *setup) {

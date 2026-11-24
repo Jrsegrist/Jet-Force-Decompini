@@ -123,7 +123,6 @@ extern void func_m003_10548(Object *obj, Object *attacker);
 extern void func_m003_0CFA8(Object *obj);
 extern void render_sprite_billboard(Gfx **dl, Mtx **mtx, struct Vertex **vtx, Object *obj, void *texture, s32 flags, u8 alpha);
 extern void sound_stop(s32 handle);
-extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 extern M095LightObj *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
 extern s32 sprite_anim_advance(void *sprite, s32 *flags, u32 speed, f32 *frame, u32 updateRate);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */

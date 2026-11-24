@@ -30,7 +30,6 @@ typedef struct M097Level {
     /* 0xE2 */ u8 unkE2;
 } M097Level;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern M097Level *func_8004470C(void); /* DKR levelGetLevel */
 

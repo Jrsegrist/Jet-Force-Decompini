@@ -47,7 +47,6 @@ typedef struct M102Model {
     /* 0x68 */ Vec3f *points;
 } M102Model;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern void spawn_object_from_list(s16 kind, s16 x, s16 y, s16 z, s32 arg4, Object *thrower);
 extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, u8, u8, u8);

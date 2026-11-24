@@ -50,11 +50,9 @@ typedef struct M132WeaponInfo {
 
 extern s16 D_800A0CB0[15]; /* the weapon pickups' object IDs */
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 extern M132Weapons *char_record_lookup(s32, s32);
 extern M132WeaponInfo *weapon_info_get(s32 weapon);
-extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 s32 D_m132_00310 = 132; /* the module's number */
 

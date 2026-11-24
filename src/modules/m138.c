@@ -31,7 +31,6 @@ extern s32 D_800FE9F8;
 
 extern Object *func_m003_053C4(void); /* the closest player */
 extern void func_m003_07E88(s32, s32, s32);
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */

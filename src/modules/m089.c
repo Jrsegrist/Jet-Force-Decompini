@@ -66,7 +66,6 @@ typedef struct M089Shock {
     /* 0x23 */ u8 done;
 } M089Shock;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
 extern void obj_list_insert_after(Object *obj, Object *target);
 extern void func_8003D21C(M089Instance *, M089Model *, Object *, f32, f32);

@@ -136,7 +136,6 @@ typedef struct M112Blast {
 extern s32 D_m112_013E0; /* the module's number */
 extern u8 D_800A0838[];
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern void func_80041CA0(Gfx **dl, Mtx **mtx, ObjectTransform *trans, f32 scale, f32 arg4);
 extern void func_80055B80(Gfx **dl); /* resets the render settings */

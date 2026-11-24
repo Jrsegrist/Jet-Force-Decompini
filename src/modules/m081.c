@@ -60,39 +60,30 @@ static u8 *sTexture = NULL;
 static M081Effect sEffects[4];
 
 /*
- * NON_MATCHING: load_textures is 2 diffs off (measured at its own address; 25
- * before): the four sparks resets as a loop give the ROM's separate lui per
- * store, and `if (tris) {}` (tris is set above) in it gives the ROM's tris
- * base; the texture pointer's copy is in a0 here, a2 in the ROM. Its C caller
- * func_m081_00080 reaches the assembly by its offset name.
+ * Loads the sparks' texture, sets the quad's texture coordinates from its
+ * size and clears the effect slots. The v coordinates are computed from the
+ * width byte too (the ROM reads only byte 0; w and h are one value).
  */
-#ifdef NON_MATCHING
 static void load_textures(void) {
-    Triangle *tris;
     s32 w;
+    s32 h;
     s32 i;
 
     sTexture = func_80055694(0x257);
     if (sTexture != NULL) {
-        tris = sQuadTris;
         w = (sTexture[0] - 1) << 5;
-        tris[0].uv[1][0] = w;
-        tris[0].uv[2][1] = w;
-        tris[1].uv[0][0] = w;
-        tris[1].uv[1][1] = w;
-        tris[1].uv[2][0] = w;
-        tris[1].uv[2][1] = w;
+        h = (sTexture[0] - 1) << 5;
+        sQuadTris[0].uv[1][0] = w;
+        sQuadTris[0].uv[2][1] = h;
+        sQuadTris[1].uv[0][0] = w;
+        sQuadTris[1].uv[1][1] = h;
+        sQuadTris[1].uv[2][0] = w;
+        sQuadTris[1].uv[2][1] = h;
         for (i = 0; i < 4; i++) {
-            if (tris) {}
             sEffects[i].sparks = NULL;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m081", func_m081_00000);
-extern void rl_m081_00000(void); /* load_textures (still assembly) */
-#define load_textures rl_m081_00000
-#endif
 
 /*
  * Creates an effect of `count` sparks (NULL when four exist or the memory runs out). The new effect is

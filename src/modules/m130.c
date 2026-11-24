@@ -49,7 +49,6 @@ typedef struct M130Spawn {
     /* 0x0C */ f32 unkC;
 } M130Spawn;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern s32 func_80049C84(f32, f32); /* the angle of a vector */
 extern f32 sqrtf(f32);

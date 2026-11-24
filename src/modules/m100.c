@@ -34,7 +34,6 @@ typedef struct M100Player {
     /* 0x592 */ s16 fuelTimer;
 } M100Player;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 
