@@ -13,9 +13,11 @@ INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", rodata);
 typedef struct M061Stats {
     /* 0x00 */ u16 unk0[8]; /* indexed by unk8C */
     /* 0x10 */ s16 kills;
-    /* 0x12 */ u8 pad12[2];
+    /* 0x12 */ u8 pad12;
+    /* 0x13 */ s8 unk13; /* still in the round (game type 0x30) */
     /* 0x14 */ u8 rank;
-    /* 0x15 */ u8 pad15[0x8C - 0x15];
+    /* 0x15 */ u8 unk15; /* out of the round */
+    /* 0x16 */ u8 pad16[0x8C - 0x16];
     /* 0x8C */ u8 unk8C;
     /* 0x8D */ u8 pad8D[3];
     /* 0x90 */ u32 unk90;
@@ -26,7 +28,13 @@ typedef struct M061Stats {
 
 /* What the players' objects keep in their unk68 */
 typedef struct M061Player {
-    /* 0x000 */ u8 pad0[0x5C8];
+    /* 0x000 */ s8 unk0; /* the player */
+    /* 0x001 */ s8 unk1; /* the character */
+    /* 0x002 */ u8 pad2[0x540 - 0x2];
+    /* 0x540 */ u32 unk540;
+    /* 0x544 */ u8 pad544[0x568 - 0x544];
+    /* 0x568 */ u8 unk568;
+    /* 0x569 */ u8 pad569[0x5C8 - 0x569];
     /* 0x5C8 */ s16 unk5C8;
 } M061Player;
 
@@ -83,9 +91,12 @@ typedef struct M061ColourCycle {
 
 /* A menu item (D_800FF780, size 0x20; the main segment's MenuItem), as used here */
 typedef struct M061MenuItem {
-    /* 0x00 */ u8 pad0[0x8];
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 unk6;
     /* 0x08 */ f32 unk8;
-    /* 0x0C */ u8 padC[0x20 - 0xC];
+    /* 0x0C */ f32 unkC;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ u8 pad14[0x20 - 0x14];
 } M061MenuItem;
 
 extern M061MenuItem D_800FF780[];
@@ -192,7 +203,290 @@ void func_m061_003D0(void) {
     func_80055A00(sTextures[18]);
 }
 
+/* What char_record_lookup gives, as used here */
+typedef struct M061Record {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 unk14[(0x70 - 0x14) / 2]; /* indexed by unk70 */
+    /* 0x70 */ u8 unk70;
+} M061Record;
+
+/* The player's flags at 0x540 (as m014's 010F4 reads them) */
+typedef struct M061Flags {
+    /* 31 */ u32 pad : 2;
+    /* 29 */ u32 turn : 2;
+    /*  0 */ u32 rest : 28;
+} M061Flags;
+
+extern Gfx *D_800FF398;
+extern Mtx *D_800FF39C;
+extern u8 D_800A4FD8;  /* the multiplayer game type */
+extern s32 D_800A4FDC;
+extern u16 D_800A4FE4; /* the kills to win */
+extern u16 D_800FF1B8[]; /* each player's results fade */
+extern s32 D_800FF3C8[]; /* the buttons pressed this frame, per player */
+extern s32 fb_mode(void);
+extern void func_80054EA0(s32 *width, s32 *height); /* the frame buffer size */
+extern s32 get_current_viewport(void);
+extern s32 cam_get_active_camera_id(void);
+extern s32 cam_set_layout(s32 mode);
+extern void set_active_camera(s32 camera);
+extern void func_800408C0(Gfx **dl); /* sets the viewport's scissor */
+extern void func_80040D64(Gfx **dl, Mtx **mtx);
+extern void func_80055B80(Gfx **dl);
+extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
+extern void func_8006FC54(s32 font);
+extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
+extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
+extern void func_80048518(s32 arg0);
+extern M061Record *char_record_lookup(s32 player, s32 character);
+extern s32 options_split_vertical_get(void);
+extern void func_m006_00F30(s32 corner, s32 player, s32 *x, s32 *y);
+extern void func_m006_012D4(M061Player *player, s32 updateRate);
+extern void func_m006_00000(Object *obj, s32 health, s32 arg2, s32 updateRate);
+extern void func_8005A0D0(s32 item); /* draws a menu item */
+extern void menu_digits_draw(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 colour, s32 padColour);
+extern void menu_draw_layout_box(Gfx **dl, s32 index, u32 colour);
+extern void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
+extern void func_8004F02C(Gfx **dl, void *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour, s32 flags);
+extern void sound_stop(s32 handle);
+extern void set_game_paused(s32 mode);
+extern void func_800468C0(s32 arg0);
+extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
+extern void func_m013_00008(Object *obj, M061Player *player, s32 updateRate);
+extern void rl_m061_019E0(Object **objs, s32 updateRate);
+extern s32 rl_m061_023B8(s32 count, s32 arg1, s32 updateRate);
+extern void rl_m061_01218(M061Player *player, s32 updateRate);
+void func_m061_00F50(void);
+void func_m061_010D4(s32 mode);
+void func_m061_01F14(Object *obj, Object **objs, s32 updateRate);
+void func_m061_02E84(s32 count, Object **objs);
+#define sState (*(u8 *) &D_800A4FEC)
+#define sRankImages ((void **) &rl_m061_02FA0[0x5E4])
+#define sRankTexts ((char **) &rl_m061_02FA0[0x5F4])
+#define sRankColours ((u32 *) &rl_m061_02FA0[0x604])
+
+#ifdef NON_MATCHING
+/*
+ * 23 aligned diffs (709/709 words, frame right): the player count's load (the ROM's is in v1 and above the mode test),
+ * the mode & 1 temporary two words high, the fade's subtraction in v0 (ROM a2), the unrolled store loop's delay slot and
+ * case 2's 0x20 kept in a register.
+ */
+/*
+ * The deathmatch screen each frame: the end of the round (by kills, by the last player standing (game type 0x30) or
+ * 023B8's test (0x10)), then each player's HUD with its kills, its results once the round is over, and a button to go
+ * on.
+ */
+void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
+    s32 i;
+    s32 alpha;
+    s32 n;
+    s32 x;
+    s32 y;
+    s32 x1;
+    s32 y1;
+    s32 x2;
+    s32 y2;
+    s32 textX;
+    s32 textY;
+    s32 k;
+    s32 viewport;
+    s32 mode;
+    s32 camera;
+    Object *obj;
+    s32 sound;
+    M061Player *player;
+    s32 width;
+    s32 height;
+    M061Stats *stats;
+    u16 *fade;
+    M061Record *record;
+
+    sound = FALSE;
+    rl_m061_019E0(objs, updateRate);
+    mode = fb_mode();
+    func_80054EA0(&width, &height);
+    viewport = get_current_viewport();
+    camera = cam_get_active_camera_id();
+    cam_set_layout(0);
+    set_active_camera(0);
+    func_800408C0(&D_800FF398);
+    func_80040D64(&D_800FF398, &D_800FF39C);
+    func_8006FC8C(0, 0, 0, 0);
+    if (!sState) {
+        switch (D_800A4FD8 & 0x30) {
+            case 0x10:
+                if (rl_m061_023B8(count, D_800A4FDC, updateRate)) {
+                    func_m061_00F50();
+                    func_m061_02E84(count, objs);
+                }
+                break;
+            case 0x30:
+                n = 0;
+                stats = D_800FED50;
+                i = count;
+                while (i--) {
+                    if (stats->unk13 != 0) {
+                        n++;
+                    }
+                    stats++;
+                }
+                stats = D_800FED50;
+                i = count;
+                while (i--) {
+                    if (stats->unk13 == 0) {
+                        if (stats->unk15 == 0) {
+                            stats->rank = n + 1;
+                            stats->unk15 = 1;
+                        }
+                    } else {
+                        stats->unk90 += updateRate;
+                        if (stats->unk90 >= 360000) {
+                            stats->unk90 = 359999;
+                        }
+                        stats->rank = 1;
+                    }
+                    stats++;
+                }
+                if (n < 2) {
+                    func_m061_010D4(4);
+                    func_m061_02E84(count, objs);
+                }
+                break;
+            default:
+                for (i = 0, n = 0; i < count; i++) {
+                    if (D_800FED50[i].kills >= D_800A4FE4) {
+                        n++;
+                    }
+                }
+                if (n != 0) {
+                    for (i = 0; i < count; i++) {
+                        D_800FED50[i].unk15 = 1;
+                    }
+                    func_m061_00F50();
+                    func_m061_02E84(count, objs);
+                }
+                break;
+        }
+    }
+    if (sState) {
+        func_80048518(10);
+    }
+    for (i = 0; i < count; i++) {
+        obj = objs[i];
+        if (obj != NULL) {
+            player = obj->unk68;
+            func_m006_012D4(player, updateRate);
+            rl_m061_01218(player, updateRate);
+            record = char_record_lookup(player->unk0, player->unk1);
+            if ((mode & 1) || (D_800A4FD0 == 2 && options_split_vertical_get())) {
+            }
+            func_8006FC54(2);
+            func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
+            func_80040D64(&D_800FF398, &D_800FF39C);
+            func_80055B80(&D_800FF398);
+            D_800FF780[0].unk6 = record->unk70 + 10;
+            if ((((M061Flags *) &player->unk540)->turn & 2) || (((M061Flags *) &player->unk540)->turn & 1)) {
+                sound = TRUE;
+            }
+            func_m006_00F30(1, player->unk0, &x, &y);
+            D_800FF780[0].unkC = x;
+            D_800FF780[0].unk10 = y;
+            func_8005A0D0(0);
+            menu_digits_draw(record->unk14[record->unk70], x + 12, y - 9, 9, 3, 0xFFFF00FF, 0xFFFF0080);
+            func_m006_00000(obj, obj->interactObj->hitPoints >> 8, 12, updateRate);
+            if ((D_800A4FD8 & 0x30) == 0x30) {
+                func_m006_00F30(0, player->unk0, &x, &y);
+                menu_digits_draw(D_800FED50[i].unk13, x + 5, y + 3, 9, 1, 0xFFFF00FF, 0xFFFF0080);
+            }
+            func_m061_01F14(obj, objs, updateRate);
+            if ((sState > 0 && sState < 10) || D_800FED50[i].unk15 != 0) {
+                fade = &D_800FF1B8[i];
+                if ((alpha = (*fade += updateRate * 2)) >= 256) {
+                    alpha = *fade = 255;
+                }
+                alpha = 0xFF - alpha;
+                alpha = (alpha << 24) | (alpha << 16) | (alpha << 8);
+                menu_draw_layout_box(&D_800FF398, i, alpha | sRankColours[D_800FED50[i].rank]);
+                menu_layout_box_get(i, &x1, &y1, &x2, &y2);
+                textX = ((x1 + x2) >> 1) + 10;
+                textY = ((y1 + y2) >> 1) - 13;
+                func_8006FC54(2);
+                func_8006FC68(0, 0, 0, 0xFF, *fade);
+                func_8006FCA8(&D_800FF398, textX, textY, sRankTexts[D_800FED50[i].rank], 12);
+                func_8006FC68(0, 0xFF, 0x80, 0xFF, *fade);
+                func_8006FCA8(&D_800FF398, textX - 1, textY - 1, sRankTexts[D_800FED50[i].rank], 12);
+                alpha = *fade;
+                if (alpha == 0xFF) {
+                    alpha = 0xFE;
+                }
+                func_8004F02C(&D_800FF398, sRankImages[D_800FED50[i].rank], textX - 20, textY + 7, 1.5f, 1.5f, alpha, 1);
+                func_8004F02C(&D_800FF398, sRankImages[D_800FED50[i].rank], textX - 19, textY + 6, 1.5f, 1.5f,
+                              alpha | 0xFF8000, 1);
+            }
+        }
+    }
+    if (sound) {
+        if (sBss1C8 != 0) {
+            sound_stop(sBss1C8);
+        }
+        func_80001248(0x8B, (s32) &sBss1C8); /* (module.h's prototype: the handle's address as an s32) */
+    }
+    switch (sState) {
+        case 1:
+            n = 0;
+            for (i = 0; i < count; i++) {
+                if (D_800FF1B8[i] >= 0xFF) {
+                    n++;
+                }
+            }
+            if (n == count) {
+                sState = 2;
+                set_game_paused(2);
+            }
+            break;
+        case 2:
+            for (i = 0; i < count && sState == 2; i++) {
+                if (D_800FF3C8[i] & 0x9000) {
+                    func_800468C0(1);
+                    switch (D_800A4FD8 & 0x30) {
+                        case 0x10:
+                            k = 0x13;
+                            break;
+                        case 0x20:
+                            k = 0x12;
+                            break;
+                        default:
+                            k = 0x14;
+                            break;
+                    }
+                    func_80047608(k, 0, 0);
+                    sState = 3;
+                }
+            }
+            break;
+    }
+    cam_set_layout(viewport);
+    set_active_camera(camera);
+    for (i = 0; i < count; i++) {
+        obj = objs[i];
+        if (obj != NULL) {
+            player = obj->unk68;
+            if (player->unk568 == 5 || player->unk568 == 11) {
+                func_m013_00008(obj, player, updateRate);
+            }
+        }
+    }
+    if (sState == 3) {
+        cam_set_layout(0);
+        set_active_camera(0);
+        func_800408C0(&D_800FF398);
+        cam_set_layout(viewport);
+        set_active_camera(camera);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_0043C);
+#endif
 
 /* Sorts the players by kills, then by their unk0[unk8C], and gives them their ranks */
 void func_m061_00F50(void) {
@@ -291,7 +585,7 @@ extern u32 rl_m061_035B8[]; /* .data (still assembly): the dots' colours */
 #define sDotColours rl_m061_035B8
 
 /* Draws a player's radar in its corner of the screen, with a dot for each other player (called from 0043C) */
-void func_m061_01F14(Object *obj, UNUSED s32 arg1, UNUSED s32 arg2) {
+void func_m061_01F14(Object *obj, UNUSED Object **objs, UNUSED s32 updateRate) {
     UNUSED s32 pad;
     s32 x;
     s32 y;
