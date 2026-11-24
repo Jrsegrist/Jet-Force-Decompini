@@ -629,7 +629,245 @@ void troop_members_number(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/51AD0", func_80051EA4);
+/* JFG: a node of a chain (linked at 0x28) */
+typedef struct ChainNode {
+    /* 0x00 */ u8 pad0[0x1E];
+    /* 0x1E */ u8 unk1E;
+    /* 0x1F */ u8 pad1F[0x28 - 0x1F];
+    /* 0x28 */ struct ChainNode *next;
+} ChainNode;
+
+/* JFG: an entry of the chain table D_801045B0 */
+typedef struct ChainHead {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ ChainNode *first;
+} ChainHead;
+
+/* JFG: the state of an object of behaviour 0x1B: up to four chains (-1: none) and a node index in each */
+typedef struct ChainUserState {
+    /* 0x00 */ s16 chains[4];
+    /* 0x08 */ u8 pad8[0xC - 0x8];
+    /* 0x0C */ u8 nodes[4];
+    /* 0x10 */ u8 pad10;
+    /* 0x11 */ u8 unk11;
+} ChainUserState;
+
+/* JFG: a troop leader's state as the troop set-up sees it */
+typedef struct TroopSetupState {
+    /* 0x00 */ u8 pad0[0x1A];
+    /* 0x1A */ u16 kind : 4;
+    /* 0x1A */ u16 mode : 4;
+    /* 0x1A */ u16 pad1A : 8;
+    /* 0x1C */ u8 pad1C[0x30 - 0x1C];
+    /* 0x30 */ u8 unk30;
+    /* 0x31 */ u8 pad31[0x3C - 0x31];
+    /* 0x3C */ s16 points;
+} TroopSetupState;
+
+/* JFG: a way-point (0x34 bytes, as TroopWaypoint) as the troop set-up sees it */
+typedef struct TroopSetupPoint {
+    /* 0x00 */ u8 pad0[0x16];
+    /* 0x16 */ u8 next;
+    /* 0x17 */ u8 kind : 2;
+    /* 0x17 */ u8 pad17 : 6;
+    /* 0x18 */ u8 pad18[0x2F - 0x18];
+    /* 0x2F */ u8 used;
+    /* 0x30 */ u8 pad30[0x34 - 0x30];
+} TroopSetupPoint;
+
+/* JFG: an object as the troop set-up sees it */
+typedef struct TroopSetupObject {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x3C - 0x18];
+    /* 0x3C */ void *levelEntry;
+    /* 0x40 */ u8 pad40[0x48 - 0x40];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x68 */ void *state;
+    /* 0x6C */ u8 pad6C[0xA0 - 0x6C];
+    /* 0xA0 */ u8 freed;
+} TroopSetupObject;
+
+s32 runlink_module_loaded(s32 module);
+void mempool_free(void *data);
+void func_80054530();
+s32 objflag_get(s32 flag);
+void obj_group_countdown(s32 id, u16 flag);
+s32 troop_member_waypoint_set(u8 point);
+/* The module trap called with these arguments for a result (aliases in undefined_syms.us.txt). */
+s32 func_80054530_fffr(f32 x, f32 y, f32 z, s32 arg3);
+s32 func_80054530_bbr(u8 a, u8 b, s32 c);
+extern ChainHead **D_801045B0;
+extern s32 D_800FEA98; // JFG: the number of way-points (D_800FEA9C)
+extern s32 D_800FEA18[16];
+
+/* JFG: set up the troops after a level's objects are spawned (only with module 3, the enemy code, loaded): give
+   the chain users (behaviour 0x1B) their chain nodes, clear the way-points' marks, list the troop leaders
+   (behaviour 0x17, with a compiled-out check for duplicate troop ids) and spawn each leader kind once, start
+   each leader of mode 6 on the way-point module 3 picks for its position, fill the ring list from the buffer troop_buffer_push filled
+   (then free it), and start the countdown of each leader whose flags are all set.
+   Not portable as is: D_800FEA10 and D_800FEA14 (s16 * and s32) carry object and state pointers, as elsewhere
+   in this file. */
+void func_80051EA4(void) {
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 id;
+    TroopSetupObject *obj;
+    ChainNode *node;
+    UNUSED s32 pad;
+    s32 ok;
+    s32 first;
+    s32 last;
+    TroopSetupObject **objs;
+    TroopSetupPoint *point;
+    ChainUserState *user;
+    ChainHead *chain;
+    TroopObject **list;
+
+    if (!runlink_module_loaded(3)) {
+        mempool_free(D_800FE9AC);
+        return;
+    }
+    troop_members_number();
+    objs = (TroopSetupObject **) objGetObjList(&first, &last);
+    D_800FE9A8 = 0;
+    D_800FE9B0 = 0x40;
+    i = 16;
+    while (i--) {
+        D_800FEA18[i] = 0;
+    }
+    func_80054530();
+    for (i = first; i < last; i++) {
+        obj = objs[i];
+        if (obj->freed) {
+            continue;
+        }
+        if (obj->behaviorId == 0x1B) {
+            user = obj->state;
+            func_80054530(obj, obj->levelEntry);
+            func_80054530(obj, 0);
+            j = 4;
+            while (j--) {
+                if (user->chains[j] != -1) {
+                    chain = D_801045B0[user->chains[j]];
+                    node = chain->first;
+                    k = user->nodes[j];
+                    while (k--) {
+                        node = node->next;
+                    }
+                    node->unk1E = user->unk11;
+                }
+            }
+        }
+    }
+    i = D_800FEA98;
+    point = (TroopSetupPoint *) D_800FEA9C;
+    while (i--) {
+        point->used = 0;
+        point++;
+    }
+    D_800FE9F0 = 0;
+    for (i = first; i < last; i++) {
+        if (objs[i]->behaviorId == 0x17) {
+            D_800FE9F0++;
+        }
+    }
+    if (D_800FE9F0 != 0) {
+        D_800A38E4 = mempool_alloc_safe(D_800FE9F0 * 4, 0xFFFF00FF);
+        j = 0;
+        for (i = first; i < last; i++) {
+            if (objs[i]->behaviorId == 0x17) {
+                D_800A38E4[j++] = (TroopObject *) objs[i];
+                k = j - 1;
+                while (k-- > 0) {
+                    if (((LeaderState2 *) ((TroopSetupObject *) D_800A38E4[k])->state)->unk64 ==
+                        ((LeaderState2 *) objs[i]->state)->unk64) {
+                        stubbed_printf(D_800ACD10, ((LeaderState2 *) objs[i]->state)->unk64);
+                    }
+                }
+            }
+        }
+    } else {
+        D_800A38E4 = NULL;
+    }
+    D_800FE9B0 |= 8;
+    j = 54;
+    while (j--) {
+        D_800FE9B8[j] = 0;
+    }
+    j = D_800FE9F0;
+    while (j--) {
+        D_800FEA10 = (s16 *) D_800A38E4[j];
+        D_800FEA14 = (s32) ((TroopSetupObject *) D_800FEA10)->state;
+        troop_leader_spawn(((LeaderState2 *) D_800FEA14)->unk2C);
+    }
+    D_800FE9B0 &= ~8;
+    j = D_800FE9F0;
+    while (j--) {
+        D_800FEA10 = (s16 *) D_800A38E4[j];
+        D_800FEA14 = (s32) ((TroopSetupObject *) D_800FEA10)->state;
+        func_80054530(0, D_800FEA10);
+        if (((TroopSetupState *) D_800FEA14)->mode == 6) {
+            id = func_80054530_fffr(((TroopSetupObject *) D_800FEA10)->x, ((TroopSetupObject *) D_800FEA10)->y,
+                                    ((TroopSetupObject *) D_800FEA10)->z, 0);
+            if (id != 0) {
+                point = (u8) id + (TroopSetupPoint *) D_800FEA9C;
+                if (point->kind && point != NULL) {
+                    ((TroopSetupState *) D_800FEA14)->points = point->next;
+                    troop_member_waypoint_set(func_80054530_bbr(
+                        ((TroopSetupState *) D_800FEA14)->unk30, ((TroopSetupState *) D_800FEA14)->points & 0xFF, 0));
+                    MEMBER->mode = 0x1F;
+                }
+            } else {
+                ((TroopSetupState *) D_800FEA14)->mode = 2;
+            }
+        }
+    }
+    if (D_800FE9A0 != 0) {
+        D_800FE9A4 = mempool_alloc_safe(D_800FE9A0 * 4, 0xFFFF00FF);
+        i = D_800FE9A0;
+        list = D_800FE9A4;
+        while (i--) {
+            *list++ = NULL;
+        }
+        i = D_800FE9A0;
+        while (i--) {
+            obj = (TroopSetupObject *) D_800FE9AC[i];
+            D_800FEA10 = (s16 *) troop_find_by_tag(((TroopObject *) obj)->unk11);
+            D_800FEA14 = (s32) ((TroopSetupObject *) D_800FEA10)->state;
+            if (((TroopSetupState *) D_800FEA14)->kind == 1) {
+                troop_ring_add((TroopObject *) obj);
+            } else {
+                func_80054530(obj);
+            }
+        }
+    }
+    mempool_free(D_800FE9AC);
+    objs = (TroopSetupObject **) objGetObjList(&first, &last);
+    for (i = first; i < last; i++) {
+        obj = objs[i];
+        if (obj->behaviorId == 0x17) {
+            D_800FEA14 = (s32) obj->state;
+            if (((LeaderState2 *) D_800FEA14)->unk75) {
+                ok = TRUE;
+                for (k = 0; k < ((LeaderState2 *) D_800FEA14)->unk1; k++) {
+                    if (!objflag_get(((LeaderState2 *) D_800FEA14)->unk88 + k)) {
+                        ok = FALSE;
+                        break;
+                    }
+                }
+                if (ok) {
+                    obj_group_countdown(((LeaderState2 *) D_800FEA14)->unk75, 0);
+                    MEMBER->flags |= 8;
+                }
+            }
+        }
+    }
+}
 
 extern u32 *D_800A38E0;
 u32 *asset_table_load(u32 assetIndex);

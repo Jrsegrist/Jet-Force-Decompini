@@ -806,3 +806,10 @@ D_800F6DCA = D_800F6DC8 + 2;
 D_800F6DCC = D_800F6DC8 + 4;
 D_800F6DCE = D_800F6DC8 + 6;
 D_800F6E70 = D_800F6E58 + 0x18;
+
+/* ---- main44 (round 44): 51AD0.c func_80051EA4 calls the module trap with three floats and an int, and with
+   two u8s and an int, for a result ---- */
+func_80054530_fffr = 0x80054530;
+func_80054530_bbr = 0x80054530;
+/* 2BAA0.c func_80032130: three ints and two floats, for a result */
+func_80054530_iiiffr = 0x80054530;

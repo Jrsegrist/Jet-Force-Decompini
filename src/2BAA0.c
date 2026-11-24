@@ -1449,8 +1449,8 @@ typedef struct RespawnInfo {
     /* 0x0A */ s16 unkA;
     /* 0x0C */ s16 unkC;
     /* 0x0E */ s16 unkE;
-    /* 0x10 */ s8 player;
-    /* 0x11 */ s8 character;
+    /* 0x10 */ u8 player;
+    /* 0x11 */ u8 character;
     /* 0x12 */ u8 pad12[2];
 } RespawnInfo;
 
@@ -1497,7 +1497,357 @@ void player_respawn_at(u8 *obj, f32 x, f32 y, f32 z, s16 arg4, s16 arg5, s16 arg
 void func_80032128(s32 arg0) {
 }
 
-INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80032130);
+/* JFG: a player character's effect meshes (one entry per character, 0x10 bytes) */
+typedef struct PlayerMeshSet {
+    /* 0x00 */ u8 count;
+    /* 0x01 */ u8 first; // the first model point (in the model header's 0x30 table)
+    /* 0x02 */ s16 arg3;
+    /* 0x04 */ s16 arg4;
+    /* 0x06 */ s16 arg5;
+    /* 0x08 */ s16 arg6;
+    /* 0x0A */ s16 segments;
+    /* 0x0C */ s16 tex1;
+    /* 0x0E */ s16 tex2;
+} PlayerMeshSet;
+
+/* JFG: an object header's light (291B0.c LightHeader29). Size: 0x18 bytes */
+typedef struct PlayerLightHeader {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ s8 unk3;
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ s16 homeX;
+    /* 0x08 */ s16 homeY;
+    /* 0x0A */ s16 homeZ;
+    /* 0x0C */ u16 radius;
+    /* 0x0E */ u16 unkE;
+    /* 0x10 */ u8 colourR;
+    /* 0x11 */ u8 colourG;
+    /* 0x12 */ u8 colourB;
+    /* 0x13 */ u8 intensity;
+    /* 0x14 */ s16 colourCycleID;
+    /* 0x16 */ u8 unk16;
+    /* 0x17 */ u8 unk17;
+} PlayerLightHeader;
+
+/* JFG: an object header's corona (245D0.c CoronaHeader). Size: 0x20 bytes */
+typedef struct PlayerCoronaHeader {
+    /* 0x00 */ u8 active;
+    /* 0x01 */ u8 size;
+    /* 0x02 */ s16 rotation[3];
+    /* 0x08 */ f32 offset[3];
+    /* 0x14 */ u8 colour[4];
+    /* 0x18 */ s16 spriteID;
+    /* 0x1A */ s16 unk1A;
+    /* 0x1C */ s16 unk1C;
+    /* 0x1E */ s8 attachPoint;
+    /* 0x1F */ u8 visible;
+} PlayerCoronaHeader;
+
+/* JFG: the level object entry spawned for the player (object 0xAC) */
+typedef struct PlayerSpawnEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 pad3;
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ u8 padA[2];
+} PlayerSpawnEntry;
+
+/* JFG: a model point reference (the model header's 0x30 table) */
+typedef struct PlayerPointRef {
+    /* 0x00 */ u16 vertex;
+    /* 0x02 */ u16 unk2;
+} PlayerPointRef;
+
+extern PlayerMeshSet D_800A18FC[8];
+extern u8 D_800A1BF8[];
+extern u8 D_800A20B4[];
+extern u8 D_800A23A8[];
+extern u8 D_800A23BC[];
+extern u8 D_800A25A0[];
+extern u8 D_800A4FC4;
+s32 obj_anim_set(void *obj, s32 anim, f32 frame);
+struct PoseRacer;
+void pose_points_update(u8 *obj, struct PoseRacer *racer, f32 updateRate);
+void *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 segments, s32 tex1,
+                         s32 tex2);
+s32 func_80048E2C(s32 min, s32 max);
+void set_active_camera(s32 index);
+/* The module trap called with three ints and two floats for a result (alias in undefined_syms.us.txt). */
+void *func_80054530_iiiffr(s32 a, s32 b, s32 c, f32 d, f32 e);
+void *corona_add(void *owner, PlayerCoronaHeader *header);
+void *light_add_from_object_header(void *obj, PlayerLightHeader *header);
+u8 *func_80005F14(void *entry, s32 arg1);
+
+/* JFG: set up a player's state block from its entry (player and character, angles): the character's record, pose
+   and animation, its effect meshes, light, corona and attached object, the camera, and the rest of its fields.
+   The float zeros are spelled four ways (0.0f, 0, 0.f, .0f): IDO compares float literals by their text, and the
+   ROM keeps each spelling's zero apart (separate mtc1s where one spelling would share a register).
+   As in the ROM, a character above 7 leaves pose unset (it is stored all the same). */
+void func_80032130(u8 *obj, RespawnInfo *info) {
+    u8 *racer;
+    s32 i;
+    s32 anim;
+    u8 *header;
+    PlayerMeshSet *set;
+    s32 point;
+    f32 (*dst)[3];
+    u8 *pose;
+    f32 (*src)[3];
+    u8 *model;
+    u8 *chr;
+    UNUSED s32 pad1;
+    PlayerSpawnEntry entry;
+    PlayerLightHeader lightHeader;
+    UNUSED s32 pad2;
+    PlayerCoronaHeader coronaHeader;
+
+    racer = *(u8 **) (obj + 0x68);
+    *(s16 *) (racer + 0x240) = 0x1000;
+    ((Racer *) racer)->player = info->player;
+    ((Racer *) racer)->character = info->character;
+    chr = char_record_lookup(((Racer *) racer)->player, ((Racer *) racer)->character);
+    racer[0x189] = *(u16 *) (chr + 4) & 0x1F;
+    switch (((Racer *) racer)->character & 3) {
+        case 0:
+            *(f32 *) (racer + 0x14) = 0.075f;
+            break;
+        case 1:
+            *(f32 *) (racer + 0x14) = 0.075f;
+            break;
+        case 2:
+            *(f32 *) (racer + 0x14) = 0.075f;
+            break;
+        default:
+            *(f32 *) (racer + 0x14) = 0;
+            break;
+    }
+    *(s16 *) (obj + 0) = info->unkE;
+    *(s16 *) (obj + 2) = info->unkC;
+    *(s16 *) (obj + 4) = info->unkA;
+    *(f32 *) (racer + 0x48) = 1.0f;
+    *(f32 *) (racer + 0x4C) = 1.0f;
+    *(s16 *) (racer + 0x11C) = *(s16 *) (obj + 0);
+    *(s16 *) (racer + 0x128) = *(s16 *) (obj + 0);
+    *(s16 *) (racer + 0x120) = *(s16 *) (obj + 4);
+    *(s16 *) (racer + 0x104) = 0x8000 - *(s16 *) (obj + 0);
+    *(f32 *) (racer + 0x57C) = *(f32 *) (obj + 0x10);
+    i = 6;
+    while (i--) {
+        ((Racer *) racer)->items[i] = NULL;
+    }
+    if ((((Racer *) racer)->character & 3) != 2) {
+        racer[0x1F8] = 8;
+    }
+    switch (((Racer *) racer)->character) {
+        case 0:
+        case 4:
+            ((Racer *) racer)->numPoints = 5;
+            *(u32 *) (racer + 0x518) = 0xCE002000;
+            *(u32 *) (racer + 0x51C) = 0x2000000;
+            pose = D_800A1BF8;
+            break;
+        case 1:
+        case 5:
+            ((Racer *) racer)->numPoints = 5;
+            *(u32 *) (racer + 0x518) = 0xCE00A000;
+            *(u32 *) (racer + 0x51C) = 0x4000000;
+            pose = D_800A20B4;
+            break;
+        case 2:
+            ((Racer *) racer)->numPoints = 2;
+            *(u32 *) (racer + 0x518) = 0xCE002000;
+            *(u32 *) (racer + 0x51C) = 0x8000000;
+            pose = D_800A23A8;
+            break;
+        case 6:
+            ((Racer *) racer)->numPoints = 2;
+            *(u32 *) (racer + 0x518) = 0xCE002000;
+            *(u32 *) (racer + 0x51C) = 0x8000000;
+            pose = D_800A23BC;
+            break;
+        case 3:
+        case 7:
+            ((Racer *) racer)->numPoints = 2;
+            *(u32 *) (racer + 0x518) = 0;
+            *(u32 *) (racer + 0x51C) = 0;
+            pose = D_800A25A0;
+            break;
+    }
+    ((Racer *) racer)->pose = pose;
+    anim = 0;
+    switch (((Racer *) racer)->character & 3) {
+        case 0:
+            anim = 0x10;
+            break;
+        case 1:
+            anim = 0x10;
+            break;
+        case 2:
+            anim = 9;
+            break;
+    }
+    obj_anim_set(obj, anim, 0.0f);
+    obj_anim_set(obj, anim, 0.0f);
+    dst = ((Racer *) racer)->points;
+    for (i = 0; i < ((Racer *) racer)->numPoints; i++, dst++) {
+        (*dst)[0] = (*(f32 ***) ((Racer *) racer)->pose)[i][0];
+        (*dst)[1] = (*(f32 ***) ((Racer *) racer)->pose)[i][1];
+        (*dst)[2] = (*(f32 ***) ((Racer *) racer)->pose)[i][2];
+    }
+    racer[0x535] = 0;
+    pose_points_update(obj, (struct PoseRacer *) racer, 0.0f);
+    dst = ((Racer *) racer)->posePoints;
+    src = (f32 (*)[3]) (racer + 0x3C4);
+    for (i = 0; i < ((Racer *) racer)->numPoints; i++) {
+        dst[i][0] = src[i][0];
+        dst[i][1] = src[i][1];
+        dst[i][2] = src[i][2];
+    }
+    model = (*(u8 ***) (obj + 0x6C))[(s8) obj[0x3A]];
+    header = *(u8 **) model;
+    set = &D_800A18FC[((Racer *) racer)->character & 7];
+    if (set->count) {
+        point = set->first;
+        for (i = 0; i < set->count; i++, point++) {
+            if (((void **) (racer + 0x598))[i] == NULL) {
+                s16 *v = (s16 *) (*(u8 **) (header + 0x1C) + (*(PlayerPointRef **) (header + 0x30))[point].vertex * 10);
+                ((void **) (racer + 0x598))[i] = effect_mesh_create(v[0], v[1], v[2], set->arg3, set->arg4, set->arg5,
+                                                                    set->arg6, set->segments, set->tex1, set->tex2);
+                racer[i + 0x5A8] = func_80048E2C(-0x80, 0x7F);
+                racer[i + 0x5AC] = 0;
+                racer[i + 0x5B0] = point;
+                racer[i + 0x5B4] = (*(PlayerPointRef **) (header + 0x30))[point].unk2;
+                racer[i + 0x5B8] = 0;
+            }
+        }
+    } else {
+        *(void **) (racer + 0x59C) = NULL;
+        *(void **) (racer + 0x5A0) = NULL;
+        *(void **) (racer + 0x5A4) = NULL;
+        *(void **) (racer + 0x598) = NULL;
+    }
+    ((Racer *) racer)->pos[0] = *(f32 *) (obj + 0xC);
+    ((Racer *) racer)->pos[1] = *(f32 *) (obj + 0x10);
+    ((Racer *) racer)->pos[2] = *(f32 *) (obj + 0x14);
+    *(f32 *) (*(u8 **) (obj + 0x4C) + 0x34) = -1.0f;
+    (*(u8 **) (obj + 0x4C))[9] = 2;
+    *(u16 *) (*(u8 **) (obj + 0x4C) + 0xA) |= 0x11;
+    racer[0x192] = 0xFF;
+    ((Racer *) racer)->squashTimer = 0;
+    ((Racer *) racer)->squashObj = NULL;
+    ((Racer *) racer)->pointMask = ((Racer *) racer)->pose[4];
+    ((Racer *) racer)->unk1FC = -2;
+    *(s16 *) (racer + 0x1FE) = 0;
+    *(s32 *) (racer + 0x200) = 0;
+    ((Racer *) racer)->unk1EC = 1.0f;
+    *(f32 *) (racer + 0x204) = 0;
+    *(f32 *) (racer + 0x208) = *(f32 *) (obj + 0xC);
+    *(f32 *) (racer + 0x20C) = *(f32 *) (obj + 0x10);
+    *(f32 *) (racer + 0x210) = *(f32 *) (obj + 0x14);
+    *(s16 *) (racer + 0x21C) = 0;
+    *(s16 *) (racer + 0x21E) = 0xFF;
+    *(s32 *) (racer + 0x220) = 0;
+    racer[0x19A] = 0;
+    *(f32 *) (racer + 0x224) = 0.f;
+    if (((Racer *) racer)->player != -1) {
+        set_active_camera(((Racer *) racer)->player);
+        player_camera_setup(obj, (Racer *) racer);
+    }
+    racer[0x344] = 0;
+    racer[0x345] = 0;
+    *(s16 *) (racer + 0x346) = 0;
+    *(s16 *) (racer + 0x348) = 0;
+    *(s16 *) (racer + 0x34A) = 0;
+    *(f32 *) (racer + 0x34C) = 0;
+    *(f32 *) (racer + 0x350) = 1.0f;
+    D_800F6DC8.unk6 = 0;
+    D_800F6DC8.unk14 = 0.f;
+    D_800F6DC8.unk18 = .0f;
+    D_800F6DC8.unk1C = -48.0f;
+    *(ViewPoint **) (racer + 0x23C) = &D_800F6DC8;
+    ((Racer *) racer)->unk568 = 0;
+    if (*(s16 *) (chr + 0) < 0x100) {
+        *(s16 *) (chr + 0) = (*(s16 *) (chr + 2) * 5 + 4) << 8;
+    }
+    *(s16 *) (*(u8 **) (obj + 0x4C) + 6) = *(s16 *) (chr + 0);
+    *(s16 *) (racer + 0x586) = *(s16 *) (chr + 0xC);
+    *(s16 *) (racer + 0x588) = *(s16 *) (chr + 0xE);
+    *(s16 *) (racer + 0x58A) = *(s16 *) (chr + 0x10);
+    ((Racer *) racer)->flags.unk25 = 0;
+    ((Racer *) racer)->sound = 0;
+    ((Racer *) racer)->soundId = 0;
+    ((Racer *) racer)->unk564 = NULL;
+    if (*(void **) (racer + 0x550) == NULL && D_800A4FC4 == 0) {
+        *(void **) (racer + 0x550) = func_80054530_iiiffr(0x18, 3, 5, 75.0f, 175.0f);
+    }
+    if (*(void **) (racer + 0x554) == NULL) {
+        coronaHeader.active = 1;
+        coronaHeader.spriteID = -1;
+        coronaHeader.size = 0;
+        coronaHeader.rotation[0] = 0;
+        coronaHeader.rotation[1] = 0;
+        coronaHeader.rotation[2] = 0;
+        coronaHeader.colour[0] = 0xC0;
+        coronaHeader.colour[1] = 0xC0;
+        coronaHeader.colour[2] = 0xFF;
+        coronaHeader.colour[3] = 0;
+        coronaHeader.unk1A = 0xFA;
+        coronaHeader.unk1C = 0xFA;
+        coronaHeader.attachPoint = -1;
+        coronaHeader.visible = 1;
+        coronaHeader.offset[0] = 0.0f;
+        coronaHeader.offset[1] = 0.0f;
+        coronaHeader.offset[2] = 0.0f;
+        *(void **) (racer + 0x554) = corona_add(NULL, &coronaHeader);
+    }
+    if (((Racer *) racer)->light == NULL) {
+        lightHeader.unk0 = 1;
+        lightHeader.unk1 = 3;
+        lightHeader.unk2 = 0x40;
+        lightHeader.unk4 = 0;
+        lightHeader.unk3 = -1;
+        lightHeader.homeX = 0;
+        lightHeader.homeY = 0;
+        lightHeader.homeZ = 0;
+        lightHeader.intensity = 255;
+        lightHeader.radius = 0x96;
+        lightHeader.unkE = 0x96;
+        lightHeader.colourCycleID = -1;
+        lightHeader.unk16 = 0;
+        lightHeader.unk17 = 0;
+        ((Racer *) racer)->light = light_add_from_object_header(NULL, &lightHeader);
+    }
+    if (*(u8 **) (racer + 0x55C) == NULL) {
+        entry.objectID = 0xAC;
+        entry.x = 0;
+        entry.y = 0;
+        entry.z = 0;
+        entry.size = 0xC;
+        *(u8 **) (racer + 0x55C) = func_80005F14(&entry, 1);
+        *(u8 **) (*(u8 **) (racer + 0x55C) + 0x88) = obj;
+        *(void **) (*(u8 **) (racer + 0x55C) + 0x3C) = NULL;
+        *(f32 *) (*(u8 **) (racer + 0x55C) + 0xC) = *(f32 *) (obj + 0xC);
+        *(f32 *) (*(u8 **) (racer + 0x55C) + 0x10) = *(f32 *) (obj + 0x10);
+        *(f32 *) (*(u8 **) (racer + 0x55C) + 0x14) = *(f32 *) (obj + 0x14);
+        *(f32 *) (*(u8 **) (racer + 0x55C) + 0x14) = *(f32 *) (obj + 0x14); // (z twice, as in the ROM)
+        *(s16 *) (*(u8 **) (racer + 0x55C) + 0x2E) = *(s16 *) (obj + 0x2E);
+    }
+    racer[2] = 0;
+    racer[3] = 0;
+    ((Racer *) racer)->breathTimer = 0;
+    ((Racer *) racer)->breathNow = 0;
+    ((Racer *) racer)->held = NULL;
+    *(s16 *) (racer + 0x58C) = 0;
+    *(s16 *) (racer + 0x592) = 0;
+    ((Racer *) racer)->breathPhase = 0;
+    ((Racer *) racer)->breathLevel = 0.f;
+    racer[0x585] = chr[0x70];
+    racer[0x5EE] = 0;
+}
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80032A48);
 
