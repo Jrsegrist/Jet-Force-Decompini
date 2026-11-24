@@ -210,7 +210,7 @@ extern u8 gCamZoomSet[4];  // JFG: per camera, a zoom is set
 extern f32 gCamZoom[4]; // JFG: per camera, the zoom
 extern f32 D_800A3168;
 s32 fb_mode(void); // the video mode
-s32 level_type(void);
+u8 level_type(void);
 s32 options_split_vertical_get(void); // the two-player screen is split vertically
 
 /**
@@ -690,7 +690,7 @@ typedef struct BillboardTrans {
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
     /* 0x18 */ u8 pad18[0x28 - 0x18];
-    /* 0x28 */ s32 frame;
+    /* 0x28 */ f32 frame;
 } BillboardTrans;
 
 extern BillboardTrans D_800FA638; // DKR: gCameraTransform
@@ -847,7 +847,8 @@ void viewport_reset(Gfx **dList) {
     D_800FA634 = 0;
 }
 
-void func_80041168(s32 arg0, s32 arg1) {
+/* JFG: empty (DKR's mtx_world_origin). */
+void func_80041168(UNUSED Gfx **dList, UNUSED Mtx **matrices) {
 }
 
 /* JFG: the game's vertex (DKR's Vertex) */
@@ -867,7 +868,7 @@ extern f32 D_800FECC4; // JFG: the screen's aspect ratio
 s32 fb_mode(void);
 void func_8004924C(s32 angle, f32 scaleX, f32 scaleY, MtxF *out); // DKR: mtxf_billboard
 void func_80049BA0(MtxF *mtx);                                     // an identity matrix
-void func_80056070(Gfx **dList, void *sprite, s32 flags, s32 frame, s32 alpha);
+void func_80056070(Gfx **dList, void *sprite, s32 flags, f32 frame, u8 primAlpha);
 
 /* JFG: draw a sprite as a billboard at a point: one vertex, a matrix from the camera's roll, the
    scale (and the aspect ratio) and a vertical flip if asked (flag 0x20000000), then the frame. */
@@ -917,7 +918,7 @@ void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex40 **verts, Billboard
 
 /* JFG: render_sprite_billboard for a sprite at a given point, roll and scale instead of a transform. */
 void render_sprite_billboard_at(Gfx **dList, Mtx **mtx, Vertex40 **verts, void *sprite, s16 x, s16 y, s16 z, s16 roll,
-                   f32 scale, s32 frame, s32 flags, u8 alpha) {
+                   f32 scale, f32 frame, s32 flags, u8 alpha) {
     s32 angle;
     f32 aspect;
     Vertex40 *v;

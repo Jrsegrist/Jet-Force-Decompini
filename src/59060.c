@@ -153,7 +153,7 @@ void menu_buffers_init(void) {
 }
 
 s32 func_80054530(); // a module function (patched in by the runtime linker)
-s32 runlink_module_install();  // JFG: load a runlink module
+s32 runlink_module_install(s32 module); // JFG: load a runlink module
 s32 runlink_module_loaded(s32 module);
 void runlink_module_release(s32 module); // JFG: unload a runlink module
 void dialogue_clear(s32 dialogueBoxID);
@@ -331,7 +331,7 @@ extern s32 D_800FF398;
 extern s32 D_800FF39C;
 extern s32 D_800FF3A0;
 extern s32 D_800FF3A4;
-void debug_trace_add(s32 a, char *file, s32 line);
+void debug_trace_add(Gfx *dList, char *file, s32 line);
 void menu_input_update(s32 arg0);
 void menu_show_results(s32 arg0);
 
@@ -346,7 +346,7 @@ s32 menu_set_results(s32 *arg0, s32 *arg1, s32 *arg2, s32 *arg3, s32 arg4) {
     D_800FF39C = *arg1;
     D_800FF3A0 = *arg2;
     D_800FF3A4 = *arg3;
-    debug_trace_add(D_800FF398, "front/front.c", 0x256);
+    debug_trace_add((Gfx *) D_800FF398, "front/front.c", 0x256);
     if (func_80054530()) {
         switch (gMenuMode) {
             case 2:
@@ -392,7 +392,7 @@ s32 menu_set_results(s32 *arg0, s32 *arg1, s32 *arg2, s32 *arg3, s32 arg4) {
     }
     func_80054530();
     func_80054530(arg4);
-    debug_trace_add(D_800FF398, "front/front.c", 0x27A);
+    debug_trace_add((Gfx *) D_800FF398, "front/front.c", 0x27A);
     *arg0 = D_800FF398;
     *arg1 = D_800FF39C;
     *arg2 = D_800FF3A0;
@@ -664,7 +664,7 @@ void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
 void fb_size(s32 *width, s32 *height);
 extern s32 gVideoLastFramebuffer; // JFG: the framebuffer to show next
 void screen_effect_queue(s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
-void func_8006F550(s32 arg0, s32 framebuffer, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
+void func_8006F550(Gfx **dList, s32 image, s32 width, s32 height, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour);
 
 /* JFG: draw box index of the current screen layout into the framebuffer (0x80059864). */
 void menu_draw_layout_box(s32 arg0, s32 index, s32 colour) {
@@ -674,7 +674,7 @@ void menu_draw_layout_box(s32 arg0, s32 index, s32 colour) {
     menu_layout_box_get(index, &x1, &y1, &x2, &y2);
     fb_size(&width, &height);
     if (arg0 != 0) {
-        func_8006F550(arg0, gVideoLastFramebuffer, width, height, x1, y1, x2, y2, colour);
+        func_8006F550((Gfx **) arg0, gVideoLastFramebuffer, width, height, x1, y1, x2, y2, colour);
     } else {
         screen_effect_queue(gVideoLastFramebuffer, width, height, x1, y1, x2, y2, colour);
     }
@@ -1004,7 +1004,7 @@ extern s32 D_800A51C4; // JFG: the menu sprites' flags
 extern s32 D_800A51CC; // JFG: the menu opacity
 void render_object(void *dList, void *mtx, void *verts, void *obj);
 void render_ortho_triangle_image(void *dList, void *mtx, void *verts, MenuDrawTrans *trans, void *sprite, s32 flags,
-                                 s32 alpha);
+                                 u8 alpha);
 void mtx_cam_push(void *dList, void *mtx, void *trans, f32 scaleY, f32 offsetY);
 void func_80041DC0(void *dList); // the same as mtx_pop
 
@@ -1087,7 +1087,7 @@ INCLUDE_ASM("asm/nonmatchings/59060", func_8005A0D0);
 #endif
 
 extern u8 D_800A4FF0; // selects one of the three per-level replacement lists
-s32 get_ingame_map_id(void);
+s16 get_ingame_map_id(void);
 
 /* JFG: a byte-aligned 10-byte spawn entry header (copied byte by byte) */
 typedef struct SpawnHeader {
@@ -1284,19 +1284,19 @@ u8 display_setting_remembered(void) {
     return D_800A51A4;
 }
 
-s32 leveltable_screen_mode();
+s32 leveltable_screen_mode(s32 level);
 
-/* JFG: the screen mode for the current mode byte (0x8005A8E8). */
-s32 display_setting_resolved(void) {
+/* JFG: the screen mode for the current mode byte, or the level's own (0x8005A8E8). */
+s32 display_setting_resolved(s32 level) {
     switch (D_800A51A8) {
         case 3:
             return 3;
         case 2:
-            return leveltable_screen_mode() | 2;
+            return leveltable_screen_mode(level) | 2;
         case 1:
             return 1;
         default:
-            return leveltable_screen_mode();
+            return leveltable_screen_mode(level);
     }
 }
 
@@ -1326,7 +1326,7 @@ u8 sound_output_option(void) {
 
 extern u8 D_800A5938[4];
 extern u8 D_800FF38C;
-void func_8008B2A0(u8 type, s32 mode);
+void func_8008B2A0(u8 type);
 
 /* Sets the sound mode (0-3) (0x8005A99C). */
 void sound_output_option_store(s32 mode) {
@@ -1337,7 +1337,7 @@ void sound_output_option_store(s32 mode) {
         mode = 3;
     }
     D_800FF38C = mode;
-    func_8008B2A0(D_800A5938[mode], mode);
+    func_8008B2A0(D_800A5938[mode]);
 }
 
 extern u16 D_800FF388;
@@ -1348,7 +1348,7 @@ u16 effects_loudness_option(void) {
 }
 
 extern u16 D_800FF388;
-void func_80086510(s32 volume);
+void func_80086510(u32 volume);
 
 /* Sets the sound volume (0-256) (0x8005A9F4). */
 void effects_loudness_option_store(s32 volume) {
@@ -1370,7 +1370,7 @@ u16 options_music_volume_get(void) {
 }
 
 extern u16 gOptionMusicVolume;
-void func_80001050(s32 volume);
+void func_80001050(u32 slider_val);
 
 /* Sets and applies the music volume (0-256) (0x8005AA40). */
 void options_music_volume_set(s32 volume) {

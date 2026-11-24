@@ -13,7 +13,7 @@ typedef struct OSScClient {
     struct OSScClient *next;
     OSMesgQueue *msgQ;
 } OSScClient;
-void osScAddClient(OSSched *sc, OSScClient *c, OSMesgQueue *msgQ, s32 id);
+void osScAddClient(OSSched *sc, OSScClient *c, OSMesgQueue *msgQ, u8 id);
 
 /* From the Diddy Kong Racing decompilation (CC0 1.0); see CREDITS.md. */
 extern s32 gBlockedRenderFlags;

@@ -469,7 +469,7 @@ extern u16 *gVideoDepthBuffer;
 void osDpSetStatus(u32 data);
 void rsp_segment(Gfx **dList, s32 segment, s32 base);
 void set_render_printf_position(u16 x, u16 state);
-void render_printf(const char *format, ...);
+s32 render_printf(const char *format, ...);
 void debug_text_print(Gfx **dList);
 s32 func_80001EE8(void);
 

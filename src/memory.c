@@ -30,7 +30,7 @@ extern u8 gMainMemoryPool[]; // the end of the game's .bss
 
 extern s32 gForcedColourTag;                // JFG: a forced colour tag (or -1)
 extern s32 gForcedColourTag2;                // JFG: a second forced colour tag (or -1)
-void runlink_symbol_nearest(s32 address, s32 *module, s32 *offset, s32 arg3);
+s32 runlink_symbol_nearest(u32 address, s32 *module, s32 *offset, char **name);
 
 void mempool_free_queue(void *dataAddress);
 void mempool_free_timer(s32 state);

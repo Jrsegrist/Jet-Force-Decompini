@@ -39,15 +39,15 @@ typedef struct NLowPass {
 extern NSynth *D_800A97C4; // the n_audio synthesizer
 extern f32 D_800AF8B0;     // the cutoff parameter's scale (.rodata)
 
-s32 func_8008EB40(); // n_audio: the effect puller (alFxPull)
-void func_8008F380(void *fx, s16 paramID, void *param);
+Acmd *func_8008EB40(s32 sampleOffset, Acmd *p, s32 bus); // n_audio: the effect puller (alFxPull)
+s32 func_8008F380(void *fx, s32 paramID, void *param);
 void func_8008DD48(NLowPass *lp, f32 outputRate);
 
 /* libultra alSynGetFXRef (n_audio form, no synthesizer argument) */
 void *func_8008E710(s16 bus) {
     NMainBus *mainBus = D_800A97C4->mainBus;
 
-    if (mainBus->handler == func_8008EB40) {
+    if (mainBus->handler == (void *) func_8008EB40) {
         return D_800A97C4->auxBus[bus].fxRef;
     } else {
         return NULL;
@@ -58,7 +58,7 @@ void *func_8008E710(s16 bus) {
 void *func_8008E788(s16 bus) {
     NMainBus *mainBus = D_800A97C4->mainBus;
 
-    if (mainBus->handler == func_8008EB40) {
+    if (mainBus->handler == (void *) func_8008EB40) {
         return D_800A97C4->auxBus[bus].outputLP;
     } else {
         return NULL;

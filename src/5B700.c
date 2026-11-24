@@ -779,7 +779,7 @@ SplashRacer *get_racer_object_by_port(s32 port);
 s32 func_8001B078(f32 x, f32 z, s32 flags, SplashHeight ***heights);
 s32 func_80082D80(f32 x, f32 z, s32 flags, SplashHeight ***heights);
 void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, RainSplash *splash, SpriteAsset *sprite, s32 flags,
-                             s32 alpha);
+                             u8 alpha);
 f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
 f32 func_80049C34(s32 angle); // sine of a 16-bit angle
 
@@ -934,7 +934,7 @@ INCLUDE_ASM("asm/nonmatchings/5B700", func_8005C188);
 extern u8 gThunderTransition[];
 extern s32 D_800A6784;
 s32 check_fadeout_transition(void);
-void transition_begin(void *transition); // DKR: transition_begin
+s32 transition_begin(void *transition); // DKR: transition_begin
 void sound_play(u16 soundID, s32 *handlePtr);
 s32 rand_range(s32 min, s32 max);
 

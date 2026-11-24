@@ -33,7 +33,7 @@ typedef struct NSynth {
 extern NSynth *D_800A97C4; // the n_audio synthesizer
 
 NParam *func_8008AF34(void);                              // n_audio: __allocParam
-void func_80090B14(NPVoice *filter, s32 paramID, void *param); // n_audio: the envelope mixer's parameter handler
+s32 func_80090B14(NPVoice *filter, s32 paramID, void *param); // n_audio: the envelope mixer's parameter handler
 
 /* JFG: set a voice's distortion (an n_audio parameter, type 0x11) */
 void func_8008E900(NVoice *v, u8 distortion) {

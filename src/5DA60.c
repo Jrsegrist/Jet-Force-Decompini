@@ -397,7 +397,7 @@ typedef struct ParticleSprite {
 void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
 void draw_tint_pair_off(void);
 void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **vtx, SpriteParticle *particle, ParticleSprite *sprite, s32 flags,
-                   s32 alpha);
+                   u8 alpha);
 
 /* JFG: draw a list's sprite particles (kind 2) with their colours (brightness-scaled, and with an environment
    colour or the sprite's own colours), then reset the colours. The environment colours of a particle without
@@ -1516,7 +1516,7 @@ void move_particle_attached_to_parent(struct Particle *particle);
 void move_particle_with_acceleration(struct Particle *particle);
 void move_particle_basic(struct Particle *particle);
 void move_particle_forward(struct Particle *particle);
-s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
+s32 sprite_anim_advance(void *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed);
 s32 texture_anim_advance(TextureHeader *tex, s32 *flags, s32 updateRate, f32 *frame, s32 arg4);
 extern s32 gParticleUpdateRate;
 
@@ -2299,7 +2299,7 @@ typedef struct ParticleHit {
 void line_particle_set_update(LineParticleSet *set, s32 updateRate);
 void point_particle_set_update(PointParticleSet *set, s32 updateRate);
 void func_8001CE10(s32 arg0, f32 *from, f32 *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
-s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, s32 arg4, void *hit);
+s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, void *hit);
 f32 sqrtf(f32 x);
 
 /*

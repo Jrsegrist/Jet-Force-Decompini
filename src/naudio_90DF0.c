@@ -94,7 +94,7 @@ extern s16 D_800A9820[]; // JFG: the equal-power pan table (128 entries)
 extern u8 D_80105010;    // JFG: output type 4 (see naudio_8BEA0.c)
 extern u8 D_80105011;    // JFG: output type 1
 extern u8 D_80105012;    // JFG: output type 3
-s32 func_8009238C(void *filter, s32 paramID, void *param); // n_audio: the load stage's parameter handler
+void func_8009238C(void *filter, s32 paramID, void *param); // n_audio: the load stage's parameter handler
 void func_8008B080(NPVoice *pvoice);                        // n_audio: free a physical voice
 void func_8008AFD4(NParam *param);                          // n_audio: free a parameter update
 s32 func_80090B14(void *filter, s32 paramID, void *param);

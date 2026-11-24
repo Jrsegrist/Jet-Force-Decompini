@@ -223,7 +223,7 @@ void level_effect_unload(LevelEffect *effect) {
     }
 }
 
-s32 sprite_anim_advance(void *sprite, s32 *arg1, s32 arg2, s32 *frame, s32 updateRate);
+s32 sprite_anim_advance(void *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed);
 
 /* JFG: count down the level effects, releasing the expired ones and animating the sprites. */
 void level_effects_update(s32 updateRate) {
@@ -243,7 +243,7 @@ void level_effects_update(s32 updateRate) {
                 effect->type = 0;
             } else if (effect->type == 4) {
                 arg = 1;
-                if (sprite_anim_advance(effect->sprite, &arg, 0xF, (s32 *) &effect->unk28, updateRate)) {
+                if (sprite_anim_advance(effect->sprite, &arg, 0xF, (f32 *) &effect->unk28, updateRate)) {
                     effect->timer = 0;
                 }
             }
@@ -260,7 +260,7 @@ typedef struct EffectCamera {
 } EffectCamera;
 EffectCamera *cam_get_active_camera(void);
 void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, LevelEffect *trans, void *sprite, s32 flags,
-                             s32 arg6);
+                             u8 alpha);
 
 /* JFG: draw the loaded sprite level effects (type 4), farthest from the camera first.
    (dx doubles as the swap temporary.) The fourth parameter, which the function never needs (its incoming value
@@ -912,7 +912,7 @@ typedef struct RippleInit {
     /* 0x84 */ void *child;
 } RippleInit;
 
-s32 align4(s32 value);
+u8 *align4(u8 *address); // also rounds sizes up (passed as addresses)
 s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags);
 
 /* JFG: set up a ripple's data block at r (aligned up to 8): its texture, two triangles, white vertices and its
@@ -934,7 +934,7 @@ s32 ripple_data_init(RippleObj *obj, RippleInit *r) {
     } else {
         pad = 0;
     }
-    pad += align4(sizeof(RippleInit));
+    pad += (s32) align4((u8 *) sizeof(RippleInit));
     hdr = obj->header;
     obj->data = r;
     r->tex = load_texture(hdr->textureID);

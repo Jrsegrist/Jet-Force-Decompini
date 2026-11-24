@@ -557,7 +557,8 @@ typedef struct AnimEntry {
 
 extern s32 *D_801045B4;
 extern CamPoint *D_801045B8[4];
-extern s32 D_801045C8[16];
+struct ALSoundState; // audio.h's SoundHandle
+extern struct ALSoundState *D_801045C8[16]; // the sequences' sound handles
 extern AnimTrigger D_80104608[8];
 extern AnimSlot D_801046A8[8];
 extern AnimEntry D_80104708[12];
@@ -609,7 +610,7 @@ void anim_system_init(void) {
     func_80054530();
 }
 
-void sound_stop(s32 soundHandle);
+void sound_stop(struct ALSoundState *soundHandle);
 
 void sequence_sounds_stop_all(void) {
     s32 i;

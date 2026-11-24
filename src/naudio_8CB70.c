@@ -37,7 +37,7 @@ typedef struct NParam {
 extern NSynth *D_800A97C4; // JFG: the n_audio synthesizer
 NParam *func_8008AF34(void);                                   // n_audio: allocate a parameter update
 s32 func_8008B124(s32 micros);                                 // n_audio: microseconds to whole sample frames
-void func_80090B14(NPVoice *pvoice, s32 paramID, void *param); // n_audio: the envelope mixer's param handler
+s32 func_80090B14(NPVoice *pvoice, s32 paramID, void *param); // n_audio: the envelope mixer's param handler
 
 /* JFG: ramp a voice's volume to vol over t microseconds. */
 void func_8008BF70(NVoice *v, s16 vol, s32 t) {

@@ -722,7 +722,7 @@ void chroma_sprite_reset(ChromaSpriteObject *obj, ChromaSpriteEntry *entry) {
 
 void free_object(void *obj);
 void update_colour_cycle(void *cycle, s32 updateRate);
-void sprite_anim_advance(void *sprite, s32 *flags, s32 arg2, f32 *frame, s32 updateRate); // animate a sprite
+s32 sprite_anim_advance(void *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed); // animate a sprite
 
 /* JFG: the sprite object's loop: fade in, then after its lifetime fade out and free it; spin and animate. */
 void obj_loop_chroma_sprite(ChromaSpriteObject *obj, s32 updateRate) {

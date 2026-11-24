@@ -396,7 +396,7 @@ s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
 void *load_texture(s32 id);
 void *tex_load_sprite(s32 id, s32 arg1);
 void *object_model_init(s32 id, s32 arg1);
-void *asset_cache2_get(s32 id);
+void *asset_cache2_get(s16 id);
 
 /**
  * Set the object's header.
@@ -541,11 +541,11 @@ extern s32 D_800F2CE8[]; // JFG: their map IDs
 extern s32 D_800F2D00;   // DKR: gObjectMapIndex
 extern s32 D_800F2C8C;
 void level_entry_remove(LevelObjectEntry53 *entry);
-s32 *asset_table_load(s32 tableID);
+s32 *asset_table_load(u32 assetIndex);
 int obj_id_is_troop_spawned(s32 objectID);
-void troop_buffer_push(LevelObjectEntry53 *entry);
+void troop_buffer_push(s32 entry); // the entry's address: the troop buffer is an s32 array
 void spawn_level_replacement(LevelObjectEntry53 *entry);
-void level_records_scan(s32 list, s32 size);
+void level_records_scan(u8 *data, s32 size);
 Object *spawn_object(LevelObjectEntry53 *entry, s32 arg1);
 void *mempool_alloc_safe(s32 size, u32 colourTag);
 s32 asset_load(u32 assetIndex, u32 address, s32 assetOffset, s32 size);
@@ -585,11 +585,11 @@ void track_spawn_objects(s32 mapID, s32 index) {
         D_800F2CE0[index] = *mem;
         D_800F2D00 = index;
         if (index == 1) {
-            level_records_scan(D_800F2CD8[index], D_800F2CE0[index]);
+            level_records_scan((u8 *) D_800F2CD8[index], D_800F2CE0[index]);
         }
         for (var_s0 = 0; var_s0 < D_800F2CE0[index]; var_s0 += temp_t3) {
             if (obj_id_is_troop_spawned(((LevelObjectEntry53 *) D_800F2CD8[index])->objectID)) {
-                troop_buffer_push((LevelObjectEntry53 *) D_800F2CD8[index]);
+                troop_buffer_push(D_800F2CD8[index]);
             } else if (((LevelObjectEntry53 *) D_800F2CD8[index])->objectID == 0x12E) {
                 spawn_level_replacement((LevelObjectEntry53 *) D_800F2CD8[index]);
             } else {
@@ -652,7 +652,7 @@ typedef struct PlayerChar53 {
 
 LevelHeader53 *level_header(void);
 s8 *get_settings(void);
-s32 player_count_get(void); // the number of players
+s32 player_count_get(void); // the number of players (defined u8 in 45750.c; the match needs s32 here)
 s32 char_id_of_player(s32 player);
 PlayerChar53 *char_record_lookup(s32 player, s32 character);
 s32 game_flag_get(s32 flag);
@@ -1594,7 +1594,7 @@ void objects_shade_all(void);
 s32 runlink_module_loaded(s32 module);
 void sound_nearest_emitter_update(void);
 void audspat_update_all(Object **racers, s32 numRacers, s32 updateRate);
-s32 sprite_anim_advance(void *sprite, s32 *flags, s32 updateRate, f32 *frame, s32 speed);
+s32 sprite_anim_advance(void *sprite, s32 *flags, u32 updateRate, f32 *frame, u32 speed);
 s32 func_80054530(); // a module function (patched in by the runtime linker)
 
 /**
@@ -1771,7 +1771,7 @@ typedef struct ObjectTexAnimState {
 } ObjectTexAnimState;
 
 extern u8 D_800A4E78;
-s32 is_game_paused(void);
+s8 is_game_paused(void);
 void tex_animate_texture(ModelTexture *texture, u32 *triangleBatchInfoFlags, s32 *arg2, s32 updateRate);
 
 /* JFG: animate an object model's textures and write out the offsets (and next offsets) for drawing. */
@@ -1877,7 +1877,7 @@ typedef struct LevelModel {
 LevelModel *get_current_level_model(void);
 LevelModelSegmentBoundingBox *block_boundbox(s32 segmentID);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
-void player_restart(Object *obj, Object_Racer *racer); // JFG: restart a player
+void player_restart(s32 owner, s8 *player); // JFG: restart a player (the object passed as an s32)
 
 /**
  * Sets the new position of the object using the differences given.
@@ -1949,7 +1949,7 @@ s32 move_object(Object *obj, f32 xPos, f32 yPos, f32 zPos) {
             return TRUE;
         }
         if (obj->behaviorId == BHV_RACER) {
-            player_restart(obj, obj->racer);
+            player_restart((s32) obj, (s8 *) obj->racer);
         }
         obj->segmentID = -1;
         return TRUE;
@@ -2208,7 +2208,7 @@ void func_8000A300(Gfx **dList, Vertex **vtxList, void *tex, Triangle *tris, Vec
 INCLUDE_ASM("asm/nonmatchings/53C0", func_8000A300);
 #endif
 
-void screen_line_add_3d(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, s32 colour); // JFG: draw a 3D line
+void screen_line_add_3d(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, u8 colour); // JFG: draw a 3D line
 
 /* JFG: draw a line from the point in the object's block at 0x68 to the object. */
 void obj_debug_line_draw(Object *obj) {
@@ -3907,6 +3907,9 @@ s32 get_object_property_size(Object *obj, void *entry) {
 
 void func_8002F5F0(Object *obj, void *entry);
 void func_80032130(Object *obj, void *entry);
+/* obj_init_animator (25A70.c) takes a third parameter, `param`, which it tests; the ROM's call here sets only
+   two (a2 is left as it is), so the match needs this two-parameter declaration. Not portable: the callee
+   reads an argument that was never passed (DKR passes 0). */
 void func_800252EC(Object *obj, void *entry);
 void obj_init_torch_mist(Object *obj, void *entry);
 void obj_init_scaled_by_radius(Object *obj, void *entry);
@@ -3915,7 +3918,7 @@ void obj_init_light_object(Object *obj, void *entry);
 void func_800275CC(Object *obj, void *entry);
 void obj_init_col_vertices(Object *obj, void *entry);
 void chroma_sprite_reset(Object *obj, void *entry);
-void corona_from_level_entry(Object *obj, void *entry);
+void corona_from_level_entry(Object *obj);
 void func_800275E8(Object *obj, void *entry);
 void obj_init_mover(Object *obj, void *entry);
 void obj_init_spray(Object *obj, void *entry);
@@ -4110,7 +4113,7 @@ void run_object_init_func(Object *obj, void *entry) {
             func_80054530(obj, entry);
             break;
         case 65:
-            corona_from_level_entry(obj, entry);
+            corona_from_level_entry(obj);
             break;
         case 68:
             func_80054530(obj, entry);
@@ -4598,7 +4601,7 @@ void func_8002F728(Object *obj, s32 updateRate);
 void obj_loop_animator(Object *obj, s32 updateRate);
 void obj_loop_exit(Object *obj, s32 updateRate);
 void func_80025A08(Object *obj, s32 updateRate);
-void func_8001C0D8(Object *obj, s32 updateRate);
+void func_8001C0D8(Object *obj);
 void obj_loop_skycontrol(Object *obj, s32 updateRate);
 void obj_sprite_animate(Object *obj, s32 updateRate);
 void sprite_anim_once_update(Object *obj, s32 updateRate);
@@ -4668,7 +4671,7 @@ void run_object_loop_func(Object *obj, s32 updateRate) {
             func_80054530(obj, updateRate);
             break;
         case 9:
-            func_8001C0D8(obj, updateRate);
+            func_8001C0D8(obj);
             break;
         case 10:
             obj_loop_skycontrol(obj, updateRate);
@@ -5362,8 +5365,8 @@ typedef struct ObjectLinks53 {
     /* 0x2C */ u16 kind;
 } ObjectLinks53;
 
-void troop_members_clear_tag(Object *obj);
-void troop_member_clear_link(Object *obj);
+void troop_members_clear_tag(s32 id); // the troop states keep object addresses as s32 words
+void troop_member_clear_link(s32 id);
 
 /* JFG: take the object out of its list, and out of the list following it every object that points
    at it (each type dropping its pointer; a type 0x99 then joins the list of the nearest type 0x18). */
@@ -5378,10 +5381,10 @@ void obj_unlink_dependants(Object *obj) {
     ObjectLinks53 *other;
 
     if (obj->behaviorId == 1 || obj->behaviorId == 0x18 || obj->behaviorId == 0x4D || obj->behaviorId == 0x40) {
-        troop_members_clear_tag(obj);
+        troop_members_clear_tag((s32) obj);
     }
     if (obj->behaviorId == 0x9B || obj->behaviorId == 0xA1) {
-        troop_member_clear_link(obj);
+        troop_member_clear_link((s32) obj);
     }
     prev = obj->prev;
     next = obj->next;

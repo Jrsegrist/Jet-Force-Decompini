@@ -21,7 +21,7 @@ extern s32 D_800F5B08;
 extern s32 D_800F5B0C;
 extern s32 D_800F5B10;
 void mempool_free(void *data);
-s32 mempool_alloc_safe(s32 size, u32 colourTag);
+void *mempool_alloc_safe(s32 size, u32 colourTag);
 
 /* JFG: allocate the three shadow buffers (each split in four) for the given counts. */
 void shadow_buffers_alloc(s32 arg0, s32 arg1, s32 count0, s32 count1, s32 count2) {
@@ -36,11 +36,11 @@ void shadow_buffers_alloc(s32 arg0, s32 arg1, s32 count0, s32 count1, s32 count2
     D_800F5B04 = count1;
     D_800F5B08 = count2;
     size0 = count0 * 10;
-    D_800A0E80[0] = mempool_alloc_safe(size0 * 4, 0xFFFF00FF);
+    D_800A0E80[0] = (s32) mempool_alloc_safe(size0 * 4, 0xFFFF00FF);
     size1 = count1 * 16;
-    D_800A0E90[0] = mempool_alloc_safe(size1 * 4, 0xFFFF00FF);
+    D_800A0E90[0] = (s32) mempool_alloc_safe(size1 * 4, 0xFFFF00FF);
     size2 = count2 * 8;
-    D_800A0EA0[0] = mempool_alloc_safe(size2 * 4, 0xFFFF00FF);
+    D_800A0EA0[0] = (s32) mempool_alloc_safe(size2 * 4, 0xFFFF00FF);
     for (i = 1; i < 4; i++) {
         D_800A0E80[i] = D_800A0E80[i - 1] + size0;
         D_800A0E90[i] = D_800A0E90[i - 1] + size1;

@@ -91,12 +91,12 @@ typedef struct SaveFile {
 extern u8 D_800FF318[]; // JFG: the global flags
 u8 *get_settings(void);
 u8 *get_all_save_files_ptr(void);
-void func_8004BC10(s32 file, u8 *game);
+s32 func_8004BC10(s32 file, u8 *game);
 void erase_save_file(s32 file, u8 *game);
 void flash_erase_sectors(void);
-void func_8004BAF4(s32 file, u8 *game);
-void read_eeprom_settings(u8 *flags);
-void write_eeprom_settings(u8 *flags);
+s32 func_8004BAF4(s32 file, u8 *game);
+s32 read_eeprom_settings(u8 *flags);
+s32 write_eeprom_settings(u8 *flags);
 void rumble_motors_run(s32 updateRate);
 
 /**

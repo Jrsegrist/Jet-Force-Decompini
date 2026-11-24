@@ -38,7 +38,7 @@ typedef struct ObjectLight {
     /* 0x5C */ s16 unk5C;
     /* 0x5E */ s16 unk5E;
     /* 0x60 */ f32 dir[3]; // JFG: the direction from the angles unk58/unk5A (and the owner's rotation)
-    /* 0x6C */ s32 trackLight;
+    /* 0x6C */ void *trackLight; // a TrackLight (12D50.c)
     /* 0x70 */ u8 *unk70; // JFG: 0x200 bytes of the light buffer
 } ObjectLight;
 
@@ -216,7 +216,9 @@ void lights_init(s32 count, s32 arg1, s32 arg2) {
     func_80023170(0xFF, 0xFF, 0xFF, D_800F5B20);
 }
 
-s32 track_light_create(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green, s32 blue);
+struct TrackLight; // 12D50.c
+struct TrackLight *track_light_create(f32 x, f32 y, f32 z, f32 outerRadius, f32 innerRadius, s32 red, s32 green,
+                                      s32 blue);
 /* Gives a light its track light (unless flag 0x40) (0x80020D84). */
 void light_track_light_add(ObjectLight *light) {
     if (!(light->enabled & 0x40)) {
@@ -437,8 +439,8 @@ void light_update_all(s32 updateRate) {
 
 void func_800496B0(s32 arg0, s16 *rotation, f32 *in, f32 *out); // DKR: vec3f_rotate
 void func_8004944C(s16 *rotation, f32 *vec);                     // DKR: vec3f_rotate_py
-void track_light_set_position(s32 trackLight, f32 x, f32 y, f32 z);
-void track_light_set_colour(s32 trackLight, s32 red, s32 green, s32 blue, s32 intensity);
+void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
+void track_light_set_colour(u8 *light, s32 red, s32 green, s32 blue, s32 brightness);
 void update_colour_cycle(void *cycle, s32 updateRate);
 
 /**
@@ -520,7 +522,7 @@ if (light->unk6 >= 0) {
     light->flags = 0;
 }
 
-void track_light_off(s32 trackLight);
+void track_light_off(f32 *light);
 
 /**
  * JFG: also switches off the light's track light.

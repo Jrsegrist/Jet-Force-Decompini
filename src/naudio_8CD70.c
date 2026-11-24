@@ -43,7 +43,7 @@ typedef struct NParam {
 
 extern NSynth *D_800A97C4; // JFG: the n_audio synthesizer
 NParam *func_8008AF34(void);                                   // n_audio: allocate a parameter update
-void func_80090B14(NPVoice *pvoice, s32 paramID, void *param); // n_audio: the envelope mixer's param handler
+s32 func_80090B14(NPVoice *pvoice, s32 paramID, void *param); // n_audio: the envelope mixer's param handler
 void func_8008B080(NPVoice *pvoice);                           // n_audio: free a physical voice
 
 /* JFG: set a voice's pan. */

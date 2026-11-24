@@ -22,7 +22,7 @@ typedef struct NSeqPlayer {
     /* 0x64 */ NChanState *chanState;
 } NSeqPlayer;
 
-void func_800911E0(NSeqPlayer *seqp, s32 ticks, s32 status, s32 byte1, s32 byte2); // n_audio: send a MIDI message
+void func_800911E0(NSeqPlayer *seqp, s32 ticks, u8 status, u8 byte1, u8 byte2); // n_audio: send a MIDI message
 
 /* JFG: switch every channel on. */
 void func_8008C500(NSeqPlayer *seqp) {

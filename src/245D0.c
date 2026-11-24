@@ -270,7 +270,7 @@ typedef struct CoronaCamera {
 
 CoronaCamera *cam_get_active_camera(void);
 s32 screen_rect_visible(s32 rect);
-s8 screen_rect_queue(s32 x, s32 y, s32 size);
+s32 screen_rect_queue(s32 x, s32 y, s32 size);
 s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
 
 #ifdef NON_MATCHING
@@ -429,7 +429,7 @@ typedef struct SpriteTransform {
 extern Gfx *D_800F5B50;
 extern Mtx *D_800F5B54;
 extern void *D_800F5B58;
-void render_sprite_billboard(Gfx **dList, Mtx **matrices, void *verts, SpriteTransform *trans, void *sprite, s32 flags, s32 arg6);
+void render_sprite_billboard(Gfx **dList, Mtx **matrices, void *verts, SpriteTransform *trans, void *sprite, s32 flags, u8 alpha);
 
 /* JFG: draw a flare's sprites along a direction from a point, each tinted and scaled. */
 void corona_flare_draw(CoronaFlare *flare, f32 x, f32 y, f32 z, f32 dirX, f32 dirY, f32 dirZ, f32 scale, f32 opacity) {
