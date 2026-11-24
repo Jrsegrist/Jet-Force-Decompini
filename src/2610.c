@@ -242,17 +242,18 @@ OSMesgQueue *osScGetCmdQ(void *sc);
  * three output buffers, and no arguments.
  */
 #ifdef NON_MATCHING
-/* NON_MATCHING (18 words, ROM length and frame): the ROM keeps the `== 1` test of the mode in v0 (xori), shifting
-   the t-registers by one, and keeps the DMA buffer pointer in a1 for the unlink */
+/* NON_MATCHING (11 words, ROM length and frame): the ROM keeps the `== 1` test of the mode in v0 (xori), and the
+   firstFree branch's `.next` address in a t-register (here v1), shifting the t-registers after it by one. Writing
+   &D_800A06C0[i] at each use (no buffer pointer local) gives the ROM's a1 element pointer for the unlink; the pad
+   is the word that local had */
 void __amHandleFrameMsg(void) {
     s16 *audioPtr;
     Acmd *cmdp;
     s32 cmdLen;
     s32 samplesLeft;
-    AMDMABuffer *buf;
+    UNUSED s32 pad;
     u8 *out;
     s32 i;
-    UNUSED s32 pad;
 
     __clearAudioDMA();
     samplesLeft = IO_READ(AI_LEN_REG) >> 2;
@@ -271,15 +272,14 @@ void __amHandleFrameMsg(void) {
             mempool_free(gAudioMgr.ACMDListHQ[0]);
             mempool_free(gAudioMgr.dataHQ[0]);
             for (i = 0; i < 76; i++) {
-                buf = &D_800A06C0[i];
-                if (buf == dmaState.firstUsed) {
+                if (&D_800A06C0[i] == dmaState.firstUsed) {
                     dmaState.firstUsed = (AMDMABuffer *) D_800A06C0[i].node.next;
                 }
-                if (buf == dmaState.firstFree) {
+                if (&D_800A06C0[i] == dmaState.firstFree) {
                     if (samplesLeft) {}
                     dmaState.firstFree = (AMDMABuffer *) D_800A06C0[i].node.next;
                 }
-                alUnlink((ALLink *) buf);
+                alUnlink((ALLink *) &D_800A06C0[i]);
             }
             mempool_free(D_800A06C0);
             D_800A06C0 = NULL;
@@ -362,8 +362,8 @@ void __amHandleFrameMsg(void) {
     gAudioMgr.task.list.t.ucode_size = 0x1000;
     gAudioMgr.task.list.t.ucode_data_size = 0x800;
     gAudioMgr.task.list.t.data_ptr = (u64 *) gAudioMgr.ACMDList[D_800A06C4];
-    gAudioMgr.task.list.t.yield_data_ptr = NULL;
     gAudioMgr.task.list.t.data_size = (cmdp - gAudioMgr.ACMDList[D_800A06C4]) * sizeof(Acmd);
+    gAudioMgr.task.list.t.yield_data_ptr = NULL;
     gAudioMgr.task.list.t.yield_data_size = 0;
     osSendMesg(osScGetCmdQ(gAudioSched), (OSMesg) &gAudioMgr.task, OS_MESG_NOBLOCK);
     D_800A06C4 ^= 1;
