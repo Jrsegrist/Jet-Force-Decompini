@@ -2928,14 +2928,10 @@ s32 func_m003_061FC(void) {
 
 extern s32 audspat_volume_at_distance(u16 kind, f32 *from, f32 *to); /* how loud a sound of a kind is from `from` at `to` */
 
-#ifdef NON_MATCHING
 /*
  * The event the current member notices: heard loudly enough (unk6 bit 0), or seen (bits 2 and 1: near enough
  * and within the troop's view angles); the nearest (kinds 2, 8 and 9 count as a quarter as far), on one
  * object the highest kind. NULL if none.
- * NON_MATCHING (first body; ROM length and frame, 21 aligned diffs): in the sight tests the ROM has
- * sHomeData in a1, the field in v0 and the && result in a0 (here a0, v1, v0). The pad words are the ROM's two
- * extra temp words.
  */
 M003Event *func_m003_062A0(void) {
     s32 i;
@@ -2951,7 +2947,6 @@ M003Event *func_m003_062A0(void) {
     s32 loud;
     f32 from[3];
     f32 to[3];
-    UNUSED s32 pad[2];
 
     e = sEvents;
     best = -1;
@@ -2993,10 +2988,14 @@ M003Event *func_m003_062A0(void) {
                 heard = loud >= sHomeData->unk21;
             }
             if (!heard && (e->unk6 & 4)) {
-                heard = dist < (sHomeData->unk1F << 6) * (sHomeData->unk1F << 6) && turn < sHomeData->unk20 * 91;
+                u32 range = sHomeData->unk1F << 6;
+
+                heard = dist < range * range && turn < sHomeData->unk20 * 91;
             }
             if (!heard && (e->unk6 & 2)) {
-                heard = dist < (sHomeData->unk22 << 4) * (sHomeData->unk22 << 4) && turn < sHomeData->unk23 * 91;
+                u32 range = sHomeData->unk22 << 4;
+
+                heard = dist < range * range && turn < sHomeData->unk23 * 91;
             }
             if (e->unk7 == 8 || e->unk7 == 2 || e->unk7 == 9) {
                 dist >>= 2;
@@ -3027,9 +3026,6 @@ M003Event *func_m003_062A0(void) {
     }
     return found;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_062A0);
-#endif
 
 #ifdef NON_MATCHING
 /*
