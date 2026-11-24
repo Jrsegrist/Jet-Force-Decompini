@@ -5600,13 +5600,11 @@ void func_m068_0D05C(Object *obj, s32 updateRate) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Registers: every t-register after the model lookup is one lower than the ROM's (105 diffs; 64 with
-   `if (state) {}` in the second arm) */
+/* In the second arm the tint comes from sprite 0's colour bytes, read before sprite is set to sprite 1 */
 void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     s16 *state = obj->unk68;
     M068Sprite *sprite;
-    M068Sprite *colour;
+    u8 r, g, b, a, r2, g2;
 
     if (state[3] == 0) {
         func_8000A300(dl, arg2, ((void **) obj->modelInstances)[obj->modelIndex], rl_m068_12630,
@@ -5617,18 +5615,20 @@ void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
                       2.0f, 0.0f, 12, 255);
         draw_tint_pair_off();
     } else {
-        colour = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
-        if (state) {}
+        sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
+        r = sprite->r;
+        g = sprite->g;
+        b = sprite->b;
+        a = sprite->a;
+        r2 = sprite->unkC;
+        g2 = sprite->unkD;
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[1];
-        draw_tint_pair_set(colour->r, colour->g, colour->b, colour->a, colour->unkC, colour->unkD);
+        draw_tint_pair_set(r, g, b, a, r2, g2);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
                       2.0f, obj->unk28, 12, 100);
         draw_tint_pair_off();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
-#endif
 
 /*
  * An electric strip's set-up: clears its vertices, builds its sixteen triangles (eight rows of two) and
