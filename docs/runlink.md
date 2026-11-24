@@ -457,7 +457,7 @@ a NON_MATCHING body, such as m017 or m091, does not count as all C here):
 | effect libraries | 2 of 4 | 24/26 |
 | fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
-| other object behaviours | 65 of 96 | 513/568 |
+| other object behaviours | 65 of 96 | 514/568 |
 
 Other modules placed by what their code does (all in "other object
 behaviours" above unless a family row lists them):
