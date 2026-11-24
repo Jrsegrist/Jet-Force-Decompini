@@ -419,3 +419,9 @@ written from what the code does.
 | DKR file | Used for |
 | --- | --- |
 | `src/objects.c` | obj_destroy's shape (the attachment loop freeing models or sprites, the lights, the behaviour switches with a typed state pointer per case, the racer's sound and object clean-up and the object-list scan, the shadow texture, the model loops by model type, the header and the free) for the NON_MATCHING body of JFG's func_80007C68 in `src/53C0.c`; JFG's trace, companion and case list are written from the ROM |
+
+### Round 53 (main53)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/tracks.c` | func_8002FF6C (credited in round 14 as NON_MATCHING) now matches as JFG's func_8001F4BC in `src/1DA10.c` |
