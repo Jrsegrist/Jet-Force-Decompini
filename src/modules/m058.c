@@ -404,15 +404,20 @@ void func_m058_00900(void) {
 #ifdef NON_MATCHING
 static void func_m058_00F5C(s32 left, s32 right, s8 *character, s32 arg3);
 
-/* Same logic; IDO's induction pointers for the per-player arrays and the frame differ */
+/*
+ * The multiplayer character select each frame: finds the player objects once, then per controller joins,
+ * leaves, picks a character (00F5C) or starts the game, and turns the player's object to face its choice.
+ * NON_MATCHING: ROM length and frame (361 words); the registers differ: IDO keeps the buttons word live
+ * through the switch and recomputes `buttons & B_BUTTON` in each case (the ROM computes it once into a2),
+ * and the first loop's object pointer and index registers are swapped.
+ */
 void func_m058_009B8(s32 updateRate) {
     s32 i;
     s32 j;
     s32 n;
-    s32 buttons;
     s32 stick;
+    s32 buttons;
     s32 start;
-    s32 back;
     s32 first;
     s32 count;
     s32 left;
@@ -421,8 +426,6 @@ void func_m058_009B8(s32 updateRate) {
     s32 dir;
     Object **objs;
     s8 *p;
-    s8 *picked;
-    M058Player *player;
     Object *found;
     Object *obj;
 
@@ -433,8 +436,9 @@ void func_m058_009B8(s32 updateRate) {
     if (sPlayerObjects[0] == NULL) {
         objs = func_80005E98(&first, &count);
         for (j = first; j < count; j++) {
-            if (objs[j]->behaviorId == 0x5C) {
-                sPlayerObjects[n++] = objs[j];
+            obj = objs[j];
+            if (obj->behaviorId == 0x5C) {
+                sPlayerObjects[n++] = obj;
             }
         }
     }
@@ -445,13 +449,12 @@ void func_m058_009B8(s32 updateRate) {
         return;
     }
     for (i = 0; i < 4; i++) {
-        buttons = D_800FF3C8[i];
         stick = D_800FF3D8[i];
+        buttons = D_800FF3C8[i];
         joined = FALSE;
         left = stick < 0 || (buttons & L_TRIG);
         n = 0;
         start = buttons & (A_BUTTON | START_BUTTON);
-        back = buttons & B_BUTTON;
         right = stick > 0 || (buttons & R_TRIG);
         switch (D_800FF1B0[i]) {
             case 0:
@@ -463,7 +466,7 @@ void func_m058_009B8(s32 updateRate) {
             case 1:
                 if (start) {
                     D_800FF1B0[i] = 2;
-                } else if (back && sTime >= 30) {
+                } else if ((buttons & B_BUTTON) && sTime >= 30) {
                     D_800FF1B0[i] = 0;
                     if (--D_800A4FD0 <= 0) {
                         D_800A5058 = 1;
@@ -486,12 +489,10 @@ void func_m058_009B8(s32 updateRate) {
                         music_volume_fade(0.5f, 0);
                         for (j = 0, p = D_800FF1B0; j < 4; j++, p++) {
                             if (*p) {
-                                picked = &D_800FF1B4[j];
-                                if (*picked != 1 && *picked != 0) {
-                                    player = &D_800FEFD8[n];
-                                    char_record_reset(player, 0);
-                                    player->character = sChars[*picked].unk1;
-                                    D_800FEFD0[n] = sChars[*picked].unk0;
+                                if (D_800FF1B4[j] != 1 && D_800FF1B4[j] != 0) {
+                                    char_record_reset(&D_800FEFD8[n], 0);
+                                    D_800FEFD8[n].character = sChars[D_800FF1B4[j]].unk1;
+                                    D_800FEFD0[n] = sChars[D_800FF1B4[j]].unk0;
                                 }
                                 n++;
                             }
@@ -500,7 +501,7 @@ void func_m058_009B8(s32 updateRate) {
                         func_80043430(D_800FF1B0);
                         level_goto(0, 0, 0, 8, 1, 0);
                     }
-                } else if (back) {
+                } else if (buttons & B_BUTTON) {
                     if (D_800FF1B4[i] == 0) {
                         D_800FF1B4[i] = 1;
                         joined = TRUE;
@@ -517,9 +518,10 @@ void func_m058_009B8(s32 updateRate) {
                 n = 4;
             }
             if (found != NULL) {
-                if (D_800FF3D8[i] < 0 || (D_800FF3C8[i] & L_TRIG)) {
+                stick = D_800FF3D8[i];
+                if (stick < 0 || (D_800FF3C8[i] & L_TRIG)) {
                     dir = 1;
-                } else if (D_800FF3D8[i] > 0 || (D_800FF3C8[i] & R_TRIG) || joined) {
+                } else if (stick > 0 || (D_800FF3C8[i] & R_TRIG) || joined) {
                     dir = 2;
                 } else {
                     dir = 0;
