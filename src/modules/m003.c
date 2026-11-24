@@ -5,7 +5,11 @@
  * and handles hits, deaths and missions. Most of it is still in assembly.
  * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
+/* module.h declares anim_path_enable_run unprototyped; its definition (76C20.c) takes a u8 */
+#define anim_path_enable_run anim_path_enable_run_unprototyped
 #include "module.h"
+#undef anim_path_enable_run
+extern void anim_path_enable_run(u8 index);
 
 /* What a troop member keeps in obj->unk68 */
 typedef struct M003Member {
@@ -1247,12 +1251,13 @@ extern void anim_path_spawn_object(u8 index);
 s32 func_m003_061FC(void);
 
 #ifdef NON_MATCHING
-/* 127 -> 88 diffs with the empty `if (src) {}` / `if (node) {}` */
 /*
  * A troop with no path group takes a free one: a new path of its own, four nodes long (in sGroupPaths), copied
  * from the leader's path and looping, whose object becomes the leader.
- * NON_MATCHING: ROM length; ~125 diffs, the group's `g * 4` (the ROM loads the group into s6 and moves g*4 there
- * after) and the store order of the path's first fields.
+ * NON_MATCHING: ROM length and frame, 88 aligned diffs, nearly all t-registers two off: the ROM computes the
+ * group's g * 4 in a t-register (t6, first) and copies it into g's s6 after the nodes address; ours keeps the
+ * g * 4 in a1. A direct call with anim_path_enable_run's real (u8) prototype gave the ROM's jal and length, and
+ * `g *= 4` in place the frame (`g = sHomeData->group * 4`, or `g *= 4` first, give 44 diffs but 8 bytes more).
  */
 static void func_m003_01EB8(void) {
     s32 index;
@@ -1284,6 +1289,7 @@ static void func_m003_01EB8(void) {
             path->unk10 = src->unk10;
             path->unk14 = src->unk14;
             nodes = &sGroupPaths[g * 4];
+            g *= 4;
             path->flags = 0x80;
             path->numNodes = 4;
             path->curNode = nodes;
@@ -1297,8 +1303,8 @@ static void func_m003_01EB8(void) {
             do {
                 node->rot[0] = from->rot[0];
                 node->rot[1] = from->rot[1];
-                node->unk6 = index;
                 node->rot[2] = from->rot[2];
+                node->unk6 = index;
                 node->unk7 = from->unk7;
                 node->scale = from->scale;
                 node->x = from->x;
@@ -1315,21 +1321,17 @@ static void func_m003_01EB8(void) {
                     node->prev = node - 1;
                 }
                 if (i == 0) {
-                    node->next = &sGroupPaths[g * 4];
+                    node->next = &sGroupPaths[g];
                 } else {
                     node->next = node + 1;
                 }
                 from = troop_path_node_next(from);
                 node++;
             } while (i--);
-            if (src) {
-            }
             path->obj->trans.flags |= 0x400;
             sGroupNodes[sHomeData->group] = from;
-            ((void (*)(u8)) anim_path_enable_run)(index); /* module.h declares it unprototyped */
+            anim_path_enable_run(index);
             sHomeData->leader = path->obj;
-            if (node) {
-            }
             sHomeData->unk79 = 1;
             path->curNode = path->nodes->next;
         }
@@ -5836,10 +5838,14 @@ extern s32 func_m139_002F8(s32 zone);
  */
 #ifdef NON_MATCHING
 /*
- * 290/291 words, frame and slots right, 85 aligned diffs: the target, inRange and the `target != NULL` temp
- * are one register later than the ROM's (a1/a3/a0 for a0/a1/v1; the ROM's inRange lives in start's a1), and
- * 0x3E's spacing copy is missing (a u8 block local gives it, but one frame word more). The position sums
- * are written offset first with (*home). as in 0D810, which gives the ROM's FP registers.
+ * 290/291 words, frame and slots right, 16 aligned diffs (8 are the measure's module-relative jal words), the
+ * rest at 0x3E's spacing: the ROM keeps the spacing in
+ * v0 and shifts a t-register copy of it (`or t4, v0, zero`), with arrived/count in v1/a0 (ours: v1, a0/a1, no
+ * copy). The (s16) cast takes the copy's t-register, so the later t-registers are the ROM's. A u8 spacing
+ * local with the cast gives the ROM's length, the copy and v0 (24 diffs, only arrived/count) but one frame
+ * word more; no local we tried to drop or block-scope brings the frame back. The radius squared in place
+ * (`inRange *= inRange`) gave the ROM's registers for target/inRange; the position sums are written offset
+ * first with (*home). as in 0D810.
  */
 static s32 func_m003_148C0(Object *home, s32 start) {
     M003Home *h;
@@ -5871,7 +5877,8 @@ static s32 func_m003_148C0(Object *home, s32 start) {
     if (target != NULL) {
         dist = func_m003_03E68(target->trans.x_position, target->trans.z_position,
                                (h->zone[0] << 4) + (*home).trans.x_position, (h->zone[2] << 4) + (*home).trans.z_position);
-        inRange = (h->zoneRadius << 4) * (h->zoneRadius << 4); /* the radius squared, for a moment */
+        inRange = h->zoneRadius << 4; /* the radius squared, for a moment */
+        inRange *= inRange;
         y = (h->zone[1] << 4) + (*home).trans.y_position;
         height = h->zoneHeight << 4;
         inRange = target != NULL && (s32) dist < inRange && y - height < target->trans.y_position &&
@@ -5900,8 +5907,8 @@ static s32 func_m003_148C0(Object *home, s32 start) {
         h->x = (h->offset[0] << 4) + (*home).trans.x_position;
         h->y = (h->offset[1] << 4) + (*home).trans.y_position;
         h->z = (h->offset[2] << 4) + (*home).trans.z_position;
-        h->unk32 = 0x18;
         h->unk31 = h->unk3;
+        h->unk32 = 0x18;
         home->trans.rotation.y_rotation = 0xC000 - (h->unk1B << 8);
         if (h->first == NULL) {
             h->first = func_m003_14694();
@@ -5909,7 +5916,7 @@ static s32 func_m003_148C0(Object *home, s32 start) {
         if (h->spacing != 0) {
             if (h->arrived < h->count) {
                 h->unk3C = h->count - h->arrived;
-                h->unk3E = h->spacing << 1;
+                h->unk3E = (s16) h->spacing << 1;
                 h->unk30 = 1;
                 return 2;
             }
@@ -5962,8 +5969,6 @@ typedef struct M003Home34 {
 } M003Home34;
 #define HOME34(h) ((M003Home34 *) &(h)->unk34)
 
-#ifdef NON_MATCHING
-/* 2 diffs: after the first sine, the ROM materialises 98304.0f before reloading t, ours the other way round */
 /* The troop home's frame: its state, its members' blame and checks, and where the home moves */
 void func_m003_14D4C(Object *home, s32 rate) {
     f32 a;
@@ -6168,7 +6173,8 @@ live:
         d = func_m003_03E20(sHomeData->unk66, sHomeData->unk6A, sHomeData->x, sHomeData->z);
         if (!(total < 1.0f || total < d)) {
             t = d / total;
-            s = func_80049C34(t * 32768.0f);
+            /* one statement: as1 does not schedule the reload of t past the 98304.0f across a statement boundary */
+            s = func_80049C34(t * 32768.0f),
             c = func_80049C34(t * 98304.0f);
             sHomeData->y += (c + s * 0.5) * 16.0;
         }
@@ -6224,9 +6230,6 @@ shot:
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_14D4C);
-#endif
 
 
 /* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
