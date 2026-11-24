@@ -118,10 +118,10 @@ extern Object **troop_list_get(s32 *count);
 extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
 extern f32 func_m003_03E20(f32 x, f32 z, f32 targetX, f32 targetZ);
-extern s32 func_m003_04260(s32, s32, s32, s32, s32);
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
 extern void func_m003_09A14(Object *obj);
 extern Object *func_m003_053C4(void);
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern s32 troop_slot_get(s32 type);
 
 extern u8 D_800FE9EE;

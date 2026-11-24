@@ -154,17 +154,20 @@ typedef struct M149Bomb {
 } M149Bomb;
 
 extern Object *func_m003_053C4(void); /* the closest player */
-extern void func_m003_04EC4();
-extern s32 func_m003_04260(s32, s32, s32, s32, s32);
+/* Declared without a prototype: the attack call in func_m149_00000 passes a third argument the
+ * function (two parameters, m003) never reads, and the ROM sets a2 for it (removing it changes 8 words).
+ * Not portable C: a native build must drop that argument. */
+extern s32 func_m003_04EC4();
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
 extern void func_m003_179B0(s32, s32);
 extern s32 func_80049C84(f32 dx, f32 dz); /* the angle of a vector */
 extern s32 func_80049D80(s32 from, s32 to); /* the difference between two angles */
 extern void chain_object_unlink_from_players(Object *obj);
-extern void func_8000C9B4(s32, s32, s32, s32);
+extern void func_8000C9B4(u8, u8, u8, u8);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern f32 func_80097140(f32 x); /* square root */
 extern f32 point_distance(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
-extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s32 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
 extern void zone_add(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, Object *owner);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 

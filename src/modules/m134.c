@@ -30,7 +30,7 @@ typedef struct M134Object {
     f32 unk88; /* radius squared */
 } M134Object;
 
-extern M134Object *func_8000E4D0(s32, M134Object *);
+extern M134Object *func_8000E4D0(s32);
 extern void func_8005B1C0(s32, s32, s32, s32, s32, s32);
 
 /* Init: stores the square of the entry's radius */
@@ -49,7 +49,7 @@ void func_m134_00020(M134Object *obj, s32 updateRate) {
     f32 dz;
     f32 radiusSq;
 
-    player = func_8000E4D0(0, obj);
+    player = func_8000E4D0(0);
     if (player != NULL) {
         dx = obj->unkC - player->unkC;
         dz = obj->unk14 - player->unk14;

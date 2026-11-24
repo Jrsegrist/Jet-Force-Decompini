@@ -40,7 +40,7 @@ typedef struct M099Frog {
 extern s32 osTvType;
 
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
-extern void anim_phase_clamp(Object *obj, f32 arg1);
+extern s32 anim_phase_clamp(Object *obj, f32 arg1);
 extern s16 func_80049C84(f32 x, f32 z); /* the angle of (x, z) */
 extern f32 func_80049C34(s32 angle);   /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle);   /* cosine */

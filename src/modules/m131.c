@@ -72,12 +72,12 @@ extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5
 extern void track_light_off(f32 *light);
 extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_800496B0(s32 arg0, Object *obj, f32 *in, f32 *out);
-extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
 extern void draw_tint_pair_off(void);
-extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M131Sprite *sprite, void *model, s32 arg5, s32 arg6);
+extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M131Sprite *sprite, void *model, s32 arg5, u8 arg6);
 
 s32 D_m131_007C0 = 131; /* the module's number */
 static f32 sSwingRadius[4] = { 8.0f, 12.0f, 16.0f, 20.0f };

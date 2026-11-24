@@ -42,7 +42,7 @@ extern M110Exception *D_800A0D88; /* 0x80 entries */
 extern s32 D_800A0D84;
 
 extern s32 func_80015714(s32 *segments, s16 minX, s16 minY, s16 minZ, s16 maxX, s16 maxY, s16 maxZ);
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern M110Model *func_8001B650(void);
 
 static void fade_exception_box_mark(s16 x, s16 y, s16 z, s16 sizeX, s16 sizeY, s16 sizeZ);

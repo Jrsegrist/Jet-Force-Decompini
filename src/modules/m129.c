@@ -114,7 +114,7 @@ extern void func_8001C3D0(s32 player, s32 r, s32 g, s32 b, s32 near, s32 far, f3
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern u16 func_80043510(s32 player);                /* buttons pressed */
 extern M129Forms *char_record_lookup(s32 player, s32 character);
-extern void transition_begin(void *flash);              /* flashes the screen */
+extern s32 transition_begin(void *flash);              /* flashes the screen */
 extern void func_80003614(s32 handle);               /* stops a positioned sound */
 extern void func_80048518(s32);
 extern void func_m077_00000(s32 id, s32 apart);
@@ -128,7 +128,7 @@ extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ
 extern s32 *object_model_init(s32 model, s32 arg1);      /* loads a model instance */
 extern void free_3d_model(s32 *inst);                /* frees a model instance */
 extern void func_8003D21C(s32 *inst, s32 model, Object *obj, s32 arg3, f32 arg4);
-extern void model_batches_build_dlist(void *arg0, s32 model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
+extern s32 model_batches_build_dlist(void *arg0, s32 model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 
 /* Screen flashes */

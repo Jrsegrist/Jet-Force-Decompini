@@ -22,7 +22,7 @@ typedef struct M094Trigger {
     /* 0x6 */ u16 action;
 } M094Trigger;
 
-extern s32 func_800468B0(void);
+extern s16 func_800468B0(void);
 
 /* Init: copies the flag, level, argument and action from the level entry */
 void func_m094_00000(Object *obj, M094Setup *setup) {

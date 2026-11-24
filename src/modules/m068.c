@@ -251,9 +251,9 @@ typedef struct M068Sprite {
 extern u8 rl_m068_12630[];
 extern void func_8000A300(Gfx **dl, s32 arg1, void *model, void *data, f32 *pos, void *arg5, f32 arg6, s32 arg7,
                           s32 colour, s32 arg9);
-extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 a, s32 arg4, s32 arg5);
-extern void render_sprite_billboard_at(Gfx **dl, s32 arg1, s32 arg2, M068Sprite *sprite, s32 x, s32 y, s32 z, s32 arg7, f32 scale,
-                          f32 arg9, s32 arg10, s32 alpha);
+extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 a, u8 arg4, u8 arg5);
+extern void render_sprite_billboard_at(Gfx **dl, s32 arg1, s32 arg2, M068Sprite *sprite, s16 x, s16 y, s16 z, s16 arg7, f32 scale,
+                          f32 arg9, s32 arg10, u8 alpha);
 extern void draw_tint_pair_off(void);
 
 extern void func_80049BA0(MtxF *mtx); /* identity */
@@ -1421,8 +1421,10 @@ typedef struct M068Player {
     /* 0x5C8 */ s16 unk5C8;
 } M068Player;
 
+/* 45750.c returns s16; declared s32 because the ROM passes the result to level_goto with no sign
+ * extension (s16 adds an sll/sra pair at both calls). */
 extern s32 pending_level_character(void);
-extern s32 menu_mode_get(void);
+extern u8 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_m006_015E0(s32 hide);
 extern void chain_object_unlink_from_players(Object *obj);
@@ -5339,7 +5341,7 @@ typedef struct M068Ball {
 extern s32 rl_m068_12608; /* set: the fire balls fade out */
 extern s32 rl_m068_12628; /* which of the two burst sounds is next */
 extern s32 rl_m068_1262C; /* set while a burst plays */
-extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern s32 sprite_anim_advance(s32 anim, s32 *flags, u32 arg2, f32 *frame, u32 updateRate);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 
 /* A fire ball: flies (growing) until it hits something or fades out, then bursts */
@@ -5514,7 +5516,7 @@ typedef struct M068AnimModel {
     /* 0x4 */ s32 anim;
 } M068AnimModel;
 
-extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern s32 sprite_anim_advance(s32 anim, s32 *flags, u32 arg2, f32 *frame, u32 updateRate);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
@@ -6298,7 +6300,7 @@ extern void func_8005F5A0(f32 arg0);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
-extern void audspat_point_set_volume(s32 sound, s32 volume);
+extern void audspat_point_set_volume(s32 sound, u8 volume);
 
 #ifdef NON_MATCHING
 /*

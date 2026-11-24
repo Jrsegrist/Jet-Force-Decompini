@@ -466,17 +466,17 @@ typedef struct M143PlayerInteraction {
     /* 0x14 */ f32 z;
 } M143PlayerInteraction;
 
-extern void func_8000C9B4(s32, s32, s32, s32);
+extern void func_8000C9B4(u8, u8, u8, u8);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern void func_m087_011B0(s32 id, s16 value);
 extern void func_m087_011DC(Object *obj);
 extern void func_m003_04398(s32, s32);
 extern void *troop_list_get(s32 *count);
-extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+extern void spawn_object_from_list(s16 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern void chain_object_unlink_from_players(Object *obj);
 extern s32 func_80049C84(f32 dx, f32 dz); /* the angle of a vector */
 extern s32 func_m003_0C324();
-extern s32 func_m003_04260(s32, s32, s32, s32, s32);
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
 extern s32 func_m003_0512C(s32 kind, f32 speed, s32 anim);
 
 /* .bss (still assembly) */

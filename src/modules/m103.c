@@ -39,8 +39,8 @@ typedef struct M103Object {
 
 extern void obj_collision_spheres_init(M103Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
 extern void runlink_unload_timer_set(s32, s32, s32);
-extern void obj_anim_frame_advance(M103Object *, f32, f32);
-extern void obj_spawn_bonus(f32, f32, f32, s32);
+extern s32 obj_anim_frame_advance(M103Object *, f32, f32);
+extern void obj_spawn_bonus(f32, f32, f32, u8);
 extern void func_8005F5AC(M103Object *, s32);
 extern void func_800079B8(M103Object *);
 

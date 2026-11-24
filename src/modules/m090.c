@@ -45,7 +45,7 @@ typedef struct M090State {
 } M090State;
 
 
-extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s32 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
 extern void light_colour_set(s32 light, u8 r, u8 g, u8 b); /* sets a light's colour */
 extern void light_intensity_set(s32 light, u8 intensity);    /* sets a light's intensity */
 extern void func_8005F5AC(Object *obj, s32 updateRate);

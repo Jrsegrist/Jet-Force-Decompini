@@ -20,7 +20,7 @@ typedef struct M096Setup {
 /* The flare's data (its object's unk68) */
 typedef struct M096Flare {
     /* 0x00 */ s32 unk0;
-    /* 0x04 */ s32 light;
+    /* 0x04 */ f32 *light;
     /* 0x08 */ s32 unk8;
     /* 0x0C */ Object *stuck; /* the object it sticks to */
     /* 0x10 */ f32 localX;    /* where, in that object's space */
@@ -54,7 +54,7 @@ extern void player_drop_held_object(s32);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* 53C0.c move_object */
 extern f32 func_80097140(f32); /* square root */
 extern void func_80048B60(f32 *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
-extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
+extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_m105_01474(Object *obj, f32 *x, f32 *y, f32 *z, f32 *ox, f32 *oy, f32 *oz);
 
@@ -68,7 +68,7 @@ void func_m096_00000(Object *obj, M096Setup *setup) {
     obj->trans.rotation.x_rotation = setup->x_rotation;
     obj->trans.rotation.z_rotation = 0;
     func_8004944C(&obj->trans.rotation, &obj->velocity);
-    f->light = 0;
+    f->light = NULL;
     f->unk8 = 0;
     f->hit = 0;
     f->timer = setup->time * 6;
@@ -158,7 +158,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
                 f->hit = 0;
             }
         }
-        if (f->light != 0) {
+        if (f->light != NULL) {
             track_light_set_position(f->light, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
         }
         obj->particleEmittersEnabled = 1;
@@ -188,7 +188,7 @@ void func_m096_00088(Object *obj, s32 updateRate) {
                 func_80009A04(obj, dx - obj->trans.x_position, dy - obj->trans.y_position,
                               dz - obj->trans.z_position);
             }
-            if (f->light != 0) {
+            if (f->light != NULL) {
                 track_light_set_position(f->light, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
             }
         }

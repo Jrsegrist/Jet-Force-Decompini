@@ -72,7 +72,7 @@ typedef struct M155Enemy {
 } M155Enemy;
 
 extern void func_8004AA80(void *data); /* DKR mempool_free */
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern s32 func_80049C84(f32 a, f32 b); /* the angle of (a, b) */
 
 /* .bss, still assembly */
@@ -594,7 +594,7 @@ extern void rl_m155_01274(Object *target);
 extern Object *rl_m155_04F74;        /* the current enemy's troop home */
 extern s32 rl_m155_04F94;
 extern M155TroopInfo *rl_m155_04FD8; /* what module 3 gives for the current enemy */
-extern s32 func_m003_056F4(s32 x, s32 z);
+extern s32 func_m003_056F4(s16 x, s16 z);
 extern s32 rl_m155_04F88;
 extern s16 rl_m155_04F68;
 extern s16 rl_m155_04F6A;

@@ -155,12 +155,12 @@ extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80048C7C(MtxF *a, MtxF *b, MtxF *out);
 extern void func_8004A2FC(MtxF *mtx, f32 *in, f32 *out);
 extern void func_800035E8(s32 handle, f32 x, f32 y, f32 z);
-extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, Object *owner);
+extern void spawn_object_from_list(s16 arg0, s16 x, s16 y, s16 z, s32 arg4, Object *owner);
 extern s16 func_80049C84(f32 x, f32 z);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern Object *func_80005F14(void *entry, s32 arg1);
 extern void zone_add(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, Object *owner);
-extern void enemy_module_notify(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5, s32 arg6);
+extern void enemy_module_notify(s32 arg0, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
 extern void func_8003D21C(M112Instance *inst, M112Model *model, Object *obj, f32 arg3, f32 arg4);
 extern void func_800221F0(Object *obj, M112Instance *inst, ObjectShading *shading, MtxF *mtx);
 extern void obj_tex_animate(Object *obj, M112Model *model, M112Instance *inst, s32 arg3);

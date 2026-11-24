@@ -59,7 +59,7 @@ typedef struct M083Piece {
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern s32 track_height_at(f32 x, f32 z, f32 *height, s32 mask); /* the water surface at x, z */
-extern void spawn_object_from_list(s32 index, s16 x, s16 y, s16 z, s32 arg4, Object *obj);
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, Object *obj);
 extern s32 func_8004966C(s16 angle);
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_80049C84(f32 x, f32 z); /* arctangent as a 16-bit angle */

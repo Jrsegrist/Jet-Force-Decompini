@@ -77,7 +77,7 @@ typedef struct M118Check {
 extern u8 D_800A3208;
 
 extern s32 check_fadeout_transition(void);
-extern void transition_begin(void *);
+extern s32 transition_begin(void *);
 extern void func_m022_02430(s32 message, s32 arg1);
 extern void func_m022_023FC(M118PlayerData *player);
 

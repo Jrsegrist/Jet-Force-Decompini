@@ -25,8 +25,8 @@ typedef struct M148Enemy {
 
 extern s32 D_800FE9F8;
 
-extern s32 func_m003_0CAA4(f32, f32, s32);
-extern void func_m003_04260(s32, s32, s32, s32, s32);
+extern s32 func_m003_0CAA4(f32, f32, s16);
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
 extern void func_m003_04398(s32, s32);
 extern void func_m003_07E88(s32, s32, s32);
 

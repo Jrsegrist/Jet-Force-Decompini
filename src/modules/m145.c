@@ -31,12 +31,12 @@ typedef struct M145Enemy {
     /* 0xA8 */ s16 flags; /* 1: target chosen, 2: going down */
 } M145Enemy;
 
-extern s32 func_m003_0CAA4(f32, f32, s32);
-extern s32 func_m003_04260(s32, s32, s32, s32, s32);
+extern s32 func_m003_0CAA4(f32, f32, s16);
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
 extern void func_m003_04398(s32, s32);
 extern void func_m003_07E88(s32, s32, s32);
-extern void func_m003_04D08(s32, s32, s32, s32);
-extern void func_m003_04F88(s32, f32);
+extern s32 func_m003_04D08(s32, s32, s32, s32);
+extern s32 func_m003_04F88(s32, f32);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 

@@ -214,7 +214,7 @@ extern s32 D_m087_01220;  /* the module's number (.data, still assembly) */
 extern Vec3f rl_m087_01384; /* where the default kind's particles come from, in its own space */
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern void objflag_set(s32 flag); /* as defined in 44350.c */
-extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, u8, u8, u8);
 extern void spawn_object_from_list(s16 id, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern void zone_add(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, f32 arg5, s32 arg6, s32 arg7); /* shakes the camera */
 extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 nx, f32 ny, f32 nz, s32 alpha, s32 arg7, f32 arg8);

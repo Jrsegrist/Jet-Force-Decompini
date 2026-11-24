@@ -47,9 +47,9 @@ typedef struct M147Gun {
     /* 0x24 */ u32 pad24_1 : 6;
 } M147Gun;
 
-extern s32 func_m003_0CAA4(f32, f32, s32);
-extern s32 func_m003_04260(s32, s32, s32, s32, s32);
-extern void func_m003_04D08(s32, s32, s32, s32);
+extern s32 func_m003_0CAA4(f32, f32, s16);
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
+extern s32 func_m003_04D08(s32, s32, s32, s32);
 extern void func_m003_04398(s32, s32);
 extern void func_m003_07E88(s32, s32, s32);
 extern Object *func_m003_053C4(void);

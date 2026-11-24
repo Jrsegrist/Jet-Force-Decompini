@@ -67,8 +67,8 @@ extern s16 func_80049C84(f32 x, f32 z); /* angle of a vector */
 extern f32 func_80097140(f32 x);        /* square root */
 extern s16 func_80049D80(s16 from, s16 to); /* difference between two angles */
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
-extern void render_sprite_billboard_at(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 x, s32 y, s32 z, s32 arg7, f32 size,
-                          f32 arg9, s32 arg10, s32 arg11);
+extern void render_sprite_billboard_at(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s16 x, s16 y, s16 z, s16 arg7, f32 size,
+                          f32 arg9, s32 arg10, u8 arg11);
 
 f32 func_m152_00E34(s16 from, s16 to, u16 t);
 

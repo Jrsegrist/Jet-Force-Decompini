@@ -279,8 +279,8 @@ extern void func_80055B80(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset);
 extern void func_8000A300(Gfx **dl, s32 arg1, M137Instance *inst, M137DataA2 *data, Vec3f *from, Vec3f *to, f32 arg6,
                           s32 arg7, s32 colour, s32 arg9);
-extern void render_sprite_billboard_at(Gfx **dl, Mtx **mtx, s32 arg2, void *tex, s32 x, s32 y, s32 z, s32 angle, f32 size,
-                          f32 arg9, s32 arg10, s32 arg11);
+extern void render_sprite_billboard_at(Gfx **dl, Mtx **mtx, s32 arg2, void *tex, s16 x, s16 y, s16 z, s16 angle, f32 size,
+                          f32 arg9, s32 arg10, u8 arg11);
 extern void func_8000DB94(Gfx **dl, Mtx **mtx, s32 arg2, Object *obj);
 
 #define gSPVertexM137(pkt, v, n) \

@@ -36,7 +36,7 @@ typedef struct M081Effect {
     /* 0x10 */ Vertex *verts[2]; /* four per spark */
 } M081Effect;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
 extern u8 *func_80055694(s32 id);                 /* DKR load_texture */
 extern void func_80055A00(u8 *tex);               /* DKR tex_free */

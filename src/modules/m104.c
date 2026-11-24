@@ -65,7 +65,7 @@ extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 extern M104PlayerStats *char_record_lookup(s32 player, s32 arg1);
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
-extern void sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
+extern s32 sprite_anim_advance(void *model, s32 *anim, u32 arg2, f32 *arg3, u32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 
 s32 D_m104_006A0 = 104; /* the module's number */

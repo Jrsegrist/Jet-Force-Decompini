@@ -68,7 +68,7 @@ typedef struct M091PreyData {
     /* 0x0E */ u8 inWater;
 } M091PreyData;
 
-extern s32 player_count_get(void);
+extern u8 player_count_get(void);
 extern s32 track_height_at(f32 x, f32 z, f32 *y, s32 mask); /* the water level at x, z */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern s16 angle_lerp(s16 from, s16 to, f32 t);              /* steps an angle towards another */
