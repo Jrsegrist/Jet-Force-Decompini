@@ -5836,9 +5836,10 @@ extern s32 func_m139_002F8(s32 zone);
  */
 #ifdef NON_MATCHING
 /*
- * 290/291 words, frame and slots right: the target, inRange and the `target != NULL` temp are one register
- * later than the ROM's (a1/a3/a0 for a0/a1/v1), and 0x3E's spacing copy is missing (a u8 block local gives
- * it, but one frame word more)
+ * 290/291 words, frame and slots right, 85 aligned diffs: the target, inRange and the `target != NULL` temp
+ * are one register later than the ROM's (a1/a3/a0 for a0/a1/v1; the ROM's inRange lives in start's a1), and
+ * 0x3E's spacing copy is missing (a u8 block local gives it, but one frame word more). The position sums
+ * are written offset first with (*home). as in 0D810, which gives the ROM's FP registers.
  */
 static s32 func_m003_148C0(Object *home, s32 start) {
     M003Home *h;
@@ -5869,9 +5870,9 @@ static s32 func_m003_148C0(Object *home, s32 start) {
     }
     if (target != NULL) {
         dist = func_m003_03E68(target->trans.x_position, target->trans.z_position,
-                               home->trans.x_position + (h->zone[0] << 4), home->trans.z_position + (h->zone[2] << 4));
+                               (h->zone[0] << 4) + (*home).trans.x_position, (h->zone[2] << 4) + (*home).trans.z_position);
         inRange = (h->zoneRadius << 4) * (h->zoneRadius << 4); /* the radius squared, for a moment */
-        y = home->trans.y_position + (h->zone[1] << 4);
+        y = (h->zone[1] << 4) + (*home).trans.y_position;
         height = h->zoneHeight << 4;
         inRange = target != NULL && (s32) dist < inRange && y - height < target->trans.y_position &&
                   target->trans.y_position < y + height;
@@ -5896,9 +5897,9 @@ static s32 func_m003_148C0(Object *home, s32 start) {
         if (h->kind2 == 5) {
             h->leader = target;
         }
-        h->x = home->trans.x_position + (h->offset[0] << 4);
-        h->y = home->trans.y_position + (h->offset[1] << 4);
-        h->z = home->trans.z_position + (h->offset[2] << 4);
+        h->x = (h->offset[0] << 4) + (*home).trans.x_position;
+        h->y = (h->offset[1] << 4) + (*home).trans.y_position;
+        h->z = (h->offset[2] << 4) + (*home).trans.z_position;
         h->unk32 = 0x18;
         h->unk31 = h->unk3;
         home->trans.rotation.y_rotation = 0xC000 - (h->unk1B << 8);
