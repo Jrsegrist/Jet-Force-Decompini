@@ -93,13 +93,19 @@ make nonmatching  # compiles the not-yet-matching C bodies (see docs/matching.md
 ### Names and ROM-derived data
 
 The ROM carries the names of about 2,400 global symbols for its run-time
-module linker. `make extract` reads them from your ROM (`tools/runlink_syms.py`)
-into `build/syms/` so that the disassembly is readable, but none of them are
-committed. Committed C refers to functions and data by address
-(`func_80012345`, `D_80012345`), by the names the DKR decompilation uses, or by
-names of our own (see [Naming](#naming)); `undefined_syms.us.txt` and
-`names.txt` tie those to addresses, and alias files generated at build time
-let them meet the ROM names in the assembly.
+module linker. They are not used: not in the code, and not in anything the
+build generates. `make extract` (`tools/runlink_syms.py`,
+`tools/runlink_split.py`) reads only the symbols' addresses, so the
+disassembly, the per-function files and the symbol files name everything by
+address, and game strings that hold one of those names are written as bytes.
+Committed C refers to functions and data by address (`func_80012345`,
+`D_80012345`), by the names the DKR decompilation or libultra use, or by names
+of our own (see [Naming](#naming)); `undefined_syms.us.txt` and `names.txt`
+tie those to addresses. Where only the ROM's table says which address a
+libultra or DKR name stands for, `make` writes the tie to the build-internal
+`build/syms/runlink_aliases.us.txt` (only names the project's own sources
+use; not for reading). `make check` runs `tools/check_rom_names.py`, which
+checks that no generated file holds a name from the table.
 
 ## Contributing
 
@@ -128,9 +134,9 @@ keep them until there is evidence for a real name. A name may come only from:
 3. **What the code itself shows**: its behaviour, its callers and callees,
    the strings it uses, the data it touches.
 
-A name never comes from the ROM's runlink name table (which `make extract`,
-splat's assembly and m2c's output show): not the name, and not a word or a
-close paraphrase of it. If the only reason to pick a word is that the ROM's
+A name never comes from the ROM's runlink name table (which nothing in the
+build shows any more; don't look it up): not the name, and not a word or a
+close paraphrase of it, and it is not a research aid either. If the only reason to pick a word is that the ROM's
 name for that function uses it, pick another word, or keep the address name.
 Ordinary words that the code itself supports (`draw`, `explosion`) are fine.
 A guess is not a name: when unsure, keep the address name and add a one-line
@@ -191,7 +197,8 @@ ROM and no `make extract`, after `make setup`):
   (`--help`), and the tools' self-tests pass (`tools/ci_test_tools.py`:
   made-up runlink modules are built, split and rebuilt byte for byte;
   `runlink_syms.py`, `runlink_diff.py`, `progress.py` and `rename.py` on
-  synthetic files);
+  synthetic files, and nothing the split or `runlink_syms.py` writes holds a
+  name from the synthetic name table);
 - `names.txt` is applied everywhere: no old name is left
   (`tools/rename.py --check`);
 - every C file in `src/` compiles with IDO 5.3 at the project's flags, with
@@ -202,15 +209,19 @@ ROM and no `make extract`, after `make setup`):
 Two checks need the ROM and are yours to run before you push:
 
 ```sh
-make check                                                   # byte-identical ROM
+make check DKR_DIR=~/path/to/dkr                             # byte-identical ROM; no ROM names generated
 tools/check_names.py --dkr ~/path/to/dkr --since 827f28f     # no ROM-only names, in files or history
 ```
 
-`check_names.py` compares every tracked file, every untracked file git does
-not ignore, and every commit message and added line with the names
-`make extract` read from your ROM, and fails on any that the DKR
-decompilation (a clone of it, `--dkr`) and ultralib do not have too. It prints
-the names it finds on your terminal only: never paste them anywhere.
+`make check` also runs `tools/check_rom_names.py` (when a DKR clone is at
+`DKR_DIR`, default `~/jfg_refs/dkr`): no text file under `asm/`, `build/` or
+`src/` may hold a name from the ROM's name table that undefined_syms,
+names.txt, symbol_addrs, ultralib or DKR do not have too. `check_names.py`
+compares every tracked file, every untracked file git does not ignore, and
+every commit message and added line with the names in your ROM, and fails on
+any that the DKR decompilation (a clone of it, `--dkr`) and ultralib do not
+have too. Both read the names from the ROM when they run and print only
+counts and where (paths, lines, commits), never the names.
 `--since 827f28f` skips one older commit whose hit the project has accepted.
 The full list of checks for a pull request is in
 [CONTRIBUTING.md](CONTRIBUTING.md).

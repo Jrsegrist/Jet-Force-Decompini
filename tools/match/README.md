@@ -6,8 +6,9 @@ location (any checkout or worktree), and write scratch files under
 `build/match/`. Run them with the venv's Python (`.venv/bin/python3`, which
 has rabbitizer), from any directory. Each has `--help`.
 
-Some print names read from your ROM (runlink names): never commit or paste
-their output.
+None of them reads or prints the names in the ROM's runlink name table (the
+assembly they work from names everything by address). Their output still
+comes from the ROM: never commit it.
 
 | Tool | What it does | Example |
 |---|---|---|
@@ -17,8 +18,7 @@ their output.
 | `buildvar.py` | Like var.py, but a full `make` + `make check` per variant (catches the %hi/%lo and jal targets the probe masks); restores the file. | `buildvar.py src/gzip.c func_80001234 vars.txt 0x80001234 0x80001300` |
 | `permdecl.py` | Writes a variants file with every order of a set of declarations (slot `@1@` of a `=== TEMPLATE` block). | `permdecl.py tmpl.txt vars.txt 's32 i; s32 j; f32 x'` |
 | `ulgame.py` | Compiles ultralib (2.0I/J/K/L x -O1/2/3 x -mips1/2) and finds whole objects at the start of remaining asm functions. | `ulgame.py --only io/ --opt 2 --mips 1` |
-| `dkrscan.py` | Compiles DKR's src/*.c and finds its functions in JFG's main segment (exact, masked). | `dkrscan.py --dkr ~/jfg_refs/dkr --only math_util` |
-| `near.py` | After dkrscan: how close each DKR function with an official name is to its still-asm JFG address. | `near.py --max 50` |
+| `dkrscan.py` | Compiles DKR's src/*.c and finds its functions in JFG's main segment (exact, masked; by code only). | `dkrscan.py --dkr ~/jfg_refs/dkr --only math_util` |
 | `perm.py` | Makes a decomp-permuter workspace for one function (game or module flags), and shows the best result and its diff. | `perm.py import src/7A7D0.c func_8007CCF0` |
 
 `common.py` holds the shared paths and flags (keep `GAME_CFLAGS` in step
@@ -67,14 +67,14 @@ common.py; `-I include/modules` for `src/modules/*.c`):
   body and turns every other function into a prototype (statics lose
   `static`), and assembles FUNC's `.s` (from its INCLUDE_ASM line) as
   `target.o`. Names the assembly spells differently from the C at the same
-  address (runlink names, `rl_mNNN_XXXXX` for `func_mNNN_XXXXX`) are renamed
+  address (address names for libultra/DKR names, `rl_mNNN_XXXXX` for `func_mNNN_XXXXX`) are renamed
   to the C's, so a score of 0 is reachable. `--asm NAME` for a static whose
   INCLUDE_ASM name differs, `--replace DEF.c` to start from a draft
   definition instead of the file's, `--tag` to keep several workspaces.
 - The workspace is `build/perm/FUNC[-TAG]/` (base.c, target.s/.o,
   compile.sh, settings.toml with `compiler_type = "ido"`); the permuter
   writes `output-SCORE-N/` there. build/ is gitignored: target.s and the
-  outputs hold names from your ROM, so never commit or paste them.
+  outputs hold disassembly of your ROM, so never commit them.
 - Seed it with the best C you have. When you know which choices matter, put
   PERM macros in base.c (`PERM_GENERAL(a, b)`, `PERM_LINESWAP(...)`,
   `PERM_RANDOMIZE(...)` around the part to vary; see the permuter's README).

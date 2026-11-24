@@ -2,12 +2,11 @@
 """Local pre-push check: no name that exists only in the ROM is committed.
 
 The ROM carries about 2,400 symbol names for its run-time module linker.
-They are read from your ROM at extract time (build/runlink/symbols.txt,
-build/syms/runlink_syms.us.txt) and must never be committed: committed code
-names things by address, by a name from the DKR decompilation (CC0), by a
-libultra name, or by a descriptive name of our own. CI cannot run this check
-(it has no ROM, so it does not know the names); run it before every push,
-after `make extract`:
+They are never used: committed code names things by address, by a name from
+the DKR decompilation (CC0), by a libultra name, or by a descriptive name of
+our own. This check reads the names from your ROM (baserom.us.z64) when it
+runs. CI cannot run it (it has no ROM, so it does not know the names); run it
+before every push:
 
     tools/check_names.py --dkr PATH_TO_DKR_CLONE [--since REV] [--allow NAME ...]
 
@@ -19,8 +18,8 @@ It reads every word of
     public too,
 and fails when one of them is a runlink name that neither the DKR
 decompilation's source (--dkr, a clone of DavidSM64/Diddy-Kong-Racing) nor
-lib/ultralib contains. The names it finds are printed: only on your own
-terminal, never commit or paste them anywhere.
+lib/ultralib contains. It prints where (file:line or commit), never the
+names. tools/check_rom_names.py does the same for the generated files.
 """
 import argparse
 import os
@@ -33,20 +32,12 @@ REF_EXT = (".c", ".h", ".s", ".txt", ".inc", ".ld", ".md", ".py", ".yaml")
 
 
 def rom_names(version):
-    names = set()
-    p = "build/runlink/symbols.txt"
-    if os.path.exists(p):
-        for line in open(p):
-            parts = line.split()
-            if len(parts) == 4:
-                names.add(parts[3])
-    p = "build/syms/runlink_syms.%s.txt" % version
-    if os.path.exists(p):
-        for line in open(p):
-            m = re.match(r"(?://\s*alias:\s*)?(\w+) = ", line)
-            if m:
-                names.add(m.group(1))
-    return names
+    p = "baserom.%s.z64" % version
+    if not os.path.exists(p):
+        return set()
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import runlink_syms
+    return runlink_syms.rom_names(p, version)
 
 
 def ref_words(dirs):
@@ -80,19 +71,20 @@ def main():
 
     names = rom_names(args.version)
     if len(names) < 100:
-        sys.exit("check_names: no ROM names found; run `make extract` first")
+        sys.exit("check_names: no ROM names found; put your ROM at baserom.%s.z64" % args.version)
     if not os.path.isdir(os.path.join(args.dkr, "src")):
         sys.exit("check_names: %s does not look like the DKR decompilation" % args.dkr)
     allowed = ref_words([args.dkr, "lib/ultralib"]) | set(args.allow)
 
-    found = {}
+    found = {}  # name -> {where (file:line, or commit)}
     # tracked files, plus new files not yet added (and not ignored), so that
     # work can be checked before it is committed
     for f in git("ls-files", "-z", "--cached", "--others", "--exclude-standard").split("\0"):
         if f and os.path.isfile(f) and os.path.getsize(f) < 4_000_000:
             with open(f, errors="ignore") as fh:
-                for w in set(WORD.findall(fh.read())) & names:
-                    found.setdefault(w, set()).add(f)
+                for k, line in enumerate(fh, 1):
+                    for w in set(WORD.findall(line)) & names:
+                        found.setdefault(w, set()).add("%s:%d" % (f, k))
     rng = ["%s..HEAD" % args.since] if args.since else ["HEAD"]
     hist = git("log", "-p", "--no-ext-diff", "--format=COMMIT %h%n%B", *rng)
     commit = None
@@ -109,9 +101,11 @@ def main():
     print("check_names: %d ROM names known, %d used (all also in DKR/ultralib: %d)" % (
         len(names), len(found), len(found) - len(bad)))
     if bad:
-        print("check_names: %d ROM-only name(s) are committed (do not push):" % len(bad))
-        for w in bad:
-            print("  %s: %s" % (w, ", ".join(sorted(found[w])[:5])))
+        # where, never which: the names themselves are not printed
+        where = sorted(set(x for w in bad for x in found[w]))
+        print("check_names: %d ROM-only name(s) are committed (do not push), at:" % len(bad))
+        for x in where:
+            print("  %s" % x)
         sys.exit(1)
     print("check_names: OK")
 

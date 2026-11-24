@@ -43,16 +43,18 @@ Words used here:
   -O3, -mips1 and -mips2) and looks for whole objects at the remaining
   function starts. The game's libraries also have `-g` and `-O2 -g3` objects
   (layout.md), which its range does not cover. For engine code,
-  `tools/match/dkrscan.py --dkr PATH` and `near.py` find the DKR function a
-  JFG function is, or nearly is. A DKR function is usually a JFG variant:
+  `tools/match/dkrscan.py --dkr PATH` finds the DKR functions that JFG has
+  exactly; for the rest, find the DKR twin by code shape, callers, data and
+  constants. A DKR function is usually a JFG variant:
   start from DKR's code (its `src/` and `include/` only, never its
   `libultra/`), keep its names and declaration order, and change what the
   assembly shows (offsets, constants, dropped or added checks). Record it in
   [CREDITS.md](../CREDITS.md).
 
-`dkrscan.py`, `near.py`, splat's assembly and m2c's output show names from
-your ROM's runlink table. Never commit or paste their output, and never use
-those names (see "Naming" below).
+Nothing the build or the tools generate shows a name from your ROM's runlink
+table any more (the assembly names everything by address; `make check` runs
+`tools/check_rom_names.py` to make sure). Don't look those names up, and
+never use them, not even as a research aid (see "Naming" below).
 
 ## 2. Write a first draft
 
@@ -65,9 +67,9 @@ setup`) turns a function's assembly into rough C:
 
 For a module function with a jump table, pass the module's `rodata.s` too.
 m2c is GPL-licensed and its output is only a draft: rewrite it in the
-project's style, with the types and structs from the headers, and replace
-every ROM name it prints with an address name (`func_XXXXXXXX`,
-`D_XXXXXXXX`) or a name the project already uses.
+project's style, with the types and structs from the headers, keeping the
+address names it prints (`func_XXXXXXXX`, `D_XXXXXXXX`) or using a name the
+project already has.
 
 Put the C in place of the `INCLUDE_ASM` line. Things the C needs:
 
@@ -299,9 +301,10 @@ name may come only from:
    callers and callees.
 
 **Never use a name that only the ROM's runlink name table has**, and never a
-near copy of one (a changed letter, reordered words, an added prefix). Those
-names are printed by splat's assembly, m2c and `dkrscan.py`/`near.py`. If your
-own description comes out close to one, choose a clearly different one.
+near copy of one (a changed letter, reordered words, an added prefix), and
+don't use them to find or pair functions either. No generated file shows
+them. If your own description comes out close to one, choose a clearly
+different one.
 Ordinary words the code supports (`draw`, `update`) are fine. Never quote a
 ROM-only name anywhere: code, comments, docs or commit messages.
 
@@ -311,9 +314,10 @@ Renames go in [`names.txt`](../names.txt) (`func_XXXXXXXX = name`, fields as
 `--field-uses` lists the uses of a renamed field's old name to check by hand.
 
 `tools/check_names.py --dkr PATH_TO_DKR --since 827f28f` enforces the rule. It
-reads the runlink names from your extracted ROM, then every word of every
-tracked or new file, every commit message and every added line, and fails on
-any word that is a ROM name that neither DKR's source nor ultralib also has.
+reads the runlink names from your ROM, then every word of every tracked or
+new file, every commit message and every added line, and fails on any word
+that is a ROM name that neither DKR's source nor ultralib also has. It prints
+where (file:line, commit), never the name.
 Run it before every commit you push. Never work around it (splitting a string
 in two, changing a letter): a game string that holds such a name stays in
 assembly.

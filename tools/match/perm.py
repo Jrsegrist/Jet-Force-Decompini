@@ -10,8 +10,8 @@ command, and read back what the permuter found.
 -I include/modules for src/modules/*.c, as modules.mk builds them), keeps only
 FUNC's body (the other functions become prototypes), and assembles FUNC's
 original assembly (the INCLUDE_ASM line's .s file, or --asm NAME) as the
-target. Symbols the assembly names differently from the C (runlink names,
-rl_mNNN_XXXXX vs func_mNNN_XXXXX) are renamed to the C's spelling when they
+target. Symbols the assembly names differently from the C (an address name
+for a licensed name, rl_mNNN_XXXXX vs func_mNNN_XXXXX) are renamed to the C's spelling when they
 are the same address, so a score of 0 is reachable. The workspace is
 build/perm/FUNC[-TAG] (gitignored): base.c, target.s/.o, compile.sh,
 settings.toml (compiler_type = "ido").
@@ -26,8 +26,8 @@ a unified diff against base.c.
 
 A lower score is not a match. Read the candidate, make sure it means the same
 as before, put it in the real file and confirm with probe.py/modprobe.py and
-the full build. The target .s holds names read from your ROM: never commit or
-paste anything under build/perm/.
+the full build. The target .s is disassembly of your ROM: never commit
+anything under build/perm/.
 """
 import argparse
 import difflib

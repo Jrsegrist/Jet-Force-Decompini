@@ -2,12 +2,11 @@
 """Find DKR functions in JFG: compile every src/*.c of the Diddy Kong Racing
 decompilation (a local clone, --dkr) with IDO 5.3 -O2 -mips1 and look for each
 function anywhere in JFG's main segment (exact match, relocated fields
-masked); a function whose "Official Name" is a JFG runlink name but does not
-match exactly is listed as 'named' (see near.py for how close it is).
+masked). Functions are found by their code only: the ROM's runlink name
+table is not read (it is not to be used, not even as a research aid).
 
 Writes the objects and build/match/dkr/cands.json (the good candidates).
-The output can contain runlink names read from your ROM: never commit or
-paste it. Needs the ROM and `make extract`.
+Needs the ROM.
 """
 import argparse
 import bisect
@@ -95,8 +94,6 @@ def main():
     rom = C.read_rom()
     main_seg = rom[C.MAIN_ROM:C.MAIN_ROM + (C.MAIN_END - C.MAIN_VRAM)]
     mw = [C.u32(main_seg, i) for i in range(0, len(main_seg) - 3, 4)]
-    addr = C.runlink_addrs()
-    byaddr = {v: k for k, v in addr.items()}
     segs = []
     for m in re.finditer(r"\[0x([0-9A-Fa-f]+), (c|asm)(?:, (\w+))?\]", open(C.path("jfg.%s.yaml" % C.VERSION)).read()):
         o = int(m.group(1), 16)
@@ -143,19 +140,14 @@ def main():
             st["funcs"] += 1
             hits = find(ws, ms) if ws else []
             off_name = offm.get(name)
-            ja = addr.get(off_name) if off_name else None
             if hits:
-                if (ja in hits) or (len(hits) == 1 and size >= 24):
-                    h0 = ja if ja in hits else hits[0]
-                    cands.append({"dkr_file": base, "dkr_func": name, "official": off_name, "addr": h0,
-                                  "jfg_file": jfile(h0), "size": size})
+                if len(hits) == 1 and size >= 24:
+                    cands.append({"dkr_file": base, "dkr_func": name, "official": off_name, "addr": hits[0],
+                                  "jfg_file": jfile(hits[0]), "size": size})
                 st["exact"] += 1
                 h = hits[0]
                 rows.append((base, name, off_name or "", size, "%08X" % h, jfile(h),
-                             "EXACT" + ("" if len(hits) == 1 else "x%d" % len(hits)), byaddr.get(h, "")))
-            elif ja:
-                st["named_nomatch"] += 1
-                rows.append((base, name, off_name, size, "%08X" % ja, jfile(ja), "named", ""))
+                             "EXACT" + ("" if len(hits) == 1 else "x%d" % len(hits))))
     with open(out + "/cands.json", "w") as f:
         json.dump(cands, f, indent=1)
     byfile = collections.defaultdict(list)
@@ -167,10 +159,10 @@ def main():
                                                            for c in byfile[f])))
     print()
     for r in rows:
-        print("%-20s %-36s %-28s %5d %s %-6s %-6s %s" % r)
+        print("%-20s %-36s %-28s %5d %s %-6s %s" % r)
     print()
     for k, v in summary.items():
-        print("%-22s funcs=%3d exact=%3d named_nomatch=%3d" % (k, v["funcs"], v["exact"], v["named_nomatch"]))
+        print("%-22s funcs=%3d exact=%3d" % (k, v["funcs"], v["exact"]))
 
 
 if __name__ == "__main__":
