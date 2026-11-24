@@ -1853,10 +1853,11 @@ extern Triangle rl_m018_06A30[];
 /*
  * The screen of the player's character's things, two pages (the stick turns the page): its items
  * (from the table at rl_m018_06938) and counts, or its keys and the game's flags.
- * NON_MATCHING: 667/663 words, ROM frame, 47 aligned diffs: the page-1 loop counter i stays in v0 and is
- * saved around the call (the ROM gives it s2), the constant 1 takes s4 (ROM s5), id and width swap s2/s3,
- * and the item-count call results go two temp words lower. (`if (settings) {}` keeps settings on the stack,
- * as in the ROM.)
+ * NON_MATCHING: ROM length and frame (663 words), 40 aligned diffs: character, the table pointer and the
+ * constant 1 take s4/s5/s6 where the ROM has s6/s4/s5, id and width swap s2/s3, and the item-count call results
+ * go two temp words lower. The page-1 loop counts in `character` (dead by then; a permuter lead): with its own
+ * counter i (as the ROM, which keeps it in s2 apart from character in s6) it is 667 words, 47 diffs, i in v0
+ * saved around the call. `pad` keeps the frame. (`if (settings) {}` keeps settings on the stack, as in the ROM.)
  */
 void func_m018_05C0C(s32 updateRate) {
     s8 *state;
@@ -1864,7 +1865,7 @@ void func_m018_05C0C(s32 updateRate) {
     Object *obj;
     s16 *e;
     M018Pos *pos;
-    s32 i;
+    UNUSED s32 pad;
     char buf[100];
     M018Character *record;
     u8 *p;
@@ -1985,7 +1986,7 @@ void func_m018_05C0C(s32 updateRate) {
                 D_800FF780[50].unkC = -100.0f;
                 D_800FF780[50].unk10 = -6.0f;
                 p = settings;
-                for (i = 0; i < 5; i++) {
+                for (character = 0; character < 5; character++) {
                     if (p[0x28]) {
                         obj->modelIndex = rl_m018_069D0[p[0x28]];
                         func_8005A0D0(0x32);
