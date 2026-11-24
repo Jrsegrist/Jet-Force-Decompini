@@ -30,7 +30,9 @@ typedef struct M061Stats {
 typedef struct M061Player {
     /* 0x000 */ s8 unk0; /* the player */
     /* 0x001 */ s8 unk1; /* the character */
-    /* 0x002 */ u8 pad2[0x540 - 0x2];
+    /* 0x002 */ u8 pad2[0x10E - 0x2];
+    /* 0x10E */ s16 unk10E; /* (not 0: not shown on the radars) */
+    /* 0x110 */ u8 pad110[0x540 - 0x110];
     /* 0x540 */ u32 unk540;
     /* 0x544 */ u8 pad544[0x568 - 0x544];
     /* 0x568 */ u8 unk568;
@@ -565,7 +567,141 @@ void func_m061_010D4(s32 mode) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_01218);
 
+/* A camera (func_80041E0C's array, 0x4C each), as used here */
+typedef struct M061Camera {
+    /* 0x00 */ s16 yaw;
+    /* 0x02 */ u8 pad2[0x4C - 0x2];
+} M061Camera;
+
+extern M061Camera *func_80041E0C(void); /* the cameras */
+extern s32 func_80049C84(f32 x, f32 z);  /* the angle of a direction */
+extern f32 func_80097140(f32 x);         /* sqrtf */
+extern u8 D_800A5064;
+extern s16 rl_m061_03418; /* .data 0x478: the radar sweep's angle */
+extern s32 rl_m061_0341C; /* .data 0x47C: the sweep's angle before this frame's step */
+
+#ifdef NON_MATCHING
+/*
+ * Turns the radar sweep and moves every player's dots: each other player's offset, turned to the player's
+ * camera and clamped to the radar's edge, with a colour for above / level / below; a dot lights up as the
+ * sweep passes it (with the sweep on) and fades, and is hidden for a player who is out.
+ * (Matches, staged: only the assembly func_m061_0043C calls it, so IDO would drop it. With 0043C in C,
+ * its call becomes a direct call of this function.)
+ */
+static void func_m061_019E0(Object **objs, s32 updateRate) {
+    s32 i;
+    s32 j;
+    s32 colour;
+    s32 alpha;
+    s32 shown;
+    s32 sweepStart;
+    s32 sweepEnd;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 rx;
+    f32 ry;
+    f32 c;
+    s32 angle;
+    Object *obj;
+    M061Player *player;
+    Object *other;
+    M061Player *otherState;
+    M061Camera *cams;
+    UNUSED s32 pad;
+
+    cams = func_80041E0C();
+    rl_m061_0341C = rl_m061_03418;
+    rl_m061_03418 -= updateRate << 10;
+    if (rl_m061_03418 > 20000 && rl_m061_0341C < 20000) {
+        rl_m061_0341C += 0x10000;
+    }
+    sweepStart = rl_m061_03418;
+    if (sweepStart < 0) {
+        sweepStart = -sweepStart;
+    } else {
+        sweepStart = 0x10000 - sweepStart;
+    }
+    sweepEnd = rl_m061_0341C;
+    if (sweepEnd < 0) {
+        sweepEnd = -sweepEnd;
+    } else {
+        sweepEnd = 0x10000 - sweepEnd;
+    }
+    if (sweepStart < sweepEnd) {
+        sweepEnd -= 0x10000;
+    }
+    rl_m061_03418 += updateRate << 9;
+    for (i = 0; i < D_800A4FD0; i++) {
+        obj = objs[i];
+        player = obj->unk68;
+        for (j = 0; j < D_800A4FD0; j++) {
+            other = objs[j];
+            otherState = other->unk68;
+            dx = (other->trans.x_position - obj->trans.x_position) / 100.0f;
+            dy = other->trans.y_position - obj->trans.y_position;
+            dz = (other->trans.z_position - obj->trans.z_position) / 100.0f;
+            d = func_80097140(dx * dx + dz * dz);
+            if (15.0f < d) {
+                d = 15.0f / d;
+                if (obj) {} /* (steers the register allocation: obj is always set) */
+                dx *= d;
+                dz *= d;
+            }
+            if (d == 0.0f) {
+                sDots[player->unk0][j].x = 0;
+                sDots[player->unk0][j].y = 0;
+            } else {
+                shown = FALSE;
+                if (dy < -30.0f) {
+                    colour = 0;
+                } else if (30.0f < dy) {
+                    colour = 2;
+                } else {
+                    colour = 1;
+                }
+                angle = 0x8000 - cams[player->unk0].yaw;
+                dz = -dz;
+                c = func_80049C30(angle);
+                rx = func_80049C34(angle) * dz + dx * c;
+                c = func_80049C30(angle);
+                ry = dz * c - func_80049C34(angle) * dx;
+                switch (D_800A5064) {
+                    case 1:
+                        alpha = sDots[player->unk0][j].alpha;
+                        angle = func_80049C84(rx, ry);
+                        if (angle <= sweepStart && angle >= sweepEnd) {
+                            alpha = 255;
+                            shown = TRUE;
+                        } else if ((updateRate << 3) < alpha) {
+                            alpha -= updateRate << 3;
+                        } else {
+                            alpha = 0;
+                        }
+                        break;
+                    case 0:
+                        shown = TRUE;
+                        alpha = 255;
+                        break;
+                }
+                if (shown) {
+                    sDots[player->unk0][j].x = rx;
+                    sDots[player->unk0][j].y = ry;
+                    sDots[player->unk0][j].colour = colour;
+                }
+                if (otherState->unk10E != 0 || other->interactObj->hitPoints < 0x100) {
+                    sDots[player->unk0][j].alpha = 0;
+                } else {
+                    sDots[player->unk0][j].alpha = alpha;
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m061", func_m061_019E0);
+#endif
 
 extern Gfx *D_800FF398;
 extern Mtx *D_800FF39C;
