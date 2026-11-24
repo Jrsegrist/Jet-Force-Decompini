@@ -85,7 +85,6 @@ typedef struct M109Env {
 /* The object's f32 at 0x34 */
 #define OBJ_F34(obj) (*(f32 *) &(obj)->pad2C[0x34 - 0x2C])
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
 extern void track_light_off(f32 *light);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */

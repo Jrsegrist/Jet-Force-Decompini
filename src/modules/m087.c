@@ -212,7 +212,6 @@ void func_m087_001DC(Object *obj, M087Setup *setup, s32 arg2) {
 
 extern s32 D_m087_01220;  /* the module's number (.data, still assembly) */
 extern Vec3f rl_m087_01384; /* where the default kind's particles come from, in its own space */
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern void objflag_set(s32 flag); /* as defined in 44350.c */
 extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, u8, u8, u8);
 extern void spawn_object_from_list(s16 id, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);

@@ -40,7 +40,6 @@ extern void glitch_effect_stop(s32);
 extern u16 func_80043510(s32 player); /* buttons pressed */
 extern s32 character_has_item(s32, s32, s32);
 extern void *func_80041E0C(void);
-extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 extern void func_m085_00074(s32 camera);
 extern void func_m085_00250(void *view, Object *camera, s32 updateRate);
 extern void func_m077_00000(s32, s32);

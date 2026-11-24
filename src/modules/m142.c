@@ -75,7 +75,6 @@ typedef struct M142Shape {
 #define MAX_NODES 0x200
 #define MAX_SPLITS 0x200
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern void *func_8004A57C(s32 size, u32 colour);                /* DKR mempool_alloc_safe */
 extern void *func_8004A828(s32 size, void *address, u32 colour); /* DKR mempool_alloc_fixed */
 extern void func_8004AA80(void *data);                           /* DKR mempool_free */

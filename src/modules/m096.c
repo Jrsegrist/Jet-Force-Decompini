@@ -49,7 +49,6 @@ typedef struct M096Hit {
     /* 0x28 */ s32 surface;
 } M096Hit;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern void player_drop_held_object(s32);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* 53C0.c move_object */
 extern f32 func_80097140(f32); /* square root */

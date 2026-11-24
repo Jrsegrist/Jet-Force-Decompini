@@ -78,7 +78,6 @@ typedef struct M151Texture {
 extern u8 *D_80102D60[]; /* the two 8-bit work buffers of each texture */
 extern u8 *D_80102D78[];
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern Object *func_m139_00184(s16 x, s16 z, s32 radius, s32 zone);
 extern s32 func_m139_0038C(Object *obj);
 extern s32 func_m003_0CAA4(f32, f32, s16);

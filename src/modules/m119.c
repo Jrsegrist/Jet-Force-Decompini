@@ -24,10 +24,10 @@ typedef struct M119Object {
     M119PlayerData *unk68;
 } M119Object;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
+extern void runlink_unload_timer_set(s32 module, u16 timer, u8 value);
 extern M119Object *func_8000E4D0(s32);
 extern M119Counter *char_record_lookup(s32, s32);
-extern void func_80001248(s32, s32);
+extern void func_80001248(u16 sound, s32 arg1); /* DKR amSndPlay */
 extern void func_800079B8(M119Object *);
 
 s32 D_m119_00100 = 119; /* the module's number */

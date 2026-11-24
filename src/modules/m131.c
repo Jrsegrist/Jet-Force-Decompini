@@ -66,7 +66,6 @@ typedef struct M131Hit {
     /* 0x28 */ s32 unk28;
 } M131Hit;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 arg5, s32 arg6, s32 arg7); /* adds a light */
 extern void track_light_off(f32 *light);

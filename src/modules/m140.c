@@ -56,7 +56,6 @@ typedef struct M140Point {
     /* 0x14 */ f32 z;
 } M140Point;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern Object **troop_list_get(s32 *count);
 extern s32 obj_id_is_special(s32 id);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2); /* squared distance? */

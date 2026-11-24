@@ -30,7 +30,6 @@ typedef struct M116Obstacle {
 
 extern s8 D_800A5034; /* which pickups the race has */
 extern s8 D_800A503C;
-extern void func_80001248(s32 sound, s32 arg1);
 extern s32 obj_dist_racer(f32 x, f32 y, f32 z, f32 radius, s32 arg4, void *list);
 extern void func_8005F5AC(Object *obj, s32 arg1);
 extern void func_m031_01B7C(s32 player);

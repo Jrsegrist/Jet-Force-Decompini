@@ -24,7 +24,6 @@ typedef struct M092State {
     /* 0x4 */ s32 unk4;
 } M092State;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 
 s32 D_m092_00330 = 92; /* the module's number */
 

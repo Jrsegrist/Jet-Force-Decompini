@@ -30,11 +30,11 @@ typedef struct M108Object {
 } M108Object;
 
 extern void obj_collision_spheres_init(M108Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
-extern void runlink_unload_timer_set(s32, s32, s32);
+extern void runlink_unload_timer_set(s32 module, u16 timer, u8 value);
 extern M108Object *func_8000E4D0(s32);
 extern s32 character_has_item(s32, s32, s32);
 extern void character_item_give(s32, s32, s32);
-extern void func_80001248(s32, s32);
+extern void func_80001248(u16 sound, s32 arg1); /* DKR amSndPlay */
 extern void func_800079B8(M108Object *);
 extern void func_m006_011E0(M108PlayerData *, s32);
 
