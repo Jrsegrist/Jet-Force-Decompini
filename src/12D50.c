@@ -2042,8 +2042,10 @@ f32 sqrtf(f32 x);
 
 #ifdef NON_MATCHING
 /**
- * NON_MATCHING: one word short (`u8 hit` gives the ROM's length only by adding two andi the ROM doesn't have), the FPR temporaries rotated (f10/f8/f6 where the target has
- * f8/f6/f10) from the first statement on.
+ * NON_MATCHING: ROM length and frame, 152 aligned diffs: f4 and f8 swapped from the first statement on (the
+ * target loads base[0] into f8). The cross products are written as Graphics Gems' V3Cross (a.y*b.z - a.z*b.y,
+ * which gives the target's operand order) and the denominator is its own local (the target spills it at 0x24
+ * around the last sqrtf).
  * JFG: intersect a ray (start, unit direction dir) with an infinite cylinder (a point on its axis, unit axis
  * direction, radius): TRUE if it hits, with the ray distances where it enters and leaves in *in and *out (the
  * classic Graphics Gems IV method: Cychosz and Waggenspack). A ray parallel to the axis never hits.
@@ -2057,13 +2059,14 @@ s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *i
     f32 t;
     f32 s;
     f32 ln;
+    f32 den;
 
     rc[0] = start[0] - base[0];
     rc[1] = start[1] - base[1];
     rc[2] = start[2] - base[2];
-    n[0] = dir[1] * axis[2] - axis[1] * dir[2];
-    n[1] = dir[2] * axis[0] - axis[2] * dir[0];
-    n[2] = dir[0] * axis[1] - axis[0] * dir[1];
+    n[0] = dir[1] * axis[2] - dir[2] * axis[1];
+    n[1] = dir[2] * axis[0] - dir[0] * axis[2];
+    n[2] = dir[0] * axis[1] - dir[1] * axis[0];
     ln = n[0] * n[0] + n[1] * n[1] + n[2] * n[2];
     if (ln == 0.0f) {
         return FALSE;
@@ -2078,18 +2081,19 @@ s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *i
     }
     hit = d <= radius;
     if (hit) {
-        o[0] = rc[1] * axis[2] - axis[1] * rc[2];
-        o[1] = rc[2] * axis[0] - axis[2] * rc[0];
-        o[2] = rc[0] * axis[1] - axis[0] * rc[1];
+        o[0] = rc[1] * axis[2] - rc[2] * axis[1];
+        o[1] = rc[2] * axis[0] - rc[0] * axis[2];
+        o[2] = rc[0] * axis[1] - rc[1] * axis[0];
         t = -(o[0] * n[0] + o[1] * n[1] + o[2] * n[2]) / ln;
-        o[0] = n[1] * axis[2] - axis[1] * n[2];
-        o[1] = n[2] * axis[0] - axis[2] * n[0];
-        o[2] = n[0] * axis[1] - axis[0] * n[1];
+        o[0] = n[1] * axis[2] - n[2] * axis[1];
+        o[1] = n[2] * axis[0] - n[0] * axis[2];
+        o[2] = n[0] * axis[1] - n[1] * axis[0];
         ln = sqrtf(o[0] * o[0] + o[1] * o[1] + o[2] * o[2]);
         o[0] /= ln;
         o[1] /= ln;
         o[2] /= ln;
-        s = sqrtf(radius * radius - d * d) / (dir[0] * o[0] + dir[1] * o[1] + dir[2] * o[2]);
+        den = dir[0] * o[0] + dir[1] * o[1] + dir[2] * o[2];
+        s = sqrtf(radius * radius - d * d) / den;
         if (s < 0.0f) {
             s = -s;
         }
