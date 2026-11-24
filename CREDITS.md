@@ -413,3 +413,9 @@ written from what the code does.
 | `src/objects.c` | spawn_object's shape (the build in a scratch buffer, the model/texture/sprite loops with the failure clean-up, the property blocks by behaviour flags, the copy into its allocation and the pointer moves, the list add and the init, the compiled-out overflow messages) for JFG's spawn_object (0x80005F14, matching); JFG's skipped types, error codes, extra blocks and module calls are written from the ROM |
 | `src/objects.c` | run_object_init_func's third parameter (DKR passes it to obj_init_animator), now in JFG's definition |
 | `src/particles.c` | create_general_particle's shape (the description and behaviour reads, the scale, lifetime, colour and opacity set-up with their random ranges, the asset by kind, the emitter rotation steps, the free on a missing asset) for JFG's func_80060434 in `src/5DA60.c` (matching); JFG's one-function form, its fields and flags are written from the ROM |
+
+### Round 46 (main46)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/objects.c` | obj_destroy's shape (the attachment loop freeing models or sprites, the lights, the behaviour switches with a typed state pointer per case, the racer's sound and object clean-up and the object-list scan, the shadow texture, the model loops by model type, the header and the free) for the NON_MATCHING body of JFG's func_80007C68 in `src/53C0.c`; JFG's trace, companion and case list are written from the ROM |

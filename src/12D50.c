@@ -2586,7 +2586,47 @@ s32 track_edge_find_next(TrackEdge *edge, TrackEdge *out) {
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001A218);
 
-INCLUDE_ASM("asm/nonmatchings/12D50", func_8001AB84);
+/**
+ * JFG: TRUE if the point (px, pz) is within sqrt(radiusSq) of the segment (x1, z1)-(x2, z2) on the x/z plane: the
+ * nearest point when the perpendicular falls on the segment, otherwise only the first end (x1, z1) is tested.
+ * (dx/dz are reused for the offset from the nearest point, as the ROM's registers show; the three pads fill the
+ * ROM's frame.)
+ */
+s32 func_8001AB84(f32 px, f32 pz, f32 x1, f32 z1, f32 x2, f32 z2, f32 radiusSq) {
+    f32 dx;
+    f32 dz;
+    f32 lenSq;
+    f32 t;
+    f32 ex;
+    f32 ez;
+    s32 hit;
+    UNUSED s32 pad0;
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+
+    dx = x2 - x1;
+    dz = z2 - z1;
+    lenSq = dx * dx + dz * dz;
+    hit = FALSE;
+    if (lenSq > 0.0f) {
+        t = ((px - x1) * dx + (pz - z1) * dz) / lenSq;
+        if (t >= 0.0f && t <= 1.0f) {
+            dx = px - (t * dx + x1);
+            dz = pz - (t * dz + z1);
+            if (dx * dx + dz * dz <= radiusSq) {
+                hit = TRUE;
+            }
+        }
+    }
+    if (!hit) {
+        ex = px - x1;
+        ez = pz - z1;
+        if (ex * ex + ez * ez <= radiusSq) {
+            hit = TRUE;
+        }
+    }
+    return hit;
+}
 
 u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
 s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
