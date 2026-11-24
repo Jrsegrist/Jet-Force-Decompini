@@ -49,7 +49,7 @@ typedef struct M113Rocket {
 
 typedef struct M113State {
     /* 0x0 */ s32 health; /* at the start */
-    /* 0x4 */ f32 *light;
+    /* 0x4 */ s32 light; /* a track light (f32 *) kept as an integer, as the ROM's code needs (not 64-bit clean) */
 } M113State;
 
 typedef struct M113Part {
@@ -177,17 +177,19 @@ void func_m113_00000(Object *obj, M113Setup *setup) {
     obj_collision_spheres_init(obj, (setup->strength + 1) << 8, 1, 4, 0, 0, 0, 2.0f, 2.0f, -1.0f, 1.0f, 0x11);
     OBJ_STATE(obj, M113State)->health = obj->interactObj->hitPoints;
     if (m->radius == 0.0f) {
-        OBJ_STATE(obj, M113State)->light = track_light_create(obj->trans.x_position, obj->trans.y_position,
+        OBJ_STATE(obj, M113State)->light = (s32) track_light_create(obj->trans.x_position, obj->trans.y_position,
                                                          obj->trans.z_position, 500.0f, 300.0f, 0xFF, 0xE0, 0);
     } else {
-        OBJ_STATE(obj, M113State)->light = NULL;
+        OBJ_STATE(obj, M113State)->light = 0;
     }
 }
 
 #ifdef NON_MATCHING
-/* Same size; differs in where `rate` is spilled (0x58, ROM 0x60) and some registers (19 aligned diffs).
-   `if (obj) {}` and `if (dist) {}` (both set there) took it from 296 to 66 diffs; the hit normal's z read as
-   `(&hit.normal.z)[0]`, `!m->hit`, and the dy/dz and burst.hitFloor/unk11 statement orders from 41 to 19. */
+/* Same size; 2 aligned diffs: `rate` is spilled to 0x5C where the ROM has 0x60 (the hit part's nested
+   sqrtf call gets its expression temporary before rate's spill word; with the sqrt through `dist` the
+   slot is right but the frame 8 bytes short). Round 49: the light as an s32 (19 -> 13), the hit normal's z
+   in dz (the ROM spills it to dz's home), the hit result through the u8 `h` (the ROM tests the masked
+   copy in v1 with the store in the branch delay slot) and dx read as `(&hit.normal.x)[0]`. */
 void func_m113_002C8(Object *obj, s32 updateRate) {
     M113Rocket *m;
     HitResult hit;
@@ -199,7 +201,7 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
     s16 yaw;
     s16 pitch;
     M113Interaction *ia;
-    Vec3f *unused;
+    u8 h;
     f32 dx;
     f32 dz;
     f32 dy;
@@ -301,12 +303,12 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 func_80009A04(obj, offset.x - obj->trans.x_position, offset.y - obj->trans.y_position,
                               offset.z - obj->trans.z_position);
             }
-            m->hit = func_80018808(obj, &((M113Interaction *) obj->interactObj)->pos,
-                                   (Vec3f *) &obj->trans.x_position, &hit, 0, 0);
-            if (obj) {}
-            if (m->hit != 0) {
+            h = func_80018808(obj, &((M113Interaction *) obj->interactObj)->pos,
+                              (Vec3f *) &obj->trans.x_position, &hit, 0, 0);
+            m->hit = h;
+            if (h != 0) {
                 if (hit.obj == NULL) {
-                    m->hit |= 2;
+                    m->hit = h | 2;
                 }
                 m->hitPos.x = hit.pos.x;
                 m->hitPos.y = hit.pos.y;
@@ -314,15 +316,14 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
                 m->hitFlags = hit.flags;
                 func_80009A04(obj, m->hitPos.x - obj->trans.x_position, m->hitPos.y - obj->trans.y_position,
                               m->hitPos.z - obj->trans.z_position);
-                dx = hit.normal.x;
-                dist = (&hit.normal.z)[0];
-                if (dist) {}
+                dx = (&hit.normal.x)[0];
+                dz = (&hit.normal.z)[0];
                 dy = hit.normal.y;
-                m->hitYaw = func_80049C84(dx, dist) + 0x8000;
-                m->hitPitch = func_80049C84(dy, sqrtf(dx * dx + dist * dist));
+                m->hitYaw = func_80049C84(dx, dz) + 0x8000;
+                m->hitPitch = func_80049C84(dy, sqrtf(dx * dx + dz * dz));
             }
-            if (OBJ_STATE(obj, M113State)->light != NULL) {
-                track_light_set_position(OBJ_STATE(obj, M113State)->light, obj->trans.x_position, obj->trans.y_position,
+            if (OBJ_STATE(obj, M113State)->light != 0) {
+                track_light_set_position((f32 *) OBJ_STATE(obj, M113State)->light, obj->trans.x_position, obj->trans.y_position,
                               obj->trans.z_position);
             }
         }
@@ -370,8 +371,8 @@ void func_m113_002C8(Object *obj, s32 updateRate) {
             }
             enemy_module_notify(0, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 5, 1, 0x96);
         }
-        if (OBJ_STATE(obj, M113State)->light != NULL) {
-            track_light_off(OBJ_STATE(obj, M113State)->light);
+        if (OBJ_STATE(obj, M113State)->light != 0) {
+            track_light_off((f32 *) OBJ_STATE(obj, M113State)->light);
         }
         func_800079B8(obj);
         m = NULL;
