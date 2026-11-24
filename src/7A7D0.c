@@ -1323,11 +1323,9 @@ void func_8007E794(Obj7E *obj) {
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E794);
 #endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (13 words, ROM length; was 32): loop shape only. The target keeps j as a counter (j != 4, mtx + j * 4
-   recomputed each pass) and walks the column with one pointer; the column through a row-pointer cast keeps j (plain
-   mtx[i][j] gets j strength-reduced) but its inner loop then counts i * 16 and adds the column base each time. */
-/* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. */
+/* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. The element
+ * mtx[i][j] is read as a byte offset, (i * 4 + j) * 4 from mtx: that keeps j as the outer counter (mtx + j * 4
+ * recomputed each pass) and gives the inner loop its i * 4 counter and walking column pointer. */
 void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     f32 newMin[4];
     s32 i;
@@ -1335,8 +1333,8 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     s32 j;
     f32 a;
     f32 b;
+    UNUSED s32 pad;
 
-    if (min) {}
     newMin[0] = 0.0f;
     newMin[1] = 0.0f;
     newMin[2] = 0.0f;
@@ -1347,8 +1345,8 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     newMax[3] = 1.0f;
     for (j = 0; j < 4; j++) {
         for (i = 0; i < 4; i++) {
-            a = ((f32 (*)[4]) (mtx[0] + j))[i][0] * min[i];
-            b = ((f32 (*)[4]) (mtx[0] + j))[i][0] * max[i];
+            a = *(f32 *) ((u8 *) mtx + (i * 4 + j) * 4) * min[i];
+            b = *(f32 *) ((u8 *) mtx + (i * 4 + j) * 4) * max[i];
             if (a < b) {
                 newMin[j] += a;
                 newMax[j] += b;
@@ -1365,9 +1363,6 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     max[1] = newMax[1];
     max[2] = newMax[2];
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E9E0);
-#endif
 
 extern s32 D_801047F0; // JFG: the number of entries
 s32 box_range_cell_mask(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ);
