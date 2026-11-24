@@ -4,7 +4,7 @@
  */
 #include "module.h"
 
-/* The module's .rodata and .bss (still assembly) */
+/* The module's .bss (still assembly) */
 extern f32 rl_m053_03828[4];
 extern f32 rl_m053_03838[4];
 extern f32 rl_m053_03848[4];
@@ -28,12 +28,7 @@ struct M053State;
 extern s16 *rl_m053_03820; /* .bss (still assembly): the camera commands */
 extern u8 D_800A4FC4;      /* a multiplayer game */
 extern u8 D_800A4FB4;
-#ifdef NON_MATCHING
 static void func_m053_014F4(s16 *angles, struct M053Steer *s, f32 speed, s32 angle, f32 updateRateF);
-#else
-extern void rl_m053_014F4(s16 *angles, struct M053Steer *s, f32 speed, s32 angle, f32 updateRateF);
-#define func_m053_014F4 rl_m053_014F4
-#endif
 static void func_m053_01850(Object *obj, struct M053Slow *s, f32 speed, s32 angle, f32 updateRateF);
 static f32 func_m053_019B0(s16 *yaw, struct M053Turn *s, f32 speed, s16 target, f32 updateRateF);
 static void func_m053_021E4(Object *obj, struct M053HitState *s, s32 updateRate);
@@ -657,8 +652,6 @@ extern s32 func_8004966C(s16 angle); /* sine */
 extern s16 *rl_m053_03820;          /* .bss (still assembly): the camera commands */
 
 /* Steering the vehicle and its camera while the button is held (called from 00038) */
-#ifdef NON_MATCHING
-/* Registers and operand order of the 1C6..1CC stores (t-registers one apart) */
 static void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED f32 speed, UNUSED s32 angle, f32 updateRateF) {
     s16 yaw;
     s16 pitch;
@@ -681,8 +674,9 @@ static void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED f32 speed, UNUSED 
     s->unk1DE = angle_lerp(s->unk1DE, pitch, k);
     s->unk1CE = angle_lerp(s->unk1CE, yaw, k);
     s->unk1D0 = angle_lerp(s->unk1D0, pitch, k);
-    s->unk1C6 = s->unk1CE + angles[0];
-    s->unk1C8 = s->unk1D0 + angles[1];
+    /* ((&s->f)[0]: the field read first, as the ROM does) */
+    s->unk1C6 = angles[0] + (&s->unk1CE)[0];
+    s->unk1C8 = angles[1] + (&s->unk1D0)[0];
     s->unk1CA = s->unk1C6;
     s->unk1CC = s->unk1C8;
     yaw = s->unk1CE;
@@ -704,10 +698,6 @@ static void func_m053_014F4(s16 *angles, M053Steer *s, UNUSED f32 speed, UNUSED 
     *++rl_m053_03820 = yaw;
     rl_m053_03820++;
 }
-#else
-#undef func_m053_014F4
-INCLUDE_ASM("asm/nonmatchings/modules/m053/ro", func_m053_014F4);
-#endif
 
 /* The part of the vehicle's state that 01850 uses */
 typedef struct M053Slow {
