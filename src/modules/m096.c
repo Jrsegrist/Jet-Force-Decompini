@@ -51,7 +51,7 @@ typedef struct M096Hit {
 
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern void player_drop_held_object(s32);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* 53C0.c move_object */
 extern f32 func_80097140(f32); /* square root */
 extern void func_80048B60(f32 *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
