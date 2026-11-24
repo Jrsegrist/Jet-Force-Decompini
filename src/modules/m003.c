@@ -3027,18 +3027,12 @@ M003Event *func_m003_062A0(void) {
     return found;
 }
 
-#ifdef NON_MATCHING
-/*
- * IDO puts the loop counter's dead copy before `e++` (the ROM: after it), so it lands in the branch delay
- * slots the ROM leaves empty (one word short; 11 aligned diffs). An empty `if (obj) {}` before the return
- * gave the ROM's length but homed obj and moved every temporary one register up (39 aligned diffs).
- */
 /* The nearest event the member hears loudly enough (its loudness in *loudness), or NULL */
 M003Event *func_m003_06754(Object *obj, f32 *loudness) {
     M003Member *m = obj->unk68;
     M003Event *e = sEvents;
     u32 best = -1;
-    s32 i = 15;
+    s32 i = 16;
     s32 loud;
     u32 dist;
     M003Event *found = NULL;
@@ -3046,34 +3040,35 @@ M003Event *func_m003_06754(Object *obj, f32 *loudness) {
     f32 to[3];
 
     *loudness = 0.0f;
-    do {
-        if (e->active == 0) {
-        } else if ((e->id & ~3) != 0 && ((Object *) (e->id & ~3))->freed) {
-            e->active = 0;
-        } else if (e->unk6 & 1) {
-            from[0] = e->x;
-            from[1] = e->y;
-            from[2] = e->z;
-            to[0] = m->earPos[0];
-            to[1] = m->earPos[1];
-            to[2] = m->earPos[2];
-            loud = audspat_volume_at_distance(e->unk9, from, to);
-            if (loud >= sHomeData->unk21) {
-                dist = func_m003_03E68(m->earPos[0], m->earPos[2], e->x, e->z);
-                if (dist <= best) {
-                    found = e;
-                    best = dist;
-                    *loudness = loud;
+    while (i--) {
+        if (e->active != 0) {
+            if ((e->id & ~3) != 0 && ((Object *) (e->id & ~3))->freed) {
+                e->active = 0;
+                e++;
+                continue;
+            }
+            if (e->unk6 & 1) {
+                from[0] = e->x;
+                from[1] = e->y;
+                from[2] = e->z;
+                to[0] = m->earPos[0];
+                to[1] = m->earPos[1];
+                to[2] = m->earPos[2];
+                loud = audspat_volume_at_distance(e->unk9, from, to);
+                if (loud >= sHomeData->unk21) {
+                    dist = func_m003_03E68(m->earPos[0], m->earPos[2], e->x, e->z);
+                    if (dist <= best) {
+                        found = e;
+                        best = dist;
+                        *loudness = loud;
+                    }
                 }
             }
         }
         e++;
-    } while (i--);
+    }
     return found;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06754);
-#endif
 
 /* Picks a new wander point for obj's member when the way ahead is blocked or the point is reached */
 static void func_m003_069B0(Object *obj) {
