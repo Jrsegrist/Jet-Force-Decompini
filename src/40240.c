@@ -1332,15 +1332,12 @@ void func_80042470(s32 arg0, s32 arg1) {
 
 extern u8 D_800A3178[4];
 extern MtxF gViewProjMatrixF;
-void func_80074E50(MtxF *mtx);
+/* JFG: hand-written (74A80.s); reads the list's entries (unk0, unk4) up to the -1 end marker */
+void func_80074E50(MtxF *mtx, MatrixListEntry *list);
 s32 rand_range(s32 min, s32 max);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: the target forms &D_800FA658 in $a1 before indexing (mine folds %lo into the store), which shifts
-   the temporaries of the rest by one (28 words, from 127, with the two zero stores chained and the shake and
-   camera pointers set around the matrix call) */
-/* JFG: per frame: end the matrix list, reset the zoom flags and run the camera shakes (fade in until fadeInEnd,
- * hold to holdEnd, fade out to fadeOutEnd) into each camera's shakeY. */
+/* JFG: per frame: end the matrix list and pass it to func_80074E50, reset the zoom flags and run the camera shakes
+ * (fade in until fadeInEnd, hold to holdEnd, fade out to fadeOutEnd) into each camera's shakeY. */
 void func_800424A0(s32 updateRate) {
     s32 i;
     Camera *cam;
@@ -1348,10 +1345,11 @@ void func_800424A0(s32 updateRate) {
     s32 magnitude;
 
     D_800FA658[D_800A2ED0].unk4 = -1;
-    func_80074E50(&gViewProjMatrixF);
+    func_80074E50(&gViewProjMatrixF, D_800FA658);
+    D_800A2ED0 = 0;
     cam = gCameras;
     shake = gCameraShakes;
-    gNoCamShake = D_800A2ED0 = 0;
+    gNoCamShake = 0;
     i = 4;
     while (i--) {
         gCamZoomSet[i] = 0;
@@ -1378,6 +1376,3 @@ void func_800424A0(s32 updateRate) {
         shake++;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/40240", func_800424A0);
-#endif
