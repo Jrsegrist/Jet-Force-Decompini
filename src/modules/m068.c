@@ -1531,12 +1531,8 @@ extern void rl_m068_088DC(Object *obj, M068State *s, void *model, M068Instance *
 #endif
 static void func_m068_09088(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_09088 func_m068_09088
-#ifdef NON_MATCHING
 static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_093B8 func_m068_093B8
-#else
-extern void rl_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
-#endif
 static void func_m068_0A208(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
 #define rl_m068_0A208 func_m068_0A208
 static void func_m068_0A5D8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate);
@@ -4144,15 +4140,12 @@ static void func_m068_092F0(Object *obj, s32 index, s32 on) {
 void func_m068_10DD4(Object *obj, M068PieceSetup *setup);
 extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 
-#ifdef NON_MATCHING
 /*
  * Phase work of the first form for part 2 (its head): each time its hit points run out with flag 1, 2
  * or 4 set it goes to the next stage (animations 0x1E/0x1F/0x21, texture frames from 3/6/9, five
  * objects 0x32A from the model's points 15-19); with flag 8 and event 0x400 it bursts (twelve pieces
  * from the model's points 20-31; parts 2 and 3 are destroyed). Sparks fly from points 15-19 on every
  * hit, and while it is damaged.
- * Same length, frame and registers; only the two six-piece loops' pointer temporary is spilled one word
- * lower (0x5C, the ROM 0x60: 6 diffs).
  */
 static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance *inst, s32 updateRate, f32 rate) {
     Vec3f *p;
@@ -4429,14 +4422,13 @@ static void func_m068_093B8(Object *obj, M068State *s, void *model, M068Instance
             n = 1;
         }
         for (i = 0; i < n; i++) {
-            s->unk1C |= 1 << func_80048E2C(1, 5);
-            s->unk1C |= 1 << func_80048E2C(6, 10);
+            j = func_80048E2C(1, 5);
+            s->unk1C |= 1 << j;
+            j = func_80048E2C(6, 10);
+            s->unk1C |= 1 << j;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068/ro", func_m068_093B8);
-#endif
 
 /* A texture's animation state in a model instance (8 bytes) */
 typedef struct M068TexAnim {
@@ -5608,13 +5600,11 @@ void func_m068_0D05C(Object *obj, s32 updateRate) {
     }
 }
 
-#ifdef NON_MATCHING
-/* Registers: every t-register after the model lookup is one lower than the ROM's (105 diffs; 64 with
-   `if (state) {}` in the second arm) */
+/* In the second arm the tint comes from sprite 0's colour bytes, read before sprite is set to sprite 1 */
 void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
     s16 *state = obj->unk68;
     M068Sprite *sprite;
-    M068Sprite *colour;
+    u8 r, g, b, a, r2, g2;
 
     if (state[3] == 0) {
         func_8000A300(dl, arg2, ((void **) obj->modelInstances)[obj->modelIndex], rl_m068_12630,
@@ -5625,18 +5615,20 @@ void func_m068_0D3D8(Gfx **dl, s32 arg1, s32 arg2, Object *obj) {
                       2.0f, 0.0f, 12, 255);
         draw_tint_pair_off();
     } else {
-        colour = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
-        if (state) {}
+        sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[0];
+        r = sprite->r;
+        g = sprite->g;
+        b = sprite->b;
+        a = sprite->a;
+        r2 = sprite->unkC;
+        g2 = sprite->unkD;
         sprite = ((M068Sprite **) ((M068Header *) obj->header)->models)[1];
-        draw_tint_pair_set(colour->r, colour->g, colour->b, colour->a, colour->unkC, colour->unkD);
+        draw_tint_pair_set(r, g, b, a, r2, g2);
         render_sprite_billboard_at(dl, arg1, arg2, sprite, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 0,
                       2.0f, obj->unk28, 12, 100);
         draw_tint_pair_off();
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_0D3D8);
-#endif
 
 /*
  * An electric strip's set-up: clears its vertices, builds its sixteen triangles (eight rows of two) and

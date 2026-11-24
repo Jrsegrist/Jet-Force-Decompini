@@ -99,14 +99,9 @@ extern void func_80003614(s32 sound);                      /* stops a sound */
 extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a sound */
 
 /*
- * NON_MATCHING: func_m109_00B44 (fini), .data and .rodata match. In the init
- * the original keeps the hit box size in its stack slot (0x4C) rather than a
- * register, which shifts the temporaries (a1/a2/a3); in the control function
- * (7 aligned diffs, 13 before: j as the players loop's counter and updateRate
- * as the split table's index gave the loop's s0/s1) the bounce's spilled
- * temporaries sit one word lower (0x58/0x50, ROM 0x5C/0x54) and two of its
- * loads swap f6/f8. The default build uses the assembly for those two and
- * for .rodata.
+ * NON_MATCHING: the init (func_m109_00000) only. The original keeps the hit
+ * box size in its stack slot (0x4C) rather than a register, which shifts the
+ * temporaries (a1/a2/a3). The default build uses the assembly for it.
  */
 s32 D_m109_00B90 = 109; /* the module's number */
 static s32 sLightColours[4] = { 0x0040FF00, 0x00FF4000, 0xFF400000, 0xFFE00000 };
@@ -205,7 +200,16 @@ void func_m109_00000(Object *obj, M109Setup *setup) {
         OBJ_STATE(obj, M109State)->lightColour = sLightColours[setup->colour];
     }
 }
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m109", func_m109_00000);
+#endif
 
+/*
+ * The control function. j counts the players loop and updateRate (not read
+ * again on that path) indexes the split table, as the ROM's s0/s1 show. The
+ * bounce's `(&hit.normal.z)[0]` (the same value) makes IDO load the normal
+ * before the velocity, as the ROM does.
+ */
 void func_m109_00298(Object *obj, s32 updateRate) {
     M109Hit hit;
     s32 pad0;
@@ -258,14 +262,15 @@ void func_m109_00298(Object *obj, s32 updateRate) {
                     }
                 }
             }
-            if (b->hit = func_80018808(obj, &((M109Interaction *) obj->interactObj)->oldPos,
-                                       (Vec3f *) &obj->trans.x_position, (HitResult *) &hit, 0, 0)) {
+            b->hit = func_80018808(obj, &((M109Interaction *) obj->interactObj)->oldPos,
+                                   (Vec3f *) &obj->trans.x_position, (HitResult *) &hit, 0, 0);
+            if (b->hit) {
                 b->hitFlags = hit.flags;
                 func_80009A04(obj, hit.pos.x - obj->trans.x_position, hit.pos.y - obj->trans.y_position,
                               hit.pos.z - obj->trans.z_position);
                 if (b->bounces != 0) {
                     if (!(b->hitFlags & 0xA000)) {
-                        dot = (hit.normal.z * obj->velocity.z +
+                        dot = ((&hit.normal.z)[0] * obj->velocity.z +
                                (hit.normal.x * obj->velocity.x + hit.normal.y * obj->velocity.y)) *
                               -2.0f;
                         fx = hit.normal.x * dot + obj->velocity.x;
@@ -357,15 +362,6 @@ void func_m109_00298(Object *obj, s32 updateRate) {
         func_800035E8(sFlybySound, obj->trans.x_position, obj->trans.y_position, obj->trans.z_position);
     }
 }
-
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m109", func_m109_00000);
-
-INCLUDE_ASM("asm/nonmatchings/modules/m109/ro", func_m109_00298);
-
-/* (.rodata: C, and the assembly functions' own from ro/) */
-
-#endif
 
 void func_m109_00B44(void) {
     if (sHitSound != 0) {
