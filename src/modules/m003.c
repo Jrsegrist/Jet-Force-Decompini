@@ -24,7 +24,8 @@ typedef struct M003Member {
     /* 0x00 */ u32 placed : 1; /* its level entry gave a place (0DF84) */
     /* 0x00 */ u32 unk0_18 : 1; /* (0E9F0: moved by 0E3CC) */
     /* 0x00 */ u32 unk0_17 : 1; /* (0A850: the member moves five times as fast) */
-    /* 0x00 */ u32 pad0_7 : 2;
+    /* 0x00 */ u32 pad0_7 : 1;
+    /* 0x00 */ u32 unk0_15 : 1; /* (14D4C: the troop counts as gone when every member has it) */
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
     /* 0x00 */ u32 wandering : 1; /* it has a wander point (069B0) */
     /* 0x00 */ u32 busy : 1; /* not ready to move on */
@@ -219,9 +220,11 @@ typedef struct M003Home {
     /* 0x63 */ u8 arrived; /* members in place */
     /* 0x64 */ u8 unk64;
     /* 0x65 */ s8 event; /* the event its members face in state 0x21 (sEvents) */
-    /* 0x66 */ u8 pad66[0x6C - 0x66];
-    /* 0x6C */ f32 unk6C;
-    /* 0x70 */ u8 pad70[0x74 - 0x70];
+    /* 0x66 */ s16 unk66; /* where the troop moves from towards unk40-44 (14D4C), 0, 0: it jumps there */
+    /* 0x68 */ s16 unk68;
+    /* 0x6A */ s16 unk6A;
+    /* 0x6C */ f32 unk6C; /* how far it has got, 0 to 1 */
+    /* 0x70 */ f32 unk70; /* and how far it gets each frame */
     /* 0x74 */ u8 unk74; /* the last way point with flag 2 it reached (03AA8) */
     /* 0x75 */ u8 unk75;
     /* 0x76 */ u8 unk76; /* how much the throw varies (0D810) */
@@ -4924,7 +4927,6 @@ static void troop_member_join(Object *home) {
     }
 }
 
-#ifdef NON_MATCHING
 /* The level entry 0D810 spawns a member from (0x12 bytes) */
 typedef struct M003SpawnEntry {
     /* 0x00 */ u16 objectID;
@@ -4941,11 +4943,7 @@ typedef struct M003SpawnEntry {
 
 extern void troop_member_colours_get(Object *obj, u8 *r, u8 *g, u8 *b);
 
-/*
- * Spawns a member at the troop's home, thrown the home's way (when its ring gives none).
- * ROM length and stack; from the `blue == 5` block on the FPRs are numbered differently (the ROM
- * evaluates the home's position before the converted offset, as a comma expression would make IDO do).
- */
+/* Spawns a member at the troop's home, thrown the home's way (when its ring gives none) */
 static Object *func_m003_0D810(void) {
     M003SpawnEntry entry;
     f32 x;
@@ -5020,9 +5018,10 @@ static Object *func_m003_0D810(void) {
             yaw = sHome->trans.rotation.y_rotation;
             troop_member_colours_get(sHome, &rg, &rg, &blue);
             if (blue == 5) {
-                sHomeData->x = sHome->trans.x_position + (sHomeData->offset[0] << 4);
-                sHomeData->y = sHome->trans.y_position + (sHomeData->offset[1] << 4);
-                sHomeData->z = sHome->trans.z_position + (sHomeData->offset[2] << 4);
+                /* (*sHome). with the offset first: IDO then loads the position before converting the offset */
+                sHomeData->x = (sHomeData->offset[0] << 4) + (*sHome).trans.x_position;
+                sHomeData->y = (sHomeData->offset[1] << 4) + (*sHome).trans.y_position;
+                sHomeData->z = (sHomeData->offset[2] << 4) + (*sHome).trans.z_position;
                 sHome->trans.rotation.y_rotation =
                     func_80049C84(sHomeData->x - ((Object *) sClosestPlayer)->trans.x_position,
                                   sHomeData->z - ((Object *) sClosestPlayer)->trans.z_position);
@@ -5067,9 +5066,6 @@ static Object *func_m003_0D810(void) {
     sMember->lastZ = sObj->trans.z_position;
     return sObj;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D810);
-#endif
 
 /* A member's level entry */
 typedef struct M003MemberEntry {
@@ -5780,11 +5776,6 @@ typedef struct M003RingEntry {
 } M003RingEntry;
 
 extern M003RingEntry *troop_ring_take(s32 id);
-#ifdef NON_MATCHING
-#define rl_m003_0D810 func_m003_0D810
-#else
-extern Object *rl_m003_0D810(void); /* still assembly */
-#endif
 
 /* Spawns the troop's next member from the ring (or 0D810's way); counts the ones whose flag is set */
 Object *func_m003_14694(void) {
@@ -5805,7 +5796,7 @@ Object *func_m003_14694(void) {
         sHomeData->unk8C++;
         return NULL;
     }
-    return rl_m003_0D810();
+    return func_m003_0D810();
 }
 
 void func_m003_1477C(void) {
@@ -5845,9 +5836,10 @@ extern s32 func_m139_002F8(s32 zone);
  */
 #ifdef NON_MATCHING
 /*
- * 290/291 words, frame and slots right: the target, inRange and the `target != NULL` temp are one register
- * later than the ROM's (a1/a3/a0 for a0/a1/v1), and 0x3E's spacing copy is missing (a u8 block local gives
- * it, but one frame word more)
+ * 290/291 words, frame and slots right, 85 aligned diffs: the target, inRange and the `target != NULL` temp
+ * are one register later than the ROM's (a1/a3/a0 for a0/a1/v1; the ROM's inRange lives in start's a1), and
+ * 0x3E's spacing copy is missing (a u8 block local gives it, but one frame word more). The position sums
+ * are written offset first with (*home). as in 0D810, which gives the ROM's FP registers.
  */
 static s32 func_m003_148C0(Object *home, s32 start) {
     M003Home *h;
@@ -5878,9 +5870,9 @@ static s32 func_m003_148C0(Object *home, s32 start) {
     }
     if (target != NULL) {
         dist = func_m003_03E68(target->trans.x_position, target->trans.z_position,
-                               home->trans.x_position + (h->zone[0] << 4), home->trans.z_position + (h->zone[2] << 4));
+                               (h->zone[0] << 4) + (*home).trans.x_position, (h->zone[2] << 4) + (*home).trans.z_position);
         inRange = (h->zoneRadius << 4) * (h->zoneRadius << 4); /* the radius squared, for a moment */
-        y = home->trans.y_position + (h->zone[1] << 4);
+        y = (h->zone[1] << 4) + (*home).trans.y_position;
         height = h->zoneHeight << 4;
         inRange = target != NULL && (s32) dist < inRange && y - height < target->trans.y_position &&
                   target->trans.y_position < y + height;
@@ -5905,9 +5897,9 @@ static s32 func_m003_148C0(Object *home, s32 start) {
         if (h->kind2 == 5) {
             h->leader = target;
         }
-        h->x = home->trans.x_position + (h->offset[0] << 4);
-        h->y = home->trans.y_position + (h->offset[1] << 4);
-        h->z = home->trans.z_position + (h->offset[2] << 4);
+        h->x = (h->offset[0] << 4) + (*home).trans.x_position;
+        h->y = (h->offset[1] << 4) + (*home).trans.y_position;
+        h->z = (h->offset[2] << 4) + (*home).trans.z_position;
         h->unk32 = 0x18;
         h->unk31 = h->unk3;
         home->trans.rotation.y_rotation = 0xC000 - (h->unk1B << 8);
@@ -5958,7 +5950,283 @@ extern s32 rl_m003_148C0(Object *home, s32 start); /* the static at 148C0 (still
 #define func_m003_148C0 rl_m003_148C0
 #endif
 
+extern void rl_m003_1398C(void);
+extern Object *rl_m003_14694(void);
+extern void func_m143_02450(M003Home *home);
+extern void (*rl_m003_196E0[])(void); /* per D_800FE9EE (.data, still assembly) */
+
+/* The home's byte at 0x34 as bit fields */
+typedef struct M003Home34 {
+    u8 unk2 : 6; /* a copy of unk33 */
+    u8 unk0 : 2;
+} M003Home34;
+#define HOME34(h) ((M003Home34 *) &(h)->unk34)
+
+#ifdef NON_MATCHING
+/* 2 diffs: after the first sine, the ROM materialises 98304.0f before reloading t, ours the other way round */
+/* The troop home's frame: its state, its members' blame and checks, and where the home moves */
+void func_m003_14D4C(Object *home, s32 rate) {
+    f32 a;
+    Object *o;
+    M003Member *m;
+    M003Node *node;
+    f32 dist;
+    f32 r;
+    f32 y;
+    f32 h;
+    f32 total;
+    f32 d;
+    f32 t;
+    f32 c;
+    f32 b;
+    f32 s;
+
+    troop_select(home);
+    sUpdateRate = rate;
+    D_800FE9F8 = rate;
+    if (sHomeData->kind == 0x2CE) {
+        func_m143_02450(sHomeData);
+    } else {
+        rl_m003_1398C();
+    }
+    if (sHomeData->kind2 == 4) {
+        return;
+    }
+    if (sHomeData->unk30 == 7) {
+        return;
+    }
+    if (sHomeData->unk30 == 9) {
+        sHomeData->unk2E--;
+        if (sHomeData->unk2E == 0) {
+            sHomeData->unk30 = 0;
+            sHomeData->arrived = 0;
+        }
+    }
+    if (sHomeData->unk33 != 0) {
+        HOME34(sHomeData)->unk2 = sHomeData->unk33;
+    }
+    if (sHomeData->unk30 == 5) {
+        if (sHomeData->kind2 == 1) {
+            dist = func_m003_03E68(((Object *) sClosestPlayer)->trans.x_position,
+                                   ((Object *) sClosestPlayer)->trans.z_position,
+                                   (sHomeData->zone[0] << 4) + (*home).trans.x_position,
+                                   (sHomeData->zone[2] << 4) + (*home).trans.z_position);
+            r = sHomeData->zoneRadius << 4;
+            r *= r;
+            y = (sHomeData->zone[1] << 4) + (*home).trans.y_position;
+            h = sHomeData->zoneHeight << 4;
+            if (r < dist || ((Object *) sClosestPlayer)->trans.y_position < y - h ||
+                y + h < ((Object *) sClosestPlayer)->trans.y_position) {
+                sHomeData->unk30 = 6;
+            }
+        } else {
+            sHomeData->unk30 = 6;
+        }
+    }
+    if (sHomeData->unk30 == 6) {
+        sHomeData->unk2E--;
+        if (sHomeData->unk2E <= 0) {
+            sHomeData->unk30 = 0;
+            sHomeData->arrived = 0;
+        }
+        return;
+    }
+    if ((sHomeData->unk30 == 0 || sHomeData->unk30 == 8) && (func_m003_148C0(sHome, 1) & 2)) {
+        return;
+    }
+    if (sHomeData->unk30 == 1) {
+        sHomeData->unk3E--;
+        if (sHomeData->unk3E < 0) {
+            if (sHomeData->arrived < sHomeData->count) {
+                rl_m003_14694();
+                sHomeData->unk3E = sHomeData->spacing << 1;
+                if (sHomeData->kind2 != 5) {
+                    return;
+                }
+            } else if (sHomeData->unk0 == 0) {
+                rl_m003_09840(sHomeData, 0);
+            } else if (sHomeData->flags & 0x40) {
+                o = func_8000E4D0(0);
+                troop_blame_all(o);
+            } else if (sHomeData->kind2 == 2) {
+                sHomeData->unk30 = 8;
+            } else {
+                sHomeData->unk30 = 2;
+            }
+        } else if (sHomeData->kind2 != 5) {
+            return;
+        }
+    }
+    if (sHomeData->unk33 == 0x19) {
+        sHomeData->unk2E--;
+        if (sHomeData->unk2E == 0) {
+            sHomeData->unk33 = 0;
+        }
+    }
+    if (sHomeData->first == NULL) {
+        return;
+    }
+    o = sHomeData->first;
+    do {
+        m = o->unk68;
+        if (!m->unk0_15) {
+            goto live;
+        }
+    } while ((o = m->next) != NULL);
+    sHomeData->unk30 = 9;
+    sHomeData->unk2E = 10;
+    return;
+live:
+    func_m003_0D2C0(sHomeData->first);
+    troop_member_colours_get(home, &sBss8[0], &sBss8[1], &D_800FE9EE);
+    if (rl_m003_196E0[D_800FE9EE] != NULL) {
+        rl_m003_196E0[D_800FE9EE]();
+    }
+    if (sBss8[0] == 5) {
+        sHomeData->unk40 = ((Object *) sClosestPlayer)->trans.x_position;
+        sHomeData->unk42 = ((Object *) sClosestPlayer)->trans.y_position + sBody->unk24;
+        sHomeData->unk44 = ((Object *) sClosestPlayer)->trans.z_position;
+    }
+    switch (D_800FE9EE) {
+        case 2:
+        case 12:
+        case 19:
+            home->trans.rotation.y_rotation =
+                func_80049C84(sHomeData->x - sHomeData->unk40, sHomeData->z - sHomeData->unk44);
+            break;
+        case 1:
+            if (sHomeData->leader != NULL) {
+                home->trans.rotation.y_rotation = sHomeData->leader->trans.rotation.y_rotation;
+            }
+            break;
+        case 3:
+        case 8:
+            home->trans.rotation.y_rotation = func_80049C84(-home->velocity.x, -home->velocity.z);
+            break;
+        case 5:
+            if (!(sHomeData->flags & 0x4000)) {
+                home->trans.rotation.y_rotation =
+                    func_80049C84(sHomeData->x - ((Object *) sClosestPlayer)->trans.x_position,
+                                  sHomeData->z - ((Object *) sClosestPlayer)->trans.z_position);
+            }
+            break;
+        case 4:
+        case 7:
+        case 9:
+        case 24:
+        case 28:
+            home->trans.rotation.y_rotation =
+                func_80049C84(sHomeData->x - ((Object *) sClosestPlayer)->trans.x_position,
+                              sHomeData->z - ((Object *) sClosestPlayer)->trans.z_position);
+            break;
+    }
+    switch (D_800FE9EE) {
+        case 3:
+            sHomeData->x += home->velocity.x;
+            sHomeData->y += home->velocity.y;
+            sHomeData->z += home->velocity.z;
+            break;
+        case 2:
+        case 12:
+        case 19:
+            if (((M003Member *) sHomeData->first->unk68)->unk0_11) {
+                sHomeData->unk6C = 1.0f;
+            }
+            if (sHomeData->unk66 == 0 && sHomeData->unk6A == 0) {
+                sHomeData->x = sHomeData->unk40;
+                sHomeData->y = sHomeData->unk42;
+                sHomeData->z = sHomeData->unk44;
+            } else {
+                sHomeData->x = sHomeData->unk66 + (sHomeData->unk40 - sHomeData->unk66) * sHomeData->unk6C;
+                sHomeData->y = sHomeData->unk68 + (sHomeData->unk42 - sHomeData->unk68) * sHomeData->unk6C;
+                sHomeData->z = sHomeData->unk6A + (sHomeData->unk44 - sHomeData->unk6A) * sHomeData->unk6C;
+            }
+            sHomeData->unk6C += sHomeData->unk70;
+            if (sHomeData->unk6C >= 1.0f) {
+                sHomeData->unk6C = 1.0f;
+                sHomeData->unk70 = 0.0f;
+            }
+            break;
+        case 1:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+            sHomeData->x = sHomeData->unk40;
+            sHomeData->y = sHomeData->unk42;
+            sHomeData->z = sHomeData->unk44;
+            break;
+        case 28:
+            node = &D_800FEA9C[sHomeData->unk3C & 0xFF];
+            sHomeData->x = node->x;
+            sHomeData->y = node->y;
+            sHomeData->z = node->z;
+            break;
+    }
+    if (sHomeData->flags & 0x1000) {
+        total = func_m003_03E20(sHomeData->unk66, sHomeData->unk6A, sHomeData->unk40, sHomeData->unk44);
+        d = func_m003_03E20(sHomeData->unk66, sHomeData->unk6A, sHomeData->x, sHomeData->z);
+        if (!(total < 1.0f || total < d)) {
+            t = d / total;
+            s = func_80049C34(t * 32768.0f);
+            c = func_80049C34(t * 98304.0f);
+            sHomeData->y += (c + s * 0.5) * 16.0;
+        }
+    }
+    if (sHomeData->first == NULL) {
+        return;
+    }
+    if (sHomeData->unk30 == 3 || sHomeData->unk30 == 4) {
+        for (sObj = sHomeData->first; sObj != NULL; sObj = sMember->next) {
+            sMember = sObj->unk68;
+            troop_blame_set(sObj);
+            if (sMember->shotBy != 0) {
+                goto shot;
+            }
+        }
+        sHomeData->unk30 = 2;
+        if (sHomeData->unk91 != 3) {
+            FLAGS4(sMember)->unk16 = 0;
+        }
+        return;
+    }
+shot:
+    if (sHomeData->unk30 == 2) {
+        for (sObj = sHomeData->first; sObj != NULL; sObj = sMember->next) {
+            sMember = sObj->unk68;
+            func_m003_0C324(sObj);
+        }
+    }
+    if (sHomeData->unk30 == 4) {
+        return;
+    }
+    if (sHomeData->kind == 0xE1 && !func_m139_002F8(sHomeData->unk7A)) {
+        sHomeData->unk30 = 4;
+    }
+    a = (u32) sHomeData->unk0;
+    b = (u32) sHomeData->count;
+    if (a / b * 100.0f < 100 - sHomeData->unkD) {
+        sHomeData->unk30 = 4;
+        sHomeData->flags |= 0x10;
+    }
+    if (obj_id_is_special(sHomeData->kind)) {
+        for (o = sHomeData->first; o != NULL; o = m->next) {
+            m = o->unk68;
+            if (m->unkA6 < sHomeData->unk2A) {
+                sHomeData->unk30 = 4;
+                return;
+            }
+            if (m->shotBy != 0 && (((Object *) m->shotBy)->behaviorId != 1 || sHomeData->unk91 == 1 ||
+                                   sHomeData->unk91 == 3)) {
+                sHomeData->unk30 = 4;
+                return;
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_14D4C);
+#endif
 
 
 /* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
