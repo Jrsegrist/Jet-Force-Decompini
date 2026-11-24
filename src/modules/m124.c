@@ -87,18 +87,12 @@ extern void track_light_set_position(s32 light, f32 x, f32 y, f32 z);
 extern void track_light_set_colour(s32 light, u8 r, u8 g, u8 b, s32 a);
 
 /*
- * All functions but update_beam_light match. That one has the ROM's length
- * (x and y kept in their stack words) and, with beamRadius read at the call
- * rather than through a `radius` local, the ROM's frame (0x58); 36 aligned
- * diffs: the ROM loads the radius and computes radius * 0.4f (kept in f18)
- * right after the last angle call, before the position, and passes the radius
- * from a stack word (0x34). A local for radius * 0.4f, at any position, makes
- * the frame long again. The `light` local gives the ROM's v0 test. The matching
- * build includes its assembly from ro/, with its own .rodata.
+ * Puts the beam's light where the beam ends (adding it the first time).
+ * x, y and the radius go to integer-register arguments, and the ROM keeps them in
+ * their stack words and loads them from there (lw), as IDO does for a local whose
+ * address is taken: they are written through `(&v)[0]` (the same as `v = `). The
+ * beam length is read once into `len` (the ROM keeps it in one register for h and y).
  */
-#ifdef NON_MATCHING
-
-/* Puts the beam's light where the beam ends (adding it the first time) */
 static void update_beam_light(Object *obj, M124Light *l) {
     f32 x;
     f32 y;
@@ -106,36 +100,34 @@ static void update_beam_light(Object *obj, M124Light *l) {
     f32 sinY;
     f32 cosY;
     f32 sinX;
+    f32 inner; /* 0.4 of the radius */
     f32 cosX;
+    f32 radius;
     f32 h;
     s32 light;
+    f32 len;
 
     light = l->objectLight;
-    /* x and y go to both integer- and float-register arguments: the ROM keeps them in their stack words */
-    if (&x) {}
-    if (&y) {}
     if (light != 0) {
         sinY = func_80049C34(obj->trans.rotation.y_rotation);
         cosY = func_80049C30(obj->trans.rotation.y_rotation);
         sinX = func_80049C34(obj->trans.rotation.x_rotation);
         cosX = func_80049C30(obj->trans.rotation.x_rotation);
-        h = l->beamLength * cosX;
-        x = obj->trans.x_position - h * sinY;
-        y = obj->trans.y_position + l->beamLength * sinX;
+        inner = l->beamRadius * 0.4f;
+        (&radius)[0] = l->beamRadius;
+        len = l->beamLength;
+        h = len * cosX;
+        (&x)[0] = obj->trans.x_position - h * sinY;
+        (&y)[0] = obj->trans.y_position + len * sinX;
         z = obj->trans.z_position - h * cosY;
         if (l->beamLight != 0) {
             track_light_set_position(l->beamLight, x, y, z);
         } else {
-            l->beamLight = track_light_create(x, y, z, l->beamRadius, l->beamRadius * 0.4f, (l->r * l->intensity) >> 8,
+            l->beamLight = track_light_create(x, y, z, radius, inner, (l->r * l->intensity) >> 8,
                                          (l->g * l->intensity) >> 8, (l->b * l->intensity) >> 8);
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m124/ro", func_m124_00000);
-void rl_m124_00000(Object *obj, M124Light *l);
-#define update_beam_light rl_m124_00000
-#endif
 
 static s32 is_switched_on(M124Light *l) {
     switch (l->kind) {
