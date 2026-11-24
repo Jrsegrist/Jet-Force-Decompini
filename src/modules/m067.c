@@ -61,6 +61,22 @@ extern M067JumpKind rl_m067_04430[];
 extern s8 rl_m067_04580[][8]; /* the jump kind between two jump points (-1: none) */
 extern s16 func_80049D80(s32 angle, s32 target);
 
+/* An entry of the enemy's event list (size 0x18): what happens once the previous entry's time has passed */
+typedef struct M067Event {
+    /* 0x00 */ s32 time;
+    /* 0x04 */ u8 point;  /* the model point it happens at */
+    /* 0x05 */ s8 part;   /* the part whose flags it sets (-1: none) */
+    /* 0x06 */ u8 value;
+    /* 0x07 */ u8 numDrops;
+    /* 0x08 */ u8 numSparks;
+    /* 0x09 */ u8 numPieces;
+    /* 0x0A */ s16 burst; /* -1: none */
+    /* 0x0C */ s32 colour1;
+    /* 0x10 */ s32 colour2;
+    /* 0x14 */ s16 pieceID;
+    /* 0x16 */ s16 sound; /* -1: none */
+} M067Event;
+
 /* The enemy's state (obj->unk68), as far as used here */
 typedef struct M067State {
     /* 0x00 */ s8 side;
@@ -77,8 +93,8 @@ typedef struct M067State {
     /* 0x0E */ u8 unkE;
     /* 0x0F */ s8 unkF; /* a countdown; -1: stopped */
     /* 0x10 */ u8 pad10[0x34 - 0x10];
-    /* 0x34 */ s32 unk34;
-    /* 0x38 */ s32 unk38;
+    /* 0x34 */ M067Event *events;
+    /* 0x38 */ s32 unk38; /* the time since the last event */
     /* 0x3C */ u8 unk3C[6];
 } M067State;
 
@@ -365,7 +381,127 @@ void func_m067_00728(Object *obj, s32 updateRate) {
     }
 }
 
+/* The points of the enemy's model that its events happen at */
+typedef struct M067Points {
+    /* 0x00 */ u8 pad0[0x70];
+    /* 0x70 */ Vec3f *points;
+} M067Points;
+
+/* The level entry of a piece an event throws out */
+typedef struct M067DebrisEntry {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 pad2[0x4 - 0x2];
+    /* 0x04 */ s16 x;
+    /* 0x06 */ s16 y;
+    /* 0x08 */ s16 z;
+    /* 0x0A */ s16 yRotation;
+    /* 0x0C */ s16 xRotation;
+    /* 0x0E */ u8 unkE;
+    /* 0x0F */ u8 unkF;
+    /* 0x10 */ f32 unk10;
+    /* 0x14 */ f32 unk14;
+} M067DebrisEntry;
+
+extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 angle, s32 colour, f32 scale);
+
+#ifdef NON_MATCHING
+/*
+ * Plays the enemy's event list (s->events): when an event's time has passed, the next event happens at one of
+ * the model's points: a part's flag, drops, sparks, pieces, a burst and a sound. A zero time ends the list.
+ * (Matches, staged: only the assembly func_m067_00EF4 calls it, so IDO would drop it.)
+ */
+static void func_m067_008C4(Object *obj, M067State *s, s32 updateRate) {
+    Object *piece;
+    Vec3s rot;
+    f32 x;
+    f32 y;
+    f32 z;
+    Vec3f vel;
+    SparkParams spark;
+    M067DebrisEntry debris;
+    s32 n;
+    M067Points *model;
+    M067Event *ev;
+
+    ev = s->events;
+    if (ev == NULL) {
+        return;
+    }
+    model = *(M067Points **) obj->modelInstances;
+    s->unk38 += updateRate;
+    while (s->unk38 >= ev->time) {
+        s->unk38 -= ev->time;
+        ev++;
+        if (ev->time != 0) {
+            x = model->points[ev->point].x;
+            y = model->points[ev->point].y;
+            z = model->points[ev->point].z;
+            if (ev->part != -1) {
+                s->unk3C[ev->part] = ev->value;
+            }
+            n = ev->numDrops;
+            if (n != 0) {
+                while (n--) {
+                    rot.y_rotation = func_80048E2C(-0x8000, 0x7FFF);
+                    rot.x_rotation = func_80048E2C(0, 0x3000);
+                    vel.z = func_80048E2C(450, 600) * -0.01f;
+                    func_8004944C(&rot, &vel);
+                    func_m008_001CC(x, y, z, vel.x, vel.y, vel.z, 0xFF, 1, 1.0f);
+                }
+            }
+            n = ev->numSparks;
+            if (n != 0) {
+                spark.x_position = x;
+                spark.y_position = y;
+                spark.z_position = z;
+                spark.textureID = 20;
+                spark.lifeSteps = 10;
+                spark.alpha = 255;
+                spark.colour1 = ev->colour1;
+                spark.colour2 = ev->colour2;
+                while (n--) {
+                    spark.y_rotation = func_80048E2C(-0x8000, 0x7FFF);
+                    spark.x_rotation = func_80048E2C(0, 0x3000);
+                    spark.speed = func_80048E2C(70, 90) * 0.1f;
+                    spark.sparkSize = func_80048E2C(25, 50) * 0.1f;
+                    func_m010_0000C(&spark);
+                }
+            }
+            n = ev->numPieces;
+            if (n != 0) {
+                debris.objectID = ev->pieceID;
+                debris.unkE = 60;
+                debris.unkF = 1;
+                debris.unk14 = -0.3f;
+                debris.x = x;
+                debris.y = y;
+                debris.z = z;
+                while (n--) {
+                    debris.yRotation = func_80048E2C(-0x8000, 0x7FFF);
+                    debris.xRotation = func_80048E2C(0, 0x3000);
+                    debris.unk10 = func_80048E2C(750, 900) * 0.01f;
+                    piece = func_80005F14(&debris, 1);
+                    if (piece != NULL) {
+                        piece->level_entry = NULL;
+                    }
+                }
+            }
+            if (ev->burst != -1) {
+                spawn_object_from_list(ev->burst, x, y, z, 100, 0);
+            }
+            if (ev->sound != -1) {
+                func_80003410(ev->sound, x, y, z, 4, NULL);
+            }
+        } else {
+            ev = NULL;
+            break;
+        }
+    }
+    s->events = ev;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_008C4);
+#endif
 
 void func_m067_00D70(Object *obj, M067Setup *setup) {
     M067Header *header;
@@ -389,7 +525,7 @@ void func_m067_00D70(Object *obj, M067Setup *setup) {
     s->unkD = 0;
     s->unkE = 0;
     obj_anim_set(obj, rl_m067_04430[s->kind].anim, 0.0f);
-    s->unk34 = 0;
+    s->events = NULL;
     s->unk38 = 0;
     s->unk3C[0] = 255;
     s->unk3C[1] = 255;
