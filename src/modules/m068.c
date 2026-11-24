@@ -252,8 +252,10 @@ extern u8 rl_m068_12630[];
 extern void func_8000A300(Gfx **dl, s32 arg1, void *model, void *data, f32 *pos, void *arg5, f32 arg6, s32 arg7,
                           s32 colour, s32 arg9);
 extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 a, u8 arg4, u8 arg5);
-extern void render_sprite_billboard_at(Gfx **dl, s32 arg1, s32 arg2, M068Sprite *sprite, s16 x, s16 y, s16 z, s16 arg7, f32 scale,
-                          f32 arg9, s32 arg10, u8 alpha);
+/* 40240.c takes s16 x/y/z/roll and a u8 alpha; declared s32 here because func_m068_00C70's NON_MATCHING
+ * body only has the ROM's length (247 words) with s32 parameters (243 with the real ones). */
+extern void render_sprite_billboard_at(Gfx **dl, s32 arg1, s32 arg2, M068Sprite *sprite, s32 x, s32 y, s32 z, s32 arg7, f32 scale,
+                          f32 arg9, s32 arg10, s32 alpha);
 extern void draw_tint_pair_off(void);
 
 extern void func_80049BA0(MtxF *mtx); /* identity */
@@ -6300,7 +6302,9 @@ extern void func_8005F5A0(f32 arg0);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
-extern void audspat_point_set_volume(s32 sound, u8 volume);
+/* 3430.c takes a u8 volume; s32 here because func_m068_0EF70's NON_MATCHING body only has the ROM's
+ * length (227 words) with it. */
+extern void audspat_point_set_volume(s32 sound, s32 volume);
 
 #ifdef NON_MATCHING
 /*
