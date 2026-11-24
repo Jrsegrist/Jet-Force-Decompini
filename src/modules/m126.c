@@ -185,7 +185,7 @@ extern void light_colour_set(M126Light *light, u8 red, u8 green, u8 blue);
 extern void light_intensity_set(M126Light *light, u8 intensity);
 extern void func_80057D58(M126ColourCycle *cycle, s32 updateRate); /* steps a colour cycle */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
-extern void transition_begin(void *transition);
+extern s32 transition_begin(void *transition);
 extern void sound_stop(s32 handle);
 extern void func_80001500(s32 handle, f32 pitch);
 extern u8 rl_m126_01254[]; /* control's transition (.data) */
@@ -374,7 +374,7 @@ extern void func_80049AE8(s32 angle, MtxF *mtx);                           /* ro
 extern void mtx_model_push(Gfx **dl, Mtx **mtx, MtxF *mtxf);
 extern void mtx_pop(Gfx **dl);
 extern void func_80054EA0(u32 *width, u32 *height);
-extern void menu_fill_box(Gfx **dl, s32 x, s32 y, s32 width, s32 height, u32 colour);
+extern void menu_fill_box(Gfx **dl, s32 x, s32 y, s32 width, s32 height, s32 colour);
 extern Triangle rl_m126_012A0[3][16];
 
 /* Draws the beams, furthest first, then fades the screen while the effect starts */

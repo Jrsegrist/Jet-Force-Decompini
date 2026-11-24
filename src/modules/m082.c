@@ -116,16 +116,16 @@ extern s32 func_80049C84(f32 x, f32 z);      /* the angle of a vector */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_80049D80(s32 from, s32 to); /* the difference between two angles */
 extern s16 angle_lerp(s16 angle, s16 target, f32 rate); /* turns an angle towards another */
-extern s32 func_80043510(s32 player);                   /* the buttons pressed */
+extern u16 func_80043510(s32 player);                   /* the buttons pressed */
 extern void func_80048518(s32 arg0);
-extern void func_80001170(s32 sound);
+extern void func_80001170(u8 sound);
 extern void func_8003B6C8(Object *player, M082Player *racer);
 extern s32 func_8003B740(Object *player, M082Player *racer);
 extern void func_8003D21C(void *inst, void *model, Object *obj, f32 arg3, f32 arg4);
 extern void func_800212D0(s32 light);
 extern void func_800212E4(s32 light);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
-extern s32 pending_level_character(void);
+extern s16 pending_level_character(void);
 extern M082Weapons *char_record_lookup(s32 player, s32 character);
 extern M082WeaponInfo *weapon_info_get(s32 weapon);
 extern s32 character_has_item(s32 player, s32 character, s32 item);

@@ -115,9 +115,9 @@ typedef struct M135Other {
 
 extern M135Level *func_8004470C(void); /* DKR levelGetLevel */
 extern void func_8001BC2C(s32 player, s16 *near, s16 *far, s16 *arg3, u8 *r, u8 *g, u8 *b, s8 *arg7); /* DKR get_fog_settings */
-extern void func_8001BB30(s32 player, s16 near, s16 far, s16 arg3, s32 r, s32 g, s32 b, s32 arg7);
+extern void func_8001BB30(s32 player, s16 near, s16 far, s16 arg3, u8 r, u8 g, u8 b, s8 arg7);
 extern s32 func_80043558(s32 player); /* the stick's x */
-extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern u16 func_80043510(s32 player); /* the buttons pressed */
 extern void set_active_camera(s32 camera);
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern f32 func_8003F7C4(void);              /* the field of view */
@@ -132,7 +132,7 @@ extern M135AnimPath *anim_path_for_obj(Object *obj);
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern u16 *gVideoLastFramebuffer;
-extern void func_800013FC(s32 sound, s32 handle, u8 volume);
+extern void func_800013FC(u16 sound, s32 handle, u8 volume);
 extern void func_80001500(s32 handle, f32 pitch);
 
 /* The screen camera's behaviour data */

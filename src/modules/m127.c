@@ -131,7 +131,7 @@ typedef struct M127Racer {
     /* 0x1F9 */ u8 unk1F9;
 } M127Racer;
 
-extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern u16 func_80043510(s32 player); /* the buttons pressed */
 extern void func_80048518(s32 arg0);
 extern void func_800099F4(void);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */

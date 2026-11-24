@@ -59,7 +59,7 @@ extern void track_light_off(f32 *light);
 extern void track_light_set_position(f32 *light, f32 x, f32 y, f32 z);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern Object *spawn_object(M086Spawn *entry, s32 arg1); /* DKR */
-extern void spawn_object_from_list(s32, s16, s16, s16, s32, s32);
+extern void spawn_object_from_list(s16, s16, s16, s16, s32, s32);
 extern void enemy_module_notify(s32, s16, s16, s16, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 

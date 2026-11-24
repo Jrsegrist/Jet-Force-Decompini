@@ -23,8 +23,8 @@ typedef struct M128Pole {
     /* 0xC */ f32 maxY;
 } M128Pole;
 
-extern void func_80001170(s32);
-extern void func_8003F1C8(void *, s32, s32, Object *);
+extern void func_80001170(u8);
+extern void func_8003F1C8(void *, s32, s32);
 
 /* Init: sets scale, angle, flag and the trigger area; starts set off if the flag is already set */
 void func_m128_00000(Object *obj, M128Setup *setup) {
@@ -70,7 +70,7 @@ void func_m128_00188(Object *obj, s32 updateRate) {
             }
             break;
         case 1:
-            func_8003F1C8(*obj->modelInstances, 0, 0x100, obj);
+            func_8003F1C8(*obj->modelInstances, 0, 0x100);
             obj_anim_frame_advance(obj, 0.017f, updateRate);
             break;
     }

@@ -89,7 +89,7 @@ extern void runlink_unload_timer_set(s32, s32, s32);
 extern f32 *track_light_create(f32 x, f32 y, f32 z, f32 arg3, f32 arg4, s32 r, s32 g, s32 b); /* adds a light */
 extern void track_light_off(f32 *light);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, u8, u8, u8);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern Object **func_8000E464(s32 *count); /* the players */
 extern s32 func_80049C84(f32, f32);         /* the angle of a vector */

@@ -425,7 +425,7 @@ extern void func_80041DC0(Gfx **dl);
 extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
 extern void draw_tint_pair_off(void);
 extern void render_sprite_billboard(Gfx **dList, Mtx **mtx, Vertex **verts, Object *obj, void *sprite, s32 flags,
-                                    s32 alpha);
+                                    u8 alpha);
 
 #define gSPVertexM107(pkt, v, n) \
     gDma1p(pkt, G_VTX, v, ((n) << 3) + ((n) << 1) + 8, (n) << 3 | ((u32) (v) & 6))

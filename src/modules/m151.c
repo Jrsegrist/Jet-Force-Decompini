@@ -81,20 +81,20 @@ extern u8 *D_80102D78[];
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern Object *func_m139_00184(s16 x, s16 z, s32 radius, s32 zone);
 extern s32 func_m139_0038C(Object *obj);
-extern s32 func_m003_0CAA4(f32, f32, s32);
-extern s32 func_m003_04260(s32, s32, s32, s32, s32);
-extern void func_m003_0512C(s32, f32, s32);
+extern s32 func_m003_0CAA4(f32, f32, s16);
+extern s32 func_m003_04260(s32, s32, u8, u8, u8);
+extern s32 func_m003_0512C(s32, f32, s32);
 extern void func_m003_04398(s32, s32);
-extern void func_m003_04D08(s32, s32, s32, s32);
+extern s32 func_m003_04D08(s32, s32, s32, s32);
 extern s32 func_m003_04F88(s32, f32);
 extern Object *func_m003_053C4(void);
 extern f32 func_m003_03E68(f32 x1, f32 z1, f32 x2, f32 z2);
 extern s32 func_m003_17910(f32 x, f32 z, s32 zone);
 extern s32 func_m003_057CC(f32 x, f32 z);
-extern s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 zone, s32, s32, s32);
+extern s32 func_m003_1794C(f32 x1, f32 z1, f32 x2, f32 z2, s32 zone, s32, s32, u8);
 extern void obj_list_insert_after(Object *obj, Object *target);
 extern void obj_list_unlink(Object *obj);
-extern void *func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32, f32 scale);
+extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 alpha, s32, f32 scale);
 extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine */
 extern s32 func_80049C84(f32 dx, f32 dz); /* angle of a vector */

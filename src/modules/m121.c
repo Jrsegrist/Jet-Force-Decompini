@@ -121,7 +121,7 @@ typedef struct M121State {
     /* 0x20 */ Vec3f centre;
 } M121State;
 
-extern void *func_8004A60C(s32 size, s32 colour); /* allocates */
+extern void *func_8004A60C(s32 size, u32 colour); /* allocates */
 extern void func_8004AA80(void *data);            /* frees */
 extern s32 extra_batch_bits(void);
 extern Gfx *scratch_display_list_get(s32 *size); /* the scratch display list */

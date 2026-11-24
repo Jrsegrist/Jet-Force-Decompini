@@ -67,8 +67,8 @@ typedef struct M125Model {
 } M125Model;
 
 extern s32 func_80005064(s32);
-extern u8 obj_group_flag_first(s32, s32);
-extern void obj_group_countdown(s32, s32);
+extern s32 obj_group_flag_first(s32, u16);
+extern void obj_group_countdown(s32, u16);
 extern void func_m085_00074(s32);
 extern void func_80001170(u8 sound);
 

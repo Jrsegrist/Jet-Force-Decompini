@@ -50,8 +50,8 @@ typedef struct M102Model {
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 func_80005064(s32);
 extern void spawn_object_from_list(s16 kind, s16 x, s16 y, s16 z, s32 arg4, Object *thrower);
-extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, s32, s32, s32);
-extern void sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
+extern void enemy_module_notify(Object *obj, s16 x, s16 y, s16 z, u8, u8, u8);
+extern s32 sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_m003_058A4(Object *);
 

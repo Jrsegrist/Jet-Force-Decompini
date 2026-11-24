@@ -16,7 +16,7 @@
 
 extern u8 D_800A4FC4; /* a multiplayer game */
 
-extern s32 sprite_anim_advance(void *model, s32 *anim, s32 arg2, f32 *arg3, s32 updateRate); /* animates a model */
+extern s32 sprite_anim_advance(void *model, s32 *anim, u32 arg2, f32 *arg3, u32 updateRate); /* animates a model */
 extern Object *func_80005F14(void *entry, s32 arg1);                                    /* DKR spawn_object */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern f32 func_80049BEC(f32 base, s32 exponent);

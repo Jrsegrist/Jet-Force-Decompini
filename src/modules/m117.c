@@ -115,7 +115,7 @@ extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* depth of a point from the camera */
 extern void draw_tint_pair_set(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f);
 extern void draw_tint_pair_off(void);
-extern void render_sprite_billboard(s32 arg0, s32 arg1, s32 arg2, M117Billboard *board, s32 texture, s32 arg5, s32 alpha);
+extern void render_sprite_billboard(s32 arg0, s32 arg1, s32 arg2, M117Billboard *board, s32 texture, s32 arg5, u8 alpha);
 
 static u8 sCloudColours[4][4] = {
     { 0x08, 0xFF, 0x20, 0x00 },

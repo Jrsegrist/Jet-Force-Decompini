@@ -56,7 +56,7 @@ typedef struct M106GemEntry {
 extern void effect_texture_pair_free(void *flare);
 extern void func_m081_0034C(void *effect);
 extern void func_80003614(s32 sound); /* stops a sound */
-extern void sprite_anim_advance(void *model, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
+extern s32 sprite_anim_advance(void *model, s32 *flags, u32 arg2, f32 *frame, u32 updateRate);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern Object *func_80005F14(void *entry, s32 arg1); /* spawns an object from a level entry */
 
@@ -66,7 +66,7 @@ typedef struct M106Setup {
     /* 0x0A */ u8 scale; /* in 20ths */
 } M106Setup;
 
-extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
+extern void *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
                                 s32 arg9); /* a flare (freed with effect_texture_pair_free) */
 
 /* Init (tank): sets scale and state (gone if flag 0x59 is set), its collider, and creates its two flares */
@@ -149,12 +149,14 @@ extern void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 s
 extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out); /* rotates by the object's transform */
 extern f32 func_80097140(f32 x); /* square root */
 extern void music_stop(void);
-extern void func_80000510(s32 arg0);
+extern void func_80000510(u8 arg0);
+/* 45750.c and 59060.c return s16 and u8; declared s32 here because the real types change 2-6 words
+ * of func_m106_00290's code (the results go straight to level_goto). */
 extern s32 pending_level_character(void);
 extern s32 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
-extern void music_volume_fade(f32 time, s32 volume);
-extern void anim_phase_clamp(Object *obj, f32 arg1);
+extern void music_volume_fade(f32 time, u8 volume);
+extern s32 anim_phase_clamp(Object *obj, f32 arg1);
 extern s32 func_8004966C(s16 angle); /* sine */
 extern void effect_mesh_set_uvs(M106Flare *flare, s16 angle);
 extern void effect_mesh_update(M106Flare *flare, s16 size, s32 alpha);
@@ -558,7 +560,7 @@ extern void func_80049DC0(ObjectTransform *trans, MtxF *out); /* the transform's
 extern void func_80048B60(MtxF *mtx, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* DKR mathMtxXFMF */
 extern void mtx_model_push(Gfx **dl, Mtx **mtx, MtxF *transform);
 extern void mtx_pop(Gfx **dl);
-extern void func_80069BE8(Gfx **dl, void *flare, s32 arg2, s32 alpha);
+extern void func_80069BE8(Gfx **dl, void *flare, s32 arg2, u8 alpha);
 extern void func_m081_006F8(Gfx **dl, Mtx **mtx, void *effect, s16 *rotation, Vec3f *pos, MtxF *transform);
 
 /* Draws the tank's two flares and its effect, the farthest from the camera first */

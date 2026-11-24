@@ -289,20 +289,20 @@ typedef struct M136Area {
     /* 0x18 */ u8 pad18[0x34 - 0x18];
 } M136Area;
 
-extern void view_override_set();
-extern s32 func_80001598(s32 sound);
-extern void func_800036C8(u16 sound, f32 x, f32 y, f32 z, s32 arg4, s32 arg5, s32 arg6, s32 arg7, s32 arg8, s32 arg9,
-                          s32 arg10, s32 arg11, s32 *handle);
-extern void func_m044_0070C(s32 sound, s32 arg1, f32 x, f32 y, f32 z, s32 arg5, s32 arg6, s32 arg7, s32 arg8,
-                            s32 arg9, s32 arg10, s32 arg11, s32 arg12);
+extern void view_override_set(ObjectTransform *trans);
+extern u8 func_80001598(u16 sound);
+extern void func_800036C8(u16 sound, f32 x, f32 y, f32 z, u8 arg4, u8 arg5, u8 arg6, u16 arg7, u8 arg8, u8 arg9,
+                          u8 arg10, s32 arg11, s32 *handle);
+extern void func_m044_0070C(u8 sound, u16 arg1, f32 x, f32 y, f32 z, u8 arg5, u8 arg6, u8 arg7, u8 arg8,
+                            u16 arg9, u8 arg10, u8 arg11, u8 arg12);
 extern void *func_8001B650();
-extern s32 light_add_from_level_object_entry();
-extern s32 corona_add(Object *obj, M136Flare *flare, M136Entry *setup);
+extern void *light_add_from_level_object_entry(Object *obj, M136Entry *setup);
+extern s32 corona_add(Object *obj, M136Flare *flare);
 extern void func_m011_000D4(s32 spline);
-extern void zone_list_add();
+extern void zone_list_add(s32 obj);
 extern Object **troop_list_get(s32 *count);
 extern f32 point_distance_squared(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2);
-extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 part);
+extern u8 func_m154_00130(f32 x, f32 y, f32 z, s32 part);
 extern M136Area *D_800FEA9C;
 
 s32 D_m136_01DB0 = 136;
@@ -355,7 +355,7 @@ void func_m136_00158(Object *obj, M136Entry *setup) {
     obj->trans.rotation.y_rotation = ENTRY_S16(setup, 0xE);
     obj->trans.rotation.x_rotation = ENTRY_S16(setup, 0xC);
     obj->trans.rotation.z_rotation = ENTRY_S16(setup, 0xA);
-    view_override_set();
+    view_override_set(&obj->trans);
 }
 
 /* Init: keeps two entry bytes in the object's state and sets its yaw from a third */
@@ -652,7 +652,7 @@ void func_m136_00E30(Object *obj, M136Entry *setup, s32 arg2) {
 
 /* Init (light): adds a light from the level entry */
 void func_m136_00ED4(Object *obj, M136Entry *setup, s32 arg2) {
-    obj->unk68 = (void *) light_add_from_level_object_entry(obj, setup);
+    obj->unk68 = light_add_from_level_object_entry(obj, setup);
 }
 
 /* Init (lens flare): builds the flare's flags, angles and colour from the entry and adds it */
@@ -685,7 +685,7 @@ void func_m136_00F04(Object *obj, M136Entry *setup) {
     flare.unk1C = 100;
     flare.unk1E = -1;
     flare.unk1F = 1;
-    *(s32 *) &obj->state[0] = corona_add(obj, &flare, setup);
+    *(s32 *) &obj->state[0] = corona_add(obj, &flare);
 }
 
 /* Init: sets the scale to the entry's value / 40 */
@@ -802,7 +802,7 @@ void func_m136_014C0(Object *obj, M136OverrideEntry *setup, s32 arg2) {
     ov->pos.y = obj->trans.y_position + setup->offY;
     ov->pos.z = obj->trans.z_position + setup->offZ;
     if (arg2 == 0) {
-        zone_list_add();
+        zone_list_add((s32) obj);
     }
 }
 
