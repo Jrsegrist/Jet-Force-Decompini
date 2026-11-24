@@ -18,7 +18,7 @@ typedef struct M003Member {
     /* 0x00 */ u32 unk0_25 : 1; /* (0E3CC: not moved) */
     /* 0x00 */ u32 unk0_24 : 1; /* it has joined its troop (0D360) */
     /* 0x00 */ u32 unk0_23 : 1; /* (06D28: set with unk0_18 when it is placed mirrored) */
-    /* 0x00 */ u32 pad0_22 : 1;
+    /* 0x00 */ u32 unk0_22 : 1; /* (0B040: it heads for its shooter) */
     /* 0x00 */ u32 unk0_21 : 1;
     /* 0x00 */ u32 unk0_20 : 1;
     /* 0x00 */ u32 placed : 1; /* its level entry gave a place (0DF84) */
@@ -36,7 +36,7 @@ typedef struct M003Member {
     /* 0x00 */ u32 pad0_5b : 2;
     /* 0x00 */ u32 unk0_4 : 1;
     /* 0x00 */ u32 headless : 1;
-    /* 0x00 */ u32 pad0_1 : 1;
+    /* 0x00 */ u32 unk0_2 : 1; /* (0B040) */
     /* 0x00 */ u32 unk0_1 : 1;
     /* 0x00 */ u32 unk0_0 : 1;
     /* 0x04 */ u16 unk4;
@@ -52,7 +52,8 @@ typedef struct M003Member {
     /* 0x09 */ u8 unk9;
     /* 0x0A */ u8 unkA;
     /* 0x0B */ u8 mission;
-    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x0C */ s16 unkC; /* turned by the way it faces (0BBC4), kept within 0x6978 */
+    /* 0x0E */ u8 padE[0x10 - 0xE];
     /* 0x10 */ s16 unk10;
     /* 0x12 */ u8 pad12[0x14 - 0x12];
     /* 0x14 */ u8 troop; /* its troop's tag (0DF84) */
@@ -182,7 +183,8 @@ typedef struct M003Home {
     /* 0x1F */ u8 unk1F; /* how far its members see, in 64s (0C324) */
     /* 0x20 */ u8 unk20; /* and how far they see round, in half degrees */
     /* 0x21 */ u8 unk21; /* how loud an event its members notice must be */
-    /* 0x22 */ u8 pad22[0x24 - 0x22];
+    /* 0x22 */ u8 unk22; /* how far its members see an event of kind bit 1, in 16s (062A0) */
+    /* 0x23 */ u8 unk23; /* and how far round, in half degrees */
     /* 0x24 */ s8 maxSpeed; /* its members' (0AD38) */
     /* 0x25 */ s8 minSpeed;
     /* 0x26 */ u8 speed; /* its members' walking speed (0BA20, 0BAD4) */
@@ -216,7 +218,8 @@ typedef struct M003Home {
     /* 0x62 */ u8 unk62; /* its placed members' model (0D360) */
     /* 0x63 */ u8 arrived; /* members in place */
     /* 0x64 */ u8 unk64;
-    /* 0x65 */ u8 pad65[0x6C - 0x65];
+    /* 0x65 */ s8 event; /* the event its members face in state 0x21 (sEvents) */
+    /* 0x66 */ u8 pad66[0x6C - 0x66];
     /* 0x6C */ f32 unk6C;
     /* 0x70 */ u8 pad70[0x74 - 0x70];
     /* 0x74 */ u8 unk74; /* the last way point with flag 2 it reached (03AA8) */
@@ -227,7 +230,10 @@ typedef struct M003Home {
     /* 0x79 */ u8 unk79; /* the node count of its group's path last seen (021C8), 0-3 */
     /* 0x7A */ s8 unk7A; /* the zone module 139 tests (148C0) */
     /* 0x7B */ u8 unk7B;
-    /* 0x7C */ u8 pad7C[0x8C - 0x7C];
+    /* 0x7C */ f32 unk7C; /* the nearest sounding member's distance last frame (1398C) */
+    /* 0x80 */ f32 unk80; /* the sound's pitch ratio */
+    /* 0x84 */ s32 sound; /* the troop's positioned sound, 0: none */
+    /* 0x88 */ u8 pad88[0x8C - 0x88];
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
     /* 0x90 */ u8 unk90;
     /* 0x91 */ u8 unk91; /* bit 0: members blame the closest player */
@@ -311,7 +317,8 @@ typedef struct M003BodyPart {
 typedef struct M003Body {
     /* 0x00 */ u8 pad0[0x10];
     /* 0x10 */ f32 unk10; /* a distance (0AF34, 0AFC4) */
-    /* 0x14 */ u8 pad14[0x24 - 0x14];
+    /* 0x14 */ f32 unk14; /* within it the troop's state picks the heading (0B040) */
+    /* 0x18 */ u8 pad18[0x24 - 0x18];
     /* 0x24 */ s16 unk24; /* a height */
     /* 0x26 */ u8 pad26;
     /* 0x27 */ u8 bounce : 1; /* its members bounce off the level (0E3CC) */
@@ -467,9 +474,9 @@ static u8 sBssA; /* 10 or more: memory is low */
 static u8 sAlertKind;
 static u8 sAlert;
 static f32 sBss10;              /* the speed for the member's next step (0BA20, 0BAD4) */
-static s32 sBss14;
+static f32 sBss14; /* a point the kind 0x112 troops head for (0B040) */
 static f32 sBss18;              /* the height the member steps towards (0A9E8, 0B468) */
-static s32 sBss1C;
+static f32 sBss1C;
 static u8 sBss20[0xA8 - 0x20]; /* (IDO aligns arrays to 8) */
 static f32 sUpdateRate;        /* this frame's, as a float */
 static Object *sObj;            /* the member being processed */
@@ -2919,22 +2926,113 @@ s32 func_m003_061FC(void) {
     return -1;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_062A0);
-
 extern s32 audspat_volume_at_distance(u16 kind, f32 *from, f32 *to); /* how loud a sound of a kind is from `from` at `to` */
 
-#ifdef NON_MATCHING
 /*
- * IDO puts the loop counter's dead copy before `e++` (the ROM: after it), so it lands in the branch delay
- * slots the ROM leaves empty (one word short; 11 aligned diffs). An empty `if (obj) {}` before the return
- * gave the ROM's length but homed obj and moved every temporary one register up (39 aligned diffs).
+ * The event the current member notices: heard loudly enough (unk6 bit 0), or seen (bits 2 and 1: near enough
+ * and within the troop's view angles); the nearest (kinds 2, 8 and 9 count as a quarter as far), on one
+ * object the highest kind. NULL if none.
  */
+M003Event *func_m003_062A0(void) {
+    s32 i;
+    M003Event *e;
+    u32 best;
+    s32 bestKind;
+    Object *obj;
+    M003Event *found;
+    s16 turn;
+    u32 dist;
+    s32 heard;
+    Object *foundObj;
+    s32 loud;
+    f32 from[3];
+    f32 to[3];
+
+    e = sEvents;
+    best = -1;
+    found = NULL;
+    bestKind = -1;
+    foundObj = NULL;
+    i = 16;
+    while (i--) {
+        if (e->active != 0) {
+            if ((obj = (Object *) (e->id & ~3)) != NULL && obj->freed) {
+                e->active = 0;
+                e++;
+                continue;
+            }
+            if ((sHomeData->unk30 == 4 && e->unk7 == 9) || ((e->unk7 == 9 || e->unk7 == 8) && !sMember->headless) ||
+                (sHomeData->unk32 == 0x11 && e->unk7 == 1)) {
+                e++;
+                continue;
+            }
+            heard = FALSE;
+            dist = func_m003_03E68(sMember->earPos[0], sMember->earPos[2], e->x, e->z);
+            turn = func_80049D80((s16) func_80049C84(sMember->earPos[0] - e->x, sMember->earPos[2] - e->z),
+                                 sMember->unk9C);
+            if (turn < 0) {
+                turn = -turn;
+            }
+            if (e->unk6 & 1) {
+                from[0] = e->x;
+                from[1] = e->y;
+                from[2] = e->z;
+                to[0] = sMember->earPos[0];
+                to[1] = sMember->earPos[1];
+                to[2] = sMember->earPos[2];
+                if (e->unk9 != 0) {
+                    loud = audspat_volume_at_distance(e->unk9, from, to);
+                } else {
+                    loud = 0x40;
+                }
+                heard = loud >= sHomeData->unk21;
+            }
+            if (!heard && (e->unk6 & 4)) {
+                u32 range = sHomeData->unk1F << 6;
+
+                heard = dist < range * range && turn < sHomeData->unk20 * 91;
+            }
+            if (!heard && (e->unk6 & 2)) {
+                u32 range = sHomeData->unk22 << 4;
+
+                heard = dist < range * range && turn < sHomeData->unk23 * 91;
+            }
+            if (e->unk7 == 8 || e->unk7 == 2 || e->unk7 == 9) {
+                dist >>= 2;
+            }
+            if (heard && dist <= best) {
+                if (obj != NULL) {
+                    if (obj == foundObj) {
+                        if (bestKind < e->unk7) {
+                            best = dist;
+                            found = e;
+                            bestKind = e->unk7;
+                        }
+                    } else {
+                        best = dist;
+                        found = e;
+                        bestKind = e->unk7;
+                        foundObj = obj;
+                    }
+                } else {
+                    best = dist;
+                    found = e;
+                    bestKind = e->unk7;
+                    foundObj = NULL;
+                }
+            }
+        }
+        e++;
+    }
+    return found;
+}
+
 /* The nearest event the member hears loudly enough (its loudness in *loudness), or NULL */
 M003Event *func_m003_06754(Object *obj, f32 *loudness) {
     M003Member *m = obj->unk68;
     M003Event *e = sEvents;
     u32 best = -1;
-    s32 i = 15;
+    s32 i = 16;
     s32 loud;
     u32 dist;
     M003Event *found = NULL;
@@ -2942,34 +3040,35 @@ M003Event *func_m003_06754(Object *obj, f32 *loudness) {
     f32 to[3];
 
     *loudness = 0.0f;
-    do {
-        if (e->active == 0) {
-        } else if ((e->id & ~3) != 0 && ((Object *) (e->id & ~3))->freed) {
-            e->active = 0;
-        } else if (e->unk6 & 1) {
-            from[0] = e->x;
-            from[1] = e->y;
-            from[2] = e->z;
-            to[0] = m->earPos[0];
-            to[1] = m->earPos[1];
-            to[2] = m->earPos[2];
-            loud = audspat_volume_at_distance(e->unk9, from, to);
-            if (loud >= sHomeData->unk21) {
-                dist = func_m003_03E68(m->earPos[0], m->earPos[2], e->x, e->z);
-                if (dist <= best) {
-                    found = e;
-                    best = dist;
-                    *loudness = loud;
+    while (i--) {
+        if (e->active != 0) {
+            if ((e->id & ~3) != 0 && ((Object *) (e->id & ~3))->freed) {
+                e->active = 0;
+                e++;
+                continue;
+            }
+            if (e->unk6 & 1) {
+                from[0] = e->x;
+                from[1] = e->y;
+                from[2] = e->z;
+                to[0] = m->earPos[0];
+                to[1] = m->earPos[1];
+                to[2] = m->earPos[2];
+                loud = audspat_volume_at_distance(e->unk9, from, to);
+                if (loud >= sHomeData->unk21) {
+                    dist = func_m003_03E68(m->earPos[0], m->earPos[2], e->x, e->z);
+                    if (dist <= best) {
+                        found = e;
+                        best = dist;
+                        *loudness = loud;
+                    }
                 }
             }
         }
         e++;
-    } while (i--);
+    }
     return found;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_06754);
-#endif
 
 /* Picks a new wander point for obj's member when the way ahead is blocked or the point is reached */
 static void func_m003_069B0(Object *obj) {
@@ -3964,7 +4063,85 @@ void func_m003_0AFC4(void) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0B040);
+/* The way-state handlers (by the member's unk1A): 0: go on below; 1: *angle is the heading; else head for the
+   shooter */
+extern s32 (*rl_m003_19678[])(Object *obj, s16 *angle, f32 arg1, f32 arg2);
+extern s16 func_m155_03B94(Object *obj, s16 yaw);
+extern s16 func_m146_00B34(Object *obj, f32 x, f32 z);
+
+/*
+ * The way the member should head. `r` holds the handler's result and then (its old value dead) the troop's
+ * state; the pad words are the ROM's two extra stack words.
+ */
+s16 func_m003_0B040(f32 dist, f32 arg1, f32 arg2) {
+    s16 angle;
+    s32 r;
+    M003Event *e;
+    Object *by;
+    UNUSED s32 pad[2];
+
+    if (sMember->unk4B >= 9) {
+        return sObj->trans.rotation.y_rotation;
+    }
+    if (sMember->unk1A != 0 && (r = rl_m003_19678[sMember->unk1A](sObj, &angle, arg1, arg2)) != 0) {
+        if (r) {} /* (r is set here: it only steers the register allocation) */
+        if (r == 1) {
+            return angle;
+        }
+    } else if (sHomeData->unk33 != 0x19 && !sMember->unk0_22 && (r = sHomeData->unk32) != 0xB && r != 0x12 &&
+               (r != 0xC || sMember->unk0_21 || (sHomeData->flags & 0x1000))) {
+        if (sHomeData->unk33 == 0x21) {
+            e = &sEvents[sHomeData->event];
+            return func_80049C84(sObj->trans.x_position - e->x, sObj->trans.z_position - e->z);
+        }
+        if (sMember->unk0_28 && sMember->unk17 != 0) {
+            if (!sMember->placed) {
+                sObj->trans.rotation.y_rotation = sMember->unk1C = 0xC000 - (sHomeData->unk1B << 8);
+            }
+            return sObj->trans.rotation.y_rotation;
+        }
+        if (!(sHomeData->flags & 0x400) && (sHomeData->unk30 != 3 || !sMember->unk0_7)) {
+            if (r == 0x11) {
+                return func_m155_03B94(sObj, sBssD6);
+            }
+            if (!sMember->unk0_2) {
+                if (sHomeData->kind == 0x112) {
+                    return func_m146_00B34(sObj, sBss14, sBss1C);
+                }
+                if (dist < sBody->unk14 && !(sHomeData->flags & 0x1000)) {
+                    if (r == 9 && sHomeData->unk30 != 3 && sHomeData->unk30 != 4) {
+                        if (sMember->placed && sObj->level_entry != NULL) {
+                            return ((u8 *) sObj->level_entry)[0xD] << 8;
+                        }
+                        return 0xC000 - (sHomeData->unk1B << 8);
+                    }
+                    if (sHomeData->unk31 != 5) {
+                        if (sHomeData->unk31 == 7 || sHomeData->unk31 == 10) {
+                            return func_80049C84(sObj->trans.x_position - sHomeData->x,
+                                                 sObj->trans.z_position - sHomeData->z) -
+                                   0x8000;
+                        }
+                        return sHome->trans.rotation.y_rotation;
+                    }
+                } else {
+                    if (sHomeData->unk33 == 0x1D) {
+                        if (sHomeData->unk3C & 0xFF) {
+                            return func_80049C84(sObj->trans.x_position - ((sHomeData->unk3C & 0xFF) + D_800FEA9C)->x,
+                                                 sObj->trans.z_position - ((sHomeData->unk3C & 0xFF) + D_800FEA9C)->z);
+                        }
+                        return 0;
+                    }
+                    return sBssD4;
+                }
+            }
+        }
+    }
+    by = (Object *) sMember->shotBy;
+    if (by != NULL) {
+        return func_80049C84(sObj->trans.x_position - by->trans.x_position, sObj->trans.z_position - by->trans.z_position);
+    }
+    return sObj->trans.rotation.y_rotation;
+}
 
 extern f32 rl_m003_07980(f32 from, f32 to, f32 speed, f32 max);
 
@@ -4147,7 +4324,73 @@ void func_m003_0BB50(void) {
     rl_m003_0AD38();
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_0BBC4);
+extern void rl_m003_0ABF4(void);
+extern void rl_m003_0B70C(void);
+
+/*
+ * Another member update. In troop state 0x11, for a member in way state 0, 0xD or 5: stopped (as below) or,
+ * for a body with the fireproof bit, the usual steps; else it faces sBssD6, its unkC taking the turn, and backs
+ * off at sBssCC (at most the troop's top speed). Otherwise it stops when it need not get anywhere or is in
+ * state 5-7, and takes the usual steps if not.
+ */
+void func_m003_0BBC4(void) {
+    f32 speed;
+    M003Anim *anim;
+
+    anim = func_m003_04428(sObj);
+    if (sHomeData->unk32 == 0x11 && (sMember->unk1A == 0 || sMember->unk1A == 0xD || sMember->unk1A == 5)) {
+        if ((anim->unk4_25 && sBssCC == 0.0f) || sMember->unkA == 5 || sMember->unkA == 6 || sMember->unkA == 7 ||
+            sMember->unk0_7) {
+            sBssD6 = sObj->trans.rotation.y_rotation;
+            sObj->velocity.x = 0.0f;
+            sObj->velocity.z = 0.0f;
+            rl_m003_03CAC(sObj);
+        } else if (((M003BodyFlags *) &sBody->unk24)->fireproof) {
+            rl_m003_0A5EC();
+            rl_m003_0A850();
+            rl_m003_0AF34();
+            rl_m003_0ABF4();
+            rl_m003_0AABC(0.5f, 1.0f);
+            rl_m003_0B70C();
+            rl_m003_0AD38();
+        } else {
+            sMember->unkC -= func_80049D80(sObj->trans.rotation.y_rotation, sBssD6);
+            if (sMember->unkC > 0x6978) {
+                sMember->unkC = 0x6978;
+            } else if (sMember->unkC < -0x6978) {
+                sMember->unkC = -0x6978;
+            }
+            sObj->trans.rotation.y_rotation = sBssD6;
+            if (sBssCC < sHomeData->maxSpeed) {
+                speed = -sBssCC;
+            } else {
+                speed = -sHomeData->maxSpeed;
+            }
+            sObj->velocity.x = func_80049C34(sObj->trans.rotation.y_rotation) * speed;
+            sObj->velocity.z = func_80049C30(sObj->trans.rotation.y_rotation) * speed;
+            sMember->unk1C = func_80049C84(sObj->velocity.x, sObj->velocity.z);
+            sMember->unk20 = func_80097140(sObj->velocity.x * sObj->velocity.x + sObj->velocity.z * sObj->velocity.z);
+            sMember->unk4C = 0;
+            rl_m003_0ABF4();
+            rl_m003_0AABC(0.7f, 1.0f);
+            rl_m003_0B70C();
+        }
+    } else if ((anim->unk4_25 && sBssCC == 0.0f) || sMember->unkA == 5 || sMember->unkA == 6 ||
+               sMember->unkA == 7) {
+        sBssD6 = sObj->trans.rotation.y_rotation;
+        sObj->velocity.x = 0.0f;
+        sObj->velocity.z = 0.0f;
+        rl_m003_03CAC(sObj);
+    } else {
+        rl_m003_0A5EC();
+        rl_m003_0A850();
+        rl_m003_0AF34();
+        rl_m003_0ABF4();
+        rl_m003_0AABC(0.5f, 1.0f);
+        rl_m003_0B70C();
+        rl_m003_0AD38();
+    }
+}
 
 /* As 0BB50, with another factor */
 void func_m003_0BFC4(void) {
@@ -5162,7 +5405,98 @@ static void troop_blame_all(Object *shotBy) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_10600);
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_1398C);
+/* Per troop slot (troop_slot_get): the sound its kind's members make, 0: none */
+typedef struct M003SlotSound {
+    /* 0x0 */ u8 pad0[6];
+    /* 0x6 */ u16 sound;
+} M003SlotSound;
+extern M003SlotSound rl_m003_19460[];
+extern void func_800035E8(s32 handle, f32 x, f32 y, f32 z); /* moves a positioned sound */
+extern void audspat_point_set_pitch(s32 handle, u8 pitch);
+extern f32 func_8008B200(s32 cents); /* alCents2Ratio */
+
+/*
+ * The troop's sound, for the kinds that have one: played at (or moved to) its nearest member with unkA6 above
+ * 0, its pitch following how fast that member closes in on the closest player; stopped when none is left
+ */
+void func_m003_1398C(void) {
+    Object *obj;
+    f32 bestDist;
+    s32 kind;
+    s32 foundKind;
+    Object *best;
+    s32 sound;
+    M003Member *m;
+    f32 d;
+    f32 v;
+    s32 cents;
+    f32 ratio;
+    f32 pitch;
+    f32 dist;
+
+    best = NULL;
+    bestDist = 5000000000.0f;
+    kind = sHomeData->kind;
+    if (kind == 0x2B || kind == 0x2D || kind == 0x54 || kind == 0x6D || kind == 0x83 || kind == 0x150 ||
+        kind == 0x152) {
+        for (obj = sHomeData->first; obj != NULL; obj = m->next) {
+            m = obj->unk68;
+            if (m->unkA6 > 0) {
+                d = point_distance_squared(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position,
+                                           ((Object *) sClosestPlayer)->trans.x_position,
+                                           ((Object *) sClosestPlayer)->trans.y_position,
+                                           ((Object *) sClosestPlayer)->trans.z_position);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = obj;
+                    foundKind = kind;
+                }
+            }
+        }
+        if (best != NULL) {
+            sound = rl_m003_19460[troop_slot_get(foundKind)].sound;
+            if (sound == 0) {
+                return;
+            }
+            if (sHomeData->sound == 0) {
+                func_80003410(sound, best->trans.x_position, best->trans.y_position, best->trans.z_position, 1,
+                              &sHomeData->sound);
+            } else {
+                func_800035E8(sHomeData->sound, best->trans.x_position, best->trans.y_position,
+                              best->trans.z_position);
+            }
+            if (sHomeData->sound == 0) {
+                return;
+            }
+            dist = func_80097140((best->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position) *
+                                     (best->trans.x_position - ((Object *) sClosestPlayer)->trans.x_position) +
+                                 (best->trans.y_position - ((Object *) sClosestPlayer)->trans.y_position) *
+                                     (best->trans.y_position - ((Object *) sClosestPlayer)->trans.y_position) +
+                                 (best->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position) *
+                                     (best->trans.z_position - ((Object *) sClosestPlayer)->trans.z_position));
+            v = (sHomeData->unk7C - dist) / sUpdateRate;
+            if (v > 15.0f) {
+                v = 15.0f;
+            } else if (v < -15.0f) {
+                v = -15.0f;
+            }
+            cents = (10.0f + v) / (10.0f - v) * 165.0f;
+            func_8008B200(cents);
+            ratio = func_8008B200(cents);
+            sHomeData->unk80 += (ratio - sHomeData->unk80) * 0.5f;
+            if (sHomeData->unk80 > 2.0f) {
+                sHomeData->unk80 = 2.0f;
+            } else if (sHomeData->unk80 < 0.2f) {
+                sHomeData->unk80 = 0.2f;
+            }
+            sHomeData->unk7C = dist;
+            pitch = sHomeData->unk80 * 100.0f;
+            audspat_point_set_pitch(sHomeData->sound, pitch);
+        } else if (sHomeData->sound != 0) {
+            func_80003614(sHomeData->sound);
+        }
+    }
+}
 
 extern void func_m143_01940(void *obj, s32 event);
 extern void func_m149_009A4(void *obj, s32 event);
