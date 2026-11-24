@@ -5962,8 +5962,6 @@ typedef struct M003Home34 {
 } M003Home34;
 #define HOME34(h) ((M003Home34 *) &(h)->unk34)
 
-#ifdef NON_MATCHING
-/* 2 diffs: after the first sine, the ROM materialises 98304.0f before reloading t, ours the other way round */
 /* The troop home's frame: its state, its members' blame and checks, and where the home moves */
 void func_m003_14D4C(Object *home, s32 rate) {
     f32 a;
@@ -6168,7 +6166,8 @@ live:
         d = func_m003_03E20(sHomeData->unk66, sHomeData->unk6A, sHomeData->x, sHomeData->z);
         if (!(total < 1.0f || total < d)) {
             t = d / total;
-            s = func_80049C34(t * 32768.0f);
+            /* one statement: as1 does not schedule the reload of t past the 98304.0f across a statement boundary */
+            s = func_80049C34(t * 32768.0f),
             c = func_80049C34(t * 98304.0f);
             sHomeData->y += (c + s * 0.5) * 16.0;
         }
@@ -6224,9 +6223,6 @@ shot:
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_14D4C);
-#endif
 
 
 /* The object of one of the kinds troops can stand on that is nearest (x, y, z), or NULL */
