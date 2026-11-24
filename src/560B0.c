@@ -444,9 +444,6 @@ extern MaterialMode D_800A48E0[]; // textured
 extern MaterialMode D_800A4BE0[]; // untextured
 extern u8 D_800A4E70;             // JFG: semi-transparent draws become cutouts
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 2 words: the final copy computes bits >> 3 in $a1 (the ROM: $a2); `if (bits) {}` between the
-   two copies (bits is set on every path there) put bits << 3 in the ROM's $a1 */
 /**
  * Load a texture (JFG: up to two frames for blending) and set the render mode for the flags.
  * Tracks which modes are active, to skip setting them again.
@@ -466,6 +463,7 @@ void func_80055C00(Gfx **dList, TextureHeader *texhead, s32 flags, s32 texOffset
     s32 index;
     s32 bits;
     s32 key;
+    s32 offset;
 
     gfx = *dList;
     textured = FALSE;
@@ -542,6 +540,7 @@ void func_80055C00(Gfx **dList, TextureHeader *texhead, s32 flags, s32 texOffset
     mode = (MaterialMode *) ((u8 *) modes + (index << 4));
     bits = mode->bits | (flags & mode->mask);
     key = (index << 8) | bits;
+    offset = bits * sizeof(Gfx); // the otherMode entry, as a byte offset
     if (key != D_800FED3C || (s32) modes != D_800FED30) {
         D_800FED3C = key;
         D_800FED30 = (s32) modes;
@@ -570,16 +569,12 @@ void func_80055C00(Gfx **dList, TextureHeader *texhead, s32 flags, s32 texOffset
         }
         gfx[0].words.w0 = mode->combine[bits >> 3].words.w0;
         gfx[0].words.w1 = mode->combine[bits >> 3].words.w1;
-        if (bits) {}
-        gfx[1].words.w0 = mode->otherMode[bits].words.w0;
-        gfx[1].words.w1 = mode->otherMode[bits].words.w1;
+        gfx[1].words.w0 = ((Gfx *) ((u8 *) mode->otherMode + offset))->words.w0;
+        gfx[1].words.w1 = ((Gfx *) ((u8 *) mode->otherMode + offset))->words.w1;
         gfx += 2;
     }
     *dList = gfx;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/560B0", func_80055C00);
-#endif
 
 extern s32 D_800A4E64;
 

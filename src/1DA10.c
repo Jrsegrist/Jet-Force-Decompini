@@ -975,8 +975,8 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001EE1C);
 #endif
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: an FP register swap only: dz and the edge offset get f24/f20 (target f20/f24); the empty
- * `if (temp_f14) {}` (always set there) put -dx in the target's f22. */
+/* NON_MATCHING: an FP register swap only: dz and the edge offset get f24/f20 (target f20/f24). -dx negated in
+ * place (`temp_f14 = -temp_f14;`) puts it in the target's f22 (as the old empty `if (temp_f14) {}` did). */
 /* DKR func_8002FF6C (tracks.c): clip the shadow polygon against each edge, caching the edge intersections (JFG: the
  * shadow struct passed in, the counts as parameters, stops at 8 vertices). */
 s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEdges, ShadowEdge *edges) {
@@ -1012,14 +1012,14 @@ s32 func_8001F4BC(ShadowBuild *shadow, s32 count, ShadowPoint *points, s32 numEd
         }
 
         temp_f12 = edges[var_v1].z - edges[var_v0].z;
-        temp_f14 = -(edges[var_v1].x - edges[var_v0].x);
+        temp_f14 = edges[var_v1].x - edges[var_v0].x;
+        temp_f14 = -temp_f14;
         if (edges[var_v0].x < edges[var_v1].x) {
             var_f2 = (temp_f12 * edges[var_v0].x) + (edges[var_v0].z * temp_f14);
             var_f2 = -var_f2;
         } else {
             var_f2 = (temp_f12 * edges[var_v1].x) + (edges[var_v1].z * temp_f14);
             var_f2 = -var_f2;
-            if (temp_f14) {}
         }
 
         for (var_t1 = 0, var_t2 = 0; var_t1 < var_s2; var_t1++) {
