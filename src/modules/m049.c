@@ -90,12 +90,11 @@ extern void func_8004AA80(void *data);            /* frees */
 
 /*
  * NON_MATCHING: func_m049_00000, func_m049_001C8 and the static functions
- * 00668, 0069C, 0078C, 00878 and 009A8 match, as do .data and .rodata. Still
- * different (register allocation only): func_m049_00204 (36 aligned diffs:
- * the FP registers and the frame are the ROM's; hdr, numSpheres and the loop
- * counters are one register off, and the second loop's offset temporary is at
- * 0x50 for the ROM's 0x54) and 00A84 (the order the blur sums are formed in;
- * two words long). The default build uses the
+ * 00668, 0069C, 0078C, 00878, 009A8 and 00A84 match, as do .data and .rodata.
+ * Still different (register allocation only): func_m049_00204 (36 aligned
+ * diffs: the FP registers and the frame are the ROM's; hdr, numSpheres and the
+ * loop counters are one register off, and the second loop's offset temporary
+ * is at 0x50 for the ROM's 0x54). The default build uses the
  * assembly for everything from 00204 on (the static functions are only
  * called from there) and for the data.
  */
@@ -424,24 +423,42 @@ static void func_m049_009A8(void) {
     }
 }
 
-/* Blurs the texture (each byte holds two 4-bit pixels) */
+/*
+ * Blurs the texture (each byte holds two 4-bit pixels): each new pixel is the
+ * sum of eight neighbours over 8 (at most 8 * 15, so the u16 sum and the u8
+ * value never wrap).
+ */
 static void func_m049_00A84(void) {
     u8 *p = sPixels;
     s32 y = sHeight - 2;
     s32 x;
-    s32 sum;
+    u16 sum;
+    u8 v;
 
     while (y--) {
         for (x = 0; x < (sWidth >> 1) - 1; x++, p++) {
-            sum = (p[0] >> 4) + (p[0] & 0xF) + (p[1] >> 4) + (p[0x20] >> 4) + (p[0x21] >> 4) + (p[0x40] >> 4) +
-                  (p[0x40] & 0xF) + (p[0x41] >> 4);
+            sum = p[0] >> 4;
+            sum += p[0] & 0xF;
+            sum += p[1] >> 4;
+            sum += p[0x20] >> 4;
+            sum += p[0x21] >> 4;
+            sum += p[0x40] >> 4;
+            sum += p[0x40] & 0xF;
+            sum += p[0x41] >> 4;
+            v = sum >> 3;
             p[0x20] &= 0xF0;
-            p[0x20] |= (sum >> 3) & 0xF;
+            p[0x20] |= v & 0xF;
+            sum = p[0] & 0xF;
+            sum += p[1] >> 4;
+            sum += p[1] & 0xF;
+            sum += p[0x20] & 0xF;
+            sum += p[0x21] & 0xF;
+            sum += p[0x40] & 0xF;
+            sum += p[0x41] >> 4;
+            sum += p[0x41] & 0xF;
+            v = sum << 1;
             p[0x21] &= 0xF;
-            p[0x21] |= (((p[0] & 0xF) + (p[1] >> 4) + (p[1] & 0xF) + (p[0x20] & 0xF) + (p[0x21] & 0xF) +
-                         (p[0x40] & 0xF) + (p[0x41] >> 4) + (p[0x41] & 0xF))
-                        << 1) &
-                       0xF0;
+            p[0x21] |= v & 0xF0;
         }
         p++;
     }
