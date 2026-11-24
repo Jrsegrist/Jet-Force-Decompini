@@ -36,7 +36,6 @@ extern void *func_80056798(s32, s32);
 extern void func_80056C14(void *);
 extern u8 *func_80055694(s32);
 extern void func_80055A00(void *);
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern M001Env *func_8004470C(void);
 extern ObjectTransform *func_80041DE0(void); /* the camera */
 extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);

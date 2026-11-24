@@ -51,11 +51,9 @@ typedef struct M072WeaponInfo {
     /* 0x2E */ s16 maxCapacity;
 } M072WeaponInfo;
 
-extern void runlink_unload_timer_set(s32, s32, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, Object **);
 extern M072Weapons *char_record_lookup(s32 player, s32 arg1);
 extern M072WeaponInfo *weapon_info_get(s32 weapon);
-extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 s32 D_m072_00480 = 72; /* the module's number */
 

@@ -383,7 +383,6 @@ extern void func_80035E14(Object *obj, Racer *racer, f32 speed, f32 angle, f32 u
 extern void func_800364D4(Object *obj, Racer *racer, f32 speed, s16 angle, f32 updateRate, void *table);
 extern void func_m107_00D08(void *arg0, f32 a, f32 b, s32 c);
 extern M016LevelHeader *func_8004470C(void);
-extern void func_80001248(s32 sound, s32 handle);
 extern void sound_stop(s32 handle);
 extern void func_8003D21C(M016ModelInst *inst, M016Model *model, Object *obj, f32 a, f32 b);
 extern s32 func_8000BC28(Object *obj, M016ModelInst *inst, M016Model *model, s32 weapon, s32 *arg4, f32 *x, f32 *y,

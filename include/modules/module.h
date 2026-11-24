@@ -127,13 +127,13 @@ extern f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 
 /* Sound (DKR audio_spatial.c) */
 extern void func_80003410(u16 soundId, f32 x, f32 y, f32 z, u8 arg4, s32 *soundMask); /* DKR play_sound_at_position */
-extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
+extern void func_80001248(u16 sound, s32 arg1); /* DKR amSndPlay */
 
 /*
  * Called first thing by most control functions with the module's own number
  * (the s32 at the start of its .data) and (2, 2).
  */
-extern void runlink_unload_timer_set(s32 module, s32 arg1, s32 arg2);
+extern void runlink_unload_timer_set(s32 module, u16 timer, u8 value);
 
 /* Scales an amount or a timer (m100, m138, m153 use it) */
 extern s32 func_80005064(s32 amount);

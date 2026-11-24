@@ -195,7 +195,6 @@ extern M022CharRecord *char_record_lookup(s32 player, s32 character);
 extern s32 func_80043510(s32 player); /* the buttons pressed (u16 in joypad.c; the ROM needs s32) */
 extern u8 D_800A4FC8;                 /* a second player plays */
 extern void func_80048518(s32 arg0);
-extern void func_80001248(s32 sound, s32 arg1);
 extern s16 transition_values_time_left(void);
 extern s32 transition_begin(void *transition);
 extern void func_m046_0049C(s32 r, s32 g, s32 b, s32 alpha, s32 duration);
@@ -1211,7 +1210,6 @@ void func_m022_02990(void) {
 
 extern s16 transition_values_time_left(void);
 extern s32 func_80043510(s32 player); /* the buttons pressed */
-extern void func_80001248(s32 sound, s32 arg1);
 extern s32 transition_begin(void *transition);
 extern u8 D_800A4FC8; /* a second player plays */
 extern u8 rl_m022_033FC[];

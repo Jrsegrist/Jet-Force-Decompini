@@ -22,7 +22,6 @@ typedef struct M059Line {
 } M059Line;
 
 extern Gfx *D_800FF398; /* the display list being built */
-extern void func_80001248(s32 sound, s32 arg1);
 extern void load_first_unlocked_level();
 extern void set_text_font(s32 font);                                              /* DKR */
 extern void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity); /* DKR */
