@@ -5335,7 +5335,109 @@ static void troop_ambient_sound(s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_142F0);
+/* The model 142F0 reads */
+typedef struct M003FxHeader {
+    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x2D */ u8 numJoints;
+    /* 0x2E */ u8 pad2E[2];
+    /* 0x30 */ u16 *joints; /* [1]: the joint the drops come from */
+    /* 0x34 */ u8 pad34[0x4E - 0x34];
+    /* 0x4E */ s8 unk4E;
+} M003FxHeader;
+
+typedef struct M003FxModel {
+    /* 0x00 */ M003FxHeader *header;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 matrixIndex;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ MtxF *matrices[2];
+    /* 0x18 */ u8 pad18[0x68 - 0x18];
+    /* 0x68 */ f32 *offset;
+} M003FxModel;
+
+extern void func_80048B60(MtxF *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz); /* a point by the matrix */
+extern void func_800496B0(s32 arg0, Vec3s *angles, f32 *in, f32 *out);
+
+/*
+ * `count` drops thrown from one joint of the member's model in random directions (as 09CE4's, through
+ * m008's emitter), from the model's offset point when it has one (called from 10600)
+ */
+void func_m003_142F0(s32 arg0, s32 count) {
+    s16 rot[2]; /* the rotation's y and x: all func_8004944C reads */
+    Vec3f v;
+    s32 alpha;
+    s32 i;
+    Vec3f pos;
+    M003FxModel *model;
+    M003FxHeader *hdr;
+    MtxF *m;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 x;
+    f32 y;
+    f32 z;
+
+    model = ((M003FxModel **) sObj->modelInstances)[sObj->modelIndex];
+    hdr = model->header;
+    if (sObj->shading != NULL) {
+        alpha = sObj->shading->unk0 * 255.0f;
+    } else {
+        alpha = 0xFF;
+    }
+    for (i = 0; i < count; i++) {
+        rot[0] = func_80048E2C(0, 0xA000) - 0x5000;
+        rot[1] = 0;
+        v.x = 0.0f;
+        v.y = 0.0f;
+        v.z = -2.0f;
+        func_8004944C((Vec3s *) rot, &v);
+        if (model->unkA != 0) {
+            continue;
+        }
+        if (hdr->numJoints <= 0) {
+            return;
+        }
+        m = (MtxF *) ((f32 *) model->matrices[model->matrixIndex] + (hdr->joints[1] << 4));
+        func_80048B60(m, v.x, v.y, v.z, &v.x, &v.y, &v.z);
+        dx = v.x - (*m)[3][0];
+        dy = v.y - (*m)[3][1];
+        dz = v.z - (*m)[3][2];
+        d = func_80097140(dx * dx + dy * dy + dz * dz);
+        if (d == 0.0f) {
+            d = 2.0f;
+        } else {
+            d = 2.0f / d;
+        }
+        dx *= d;
+        dy *= d;
+        dz *= d;
+        if (model->offset != NULL) {
+            pos.x = model->offset[0];
+            pos.y = model->offset[1];
+            pos.z = model->offset[2];
+            if (model->header->unk4E == 0) {
+                pos.x *= sObj->trans.scale;
+                pos.y *= sObj->trans.scale;
+                pos.z *= sObj->trans.scale;
+                func_800496B0(1, &sObj->trans.rotation, &pos.x, &pos.x);
+                pos.x += sObj->trans.x_position;
+                pos.y += sObj->trans.y_position;
+                pos.z += sObj->trans.z_position;
+            }
+            x = pos.x;
+            y = pos.y;
+            z = pos.z;
+        } else {
+            x = sObj->trans.x_position;
+            y = sObj->trans.y_position;
+            z = sObj->trans.z_position;
+        }
+        func_m008_001CC(x, y, z, dx, dy, dz, alpha, ((u8 *) sObj->header)[0x2F], 1.0f);
+    }
+}
 
 /* What troop_ring_take gives, as far as 14694 uses it */
 typedef struct M003RingEntry {
