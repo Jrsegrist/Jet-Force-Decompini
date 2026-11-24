@@ -1269,9 +1269,9 @@ void obj_update_matrices(Obj7E *obj, s32 force) {
 #ifdef NON_MATCHING
 /* JFG: the object's world bounding box: its model's box transformed by its current matrix
  * (same pattern as func_8007E9E0).
- * NON_MATCHING: ROM length and frame, 10 diffs: i, the column pointer and the min pointer are in a0/v0/a2 (the ROM
- * a2/a0/v1). The column walked by its own pointer (p, from xform + i) gives the ROM's i counter and loop shape; the
- * frame needs one more word above min/max (pad). */
+ * NON_MATCHING: ROM length and frame, 7 diffs: i and the column pointer are in a0/a2 (the ROM a2/a0). xform[j][i]
+ * read as the byte offset (j * 4 + i) * 4 (as func_8007E9E0) gives the ROM's loop shape and min pointer; the frame
+ * needs one more word above min/max (pad). */
 void func_8007E794(Obj7E *obj) {
     Obj7EData *data;
     f32 (*xform)[4];
@@ -1285,7 +1285,6 @@ void func_8007E794(Obj7E *obj) {
     UNUSED s32 pad;
     s16 min[3];
     s16 max[3];
-    f32 *p;
 
     data = obj->data;
     model = obj->modelInstances[data->modelIndex];
@@ -1305,10 +1304,9 @@ void func_8007E794(Obj7E *obj) {
     lo = data->bboxMin;
     hi = data->bboxMax;
     for (i = 0; i < 3; i++) {
-        p = (f32 *) xform + i;
-        for (j = 0; j < 3; j++, p += 4) {
-            a = *p * min[j];
-            b = *p * max[j];
+        for (j = 0; j < 3; j++) {
+            a = *(f32 *) ((u8 *) xform + (j * 4 + i) * 4) * min[j];
+            b = *(f32 *) ((u8 *) xform + (j * 4 + i) * 4) * max[j];
             if (a < b) {
                 lo[i] += a;
                 hi[i] += b;
@@ -1323,11 +1321,9 @@ void func_8007E794(Obj7E *obj) {
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E794);
 #endif
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (13 words, ROM length; was 32): loop shape only. The target keeps j as a counter (j != 4, mtx + j * 4
-   recomputed each pass) and walks the column with one pointer; the column through a row-pointer cast keeps j (plain
-   mtx[i][j] gets j strength-reduced) but its inner loop then counts i * 16 and adds the column base each time. */
-/* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. */
+/* JFG: transform a bounding box (min and max corners) by a matrix, giving the box around the result. The element
+ * mtx[i][j] is read as a byte offset, (i * 4 + j) * 4 from mtx: that keeps j as the outer counter (mtx + j * 4
+ * recomputed each pass) and gives the inner loop its i * 4 counter and walking column pointer. */
 void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     f32 newMin[4];
     s32 i;
@@ -1335,8 +1331,8 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     s32 j;
     f32 a;
     f32 b;
+    UNUSED s32 pad;
 
-    if (min) {}
     newMin[0] = 0.0f;
     newMin[1] = 0.0f;
     newMin[2] = 0.0f;
@@ -1347,8 +1343,8 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     newMax[3] = 1.0f;
     for (j = 0; j < 4; j++) {
         for (i = 0; i < 4; i++) {
-            a = ((f32 (*)[4]) (mtx[0] + j))[i][0] * min[i];
-            b = ((f32 (*)[4]) (mtx[0] + j))[i][0] * max[i];
+            a = *(f32 *) ((u8 *) mtx + (i * 4 + j) * 4) * min[i];
+            b = *(f32 *) ((u8 *) mtx + (i * 4 + j) * 4) * max[i];
             if (a < b) {
                 newMin[j] += a;
                 newMax[j] += b;
@@ -1365,9 +1361,6 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
     max[1] = newMax[1];
     max[2] = newMax[2];
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007E9E0);
-#endif
 
 extern s32 D_801047F0; // JFG: the number of entries
 s32 box_range_cell_mask(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ);
