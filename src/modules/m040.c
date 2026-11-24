@@ -87,7 +87,7 @@ extern M040Stats *D_800FF1C0[]; /* the players, sorted */
 extern s32 D_800FECCC;
 extern void menu_assetgroup_load(s16 *assets);
 extern void menu_assetgroup_reset(s16 *assets);
-extern s32 menu_mode_get();
+extern u8 menu_mode_get(void);
 extern void func_m061_00F50(void);
 extern void func_m061_010D4(s32 arg0);
 
@@ -317,12 +317,12 @@ typedef struct M040Sprite {
 extern Vertex *D_800FF3A0;
 extern M040Stats D_800FED50[];
 extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M040Sprite *sprite, void *tex, s32 arg5,
-                                        s32 alpha);
+                                        u8 alpha);
 extern void func_m006_010D8(s32 *x, s32 *y);
 extern void func_m006_0107C(s32 *x, s32 *y);
 extern void func_8006FC54(s32 fontId);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
-extern s32 func_80043510(s32 player);               /* the buttons pressed */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern u16 func_80043510(s32 player);               /* the buttons pressed */
 
 /* Slides the table of the players' places in or out, draws it, and counts up their bonus marks (called from 0019C) (module m040, 0x007F0). */
 static void mpstats_places_table(s32 updateRate) {

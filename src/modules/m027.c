@@ -50,7 +50,7 @@ typedef struct M027Params {
     /* 0x0FE */ u8 colourC[3];
 } M027Params;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* allocates */
+extern void *func_8004A57C(s32 size, u32 colour); /* allocates */
 extern void func_8004AA80(void *data);             /* frees */
 
 static u8 *sTable = NULL;

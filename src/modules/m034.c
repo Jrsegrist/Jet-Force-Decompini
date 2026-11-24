@@ -26,11 +26,11 @@ extern void *gObjPtrList;
 extern void *D_800F2CB4;
 extern f32 D_800F2C88;      /* DKR gObjectUpdateRateF */
 
-extern void set_world_shading(s32, s32, s32, s32, s32);  /* DKR set_world_shading */
+extern void set_world_shading(s32, s32, s16, s16, s32);  /* DKR set_world_shading */
 extern void *func_8004A458(s32 size, s32 count);     /* DKR mempool_new_sub */
 extern void *func_8004A57C(s32 size, u32 colour);    /* DKR mempool_alloc_safe */
-extern void *func_8004D37C(s32 asset);               /* DKR asset_table_load */
-extern s32 func_8004D5F8(s32 asset);                 /* DKR asset_table_size */
+extern void *func_8004D37C(u32 asset);               /* DKR asset_table_load */
+extern s32 func_8004D5F8(u32 asset);                 /* DKR asset_table_size */
 extern void collision_buffers_alloc(void);
 extern void clear_object_pointers(void);
 extern void func_m033_00000(void);

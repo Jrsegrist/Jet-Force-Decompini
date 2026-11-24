@@ -192,20 +192,21 @@ typedef struct M022LevelHeader {
 } M022LevelHeader;
 
 extern M022CharRecord *char_record_lookup(s32 player, s32 character);
-extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern s32 func_80043510(s32 player); /* the buttons pressed (u16 in joypad.c; the ROM needs s32) */
 extern u8 D_800A4FC8;                 /* a second player plays */
 extern void func_80048518(s32 arg0);
 extern void func_80001248(s32 sound, s32 arg1);
-extern s32 transition_values_time_left(void);
-extern void transition_begin(void *transition);
+extern s16 transition_values_time_left(void);
+extern s32 transition_begin(void *transition);
 extern void func_m046_0049C(s32 r, s32 g, s32 b, s32 alpha, s32 duration);
 extern void sequence_start(s32 arg0);
-extern s32 func_80000F98(void); /* the music playing */
-extern void music_volume_fade_scaled(f32 rate, s32 volume);
+extern u8 func_80000F98(void); /* the music playing */
+extern void music_volume_fade_scaled(f32 rate, u8 volume);
 extern M022LevelHeader *func_8004470C(void);
 extern void func_80000510(u8 song); /* plays a song */
-extern void func_80000FE4(s32 arg0);
+extern void func_80000FE4(u8 arg0);
 extern void func_80001170(u8 sound);
+/* 45750.c returns s16 and 59060.c's menu_mode_get u8; declared s32 because the ROM's code here depends on it */
 extern s32 pending_level_character(void);
 extern s32 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
@@ -778,7 +779,7 @@ extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 extern void func_8006FC54(s32 font);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void func_8004EDBC(Gfx **dList, M022Rect *rects, s32 x, s32 y, u8 r, u8 g, u8 b, u8 alpha);
 extern char **gMenuText; /* the game's texts */
 extern s32 D_800A3204; /* the task's time, in frames */
@@ -1135,7 +1136,7 @@ typedef struct M022Record {
 extern M022Save D_800FF318;
 extern M022Record *get_settings(void);
 extern void character_item_give(s32 player, s32 character, s32 item);
-extern s32 player_chars_have_item(s32 item);
+extern int player_chars_have_item(s32 item);
 extern s32 game_flag_get(s32 flag);
 extern void func_80047EFC(s32 flag, s32 set);
 extern u8 rl_m022_0341C; /* .bss (still assembly): 2 a new best rank, 1 a rank, 0 none */
@@ -1208,10 +1209,10 @@ void func_m022_02990(void) {
     set_game_paused(1);
 }
 
-extern s32 transition_values_time_left(void);
+extern s16 transition_values_time_left(void);
 extern s32 func_80043510(s32 player); /* the buttons pressed */
 extern void func_80001248(s32 sound, s32 arg1);
-extern void transition_begin(void *transition);
+extern s32 transition_begin(void *transition);
 extern u8 D_800A4FC8; /* a second player plays */
 extern u8 rl_m022_033FC[];
 
@@ -1335,7 +1336,7 @@ typedef struct M022PlayerData {
     /* 0x594 */ f32 unk594;
 } M022PlayerData;
 
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 
 /* Moves the player onto the plate (behaviour 0x5D), at a height that depends on the character */
 void func_m022_02F38(Object *obj, M022PlayerData *player, s32 updateRate) {

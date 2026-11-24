@@ -354,10 +354,10 @@ extern u8 *D_800A38E0;       /* the body descriptions */
 extern s32 D_800FE9FC;
 extern s32 D_800FE9B0;
 extern f32 func_80097140(f32 x); /* sqrtf */
-extern s16 troop_slot_get(u16 kind);
-extern s32 obj_find_nearest_in_category(f32 x, f32 y, f32 z, s32 arg3);
+extern s32 troop_slot_get(s32 kind);
+extern s32 obj_find_nearest_in_category(f32 x, f32 y, f32 z, u8 arg3);
 extern void func_800492DC(Object *obj, Vec3f *v); /* turns v by the object's rotation */
-extern s32 troop_find_member(s16 arg0, u8 arg1);
+extern s32 troop_find_member(s16 arg0, s16 arg1);
 extern void stats_kill_add(s32 sound);
 extern void troop_spawn_context_set(Object *obj, Object *home);
 extern void func_m154_017E8(Object *home);
@@ -391,23 +391,23 @@ extern s32 D_800FEA04;
 extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
 extern s32 func_80049D80(s32 a, s32 b); /* the difference of two angles */
 extern s32 troop_member_waypoint_set(u8 arg0);
-extern s32 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
+extern u8 func_m154_00DFC(u8 arg0, u8 arg1, u8 arg2);
 extern void func_m155_02BB0(Object *home);
 s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3);
 extern s32 func_m003_04F88(s32 arg0, f32 arg1);
 void func_m003_06D28(Object *home, s32 index, f32 *x, f32 *y, f32 *z);
 extern s32 func_m003_0C324(); /* (Object *obj); 0CF40 calls it with no argument */
 extern s32 func_m003_15BE8(f32 x, f32 y, f32 z);
-extern s32 func_m154_00130(f32 x, f32 y, f32 z, s32 arg3); /* the way point nearest a point */
+extern u8 func_m154_00130(f32 x, f32 y, f32 z, s32 arg3); /* the way point nearest a point */
 extern void anim_paths_find_near(f32 x, f32 y, f32 z, s16 *a, s16 *b);
 extern s32 func_8004966C(s16 angle); /* sine */
 extern s32 func_80049668(s16 angle); /* cosine */
-extern s32 troop_find_by_tag(s32 arg0);
+extern s32 troop_find_by_tag(s16 arg0);
 extern s32 objflag_get(s32 arg0);
 extern Object *func_80005F14(void *entry, s32 arg1);
 extern void region_mark_set(s32 arg0, s32 arg1);
-extern void obj_spawn_bonus(f32 x, f32 y, f32 z, s32 arg3);
-extern void spawn_object_from_list(s32 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+extern void obj_spawn_bonus(f32 x, f32 y, f32 z, u8 arg3);
+extern void spawn_object_from_list(s16 arg0, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 extern s32 D_800FE9F8;
 extern void func_m014_019E4(void);
 extern void func_m003_07E88(s32 arg0, s32 arg1, s16 arg2);
@@ -990,7 +990,7 @@ void func_m003_01608(Object *obj, f32 *x, f32 *y, f32 *z) {
     }
 }
 
-extern void func_m146_00000(Object *obj, s32 arg1);
+extern s32 func_m146_00000(Object *obj, s32 arg1);
 extern void func_8002179C(s32 handle);
 extern void track_light_off(s32 light);
 
@@ -1230,7 +1230,7 @@ static M003PathNode *troop_path_node_next(M003PathNode *node) {
 }
 
 extern s32 D_800FEA58[]; /* each path group's D_801045B0 path */
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern s32 anim_path_free_slot(void);                   /* a free D_801045B0 slot, or -1 */
 extern M003AnimPath *anim_path_for_obj(Object *obj);  /* the path an object is on */
 extern void anim_path_spawn_object(u8 index);
@@ -1864,7 +1864,7 @@ void func_m003_038D4(void) {
     }
 }
 
-extern s32 func_m154_00A10(u8 node); /* the way point after `node` */
+extern u8 func_m154_00A10(u8 node); /* the way point after `node` */
 #define NODEWORD14(n) (*(u32 *) (n)->pad14) /* the way point's word at 0x14 (bit 1: wait for the player) */
 
 /*
@@ -2921,7 +2921,7 @@ s32 func_m003_061FC(void) {
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_062A0);
 
-extern s32 audspat_volume_at_distance(s32 kind, f32 *from, f32 *to); /* how loud a sound of a kind is from `from` at `to` */
+extern s32 audspat_volume_at_distance(u16 kind, f32 *from, f32 *to); /* how loud a sound of a kind is from `from` at `to` */
 
 #ifdef NON_MATCHING
 /*
@@ -4397,7 +4397,7 @@ s32 func_m003_0C324(obj)
 }
 
 extern u8 D_800FE9EE;
-extern s32 obj_id_is_special(s32 id);
+extern int obj_id_is_special(s32 id);
 
 /* Whether the current member wants to fire at its target, `dist` away (and turned at most `maxAngle` off) */
 int func_m003_0CAA4(f32 dist, f32 arg1, s16 maxAngle) {
@@ -5164,8 +5164,8 @@ INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_10600);
 
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_1398C);
 
-extern void func_m143_01940();
-extern void func_m149_009A4();
+extern void func_m143_01940(void *obj, s32 event);
+extern void func_m149_009A4(void *obj, s32 event);
 
 /* A member's animation event: sounds, particles and the kinds' own effects */
 void func_m003_13D94(Object *obj, u16 event) {

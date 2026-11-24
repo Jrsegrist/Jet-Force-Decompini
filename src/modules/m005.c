@@ -33,7 +33,7 @@ typedef struct M005Field {
     /* 0x3C */ Vec3f lastCamera;
 } M005Field;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
 extern void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
 extern void func_80055B80(Gfx **dl);              /* resets the render settings */

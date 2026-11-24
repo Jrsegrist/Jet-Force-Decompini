@@ -5,7 +5,7 @@
 #include "common.h"
 
 extern u8 *D_800A3324; /* buffer for the check */
-extern void func_8004D640(u32, void *, u32);
+extern void func_8004D640(u32, void *, s32);
 
 /* Reads 16 bytes from cartridge offset 0xF80; returns 1 if the first two words match the expected values */
 s32 func_m071_00000(void) {

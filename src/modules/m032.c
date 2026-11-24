@@ -4,11 +4,7 @@
  * moves its light with it and fades out once it is told to.
  * Family: other object behaviours (docs/runlink.md, "Module families").
  */
-/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
-#define obj_anim_set func_8001149C_void
 #include "module.h"
-#undef obj_anim_set
-extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 
 /* One spoken line: a sound and how many variants follow it */
 typedef struct M032Line {
@@ -141,15 +137,13 @@ typedef struct M032Light {
 extern void func_80003614(s32 handle); /* stops a positioned sound */
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
-extern void light_intensity_set(M032Light *light, s32 intensity);
+extern void light_intensity_set(M032Light *light, u8 intensity);
 
 extern M032Lines rl_m032_02F24[]; /* the lines of each character */
 extern Object *rl_m032_031CC;     /* the character the player is talking to */
 
 void func_m032_0241C(Object *obj, s16 sound, s8 variants);
 
-extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
-                          f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 extern void func_8003D21C(M032Inst *inst, M032Model *model, Object *obj, f32 arg3, f32 arg4);
 extern s32 rl_m032_01D2C(M032Speaker *st);
 extern s32 rl_m032_01DD8(M032Speaker *st);
@@ -255,7 +249,7 @@ typedef struct M032Settings {
 extern s32 char_id_of_player(s32 player);
 extern M032Items *char_record_lookup(s32 player, s32 character);
 extern s32 character_has_item(s32 player, s32 character, s32 item);
-extern s32 player_chars_have_item(s32 item);
+extern int player_chars_have_item(s32 item);
 extern s32 game_flag_get(s32 flag);
 
 /* Whether the speaker's condition (chosen by its flag byte) holds: game flags, items, the character */

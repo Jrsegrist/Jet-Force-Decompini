@@ -22,16 +22,16 @@
         gImmp1(pkt, 0xB2, (_SHIFTL(dsdx, 16, 16) | _SHIFTL(dtdy, 0, 16)));                   \
     }
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
-extern s32 func_800551F8(void);
+extern s8 func_800551F8(void);
 extern void func_80054EA0(u32 *width, u32 *height);
 extern void func_80050E90(Gfx **dl, s32 segment, s32 address);
 extern void func_8004E40C(Gfx **dl);
 extern void rdp_set_default_modes(Gfx **dl);
 extern void set_active_camera(s32 arg0);
 extern void viewport_apply(Gfx **dl, s32 arg1);
-extern void func_8004DA10(Gfx *start, Gfx *end, s32 arg2, s32 arg3);
+extern s32 func_8004DA10(Gfx *start, Gfx *end, s32 arg2, s32 arg3);
 
 extern s32 D_800A3338;
 extern s32 D_800A3630;

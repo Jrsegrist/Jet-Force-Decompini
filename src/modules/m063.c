@@ -50,9 +50,9 @@ extern u8 D_800A4FD0;
 
 extern void bgdraw_fillcolour(s32 r, s32 g, s32 b);
 extern void input_assign_players(void);
-extern void music_play(s32 seq);
-extern void music_volume_set(s32 volume);
-extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
+extern void music_play(u8 seq);
+extern void music_volume_set(u8 volume);
+extern void music_volume_fade(f32 volume, u8 arg1); /* fades the music */
 extern s32 get_settings(void);
 extern void game_settings_reset(s32 arg0);
 extern void func_800487B8(void);
@@ -66,8 +66,9 @@ extern void func_80055C00(Gfx **dList, void *tex, s32 arg2, s32 arg3);
 extern void rendermode_reset(Gfx **dList);
 extern void func_80056000(s32 arg0);
 extern ObjectTransform *cam_get_cameras(void);
-extern void render_ortho_triangle_image(Gfx **dList, Mtx **mtx, Vertex **vtx, M063Sprite *sprite, void *tex, s32 arg5, s32 alpha);
-extern void func_8004EDBC(Gfx **dList, M063Image *image, s32 x, s32 y, u8 r, u8 g, u8 b, s32 alpha); /* DKR texrect_draw */
+extern void render_ortho_triangle_image(Gfx **dList, Mtx **mtx, Vertex **vtx, M063Sprite *sprite, void *tex, s32 arg5,
+                                        u8 alpha);
+extern void func_8004EDBC(Gfx **dList, M063Image *image, s32 x, s32 y, u8 r, u8 g, u8 b, u8 alpha); /* DKR texrect_draw */
 extern void func_8004F02C(Gfx **dList, M063Image *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour,
                           s32 flags); /* DKR texrect_draw_scaled */
 extern void set_text_font(s32 font);

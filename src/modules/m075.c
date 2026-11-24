@@ -101,9 +101,9 @@ extern s32 func_80049C84(f32 x, f32 z); /* arctangent as a 16-bit angle */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_80049D80(s32 from, s32 to); /* the difference between two angles */
 extern s32 character_has_item(s32 player, s32 character, s32 item); /* whether the character has the item */
-extern s32 func_80043510(s32 player);                      /* the buttons pressed */
+extern u16 func_80043510(s32 player);                      /* the buttons pressed */
 extern M075Character *char_record_lookup(s32 player, s32 character);
-extern void func_80001170(s32 arg0);
+extern void func_80001170(u8 arg0);
 extern void func_80048518(s32 arg0);
 extern u8 menu_mode_get(void);
 extern void level_goto(s32 arg0, s32 level, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
@@ -117,8 +117,8 @@ extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
-extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **verts, M075Billboard *board, s32 sprite, s32 flags,
-                          s32 alpha);
+extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **verts, M075Billboard *board, s32 sprite,
+                                        s32 flags, u8 alpha);
 extern void viewport_apply(Gfx **dl, Mtx **mtx);
 extern void func_80055B80(Gfx **dl);
 

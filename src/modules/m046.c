@@ -76,7 +76,7 @@ extern s16 D_80104702; /* ... at the end */
 extern s16 D_80104704; /* ... now */
 extern s32 D_800A0D84;
 
-extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 arg5); /* projects to the screen */
+extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, u8 arg5); /* projects to the screen */
 extern void menu_fill_boxes(Gfx **dl, s32 count, M046Rect *rects, s32 arg3);         /* fills rectangles */
 extern void func_80054EA0(s32 *width, s32 *height, Gfx **dl);
 extern void func_80055B80(Gfx **dl);

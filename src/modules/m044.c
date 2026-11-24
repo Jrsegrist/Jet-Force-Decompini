@@ -45,9 +45,9 @@ typedef struct M044Camera {
 
 extern void func_80000F60();                                                   /* stops the jingle */
 extern void sound_stop(s32 soundHandle);                                    /* DKR sndp_stop */
-extern void func_8000134C(u16 soundBite, u8 volume, u8 pan, f32 pitch, s32 flags, s32 *handlePtr);
-extern s32 sound_volume_half();                                                    /* the volume parameter of a volume */
-extern void func_80086388(s32 soundHandle, s32 event, s32 value);             /* DKR sndp_set_param */
+extern void func_8000134C(u16 soundBite, u8 volume, u8 pan, f32 pitch, u8 flags, s32 *handlePtr);
+extern s32 sound_volume_half(s32 volume); /* the volume parameter of a volume */
+extern void func_80086388(s32 soundHandle, s16 event, u32 value);             /* DKR sndp_set_param */
 extern void func_80085E94(s32 soundHandle, u8 priority);                       /* DKR sndp_set_priority */
 extern f32 func_80097140(f32 x);                                               /* sqrtf */
 

@@ -576,10 +576,10 @@ extern s8 D_800A5028;  /* the race's time limit, in minutes (0: none) */
 extern s16 D_800A4FB8;
 extern u8 D_800A4FBC;
 extern void func_80001170(u8 sound);
-extern void music_volume_fade_scaled(f32 volume, s32 arg1);
-extern void music_volume_fade(f32 volume, s32 arg1);
-extern void func_80000510(s32 song);
-extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern void music_volume_fade_scaled(f32 volume, u8 arg1);
+extern void music_volume_fade(f32 volume, u8 arg1);
+extern void func_80000510(u8 song);
+extern u16 func_80043510(s32 player); /* the buttons pressed */
 extern void mark_write_eeprom_settings(void);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void func_800468C0(s32 arg0);
@@ -1087,7 +1087,7 @@ void func_m031_0242C(s32 n, s32 step) {
 
 extern void menu_fill_box(s32 dl, s32 x1, s32 y1, s32 x2, s32 y2, s32 arg5);
 extern void func_8006FC54(s32 font);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern char *rl_m031_04088[]; /* "1st" .. "4th" */
 
 /*
@@ -1217,9 +1217,9 @@ static void func_m031_029FC(s32 arg0, Object *obj) {
 
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC54(s32 font);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void func_80054EA0(s32 *width, s32 *height); /* the frame buffer size */
-extern void func_8006F550(s32 dl, s32 image, s32 width, s32 height, s32 x, s32 y, s32 w, s32 h, u32 colour);
+extern void func_8006F550(s32 dl, s32 image, s32 width, s32 height, s32 x, s32 y, s32 w, s32 h, s32 colour);
 extern void func_8004EDBC(s32 dl, void *rects, s32 x, s32 y, u8 r, u8 g, u8 b, u8 a);
 extern void func_8004F02C(s32 dl, void *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour, s32 flags);
 extern s32 fb_mode(void);

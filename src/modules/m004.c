@@ -85,14 +85,14 @@ extern u8 rl_m004_01660[];
 extern s8 rl_m004_01728;             /* the number of copies waiting */
 extern M004Copy *rl_m004_01880[];     /* the copies waiting */
 static void shadow_texture_blur(M004Copy *copy);
-extern void func_8004DA10(void *arg0, void *arg1, s32 arg2, void *arg3); /* starts a task */
+extern s32 func_8004DA10(void *arg0, void *arg1, s32 arg2, void *arg3); /* starts a task */
 extern s32 func_80096910(OSMesgQueue *mq, OSMesg *msg, s32 flag);
 extern OSMesgQueue D_800FE8A8;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 extern void free_3d_model(void *model);
-extern void model_batches_build_dlist(void *arg0, void *model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
+extern s32 model_batches_build_dlist(void *arg0, void *model, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6);
 
 /* Sets up an object's shadow copy; returns FALSE when it cannot be made */
 s32 func_m004_00000(Object *obj) {

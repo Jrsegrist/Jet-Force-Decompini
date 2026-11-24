@@ -96,8 +96,6 @@ void func_m028_0031C(Object *obj, s32 arg1);
 
 extern s32 rl_m028_01BD4; /* the beam's sound */
 
-extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
-                          f32 arg8, f32 arg9, f32 arg10, s32 arg11);
 extern void light_colour_cycle_set(s32 handle, s32 arg1);
 extern void func_800212D0(s32 handle);
 extern u8 rl_m028_01BB0[]; /* .data (still assembly) */
@@ -540,7 +538,7 @@ typedef struct M028Camera {
 } M028Camera;
 
 extern s32 level_id(void);
-extern s32 camera_count_get(void);       /* the number of cameras */
+extern u8 camera_count_get(void);       /* the number of cameras */
 extern M028Camera *func_80041E0C(void); /* the cameras */
 extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
 

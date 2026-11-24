@@ -115,22 +115,22 @@ extern void *func_8008A624(u8 *file, s32 line, void *hp, s32 num, s32 size); /* 
 extern void func_8008A490(void *seqp, void *mq);
 extern void func_80086640(void *seqp, M025SeqpConfig *config);              /* DKR alCSPNew */
 extern void func_8008B610(void *evtq, M025Event *evt, s32 delta);           /* alEvtqPostEvent */
-extern s32 *func_8004D37C(s32 asset);                                        /* DKR asset_table_load */
-extern s32 func_8004D530(s32 asset, void *dst, s32 offset, s32 size);        /* DKR asset_load (returns a value) */
-extern s32 func_8004D5B0(s32 asset, s32 offset);                             /* DKR asset_rom_offset */
-extern void *func_8004A57C(s32 size, s32 colour);                            /* DKR mempool_alloc_safe */
+extern s32 *func_8004D37C(u32 asset);                                        /* DKR asset_table_load */
+extern s32 func_8004D530(u32 asset, void *dst, s32 offset, s32 size);        /* DKR asset_load (returns a value) */
+extern s32 func_8004D5B0(u32 asset, u32 offset);                             /* DKR asset_rom_offset */
+extern void *func_8004A57C(s32 size, u32 colour);                            /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);                                       /* DKR mempool_free */
 extern void amCreateAudioMgr(M025SynConfig *c, s32 pri, void *sched);           /* DKR amCreateAudioMgr */
 extern void func_80084200(M025SndpConfig *config);                           /* DKR sndp_init_player */
 extern void func_80001EA0(void);                                             /* DKR audioStartThread */
 extern void func_80000450(s32 behaviour);                                    /* DKR sound_volume_change */
 extern void osc_states_init(void);
-extern void func_8008B2A0(s32 arg0);
+extern void func_8008B2A0(u8 arg0);
 extern void func_8008B374(s32 arg0, s32 arg1);
 extern void func_80096BB0(void *mq, void *msg, s32 count); /* osCreateMesgQueue */
-extern void func_80003E40(void);
-extern void osc_update(void);
-extern void osc_state_free(void);
+extern s32 func_80003E40(void *oscState, void *initVal, u8 oscType, u8 oscRate, u8 oscDepth, u8 oscDelay);
+extern s32 osc_update(void *oscState, void *updateVal);
+extern void osc_state_free(void *node);
 
 extern void *D_800A0660; /* DKR gMusicPlayer */
 extern void *D_800A0664; /* DKR gJinglePlayer */

@@ -62,8 +62,8 @@ typedef struct M020Object {
     M020Vars unk88;
 } M020Object;
 
-extern void obj_collision_spheres_init(M020Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
-extern void func_80003410(s32, f32, f32, f32, s32, s32 *);
+extern void obj_collision_spheres_init(M020Object *, s32, s32, s32, s16, s16, s16, f32, f32, f32, f32, u16);
+extern void func_80003410(u16, f32, f32, f32, u8, s32 *);
 extern s32 func_80048E2C(s32, s32);
 extern void func_8005F5AC(M020Object *, s32);
 extern s32 obj_dist_racer(f32, f32, f32, f32, s32, void *);

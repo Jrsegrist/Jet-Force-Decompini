@@ -51,10 +51,10 @@ extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
 extern void menu_assetgroup_free(s16 *assets); /* frees them */
 extern void mempool_free_queue_flush(void);
 extern void runlink_slots_unload_all(void);
-extern void load_texture_at(s32 arg0, s32 arg1);
+extern void *load_texture_at(s32 arg0, s32 arg1);
 extern void func_8004AA80(void *data); /* frees */
 extern void tex_restore_list_free(void);
-extern void func_80004C64(s32 arg0);
+extern void func_80004C64(u8 arg0);
 
 static s16 sFrameVertices[][3] = {
     { -44, 0, 4 },  { -44, 8, 4 },  { -40, 0, 4 },  { -40, 12, 4 },  { -32, 0, 4 },  { -32, 12, 4 }, { 0, 0, 4 },
@@ -189,7 +189,7 @@ extern void func_800468C0(s32 arg0);
 extern void load_first_unlocked_level(); /* (the ROM passes nothing) */
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
 extern void set_game_paused(s32 paused);
-extern void music_volume_fade_scaled(f32 rate, s32 volume);
+extern void music_volume_fade_scaled(f32 rate, u8 volume);
 extern s32 runlink_module_loaded(s32 module);
 void func_m012_008A8(void);
 
@@ -368,7 +368,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m012/ro", func_m012_00164);
 #endif
 
 extern LevelModelTextures *func_8001B650(void); /* the level model */
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern s32 tex_find_id(void *texture);
 extern void func_80055A00(void *texture);        /* frees a texture */
 extern void model_cache_textures_release(s16 *keep);
@@ -548,7 +548,7 @@ void func_m012_00A64(void) {
 }
 
 extern s32 fb_mode(void);
-extern s32 func_800446CC(void);
+extern u8 func_800446CC(void);
 extern s32 func_8003FBCC(void);
 extern s32 options_split_vertical_get(void);
 
@@ -621,7 +621,7 @@ static void func_m012_01018(void) {
 
 #ifdef NON_MATCHING
 extern s32 fb_mode(void);
-extern s32 func_800446CC(void);
+extern u8 func_800446CC(void);
 extern s32 func_8003FBCC(void);
 extern s32 options_split_vertical_get(void);
 extern void func_80041CA0(Gfx **dl, Mtx **mtx, ObjectTransform *trans, f32 scale, f32 arg4);

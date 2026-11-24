@@ -70,18 +70,18 @@ typedef struct M073State {
     /* 0x0 */ u32 soundHandle;
 } M073State;
 
-extern M073Flare *effect_mesh_create(s32 x, s32 y, s32 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
-                                 s32 arg9);
+extern M073Flare *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
+                                     s32 arg9);
 extern s32 func_8004966C(s16 angle);
 extern void effect_mesh_set_uvs(M073Flare *flare, s16 angle);
-extern void effect_mesh_update(M073Flare *flare, s16 size, u8 alpha);
+extern void effect_mesh_update(M073Flare *flare, s16 size, s32 alpha);
 extern void func_80026FD4(Object *obj, s32 updateRate);
 extern void effect_texture_pair_free(M073Flare *flare);
 extern void func_80003614(s32 handle); /* stops a positioned sound */
 extern void func_800496B0(s32 arg0, Object *obj, Vec3f *in, Vec3f *out);
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* distance from the camera */
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
-extern void func_80069BE8(Gfx **dl, M073Flare *flare, s32 arg2, s32 alpha);
+extern void func_80069BE8(Gfx **dl, M073Flare *flare, s32 arg2, u8 alpha);
 
 static M073GlowDef D_m073_00760[2] = {
     { 0, 0, 0x11, 0x12, 0, 0, 750, 35.0f },

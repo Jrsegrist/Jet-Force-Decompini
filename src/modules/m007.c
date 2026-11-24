@@ -17,17 +17,17 @@ static void hint_page_choose(void);
 static void *func_m007_00988(s32 id, s32 kind);
 static void *func_m007_00C90(s32 id, s32 asset);
 static void *func_m007_00B00(s32 id, s32 asset);
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern void func_8004D530(s32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
+extern s32 func_8004D530(u32 asset, void *dest, s32 offset, s32 size); /* DKR load_asset_to_address */
 extern u8 rl_m007_02A04[]; /* the texts of pages without one */
 extern u8 rl_m007_02A14[];
 static int hint_page_condition_holds(s32 condition);
-extern s32 func_80000F98(void); /* the music playing */
+extern u8 func_80000F98(void); /* the music playing */
 extern void func_8004AA80(void *data); /* frees */
-extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern u16 func_80043510(s32 player); /* the buttons pressed */
 extern s32 func_80043558(s32 player); /* the stick's x */
 extern s32 func_800435C8(s32 player); /* the stick's y */
-extern void *func_8004D37C(s32 asset);
+extern void *func_8004D37C(u32 asset);
 extern s32 func_8005A7D0(void);
 
 /* A hint's entry: shown when its condition holds */
@@ -128,6 +128,7 @@ void func_m007_00000(void);
 void func_m007_02824(void);
 static void hint_pad_read(s32 updateRate);
 static void hint_scroll_controls(s32 updateRate);
+/* 707F0.c's font_line_height returns u8; declared s32 because the ROM's callers don't treat it as a byte */
 extern s32 font_line_height(s32 font); /* a font's line height */
 extern s32 runlink_module_loaded(s32 module);
 extern void func_m032_02540(void);
@@ -158,8 +159,8 @@ extern s8 rl_m007_02960[];
 /* The module's .rodata (still assembly): the "more" marks */
 extern void text_colour_mode_set(s32 arg0);
 extern void player_start_override_set(s16 x, s16 y, s16 z, s16 angle);
-extern s32 pending_level_character(void);
-extern s32 menu_mode_get(void);
+extern s16 pending_level_character(void);
+extern u8 menu_mode_get(void);
 extern void level_goto(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
 extern Object *func_80005F14(void *entry, s32 arg1);
 
@@ -321,13 +322,13 @@ typedef struct M007WeaponInfo {
 
 extern M007Items *char_record_lookup(s32 player, s32 character);
 extern s32 character_has_item(s32 player, s32 character, s32 item);
-extern s32 player_chars_have_item(s32 item);
+extern int player_chars_have_item(s32 item);
 extern void character_item_give(s32 player, s32 character, s32 item);
 extern void character_item_take(s32 player, s32 character, s32 item);
 extern M007WeaponInfo *weapon_info_get(s32 weapon);
 extern void func_80047EFC(s32 flag, s32 value); /* sets a game flag */
 extern void func_80000F2C(void);                /* stops the music */
-extern void func_80000510(s32 song);            /* plays a song */
+extern void func_80000510(u8 song);            /* plays a song */
 
 /* Whether hint condition `condition` holds (with no player, every one does) (module m007, 0x00390). */
 static s32 hint_condition_holds(s32 condition) {

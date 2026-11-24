@@ -45,20 +45,20 @@ typedef struct M055Logo {
     }
 
 extern Gfx *D_800FF398; /* the display list being built */
-extern s32 screenimage_load(s32 image);              /* loads a full-screen image */
+extern u32 screenimage_load(s32 image);              /* loads a full-screen image */
 extern void func_80058204(Gfx **dl, s32 image, s32 arg2); /* draws it */
 extern M057Texture *func_80055694(s32 id);         /* loads a texture */
 extern void func_80055A00(M057Texture *tex);       /* frees it */
 extern void func_8004AA80(s32 data);               /* frees */
 extern void func_80055B80(Gfx **dl);
-extern void func_80000510();
-extern void func_80000FE4(s32 arg0);
+extern void func_80000510(u8 seqID);
+extern void func_80000FE4(u8 arg0);
 extern void load_first_unlocked_level();
 extern void func_8006FC54(s32 font);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
-extern s32 display_setting_remembered(void);
+extern u8 display_setting_remembered(void);
 extern void display_setting_store(s32 arg0);
 extern M055Logo *func_m055_00000(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
 extern void func_m055_0022C(M055Logo *logo);

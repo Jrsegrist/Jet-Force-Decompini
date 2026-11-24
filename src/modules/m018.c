@@ -183,8 +183,8 @@ extern void func_8005A0D0(s32 item);                     /* draws a menu item */
 extern void func_8006FC54(s32 font);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
-extern s32 func_80043510(s32 player);               /* the buttons pressed */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern u16 func_80043510(s32 player);               /* the buttons pressed */
 extern void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate);
 extern void func_m019_001B0(s32 screen);
 extern s32 D_m019_013D8;
@@ -670,12 +670,13 @@ typedef struct M018Sprite {
 extern Vertex *D_800FF3A0;
 extern s32 D_800A51CC; /* the text opacity */
 extern s8 D_800FF3D8[]; /* the stick moves this frame, per player */
-extern s32 func_800434E4(s32 player); /* the buttons held */
+extern u16 func_800434E4(s32 player); /* the buttons held */
 extern s32 func_80048E2C(s32 min, s32 max); /* a random number */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80056000(s32 arg0);
-extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprite *sprite, void *tex, s32 arg5, s32 alpha);
+extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprite *sprite, void *tex, s32 arg5,
+                                        u8 alpha);
 void func_m018_00AEC(void);
 #ifdef NON_MATCHING
 static void func_m018_040A8(f32 rate, s32 item);
@@ -938,7 +939,7 @@ typedef struct M018Pair {
 } M018Pair;
 
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
-extern void dir_light_setup(void *light, s32 a, s32 b, s32 c, s32 d, s32 e);
+extern void dir_light_setup(void *light, s32 a, s32 b, s16 c, s16 d, s32 e);
 extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 
 extern s32 rl_m018_06680;
@@ -1697,7 +1698,7 @@ typedef struct M018Rect {
     /* 0x8 */ u32 colour;
 } M018Rect;
 
-extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 arg5); /* projects a point */
+extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, u8 arg5); /* projects a point */
 extern void menu_fill_boxes(Gfx **dl, s32 count, M018Rect *rects, s32 arg3);      /* draws rectangles */
 
 
@@ -1852,10 +1853,11 @@ extern Triangle rl_m018_06A30[];
 /*
  * The screen of the player's character's things, two pages (the stick turns the page): its items
  * (from the table at rl_m018_06938) and counts, or its keys and the game's flags.
- * NON_MATCHING: 667/663 words, ROM frame, 47 aligned diffs: the page-1 loop counter i stays in v0 and is
- * saved around the call (the ROM gives it s2), the constant 1 takes s4 (ROM s5), id and width swap s2/s3,
- * and the item-count call results go two temp words lower. (`if (settings) {}` keeps settings on the stack,
- * as in the ROM.)
+ * NON_MATCHING: ROM length and frame (663 words), 40 aligned diffs: character, the table pointer and the
+ * constant 1 take s4/s5/s6 where the ROM has s6/s4/s5, id and width swap s2/s3, and the item-count call results
+ * go two temp words lower. The page-1 loop counts in `character` (dead by then; a permuter lead): with its own
+ * counter i (as the ROM, which keeps it in s2 apart from character in s6) it is 667 words, 47 diffs, i in v0
+ * saved around the call. `pad` keeps the frame. (`if (settings) {}` keeps settings on the stack, as in the ROM.)
  */
 void func_m018_05C0C(s32 updateRate) {
     s8 *state;
@@ -1863,7 +1865,7 @@ void func_m018_05C0C(s32 updateRate) {
     Object *obj;
     s16 *e;
     M018Pos *pos;
-    s32 i;
+    UNUSED s32 pad;
     char buf[100];
     M018Character *record;
     u8 *p;
@@ -1984,7 +1986,7 @@ void func_m018_05C0C(s32 updateRate) {
                 D_800FF780[50].unkC = -100.0f;
                 D_800FF780[50].unk10 = -6.0f;
                 p = settings;
-                for (i = 0; i < 5; i++) {
+                for (character = 0; character < 5; character++) {
                     if (p[0x28]) {
                         obj->modelIndex = rl_m018_069D0[p[0x28]];
                         func_8005A0D0(0x32);

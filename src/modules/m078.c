@@ -19,7 +19,7 @@ typedef struct M078Object {
     s32 unk88;
 } M078Object;
 
-extern void func_8005EDA4(s32, s32, s32, s32, s32, s32);
+extern void func_8005EDA4(s32, s32, s32, s16, s16, s16);
 extern s32 func_80048E2C(s32, s32);
 extern void func_8005F5AC(M078Object *, s32);
 

@@ -204,13 +204,13 @@ extern M037MenuItem D_800FF780[];
 
 extern s32 options_screen_mode_get(void);
 extern void display_setting_store(s32 arg0);
-extern s32 options_screen_offset_get(void);
+extern s8 options_screen_offset_get(void);
 extern void options_screen_offset_set(s32 arg0);
-extern s32 sound_output_option(void);
+extern u8 sound_output_option(void);
 extern void sound_output_option_store(s32 arg0);
-extern s32 effects_loudness_option(void);
+extern u16 effects_loudness_option(void);
 extern void effects_loudness_option_store(s32 arg0);
-extern s32 options_music_volume_get(void);
+extern u16 options_music_volume_get(void);
 extern void options_music_volume_set(s32 arg0);
 extern s32 options_split_vertical_get(void);
 extern void options_split_vertical_set(s32 arg0);

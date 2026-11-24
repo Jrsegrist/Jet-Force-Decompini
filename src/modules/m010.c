@@ -36,7 +36,7 @@ typedef struct M010Spark {
 } M010Spark;
 
 extern u8 D_800A4FC4; /* a multiplayer game */
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
 extern u8 *func_80055694(s32 id);                 /* DKR load_texture */
 extern void func_80055A00(void *tex);             /* DKR tex_free */

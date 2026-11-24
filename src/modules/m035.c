@@ -95,9 +95,9 @@ extern s8 D_8010410C;
 extern s8 D_8010410D;
 
 extern void func_80054EA0(s32 *width, s32 *height);
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
-extern M035Font *func_8004D37C(s32 asset);
-extern void func_8004D530(s32 asset, void *dst, s32 offset, s32 size);
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
+extern M035Font *func_8004D37C(u32 asset);
+extern s32 func_8004D530(u32 asset, void *dst, s32 offset, s32 size);
 extern void fontCreateDisplayList(void *);
 
 /* Resets the 8 text windows and 32 text entries, allocates the glyph buffers and loads the four fonts */

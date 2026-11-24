@@ -209,8 +209,8 @@ extern void func_m006_015E0(s32);
 extern void player_drop_held_object(Object *obj);
 extern void player_items_unlink(M051Player *p);
 extern s32 weapon_select(Object *obj, M051Player *p, s32 weapon);
-extern void weapon_advance_owned();
-extern void weapon_select_prev();
+extern void weapon_advance_owned(void *obj, void *racer);
+extern void weapon_select_prev(void *obj, void *racer);
 extern void func_m107_00D08(void *, f32, f32, s32);
 extern void func_8003D21C(M051ModelInstance *, M051ModelData *, Object *, f32, f32);
 extern s32 func_8000BC28(Object *, M051ModelInstance *, M051ModelData *, s32, u8 *, f32 *, f32 *, f32 *);
@@ -218,10 +218,12 @@ extern void func_800221F0(Object *, M051ModelInstance *, ObjectShading *, void *
 extern void obj_tex_animate(Object *, M051ModelData *, M051ModelInstance *, s32);
 extern s32 func_80037550(Object *obj, M051Player *p, f32 updateRate);
 extern s32 func_80033F4C(s32 weapon);
-extern void anim_phase_clamp(Object *obj, f32 arg1);
+extern s32 anim_phase_clamp(Object *obj, f32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
-extern void player_voice_play(Object *obj, s32 arg1);
-extern s32 player_stick_aim_update(Object *obj, M051Player *p, s32, s32, s32, s32, s16 *, s16 *, f32);
+extern void player_voice_play(Object *obj, u8 arg1);
+extern s32 player_stick_aim_update(Object *obj, M051Player *p, s16, s16, s32, s32, s16 *, s16 *, f32);
+/* 40240.c takes (s32, f32 zoom): the ROM passes the zoom field's bits in a1 as an int (lw, no FPR), so this
+ * declaration keeps s32 (not portable: a float is passed as an int) */
 extern void cam_fov_zoom_set(s32 player, s32 arg1);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern s32 func_8004966C(s16 angle);

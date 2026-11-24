@@ -60,7 +60,7 @@ typedef struct M077Part {
 } M077Part;
 
 extern M077Env *func_8004470C(void);
-extern s32 pending_level_character(void);
+extern s16 pending_level_character(void);
 extern M077Stats *char_record_lookup(s32 player, s32 arg1);
 extern f32 func_80049BEC(f32 base, s32 exponent);
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 arg3, f32 arg4);

@@ -61,7 +61,7 @@ extern M041MenuItem D_800FF780[];
 
 extern s32 fb_mode(void);
 extern s32 func_80048E2C(s32 min, s32 max);                     /* DKR get_random_number */
-extern void func_80001248(s32 sound, s32 *handle);               /* DKR amSndPlay */
+extern void func_80001248(u16 sound, s32 *handle);               /* DKR amSndPlay */
 extern void func_8003D21C(M041Instance *inst, void *model, Object *obj, f32 arg3, f32 arg4);
 extern void func_800221F0(Object *obj, M041Instance *inst, ObjectShading *shading, void *matrix);
 extern void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset);
@@ -71,8 +71,8 @@ extern void object_uv_offsets_update(Object *obj, s32 updateRate);
 extern Object *func_m135_0205C(void);
 extern void func_m058_00618(s32 updateRate);
 extern void sound_stop(s32 handle);
-extern void func_800013FC(s32 sound, s32 handle, u8 volume);
-extern void zbuffer_clear_rect(Gfx **dList, s32 width, s32 height, s32 x0, s32 y0, s32 x1, s32 y1);
+extern void func_800013FC(u16 sound, s32 handle, u8 volume);
+extern void zbuffer_clear_rect(Gfx **dList, u32 width, u32 height, s32 x0, s32 y0, s32 x1, s32 y1);
 extern void func_80040E64(Gfx **dList, Mtx **mtx);
 extern s32 check_fadeout_transition(void);
 extern void s32_to_decimal_string(char *buf, s32 value, s32 arg2); /* writes a number */

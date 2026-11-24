@@ -35,7 +35,7 @@ extern s8 D_800FF310;
 extern s32 D_800FECC0; /* the TV refresh rate */
 extern char rl_m006_01AC0[]; /* the module's .rodata (still assembly) */
 
-extern void *mempool_alloc_safe(s32 size, s32 colour);
+extern void *mempool_alloc_safe(s32 size, u32 colour);
 extern void mempool_free(void *data);
 extern s32 normalise_time(s32 time);
 extern s32 fb_mode(void);

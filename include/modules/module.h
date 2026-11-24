@@ -32,14 +32,14 @@ extern void obj_spawn_particle(Object *obj, s32 updateRate); /* DKR */
 /* advances the object's animation */
 extern s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 updateRate);
 /* sets the object's animation and its position in it */
-extern void obj_anim_set(Object *obj, s32 anim, f32 frame);
+extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 /* sets the object's hit box / collision */
-extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s32 arg6, f32 arg7,
-                          f32 arg8, f32 arg9, f32 arg10, s32 arg11);
+extern void obj_collision_spheres_init(Object *obj, s32 arg1, s32 arg2, s32 arg3, s16 arg4, s16 arg5, s16 arg6, f32 arg7,
+                                       f32 arg8, f32 arg9, f32 arg10, u16 arg11);
 
 /* Collision: sweeps a sphere from `from` to `to`, and finds what it hits (returns 1 or 0) */
 extern s32 func_8001CE10(s32 arg0, Vec3f *from, Vec3f *to, f32 *radius, s32 arg4, s32 arg5, s32 arg6);
-extern s32 func_80016208(void *obj, Vec3f *from, Vec3f *to, f32 radius, s32 arg4, void *hit);
+extern s32 func_80016208(void *obj, Vec3f *from, Vec3f *to, f32 radius, u16 arg4, void *hit);
 
 /* the player's object; callers pass one or two arguments (no prototype) */
 extern Object *func_8000E4D0();
@@ -126,7 +126,7 @@ extern f32 func_80049C34(s32 angle); /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle); /* cosine of a 16-bit angle */
 
 /* Sound (DKR audio_spatial.c) */
-extern void func_80003410(u16 soundId, f32 x, f32 y, f32 z, s32 arg4, s32 *soundMask); /* DKR play_sound_at_position */
+extern void func_80003410(u16 soundId, f32 x, f32 y, f32 z, u8 arg4, s32 *soundMask); /* DKR play_sound_at_position */
 extern void func_80001248(s32 sound, s32 arg1); /* DKR amSndPlay */
 
 /*
