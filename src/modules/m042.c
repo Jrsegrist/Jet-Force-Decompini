@@ -63,7 +63,7 @@ extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
 extern void menu_assetgroup_reset(s16 *assets);
 extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 extern void mark_read_all_save_files(void *buf);
-extern void music_play(s32 seq);
+extern void music_play(u8 seq);
 extern void func_m038_00000();
 extern void set_text_font(s32 font);
 extern void set_text_colour(s32 red, s32 green, s32 blue, s32 alpha, s32 opacity);
@@ -76,7 +76,7 @@ extern void cam_fov_scale_set(f32 x, f32 y);
 extern void mtx_perspective(Gfx **dList, Mtx **mtx);
 extern void func_8005A0D0(s32 item); /* draws a menu item */
 extern void func_8003D21C(M042Instance *inst, void *model, Object *obj, f32 arg3, f32 arg4);
-extern s32 input_pressed(s32 player); /* the buttons pressed */
+extern u16 input_pressed(s32 player); /* the buttons pressed */
 extern void load_first_unlocked_level(void);
 extern s32 settings_flag_get(M042Save *save, s32 flag);
 extern M042Save *get_settings(void);

@@ -76,16 +76,16 @@ typedef struct M064Header {
     /* 0xAC */ s32 *glow;
 } M064Header;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern M064Light *func_800210A4(Object *obj, LightParams *params); /* DKR light_add_from_object_header */
-extern void light_intensity_set(M064Light *light, s32 intensity);
+extern void light_intensity_set(M064Light *light, u8 intensity);
 /* rotates count vectors by rot */
 extern void func_800496B0(s32 count, Vec3s *rot, void *in, void *out);
 extern void mtx_pop(Gfx **dl);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
-extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
 extern void draw_tint_pair_off(void);
-extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite, s32 arg5, s32 alpha);
+extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M064Beam *beam, s32 sprite, s32 arg5, u8 alpha);
 
 /* The trail's strip: eighteen vertices, sixteen triangles */
 static Triangle sTrailTris[16] = {

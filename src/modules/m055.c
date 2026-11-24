@@ -39,7 +39,7 @@ extern M055MovieDef *D_80104E50; /* the movie definitions */
 extern M055Player D_80104E58[3];
 extern void *func_8004A57C(s32 size, u32 colour);                     /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);                                /* DKR mempool_free */
-extern s32 func_8004D530(s32 asset, void *dst, s32 offset, s32 size); /* DKR asset_load */
+extern s32 func_8004D530(u32 asset, void *dst, s32 offset, s32 size); /* DKR asset_load */
 extern void func_80054F90(void);
 extern void func_80055B80(Gfx **gfx); /* resets the render settings */
 

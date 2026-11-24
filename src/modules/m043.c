@@ -33,7 +33,7 @@ typedef struct M043PlayerData {
 
 extern s32 character_has_item(s32 player, s32 arg1, s32 id);
 extern s32 character_has_weapon(s32 player, s32 arg1, s32 id);
-extern s32 player_chars_have_item(s32 id);
+extern int player_chars_have_item(s32 id);
 extern void character_item_give(s32 player, s32 arg1, s32 id);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern void func_80001170(u8 sound);

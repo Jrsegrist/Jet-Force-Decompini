@@ -2,11 +2,7 @@
  * Runlink module 67: an enemy and its missiles (still mostly assembly).
  * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
-/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
-#define obj_anim_set func_8001149C_void
 #include "module.h"
-#undef obj_anim_set
-extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 #include "gfx.h"
 
 /* A missile's state (obj->unk68), as far as used here */
@@ -122,8 +118,8 @@ typedef struct M067HitShape {
     /* 0x24 */ f32 radius;
 } M067HitShape;
 
-extern void spawn_object_from_list(s32 kind, s16 x, s16 y, s16 z, s32 arg4, s32 arg5); /* a burst */
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+extern void spawn_object_from_list(s16 kind, s16 x, s16 y, s16 z, s32 arg4, s32 arg5); /* a burst */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 
 /* The level's fog */
 extern void func_8001BC2C(s32 arg0, s16 *fogNear, s16 *fogFar, s16 *arg3, u8 *r, u8 *g, u8 *b, u8 *arg7);
@@ -138,7 +134,7 @@ extern void cam_shake_start(s32 arg0, f32 arg1, f32 arg2, f32 arg3, s32 strength
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 
 extern void func_80041CA0(Gfx **dl, s32 arg1, Object *obj, f32 scale, f32 arg4);
-extern void func_80069BE8(Gfx **dl, void *flame, s32 arg2, s32 alpha);
+extern void func_80069BE8(Gfx **dl, void *flame, s32 arg2, u8 alpha);
 extern void mtx_pop(Gfx **dl);
 extern void effect_texture_pair_free(void *flame);
 
@@ -495,7 +491,8 @@ typedef struct M067Model {
     /* 0x30 */ u16 *flameVertex; /* the vertex the flame comes from */
 } M067Model;
 
-extern void *effect_mesh_create(s16 x, s16 y, s16 z, s32 arg3, s32 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8, s32 arg9);
+extern void *effect_mesh_create(s16 x, s16 y, s16 z, s16 arg3, s16 arg4, f32 arg5, f32 arg6, s32 arg7, s32 arg8,
+                                s32 arg9);
 
 void func_m067_02E38(Object *obj, M067MissileSetup *setup) {
     f32 k;
@@ -562,7 +559,7 @@ typedef struct M067TargetInteraction {
     /* 0x14 */ f32 z;
 } M067TargetInteraction;
 
-extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s32 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
 extern s32 func_8007C2E8(Object *obj, M067Query *query, s32 count, Object **objs, Object **hit, s32 arg5);
 extern f32 func_80097140(f32 x);                /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);         /* the angle of a direction */

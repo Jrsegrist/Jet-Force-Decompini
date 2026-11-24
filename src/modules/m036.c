@@ -35,15 +35,15 @@ extern void func_80052678(void);
 extern void debug_trace_init(void);
 extern void video_players_reset(void);
 extern void func_80096BB0(void *mq, void *msg, s32 count);                  /* osCreateMesgQueue */
-extern void osScAddClient(void *sched, void *client, void *mq, s32 id);      /* osScAddClient */
+extern void osScAddClient(void *sched, void *client, void *mq, u8 id);      /* osScAddClient */
 extern s32 func_8000E624(s32 arg0);
 extern void func_80097F70(u64 arg0, Gfx **dl); /* a 64-bit first argument (0 passed as two halves) */
 extern void func_80048E20(s32 arg0);
 extern void level_global_init(void);
 extern void game_settings_reset(void *arg0);
 extern void multiplayer_characters_reset(void);
-extern void *func_8004A57C(s32 size, s32 colour);                      /* DKR mempool_alloc_safe */
-extern void *func_8004A828(s32 size, void *address, s32 colour);       /* DKR mempool_alloc_fixed */
+extern void *func_8004A57C(s32 size, u32 colour);                      /* DKR mempool_alloc_safe */
+extern void *func_8004A828(s32 size, void *address, u32 colour);       /* DKR mempool_alloc_fixed */
 extern void func_8004AA80(void *data);                                 /* DKR mempool_free */
 extern s32 mempool_free_timer_get(void);
 extern void func_8004AA08(s32 state);

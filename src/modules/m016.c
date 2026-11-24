@@ -4,11 +4,7 @@
  * A sibling of module 15.
  * Family: weapons, i.e. character control (docs/runlink.md, "Module families").
  */
-/* obj_anim_set returns a value here (module.h declares it void): that keeps IDO off v0 after the call */
-#define obj_anim_set func_8001149C_void
 #include "module.h"
-#undef obj_anim_set
-extern s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 
 /* What racer->pose points at */
 typedef struct RacerPose {
@@ -358,6 +354,8 @@ extern s32 gPlayerInputLocked;
 extern s16 *D_800F6DC0;
 extern M016Char *char_record_lookup(s32 player, s32 character);
 extern void player_platform_ride(Object *obj, Racer *racer, f32 updateRate);
+/* 2BAA0.c's definitions type this (unused) argument s32, but the ROM passes the f32 update rate: the f32 here is
+ * what the ROM does (the same for 80035E14's and 800364D4's update rate and 800364D4's s16 angle) */
 extern void racer_angle_sync(Object *obj, Racer *racer, f32 updateRate);
 extern void player_squash_precheck(Object *obj, Racer *racer, s32 updateRate);
 extern void player_input_lock_set(s32 arg0);
@@ -369,8 +367,8 @@ extern f32 func_80097140(f32 x); /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);
 extern void func_80039FCC(Object *obj, Racer *racer, s32 a, s32 b, f32 c, f32 d, f32 e, s32 updateRate);
 extern void player_charge_meter_update(Racer *racer, s32 arg1, s32 updateRate);
-extern u32 track_height_at(f32 x, f32 z, f32 *height, u32 mask);
-extern void func_80000510(s32 arg0);
+extern s32 track_height_at(f32 x, f32 z, f32 *height, s32 mask);
+extern void func_80000510(u8 arg0);
 extern void chain_object_unlink_from_players(Object *obj);
 extern void player_drop_held_object(Object *obj);
 extern void player_items_unlink(Racer *racer);
@@ -407,30 +405,32 @@ extern f32 table_lerp_diff(f32 from, f32 to, void *table, f32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 amount);
 extern s32 func_8004966C(s16 angle);
 extern Object *func_80005F14(void *entry, s32 arg1); /* spawn_object */
-extern void func_800013FC(s32 sound, s32 handle, u8 volume);
+extern void func_800013FC(u16 sound, s32 handle, u8 volume);
 extern s32 collision_is_clear_above(f32 x, f32 y, f32 z, f32 arg3, f32 arg4);
-extern void player_turn_limit_update(Object *obj, Racer *racer, f32 *speed, s16 angle, s32 arg4, s32 arg5, f32 arg6,
+extern void player_turn_limit_update(Object *obj, Racer *racer, f32 *speed, s16 angle, s16 arg4, s16 arg5, f32 arg6,
                                      f32 arg7);
 extern void player_quick_turn(Object *obj, Racer *racer, f32 *speed, s16 *angle, s32 arg4, s32 arg5, void *arg6,
                               f32 arg7, f32 updateRate);
 extern f32 D_800F6DC4; /* gravity */
 extern u8 options_player_toggle_get(s32 player);
-extern s32 player_stick_aim_update(Object *obj, Racer *racer, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s16 *yaw, s16 *pitch,
-                         f32 updateRate);
+extern s32 player_stick_aim_update(Object *obj, Racer *racer, s16 arg2, s16 arg3, s32 arg4, s32 arg5, s16 *yaw,
+                                   s16 *pitch, f32 updateRate);
+/* 40240.c takes (s32, f32 zoom): the ROM passes the zoom field's bits in a1 as an int (lw, no FPR), so this
+ * declaration keeps s32 (not portable: a float is passed as an int) */
 extern void cam_fov_zoom_set(s32 player, s32 arg1);
 extern u8 D_800A4FD0;
 extern void func_80048518(s32 arg0);
 extern void player_restart_on_press(Object *obj, Racer *racer);
 extern s32 camera_follow_get(void);
 extern void *view_override_get(void);
-extern void player_voice_play(Object *obj, s32 arg1);
-extern void multiplayer_score_kill(Object *obj, Object *obj2);
+extern void player_voice_play(Object *obj, u8 arg1);
+extern s32 multiplayer_score_kill(Object *obj, Object *obj2);
 extern void glitch_effect_skip_redraw(void);
-extern void menu_draw_layout_box(s32 arg0, s32 player, u32 colour);
+extern void menu_draw_layout_box(s32 arg0, s32 player, s32 colour);
 extern void *func_m001_00188(f32 size, f32 x, f32 y, f32 z, f32 level, f32 vx, f32 vy, f32 vz);
 extern void func_m022_02F38(Object *obj, Racer *racer, s32 updateRate);
 extern void func_m129_00CF8(Object *obj, Racer *racer, s32 updateRate);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
 extern s32 func_80034BB0(Object *obj, Racer *racer, f32 updateRate);
 extern void anim_sound_events_play(Object *obj, f32 frame, f32 speed);
 

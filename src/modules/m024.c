@@ -131,16 +131,17 @@ extern s32 *rl_m024_01990; /* the level models table */
 extern void func_80055B34(s32 tag);  /* DKR set_texture_colour_tag */
 extern void func_800496AC(void);
 extern void check_reset_and_halt(void);
-extern s32 *func_8004D37C(s32 id); /* DKR asset_table_load */
-extern void func_8004D530(s32 id, s32 dst, s32 offset, s32 size); /* DKR asset_load */
-extern void func_80072548(u8 *src, u8 *dst); /* DKR gzip_inflate */
+extern s32 *func_8004D37C(u32 id); /* DKR asset_table_load */
+extern s32 func_8004D530(u32 id, u32 dst, s32 offset, s32 size); /* DKR asset_load */
+extern void *func_80072548(u8 *src, u8 *dst); /* DKR gzip_inflate */
 extern void func_8004AA80(void *data); /* DKR mempool_free */
 extern s32 func_8004AFE0(s32 address);
 extern s32 func_8004AFC4(s32 address);
 extern s32 func_m071_00000(void);
 extern s32 mempool_free_timer_get(void);
 extern void func_8004AA08(s32 timer); /* DKR mempool_free_timer */
-extern void func_8004A828(s32 size, void *address, s32 colour); /* DKR mempool_alloc_fixed */
+/* memory.c takes a u32 colour; s32 kept here because the ROM's code depends on it (the same for func_8004A57C) */
+extern void *func_8004A828(s32 size, void *address, s32 colour); /* DKR mempool_alloc_fixed */
 extern void track_segment_data_alloc(s32 arg0, s32 arg1);
 static void track_segment_grid_build(LevelModelSegment *segment, LevelModelSegmentBoundingBox *bbox, s32 arg2);
 #ifdef NON_MATCHING
@@ -161,10 +162,10 @@ extern void *D_800A0D68;
 extern s32 D_800A0D6C;
 extern s8 D_800A0CE0;
 
-extern void *func_8004A57C(u32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
 extern M024LevelHeader *func_8004470C(void);      /* DKR level_header */
 extern u8 camera_count_get(void);                    /* the number of cameras */
-extern void cam_set_layout(s32 layout);
+extern s32 cam_set_layout(s32 layout);
 extern void track_spawn_objects(s32 mapID, s32 index); /* DKR track_spawn_objects */
 extern void sequence_table_load(s32 arg0);
 extern void players_spawn(s32 arg0);

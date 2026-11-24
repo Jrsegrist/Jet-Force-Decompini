@@ -9,7 +9,7 @@ extern s32 *gMenuText; /* the settings, read here as words */
 extern void menu_assetgroup_load(s16 *assets); /* loads menu textures */
 extern void menu_assetgroup_reset(s16 *assets);
 extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
-extern void music_play(s32 seq);
+extern void music_play(u8 seq);
 
 #define SETTING(offset) (gMenuText[(offset) / 4])
 
@@ -259,8 +259,8 @@ extern s8 D_800A503C;
 extern s8 D_800A4FD4;
 extern M062Player D_800FED50[];
 extern void func_8006FCA8(Gfx **dl, s32 textX, s32 textY, char *text, s32 flags);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
-extern void music_volume_fade(f32 volume, s32 arg1);
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern void music_volume_fade(f32 volume, u8 arg1);
 extern void multiplayer_players_init(void);
 extern void func_800468C0(s32 arg0);
 extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);

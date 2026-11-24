@@ -79,7 +79,7 @@ extern Mtx *D_800FF39C;
 extern u8 D_800A4FC4;
 extern M013WeaponInfo gWeaponInfo[]; /* gWeaponInfo */
 
-extern s16 cam_get_active_camera_id(void);                    /* the active camera's number */
+extern s32 cam_get_active_camera_id(void);                    /* the active camera's number */
 extern void set_active_camera(s32 camera);             /* sets the active camera */
 extern ObjectTransform *cam_get_active_camera(void);
 extern M013Weapons *char_record_lookup(s32 player, s32 character);
@@ -89,11 +89,11 @@ extern void viewport_apply(Gfx **dList, Mtx **mtx);
 extern void rendermode_reset(Gfx **dList);
 extern void func_80055C00(Gfx **dList, void *tex, s32 arg2, s32 arg3);
 extern f32 get_distance_to_camera(f32 x, f32 y, f32 z); /* the distance to the camera */
-extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, s32 arg5); /* projects to the screen */
+extern s32 func_80041E58(f32 x, f32 y, f32 z, f32 *screenX, f32 *screenY, u8 arg5); /* projects to the screen */
 extern s32 weapon_ammo_capacity(M013Weapons *w, s32 weapon);                              /* the weapon's ammo capacity */
 extern void s32_to_decimal_string(char *buf, s32 value, s32 arg2);                          /* writes a number */
 extern void debug_text_add(s16 x, s16 y, char *text);                               /* draws a text */
-extern void screen_line_add_in_window(s16 x0, s16 y0, s16 x1, s16 y1, s32 colour, s32 window); /* draws a line */
+extern void screen_line_add_in_window(s16 x0, s16 y0, s16 x1, s16 y1, u8 colour, s32 window); /* draws a line */
 extern void mtx_cam_push(Gfx **dList, Mtx **mtx, ObjectTransform *trans, f32 scaleY, f32 offsetY);
 extern void func_80041DC0(Gfx **dList);
 

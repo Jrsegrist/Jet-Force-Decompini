@@ -86,9 +86,9 @@ typedef struct M030ModelInstance {
     /* 0x96 */ s16 maxZ;
 } M030ModelInstance;
 
-extern void *func_8004A60C(s32 size, s32 colour); /* allocates */
+extern void *func_8004A60C(s32 size, u32 colour); /* allocates */
 extern void func_8004AA80(void *data);            /* frees */
-extern void *func_8004A828(s32 size, void *address, s32 colour); /* allocates at an address */
+extern void *func_8004A828(s32 size, void *address, u32 colour); /* allocates at an address */
 extern u8 *func_8004AFE0(u8 *address);            /* aligns */
 extern s32 mempool_free_timer_get(s32 size);
 extern void func_8004AA08(s32 state);

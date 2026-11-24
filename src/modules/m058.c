@@ -137,8 +137,8 @@ extern s32 fb_mode(void);
 extern Object *func_m135_0205C(void);
 extern s32 game_flag_get(s32 flag);
 extern void func_m041_008B4(s32 arg0, s32 arg1, s32 updateRate);
-extern s32 func_80043510(s32 player); /* the buttons held */
-extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
+extern u16 func_80043510(s32 player); /* the buttons held */
+extern void music_volume_fade(f32 volume, u8 arg1); /* fades the music */
 extern void load_first_unlocked_level(void);
 extern s32 transition_begin(s16 *arg0);
 extern M058Settings *get_settings(void);
@@ -150,8 +150,8 @@ extern M058Level *func_8001B650(void);
 extern void set_active_camera(s32 camera); /* sets the active camera */
 extern ObjectTransform *func_80041DE0(void);
 extern void input_assign_players(void);
-extern s32 screenimage_load(s32 image); /* loads a full-screen image */
-extern void music_play(s32 seq);
+extern u32 screenimage_load(s32 image); /* loads a full-screen image */
+extern void music_play(u8 seq);
 extern void func_8004797C(void);
 extern void func_8004AA80(s32 data); /* frees */
 extern void char_record_reset(M058Player *p, s32 arg1);

@@ -48,11 +48,11 @@ extern Object *func_80041E0C(void); /* the camera object */
 extern void *D_800F6DC0;            /* the camera's transform */
 extern Object **func_80005E98(s32 *first, s32 *count);
 extern Object *func_80005F14(M029Entry *entry, s32 count); /* spawns an object from a level entry */
-extern s32 obj_id_is_special(s32 id);
+extern int obj_id_is_special(s32 id);
 extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***heights); /* floor heights at x, z */
 extern s32 func_80082D80(f32 x, f32 z, s32 arg2, f32 ***heights);
 extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
-extern void spawn_object_from_list(s32 index, s16 x, s16 y, s16 z, s32 arg4, Object *obj); /* spawn entry index at x, y, z */
+extern void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, Object *obj); /* spawn entry index at x, y, z */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 extern f32 sqrtf(f32);
 extern s32 func_80049C84(f32 x, f32 z); /* arctangent as a 16-bit angle */

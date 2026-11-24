@@ -85,7 +85,7 @@ typedef struct M049Model {
 
 #define SHADOW_DATA(obj) ((M049ShadowData *) (obj)->shadow)
 
-extern void *func_8004A60C(s32 size, s32 colour); /* allocates */
+extern void *func_8004A60C(s32 size, u32 colour); /* allocates */
 extern void func_8004AA80(void *data);            /* frees */
 
 /*

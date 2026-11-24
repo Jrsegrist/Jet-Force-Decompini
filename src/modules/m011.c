@@ -81,7 +81,7 @@ extern f32 func_80097140(f32 x);  /* sqrtf */
 extern s32 func_80049C84(f32 a, f32 b); /* the angle of (a, b) */
 extern void transform_offset_world_pos(M011Target *target, f32 *x, f32 *y, f32 *z);
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
 
 /* interpolates a curve through four values */

@@ -46,17 +46,17 @@ typedef struct M069Point {
 
 extern Object *func_80005F14(M069Entry *entry, s32 count); /* DKR spawn_object */
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
-extern void screen_line_add_in_window(s16 x0, s16 y0, s16 x1, s16 y1, s32 colour, s32 arg5); /* draws a line */
+extern void screen_line_add_in_window(s16 x0, s16 y0, s16 x1, s16 y1, u8 colour, s32 arg5); /* draws a line */
 extern void func_80055C00(Gfx **dList, void *tex, s32 flags, s32 texOffset);
 extern void func_8006FC54(s32 font);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
 extern void func_8006FC68(s32 r, s32 g, s32 b, s32 a, s32 opacity);
 extern void func_8006FCA8(Gfx **dl, s32 x, s32 y, char *text, s32 flags);
 extern void func_80054EA0(s32 *width, s32 *height); /* the frame buffer size */
-extern void func_8006F550(Gfx **dl, s32 image, s32 width, s32 height, s32 x, s32 y, s32 w, s32 h, u32 colour);
+extern void func_8006F550(Gfx **dl, s32 image, s32 width, s32 height, s32 x, s32 y, s32 w, s32 h, s32 colour);
 extern void func_8004F02C(Gfx **dl, void *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour, s32 flags);
 extern void menu_fill_box(Gfx **dl, s32 x, s32 y, s32 w, s32 h, s32 arg5);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 
 extern s32 D_800A4FDC;
 extern s32 gMenuTimer;
@@ -122,16 +122,16 @@ typedef struct M069Player {
 extern M069Player D_800FED50[4];
 extern M069Player *D_800FF1C0[4]; /* the players' results, best first */
 extern ObjectTransform *func_80041DE0(void); /* the camera */
-extern void cam_point_copy_to_camera(s32 arg0, ObjectTransform *cam);
+extern void *cam_point_copy_to_camera(s32 arg0, ObjectTransform *cam);
 extern void *func_80055694(s32 id); /* loads a texture */
 extern void func_80055A00(void *tex); /* frees it */
 extern void func_800496B0(s32 arg0, s16 *angles, f32 *in, f32 *out);
-extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s32 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
 extern s8 input_stick_x_raw(s32 player); /* the stick, x */
 extern s8 input_stick_y_raw(s32 player); /* the stick, y */
 extern u16 func_800434E4(s32 player); /* the buttons held */
-extern s32 func_80043510(s32 player); /* the buttons pressed */
-extern void music_volume_fade(f32 volume, s32 arg1);
+extern u16 func_80043510(s32 player); /* the buttons pressed */
+extern void music_volume_fade(f32 volume, u8 arg1);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
 static void func_m069_00A84(Object *obj, M069Score *score, s32 x, s32 y, s32 held, s32 pressed,
                             s32 updateRate);

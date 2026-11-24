@@ -9,7 +9,7 @@ typedef struct M079Object {
     f32 unk28;
 } M079Object;
 
-extern void obj_collision_spheres_init(M079Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
+extern void obj_collision_spheres_init(M079Object *, s32, s32, s32, s16, s16, s16, f32, f32, f32, f32, u16);
 
 /* Init: adds the object's collider */
 void func_m079_00000(M079Object *obj, s32 arg1, s32 arg2) {

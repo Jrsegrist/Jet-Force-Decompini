@@ -46,7 +46,7 @@ extern M061Stats *D_800FF1C0[]; /* the players, sorted */
 extern void menu_assetgroup_free(s16 *assets); /* frees menu textures */
 extern void func_m006_00EFC(void);
 extern void func_80055A00(s32 tex); /* frees a texture */
-extern void music_volume_fade(f32 volume, s32 arg1); /* fades the music */
+extern void music_volume_fade(f32 volume, u8 arg1); /* fades the music */
 
 /*
  * The module's .data is still assembly: it is reached from its first symbol
@@ -245,7 +245,7 @@ extern void func_m006_012D4(M061Player *player, s32 updateRate);
 extern void func_m006_00000(Object *obj, s32 health, s32 arg2, s32 updateRate);
 extern void func_8005A0D0(s32 item); /* draws a menu item */
 extern void menu_digits_draw(s32 number, s32 x, s32 y, s32 font, s32 digits, s32 colour, s32 padColour);
-extern void menu_draw_layout_box(Gfx **dl, s32 index, u32 colour);
+extern void menu_draw_layout_box(Gfx **dl, s32 index, s32 colour);
 extern void menu_layout_box_get(s32 index, s32 *x1, s32 *y1, s32 *x2, s32 *y2);
 extern void func_8004F02C(Gfx **dl, void *image, f32 x, f32 y, f32 xScale, f32 yScale, u32 colour, s32 flags);
 extern void sound_stop(s32 handle);
@@ -579,7 +579,7 @@ extern void func_80049978(s16 angle, MtxF *mtx);
 extern void func_80048D84(MtxF *mtx, Mtx *out);            /* to a fixed-point Mtx */
 extern void func_80040D64(Gfx **dl, Mtx **mtx);
 extern void func_80055B80(Gfx **dl);
-extern void menu_fill_box(Gfx **dl, s32 x1, s32 y1, s32 x2, s32 y2, u32 colour); /* fills a rectangle */
+extern void menu_fill_box(Gfx **dl, s32 x1, s32 y1, s32 x2, s32 y2, s32 colour); /* fills a rectangle */
 #define sRadarAngle (*(s16 *) &rl_m061_02FA0[0x478])
 extern u32 rl_m061_035B8[]; /* .data (still assembly): the dots' colours */
 #define sDotColours rl_m061_035B8

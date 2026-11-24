@@ -48,10 +48,10 @@ typedef struct M074Object {
     M074Switch sw;
 } M074Object;
 
-extern void obj_collision_spheres_init(M074Object *, s32, s32, s32, s32, s32, s32, f32, f32, f32, f32, s32);
+extern void obj_collision_spheres_init(M074Object *, s32, s32, s32, s16, s16, s16, f32, f32, f32, f32, u16);
 /* called with the sequence only: no prototype in scope */
-extern void anim_path_enable_run();
-extern void func_80076928();
+extern void anim_path_enable_run(u8 index);
+extern void func_80076928(u8 index);
 
 /* Init: sets the switch's state, animation, mode and time, the angles and the scale, and its collider */
 void func_m074_00000(M074Object *obj, M074Setup *setup) {

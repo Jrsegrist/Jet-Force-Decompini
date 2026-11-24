@@ -47,8 +47,8 @@ typedef struct M053Steer {
 } M053Steer;
 
 extern s32 gPlayerButtonsHeld;
-extern void player_stick_aim_update(s16 *angles, M053Steer *s, s32 arg2, s32 arg3, s32 arg4, s32 arg5, s16 *yaw, s16 *pitch,
-                          f32 updateRate);
+extern s32 player_stick_aim_update(s16 *angles, M053Steer *s, s16 arg2, s16 arg3, s32 arg4, s32 arg5, s16 *yaw,
+                                   s16 *pitch, f32 updateRate);
 extern s16 angle_lerp(s16 from, s16 to, f32 t);
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
 extern s32 func_8004966C(s16 angle); /* sine */
@@ -258,7 +258,7 @@ typedef struct M053HitState {
     /* 0x190 */ u8 hitTimer; /* 0x80: just hit */
 } M053HitState;
 
-extern void player_voice_play(Object *obj, s32 index);
+extern void player_voice_play(Object *obj, u8 index);
 extern void menu_draw_layout_box(s32 arg0, s32 index, s32 colour);
 
 /* The vehicle being hit: the voice, a hit point less and the player's screen flashing red (called from
@@ -592,7 +592,7 @@ extern f32 func_80097140(f32 x);                   /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);            /* the angle of a direction */
 extern void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); /* DKR vec3f_rotate */
 extern ObjectTransform *D_800F6DC0;                /* the camera's transform */
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* DKR objMoveXYZ */
 
 /*
  * The vehicle's camera: it keeps between two distances behind the vehicle (easing towards the nearer one, and

@@ -235,7 +235,7 @@ void func_m008_00334(f32 x, f32 y, f32 z, s32 arg3, s32 arg4) {
 extern s32 func_80049C84(f32 x, f32 z); /* the angle of a direction */
 extern f32 func_80097140(f32 x);        /* sqrtf */
 extern M008Level *func_8001B650(void);  /* the level model */
-extern s32 sprite_anim_advance(void *sprite, s32 *flags, s32 speed, f32 *frame, s32 updateRate);
+extern s32 sprite_anim_advance(void *sprite, s32 *flags, u32 speed, f32 *frame, u32 updateRate);
 
 /*
  * Updates the pools: drops fall (and vanish below the level), test every other frame (odd and even drops in

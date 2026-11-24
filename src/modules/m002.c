@@ -21,19 +21,19 @@ typedef struct M002Linked {
 } M002Linked;
 
 extern void func_80054EA0(u32 *width, u32 *height);    /* the frame buffer size */
-extern void *func_8004A57C(s32 size, s32 colour);      /* allocates */
+extern void *func_8004A57C(s32 size, u32 colour);      /* allocates */
 extern void func_8004AA80(void *data);                 /* frees */
 extern s32 func_80096910(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 extern void func_80050E90(Gfx **dl, s32 segment, s32 base);
 extern void func_8004E40C(Gfx **dl);
 extern void rdp_set_default_modes(Gfx **dl);
 extern void func_80055B80(Gfx **dl);
-extern void func_80056000();
+extern void func_80056000(s32 arg0);
 extern void set_active_camera(s32 arg0);
 extern void viewport_apply(Gfx **dl, Mtx **mtx);
 extern void func_8001BC2C(s32 player, s16 *near, s16 *far, s16 *arg3, u8 *r, u8 *g, u8 *b, u8 *arg7);
 extern void func_8000DB94(Gfx **dl, Mtx **mtx, Vertex **verts, Object *obj); /* DKR render_object */
-extern void func_8004DA10(Gfx *start, Gfx *end, s32 arg2, u16 *frameBuffer);
+extern s32 func_8004DA10(Gfx *start, Gfx *end, s32 arg2, u16 *frameBuffer);
 extern void func_80075C40(void);
 
 extern s32 D_800A360C;

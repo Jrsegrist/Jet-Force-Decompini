@@ -113,9 +113,9 @@ extern u8 D_800A5FA8[][16];
 extern u8 D_800A6128[];
 extern u8 D_800A6138[][16];
 
-extern void *mempool_alloc_safe(s32 size, s32 colour);
+extern void *mempool_alloc_safe(s32 size, u32 colour);
 extern void mempool_free(void *data);
-extern s32 *func_8004D37C(s32 asset); /* DKR asset_table_load */
+extern s32 *func_8004D37C(u32 asset); /* DKR asset_table_load */
 extern s32 get_misc_asset(s32 index);
 extern void colour_cycle_init(M026ColourCycle *cycle, s32 assetID);
 extern void update_colour_cycle(M026ColourCycle *cycle, s32 updateRate);

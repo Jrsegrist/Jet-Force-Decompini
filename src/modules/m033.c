@@ -45,8 +45,8 @@ extern u8 *D_800F6B00;             /* the explosion data (asset 0x40) */
 extern M033Explosion **D_800F6B04; /* the explosions */
 extern Triangle D_800F2D58[20];    /* the ring's triangles */
 
-extern s32 *func_8004D37C(s32 asset);               /* DKR asset_table_load */
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern s32 *func_8004D37C(u32 asset);               /* DKR asset_table_load */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern void func_8004AA80(void *data);            /* DKR mempool_free */
 
 #define RELOC(e, field) ((e)->field = (void *) ((u8 *) (e) + (s32) (e)->field))

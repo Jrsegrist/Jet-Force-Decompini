@@ -307,7 +307,7 @@ typedef struct M047Unk5C {
 
 extern M047Actor **D_801045B0; /* the actors */
 extern s32 D_800A74D4;
-extern s16 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
+extern s32 func_80015510(f32 x, f32 y, f32 z); /* the level segment at a position */
 extern s32 func_80049C84(f32 x, f32 z);         /* arctangent as a 16-bit angle */
 extern f32 func_80097140(f32 x);                /* square root */
 extern f32 func_80049BEC(f32 rate, s32 updateRate);
@@ -595,11 +595,11 @@ typedef struct M047Attached {
     /* 0x4 */ Object *obj;
 } M047Attached;
 
-extern s32 sprite_anim_advance(void *sprite, s32 *flags, s32 frame, f32 *frameOut, s32 updateRate);
+extern s32 sprite_anim_advance(void *sprite, s32 *flags, u32 frame, f32 *frameOut, u32 updateRate);
 extern void func_8003D21C(M047ActorInst *inst, M047ActorModel *model, Object *obj, f32 scale, f32 arg4);
 extern void func_800221F0(Object *obj, M047ActorInst *inst, ObjectShading *shading, void *vertices);
-extern void func_8000BC28(Object *obj, M047ActorInst *inst, M047ActorModel *model, s32 arg3, void *arg4, void *arg5,
-                          void *arg6, void *arg7);
+extern s32 func_8000BC28(Object *obj, M047ActorInst *inst, M047ActorModel *model, s32 arg3, void *arg4, void *arg5,
+                         void *arg6, void *arg7);
 extern void obj_tex_animate(Object *obj, M047ActorModel *model, M047ActorInst *inst, s32 updateRate);
 
 /* Animates the actor's sprite or model for this frame (called from 0084C) (module m047, 0x01560). */

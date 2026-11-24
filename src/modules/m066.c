@@ -80,7 +80,7 @@ typedef struct M066Light {
 
 extern M066Path **D_801045B0;
 
-extern void *func_8004A57C(s32 size, s32 colour); /* DKR mempool_alloc_safe */
+extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
 extern M066Light *light_find_strongest_at(f32 x, f32 y, f32 z);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern void func_80041CA0(Gfx **dList, Mtx **mtx, Object *obj, f32 scaleY, f32 offsetY); /* DKR camera_push_model_mtx */

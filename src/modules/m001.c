@@ -39,9 +39,9 @@ extern void func_80055A00(void *);
 extern void runlink_unload_timer_set(s32, s32, s32);
 extern M001Env *func_8004470C(void);
 extern ObjectTransform *func_80041DE0(void); /* the camera */
-extern void draw_tint_pair_set(s32 r, s32 g, s32 b, s32 r2, s32 g2, s32 b2);
+extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
 extern void draw_tint_pair_off(void);
-extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M001Particle *p, void *model, s32 arg5, s32 arg6);
+extern void render_sprite_billboard(Gfx **dl, s32 arg1, s32 arg2, M001Particle *p, void *model, s32 arg5, u8 arg6);
 extern void func_80055C00(Gfx **gfx, void *tex, s32 flags, s32 offset); /* sets a texture */
 
 void func_m001_002A0(M001Particle *p, s32 updateRate);

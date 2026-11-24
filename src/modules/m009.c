@@ -498,7 +498,7 @@ static void map_world_model_draw(M009Model *model) {
     }
 }
 
-extern s32 func_80043510(s32 player); /* the buttons pressed */
+extern u16 func_80043510(s32 player); /* the buttons pressed */
 extern s32 func_m018_03B44(s32 i, s32 dir); /* the next character along */
 
 extern s32 rl_m009_04910; /* .data (still assembly): the way the characters turn, -1 or 1 */

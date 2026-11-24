@@ -384,7 +384,7 @@ static void func_m014_00220(Object *obj, s32 zoomed) {
     }
 }
 
-extern s32 is_game_paused(void);    /* is the game paused */
+extern s8 is_game_paused(void);    /* is the game paused */
 extern u8 D_800A321C;
 extern Object *D_800A32B8;          /* the cabinet whose screen is open */
 extern char **gMenuText;            /* the game's texts */
@@ -758,7 +758,7 @@ typedef struct M014Save {
 
 extern M014Save *get_settings(void);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void func_m006_010D8(s32 *x, s32 *y);
 extern void func_8005A0D0(s32 item); /* draws a menu item */
 static void results_best_stat_draw(s32 index, s32 weapon, s32 x, s32 y);
@@ -948,7 +948,7 @@ extern M014Save *get_settings(void);
 extern M014Level *func_8004470C(void);
 extern s32 game_flag_get(s32 flag);
 extern void func_80047EFC(s32 flag, s32 value);
-extern void func_80000510();
+extern void func_80000510(u8 seqID);
 extern void func_8004842C(s32 arg0);
 extern s8 *D_800FD7B8;
 
@@ -1042,7 +1042,7 @@ void func_m014_037F4(void) {
 
 extern char **gMenuText; /* the game's texts */
 extern s32 func_800706D4(char *text, s32 x, s32 font); /* DKR get_text_width */
-extern s32 func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
 extern void func_m157_00000(Gfx **dl, u8 shape, s32 x, s32 y, s32 width, s32 height, u32 colour);
 extern void func_8006FC54(s32 font);
 extern void func_8006FC8C(s32 r, s32 g, s32 b, s32 a);
