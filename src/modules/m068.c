@@ -6877,15 +6877,12 @@ void func_m068_10A28(Object *obj, M068PieceSetup *setup) {
     }
 }
 
-#ifdef NON_MATCHING
 /*
  * A piece flying off: it falls and spins until it lands or its time runs out,
- * then goes. Frame and code match; 19 aligned diffs (35 before move_object's
- * s32 return): from the spin on, every temporary is one register later than
- * the ROM's (the ROM puts the timer product in v0).
+ * then goes.
  */
 void func_m068_10B58(Object *obj, s32 updateRate) {
-    UNUSED s32 pad;
+    s32 spin;
     HitResult hit;
     M068Flyer *f;
     Vec3f from;
@@ -6904,7 +6901,8 @@ void func_m068_10B58(Object *obj, s32 updateRate) {
         end = 1;
     } else {
         if (f->unk4 <= f->unk8) {
-            obj->trans.rotation.x_rotation += (f->timer * updateRate) << 7;
+            spin = f->timer * updateRate;
+            obj->trans.rotation.x_rotation += spin << 7;
             obj->particleEmittersEnabled = 1;
             func_8005F5AC(obj, updateRate);
         }
@@ -6944,9 +6942,6 @@ void func_m068_10B58(Object *obj, s32 updateRate) {
         func_800079B8(obj);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m068", func_m068_10B58);
-#endif
 
 void func_m068_10DD4(Object *obj, M068PieceSetup *setup) {
     M068Flyer *f;
