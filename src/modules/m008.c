@@ -6,6 +6,7 @@
  * Family: effect libraries (docs/runlink.md, "Module families").
  */
 #include "module.h"
+#include "gfx.h"
 
 /* A drop (size 0x54) */
 typedef struct M008Drop {
@@ -355,7 +356,198 @@ void func_m008_0040C(s32 updateRate) {
     }
 }
 
+extern Triangle rl_m008_01660[]; /* .data: a drop's streak (two triangles; [2]: the other one) */
+extern Triangle rl_m008_016A0[]; /* .data: a mark's two triangles */
+extern s32 rl_m008_016C4[];      /* .data: the drops' tints, three per colour */
+extern s32 rl_m008_01724[];      /* .data: the hit sprites' tints, three per colour */
+extern f32 get_distance_to_camera(f32 x, f32 y, f32 z);
+/* (40240.c's definition takes s16 positions and roll: the ROM passes them unconverted) */
+extern void render_sprite_billboard_at(Gfx **dl, Mtx **mtx, Vertex **verts, void *sprite, s32 x, s32 y, s32 z, s32 roll,
+                                       f32 scale, f32 frame, s32 flags, u8 alpha);
+extern void draw_tint_pair_set(u8 r1, u8 g1, u8 b1, u8 r2, u8 g2, u8 b2);
+extern void draw_tint_pair_off(void);
+extern void func_8000A300(Gfx **dl, Vertex **vtx, void *tex, Triangle *tris, Vec3f *p1, Vec3f *p2, f32 width,
+                          s32 primColour, s32 envColour, s32 flags); /* draws a streak from p2 to p1 */
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 offset); /* sets a texture */
+
+#ifdef NON_MATCHING
+/*
+ * First C body (726/746 words, frame 0x138/0x140): the ROM also keeps 2.0f in $f30, gives p/0xFF the other
+ * two of s0/s1, re-reads the FPU control word for every vertex conversion and stores one vertex's colours
+ * in reverse order without reloading vtx.
+ */
+/*
+ * Draws the pools: each drop's mark (two triangles turned to the surface, lifted towards the camera, fading on
+ * its timer), each falling drop as a streak along its velocity, each landed drop and each hit as a tinted sprite.
+ */
+void func_m008_00AB4(Gfx **dlp, Mtx **mtxp, Vertex **vtxp) {
+    f32 dist;
+    f32 offset;
+    s32 alpha;
+    s32 i;
+    s32 b;
+    u32 colour1;
+    u32 colour2;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 vx;
+    Vec3f from;
+    f32 vy;
+    f32 vz;
+    f32 speed;
+    f32 k;
+    M008Drop *p;
+    M008Hit *h;
+    s32 *tint;
+    Triangle *tris;
+    Vertex *v;
+    u32 prim;
+    u32 env;
+    Vertex *vtx;
+    s16 unused[8];
+    Gfx *dl;
+    Mtx *mtx;
+
+    dl = *dlp;
+    mtx = *mtxp;
+    vtx = *vtxp;
+    unused[0] = 0;
+    for (i = 0, p = sDrops; i < 64; i++, p++) {
+        if (p->state != 0) {
+            b = p->unk4C;
+            colour1 = (((b * 255) >> 5) & 0xFF00) | ((((b * 255) >> 5) & 0xFF00) << 8) |
+                      ((((b * 255) >> 5) & 0xFF00) << 16) | 0xFF;
+            tint = &rl_m008_016C4[p->unk50 * 3];
+            colour2 = (((b * tint[0]) << 11) & 0xFF000000) | (((b * tint[1]) << 3) & 0xFF0000) |
+                      (((tint[2] * b) >> 5) & 0xFF00) | 0xFF;
+        }
+        if ((p->state == 2 || p->state == 3) && p->mark) {
+            if (p->timer < 120) {
+                alpha = (p->timer * 255) / 120;
+            } else {
+                alpha = 255;
+            }
+            if (sTextures[p->unk51 + 2] != NULL) {
+                prim = colour1;
+                env = colour2;
+                prim &= ~0xFF;
+                env &= ~0xFF;
+                func_80055C00(&dl, sTextures[p->unk51 + 2], 0x203, 0);
+                gDPPipeSync(dl++);
+                gDPSetColor(dl++, G_SETPRIMCOLOR, prim | alpha);
+                gDPSetColor(dl++, G_SETENVCOLOR, env | alpha);
+                gSPVertexJFG(dl++, OS_K0_TO_PHYSICAL(vtx), 5, 0);
+                gSPPolygon(dl++, OS_K0_TO_PHYSICAL(rl_m008_016A0), 2, 1);
+                dist = -get_distance_to_camera(p->x, p->y, p->z);
+                offset = dist;
+                if (dist < 0.0f) {
+                    offset = -dist;
+                }
+                offset -= 250.0f;
+                if (offset < 0.0f) {
+                    offset = 0.0f;
+                }
+                if (1024.0f < offset) {
+                    offset = 1024.0f;
+                }
+                offset = 2.0f + offset * 0.01f;
+                x = p->nx * offset + p->x;
+                y = p->ny * offset + p->y;
+                z = p->nz * offset + p->z;
+                v = vtx;
+                v->x = p->corners[0][0] + x;
+                v->y = p->corners[0][1] + y;
+                v->z = p->corners[0][2] + z;
+                v++;
+                v->x = p->corners[1][0] + x;
+                v->y = p->corners[1][1] + y;
+                v->z = p->corners[1][2] + z;
+                v++;
+                v->x = x - p->corners[1][0];
+                v->y = y - p->corners[1][1];
+                v->z = z - p->corners[1][2];
+                v++;
+                v->x = x - p->corners[0][0];
+                v->y = y - p->corners[0][1];
+                v->z = z - p->corners[0][2];
+                vtx->r = 255;
+                vtx->g = 255;
+                vtx->b = 255;
+                vtx->a = 255;
+                vtx++;
+                vtx->r = 255;
+                vtx->g = 255;
+                vtx->b = 255;
+                vtx->a = 255;
+                vtx++;
+                vtx->r = 255;
+                vtx->g = 255;
+                vtx->b = 255;
+                vtx->a = 255;
+                vtx++;
+                vtx->r = 255;
+                vtx->g = 255;
+                vtx->b = 255;
+                vtx->a = 255;
+                vtx++;
+            }
+        }
+        switch (p->state) {
+            case 1:
+                vx = p->vx;
+                vy = p->vy;
+                vz = p->vz;
+                speed = func_80097140(vx * vx + vy * vy + vz * vz);
+                if (speed == 0.0f) {
+                    k = 0.0f;
+                } else {
+                    k = 40.0f / speed;
+                }
+                k *= p->scale;
+                vx *= k;
+                from.x = p->x - vx;
+                vy *= k;
+                from.y = p->y - vy;
+                vz *= k;
+                from.z = p->z - vz;
+                if (p->unk4B == 0) {
+                    tris = rl_m008_01660;
+                } else {
+                    tris = &rl_m008_01660[2];
+                }
+                func_8000A300(&dl, &vtx, sTextures[p->unk4B], tris, (Vec3f *) p, &from, p->scale * 8.0f, colour1,
+                              colour2, 0x200);
+                break;
+            case 2:
+                tint = &rl_m008_016C4[p->unk50 * 3];
+                draw_tint_pair_set(((b * 255) >> 13) & 0xFF, ((b * 255) >> 13) & 0xFF, ((b * 255) >> 13) & 0xFF,
+                                   ((tint[0] * b) >> 13) & 0xFF, ((tint[1] * b) >> 13) & 0xFF,
+                                   ((tint[2] * b) >> 13) & 0xFF);
+                render_sprite_billboard_at(&dl, &mtx, &vtx, sSprite, p->x, p->y, p->z, 0, p->scale * 1.8f, p->unk24,
+                                           14, 255);
+                draw_tint_pair_off();
+                break;
+        }
+    }
+    for (i = 0, h = sHits; i < 5; i++, h++) {
+        if (h->state) {
+            b = h->unk14;
+            tint = &rl_m008_01724[h->unk15 * 3];
+            draw_tint_pair_set(((b * 255) >> 8) & 0xFF, ((b * 255) >> 8) & 0xFF, ((b * 255) >> 8) & 0xFF,
+                               ((tint[0] * b) >> 8) & 0xFF, ((tint[1] * b) >> 8) & 0xFF, ((tint[2] * b) >> 8) & 0xFF);
+            render_sprite_billboard_at(&dl, &mtx, &vtx, sSprite, h->x, h->y, h->z, 0, 4.0f, h->unkC, 14, 255);
+        }
+    }
+    draw_tint_pair_off();
+    gDPSetPrimColor(dl++, 0, 0, 255, 255, 255, 255);
+    *dlp = dl;
+    *mtxp = mtx;
+    *vtxp = vtx;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m008/ro", func_m008_00AB4);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/modules/m008", data);
 
