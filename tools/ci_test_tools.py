@@ -211,13 +211,19 @@ class RunlinkRoundTrip(unittest.TestCase):
             (runlink_build.SEC_BSS, 0x40, "TestMainBss"),
             (0, 0x100, "TestMainFuncAlias"),
         ]
+        # the symbol table as runlink_split.py writes it: no names
         cls.symfile = os.path.join(t, "symbols.txt")
         with open(cls.symfile, "w") as f:
+            f.write("# index module offset\n")
             for i, (m, o, n) in enumerate(cls.syms):
-                f.write("%d %d 0x%X %s\n" % (i, m, o, n))
+                f.write("%d %d 0x%X\n" % (i, m, o))
+        # names resolve through aliases only: an undefined_syms style file,
+        # and lines like runlink_syms.py --aliases writes
         cls.aliases = os.path.join(t, "aliases.txt")
         with open(cls.aliases, "w") as f:
-            f.write("TestAlias = TestMainFunc; /* an alias */\nD_800A0670 = TestMainVar;\n")
+            f.write("TestAlias = TestMainFunc; /* an alias */\nD_800A0670 = TestMainVar;\n"
+                    "PROVIDE(TestMainFunc = func_80000550);\nPROVIDE(func_80000550 = TestMainFunc);\n"
+                    "PROVIDE(ModOneEntry = func_m001_%05X);\n" % offset(o1, "ModOneEntry"))
         cls.ref_mods, cls.ref_tab = cls.build(t, "ref", [o1, o2])
 
         # the synthetic ROM: symbol table, module table, images, names
@@ -339,15 +345,19 @@ class RunlinkRoundTrip(unittest.TestCase):
         self.assertIn("dlabel jtbl_m001_", ro)
         self.assertEqual(len(re.findall(r"\.word \.L[0-9A-F]{5}$", ro, re.M)), 3)
 
+    NAMES = ("TestMainOther", "TestMainFunc", "ModOneEntry", "ModOneVar", "ModOneSwitch", "ModTwoEntry",
+             "TestMainVar", "TestMainBss")
+
     def test_split_uses_no_names(self):
-        """The generated assembly names symbols by address; runlink names
-        appear only in comments."""
-        for d, _, fs in os.walk(os.path.join(self.tmp, "asm")):
+        """Everything the split writes names symbols by address: no name from
+        the name table anywhere, not even in comments."""
+        for d, _, fs in os.walk(self.tmp):
             for f in fs:
-                if not f.endswith(".s"):
+                p = os.path.join(d, f)
+                if not (p.startswith(os.path.join(self.tmp, "asm")) or p.startswith(os.path.join(self.tmp, "runlink"))):
                     continue
-                t = re.sub(r"/\*.*?\*/", "", open(os.path.join(d, f)).read(), flags=re.S)
-                for n in ("ModOneEntry", "ModOneVar", "ModTwoEntry", "TestMainFunc", "TestMainVar"):
+                t = open(p, errors="ignore").read()
+                for n in self.NAMES:
                     self.assertNotIn(n, t, "%s in %s" % (n, f))
 
     def test_rebuild_from_module_asm(self):
@@ -384,21 +394,56 @@ class RunlinkRoundTrip(unittest.TestCase):
     def test_runlink_syms(self):
         t = self.tmp
         out, mods, al = (os.path.join(t, n) for n in ("syms.txt", "mods.txt", "aliases_out.txt"))
+        used = os.path.join(t, "used.c")
+        with open(used, "w") as f:  # the names "our sources" use
+            f.write("void TestMainFuncAlias(void);\nextern int TestMainVar;\nvoid ModOneEntry(void);\n")
         call_main(runlink_syms.main, [self.rom, out, "--version", "test", "--modules", mods,
-                                      "--aliases", al])
+                                      "--aliases", al, "--used-in", used])
         s = open(out).read()
-        self.assertIn("TestMainFunc = 0x80000550; // type:func filename:func_80000550", s)
-        self.assertIn("TestMainVar = 0x800A0670;\n", s)
-        self.assertIn("TestMainBss = 0x800B0B90;\n", s)
-        self.assertIn("// alias: TestMainFuncAlias = 0x80000550; (same as TestMainFunc)", s)
-        self.assertNotIn("ModOneEntry", s)
+        self.assertIn("func_80000550 = 0x80000550; // type:func filename:func_80000550", s)
+        self.assertIn("func_80000650 = 0x80000650; // type:func filename:func_80000650", s)
+        self.assertIn("D_800A0670 = 0x800A0670;\n", s)
+        self.assertIn("D_800B0B90 = 0x800B0B90;\n", s)
+        self.assertEqual(s.count("0x80000550;"), 1)
+        for n in self.NAMES + ("TestMainFuncAlias",):
+            self.assertNotIn(n, s)
+        # the build-internal aliases: only the names the sources use
         a = open(al).read()
-        self.assertIn("PROVIDE(func_80000550 = TestMainFunc);", a)
-        self.assertIn("PROVIDE(TestMainFunc = func_80000550);", a)
-        self.assertIn("PROVIDE(TestMainFuncAlias = TestMainFunc);", a)
+        self.assertTrue(a.startswith("/* build-internal: not for reading."))
+        self.assertIn("PROVIDE(TestMainFuncAlias = func_80000550);", a)
+        self.assertIn("PROVIDE(func_80000550 = TestMainFuncAlias);", a)
+        self.assertIn("PROVIDE(TestMainVar = D_800A0670);", a)
+        self.assertIn("PROVIDE(ModOneEntry = func_m001_%05X);" % self.syms[2][1], a)
+        for n in ("TestMainFunc ", "TestMainFunc)", "TestMainOther", "TestMainBss", "ModOneVar", "ModTwoEntry"):
+            self.assertNotIn(n, a)
         lines = [x for x in open(mods) if not x.startswith("#")]
         self.assertEqual(len(lines), 2)
         self.assertTrue(lines[0].split()[1] == "0x%07X" % self.L["modules"])
+
+    def test_hide_strings(self):
+        """A string holding a name from the table becomes .byte lines with
+        the same bytes; other strings stay."""
+        d = os.path.join(self.tmp, "hide")
+        os.makedirs(d)
+        src = ('.section .data\n/* 00 */ .asciz "see ModTwoEntry: %d\\n\\t\\"q\\" \\\\ \\x7f\\101\\0end"\n'
+               '/* 01 */ .ascii "plain text"\n/* 02 */ .ascii "TestMainVar"\n')
+        p = os.path.join(d, "x.s")
+        with open(p, "w") as f:
+            f.write(src)
+
+        def data(text, tag):
+            o = assemble(text, os.path.join(self.tmp, "hide_%s.o" % tag))
+            run([CROSS + "objcopy", "-O", "binary", "-j", ".data", o, o + ".bin"])
+            return open(o + ".bin", "rb").read()
+        before = data(src, "a")
+        out = call_main(runlink_syms.main, [self.rom, "--version", "test", "--hide-strings", d, "--used-in"])
+        self.assertIn("2 strings rewritten as bytes in 1 files", out)
+        after = open(p).read()
+        self.assertNotIn("ModTwoEntry", after)
+        self.assertNotIn("TestMainVar", after)
+        self.assertIn('.ascii "plain text"', after)
+        self.assertIn("/* 00 */ .byte 0x73, 0x65, 0x65", after)
+        self.assertEqual(data(after, "b"), before)
 
     def test_runlink_diff_find(self):
         mapfile = os.path.join(self.tmp, "modules.map")

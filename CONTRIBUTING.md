@@ -31,7 +31,7 @@ New to the project? Read the [README](README.md) to build it, then
 Run all of these from the repository root, after `make extract`:
 
 ```sh
-make check                       # the ROM is byte-identical (make builds it first)
+make check                       # the ROM is byte-identical (make builds it first); no ROM names generated
 make nonmatching                 # every NON_MATCHING body still compiles
 tools/rename.py --check          # names.txt is applied everywhere: no old name left
 tools/rename.py --field-uses     # after renaming struct fields: check each listed use by hand
@@ -41,8 +41,11 @@ python3 tools/ci_rom_free.py     # no ROM data in tracked files
 
 - `check_names.py` needs a clone of the
   [DKR decompilation](https://github.com/DavidSM64/Diddy-Kong-Racing) for
-  `--dkr`, and your extracted ROM. It prints the names it finds on your
-  terminal only: never paste them into an issue, a PR or a commit.
+  `--dkr`, and your ROM. It prints only where a ROM-only name is (file:line
+  or commit), never the name. `make check` also runs
+  `tools/check_rom_names.py` (no generated file under `asm/`, `build/` or
+  `src/` holds a name from the ROM's name table) when the DKR clone is at
+  `DKR_DIR` (default `~/jfg_refs/dkr`).
 - If you changed anything outside `src/`, `include/`, `names.txt` and the
   docs (a tool, the Makefile, the yaml), also run the ROM-free CI checks the
   way CI does, in a fresh clone with no ROM and no `make extract`:

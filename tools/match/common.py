@@ -61,20 +61,30 @@ def main_rom_offset(vram):
 
 
 def runlink_addrs():
-    """Runlink name -> address, read from your ROM by `make extract`. Analysis
-    only: these names must never be committed (tools/check_names.py)."""
+    """Name -> address for the main-segment symbols of the ROM's runlink
+    table: their address names (build/syms/runlink_syms.us.txt, `make
+    extract`), and the licensed names (libultra's, DKR's) that C uses for
+    some of them (the build-internal build/syms/runlink_aliases.us.txt, `make`;
+    it never holds a name that only the ROM has)."""
     addr = {}
     p = need(path("build", "syms", "runlink_syms.%s.txt" % VERSION), "run `make extract`")
     for line in open(p):
         m = re.match(r"(\w+) = 0x([0-9A-Fa-f]+);", line)
         if m:
             addr[m.group(1)] = int(m.group(2), 16)
+    p = path("build", "syms", "runlink_aliases.%s.txt" % VERSION)
+    if os.path.exists(p):
+        for line in open(p):
+            m = re.match(r"PROVIDE\((\w+) = (?:func|D)_([0-9A-F]{8})\);", line)
+            if m:
+                addr.setdefault(m.group(1), int(m.group(2), 16))
     return addr
 
 
 def symbol_addrs():
-    """Every name the probe can place: runlink names, undefined_syms.us.txt
-    (NAME = 0x...; and func_XXXXXXXX = cname;) and names.txt."""
+    """Every name the probe can place: address names, the licensed names of
+    runlink_addrs(), undefined_syms.us.txt (NAME = 0x...; and
+    func_XXXXXXXX = cname;) and names.txt."""
     addr = runlink_addrs()
     for line in open(path("undefined_syms.%s.txt" % VERSION)):
         m = re.match(r"\s*(\w+)\s*=\s*0x([0-9A-Fa-f]+);", line)

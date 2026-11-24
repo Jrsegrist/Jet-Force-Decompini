@@ -237,7 +237,7 @@ None of these are in git; `make distclean` removes them.
 | `asm/` | `make extract` (splat, `tools/runlink_split.py`) | the disassembly: `asm/*.s` objects, `asm/nonmatchings/<file>/<func>.s` per function, `asm/modules/` |
 | `assets/` | `make extract` | the binary blobs |
 | `jfg.us.ld` | `make extract` (splat) | the linker script |
-| `build/syms/` | `make extract`, `make` | the runlink names read from your ROM, splat's undefined symbols, the name aliases |
+| `build/syms/` | `make extract`, `make` | the main segment's runlink symbols by address (`runlink_syms.us.txt`), the module list, splat's undefined symbols, the name aliases, and the build-internal `runlink_aliases.us.txt` (licensed names only; not for reading) |
 | `build/` | `make` | objects, `jfg.us.elf`, `jfg.us.map`, `jfg.us.z64`, `build/runlink/` (module images, symbol list, module map) |
 | `build_nm/` | `make nonmatching` | the `NON_MATCHING` objects (not linked) |
 | `build/match/`, `build/perm/` | the matching tools | scratch output |

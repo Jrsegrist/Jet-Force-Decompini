@@ -121,8 +121,10 @@ together with the %lo entry that follows it.
 `make extract` runs `tools/runlink_split.py`, which writes every module as
 `asm/modules/mNNN.s`: the disassembled .text, the .data as words and the .bss
 as space, with each relocated field written symbolically. All names are by
-address, so that C written from the assembly never contains a name from the
-ROM's name table (those appear only in comments):
+address: the ROM's name table is not used for anything, not even in
+comments, so neither the assembly nor C written from it has a name from it.
+An exported symbol is marked `/* exported: global symbol N */` (N its index
+in the global symbol table):
 
 | name | stands for |
 | --- | --- |
@@ -130,8 +132,23 @@ ROM's name table (those appear only in comments):
 | `func_mNNN_XXXXX`, `D_mNNN_XXXXX` | a symbol exported by module NNN at offset XXXXX (kind 0) |
 | `rl_mNNN_XXXXX` | module NNN's own code or data at offset XXXXX, referred to as a module offset (kind 1, or kind 2 for a jump); placed at the section start that the word gives, with the offset into the section in the instruction |
 
-When two runlink symbols share an address (5 cases) and a reference uses the
-second one, the reference keeps the runlink name.
+Two runlink symbols can share an address (5 main-segment addresses, 8 extra
+symbols); no module refers to the second one, and the splitter stops if one
+does. The symbol table goes to `build/runlink/symbols.txt` as index, module
+and offset only.
+
+Main-segment assembly (splat) is named by address too:
+`tools/runlink_syms.py` writes `build/syms/runlink_syms.us.txt` with address
+names only, and rewrites any game string in `asm/` that holds a name from the
+table as `.byte` lines (the same bytes). C may still use a licensed name
+(libultra's, DKR's) for a main-segment symbol whose address only the ROM's
+table records; `make` writes those ties to the build-internal
+`build/syms/runlink_aliases.us.txt` (only names that the project's own
+sources use, so never a name only the ROM has), which the linker and
+`tools/runlink_build.py` read. `tools/check_rom_names.py` (run by `make
+check` when a DKR clone is at `DKR_DIR`) checks that no file under `asm/`,
+`build/` or `src/` holds a name from the table, and prints only counts and
+paths.
 
 It also splits each module for work in C, into
 `asm/nonmatchings/modules/mNNN/`: one `func_mNNN_XXXXX.s` per function (for
@@ -170,7 +187,7 @@ from `src/modules/mNNN.c` (see below), lays out .text, .data, .rodata and
 | relocation against | entry |
 | --- | --- |
 | a section symbol, a local symbol, `rl_mNNN_XXXXX`, or this module's own unexported `func_`/`D_mNNN_` name | table 2, kind 1, word = module offset of the section, symbol or name; for R_MIPS_26 kind 2, with the target offset written into the jump field and the word copied from the previous kind-0 entry. An `rl_mNNN_XXXXX` that is not a section start (an extern in C, or the label of an assembly function's own .rodata from `ro/`) is rebased as the original linker wrote it: the word is the section start, and the rest of the offset goes into the relocated field (the %hi/%lo pair, or the word) |
-| `func_XXXXXXXX`/`D_XXXXXXXX`, `func_mNNN_`/`D_mNNN_` of an exported symbol, a runlink name, a name that `undefined_syms.us.txt` gives an address or an address name, or a global defined in the object | kind 0, word = the runlink symbol index; table 2 if the symbol is this module's own, else table 1 |
+| `func_XXXXXXXX`/`D_XXXXXXXX`, `func_mNNN_`/`D_mNNN_` of an exported symbol, a name that an alias file (`undefined_syms.us.txt`, the names.txt aliases, the build-internal runlink aliases) gives an address or an address name, or a global defined in the object | kind 0, word = the runlink symbol index; table 2 if the symbol is this module's own, else table 1 |
 
 It takes the initialisation and shutdown offsets from the symbols `__rl_init`
 and `__rl_fini`, and writes the module images, the module table and
@@ -204,8 +221,8 @@ Working on a module:
    is now an asm-processor object. Order matters: functions in offset order.
 2. Replace INCLUDE_ASM lines with C one at a time. m2c works on the
    per-function files.
-   - Exported functions and variables (those that have a runlink name, shown
-     in a comment in the asm) must be global, named `func_mNNN_XXXXX` or
+   - Exported functions and variables (those in the global symbol table,
+     marked `/* exported */` in the asm) must be global, named `func_mNNN_XXXXX` or
      `D_mNNN_XXXXX` (or a DKR name). Everything else must be `static`: a
      global that the module does not export is an error.
    - Call main-segment functions and use main data by address names
@@ -323,7 +340,7 @@ module files declare their own types; new ones include `module.h`.
 Things that came up while matching module code (the main game's IDO -O2
 lessons apply too; [matching.md](matching.md) collects them):
 
-- An exported function (one with a runlink name; its per-function `.s`
+- An exported function (one in the global symbol table; its per-function `.s`
   has no `jlabel rl_mNNN_XXXXX` line) is called from C by its
   `func_mNNN_XXXXX` name even while it is still assembly. Calling it by an `rl_` name makes a kind-1 entry where
   the ROM has kind 0: the probe cannot see that, only the full build's SHA-1.
@@ -489,4 +506,6 @@ behaviours" above unless a family row lists them):
 - The main imports table (0x1ECF220) and the symbol and name tables are still
   copied from the ROM as they are.
 - The module names (the table has none; modules are numbered 1..157 here).
-- Two symbols have odd module numbers (3430 and 4092); they are kept by name.
+- Two symbols have odd module numbers. 4092 is taken as a fixed low-memory
+  address (0x80000000 + offset; one symbol, at 0x80000300, which m099 reads,
+  named `D_80000300`); 3430 (offset 0) is not referred to and gets no name.

@@ -23,6 +23,11 @@ TARGET    := $(BUILD_DIR)/$(BASENAME).$(VERSION)
 SYMS_DIR  := $(BUILD_DIR)/syms
 # linker aliases for the names in names.txt (generated, see below)
 NAMES_ALIASES := $(SYMS_DIR)/names_aliases.$(VERSION).txt
+# build-internal linker aliases for the licensed names (libultra's, DKR's) that
+# C uses for main-segment symbols; generated from the ROM, see below
+RL_ALIASES    := $(SYMS_DIR)/runlink_aliases.$(VERSION).txt
+# a clone of the DKR decompilation, for tools/check_rom_names.py
+DKR_DIR       ?= $(HOME)/jfg_refs/dkr
 
 VENV   := .venv
 PYTHON := $(VENV)/bin/python3
@@ -119,7 +124,7 @@ $(BUILD_DIR)/src/9CA20.o build_nm/src/9CA20.o: src/9CA20.c
 LDFLAGS := -T $(LD_SCRIPT) \
            -T $(SYMS_DIR)/undefined_syms_auto.$(VERSION).txt \
            -T $(SYMS_DIR)/undefined_funcs_auto.$(VERSION).txt \
-           -T $(SYMS_DIR)/runlink_aliases.$(VERSION).txt \
+           -T $(RL_ALIASES) \
            -T $(NAMES_ALIASES) \
            -T undefined_syms.$(VERSION).txt \
            -Map $(TARGET).map --no-check-sections --no-warn-mismatch
@@ -129,6 +134,7 @@ LDFLAGS := -T $(LD_SCRIPT) \
 # asm/nonmatchings/ holds one file per function, pulled into C by INCLUDE_ASM
 S_FILES   := $(shell find asm -name '*.s' -not -path 'asm/nonmatchings/*' 2>/dev/null)
 C_FILES   := $(shell find src -name '*.c' 2>/dev/null)
+H_FILES   := $(shell find src include -name '*.h' 2>/dev/null)
 BIN_FILES := $(shell find assets -name '*.bin' 2>/dev/null)
 O_FILES   := $(S_FILES:%.s=$(BUILD_DIR)/%.o) \
              $(C_FILES:%.c=$(BUILD_DIR)/%.o) \
@@ -158,24 +164,38 @@ extract: .baserom.$(VERSION).ok
 	rm -rf asm assets
 	@mkdir -p $(SYMS_DIR)
 	$(PYTHON) tools/runlink_syms.py $(BASEROM) $(SYMS_DIR)/runlink_syms.$(VERSION).txt \
-	    --version $(VERSION) --modules $(SYMS_DIR)/modules.$(VERSION).txt \
-	    --aliases $(SYMS_DIR)/runlink_aliases.$(VERSION).txt
+	    --version $(VERSION) --modules $(SYMS_DIR)/modules.$(VERSION).txt
 	$(PYTHON) -m splat split $(YAML)
 	@# spimdisasm runs some jump tables on into the zero padding after them
 	@# and emits those words as a label at address 0; keep them as data.
 	sed -i 's/\.word \.L0$$/.word 0x00000000/' asm/data/*.s
 	$(PYTHON) tools/runlink_split.py $(BASEROM) --version $(VERSION)
+	@# game strings that hold a name from the ROM's name table become .byte lines
+	$(PYTHON) tools/runlink_syms.py $(BASEROM) --version $(VERSION) --hide-strings asm
 	@# INCLUDE_ASM'd objects must be rebuilt from the fresh asm
 	rm -rf $(BUILD_DIR)/src
 
+# The SHA-1, then (with a DKR clone at DKR_DIR) that no generated file holds a
+# name from the ROM's runlink name table (tools/check_rom_names.py)
 check verify: $(TARGET).z64
 	@echo "$$(cut -d' ' -f1 $(SHA1FILE))  $(TARGET).z64" | sha1sum --check
+	@if [ -d $(DKR_DIR)/src ]; then $(PYTHON) tools/check_rom_names.py --dkr $(DKR_DIR); \
+	else echo "check_rom_names: skipped (no DKR clone at $(DKR_DIR); set DKR_DIR)"; fi
 
 progress: $(TARGET).elf
 	@$(PYTHON) tools/progress.py
 
-$(TARGET).elf: $(O_FILES) $(LD_SCRIPT) $(NAMES_ALIASES)
+$(TARGET).elf: $(O_FILES) $(LD_SCRIPT) $(NAMES_ALIASES) $(RL_ALIASES)
 	$(LD) $(LDFLAGS) -o $@
+
+# The assembly names main-segment symbols by address; C may use a licensed
+# name for one (libultra's, DKR's) that only the ROM's runlink table ties to
+# its address. This build-internal file holds those ties, for the names that
+# the project's own sources use (so never a name only the ROM has).
+$(RL_ALIASES): $(BASEROM) tools/runlink_syms.py $(C_FILES) $(H_FILES) names.txt \
+               undefined_syms.$(VERSION).txt symbol_addrs.$(VERSION).txt
+	@mkdir -p $(dir $@)
+	$(PYTHON) tools/runlink_syms.py $(BASEROM) --version $(VERSION) --aliases $@
 
 # names.txt renames address names in C; the assembly keeps them. The aliases
 # that tie the two together depend on which side defines each symbol, so they
@@ -230,9 +250,9 @@ RL_DIR   := $(BUILD_DIR)/runlink
 MOD_S    := $(sort $(wildcard asm/modules/m*.s))
 MOD_O    := $(MOD_S:%.s=$(BUILD_DIR)/%.o)
 
-$(RL_DIR)/modules.bin: $(MOD_O) tools/runlink_build.py $(NAMES_ALIASES)
+$(RL_DIR)/modules.bin: $(MOD_O) tools/runlink_build.py $(NAMES_ALIASES) $(RL_ALIASES)
 	$(PYTHON) tools/runlink_build.py --symbols $(RL_DIR)/symbols.txt --order $(RL_DIR)/order \
-	    --aliases undefined_syms.$(VERSION).txt $(NAMES_ALIASES) \
+	    --aliases undefined_syms.$(VERSION).txt $(NAMES_ALIASES) $(RL_ALIASES) \
 	    --out-modules $(RL_DIR)/modules.bin --out-table $(RL_DIR)/modtab.bin $(MOD_O)
 
 $(RL_DIR)/modtab.bin: $(RL_DIR)/modules.bin

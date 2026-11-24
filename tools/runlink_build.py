@@ -4,8 +4,11 @@
 Input: one relocatable MIPS ELF object per module (m001.o ... in module
 order), either assembled from asm/modules/mNNN.s or compiled from
 src/modules/mNNN.c with IDO (plus asm-processor for INCLUDE_ASM); the runlink
-symbol table (index, module, offset and name of every global symbol, written
-by tools/runlink_split.py); and optionally the original relocation entry
+symbol table (index, module and offset of every global symbol, written by
+tools/runlink_split.py; no names); alias files that give other names an
+address or an address name (undefined_syms.us.txt, the names.txt aliases,
+and the build-internal build/syms/runlink_aliases.us.txt for the licensed
+names, such as libultra's, that C uses); and optionally the original relocation entry
 order per module. Output: the module images (text, data, the two relocation
 tables, back to back), the 0x20-byte-per-module table that points at them,
 and a map of the functions in each module. See docs/runlink.md.
@@ -25,7 +28,6 @@ How a relocation's symbol becomes a runlink entry:
          (the loader ignores it; the original linker left it like that)
   func_XXXXXXXX / D_XXXXXXXX       main-segment symbol at that address
   func_mNNN_XXXXX / D_mNNN_XXXXX   symbol exported by module NNN at XXXXX
-  a runlink symbol name
   a name given an address or another name in an --aliases file
   another global symbol defined in the object (by its module offset)
       -> kind 0, word = the global symbol's index; table 1 if the symbol is
@@ -45,6 +47,7 @@ LAYOUT = {
     "us": dict(text=0x80000450, data=0x800A0660, bss=0x800B0B50),
 }
 SEC_RODATA, SEC_DATA, SEC_BSS = 4093, 4094, 4095
+SEC_ABS = 4092  # a fixed address in low memory: 0x80000000 + offset
 R_MIPS_26 = 4
 SHN_UNDEF, SHN_ABS, SHN_COMMON = 0, 0xFFF1, 0xFFF2
 STB_LOCAL = 0
@@ -112,14 +115,16 @@ class Symbols:
 
     def __init__(self, path, layout, alias_files):
         self.L = layout
-        self.byname = {}
         self.byaddr = {}
         self.mod = []
         for line in open(path):
-            i, mod, off, name = line.split()
+            if line.startswith("#") or not line.strip():
+                continue
+            i, mod, off = line.split()[:3]
             i, mod, off = int(i), int(mod), int(off, 16)
+            if i != len(self.mod):
+                raise SystemExit("%s: symbol %d out of order" % (path, i))
             self.mod.append(mod)
-            self.byname.setdefault(name, i)
             self.byaddr.setdefault(self.key(mod, off), i)
         self.aliases = {}
         for p in alias_files:
@@ -143,12 +148,14 @@ class Symbols:
             return (0, self.L["data"] + off)
         if mod == SEC_BSS:
             return (0, self.L["bss"] + off)
+        if mod == SEC_ABS:
+            return (0, 0x80000000 + off)
         return (mod, off)
 
     def lookup(self, name, depth=0):
-        """Index of the runlink symbol that `name` stands for, or None."""
-        if name in self.byname:
-            return self.byname[name]
+        """Index of the runlink symbol that `name` stands for, or None. Names
+        resolve by address: an address name directly, any other name through
+        the --aliases files (to an address or an address name)."""
         m = ADDR_RE.match(name)
         if m:
             return self.byaddr.get((0, int(m.group(1), 16)))

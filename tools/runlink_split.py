@@ -24,14 +24,15 @@ from it never contains a name from the ROM's name table:
   rl_mNNN_XXXXX   module NNN's own code or data at offset XXXXX that is
                   not referred to through the global symbol table (runlink
                   "kind 1"; or the target of a "kind 2" jump)
-The runlink names themselves only appear in comments. When two runlink
-symbols share an address and a reference uses the second one, the runlink
-name is used instead (tools/runlink_build.py accepts both).
+The names in the ROM's name table are not used anywhere, not even in
+comments. (Where two symbols share an address, no module refers to the
+second one; the split stops if one does.)
 
 The relocation entry order of the original tables is written to
 build/runlink/order/mNNN.txt (an IDO-compiled module reproduces it from its
-own object; the assembler sorts relocations differently). Everything
-written here is derived from the ROM and is not committed.
+own object; the assembler sorts relocations differently), and the symbol
+table, by index, module and offset only, to build/runlink/symbols.txt.
+Everything written here is derived from the ROM and is not committed.
 
 Usage: runlink_split.py ROM [--version us]
 """
@@ -58,6 +59,7 @@ DATA_SPLITS = {
     },
 }
 SEC_RODATA, SEC_DATA, SEC_BSS = 4093, 4094, 4095
+SEC_ABS = 4092  # a fixed address in low memory: 0x80000000 + offset
 R_MIPS_32, R_MIPS_26, R_MIPS_HI16, R_MIPS_LO16 = 2, 4, 5, 6
 
 
@@ -76,13 +78,13 @@ def expr(sym, addend):
 
 
 def read_symbols(rom, L):
+    """(module, offset) of each symbol of the global symbol table (the name
+    table is not read)."""
     nsyms = (L["modtab"] - L["symtab"]) // 4
     syms = []
     for i in range(nsyms):
         v = u32(rom, L["symtab"] + 4 * i)
-        no = u32(rom, L["nameoffs"] + 4 * i)
-        end = rom.index(b"\0", L["names"] + no)
-        syms.append((v >> 20, v & 0xFFFFF, rom[L["names"] + no:end].decode("ascii")))
+        syms.append((v >> 20, v & 0xFFFFF))
     return syms
 
 
@@ -100,26 +102,31 @@ def address_name(L, mods, mod, off):
         return "D_%08X" % (L["data"] + off)
     if mod == SEC_BSS:
         return "D_%08X" % (L["bss"] + off)
+    if mod == SEC_ABS:
+        return "D_%08X" % (0x80000000 + off)
     tsize = mods[mod - 1][2]
     return ("func_m%03d_%05X" if off < tsize else "D_m%03d_%05X") % (mod, off)
 
 
 def symbol_names(L, mods, syms):
-    """Name to use for each symbol index: by address, unless an earlier
-    symbol has the same address (then the runlink name)."""
+    """Name to use for each symbol index, by address, and the indices that
+    share their address with an earlier symbol (runlink_build.py resolves an
+    address name to the first one)."""
     first = {}
     out = []
-    for i, (mod, off, name) in enumerate(syms):
+    dups = set()
+    for i, (mod, off) in enumerate(syms):
         key = (mod if mod not in (SEC_RODATA, SEC_DATA) else SEC_DATA, off)
-        if not (mod <= len(mods) or mod in (SEC_RODATA, SEC_DATA, SEC_BSS)):
-            print("symbol %d (%s): unknown module %d" % (i, name, mod))
-            out.append(name)
-        elif key in first:
-            out.append(name)
+        if not (mod <= len(mods) or mod in (SEC_RODATA, SEC_DATA, SEC_BSS, SEC_ABS)):
+            print("symbol %d: unknown module %d" % (i, mod))
+            out.append(None)  # no relocation may refer to it
+            continue
+        if key in first:
+            dups.add(i)
         else:
             first[key] = i
-            out.append(address_name(L, mods, mod, off))
-    return out
+        out.append(address_name(L, mods, mod, off))
+    return out, dups
 
 
 def find_jump_tables(image, tsize, dsize, lo_info, rel32):
@@ -335,7 +342,7 @@ def write_ro_dir(me, image, tsize, dsize, rodata_start, funcs, code_end, fnames,
     return None
 
 
-def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir, data_splits=()):
+def split_module(rom, L, syms, names, dups, mods, m, asm_dir, nm_root, build_dir, data_splits=()):
     me = m + 1
     w0, off, tsize, dsize, bsize, r1, r2, init, fini = mods[m]
     base = L["modules"] + off
@@ -345,11 +352,11 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir, data
     for tstart, tlen in ((tsize + dsize, r1), (tsize + dsize + r1, r2)):
         tabs.append([struct.unpack_from(">II", rom, base + tstart + 8 * i) for i in range(tlen // 8)])
 
-    labels = {}  # module offset -> [(name, is_global, comment)]
-    exported = {}  # module offset -> [runlink names]
-    for i, (mod, soff, name) in enumerate(syms):
+    labels = {}  # module offset -> [label names]
+    exported = {}  # module offset -> [symbol indices]
+    for i, (mod, soff) in enumerate(syms):
         if mod == me:
-            exported.setdefault(soff, []).append(name)
+            exported.setdefault(soff, []).append(i)
             nm = names[i]
             lst = labels.setdefault(soff, [])
             if nm not in lst:
@@ -375,6 +382,9 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir, data
             o, typ, kind = x >> 8, (x >> 4) & 0xF, x & 0xF
             order.append("%d 0x%X %d" % (ti + 1, o, typ))
             if kind == 0:
+                if word in dups or names[word] is None:
+                    raise SystemExit("m%03d: a relocation refers to symbol %d, which shares its address "
+                                     "with an earlier one or has no known module" % (me, word))
                 sym = names[word]
             elif kind == 1:
                 sym = local(word)
@@ -449,7 +459,7 @@ def split_module(rom, L, syms, names, mods, m, asm_dir, nm_root, build_dir, data
         that asm-processor accepts (jlabel in code, dlabel in data)."""
         out = []
         if o in exported:
-            out.append("/* %s */" % ", ".join(exported[o]))
+            out.append("/* exported: global symbol %s */" % ", ".join("%d" % i for i in exported[o]))
         for nm in labels.get(o, []):
             if o in fnames and nm == fnames[o]:
                 continue
@@ -648,16 +658,17 @@ def main():
 
     syms = read_symbols(rom, L)
     mods = read_modtab(rom, L)
-    names = symbol_names(L, mods, syms)
+    names, dups = symbol_names(L, mods, syms)
     os.makedirs(args.asm_dir, exist_ok=True)
     os.makedirs(args.build_dir + "/order", exist_ok=True)
     with open(args.build_dir + "/symbols.txt", "w") as f:
-        for i, (mod, off, name) in enumerate(syms):
-            f.write("%d %d 0x%X %s\n" % (i, mod, off, name))
+        f.write("# index module offset (tools/runlink_split.py; read by tools/runlink_build.py)\n")
+        for i, (mod, off) in enumerate(syms):
+            f.write("%d %d 0x%X\n" % (i, mod, off))
     nfuncs = njtbls = nro = 0
     ro_notes = []
     for m in range(len(mods)):
-        nf, nj, note = split_module(rom, L, syms, names, mods, m, args.asm_dir, args.nonmatchings_dir,
+        nf, nj, note = split_module(rom, L, syms, names, dups, mods, m, args.asm_dir, args.nonmatchings_dir,
                                     args.build_dir, DATA_SPLITS.get(args.version, {}).get(m + 1, ()))
         nfuncs += nf
         njtbls += nj
