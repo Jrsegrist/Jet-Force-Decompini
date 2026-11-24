@@ -4927,7 +4927,6 @@ static void troop_member_join(Object *home) {
     }
 }
 
-#ifdef NON_MATCHING
 /* The level entry 0D810 spawns a member from (0x12 bytes) */
 typedef struct M003SpawnEntry {
     /* 0x00 */ u16 objectID;
@@ -4944,11 +4943,7 @@ typedef struct M003SpawnEntry {
 
 extern void troop_member_colours_get(Object *obj, u8 *r, u8 *g, u8 *b);
 
-/*
- * Spawns a member at the troop's home, thrown the home's way (when its ring gives none).
- * ROM length and stack; from the `blue == 5` block on the FPRs are numbered differently (the ROM
- * evaluates the home's position before the converted offset, as a comma expression would make IDO do).
- */
+/* Spawns a member at the troop's home, thrown the home's way (when its ring gives none) */
 static Object *func_m003_0D810(void) {
     M003SpawnEntry entry;
     f32 x;
@@ -5023,9 +5018,10 @@ static Object *func_m003_0D810(void) {
             yaw = sHome->trans.rotation.y_rotation;
             troop_member_colours_get(sHome, &rg, &rg, &blue);
             if (blue == 5) {
-                sHomeData->x = sHome->trans.x_position + (sHomeData->offset[0] << 4);
-                sHomeData->y = sHome->trans.y_position + (sHomeData->offset[1] << 4);
-                sHomeData->z = sHome->trans.z_position + (sHomeData->offset[2] << 4);
+                /* (*sHome). with the offset first: IDO then loads the position before converting the offset */
+                sHomeData->x = (sHomeData->offset[0] << 4) + (*sHome).trans.x_position;
+                sHomeData->y = (sHomeData->offset[1] << 4) + (*sHome).trans.y_position;
+                sHomeData->z = (sHomeData->offset[2] << 4) + (*sHome).trans.z_position;
                 sHome->trans.rotation.y_rotation =
                     func_80049C84(sHomeData->x - ((Object *) sClosestPlayer)->trans.x_position,
                                   sHomeData->z - ((Object *) sClosestPlayer)->trans.z_position);
@@ -5070,9 +5066,6 @@ static Object *func_m003_0D810(void) {
     sMember->lastZ = sObj->trans.z_position;
     return sObj;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0D810);
-#endif
 
 /* A member's level entry */
 typedef struct M003MemberEntry {
@@ -5783,11 +5776,6 @@ typedef struct M003RingEntry {
 } M003RingEntry;
 
 extern M003RingEntry *troop_ring_take(s32 id);
-#ifdef NON_MATCHING
-#define rl_m003_0D810 func_m003_0D810
-#else
-extern Object *rl_m003_0D810(void); /* still assembly */
-#endif
 
 /* Spawns the troop's next member from the ring (or 0D810's way); counts the ones whose flag is set */
 Object *func_m003_14694(void) {
@@ -5808,7 +5796,7 @@ Object *func_m003_14694(void) {
         sHomeData->unk8C++;
         return NULL;
     }
-    return rl_m003_0D810();
+    return func_m003_0D810();
 }
 
 void func_m003_1477C(void) {
