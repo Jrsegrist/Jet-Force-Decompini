@@ -273,12 +273,9 @@ s32 screen_rect_visible(s32 rect);
 s32 screen_rect_queue(s32 x, s32 y, s32 size);
 s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
 
-#ifdef NON_MATCHING
 /* JFG: update the active coronas from where the last call stopped: screen-space ones (0x20) fade by
    whether their queued screen point was hidden and queue a new one along their direction; the others
-   in range are lit, or (0x40) get up to four visibility tests a call.
-   NON_MATCHING (10 words, from 113, after the empty ifs on always-set values below): the target keeps -1 and &screenY in saved registers (mine &dir and &screenX) and has
-   two more words below dir. */
+   in range are lit, or (0x40) get up to four visibility tests a call. */
 void func_80024044(void) {
     CoronaCamera *cam;
     Corona *corona;
@@ -293,6 +290,7 @@ void func_80024044(void) {
     f32 dir[3];
     f32 radiusSq;
     f32 distSq;
+    s32 active;
 
     if (D_800A1108 > 0) {
         cam = cam_get_active_camera();
@@ -304,7 +302,8 @@ void func_80024044(void) {
             if (i >= 50) {
                 i = 0;
             }
-            if (corona->active & 0x20) {
+            active = corona->active;
+            if (active & 0x20) {
                 if (screen_rect_visible(corona->screenRect) == 0) {
                     corona->opacity += 8;
                     if (corona->opacity > 16) {
@@ -326,15 +325,14 @@ void func_80024044(void) {
                 } else {
                     corona->screenRect = -1;
                 }
-            } else if (corona->active) {
-                radiusSq = corona->unk40 * corona->unk40;
+            } else if (active) {
                 dx = corona->pos[0] - cam->x;
                 dy = corona->pos[1] - cam->y;
                 dz = corona->pos[2] - cam->z;
-                if (budget) {}
+                radiusSq = corona->unk40 * corona->unk40;
                 distSq = dx * dx + dy * dy + dz * dz;
                 if (distSq < radiusSq) {
-                    if (corona->active & 0x40) {
+                    if (active & 0x40) {
                         if (budget) {
                             corona_visibility_update((f32 *) cam, corona);
                             budget--;
@@ -349,16 +347,13 @@ void func_80024044(void) {
                     corona->opacity = 0;
                 }
             }
-            if (cam) {}
+            if (cam) {} // cam is set before the loop
         } while (i != D_800A110C);
         if (budget == 0) {
             D_800A110C = next;
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/245D0", func_80024044);
-#endif
 
 /**
  * JFG: of count RGBA colours, each channel of the one brightest in it (times alpha), and the top alpha.
