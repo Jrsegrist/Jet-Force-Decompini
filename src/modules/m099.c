@@ -45,7 +45,7 @@ extern s16 func_80049C84(f32 x, f32 z); /* the angle of (x, z) */
 extern f32 func_80049C34(s32 angle);   /* sine of a 16-bit angle */
 extern f32 func_80049C30(s32 angle);   /* cosine */
 extern void func_800099F4();
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz);
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* 53C0.c move_object */
 extern s32 func_8001B078(f32 x, f32 z, s32 arg2, f32 ***floor);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
 

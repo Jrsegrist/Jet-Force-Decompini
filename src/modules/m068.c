@@ -3873,7 +3873,7 @@ extern s32 func_800163FC(Object *obj, Vec3f *pos, Vec3f *prev, Vec3f *points, f3
                          s16 *flags, M068GroundHit *hits, s32 count, f32 *arg9, Vec3f *arg10);
 extern void func_80049394(Vec3s *rotation, Vec3f *vec);
 extern void func_800492DC(Object *obj, Vec3f *vec);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 extern u8 rl_m068_125D0; /* (.data) the ground kinds it stands on */
 
 #ifdef NON_MATCHING
@@ -5340,7 +5340,7 @@ extern s32 rl_m068_12608; /* set: the fire balls fade out */
 extern s32 rl_m068_12628; /* which of the two burst sounds is next */
 extern s32 rl_m068_1262C; /* set while a burst plays */
 extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 
 /* A fire ball: flies (growing) until it hits something or fades out, then bursts */
 void func_m068_0C944(Object *obj, s32 updateRate) {
@@ -5517,7 +5517,7 @@ typedef struct M068AnimModel {
 extern s32 sprite_anim_advance(s32 anim, s32 *flags, s32 arg2, f32 *frame, s32 updateRate);
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
 extern void func_8005F5AC(Object *obj, s32 updateRate);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 extern void corona_free(s32 light);
 
 /* A beam: flies until it hits, then bursts into sparks (and leaves a mark where it hit), then plays out */
@@ -6296,7 +6296,7 @@ void func_m068_0EF2C(Object *obj, M068RingSetup *setup) {
 
 extern void func_8005F5A0(f32 arg0);
 extern void func_8005F5AC(Object *obj, s32 updateRate);
-extern void func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object */
+extern s32 func_80009A04(Object *obj, f32 dx, f32 dy, f32 dz); /* moves the object (53C0.c move_object) */
 extern void func_800035E8(s32 sound, f32 x, f32 y, f32 z); /* moves a positioned sound */
 extern void audspat_point_set_volume(s32 sound, s32 volume);
 
@@ -6880,8 +6880,9 @@ void func_m068_10A28(Object *obj, M068PieceSetup *setup) {
 #ifdef NON_MATCHING
 /*
  * A piece flying off: it falls and spins until it lands or its time runs out,
- * then goes. Frame and code match; the piece pointer gets v1 where the ROM
- * has t0 (and the registers after it move along).
+ * then goes. Frame and code match; 19 aligned diffs (35 before move_object's
+ * s32 return): from the spin on, every temporary is one register later than
+ * the ROM's (the ROM puts the timer product in v0).
  */
 void func_m068_10B58(Object *obj, s32 updateRate) {
     UNUSED s32 pad;
