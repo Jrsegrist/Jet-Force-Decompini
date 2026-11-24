@@ -5,11 +5,7 @@
  * and handles hits, deaths and missions. Most of it is still in assembly.
  * Family: enemy behaviours (docs/runlink.md, "Module families").
  */
-/* module.h declares anim_path_enable_run unprototyped; its definition (76C20.c) takes a u8 */
-#define anim_path_enable_run anim_path_enable_run_unprototyped
 #include "module.h"
-#undef anim_path_enable_run
-extern void anim_path_enable_run(u8 index);
 
 /* What a troop member keeps in obj->unk68 */
 typedef struct M003Member {
@@ -101,7 +97,16 @@ typedef struct M003Member {
     /* 0x60 */ f32 unk60; /* the body's animation frame */
     /* 0x64 */ s32 shotBy;
     /* 0x68 */ f32 earPos[3]; /* where it hears events from */
-    /* 0x74 */ u8 pad74[0x9C - 0x74];
+    /* 0x74 */ f32 aim0Pos[3]; /* where its first aiming joint is (0EB40 turns it towards its shooter) */
+    /* 0x80 */ f32 aim1Pos[3]; /* and its second */
+    /* 0x8C */ s16 aim0Yaw;
+    /* 0x8E */ s16 aim0YawSpeed;
+    /* 0x90 */ s16 aim0Pitch;
+    /* 0x92 */ s16 aim0PitchSpeed;
+    /* 0x94 */ s16 aim1Yaw;
+    /* 0x96 */ s16 aim1YawSpeed;
+    /* 0x98 */ s16 aim1Pitch;
+    /* 0x9A */ s16 aim1PitchSpeed;
     /* 0x9C */ s16 unk9C;
     /* 0x9E */ u8 pad9E[0xA0 - 0x9E];
     /* 0xA0 */ u16 unkA0; /* body parts hit (kind 15) */
@@ -148,7 +153,12 @@ typedef struct M003Flags4 {
 /* The member's group byte as bit fields */
 typedef struct M003Group {
     u8 inactive : 1; /* the sign bit of `group` */
-    u8 rest : 6;
+    u8 aim0On : 1;     /* its first aiming joint points at its shooter (0EB40) */
+    u8 aim1On : 1;     /* and its second */
+    u8 aim0InRange : 1; /* its shooter is within the first joint's yaw limits */
+    u8 aim1InRange : 1;
+    u8 aiming : 1;      /* its animation aims (M003Anim aim != 0) */
+    u8 rest : 1;
     u8 fireproof : 1; /* its body does not burn (0D360) */
 } M003Group;
 
@@ -313,7 +323,7 @@ typedef struct M003BodyPart {
     /* 0x00 */ u8 bit;
     /* 0x01 */ u8 part; /* the hit part it stands for */
     /* 0x02 */ u8 kind; /* 2: hitting it kills */
-    /* 0x03 */ u8 pad3;
+    /* 0x03 */ u8 joint; /* the joint it hangs on (0EB40 hides a lost part's joint) */
     /* 0x04 */ u8 unk4;
     /* 0x05 */ u8 unk5;
     /* 0x06 */ u8 unk6;
@@ -340,7 +350,13 @@ typedef struct M003Body {
     /* 0x2F */ u8 hitPart; /* the body part the last hit took off, 7: none */
     /* 0x30 */ u8 pad30[0x34 - 0x30];
     /* 0x34 */ u8 turns[3]; /* 0, 0, 0: it turns straight to face an event (00D44) */
-    /* 0x37 */ u8 pad37[0x40 - 0x37];
+    /* 0x37 */ u8 turnWeights[3]; /* how much of the member's turn each of turns' joints takes (0EB40) */
+    /* 0x3A */ u8 aim0Joint; /* the first joint that aims at the member's shooter, 0: none (0EB40) */
+    /* 0x3B */ u8 aim0YawMax; /* its yaw limits, in 128ths */
+    /* 0x3C */ u8 aim0YawMin;
+    /* 0x3D */ u8 aim1Joint; /* the second */
+    /* 0x3E */ u8 aim1YawMax;
+    /* 0x3F */ u8 aim1YawMin;
     /* 0x40 */ M003BodyPart parts[8];
 } M003Body;
 
@@ -440,7 +456,8 @@ typedef struct M003Anim {
     /* 0x04 */ u32 unk4_22 : 3; /* 3: the member loses a body part as it starts (04968), 4: one time in three */
     /* 0x04 */ u32 parts : 7; /* its row of rl_m003_17A10, 0x7F: none (09680) */
     /* 0x04 */ u32 unk4_11 : 4;
-    /* 0x04 */ u32 pad4_1 : 11;
+    /* 0x04 */ u32 aim : 2; /* bit 0: the body's first aiming joint aims, bit 1: its second (0EB40) */
+    /* 0x04 */ u32 pad4_0 : 9;
 } M003Anim;
 
 /* Parts of the module's .data (still assembly), by module offset */
@@ -5273,7 +5290,266 @@ void func_m003_0E9F0(Object *obj) {
     }
 }
 
+extern void func_m141_00280(Object *obj, s16 **cmd);
+#define sCmdList ((s16 *) &sBss20[0x28 - 0x20]) /* 0EB40's joint command list (s16 pairs, 0x1000 ends it) */
+#define GROUP(m) ((M003Group *) &(m)->group)
+#define SHOOTER_AT(i) (((M003Interact *) ((Object *) sMember->shotBy)->interactObj)->centre[i])
+
+#ifdef NON_MATCHING
+/*
+ * The member's joint commands for this frame: its turn shared out over the body's turn joints, its aiming
+ * joints turned towards its shooter (or back to rest), and its lost parts' joints. Returns the list.
+ * NON_MATCHING (first body, round 54): 1379/1384 words, frame 160 (ROM 152). Every declared local's slot is
+ * the ROM's + 8; the ROM has 3 words fewer between the s16s and the temp of `turn * w0`. The ROM computes
+ * w1/w2 before `if (flag)` (ours sinks them to their uses), and in case 0x21 keeps sMember in v0 from the
+ * rate. The turn joints' `* 6U` is unsigned in the ROM (multu by a register 6); the aim joints' isn't.
+ */
+s16 *func_m003_0EB40(Object *obj) {
+    u32 a;
+    u32 b;
+    u32 c;
+    s16 *cmd;
+    s32 total;
+    f32 turn;
+    f32 scale;
+    f32 w0;
+    f32 w1;
+    f32 w2;
+    f32 w3;
+    s32 flag;
+    M003Anim *anim;
+    f32 rate;
+    s32 i;
+    s32 j;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    UNUSED s16 pad;
+    s16 pitch;
+    s16 yaw;
+    s16 base;
+    s16 hi;
+    s16 lo;
+    s32 d;
+    s32 part;
+    s32 n;
+
+    cmd = sCmdList;
+    sObj = obj;
+    turn = 0.0f;
+    w0 = 0.0f;
+    w3 = 0.0f;
+    sMember = obj->unk68;
+    if (sMember->unk6_0 < 2U || !func_m003_0D2C0(obj) || (anim = func_m003_04428(obj)) == NULL) {
+        *cmd = 0x1000;
+        return sCmdList;
+    }
+    rate = sBody->turnStep << sMember->unk9;
+    switch (sBodyIndex) {
+        case 0x21:
+            *cmd++ = 0x22;
+            *cmd++ = *(s16 *) &sMember->unkA8;
+        case 0x22:
+            *cmd++ = 2;
+            *cmd++ = -obj->trans.rotation.y_rotation;
+            *cmd++ = 8;
+            *cmd++ = obj->trans.rotation.y_rotation;
+            break;
+        case 0x17:
+            func_m141_00280(obj, &cmd);
+            break;
+    }
+    flag = anim->unk3 == 0x3E || sMember->animSet == 5;
+    if (anim->unk3 == 0x3F) {
+        sMember->unk10 = 0;
+    }
+    a = sBody->turnWeights[0];
+    b = sBody->turnWeights[1];
+    c = sBody->turnWeights[2];
+    total = (a + b + c) << 7;
+    if (total != 0 && sMember->unkC != 0) {
+        turn = sMember->unkC;
+        if (flag) {
+            total += 0x2F80;
+        }
+        if (total < turn) {
+            turn = total;
+        } else if (turn < -total) {
+            turn = -total;
+        }
+        scale = 1.0f / (total >> 7);
+        w0 = a * scale;
+        w1 = b * scale;
+        w2 = c * scale;
+        if (flag) {
+            w3 = 95.0f * scale;
+        }
+        *cmd++ = sBody->turns[0] * 6U + 2;
+        *cmd++ = turn * w0;
+        *cmd++ = sBody->turns[1] * 6U + 2;
+        *cmd++ = turn * w1;
+        *cmd++ = sBody->turns[2] * 6U + 2;
+        *cmd++ = turn * w2;
+        if (flag) {
+            *cmd++ = 0x2074;
+            *cmd++ = turn * w3;
+        }
+    }
+    if (((M003BodyFlags *) &sBody->unk24)->unk11) {
+        GROUP(sMember)->aim0On = FALSE;
+        GROUP(sMember)->aim1On = FALSE;
+        GROUP(sMember)->aim0InRange = FALSE;
+        GROUP(sMember)->aim1InRange = FALSE;
+        if (anim->aim == 0) {
+            GROUP(sMember)->aiming = FALSE;
+        } else {
+            GROUP(sMember)->aiming = TRUE;
+        }
+    }
+    if (((M003BodyFlags *) &sBody->unk24)->unk11 && sMember->shotBy != 0 && (sMember->unk4 & 1) &&
+        anim->aim != 0) {
+        if ((anim->aim & 1) && sBody->aim0Joint != 0) {
+            dx = sMember->aim0Pos[0] - SHOOTER_AT(0);
+            dz = sMember->aim0Pos[2] - SHOOTER_AT(2);
+            dist = func_80097140(dx * dx + dz * dz);
+            base = turn * w0 + sObj->trans.rotation.y_rotation - 16384.0f;
+            yaw = func_80049D80(base, (s16) -func_80049C84(dz, dx));
+            hi = sBody->aim0YawMax << 7;
+            lo = -sBody->aim0YawMin << 7;
+            if (yaw < hi && lo < yaw) {
+                GROUP(sMember)->aim0InRange = TRUE;
+            }
+            d = (s16) func_80049D80(sMember->aim0Yaw, yaw);
+            if (d < 0x200 && d > -0x200) {
+                GROUP(sMember)->aim0On = TRUE;
+            }
+            if (hi < yaw) {
+                yaw = hi;
+            }
+            if (yaw < lo) {
+                yaw = lo;
+            }
+            sMember->aim0YawSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim0Yaw, yaw),
+                                                     sMember->aim0YawSpeed, rate);
+            sMember->aim0Yaw += sMember->aim0YawSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim0Joint * 6 + 2;
+            *cmd++ = sMember->aim0Yaw;
+            pitch = -func_80049C84(sMember->aim0Pos[1] - SHOOTER_AT(1), dist);
+            d = (s16) func_80049D80(sMember->aim0Pitch, pitch);
+            if (d >= 0x200 || d <= -0x200) {
+                GROUP(sMember)->aim0On = FALSE;
+            }
+            if (pitch > 0x2000) {
+                pitch = 0x2000;
+            }
+            if (pitch < -0x1000) {
+                pitch = -0x1000;
+            }
+            sMember->aim0PitchSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim0Pitch, pitch),
+                                                       sMember->aim0PitchSpeed, rate);
+            sMember->aim0Pitch += sMember->aim0PitchSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim0Joint * 6;
+            *cmd++ = sMember->aim0Pitch;
+        }
+        if ((anim->aim & 2) && sBody->aim1Joint != 0) {
+            dx = sMember->aim1Pos[0] - SHOOTER_AT(0);
+            dz = sMember->aim1Pos[2] - SHOOTER_AT(2);
+            dist = func_80097140(dx * dx + dz * dz);
+            base = turn * w0 + sObj->trans.rotation.y_rotation - 16384.0f;
+            yaw = func_80049D80(base, (s16) -func_80049C84(dz, dx));
+            hi = sBody->aim1YawMax << 7;
+            lo = -sBody->aim1YawMin << 7;
+            if (yaw < hi && lo < yaw) {
+                GROUP(sMember)->aim1InRange = TRUE;
+            }
+            d = (s16) func_80049D80(sMember->aim1Yaw, yaw);
+            if (d < 0x200 && d > -0x200) {
+                GROUP(sMember)->aim1On = TRUE;
+            }
+            if (hi < yaw) {
+                yaw = hi;
+            }
+            if (yaw < lo) {
+                yaw = lo;
+            }
+            sMember->aim1YawSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim1Yaw, yaw),
+                                                     sMember->aim1YawSpeed, rate);
+            sMember->aim1Yaw += sMember->aim1YawSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim1Joint * 6 + 2;
+            *cmd++ = sMember->aim1Yaw;
+            pitch = -func_80049C84(sMember->aim1Pos[1] - SHOOTER_AT(1), dist);
+            d = (s16) func_80049D80(sMember->aim1Pitch, pitch);
+            if (d >= 0x200 || d <= -0x200) {
+                GROUP(sMember)->aim1On = FALSE;
+            }
+            if (pitch > 0x2000) {
+                pitch = 0x2000;
+            }
+            if (pitch < -0x1000) {
+                pitch = -0x1000;
+            }
+            sMember->aim1PitchSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim1Pitch, pitch),
+                                                       sMember->aim1PitchSpeed, rate);
+            sMember->aim1Pitch += sMember->aim1PitchSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim1Joint * 6;
+            *cmd++ = sMember->aim1Pitch;
+        }
+    } else {
+        /* back to rest (the second pair writes the yaw twice, as the original does) */
+        if (sBody->aim0Joint != 0) {
+            sMember->aim0YawSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim0Yaw, 0),
+                                                     sMember->aim0YawSpeed, rate);
+            sMember->aim0Yaw += sMember->aim0YawSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim0Joint * 6 + 2;
+            *cmd++ = sMember->aim0Yaw;
+            sMember->aim0PitchSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim0Pitch, 0),
+                                                       sMember->aim0PitchSpeed, rate);
+            sMember->aim0Pitch += sMember->aim0PitchSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim0Joint * 6 + 2;
+            *cmd++ = sMember->aim0Yaw;
+        }
+        if (sBody->aim1Joint != 0) {
+            sMember->aim1YawSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim1Yaw, 0),
+                                                     sMember->aim1YawSpeed, rate);
+            sMember->aim1Yaw += sMember->aim1YawSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim1Joint * 6 + 2;
+            *cmd++ = sMember->aim1Yaw;
+            sMember->aim1PitchSpeed += func_m003_079D8((s16) func_80049D80(sMember->aim1Pitch, 0),
+                                                       sMember->aim1PitchSpeed, rate);
+            sMember->aim1Pitch += sMember->aim1PitchSpeed * D_800FE9F8 * 0.5f;
+            *cmd++ = sBody->aim1Joint * 6 + 2;
+            *cmd++ = sMember->aim1Yaw;
+        }
+    }
+    if (sMember->lostParts != 0) {
+        for (i = 0; i < 15; i++) {
+            if (sMember->lostParts & (1 << i)) {
+                part = -1;
+                j = sBody->numParts;
+                while (j-- != 0) {
+                    if (sBody->parts[j].bit == i) {
+                        part = sBody->parts[j].joint;
+                    }
+                }
+                if (part != -1) {
+                    n = part * 6;
+                    *cmd++ = n | 0x4000;
+                    *cmd++ = 0x20;
+                    *cmd++ = (n + 2) | 0x4000;
+                    *cmd++ = 0x20;
+                    *cmd++ = (n + 4) | 0x4000;
+                    *cmd++ = 0x20;
+                }
+            }
+        }
+    }
+    *cmd = 0x1000;
+    return sCmdList;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_0EB40);
+#endif
 
 /* A member loses its head to `by` */
 void func_m003_100E0(Object *obj, Object *by) {

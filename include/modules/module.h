@@ -72,8 +72,10 @@ extern void *func_m010_0000C(SparkParams *spark); /* returns the spark (callers 
  * Main-segment calls that triggers and switches use to start and stop
  * scripted animations. Some callers pass (anim, updateRate, obj, 1), others
  * only the first argument, so the original had no prototype in scope for them.
+ * anim_path_enable_run takes one u8 (its definition in src/76C20.c), so it has
+ * its real prototype: m003 needs it for a direct jal.
  */
-extern void anim_path_enable_run();
+extern void anim_path_enable_run(u8 index);
 extern void anim_path_disable_run();
 extern void func_80076928();
 extern void sequence_start();
