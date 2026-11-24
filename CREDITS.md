@@ -410,5 +410,5 @@ written from what the code does.
 
 | DKR file | Used for |
 | --- | --- |
-| `src/objects.c` | spawn_object's shape (the build in a scratch buffer, the model/texture/sprite loops with the failure clean-up, the property blocks by behaviour flags, the copy into its allocation and the pointer moves, the list add and the init) for the NON_MATCHING body of JFG's spawn_object (0x80005F14); JFG's skipped types, error codes, extra blocks and module calls are written from the ROM |
+| `src/objects.c` | spawn_object's shape (the build in a scratch buffer, the model/texture/sprite loops with the failure clean-up, the property blocks by behaviour flags, the copy into its allocation and the pointer moves, the list add and the init, the compiled-out overflow messages) for JFG's spawn_object (0x80005F14, matching); JFG's skipped types, error codes, extra blocks and module calls are written from the ROM |
 | `src/objects.c` | run_object_init_func's third parameter (DKR passes it to obj_init_animator), now in JFG's definition |

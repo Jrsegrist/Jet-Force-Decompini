@@ -1066,21 +1066,18 @@ s32 get_level_segment_index_from_position(f32 xPos, f32 yPos, f32 zPos);
 /* Relocates a pointer into the build buffer to the same place in the object. */
 #define OBJ_RELOC(T, p) ((T) ((u32) curObj + (u32) (p) - (u32) D_800F2C64))
 
-#ifdef NON_MATCHING
 /**
  * Spawns an object from a level entry: builds it in the scratch buffer (its header, the models, textures or
  * sprites, then each property block its behaviour flags ask for), copies it into an allocation of its size
  * rounded up to 16, moves its block pointers along, adds it to one of the two lists and runs its init.
  * JFG: some types are never spawned; an error code for the crash screen instead of DKR's prints.
+ * The asset loops step the index inside the null test (`attachments[i++] == NULL`); the two empty ifs after
+ * the list adds are DKR's overflow messages, compiled out (they still shape the register choice).
  * DKR: spawn_object
- * NON_MATCHING: first body from the ROM, its length and frame (962 words, 0x98) and stack slots, 146 aligned diffs:
- * the three asset loops test each loaded asset with `sltiu; beqz` and keep the loop bound in a1/a2 (ours `bnez`,
- * v1); the ROM keeps &D_800F2CB8 in s0 and spills `spawnFlags & 1` (ours the reverse); the scale product and
- * the `i = 0` move are scheduled earlier; the rest is register renumbering after those.
  */
 Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
     s32 objType;
-    UNUSED s32 pad;
+    ObjectHeader *header;
     s32 i;
     s32 assetCount;
     s32 sizeOfobj;
@@ -1130,7 +1127,6 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
     curObj->trans.x_position = entry->x;
     curObj->trans.y_position = entry->y;
     curObj->trans.z_position = entry->z;
-    i = 0;
     curObj->segmentID = get_level_segment_index_from_position(curObj->trans.x_position, curObj->trans.y_position,
                                                               curObj->trans.z_position);
     curObj->headerIndex = headerType;
@@ -1139,6 +1135,7 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
     curObj->trans.scale = curObj->header->scale;
     curObj->unk34 = curObj->header->unk18 * curObj->trans.scale;
     curObj->opacity = 255;
+    curObj->unk91 = curObj->header->unkA7;
     curObj->unk97[0] = 255;
     curObj->unk97[1] = 255;
     curObj->unk97[2] = 255;
@@ -1146,13 +1143,13 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
     curObj->prev = NULL;
     curObj->next = NULL;
     curObj->freed = FALSE;
-    curObj->unk91 = curObj->header->unkA7;
     behaviourFlags = obj_type_model_flags(curObj->header->unk1C);
     modelFlags = behaviourFlags & 7;
     curObj->header->numSpawned++;
     assetCount = curObj->header->numAttachments;
     objType = curObj->header->unk1E;
     curObj->attachments = (ObjectAttachment **) &curObj[1];
+    i = 0;
     failed = FALSE;
     switch (objType) {
         default:
@@ -1161,10 +1158,9 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
         case 4:
             while (i < assetCount) {
                 curObj->attachments[i] = load_texture(((s32 *) curObj->header->unk30)[i]);
-                if (curObj->attachments[i] == NULL) {
+                if (curObj->attachments[i++] == NULL) {
                     failed = TRUE;
                 }
-                i++;
             }
             break;
         case 0:
@@ -1177,20 +1173,18 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
                 } else {
                     curObj->attachments[i] = object_model_init(((s32 *) curObj->header->unk30)[i], modelFlags);
                 }
-                if (curObj->attachments[i] == NULL) {
+                if (curObj->attachments[i++] == NULL) {
                     failed = TRUE;
                 }
-                i++;
             }
             extra_batch_bits_store(8);
             break;
         case 1:
             while (i < assetCount) {
                 curObj->attachments[i] = tex_load_sprite(((s32 *) curObj->header->unk30)[i], 10);
-                if (curObj->attachments[i] == NULL) {
+                if (curObj->attachments[i++] == NULL) {
                     failed = TRUE;
                 }
-                i++;
             }
             break;
     }
@@ -1346,15 +1340,17 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
     if (spawnFlags & 1) {
         gObjPtrList[gObjectCount] = curObj;
         gObjectCount++;
+        if (gObjectCount > 512) {} // a compiled-out overflow message (DKR's stubbed_printf; the bound isn't in the ROM)
     } else {
         D_800F2CB4[D_800F2CB8] = curObj;
         D_800F2CB8++;
+        if (D_800F2CB8 > 512) {} // the same for the second list
     }
     if (curObj->unk4C != NULL) {
-        obj_collision_spheres_init(curObj, 100, curObj->header->collArg2, curObj->header->collArg3,
-                                   (f32) curObj->header->collRot[0], (f32) curObj->header->collRot[1],
-                                   (f32) curObj->header->collRot[2], curObj->header->collRadius,
-                                   curObj->header->collRadius2, curObj->header->collArg9, curObj->header->collArg10, 1);
+        header = curObj->header;
+        obj_collision_spheres_init(curObj, 100, header->collArg2, header->collArg3, (f32) header->collRot[0],
+                                   (f32) header->collRot[1], (f32) header->collRot[2], header->collRadius,
+                                   header->collRadius2, header->collArg9, header->collArg10, 1);
     }
     if (curObj->header->unk25 > 0) {
         func_80022624(curObj);
@@ -1394,9 +1390,6 @@ Object *spawn_object(LevelObjectEntry53 *entry, s32 spawnFlags) {
     D_800A3348 = 4;
     return curObj;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80005F14);
-#endif
 
 void free_3d_model(void *model);
 void tex_free(void *tex);
