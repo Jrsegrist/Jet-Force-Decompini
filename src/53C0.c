@@ -215,7 +215,9 @@ typedef struct Object {
     /* 0x97 */ u8 unk97[4]; // JFG: set to 0xFF when spawned
     /* 0x9B */ u8 pad9B[0xA0 - 0x9B];
     /* 0xA0 */ u8 freed; // JFG: already on the free list
-    /* 0xA1 */ u8 padA1[0xA4 - 0xA1];
+    /* 0xA1 */ u8 padA1;
+    /* 0xA2 */ u8 unkA2; // JFG: nonzero: func_80007C68 calls particles_offset_by_position
+    /* 0xA3 */ u8 padA3;
     /* 0xA4 */ struct Object *prev;
     /* 0xA8 */ struct Object *next;
     /* 0xAC */ f32 prevAnimFrame;
@@ -1936,7 +1938,687 @@ void gParticlePtrList_flush(void) {
     gFreeListCount = 0;
 }
 
+/* JFG: what obj_destroy frees in the objects' state blocks (obj->racer), by kind; offsets only */
+typedef struct ObjState53 {
+    /* 0x000 */ void *unk0;
+    /* 0x004 */ void *unk4;
+    /* 0x008 */ void *unk8;
+    /* 0x00C */ void *unkC;
+    /* 0x010 */ void *unk10;
+    /* 0x014 */ void *unk14;
+    /* 0x018 */ u8 pad18[0x1C - 0x18];
+    /* 0x01C */ void *unk1C;
+    /* 0x020 */ void *unk20;
+    /* 0x024 */ struct Object *unk24;
+    /* 0x028 */ struct Object *unk28;
+    /* 0x02C */ void *unk2C;
+    /* 0x030 */ u8 pad30[0x50 - 0x30];
+    /* 0x050 */ struct Object *unk50;
+    /* 0x054 */ u8 pad54[0x58 - 0x54];
+    /* 0x058 */ struct Object *unk58;
+    /* 0x05C */ u8 pad5C[0x74 - 0x5C];
+    /* 0x074 */ void *unk74;
+    /* 0x078 */ void *unk78;
+    /* 0x07C */ void *unk7C;
+    /* 0x080 */ void *unk80;
+    /* 0x084 */ void *unk84;
+    /* 0x088 */ u8 pad88[0x90 - 0x88];
+    /* 0x090 */ void *unk90;
+    /* 0x094 */ u8 pad94[0xA8 - 0x94];
+    /* 0x0A8 */ struct Object *unkA8;
+    /* 0x0AC */ u8 padAC[0xB0 - 0xAC];
+    /* 0x0B0 */ void *unkB0;
+    /* 0x0B4 */ struct Object *unkB4;
+    /* 0x0B8 */ void *unkB8;
+    /* 0x0BC */ void *unkBC;
+    /* 0x0C0 */ void *unkC0;
+    /* 0x0C4 */ void *unkC4;
+    /* 0x0C8 */ void *unkC8;
+    /* 0x0CC */ void *unkCC;
+    /* 0x0D0 */ void *unkD0;
+    /* 0x0D4 */ void *unkD4;
+    /* 0x0D8 */ void *unkD8;
+    /* 0x0DC */ u8 padDC[0xE8 - 0xDC];
+    /* 0x0E8 */ void *unkE8;
+    /* 0x0EC */ void *unkEC;
+    /* 0x0F0 */ void *unkF0;
+    /* 0x0F4 */ u8 padF4[0xFD - 0xF4];
+    /* 0x0FD */ u8 unkFD;
+    /* 0x0FE */ u8 padFE[0x100 - 0xFE];
+    /* 0x100 */ struct Object *unk100;
+    /* 0x104 */ u8 pad104[0x190 - 0x104];
+    /* 0x190 */ void *unk190;
+    /* 0x194 */ u8 pad194[0x4F8 - 0x194];
+    /* 0x4F8 */ void *unk4F8[3];
+    /* 0x504 */ void *unk504;
+    /* 0x508 */ u8 pad508[0x550 - 0x508];
+    /* 0x550 */ void *unk550;
+    /* 0x554 */ void *unk554;
+    /* 0x558 */ void *unk558;
+    /* 0x55C */ struct Object *unk55C;
+    /* 0x560 */ struct Object *unk560;
+    /* 0x564 */ u8 pad564[0x598 - 0x564];
+    /* 0x598 */ void *effects[4];
+    /* 0x5A8 */ u8 pad5A8[0x5BC - 0x5A8];
+    /* 0x5BC */ struct Object *unk5BC;
+    /* 0x5C0 */ u8 pad5C0[0x5D0 - 0x5C0];
+    /* 0x5D0 */ void *unk5D0;
+    /* 0x5D4 */ void *unk5D4;
+    /* 0x5D8 */ void *unk5D8;
+    /* 0x5DC */ void *unk5DC;
+    /* 0x5E0 */ void *unk5E0;
+    /* 0x5E4 */ void *unk5E4;
+    /* 0x5E8 */ void *unk5E8;
+    /* 0x5EC */ u8 pad5EC[0x6E8 - 0x5EC];
+    /* 0x6E8 */ void *unk6E8;
+    /* 0x6EC */ u8 pad6EC[0xF30 - 0x6EC];
+    /* 0xF30 */ void *unkF30[4];
+    /* 0xF40 */ u8 padF40[0xFC4 - 0xF40];
+    /* 0xFC4 */ void *unkFC4;
+} ObjState53;
+
+/* JFG: a state block that starts with a count (kind 23) or an argument byte (kind 18) */
+typedef struct ObjStateCount53 {
+    /* 0x00 */ u8 count;
+} ObjStateCount53;
+
+/* JFG: a state block's kind (kind 24's linked object) */
+typedef struct ObjStateKind53 {
+    /* 0x00 */ u8 pad0[0x2C];
+    /* 0x2C */ u16 kind;
+} ObjStateKind53;
+
+#define OBJ_STATE53(obj) ((ObjState53 *) (obj)->racer)
+
+extern s16 D_80104702;
+extern s16 D_80104704;
+extern s16 D_801046FC;
+extern u8 D_8010D7A8[];
+extern u8 D_800A0978;
+extern s32 D_800F2EE0[16];
+void obj_unlink_dependants(Object *obj);
+s32 runlink_module_loaded(s32 module);
+void free_3d_model(void *model);
+void sprite_free(void *sprite);
+void tex_free(void *tex);
+void try_free_object_header(s32 index);
+void obj_disable_all_emitters(Object *obj);
+void light_remove(void *light);
+void corona_free(void *corona);
+void players_forget_object(s32 obj);
+void input_player_enable(s32 player);
+void track_light_off(f32 *light);
+void zone_list_remove(s32 obj);
+void view_override_remove(ObjectTransform *trans);
+void entry_list_remove(s32 entry);
+void audspat_point_stop(void *handle);
+void sound_stop(void *soundHandle);
+s32 func_800229B8(void *light);
+void obj_state_buffers_free(Object *obj);
+void anim_obj_list_remove(void *obj);
+void effect_texture_pair_free(void **cone);
+void ripple_quad_free(u8 *ripple);
+void particles_offset_by_position(Object *obj);
+
+#ifdef NON_MATCHING
+/**
+ * Destroy an object: the crash-screen trace and the freed-object ring, the companion's and the players' links
+ * to it, its child objects, sprite slots, emitters, lights and coronas, then what its behaviour holds (two
+ * switches, as in DKR; most cases free a light, corona, sound, texture or child object, some go to a module
+ * through the trap), the racer's sounds, lights, objects and effects, the sprite and its texture, the ripple,
+ * the sound source, the particles, the models, the header and the object itself.
+ * NON_MATCHING: 1216 of 1218 words, the ROM's frame and code shape everywhere; the saved registers differ: the
+ * ROM keeps the state pointer of most cases (and the companion's) in s0 and that of kinds 23, 82, 88 and the
+ * racer in s2 with seven saved registers, ours needs an eighth (s7); a separate variable for those four
+ * spills, one state variable per case gives the ROM's registers in places but not all; the ROM also sets
+ * j = 0 once before the second switch (the final model loops start from it).
+ * Kind 24 compares obj->setupEntrance with obj itself (as the ROM does); 0x88 holds a pointer for some kinds.
+ * DKR: obj_destroy
+ */
+void func_80007C68(Object *obj, UNUSED s32 arg1) {
+    Object *tempObj;
+    ObjState53 *state;
+    Object *next;
+    Object **list;
+    s32 numberOfModelIds;
+    s32 i;
+    s32 j;
+    s32 modelType;
+    s32 n;
+
+    D_800A333C = 2;
+    D_800A3348 = 1;
+    D_800A3340 = obj;
+    D_800A3344 = obj->header->name;
+    D_800F2EE0[D_800A0978] = (obj->behaviorId << 16) | obj->unk4A;
+    D_800A0978++;
+    D_800A0978 &= 0xF;
+    if (D_800F2D14 != 0) {
+        state = OBJ_STATE53((Object *) D_800F2D14);
+        if (state != NULL && obj == state->unk50) {
+            state->unk50 = NULL;
+        }
+    }
+    chain_object_unlink_from_players(obj);
+    if (*(u8 *) ((u32) D_8010D7A8 + 5) == 0x4F) {
+        obj_unlink_dependants(obj);
+    }
+    if (runlink_module_loaded(3)) {
+        func_80054530(obj);
+    }
+    if (obj->unk60 != NULL) {
+        for (i = 0; i < obj->unk60->count; i++) {
+            tempObj = obj->unk60->children[i];
+            numberOfModelIds = tempObj->header->numAttachments;
+            modelType = tempObj->header->unk1E;
+            if (modelType == 0) {
+                for (j = 0; j < numberOfModelIds; j++) {
+                    free_3d_model(tempObj->attachments[j]);
+                }
+            } else {
+                for (j = 0; j < numberOfModelIds; j++) {
+                    sprite_free(tempObj->attachments[j]);
+                }
+            }
+            try_free_object_header(tempObj->headerIndex);
+            mempool_free(tempObj);
+        }
+    }
+    if (obj->spriteSlots != NULL) {
+        for (i = 0; i < obj->numSpriteSlots; i++) {
+            sprite_free(obj->spriteSlots[i].sprite);
+        }
+    }
+    obj_disable_all_emitters(obj);
+    if (obj->unk74 != NULL) {
+        for (i = 0; i < obj->header->unk25; i++) {
+            light_remove(((void **) obj->unk74)[i]);
+        }
+    }
+    if (obj->unk78 != NULL) {
+        for (i = 0; i < obj->header->unk26; i++) {
+            corona_free(((void **) obj->unk78)[i]);
+        }
+    }
+    if (obj->header->flags & 0x40) {
+        players_forget_object((s32) obj);
+    }
+    switch (obj->behaviorId) {
+        case 128:
+            D_80104702 = 0xFF;
+            D_80104704 = D_80104702;
+            D_801046FC = 0;
+            break;
+        case 100:
+            input_player_enable(0);
+            break;
+        case 136:
+            if (OBJ_STATE53(obj)->unk10 != NULL) {
+                free_object(OBJ_STATE53(obj)->unk10);
+            }
+            break;
+        case 133:
+            func_80054530(obj);
+            break;
+        case 132:
+            state = OBJ_STATE53(obj);
+            if (state->unk20 != NULL) {
+                light_remove(state->unk20);
+            }
+            if (state->unk2C != NULL) {
+                track_light_off(state->unk2C);
+            }
+            break;
+        case 19:
+            zone_list_remove((s32) obj);
+            break;
+        case 56:
+            if (OBJ_STATE53(obj)->unk0 != NULL) {
+                light_remove(OBJ_STATE53(obj)->unk0);
+            }
+            if (OBJ_STATE53(obj)->unk4 != NULL) {
+                corona_free(OBJ_STATE53(obj)->unk4);
+            }
+            break;
+        case 83:
+            if (OBJ_STATE53(obj)->unk8 != NULL) {
+                light_remove(OBJ_STATE53(obj)->unk8);
+            }
+            break;
+        case 69:
+            if (OBJ_STATE53(obj)->unk0 != NULL) {
+                free_object(OBJ_STATE53(obj)->unk0);
+            }
+            break;
+        case 17:
+            view_override_remove(&obj->trans);
+            break;
+        case 18:
+            func_80054530(((ObjStateCount53 *) obj->racer)->count);
+            break;
+        case 1:
+        case 50:
+            i = gObjectCount;
+            list = gObjPtrList;
+            while (i--) {
+                tempObj = *list++;
+                if (tempObj->behaviorId == 0x16) {
+                    if (obj == OBJ_STATE53(tempObj)->unk100) {
+                        OBJ_STATE53(tempObj)->unk100 = NULL;
+                        OBJ_STATE53(tempObj)->unkFD = 1;
+                    }
+                } else if (tempObj->behaviorId == 0x14) {
+                    if (obj == OBJ_STATE53(tempObj)->unk8) {
+                        OBJ_STATE53(tempObj)->unk8 = NULL;
+                    }
+                }
+            }
+            break;
+        case 77:
+            i = gObjectCount;
+            list = gObjPtrList;
+            while (i--) {
+                tempObj = *list++;
+                if (tempObj->behaviorId == 0x14) {
+                    if (obj == OBJ_STATE53(tempObj)->unkC) {
+                        OBJ_STATE53(tempObj)->unkC = NULL;
+                    }
+                }
+            }
+            break;
+        case 166:
+        case 167:
+            entry_list_remove((s32) obj);
+        case 155:
+            i = gObjectCount;
+            list = gObjPtrList;
+            while (i--) {
+                tempObj = *list++;
+                if (tempObj->behaviorId == 0x14) {
+                    if (obj == OBJ_STATE53(tempObj)->unk10) {
+                        OBJ_STATE53(tempObj)->unk10 = NULL;
+                    }
+                }
+            }
+            break;
+        case 30:
+            light_remove(obj->racer);
+            break;
+        case 16:
+            if (obj->racer != NULL) {
+                mempool_free(obj->racer);
+            }
+            break;
+        case 12:
+            if (obj->setupIndex != 0) {
+                corona_free((void *) obj->setupIndex);
+            }
+            break;
+        case 23:
+            state = OBJ_STATE53(obj);
+            tempObj = state->unk58;
+            n = ((ObjStateCount53 *) state)->count;
+            if (tempObj != NULL && n > 0) {
+                while (n--) {
+                    if (tempObj == NULL) {
+                        break;
+                    }
+                    next = OBJ_STATE53(tempObj)->unk28;
+                    free_object(tempObj);
+                    tempObj = next;
+                }
+            }
+            if (state->unk84 != NULL) {
+                audspat_point_stop(state->unk84);
+            }
+            break;
+        case 24:
+            state = OBJ_STATE53(obj);
+            if (state->unkB4 != NULL) {
+                free_object(state->unkB4);
+            }
+            func_80054530(obj);
+            if (state->unkB8 != NULL) {
+                audspat_point_stop(state->unkB8);
+            }
+            if (state->unkBC != NULL) {
+                audspat_point_stop(state->unkBC);
+            }
+            if (state->unkC0 != NULL) {
+                track_light_off(state->unkC0);
+                state->unkC0 = NULL;
+            }
+            if (state->unkC4 != NULL) {
+                light_remove(state->unkC4);
+                state->unkC4 = NULL;
+            }
+            if (state->unkB0 != NULL) {
+                mempool_free(state->unkB0);
+            }
+            if (state->unk24 != NULL && ((ObjStateKind53 *) state->unk24->racer)->kind == 0x70) {
+                if (state->unkA8 != NULL) {
+                    free_object(state->unkA8);
+                }
+            }
+            i = gObjectCount;
+            list = gObjPtrList;
+            while (i--) {
+                tempObj = *list++;
+                if (tempObj->unk4A == 0x1B2) {
+                    if ((s32) obj == obj->setupEntrance) {
+                        obj->setupEntrance = 0;
+                    }
+                }
+            }
+            break;
+        case 65:
+            func_800229B8(obj->racer);
+            break;
+        case 36:
+            func_80054530(obj);
+            break;
+        case 64:
+            obj_state_buffers_free(obj);
+            break;
+        case 76:
+            if (OBJ_STATE53(obj)->unk14 != NULL) {
+                free_object(OBJ_STATE53(obj)->unk14);
+            }
+            break;
+        case 78:
+            if (OBJ_STATE53(obj)->unk14 != NULL) {
+                mempool_free(OBJ_STATE53(obj)->unk14);
+            }
+            break;
+        case 82:
+            state = OBJ_STATE53(obj);
+            for (i = 0; i < 3; i++) {
+                light_remove(state->unk4F8[i]);
+            }
+            if (state->unk504 != NULL) {
+                audspat_point_stop(state->unk504);
+            }
+            break;
+        case 89:
+            state = OBJ_STATE53(obj);
+            if (state->unk8 != NULL) {
+                light_remove(state->unk8);
+            }
+            if (state->unk4 != NULL) {
+                track_light_off(state->unk4);
+            }
+            break;
+        case 88:
+            state = OBJ_STATE53(obj);
+            for (i = 0; i < 4; i++) {
+                light_remove(state->unkF30[i]);
+            }
+            if (state->unkFC4 != NULL) {
+                sound_stop(state->unkFC4);
+            }
+            break;
+        case 157:
+            if (OBJ_STATE53(obj)->unk90 != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unk90);
+            }
+            break;
+        case 40:
+            if (OBJ_STATE53(obj)->unk190 != NULL) {
+                tex_free(OBJ_STATE53(obj)->unk190);
+            }
+            break;
+        case 41:
+            if (OBJ_STATE53(obj)->unk6E8 != NULL) {
+                tex_free(OBJ_STATE53(obj)->unk6E8);
+            }
+            break;
+        case 98:
+            if (obj->setupIndex != 0) {
+                free_object((Object *) obj->setupIndex);
+            }
+            break;
+        case 95:
+        case 150:
+            func_80054530(obj);
+            break;
+        case 114:
+            state = OBJ_STATE53(obj);
+            if (state->unk0 != NULL) {
+                mempool_free(state->unk0);
+            }
+            if (state->unk4 != NULL) {
+                mempool_free(state->unk4);
+            }
+            break;
+        case 127:
+            if (OBJ_STATE53(obj)->unk4 != NULL) {
+                mempool_free(OBJ_STATE53(obj)->unk4);
+            }
+            break;
+        case 108:
+            func_80054530(obj);
+            break;
+        case 169:
+            func_80054530(obj);
+            break;
+        case 99:
+            if (OBJ_STATE53(obj)->unk0 != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unk0);
+            }
+            break;
+        case 51:
+            anim_obj_list_remove(obj);
+            break;
+    }
+    switch (obj->behaviorId) {
+        case 46:
+        case 47:
+        case 48:
+        case 49:
+        case 50:
+        case 51:
+        case 147:
+            if (obj->setupIndex != 0) {
+                audspat_point_stop((void *) obj->setupIndex);
+            }
+            break;
+        case 55:
+            if (OBJ_STATE53(obj)->unk4 != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unk4);
+            }
+            break;
+        case 72:
+            func_80054530(obj);
+            break;
+        case 70:
+            func_80054530(obj);
+            break;
+        case 92:
+            func_80054530(obj);
+            break;
+        case 105:
+            if (OBJ_STATE53(obj)->unkC != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unkC);
+            }
+            break;
+        case 139:
+            if (OBJ_STATE53(obj)->unk0 != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unk0);
+            }
+            break;
+        case 93:
+            func_80054530(obj);
+            break;
+        case 2:
+            state = OBJ_STATE53(obj);
+            if (state->unk78 != NULL) {
+                sound_stop(state->unk78);
+            }
+            if (state->unk74 != NULL) {
+                sound_stop(state->unk74);
+            }
+            if (state->unk7C != NULL) {
+                sound_stop(state->unk7C);
+            }
+            if (state->unk80 != NULL) {
+                sound_stop(state->unk80);
+            }
+            break;
+        case 90:
+            if (OBJ_STATE53(obj)->unk2C != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unk2C);
+            }
+            break;
+        case 124:
+            if (OBJ_STATE53(obj)->unk10 != NULL) {
+                audspat_point_stop(OBJ_STATE53(obj)->unk10);
+            }
+            break;
+        case 7:
+            state = OBJ_STATE53(obj);
+            if (state->unk8 != NULL) {
+                audspat_point_stop(state->unk8);
+            }
+            if (state->unkC != NULL) {
+                audspat_point_stop(state->unkC);
+            }
+            break;
+        case 125:
+            if (OBJ_STATE53(obj)->unk1C != NULL) {
+                sound_stop(OBJ_STATE53(obj)->unk1C);
+            }
+            break;
+    }
+    if (obj->behaviorId == BHV_RACER) {
+        state = OBJ_STATE53(obj);
+        if (state->unkC4 != NULL) {
+            sound_stop(state->unkC4);
+        }
+        if (state->unkD0 != NULL) {
+            sound_stop(state->unkD0);
+        }
+        if (state->unkC8 != NULL) {
+            sound_stop(state->unkC8);
+        }
+        if (state->unkCC != NULL) {
+            sound_stop(state->unkCC);
+        }
+        if (state->unkD4 != NULL) {
+            sound_stop(state->unkD4);
+        }
+        if (state->unkD8 != NULL) {
+            sound_stop(state->unkD8);
+        }
+        if (state->unkBC != NULL) {
+            audspat_point_stop(state->unkBC);
+        }
+        if (state->unkF0 != NULL) {
+            audspat_point_stop(state->unkF0);
+        }
+        if (state->unkE8 != NULL) {
+            audspat_point_stop(state->unkE8);
+        }
+        if (state->unkEC != NULL) {
+            audspat_point_stop(state->unkEC);
+        }
+        if (state->unkC0 != NULL) {
+            sound_stop(state->unkC0);
+        }
+        if (state->unk5D4 != NULL) {
+            sound_stop(state->unk5D4);
+        }
+        if (state->unk5D0 != NULL) {
+            sound_stop(state->unk5D0);
+        }
+        if (state->unk5D8 != NULL) {
+            sound_stop(state->unk5D8);
+        }
+        if (state->unk5DC != NULL) {
+            sound_stop(state->unk5DC);
+        }
+        if (state->unk5E0 != NULL) {
+            audspat_point_stop(state->unk5E0);
+        }
+        if (state->unk5E4 != NULL) {
+            audspat_point_stop(state->unk5E4);
+        }
+        if (state->unk5E8 != NULL) {
+            audspat_point_stop(state->unk5E8);
+        }
+        if (state->unk550 != NULL) {
+            func_80054530(state->unk550);
+        }
+        if (state->unk554 != NULL) {
+            corona_free(state->unk554);
+        }
+        if (state->unk558 != NULL) {
+            light_remove(state->unk558);
+        }
+        if (state->unk55C != NULL) {
+            free_object(state->unk55C);
+        }
+        if (state->unk560 != NULL) {
+            free_object(state->unk560);
+        }
+        if (state->unk5BC != NULL) {
+            free_object(state->unk5BC);
+        }
+        for (i = 0; i < 4; i++) {
+            if (state->effects[i] != NULL) {
+                effect_texture_pair_free(state->effects[i]);
+            }
+        }
+        for (j = 0; j < gObjectCount; j++) {
+            if (gObjPtrList[j]->behaviorId == 2 && OBJ_STATE53(gObjPtrList[j])->unk24 == obj) {
+                OBJ_STATE53(gObjPtrList[j])->unk24 = NULL;
+            }
+        }
+    }
+    if (obj->sprite != NULL) {
+        if (obj->sprite->unk1C != 0) {
+            if (obj->header->unk61 & 8) {
+                func_80054530(obj->sprite->unk1C);
+            } else if (obj->header->unk61 & 0x10) {
+                func_80054530(obj->sprite->unk1C);
+            }
+        }
+        if (obj->sprite->texture != NULL) {
+            tex_free(obj->sprite->texture);
+        }
+    }
+    if (obj->unk58 != NULL) {
+        ripple_quad_free(obj->unk58);
+    }
+    if (obj->unk7C != NULL && *(void **) (obj->unk7C + 0x18) != NULL) {
+        audspat_point_stop(*(void **) (obj->unk7C + 0x18));
+    }
+    if (obj->unkA2) {
+        particles_offset_by_position(obj);
+    }
+    numberOfModelIds = obj->header->numAttachments;
+    modelType = obj->header->unk1E;
+    if (modelType == 0) {
+        for (j = 0; j < numberOfModelIds; j++) {
+            if (obj->attachments[j] != NULL) {
+                free_3d_model(obj->attachments[j]);
+            }
+        }
+    } else if (modelType == 4) {
+        for (j = 0; j < numberOfModelIds; j++) {
+            tex_free(obj->attachments[j]);
+        }
+    } else {
+        for (j = 0; j < numberOfModelIds; j++) {
+            sprite_free(obj->attachments[j]);
+        }
+    }
+    try_free_object_header(obj->headerIndex);
+    mempool_free(obj);
+    D_800A3348 = 4;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/53C0", func_80007C68);
+#endif
 
 extern void **D_800F2D18; // JFG: the animated objects
 
