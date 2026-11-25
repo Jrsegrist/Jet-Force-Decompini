@@ -1005,14 +1005,18 @@ extern Triangle *D_800FF3A4;
 extern void colour_cycle_reset(M061ColourCycle *cycle);
 extern void update_colour_cycle(M061ColourCycle *cycle, s32 updateRate);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* DKR material_set */
+extern M061ColourCycle rl_m061_03770; /* = sCycles[1] */
 
 /*
  * The timed round's clock (game type 0x10; called from 0043C): the time counts up to `limit` unless the game is
  * paused; the dial shows the time left as whole sectors of the inner ring and one part sector, its colour (two
  * colour cycles) turning to the second cycle's in the last 1200 frames. TRUE once the time is up.
- * NON_MATCHING: a first body, 690/691 words with the ROM's frame and slots, 392 aligned diffs (from the start, the
- * 0.0f constant kept in f0 for the third argument where the ROM loads it again, which renumbers the float
- * registers after it); the default build uses the assembly.
+ * NON_MATCHING: 691/691 words with the ROM's frame and slots, every float register right; 121 diffs, all one
+ * t-register shift from the part sector's vertex command on (the ROM has one more temporary before it, after the
+ * whole-sector gSPPolygon). The default build uses the assembly.
+ * (x and y start from an int 0 and the shadow is offset by an int 1: as float constants of their own, IDO doesn't
+ * share them with the 0.0f arguments and the colour sums' 1.0f, as in the ROM. sCycles[1] is named by its own
+ * symbol, which the ROM addresses with its own base register.)
  */
 s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     s32 done;
@@ -1040,8 +1044,8 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
         done = FALSE;
     }
     func_80042134(&mtx);
-    x = 0.0f;
-    y = 0.0f;
+    x = 0;
+    y = 0;
     if (count == 2) {
         if (!(fb_mode() & 1) && !options_split_vertical_get()) {
             x = 100.0f;
@@ -1057,14 +1061,14 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     colour_cycle_reset(&sCycles[0]);
     update_colour_cycle(&sCycles[0], ((0x10000 - angle) * 60) / 0x10000);
     if (limit - gMenuTimer <= 1200) {
-        update_colour_cycle(&sCycles[1], updateRate);
+        update_colour_cycle(&rl_m061_03770, updateRate);
         for (i = 0; i < updateRate; i++) {
             sBss180 += (1.0f - sBss180) * 0.02f;
         }
     }
-    r = sCycles[0].colour[0] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[0];
-    g = sCycles[0].colour[1] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[1];
-    b = sCycles[0].colour[2] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[2];
+    r = sBss180 * rl_m061_03770.colour[0] + sCycles[0].colour[0] * (1.0f - sBss180);
+    g = sBss180 * rl_m061_03770.colour[1] + sCycles[0].colour[1] * (1.0f - sBss180);
+    b = sBss180 * rl_m061_03770.colour[2] + sCycles[0].colour[2] * (1.0f - sBss180);
     /* the dial's face */
     func_80055C00(&D_800FF398, D_800FF3F8[0x31], 0x205, 0);
     gDPSetPrimColor(D_800FF398++, 0, 0, r, g, b, 45.0f + 100.0f * sBss180);
@@ -1073,7 +1077,7 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     if (!done) {
         /* the time left, one pixel down and right */
         func_80042134(&mtx);
-        func_800498E8(x + 1.0f, y + 1.0f, 0.0f, &mtx);
+        func_800498E8(x + 1, y + 1, 0.0f, &mtx);
         func_80048D84(&mtx, D_800FF39C);
         { Gfx *_g = D_800FF398++; _g->words.w0 = 0x01000040; _g->words.w1 = (u32) D_800FF39C + 0x80000000; }
         D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
