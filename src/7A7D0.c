@@ -1367,9 +1367,10 @@ s32 box_range_cell_mask(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 ma
  * JFG: collect the collision objects whose boxes the box from a to b touches (not exclude; at most 16, nearest
  * first), then list each object and those of its triangles in the cells the box covers (in batches matching mask1
  * unless they match mask2; mask1 -1: every batch, triangles with an edge flag 0x38), up to the level's limit.
- * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (453 words, 0x1C8), 24 diffs: register
- * choice only. In the object loop the ROM has i in a3 (here t0, and the other loop values one register on), and the
- * cell-mask call's stack arguments in v0/v1/t0 (here v1/t0/t1).
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (453 words, 0x1C8), 4 diffs (was 18):
+ * the later loops share k (the box-test counter) as their object index, which gives i the ROM's a3; the list pointer
+ * gives the loop values the ROM's t1-t3, but its load stays above the loop guard (the ROM loads it after the guard).
+ * pad is the word of a local the original had (without it the frame is 8 bytes short).
  */
 void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
     LevelHeader *level;
@@ -1390,7 +1391,7 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
     Obj7EModel *model;
     ModelHeader7E *header;
     ModelEdges7E *edges;
-    s32 n;
+    UNUSED s32 pad;
     s32 batch;
     s32 tri;
     s32 start;
@@ -1405,11 +1406,13 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
     s32 maxY;
     s32 maxZ;
     u32 masks[16];
+    Obj7E **list;
 
     level = level_header();
     count = 0;
+    list = D_801047E4;
     for (i = 0; i < D_801047E0; i++) {
-        obj = D_801047E4[i];
+        obj = list[i];
         if (obj == exclude) {
             continue;
         }
@@ -1447,8 +1450,8 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
             }
         }
     }
-    for (n = 0; n < count; n++) {
-        obj = objs[n];
+    for (k = 0; k < count; k++) {
+        obj = objs[k];
         data = obj->data;
         model = obj->modelInstances[data->modelIndex];
         boxA[0] = a[0];
@@ -1466,7 +1469,7 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
         maxX = boxB[0];
         maxY = boxB[1];
         maxZ = boxB[2];
-        masks[n] = box_range_cell_mask(model->bboxMin, minX, minY, minZ, maxX, maxY, maxZ);
+        masks[k] = box_range_cell_mask(model->bboxMin, minX, minY, minZ, maxX, maxY, maxZ);
     }
     if (mask1 == -1) {
         useAll = TRUE;
@@ -1474,8 +1477,8 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
         useAll = FALSE;
     }
     D_801047F0 = 0;
-    for (n = 0; n < count; n++) {
-        obj = objs[n];
+    for (k = 0; k < count; k++) {
+        obj = objs[k];
         data = obj->data;
         model = obj->modelInstances[data->modelIndex];
         header = model->header;
@@ -1484,7 +1487,7 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
         } else {
             edges = header->edges;
         }
-        mask = masks[n];
+        mask = masks[k];
         D_801047F4[D_801047F0] = (s32) obj & 0x7FFFFFFF;
         D_801047F0++;
         for (batch = 0; batch < header->numBatches; batch++) {
@@ -1519,7 +1522,7 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
                 if (D_801047F0 >= level->unkEE) {
                     batch = header->numBatches;
                     tri = end;
-                    n = count;
+                    k = count;
                 }
             }
         }
