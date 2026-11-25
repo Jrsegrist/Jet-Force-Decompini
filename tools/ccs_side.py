@@ -1229,7 +1229,6 @@ def main():
             bstart.add(x.idx + 2)
 
     W = 40
-    out = []
     blocks = []  # (header, [lines], has_diff)
     cur = None
     shown_lines = set()
