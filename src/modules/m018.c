@@ -945,7 +945,7 @@ typedef struct M018ListEntry {
 typedef struct M018Pair {
     /* 0x0 */ s32 text;  /* its name in gMenuText */
     /* 0x4 */ u8 screen; /* the screen it opens */
-    /* 0x5 */ u8 pad5;
+    /* 0x5 */ u8 frame;  /* its icon's texture frame */
     /* 0x6 */ s16 unk6;  /* its name's opacity */
 } M018Pair;
 
@@ -1040,19 +1040,35 @@ void func_m018_023E8(void) {
 /* The character screen's model instance, as used here */
 typedef struct M018Inst {
     /* 0x00 */ void *model;
-    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x04 */ Vertex *vertices;
+    /* 0x08 */ u8 pad8[0xA - 0x8];
     /* 0x0A */ s8 unkA;
     /* 0x0B */ s8 unkB;
     /* 0x0C */ u8 padC[0x10 - 0xC];
-    /* 0x10 */ void *unk10[2];
+    /* 0x10 */ void *unk10[2]; /* per buffer: the matrices (64 bytes each) */
     /* 0x18 */ u8 pad18[0x68 - 0x18];
     /* 0x68 */ f32 *unk68;
+    /* 0x6C */ u8 pad6C[0x78 - 0x6C];
+    /* 0x78 */ s16 *unk78[2]; /* per buffer: the texture frames */
 } M018Inst;
+
+/* A joint of a model (4 bytes) */
+typedef struct M018Joint {
+    /* 0x0 */ u8 pad0[2];
+    /* 0x2 */ u16 matrix; /* its matrix in the instance's matrices */
+} M018Joint;
 
 /* The shown character's model, as used here */
 typedef struct M018CharModel {
-    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x00 */ u8 pad0[0x11];
+    /* 0x11 */ u8 unk11; /* it has animated textures */
+    /* 0x12 */ s16 numVertices;
+    /* 0x14 */ u8 pad14[0x2D - 0x14];
     /* 0x2D */ u8 unk2D;
+    /* 0x2E */ u8 pad2E[0x30 - 0x2E];
+    /* 0x30 */ M018Joint *joints;
+    /* 0x34 */ u8 pad34[0x74 - 0x34];
+    /* 0x74 */ Gfx *dl;
 } M018CharModel;
 
 /* The shown character's state (obj->unk68), as used here */
@@ -1106,7 +1122,9 @@ extern void render_sprite_billboard(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprit
 extern void func_8004EDBC(Gfx **dl, M018Image *image, s32 x, s32 y, s32 r, s32 g, s32 b, s32 alpha); /* draws */
 extern s32 func_m019_001F8(void);
 extern void func_m019_00324(s32 level, s32 character, s32 arg2, s32 arg3);
-extern void rl_m018_03BB4(s32 item, s32 updateRate);
+#ifdef NON_MATCHING
+static void func_m018_03BB4(s32 item, s32 updateRate);
+#endif
 extern s8 D_800FF3DC[]; /* the stick's y moves this frame, per player */
 s32 func_m018_03B44(s32 i, s32 dir);
 
@@ -1115,9 +1133,9 @@ s32 func_m018_03B44(s32 i, s32 dir);
  * The character screen: changes the shown character (the stick picks one the player can play), moves the
  * cursor over the screen's eight items, opens the one picked, draws the character, its sparkles, the items
  * and the prompts, saves on request and leaves with the character picked.
- * NON_MATCHING: ROM length and frame (1464 words), 26 aligned diffs: the order of three temporary words
- * (the ROM puts the float updateRate first), the colouring of the arrow frames' table and values (v0/v1/a0)
- * and the order of two stores.
+ * NON_MATCHING: ROM length and frame (1464 words), 16 aligned diffs: the order of three temporary words
+ * (the ROM puts the float updateRate first), the right arrow's frame in a2 (ROM a0) and the order of two
+ * stores.
  */
 void func_m018_02464(s32 updateRate) {
     UNUSED s32 pad0;
@@ -1128,8 +1146,8 @@ void func_m018_02464(s32 updateRate) {
     Object *obj;
     s32 i;
     s32 frame;
-    s32 left8;
-    s32 right8;
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
     s32 x1;
     s32 x2;
     M018ListEntry *spark;
@@ -1351,17 +1369,18 @@ void func_m018_02464(s32 updateRate) {
         func_8003F1C8(inst, rl_m018_0676C[i], frame);
         item++;
     }
-    left8 = rl_m018_067BC[left] << 8;
-    right8 = rl_m018_067BC[right] << 8;
+    /* alpha and frame (free here) hold the left and right arrows' frames */
+    alpha = rl_m018_067BC[left] << 8;
+    frame = rl_m018_067BC[right] << 8;
     if (rl_m018_067B4 != 0) {
-        left8 += 0x100;
-        right8 += 0x100;
+        alpha += 0x100;
+        frame += 0x100;
         frames[2] = 0x100;
-        frames[1] = right8;
-        frames[0] = left8;
+        frames[1] = frame;
+        frames[0] = alpha;
     } else {
-        frames[1] = right8;
-        frames[0] = left8;
+        frames[1] = frame;
+        frames[0] = alpha;
         frames[2] = 0;
     }
     for (i = 0; i < 3; i++) {
@@ -1463,14 +1482,14 @@ void func_m018_02464(s32 updateRate) {
         spark++;
     }
     if (game_flag_get(0x5F)) {
-        rl_m018_03BB4(7, updateRate);
+        func_m018_03BB4(7, updateRate);
     }
     if (!game_flag_get(0x64)) {
-        rl_m018_03BB4(1, updateRate);
+        func_m018_03BB4(1, updateRate);
     }
-    rl_m018_03BB4(0, updateRate);
+    func_m018_03BB4(0, updateRate);
     for (i = 2; i < 7; i++) {
-        rl_m018_03BB4(i, updateRate);
+        func_m018_03BB4(i, updateRate);
     }
     func_8006FC54(2);
     if (rl_m018_06D05 == -1) {
@@ -1585,7 +1604,125 @@ s32 func_m018_03B44(s32 i, s32 dir) {
     return i;
 }
 
+extern void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx); /* scale */
+extern void mtx_model_push(Gfx **dl, Mtx **mtx, MtxF *mtxF);
+extern void mtx_pop(Gfx **dl);
+extern void obj_tex_animate(Object *obj, M018CharModel *model, M018Inst *inst, s32 updateRate);
+extern s16 D_800A0838[]; /* the frame list for a model without animated textures */
+
+/* One display-list command from its two words */
+#define fast3d_cmd(pkt, word0, word1) \
+    {                                 \
+        Gfx *_g = (Gfx *) (pkt);      \
+        _g->words.w0 = word0;         \
+        _g->words.w1 = word1;         \
+    }
+
+#ifdef NON_MATCHING
+/*
+ * Draws item `item`'s icon on the character screen: eases its depth offset towards 30 (the cursor's item) or
+ * 15 (the item picked), builds its matrix from the screen model's joint for the item (scaled by 0.9; the
+ * picked item also slides sideways), lights its vertices (full for the cursor's item, else dim) and draws
+ * its model.
+ * NON_MATCHING: ROM length, frame and stack slots (314 words), 9 aligned diffs, all in the first block: the ROM
+ * holds the screen model in v0 and reloads `item` for the second compare before the first branch. Staged: only
+ * func_m018_02464 (still NON_MATCHING) calls it, and IDO would drop a static that only assembly calls.
+ */
+static void func_m018_03BB4(s32 item, s32 updateRate) {
+    Object *obj;
+    Object *icon;
+    UNUSED s32 pad0;
+    M018Inst *inst;
+    M018CharModel *model;
+    s32 i;
+    f32 target;
+    f32 *src;
+    M018Inst *iconInst;
+    s32 shade;
+    s16 *texFrames;
+    u32 seg; /* the KSEG0 offset, added to each address (one register for all, as in the ROM) */
+    UNUSED s32 pad1;
+    f32 mtx[16];
+
+    obj = D_800FF3F8[0x5D];
+    inst = *(M018Inst **) obj->modelInstances;
+    src = (f32 *) ((MtxF *) inst->unk10[inst->unkB] + ((M018CharModel *) inst->model)->joints[item].matrix);
+    if (item == rl_m018_06D05) {
+        target = 15.0f;
+    } else if (item == rl_m018_06D04) {
+        target = 30.0f;
+    } else {
+        target = 0.0f;
+    }
+    for (i = 0; i < updateRate; i++) {
+        rl_m018_06CD0[item] += (target - rl_m018_06CD0[item]) * 0.125f;
+    }
+    for (i = 0; i < 16; i++) {
+        if (i == 15) {
+            mtx[i] = 1.0f;
+        } else if ((i & 3) == 3) {
+            mtx[i] = 0.0f;
+        } else {
+            mtx[i] = src[i];
+        }
+    }
+    icon = rl_m018_06CB0[item];
+    iconInst = ((M018Inst **) icon->modelInstances)[icon->modelIndex];
+    model = iconInst->model;
+    if (iconInst != NULL) {
+        func_8003F1C8(iconInst, 0, rl_m018_06774[item].frame << 8);
+        if (item == rl_m018_06D04) {
+            shade = 0xFF;
+        } else {
+            shade = 0x62;
+        }
+        for (i = 0; i < model->numVertices; i++) {
+            iconInst->vertices[i].r = shade;
+            iconInst->vertices[i].g = shade;
+            iconInst->vertices[i].b = shade;
+        }
+        iconInst->unkA = updateRate;
+        if (iconInst->unkA != 0) {
+            func_800221F0(icon, iconInst, obj->shading, mtx);
+            if (((M018CharModel *) iconInst->model)->unk11 != 0) {
+                obj_tex_animate(obj, iconInst->model, iconInst, iconInst->unkA);
+            }
+            iconInst->unkA = 0;
+        }
+        if (((M018CharModel *) iconInst->model)->unk11 != 0) {
+            texFrames = iconInst->unk78[iconInst->unkB];
+        } else {
+            texFrames = D_800A0838;
+        }
+        mtx[12] = ((M018Part *) inst->unk68)[item].x;
+        mtx[13] = ((M018Part *) inst->unk68)[item].y;
+        mtx[14] = ((M018Part *) inst->unk68)[item].z + rl_m018_06CD0[item];
+        if (item == rl_m018_06D05) {
+            if (item & 1) {
+                mtx[12] -= rl_m018_06CF4;
+            } else {
+                mtx[12] += rl_m018_06CF4;
+            }
+        }
+        {
+            UNUSED s32 pad2[3]; /* the ROM's frame has three more words below the declared ones */
+
+            func_80049874(0.9f, 0.9f, 0.9f, (MtxF *) mtx);
+        }
+        seg = 0x80000000;
+        mtx_model_push(&D_800FF398, &D_800FF39C, (MtxF *) mtx);
+        fast3d_cmd(D_800FF398++, (((u32) iconInst->unk10[iconInst->unkB] + seg) & 0xFFFFFF) | 0xBF000000,
+                   (u32) iconInst->vertices + seg);
+        fast3d_cmd(D_800FF398++, 0x02000050, (u32) texFrames + seg);
+        fast3d_cmd(D_800FF398++, 0x06000000, (u32) ((M018CharModel *) iconInst->model)->dl + seg);
+        fast3d_cmd(D_800FF398++, 0xBF000000, 0);
+        mtx_pop(&D_800FF398);
+        func_80055B80(&D_800FF398);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_03BB4);
+#endif
 
 void *func_m018_0409C(void) {
     return sBss0;

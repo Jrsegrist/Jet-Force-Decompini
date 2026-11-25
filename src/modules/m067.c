@@ -568,7 +568,15 @@ typedef struct M067MissileSetup {
 /* One of the enemy's hit spheres (size 0x34) */
 typedef struct M067Sphere {
     /* 0x00 */ u8 pad0[0x30];
-    /* 0x30 */ u8 flags;
+    /* 0x30 */ union {
+        u8 flags;
+        struct {
+            u8 unk80 : 1;
+            u8 hidden : 1; /* 0x40 */
+            u8 active : 1; /* 0x20 */
+            u8 unk1F : 5;
+        } bits;
+    } f;
     /* 0x31 */ u8 pad31[0x34 - 0x31];
 } M067Sphere;
 
@@ -664,9 +672,10 @@ extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg
  * its events and builds its joint commands, then runs its animation by its kind (jumps between the jump
  * points, attacks, being hit and dying), draws the model's points and fires what the animation asked for
  * (a missile, bolts or rocks).
- * NON_MATCHING: ROM frame and stack slots, 1856/1855 words, 89 aligned diffs: uopt's colouring of updateRate
- * and the 0xFF/0xFE constants (t1/t0 where the ROM has t2/t1/t0), of the flag loops' values, and where the
- * second argument of the 008C4 call is copied. Matching it would let 008C4 go to C too.
+ * NON_MATCHING: ROM length, frame and stack slots (1855 words), 24 aligned diffs, all between the parts loop
+ * and the 008C4 call: the parts loop's table pointer and flags value (a0/a2, ROM a1/a0), the temporaries from
+ * its `| 0x40` on one t-register behind the ROM's, and the decay loop's result register. Matching it would let
+ * 008C4 go to C too.
  */
 void func_m067_00EF4(Object *obj, s32 updateRate) {
     s32 i;
@@ -717,20 +726,21 @@ void func_m067_00EF4(Object *obj, s32 updateRate) {
     *cur++ = 218;
     *cur++ = s->headAngle >> 2;
     sphere = ((M067Interaction *) obj->interactObj)->spheres;
-    for (parts = rl_m067_044F0; (*parts)[1] != 0xFF; parts++) {
-        /* the no-code mask stands in for a temporary the ROM's code generator took here */
-        sphere->flags = (sphere->flags & 0xFF) | 0x20;
-        sphere->flags &= 0xBF;
+    parts = rl_m067_044F0;
+    while ((*parts)[1] != 0xFF) {
+        sphere->f.bits.active = 1;
+        sphere->f.bits.hidden = 0;
         part = (*parts)[1];
         if (part != 0xFE) {
-            flags = (&s->unk9)[part];
-            if (flags & 1) {
-                sphere->flags |= 0x40;
-            } else if (flags & 2) {
-                sphere->flags &= 0xFFDF;
+            i = (&s->unk9)[part]; /* i (free here) holds the part's flags */
+            if (i & 1) {
+                sphere->f.flags |= 0x40;
+            } else if (i & 2) {
+                sphere->f.bits.active = 0;
             }
         }
         sphere++;
+        parts++;
     }
     i = 6;
     while (i--) {
@@ -745,10 +755,10 @@ void func_m067_00EF4(Object *obj, s32 updateRate) {
     }
     flags = ((M067Interaction *) obj->interactObj)->hitSphere;
     if (flags != 0xFF) {
-        part = rl_m067_044F0[flags][1];
-        if (part != 0xFE) {
-            if ((&s->unk9)[part] & 2) {
-                (&s->unk9)[part] |= 4;
+        i = rl_m067_044F0[flags][1];
+        if (i != 0xFE) {
+            if ((&s->unk9)[i] & 2) {
+                (&s->unk9)[i] |= 4;
             }
         }
         ((M067Interaction *) obj->interactObj)->hitSphere = 0xFF;
