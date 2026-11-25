@@ -256,7 +256,7 @@ extern void func_800468C0(s32 arg0);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
 extern void func_m013_00008(Object *obj, M061Player *player, s32 updateRate);
 extern void rl_m061_019E0(Object **objs, s32 updateRate);
-extern s32 rl_m061_023B8(s32 count, s32 arg1, s32 updateRate);
+s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate);
 extern void rl_m061_01218(M061Player *player, s32 updateRate);
 void func_m061_00F50(void);
 void func_m061_010D4(s32 mode);
@@ -324,7 +324,7 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
     if (!sState) {
         switch (D_800A4FD8 & 0x30) {
             case 0x10:
-                if (rl_m061_023B8(count, D_800A4FDC, updateRate)) {
+                if (func_m061_023B8(count, D_800A4FDC, updateRate)) {
                     func_m061_00F50();
                     func_m061_02E84(count, objs);
                 }
@@ -620,8 +620,9 @@ extern void func_80070EAC(Gfx **dl, Mtx **mtx, Vertex **vtx, s32 box);      /* r
 /*
  * Draws a player's message bar (the queue's current message, in a box that opens to the text's width) in the
  * player's part of the screen, with its two end caps (called from 0043C).
- * NON_MATCHING: a first body, 499/498 words with the ROM's frame and slots, 374 aligned diffs (mostly the code
- * generator's temporaries one or two off); the default build uses the assembly.
+ * NON_MATCHING: 498/498 words with the ROM's frame and slots, 39 differing rows: the bar's vertex block (the ROM has
+ * y - 7 in v0 and 0x80000000 in a2, ours a2 and a3) and the end caps' 0.0f, which the ROM loads twice (z_position = 0
+ * as an int gives that, but one word too many until the vertex block is right). The default build uses the assembly.
  */
 void func_m061_01218(M061Player *player, s32 updateRate) {
     MtxF mtx;
@@ -653,22 +654,22 @@ void func_m061_01218(M061Player *player, s32 updateRate) {
         case 2:
             if ((fb_mode() & 1) || options_split_vertical_get()) {
                 /* split side by side: as for four (the ROM tests the player here, then goes on either way) */
-                if (player->unk0 != 0) {
-                    goto quad;
+                if (player->unk0 == 0) {
+                } else {
                 }
-                goto quad;
-            }
-            /* split top and bottom */
-            x = 0;
-            if (player->unk0 == 0) {
-                y = barY[player->unk0] + 60;
             } else {
-                y = barY[player->unk0] - 60;
+                /* split top and bottom */
+                x = 0;
+                if (player->unk0 == 0) {
+                    y = barY[player->unk0] + 60;
+                } else {
+                    y = barY[player->unk0] - 60;
+                }
+                break;
             }
-            break;
+            /* fall through */
         case 3:
         case 4:
-        quad:
             if (player->unk0 == 0 || player->unk0 == 2) {
                 x = -94;
             } else {
@@ -681,12 +682,16 @@ void func_m061_01218(M061Player *player, s32 updateRate) {
             }
             break;
     }
-    if (queue->current == -1) {
-        /* (no message: the bar shows what its text already holds) */
-    } else if (queue->current == 0x9F) {
-        func_800639E8(queue->text, "%s%d", gMenuText[0x9F], D_800FED50[player->unk0].kills);
-    } else {
-        func_800639E8(queue->text, "%s", gMenuText[queue->current]);
+    switch (queue->current) {
+        case 0x9F:
+            func_800639E8(queue->text, "%s%d", gMenuText[0x9F], D_800FED50[player->unk0].kills);
+            break;
+        case -1:
+            /* (no message: the bar shows what its text already holds) */
+            break;
+        default:
+            func_800639E8(queue->text, "%s", gMenuText[queue->current]);
+            break;
     }
     cam_set_layout(D_800A4FCC - 1);
     set_active_camera(player->unk0);
@@ -997,7 +1002,6 @@ void func_m061_01F14(Object *obj, UNUSED Object **objs, UNUSED s32 updateRate) {
     gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
 }
 
-#ifdef NON_MATCHING
 extern s32 is_game_paused(void);
 extern s32 gMenuTimer; /* the timed round's frames so far */
 extern Vertex *D_800FF3A0;
@@ -1005,21 +1009,22 @@ extern Triangle *D_800FF3A4;
 extern void colour_cycle_reset(M061ColourCycle *cycle);
 extern void update_colour_cycle(M061ColourCycle *cycle, s32 updateRate);
 extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* DKR material_set */
+extern M061ColourCycle rl_m061_03770; /* = sCycles[1] */
 
 /*
  * The timed round's clock (game type 0x10; called from 0043C): the time counts up to `limit` unless the game is
  * paused; the dial shows the time left as whole sectors of the inner ring and one part sector, its colour (two
  * colour cycles) turning to the second cycle's in the last 1200 frames. TRUE once the time is up.
- * NON_MATCHING: a first body, 690/691 words with the ROM's frame and slots, 392 aligned diffs (from the start, the
- * 0.0f constant kept in f0 for the third argument where the ROM loads it again, which renumbers the float
- * registers after it); the default build uses the assembly.
+ * (x and y start from an int 0 and the shadow is offset by an int 1: as float constants of their own, IDO doesn't
+ * share them with the 0.0f arguments and the colour sums' 1.0f, as in the ROM. sCycles[1] is named by its own
+ * symbol, which the ROM addresses with its own base register.)
  */
 s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     s32 done;
     s32 angle;
     s32 i;
     s32 r;
-    UNUSED s32 pad;
+    s32 part; /* a part sector to draw */
     s32 g;
     s32 b;
     UNUSED s32 pad2[4];
@@ -1040,8 +1045,8 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
         done = FALSE;
     }
     func_80042134(&mtx);
-    x = 0.0f;
-    y = 0.0f;
+    x = 0;
+    y = 0;
     if (count == 2) {
         if (!(fb_mode() & 1) && !options_split_vertical_get()) {
             x = 100.0f;
@@ -1057,14 +1062,14 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     colour_cycle_reset(&sCycles[0]);
     update_colour_cycle(&sCycles[0], ((0x10000 - angle) * 60) / 0x10000);
     if (limit - gMenuTimer <= 1200) {
-        update_colour_cycle(&sCycles[1], updateRate);
+        update_colour_cycle(&rl_m061_03770, updateRate);
         for (i = 0; i < updateRate; i++) {
             sBss180 += (1.0f - sBss180) * 0.02f;
         }
     }
-    r = sCycles[0].colour[0] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[0];
-    g = sCycles[0].colour[1] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[1];
-    b = sCycles[0].colour[2] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[2];
+    r = sBss180 * rl_m061_03770.colour[0] + sCycles[0].colour[0] * (1.0f - sBss180);
+    g = sBss180 * rl_m061_03770.colour[1] + sCycles[0].colour[1] * (1.0f - sBss180);
+    b = sBss180 * rl_m061_03770.colour[2] + sCycles[0].colour[2] * (1.0f - sBss180);
     /* the dial's face */
     func_80055C00(&D_800FF398, D_800FF3F8[0x31], 0x205, 0);
     gDPSetPrimColor(D_800FF398++, 0, 0, r, g, b, 45.0f + 100.0f * sBss180);
@@ -1073,17 +1078,18 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     if (!done) {
         /* the time left, one pixel down and right */
         func_80042134(&mtx);
-        func_800498E8(x + 1.0f, y + 1.0f, 0.0f, &mtx);
+        func_800498E8(x + 1, y + 1, 0.0f, &mtx);
         func_80048D84(&mtx, D_800FF39C);
         { Gfx *_g = D_800FF398++; _g->words.w0 = 0x01000040; _g->words.w1 = (u32) D_800FF39C + 0x80000000; }
         D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
         func_80055C00(&D_800FF398, D_800FF3F8[0x2F], 5, 0);
         gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0xC0);
         gSPVertexJFG(D_800FF398++, (u8 *) sInner + 0x80000000, 18, 0);
+        part = angle != (angle / 0x1000) * 0x1000;
         if (angle / 0x1000 != 0) {
             gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000250, angle / 0x1000, 1);
         }
-        if (angle != (angle / 0x1000) * 0x1000) {
+        if (part) {
             /* the part sector: one more vertex on the ring (loaded as vertices 17 and 18) */
             s = func_80049C34(angle);
             c = func_80049C30(angle);
@@ -1123,9 +1129,6 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000230, 2, 1);
     return done;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_023B8);
-#endif
 
 void func_m061_02E84(s32 count, Object **objs) {
     s32 i;
