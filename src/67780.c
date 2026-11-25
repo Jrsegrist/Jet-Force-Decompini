@@ -149,7 +149,277 @@ void crash_find_faulted_thread(void) {
     func_80066EB0(thread);
 }
 
+struct FaultThread;
+void crash_screen_draw(struct FaultThread *fault);
+void log_show(s32 start);
+void epc_clear_framebuffer(void);
+void epc_printf(s32 arg0, s32 x, const char *format, ...);
+s32 fb_mode(void);
+u16 input_pressed(s32 player);
+s32 input_update(s32 saveDataFlags, s32 updateRate);
+#include "memory.h"
+s32 runlink_symbol_nearest(u32 address, s32 *module, s32 *offset, char *name);
+extern s32 D_800A3320; // the RDRAM check result (drm_check_rdram_b)
+extern s32 D_800A32D0; // debug mode (toggled by a button sequence)
+extern s32 D_800A651C;
+extern s32 D_800A6520;
+
+#ifdef NON_MATCHING
+/*
+ * JFG: the debug crash screen's page loop (the L/R-style buttons 0x8000/0x4000 turn the page): page 0 is
+ * the crash screen, 1 a memory dump at an address edited digit by digit (with its module and offset),
+ * 2-4 the faulted thread's saved stack, 5 a memory pool's slots, and the pages after that the log. Hangs
+ * unless the RDRAM and CIC checks passed and debug mode is on.
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (472 words, 0xA8), 74
+ * aligned rows differ: t-register numbering in the address edit and the page-5 key tests, the row
+ * position `(y + 3) * 8` (the ROM adds first and keeps a copy), the slot tag's shift order, and a few
+ * hoisted constants (25, 5, the a0 of the default case).
+ */
+void func_80066EB0(OSThread *thread) {
+    s32 page = 0;
+    s32 redraw = TRUE;
+    s32 lastPage = -1;
+    s32 scroll;
+    s32 numPages;
+    s32 buttons;
+    s32 digit;
+    s32 i;
+    s32 x;
+    s32 value;
+    s32 y;
+    s32 offset;
+    u32 address;
+    u32 *p;
+    MemoryPoolSlot *pool;
+    s32 region;
+    MemoryPoolSlot *slot;
+    s32 kind;
+    u32 tag;
+
+    if (!D_800A3320 || osCicId != 6105) {
+        while (TRUE) {}
+    }
+    scroll = 0;
+    if (!gLogWrapped) {
+        numPages = gLogLine / 20;
+        if (gLogLine % 20) {
+            numPages++;
+        }
+    } else {
+        numPages = 25;
+    }
+    numPages += 5;
+    region = 0;
+    if (fb_mode()) {
+        D_800A651C = 1;
+    } else {
+        D_800A651C = 0;
+    }
+    address = 0x80100000;
+    digit = 1;
+    for (i = 0; i < 100; i++) {
+        epc_clear_framebuffer();
+    }
+    if (!D_800A32D0) {
+        osWritebackDCacheAll();
+        while (TRUE) {}
+    }
+    osViSetSpecialFeatures(OS_VI_GAMMA_OFF | OS_VI_DIVOT_OFF | OS_VI_DITHER_FILTER_OFF);
+    while (TRUE) {
+        input_update(0, 2);
+        buttons = input_pressed(0);
+        if (buttons & 0x8000) {
+            page++;
+        } else if (buttons & 0x4000) {
+            page--;
+        }
+        if (page < 0) {
+            page = numPages;
+        }
+        if (page > numPages) {
+            page = 0;
+        }
+        if (lastPage == 1) {
+            if (buttons & 2) {
+                redraw = TRUE;
+                digit++;
+                if (digit >= 6) {
+                    digit = 1;
+                }
+            }
+            if (buttons & 1) {
+                redraw = TRUE;
+                digit--;
+                if (digit <= 0) {
+                    digit = 5;
+                }
+            }
+            if (buttons & 0xC) {
+                redraw = TRUE;
+                // only the digit under the cursor changes (no carry); kept in RDRAM
+                if (buttons & 8) {
+                    value = address + (1 << (digit * 4));
+                } else {
+                    value = address - (1 << (digit * 4));
+                }
+                value = (value & (0xF << (digit * 4))) | (address & ~(0xF << (digit * 4)));
+                if ((u32) value >= 0x803FFF60) {
+                    value = 0x803FFF60;
+                }
+                if ((u32) value <= 0x80000450) {
+                    value = 0x80000450;
+                }
+                address = value;
+            }
+        }
+        if (lastPage == 5) {
+            if (buttons & 0x800) {
+                scroll -= 18;
+                redraw = TRUE;
+                if (scroll < 0) {
+                    scroll = 0;
+                }
+            }
+            if (buttons & 0x400) {
+                scroll += 18;
+                redraw = TRUE;
+            }
+            if ((buttons & 8) && scroll > 0) {
+                scroll--;
+                redraw = TRUE;
+            }
+            if (buttons & 4) {
+                scroll++;
+                redraw = TRUE;
+            }
+            if (buttons & 0x2000) {
+                redraw = TRUE;
+                region ^= 1;
+            }
+        }
+        if (buttons & 0x10) {
+            redraw = TRUE;
+            D_800A651C++;
+            if (D_800A651C >= 3) {
+                D_800A651C = 0;
+            }
+        }
+        if (lastPage != page || redraw) {
+            switch (page) {
+                case 0:
+                    lastPage = page;
+                    redraw = FALSE;
+                    crash_screen_draw((struct FaultThread *) thread);
+                    break;
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                    epc_clear_framebuffer();
+                    x = 168;
+                    switch (page) {
+                        case 1:
+                            p = (u32 *) (address + 160);
+                            break;
+                        case 2:
+                            p = (u32 *) &D_80102558[0xA8];
+                            break;
+                        case 3:
+                            p = (u32 *) &D_80102558[0x150];
+                            break;
+                        default:
+                            p = (u32 *) &D_80102558[0x1F8];
+                            break;
+                    }
+                    do {
+                        y = 20;
+                        do {
+                            p--;
+                            epc_printf(x, (y + 3) * 8, "%08x:%08x", p, *p);
+                            if (page == 1 && y == 1) {
+                                y = 0;
+                            }
+                        } while (y--);
+                        x -= 148;
+                    } while (x != -128);
+                    lastPage = page;
+                    redraw = FALSE;
+                    break;
+                case 5:
+                    i = 0;
+                    y = 44;
+                    epc_clear_framebuffer();
+                    D_800A6520 = 1;
+                    epc_printf(100, 24, "MEMORY REGION %d", region);
+                    D_800A6520 = 2;
+                    epc_printf(32, 32, "MOD");
+                    epc_printf(72, 32, "OFFSET");
+                    epc_printf(152, 32, "SIZE");
+                    epc_printf(224, 32, "ADDRESS");
+                    D_800A6520 = 0;
+                    pool = get_memory_pool_address(region);
+                    slot = pool;
+                    do {
+                        if (slot->flags != 0) {
+                            if (i >= scroll && i < scroll + 18) {
+                                tag = slot->colourTag;
+                                value = tag & 0xFFFFFF;
+                                kind = (tag >> 24) & 0xFF;
+                                if (kind == 0xFF) {
+                                    epc_printf(32, y, "Texture %d", value);
+                                } else if (kind == 0xFE) {
+                                    epc_printf(32, y, "Module %d", value);
+                                } else {
+                                    epc_printf(32, y, "%d", kind);
+                                    epc_printf(72, y, "%08x", value);
+                                }
+                                epc_printf(152, y, "%d", slot->size);
+                                epc_printf(224, y, "%08x", slot->data);
+                                y += 8;
+                            }
+                            i++;
+                        }
+                        slot = &pool[slot->nextIndex];
+                    } while (slot->nextIndex != -1);
+                    lastPage = page;
+                    redraw = FALSE;
+                    break;
+                default:
+                    lastPage = page;
+                    redraw = FALSE;
+                    log_show((page - 4) * 20);
+                    break;
+            }
+            if (page == 1) {
+                if (runlink_symbol_nearest(address, &value, &offset, NULL)) {
+                    D_800A6520 = 1;
+                    epc_printf(20, 24, "Module %d at %08x", value, offset);
+                    D_800A6520 = 0;
+                }
+                x = address;
+                for (y = 0; y < 8; y++) {
+                    if (y == digit) {
+                        D_800A6520 = 1;
+                    }
+                    epc_printf(76 - y * 8, 32, "%1x", x & 0xF);
+                    D_800A6520 = 0;
+                    x >>= 4;
+                }
+            }
+            if (!gLogWrapped) {
+                value = gLogLine;
+            } else {
+                value = 500;
+            }
+            epc_printf(50, 200, "%d lines logged", value);
+            epc_printf(220, 200, "Page %d/%d", page + 1, numPages + 1);
+        }
+        osWritebackDCacheAll();
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/67780", func_80066EB0);
+#endif
 
 void epc_clear_framebuffer(void);
 void epc_printf(s32 arg0, s32 x, const char *format, ...);

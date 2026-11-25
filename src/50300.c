@@ -475,7 +475,13 @@ s32 func_80001EE8(void);
 
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 42 diffs: the scheduling around the volatile flag at entry and at the end, curRSPTask in v1 (copied to v0) where the ROM has v0, the retrace counter's u64 address materialised, the held task in v0/v1 swapped */
+/*
+ * NON_MATCHING: ROM length and frame, 27 aligned diffs (33 positional): the volatile dpHung store at entry
+ * keeps as1 from moving the sc copy (a non-volatile dpHung fixes the entry but uopt then drops the dead
+ * `dpHung = FALSE` in the crash block, one word short); the u16 argument after it; the retrace counter's
+ * u64 address materialised in a0 (the ROM uses %hi/%lo per word); the held task's copy made before the
+ * test (the ROM makes it after).
+ */
 /*
  * VI retrace: a task running for more than 10 retraces has hung: reports it once (and, for a graphics task,
  * finds the command it hangs on), then resets the processor. When it found the command, shows it, the
@@ -519,7 +525,7 @@ void __scHandleRetrace(OSSched *sc) {
     held = sc->curRSPTask;
     if (D_800A38C0 > 10 && held != NULL) {
         if (D_800FE950) {
-            stubbed_printf("scheduler: Looks like the SP has crashed %s", sc_task_type_name(sc->curRSPTask->unk6C));
+            stubbed_printf("scheduler: Looks like the SP has crashed %s", sc_task_type_name(held->unk6C));
             sc_task_print(sc->curRSPTask);
             if (sc->curRSPTask->list.t.type == M_GFXTASK) {
                 crash[1] = rcp_hang_find(sc, &traceB[1][1], &traceC[1][1], &traceA[1][1], &traceB[1][0], &traceC[1][0],
@@ -643,8 +649,8 @@ void __scHandleRetrace(OSSched *sc) {
     held = sc->heldTask;
     if (held != NULL && sc->retraceCount >= 2) {
         if (held->msgQ != NULL) {
-            if (held->unk68 != 0 || held->msg != NULL) {
-                osSendMesg(held->msgQ, sc->heldTask->msg, OS_MESG_BLOCK);
+            if (held->unk68 != 0 || sc->heldTask->msg != NULL) {
+                osSendMesg(held->msgQ, held->msg, OS_MESG_BLOCK);
             } else {
                 osSendMesg(held->msgQ, &D_800A38B0, OS_MESG_BLOCK);
             }
