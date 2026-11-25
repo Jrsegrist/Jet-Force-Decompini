@@ -269,9 +269,9 @@ void func_m061_02E84(s32 count, Object **objs);
 
 #ifdef NON_MATCHING
 /*
- * 11 aligned diffs (709/709 words, frame right): the mode & 1 temporary one word high (0x4C, ROM 0x48), the record's
- * reload one t-register low (t5, ROM t6) and case 2's 0x20 kept in a register.
- * (record->unk70 is a u8, so its & 0xFF changes nothing; it gives the ROM's temporaries after the reload.)
+ * 2 aligned diffs (709/709 words, frame right): the record's reload one t-register low (t5, ROM t6); everything
+ * else is the ROM's. (record->unk70 is a u8, so its & 0xFF changes nothing; it gives the ROM's temporaries after
+ * the reload.)
  */
 /*
  * The deathmatch screen each frame: the end of the round (by kills, by the last player standing (game type 0x30) or
@@ -302,8 +302,14 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
     M061Stats *stats;
     s32 shade;
     M061Record *record;
-    s32 split;
+    UNUSED s32 pad; /* (a word in the ROM's frame) */
 
+    /*
+     * (Game type 0x20 sets nothing up here: the test is empty, but IDO keeps its 0x20 for case 2's switch, as the
+     * ROM does, where without it the constant goes to a saved register.)
+     */
+    if ((D_800A4FD8 & 0x30) == 0x20) {
+    }
     sound = FALSE;
     rl_m061_019E0(objs, updateRate);
     mode = fb_mode();
@@ -383,8 +389,8 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
             func_m006_012D4(player, updateRate);
             rl_m061_01218(player, updateRate);
             record = char_record_lookup(player->unk0, player->unk1);
-            split = D_800A4FD0;
-            if ((mode & 1) || (split == 2 && options_split_vertical_get())) {
+            if (D_800A4FD0) {} /* (the player count read once for both: the ROM's load ahead of the mode test) */
+            if ((mode & 1) || (D_800A4FD0 == 2 && options_split_vertical_get())) {
             }
             func_8006FC54(2);
             func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
