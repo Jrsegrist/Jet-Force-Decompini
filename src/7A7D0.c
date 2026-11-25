@@ -1362,15 +1362,14 @@ void func_8007E9E0(f32 mtx[4][4], f32 *min, f32 *max) {
 extern s32 D_801047F0; // JFG: the number of entries
 s32 box_range_cell_mask(s16 *box, s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ);
 
-#ifdef NON_MATCHING
 /**
  * JFG: collect the collision objects whose boxes the box from a to b touches (not exclude; at most 16, nearest
  * first), then list each object and those of its triangles in the cells the box covers (in batches matching mask1
  * unless they match mask2; mask1 -1: every batch, triangles with an edge flag 0x38), up to the level's limit.
- * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (453 words, 0x1C8), 4 diffs (was 18):
- * the later loops share k (the box-test counter) as their object index, which gives i the ROM's a3; the list pointer
- * gives the loop values the ROM's t1-t3, but its load stays above the loop guard (the ROM loads it after the guard).
- * pad is the word of a local the original had (without it the frame is 8 bytes short).
+ * The first loop is a guarded do-while with the list pointer loaded inside the guard; the empty if on level (set by
+ * then) gives that block the extra uopt block the ROM's colouring needs (likely a compiled-out check). The later
+ * loops share k (the box-test counter) as their object index. pad is the word of a local the original had (without
+ * it the frame is 8 bytes short).
  */
 void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
     LevelHeader *level;
@@ -1410,45 +1409,49 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
 
     level = level_header();
     count = 0;
-    list = D_801047E4;
-    for (i = 0; i < D_801047E0; i++) {
-        obj = list[i];
-        if (obj == exclude) {
-            continue;
-        }
-        if (!(obj->flags->flags & 1)) {
-            continue;
-        }
-        data = obj->data;
-        inside = TRUE;
-        for (k = 0; k < 3 && inside; k++) {
-            if (a[k] < data->bboxMin[k] && b[k] < data->bboxMin[k]) {
-                inside = FALSE;
-            } else if (data->bboxMax[k] < a[k] && data->bboxMax[k] < b[k]) {
-                inside = FALSE;
+    i = 0;
+    if (D_801047E0 > 0) {
+        list = D_801047E4;
+        if (level) {}
+        do {
+            obj = list[i];
+            if (obj == exclude) {
+                continue;
             }
-        }
-        if (inside && count < 16) {
-            dx = data->bboxMin[0] - a[0];
-            dy = data->bboxMin[1] - a[1];
-            dz = data->bboxMin[2] - a[2];
-            objs[count] = obj;
-            dists[count] = dx * dx + dy * dy + dz * dz;
-            j = count;
-            while (j > 0 && dists[j] < dists[j - 1]) {
-                dx = dists[j]; // dx as the swap temporary
-                dists[j] = dists[j - 1];
-                dists[j - 1] = dx;
-                obj = objs[j];
-                objs[j] = objs[j - 1];
-                objs[j - 1] = obj;
-                j--;
+            if (!(obj->flags->flags & 1)) {
+                continue;
             }
-            count++;
-            if (count >= 16) {
-                i = D_801047E0;
+            data = obj->data;
+            inside = TRUE;
+            for (k = 0; k < 3 && inside; k++) {
+                if (a[k] < data->bboxMin[k] && b[k] < data->bboxMin[k]) {
+                    inside = FALSE;
+                } else if (data->bboxMax[k] < a[k] && data->bboxMax[k] < b[k]) {
+                    inside = FALSE;
+                }
             }
-        }
+            if (inside && count < 16) {
+                dx = data->bboxMin[0] - a[0];
+                dy = data->bboxMin[1] - a[1];
+                dz = data->bboxMin[2] - a[2];
+                objs[count] = obj;
+                dists[count] = dx * dx + dy * dy + dz * dz;
+                j = count;
+                while (j > 0 && dists[j] < dists[j - 1]) {
+                    dx = dists[j]; // dx as the swap temporary
+                    dists[j] = dists[j - 1];
+                    dists[j - 1] = dx;
+                    obj = objs[j];
+                    objs[j] = objs[j - 1];
+                    objs[j - 1] = obj;
+                    j--;
+                }
+                count++;
+                if (count >= 16) {
+                    i = D_801047E0;
+                }
+            }
+        } while (++i < D_801047E0);
     }
     for (k = 0; k < count; k++) {
         obj = objs[k];
@@ -1528,9 +1531,6 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007EB6C);
-#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007F280);
 
