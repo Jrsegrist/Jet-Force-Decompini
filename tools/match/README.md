@@ -21,6 +21,11 @@ comes from the ROM: never commit it.
 | `dkrscan.py` | Compiles DKR's src/*.c and finds its functions in JFG's main segment (exact, masked; by code only). | `dkrscan.py --dkr ~/jfg_refs/dkr --only math_util` |
 | `perm.py` | Makes a decomp-permuter workspace for one function (game or module flags), and shows the best result and its diff. | `perm.py import src/7A7D0.c func_8007CCF0` |
 
+`tools/ccs_side.py` (one level up; it uses `common.py`) shows one function's
+`cc -S` output (before as1), our object and the ROM side by side, with a
+stack-slot map: `tools/ccs_side.py func_m061_0043C` (docs/matching.md, "Before
+as1").
+
 `common.py` holds the shared paths and flags (keep `GAME_CFLAGS` in step
 with the Makefile).
 
