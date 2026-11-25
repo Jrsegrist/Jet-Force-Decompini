@@ -1443,11 +1443,10 @@ Object *obj_spawn_attachment(s32 type);
 void try_free_object_header(s32 index);
 s32 rand_range(s32 min, s32 max);
 
-#ifdef NON_MATCHING
 /* JFG: create the object's child objects and load its sprite slots (picking each slot's first
-   frame); if anything failed, free what was made and return 1.
-   NON_MATCHING (53 words, from 153, after the empty ifs on always-set values below): IDO sinks index/amount into the two branches that use them (the target computes
-   them once, into a0/a1, before the tests); everything after is renumbered. */
+   frame); if anything failed, free what was made and return 1. The slot's flags are read back
+   from the slot after its other fields are stored (that's what puts index and amount in
+   registers before the tests). */
 s32 func_80006F2C(Object *obj) {
     ObjectHeader *header;
     ObjectUnk60 *children;
@@ -1456,7 +1455,6 @@ s32 func_80006F2C(Object *obj) {
     s32 i;
     Object *child;
     SpriteSlotDef *def;
-    u32 flags;
     s32 index;
     s32 amount;
     s32 numFrames;
@@ -1488,20 +1486,18 @@ s32 func_80006F2C(Object *obj) {
         def = (SpriteSlotDef *) header->unk3C;
         for (i = 0; i < obj->numSpriteSlots; i++) {
             slot->sprite = tex_load_sprite(def->spriteID, 1);
-            if (children) {}
             slot->unk4 = def->unk2;
-            flags = def->flags;
-            slot->flags = flags;
-            index = (flags >> 22) & 0x3F;
-            amount = (flags >> 16) & 0x3F;
+            slot->flags = def->flags;
             slot->scale = (def->size / 500.0f) * obj->trans.scale;
             slot->unk5 = def->unk3;
+            index = (slot->flags >> 22) & 0x3F;
+            amount = (slot->flags >> 16) & 0x3F;
             numFrames = slot->sprite[0];
-            if (flags & SPRITE_SLOT_RANDOM) {
+            if (slot->flags & SPRITE_SLOT_RANDOM) {
                 slot->frame = rand_range(0, numFrames);
-            } else if (flags & SPRITE_SLOT_AFTER) {
+            } else if (slot->flags & SPRITE_SLOT_AFTER) {
                 slot->frame = obj->spriteSlots[index].frame + amount;
-            } else if (flags & SPRITE_SLOT_BEFORE) {
+            } else if (slot->flags & SPRITE_SLOT_BEFORE) {
                 slot->frame = obj->spriteSlots[index].frame - amount;
             }
             def++;
@@ -1541,9 +1537,6 @@ s32 func_80006F2C(Object *obj) {
     }
     return failed;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/53C0", func_80006F2C);
-#endif
 
 /* DKR include/structs.h, reduced (Size: 0x24 bytes) */
 typedef struct ParticleEmitter {
