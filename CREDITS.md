@@ -437,3 +437,12 @@ written from what the code does.
 | DKR file | Used for |
 | --- | --- |
 | `src/rcp_dkr.c` | texrect_draw (its indexed element loop with the texture read in the test), for the NON_MATCHING body of JFG's func_8004EDBC in `src/4E610.c`; JFG's command-list set-up, animated texture word and DMA count are written from the ROM |
+
+### Round 63 (main63)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/hasm/math_util.c` | mtxf_from_transform's and mtxf_from_inverse_transform's shape (sine/cosine pairs per axis, the 3x3 rotation, the zero column, the position row and the 1.0 corner) for the NON_MATCHING bodies of JFG's func_80049DC0, func_80049F08, func_8004A014 and func_8004A1A0 in `src/4A9C0.c`; JFG's argument order, products, grouping, scale and position row are written from the ROM's hand-written assembly. ObjectTransform's layout from `include/structs.h` |
+| `src/tracks.c` | func_8002FD74's shape (the points' min/max box, then the overlap test) for the NON_MATCHING body of JFG's func_80020890 in `src/1DA10.c`, and its loop for func_80020954; JFG's count-down loop, compare forms and return value are written from the ROM's hand-written assembly |
+| `src/tracks.c` | func_800304C8 (the three edge tests and the plane height) for the NON_MATCHING body of JFG's func_800209E4 in `src/1DA10.c`; JFG's ShadowBuild fields and compare forms are written from the ROM's hand-written assembly |
+| `include/structs.h` | LevelModelSegmentBoundingBox, for the NON_MATCHING body of JFG's func_8001D464 in `src/1DA10.c` (written from the ROM's hand-written assembly) |
