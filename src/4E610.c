@@ -508,7 +508,8 @@ RectTexture *set_animated_texture_header(RectTexture *texHead, s32 offset);
 extern Gfx D_800A37A8[];
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the texture pointer comes through v0 (the ROM loads it into s1 for the loop test) */
+/* NON_MATCHING: 7 words (ROM length and frame): the command count is in v1 and the DMA command's pointer copy in
+   a0 (target: count a0, pointer v1). DKR's indexed loop with the texture read in the test gives the rest. */
 /*
  * JFG: draws a list of textured rectangles at (x, y) plus each one's offset, in a primitive colour,
  * clipped at the screen's top and left edges.
@@ -523,16 +524,16 @@ void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 gr
     s32 s;
     s32 t;
     s32 count;
+    s32 i;
 
     gfx = *dList;
     gSPDisplayList(gfx++, D_800A37A8);
     gDPSetPrimColor(gfx++, 0, 0, red, green, blue, alpha);
     x <<= 2;
     y <<= 2;
-    for (; rects->tex != NULL; rects++) {
-        tex = rects->tex;
-        xl = (rects->x << 2) + x;
-        yl = (rects->y << 2) + y;
+    for (i = 0; (tex = rects[i].tex); i++) {
+        xl = (rects[i].x << 2) + x;
+        yl = (rects[i].y << 2) + y;
         xh = (tex->width << 2) + xl;
         yh = (tex->height << 2) + yl;
         if (xh > 0 && yh > 0) {
@@ -547,7 +548,7 @@ void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 gr
                 yl = 0;
             }
             gfx->words.w0 = tex->cmd->words.w0;
-            gfx->words.w1 = (u32) set_animated_texture_header(tex, rects->frame) + 0x80000000;
+            gfx->words.w1 = (u32) set_animated_texture_header(tex, rects[i].frame) + 0x80000000;
             gfx++;
             count = tex->numberOfCommands - 1;
             gDkrDmaDisplayList(gfx++, (u32) (tex->cmd + 1) + 0x80000000, count);
