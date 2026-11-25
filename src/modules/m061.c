@@ -256,7 +256,7 @@ extern void func_800468C0(s32 arg0);
 extern void func_80047608(s32 arg0, s32 arg1, s32 arg2);
 extern void func_m013_00008(Object *obj, M061Player *player, s32 updateRate);
 extern void rl_m061_019E0(Object **objs, s32 updateRate);
-extern s32 rl_m061_023B8(s32 count, s32 arg1, s32 updateRate);
+s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate);
 extern void rl_m061_01218(M061Player *player, s32 updateRate);
 void func_m061_00F50(void);
 void func_m061_010D4(s32 mode);
@@ -324,7 +324,7 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
     if (!sState) {
         switch (D_800A4FD8 & 0x30) {
             case 0x10:
-                if (rl_m061_023B8(count, D_800A4FDC, updateRate)) {
+                if (func_m061_023B8(count, D_800A4FDC, updateRate)) {
                     func_m061_00F50();
                     func_m061_02E84(count, objs);
                 }
@@ -997,7 +997,6 @@ void func_m061_01F14(Object *obj, UNUSED Object **objs, UNUSED s32 updateRate) {
     gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
 }
 
-#ifdef NON_MATCHING
 extern s32 is_game_paused(void);
 extern s32 gMenuTimer; /* the timed round's frames so far */
 extern Vertex *D_800FF3A0;
@@ -1011,9 +1010,6 @@ extern M061ColourCycle rl_m061_03770; /* = sCycles[1] */
  * The timed round's clock (game type 0x10; called from 0043C): the time counts up to `limit` unless the game is
  * paused; the dial shows the time left as whole sectors of the inner ring and one part sector, its colour (two
  * colour cycles) turning to the second cycle's in the last 1200 frames. TRUE once the time is up.
- * NON_MATCHING: 691/691 words with the ROM's frame and slots, every float register right; 121 diffs, all one
- * t-register shift from the part sector's vertex command on (the ROM has one more temporary before it, after the
- * whole-sector gSPPolygon). The default build uses the assembly.
  * (x and y start from an int 0 and the shadow is offset by an int 1: as float constants of their own, IDO doesn't
  * share them with the 0.0f arguments and the colour sums' 1.0f, as in the ROM. sCycles[1] is named by its own
  * symbol, which the ROM addresses with its own base register.)
@@ -1023,7 +1019,7 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     s32 angle;
     s32 i;
     s32 r;
-    UNUSED s32 pad;
+    s32 part; /* a part sector to draw */
     s32 g;
     s32 b;
     UNUSED s32 pad2[4];
@@ -1084,10 +1080,11 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
         func_80055C00(&D_800FF398, D_800FF3F8[0x2F], 5, 0);
         gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0xC0);
         gSPVertexJFG(D_800FF398++, (u8 *) sInner + 0x80000000, 18, 0);
+        part = angle != (angle / 0x1000) * 0x1000;
         if (angle / 0x1000 != 0) {
             gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000250, angle / 0x1000, 1);
         }
-        if (angle != (angle / 0x1000) * 0x1000) {
+        if (part) {
             /* the part sector: one more vertex on the ring (loaded as vertices 17 and 18) */
             s = func_80049C34(angle);
             c = func_80049C30(angle);
@@ -1127,9 +1124,6 @@ s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
     gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000230, 2, 1);
     return done;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_023B8);
-#endif
 
 void func_m061_02E84(s32 count, Object **objs) {
     s32 i;
