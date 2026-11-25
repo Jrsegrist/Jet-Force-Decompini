@@ -528,12 +528,11 @@ void audspat_calculate_echo(void *soundHandle, f32 x, f32 y, f32 z) {
 
 extern s32 D_800A0800[]; // JFG: the number of entries of each group (groups from 1)
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 101 words (ROM 98), 21 aligned diffs: the loops have the ROM's shape (not unrolled: `while (TRUE)
-   { ...; if (i < count) continue; break; }` under a count guard). The ROM keeps volume and fxMix in their homes;
-   reading them through `(&v)[0]` does that (minVolume then gets $a1 and entry/quietest the ROM's slots), but makes
-   volume address-taken, so its three reloads stay after the entry stores (the ROM loads it before them: 3 nops).
-   The empty if tests a parameter, always set. */
+/* The loops have the ROM's shape (not unrolled: `while (TRUE) { ...; if (i < count) continue; break; }` under a
+   count guard). The ROM keeps volume and fxMix in their homes; reading them through `(&v)[0]` does that, and
+   storing volume first puts its reload before the other stores. The empty ifs test values set on every path
+   (a parameter; minVolume, count and i): the second one's three blocks give i, minVolume and the volume temp the
+   ROM's registers, so the original probably had a compiled-out check there. */
 /* JFG: add a point to its group (unk23) with the given sound settings: update its entry, or take a free one,
  * or replace the quietest entry if this one is louder. */
 void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix) {
@@ -550,9 +549,9 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
         while (TRUE) {
             if (fxMix) {}
             if (point == entry->point) {
+                entry->volume = (&volume)[0];
                 entry->pitch = pitch;
                 entry->pan = pan;
-                entry->volume = (&volume)[0];
                 entry->fxMix = (&fxMix)[0];
                 return;
             }
@@ -572,12 +571,13 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
         while (TRUE) {
             if (entry->point == NULL) {
                 entry->point = point;
+                entry->volume = (&volume)[0];
                 entry->pitch = pitch;
                 entry->pan = pan;
-                entry->volume = (&volume)[0];
                 entry->fxMix = (&fxMix)[0];
                 return;
             }
+            if (minVolume && count && i) {}
             if (entry->volume <= minVolume) {
                 minVolume = entry->volume;
                 quietest = i;
@@ -597,15 +597,12 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
             sound_stop(entry->point->soundHandle);
         }
         entry->point = point;
+        entry->volume = (&volume)[0];
         entry->pitch = pitch;
         entry->pan = pan;
-        entry->volume = (&volume)[0];
         entry->fxMix = (&fxMix)[0];
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/3430", func_8000380C);
-#endif
 
 extern s32 D_800A0804[]; // JFG: the number of entries of each group
 void sound_play_direct(u16 soundID, u8 volume, u8 pan, f32 pitch, u8 fxMix, void **handlePtr);
