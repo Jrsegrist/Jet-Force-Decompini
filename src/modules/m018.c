@@ -678,12 +678,7 @@ extern void func_80056000(s32 arg0);
 extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprite *sprite, void *tex, s32 arg5,
                                         u8 alpha);
 void func_m018_00AEC(void);
-#ifdef NON_MATCHING
 static void func_m018_040A8(f32 rate, s32 item);
-#else
-extern void rl_m018_040A8(f32 rate, s32 item); /* the static at 040A8 (still assembly) */
-#define func_m018_040A8 rl_m018_040A8
-#endif
 
 /* Picks a weapon with the stick and assigns it to a d-pad direction */
 void func_m018_0130C(s32 updateRate) {
@@ -1086,12 +1081,10 @@ typedef struct M018AnimModel {
     /* 0x78 */ s16 *frames[1];
 } M018AnimModel;
 
-#ifdef NON_MATCHING
 /*
  * Slides the four panels from `item` on into place (two in x, then two in y; the flag at 0x1C of the .bss
- * is set when they are there), then sets each panel model's texture frames from its texture animations.
- * NON_MATCHING: 3 diffs; the ROM compares `0x200 < tex->unk12` with 0x200 in a register and makes 0x100 as
- * v - 0x100 (IDO folds every spelling tried into slti and the 0x100 already in a register).
+ * is set when they are there), then sets each panel model's texture frames from its texture animations
+ * (a frame step of 0x100, and 0x200 for the second frame unless the texture has no more than 0x200).
  */
 static void func_m018_040A8(f32 rate, s32 item) {
     s32 i;
@@ -1144,9 +1137,10 @@ static void func_m018_040A8(f32 rate, s32 item) {
                 k = anim->unk4 & 0xFF;
                 tex = header->textures[k].tex;
                 if (tex->unk6 & 0x10000) {
-                    anim->unk0 = 0x100;
+                    v = 0x100;
+                    anim->unk0 = v;
                     if (anim->unk2 >= 0) {
-                        v = 0x200;
+                        v += 0x100;
                         if (tex->unk12 <= v) {
                             v -= 0x100;
                         }
@@ -1163,11 +1157,6 @@ static void func_m018_040A8(f32 rate, s32 item) {
         }
     }
 }
-#else
-#undef func_m018_040A8
-INCLUDE_ASM("asm/nonmatchings/modules/m018", func_m018_040A8);
-#define func_m018_040A8 rl_m018_040A8
-#endif
 
 void func_m018_042D4(void) {
     Object *player;
