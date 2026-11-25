@@ -269,8 +269,8 @@ void func_m061_02E84(s32 count, Object **objs);
 
 #ifdef NON_MATCHING
 /*
- * 17 aligned diffs (709/709 words, frame right): the mode & 1 temporary one word high (0x4C, ROM 0x48), the record's
- * reload one t-register low (t5, ROM t6), the fade's subtraction in v0 (ROM a2) and case 2's 0x20 kept in a register.
+ * 11 aligned diffs (709/709 words, frame right): the mode & 1 temporary one word high (0x4C, ROM 0x48), the record's
+ * reload one t-register low (t5, ROM t6) and case 2's 0x20 kept in a register.
  * (record->unk70 is a u8, so its & 0xFF changes nothing; it gives the ROM's temporaries after the reload.)
  */
 /*
@@ -300,7 +300,7 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
     s32 width;
     s32 height;
     M061Stats *stats;
-    u16 *fade;
+    s32 shade;
     M061Record *record;
     s32 split;
 
@@ -406,22 +406,23 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
             }
             func_m061_01F14(obj, objs, updateRate);
             if ((sState > 0 && sState < 10) || D_800FED50[i].unk15 != 0) {
-                fade = &D_800FF1B8[i];
-                if ((alpha = (*fade += updateRate * 2)) >= 256) {
-                    alpha = *fade = 255;
+                D_800FF1B8[i] += updateRate * 2;
+                if (D_800FF1B8[i] >= 256) {
+                    D_800FF1B8[i] = 255;
                 }
-                alpha = 0xFF - alpha;
-                alpha = (alpha << 24) | (alpha << 16) | (alpha << 8);
-                menu_draw_layout_box(&D_800FF398, i, alpha | sRankColours[D_800FED50[i].rank]);
+                shade = 0xFF - D_800FF1B8[i];
+                shade = (shade << 24) | (shade << 16) | (shade << 8);
+                shade |= sRankColours[D_800FED50[i].rank];
+                menu_draw_layout_box(&D_800FF398, i, shade);
                 menu_layout_box_get(i, &x1, &y1, &x2, &y2);
                 textX = ((x1 + x2) >> 1) + 10;
                 textY = ((y1 + y2) >> 1) - 13;
                 func_8006FC54(2);
-                func_8006FC68(0, 0, 0, 0xFF, *fade);
+                func_8006FC68(0, 0, 0, 0xFF, D_800FF1B8[i]);
                 func_8006FCA8(&D_800FF398, textX, textY, sRankTexts[D_800FED50[i].rank], 12);
-                func_8006FC68(0, 0xFF, 0x80, 0xFF, *fade);
+                func_8006FC68(0, 0xFF, 0x80, 0xFF, D_800FF1B8[i]);
                 func_8006FCA8(&D_800FF398, textX - 1, textY - 1, sRankTexts[D_800FED50[i].rank], 12);
-                alpha = *fade;
+                alpha = D_800FF1B8[i];
                 if (alpha == 0xFF) {
                     alpha = 0xFE;
                 }
