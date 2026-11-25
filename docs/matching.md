@@ -99,6 +99,7 @@ The tools are in `tools/match/` ([README](../tools/match/README.md); each has
 | `buildvar.py` | like `var.py`, but a full `make` and `make check` per variant. |
 | `permdecl.py` | writes a variants file with every order of a set of declarations. |
 | `perm.py` | sets up [decomp-permuter](https://github.com/simonlindholm/decomp-permuter) for one function (see below). |
+| `tools/ccs_side.py FUNC` | one function three ways: IDO's `cc -S` (before as1), our object and the ROM, side by side per basic block, with a stack-slot map (see below). |
 | asm-differ | `.venv/bin/python3 tools/asm-differ/diff.py -mw FUNC` diffs one function of the built ROM against the original, rebuilding on change; module functions work too (`tools/runlink_diff.py`). |
 
 The probe is fast but blind to some things. It masks the targets of calls and
@@ -114,6 +115,33 @@ body, use a scratch copy of the file without the `#else` branch, and pass
 `-DNON_MATCHING`. The probe finds a function in the ROM by its address
 name or by its name in `names.txt`; while you work on a function under a new
 name that is in neither, give it its address name (`func_XXXXXXXX`).
+
+### Before as1: `tools/ccs_side.py`
+
+IDO's `cc -S` output is ugen's code before as1 schedules it, fills delay
+slots and tidies it. Register numbers are decided there, so a register puzzle
+is often easier to read in it than in the final code. `ccs_side.py` shows
+the `cc -S` instruction (and its C line) for each word of our object, next to
+the ROM:
+
+```
+.venv/bin/python3 tools/ccs_side.py func_m061_0043C [--only-diff] [--summary]
+```
+
+FUNC is `func_XXXXXXXX`, `func_mNNN_XXXXX` or a C name from `names.txt`. A
+`NON_MATCHING` body is put in place of its `#ifdef` block (`--nm` builds
+the whole file with `-DNON_MATCHING`); `--file` takes a scratch copy. The
+compile command is the build's own (`make -n`). Rows marked `*` differ from
+the ROM (`R obj/rom` for a register). `-` rows are `cc -S` instructions as1
+removed: a forwarded `move`, an `and 255` folded into the `lbu` before it
+(as1 then loads straight into the `and`'s register), a reload replaced by the
+stored register. `1st` marks where each t-register is first used in each
+column, and the summary lists the three first-use orders: a t-register the
+ROM never uses, or one taken in another order, usually goes back to one of
+these removed instructions. The stack-slot map names each `$sp` offset's C
+value (saved registers, parameter homes, `x = ...` stores, `&x` arguments,
+outgoing arguments, spills) and its first use on both sides. A matching
+function shows `=> MATCH` and no `*` rows.
 
 ## 4. When it does not match yet: `NON_MATCHING`
 
