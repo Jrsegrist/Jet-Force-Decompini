@@ -329,8 +329,9 @@ void flash_read_page(u32 page, u8 *data);
 extern s32 gSaveFilePages[]; // JFG: the first flash page of each save slot
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: the target computes 11 << 7 at run time (li 11; sll) where IDO folds it here, and its copy loop
- * counts down in a temporary */
+/* NON_MATCHING (9 diffs, 70/71 words, frame right; was 14): the target computes 11 << 7 at run time (li 11; sll;
+ * the alloc size is the page loop's counter) where IDO folds it here. The copy loop's own down counter, set
+ * between the two pointers, gives the target's copy loop exactly. */
 /* JFG: read a save file (0x538 bytes) from its slot's flash sector; byte 3 gets the slot number, or -1 when the
  * checksum in the sector's last page does not match. */
 s32 func_8004BAF4(s32 slot, u8 *data) {
@@ -342,19 +343,19 @@ s32 func_8004BAF4(s32 slot, u8 *data) {
     s32 checksum;
 
     if (data) {}
-    i = 11 * 0x80;
-    buf = mempool_alloc_safe(i, -1);
-    p = buf;
-    for (;;) {
-        if (i == 0) {
-            break;
-        }
+    i = 11;
+    buf = mempool_alloc_safe(i << 7, -1);
+    for (p = buf, i <<= 7; i != 0; i -= 0x80) {
         flash_read_page(page++, p);
-        i -= 0x80;
         p += 0x80;
     }
-    for (i = 0; i < 0x538; i++) {
-        data[i] = buf[i];
+    {
+        u8 *d = data;
+        s32 n = 0x538;
+        u8 *s = buf;
+        for (; n != 0; n--) {
+            *d++ = *s++;
+        }
     }
     checksum = calculate_save_file_checksum(buf, 0x538);
     flash_read_page(checksumPage, buf);
