@@ -237,7 +237,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/tracks.c` | trackbg_render_flashy; func_8002FF6C (NON_MATCHING) (helper ma14h1) |
 | `src/thread3_main.c` | main_game_loop, structure only (helper ma14h1) |
 | `src/textures_sprites.c` | material_set (NON_MATCHING) (helper ma14h1) |
-| `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (NON_MATCHING, JFG's three output buffers and high quality mode) |
+| `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (JFG's three output buffers and high quality mode) |
 | `src/game.c` | level_load, structure only (NON_MATCHING) |
 
 ### Round 15 (main15), main segment
