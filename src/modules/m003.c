@@ -3377,32 +3377,31 @@ f32 func_m003_07980(f32 from, f32 to, f32 speed, f32 max) {
     return d;
 }
 
-#ifdef NON_MATCHING
-/* The speed change that brings a mover to a stop `dist` away, accelerating by `accel` */
-/* (31 words: speed and the result take f12/f14 the other way round; the early ternary return already
-   gives the ROM's single exit and the saved f20) */
+/*
+ * The speed change that brings a mover to a stop `dist` away, accelerating by `accel`.
+ * result's initial value is never read (every path sets it first); the initialised declaration keeps
+ * result live from the start, which is what gives it f12 and speed f14 as in the ROM.
+ */
 f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
     f32 zero = 0.0f;
     f32 pos = zero;
     f32 step = zero;
     s32 neg = dist < 0;
-    f32 fdist;
-    f32 result;
+    f32 result = zero;
 
     if (neg) {
         dist = -dist;
         speed = -speed;
     }
     if (speed < zero) {
-        result = neg ? -accel : accel;
-        return result;
+        result = accel;
+        return neg ? -result : result;
     }
-    fdist = dist;
     do {
         step += accel;
         pos += step;
-    } while (pos + step < fdist);
-    if (fdist <= accel && speed <= accel && ((dist >= 0 && zero <= speed) || (dist <= 0 && speed <= zero))) {
+    } while (pos + step < dist);
+    if (dist <= accel && speed <= accel && ((dist >= 0 && zero <= speed) || (dist <= 0 && speed <= zero))) {
         result = zero;
     } else if (speed + accel <= step - accel) {
         result = speed + accel;
@@ -3413,6 +3412,7 @@ f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
         }
     } else {
         result = speed - accel;
+        if (result) {} /* no code: the block boundary that gives the ROM's operand order in the compare below */
         if (result == zero) {
             result = accel;
         }
@@ -3423,9 +3423,6 @@ f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
     }
     return result - speed;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_079D8);
-#endif
 
 /* The troop's member whose number is the troop's count (or the last one looked at) (module m003, 0x07B38). */
 static Object *troop_member_counted(Object *home) {
