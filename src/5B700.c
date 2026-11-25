@@ -236,10 +236,11 @@ void snow_init(void); // DKR: snow_init
 s32 rand_range(s32 min, s32 max);
 
 #ifdef NON_MATCHING
-/* NON_MATCHING (16 words, ROM length and frame; was 58): the target loads preset->texture before storing
-   gSnowGfx.pos, materialises &gSnowTriangles for its store, and gives the triangle indices v0/a1 (mine a1/a2).
-   numOfElements declared last and reused for density * 4 (as DKR) gives the frame: its second value is spilled to
-   its own word. */
+/* NON_MATCHING (10 diffs, ROM length and frame; was 16): the preset read as D_800A5940[weatherType] after the copy
+   lets IDO load the texture before storing gSnowGfx.pos, as the target does; the empty if on gSnowTriangles makes
+   IDO materialise its address for the store (the target has it in a0, here a3), but the store still lands in the
+   loop test's delay slot and the triangle indices get a1/a2 (target v0/a1). numOfElements declared last and reused
+   for density * 4 (as DKR) gives the frame: its second value is spilled to its own word. */
 /**
  * Free all existing weather data.
  * If the weather type allows rain, then allocate and initialise rain.
@@ -293,8 +294,8 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
     do {
         *dst++ = *src++;
     } while (n--);
-    gSnowGfx.pos = mempool_alloc_safe(preset->unk4 * 12, 0xAA55FFFF);
-    if ((s32) preset->texture == WEATHER_SNOW) {
+    gSnowGfx.pos = mempool_alloc_safe(D_800A5940[weatherType].unk4 * 12, 0xAA55FFFF);
+    if ((s32) D_800A5940[weatherType].texture == WEATHER_SNOW) {
         snow_init();
     }
     numOfElements = density;
@@ -354,6 +355,7 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
         tris[i + 1].v2 = 0;
     }
     gSnowVertexFlip = 0;
+    if (gSnowTriangles) {}
 }
 #else
 INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AD90);
