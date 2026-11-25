@@ -620,8 +620,9 @@ extern void func_80070EAC(Gfx **dl, Mtx **mtx, Vertex **vtx, s32 box);      /* r
 /*
  * Draws a player's message bar (the queue's current message, in a box that opens to the text's width) in the
  * player's part of the screen, with its two end caps (called from 0043C).
- * NON_MATCHING: a first body, 499/498 words with the ROM's frame and slots, 374 aligned diffs (mostly the code
- * generator's temporaries one or two off); the default build uses the assembly.
+ * NON_MATCHING: 498/498 words with the ROM's frame and slots, 39 differing rows: the bar's vertex block (the ROM has
+ * y - 7 in v0 and 0x80000000 in a2, ours a2 and a3) and the end caps' 0.0f, which the ROM loads twice (z_position = 0
+ * as an int gives that, but one word too many until the vertex block is right). The default build uses the assembly.
  */
 void func_m061_01218(M061Player *player, s32 updateRate) {
     MtxF mtx;
@@ -653,22 +654,22 @@ void func_m061_01218(M061Player *player, s32 updateRate) {
         case 2:
             if ((fb_mode() & 1) || options_split_vertical_get()) {
                 /* split side by side: as for four (the ROM tests the player here, then goes on either way) */
-                if (player->unk0 != 0) {
-                    goto quad;
+                if (player->unk0 == 0) {
+                } else {
                 }
-                goto quad;
-            }
-            /* split top and bottom */
-            x = 0;
-            if (player->unk0 == 0) {
-                y = barY[player->unk0] + 60;
             } else {
-                y = barY[player->unk0] - 60;
+                /* split top and bottom */
+                x = 0;
+                if (player->unk0 == 0) {
+                    y = barY[player->unk0] + 60;
+                } else {
+                    y = barY[player->unk0] - 60;
+                }
+                break;
             }
-            break;
+            /* fall through */
         case 3:
         case 4:
-        quad:
             if (player->unk0 == 0 || player->unk0 == 2) {
                 x = -94;
             } else {
@@ -681,12 +682,16 @@ void func_m061_01218(M061Player *player, s32 updateRate) {
             }
             break;
     }
-    if (queue->current == -1) {
-        /* (no message: the bar shows what its text already holds) */
-    } else if (queue->current == 0x9F) {
-        func_800639E8(queue->text, "%s%d", gMenuText[0x9F], D_800FED50[player->unk0].kills);
-    } else {
-        func_800639E8(queue->text, "%s", gMenuText[queue->current]);
+    switch (queue->current) {
+        case 0x9F:
+            func_800639E8(queue->text, "%s%d", gMenuText[0x9F], D_800FED50[player->unk0].kills);
+            break;
+        case -1:
+            /* (no message: the bar shows what its text already holds) */
+            break;
+        default:
+            func_800639E8(queue->text, "%s", gMenuText[queue->current]);
+            break;
     }
     cam_set_layout(D_800A4FCC - 1);
     set_active_camera(player->unk0);
