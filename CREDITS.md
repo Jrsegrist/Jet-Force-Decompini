@@ -431,3 +431,9 @@ written from what the code does.
 | DKR file | Used for |
 | --- | --- |
 | `src/weather.c` | weather_reset (credited in round 14 as NON_MATCHING) now matches as JFG's func_8005AD90 in `src/5B700.c`; JFG fills the triangles through a walking pointer |
+
+### Round 61 (main61)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/rcp_dkr.c` | texrect_draw (its indexed element loop with the texture read in the test), for the NON_MATCHING body of JFG's func_8004EDBC in `src/4E610.c`; JFG's command-list set-up, animated texture word and DMA count are written from the ROM |
