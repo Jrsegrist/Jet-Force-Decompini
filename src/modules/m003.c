@@ -1271,10 +1271,12 @@ s32 func_m003_061FC(void);
 /*
  * A troop with no path group takes a free one: a new path of its own, four nodes long (in sGroupPaths), copied
  * from the leader's path and looping, whose object becomes the leader.
- * NON_MATCHING: ROM length and frame, 88 aligned diffs, nearly all t-registers two off: the ROM computes the
- * group's g * 4 in a t-register (t6, first) and copies it into g's s6 after the nodes address; ours keeps the
- * g * 4 in a1. A direct call with anim_path_enable_run's real (u8) prototype gave the ROM's jal and length, and
- * `g *= 4` in place the frame (`g = sHomeData->group * 4`, or `g *= 4` first, give 44 diffs but 8 bytes more).
+ * NON_MATCHING: ROM length and frame, 52 aligned diffs. The ROM computes the group's g * 4 in a t-register
+ * (t6, first), multiplies that by the node size for the nodes address and copies it into g's s6; with
+ * `&sGroupPaths[g * 4]` ours kept the g * 4 in a1 (88 diffs). `sGroupPaths + g * 4` stops that (IDO folds the
+ * address to g * 176 instead), which leaves the t-registers of the copy loop right; what is left is the address
+ * set-up, the s-register order (ROM: nodes s4, the 3 s5, g s6) and one temp word above the (u8) index's spill
+ * (0x40 here, 0x44 in the ROM). `g *= 4` first gives the ROM's t6 shape but 8 bytes more frame.
  */
 static void func_m003_01EB8(void) {
     s32 index;
@@ -1296,19 +1298,19 @@ static void func_m003_01EB8(void) {
             path = D_801045B0[index];
             g = sHomeData->group;
             path->unk0 = src->unk0;
-            path->unk2 = 0x53;
             path->unk1 = src->unk1;
+            path->unk2 = 0x53;
             path->unk4 = src->unk4;
             path->unk6 = src->unk6;
-            path->obj = NULL;
             path->unk7 = src->unk7;
+            path->obj = NULL;
             path->unkC = src->unkC;
             path->unk10 = src->unk10;
             path->unk14 = src->unk14;
-            nodes = &sGroupPaths[g * 4];
+            nodes = sGroupPaths + g * 4;
             g *= 4;
-            path->flags = 0x80;
             path->numNodes = 4;
+            path->flags = 0x80;
             path->curNode = nodes;
             path->nodes = nodes;
             path->unk15 = src->unk15;
@@ -1332,11 +1334,7 @@ static void func_m003_01EB8(void) {
                 node->unk18[2] = from->unk18[2];
                 node->junction = from->junction;
                 node->unk20 = from->unk20;
-                if (i == 3) {
-                    node->prev = &nodes[3];
-                } else {
-                    node->prev = node - 1;
-                }
+                node->prev = (i == 3) ? &nodes[3] : node - 1;
                 if (i == 0) {
                     node->next = &sGroupPaths[g];
                 } else {
@@ -1348,6 +1346,7 @@ static void func_m003_01EB8(void) {
             path->obj->trans.flags |= 0x400;
             sGroupNodes[sHomeData->group] = from;
             anim_path_enable_run(index);
+            if (g) {} /* g is always set here: no code, it only moves g down the s-registers */
             sHomeData->leader = path->obj;
             sHomeData->unk79 = 1;
             path->curNode = path->nodes->next;
