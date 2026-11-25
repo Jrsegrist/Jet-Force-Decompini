@@ -286,6 +286,12 @@ exists). Functions that use no .rodata have no `ro/` file; include them from
 the module's directory as before. m146 is the example (00350 stays
 assembly under NON_MATCHING with its floats and jump table, the rest is C).
 
+When such a function matches, its .rodata moves to C with it: IDO writes its
+literals and jump tables where the `ro/` file's `.late_rodata` stood. Moves so
+far that changed a module's .rodata by more than one float: m067 00EF4 (its
+two jump tables, 24 and 21 cases, and its float literals) and the static 008C4
+it calls (round 63).
+
 The splitter assigns each item (a run of words from one referenced offset to
 the next) to the one function that refers to it. The kind of use decides
 where an item goes, not its contents: an item the code only loads with

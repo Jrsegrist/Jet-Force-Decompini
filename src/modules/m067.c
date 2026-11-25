@@ -221,7 +221,7 @@ s32 func_m067_00130(Object *obj, M067Jump *j, s32 target) {
 extern s32 rl_m067_046C0[]; /* .data (still assembly): the pair's values, two per step */
 
 /* Gives both enemies of the pair their next values from the table and moves the table on */
-void func_m067_0025C(void) {
+static void func_m067_0025C(void) {
     M067State *s;
 
     if (rl_m067_04574[0] != NULL) {
@@ -340,7 +340,7 @@ static void func_m067_00300(Object *obj, M067State *s, s32 step) {
  * start and on to the first -19, a -19 and a step equal to the target are
  * skipped
  */
-void func_m067_0064C(Object *obj, M067State *s) {
+static void func_m067_0064C(Object *obj, M067State *s) {
     if (((s8 *) s->unk4)[s->unk8] == -1) {
         s->unk8 = 0;
         while (((s8 *) s->unk4)[s->unk8] != -19) {
@@ -411,13 +411,14 @@ typedef struct M067DebrisEntry {
 
 extern void func_m008_001CC(f32 x, f32 y, f32 z, f32 vx, f32 vy, f32 vz, s32 angle, s32 colour, f32 scale);
 
-#ifdef NON_MATCHING
 /*
  * Plays the enemy's event list (s->events): when an event's time has passed, the next event happens at one of
  * the model's points: a part's flag, drops, sparks, pieces, a burst and a sound. A zero time ends the list.
- * (Matches, staged: only the assembly func_m067_00EF4 calls it, so IDO would drop it.)
+ * It returns no value, but is declared to return one (an int function with no return, as the original's must
+ * have been: IDO keeps v0 free after a call to a function that returns a value, and 00EF4 matches only so).
+ * Callers never use the result.
  */
-static void func_m067_008C4(Object *obj, M067State *s, s32 updateRate) {
+static s32 func_m067_008C4(Object *obj, M067State *s, s32 updateRate) {
     Object *piece;
     Vec3s rot;
     f32 x;
@@ -506,9 +507,6 @@ static void func_m067_008C4(Object *obj, M067State *s, s32 updateRate) {
     }
     s->events = ev;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_008C4);
-#endif
 
 void func_m067_00D70(Object *obj, M067Setup *setup) {
     M067Header *header;
@@ -568,7 +566,12 @@ typedef struct M067MissileSetup {
 /* One of the enemy's hit spheres (size 0x34) */
 typedef struct M067Sphere {
     /* 0x00 */ u8 pad0[0x30];
-    /* 0x30 */ u8 flags;
+    /* NOT PORTABLE: bitfields are laid out from the top bit, as IDO does; a compiler that allocates from bit 0
+       (MSVC, GCC on little-endian) puts hidden and active at other bits of the byte */
+    /* 0x30 */ u8 unk30_80 : 1;
+    /* 0x30 */ u8 hidden : 1; /* 0x40 */
+    /* 0x30 */ u8 active : 1; /* 0x20 */
+    /* 0x30 */ u8 unk30_1F : 5;
     /* 0x31 */ u8 pad31[0x34 - 0x31];
 } M067Sphere;
 
@@ -658,15 +661,11 @@ extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg
 /* Where an object's interaction keeps its position */
 #define M067_TARGET(obj) ((M067Interaction *) (obj)->interactObj)
 
-#ifdef NON_MATCHING
 /*
  * The enemy's control: turns its head after the player, updates its parts' flags and the hit flashes, plays
  * its events and builds its joint commands, then runs its animation by its kind (jumps between the jump
  * points, attacks, being hit and dying), draws the model's points and fires what the animation asked for
  * (a missile, bolts or rocks).
- * NON_MATCHING: ROM frame and stack slots, 1856/1855 words, 89 aligned diffs: uopt's colouring of updateRate
- * and the 0xFF/0xFE constants (t1/t0 where the ROM has t2/t1/t0), of the flag loops' values, and where the
- * second argument of the 008C4 call is copied. Matching it would let 008C4 go to C too.
  */
 void func_m067_00EF4(Object *obj, s32 updateRate) {
     s32 i;
@@ -717,20 +716,21 @@ void func_m067_00EF4(Object *obj, s32 updateRate) {
     *cur++ = 218;
     *cur++ = s->headAngle >> 2;
     sphere = ((M067Interaction *) obj->interactObj)->spheres;
-    for (parts = rl_m067_044F0; (*parts)[1] != 0xFF; parts++) {
-        /* the no-code mask stands in for a temporary the ROM's code generator took here */
-        sphere->flags = (sphere->flags & 0xFF) | 0x20;
-        sphere->flags &= 0xBF;
+    parts = rl_m067_044F0;
+    while ((*parts)[1] != 0xFF) {
+        sphere->active = 1;
+        sphere->hidden = 0;
         part = (*parts)[1];
-        if (part != 0xFE) {
-            flags = (&s->unk9)[part];
-            if (flags & 1) {
-                sphere->flags |= 0x40;
-            } else if (flags & 2) {
-                sphere->flags &= 0xFFDF;
+        if ((*parts)[1] != 0xFE) {
+            part = (&s->unk9)[part]; /* the part's flags */
+            if (part & 1) {
+                sphere->hidden = 1;
+            } else if (part & 2) {
+                sphere->active = 0;
             }
         }
         sphere++;
+        parts++;
     }
     i = 6;
     while (i--) {
@@ -741,14 +741,14 @@ void func_m067_00EF4(Object *obj, s32 updateRate) {
         if (flags & 0xC0) {
             flags -= 0x40;
         }
-        (&s->unk9)[i] = flags & ~4;
+        flags &= ~4;
+        (&s->unk9)[i] = flags;
     }
-    flags = ((M067Interaction *) obj->interactObj)->hitSphere;
-    if (flags != 0xFF) {
-        part = rl_m067_044F0[flags][1];
-        if (part != 0xFE) {
-            if ((&s->unk9)[part] & 2) {
-                (&s->unk9)[part] |= 4;
+    if (((M067Interaction *) obj->interactObj)->hitSphere != 0xFF) {
+        i = rl_m067_044F0[((M067Interaction *) obj->interactObj)->hitSphere][1];
+        if (i != 0xFE) {
+            if ((&s->unk9)[i] & 2) {
+                (&s->unk9)[i] |= 4;
             }
         }
         ((M067Interaction *) obj->interactObj)->hitSphere = 0xFF;
@@ -1108,9 +1108,6 @@ void func_m067_00EF4(Object *obj, s32 updateRate) {
     }
     s->unk3 = 0;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m067/ro", func_m067_00EF4);
-#endif
 
 /* Sets the fog for drawing one of the enemy's parts: a flash colour, or the level's fog */
 void func_m067_02BF0(Gfx **dl, Object *obj, s32 part) {
