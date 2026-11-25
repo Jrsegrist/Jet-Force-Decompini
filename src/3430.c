@@ -529,10 +529,11 @@ void audspat_calculate_echo(void *soundHandle, f32 x, f32 y, f32 z) {
 extern s32 D_800A0800[]; // JFG: the number of entries of each group (groups from 1)
 
 #ifdef NON_MATCHING
-/* NON_MATCHING: 101 words (ROM 98), 21 aligned diffs: the loops have the ROM's shape (not unrolled: `while (TRUE)
-   { ...; if (i < count) continue; break; }` under a count guard). The ROM keeps volume and fxMix in their homes;
-   reading them through `(&v)[0]` does that (minVolume then gets $a1 and entry/quietest the ROM's slots), but makes
-   volume address-taken, so its three reloads stay after the entry stores (the ROM loads it before them: 3 nops).
+/* NON_MATCHING: 98 words (ROM length and frame), 12 aligned diffs: the loops have the ROM's shape (not unrolled:
+   `while (TRUE) { ...; if (i < count) continue; break; }` under a count guard). The ROM keeps volume and fxMix in
+   their homes; reading them through `(&v)[0]` does that. Storing volume first (then pitch, pan, fxMix) puts its
+   reload before the other stores, as in the ROM. What's left: i takes $a1 and minVolume $a0 (ROM: $v0 and $a1);
+   a separate counter for the second loop gives minVolume $a1 but drops the ROM's shared `i = 0` (97 words).
    The empty if tests a parameter, always set. */
 /* JFG: add a point to its group (unk23) with the given sound settings: update its entry, or take a free one,
  * or replace the quietest entry if this one is louder. */
@@ -550,9 +551,9 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
         while (TRUE) {
             if (fxMix) {}
             if (point == entry->point) {
+                entry->volume = (&volume)[0];
                 entry->pitch = pitch;
                 entry->pan = pan;
-                entry->volume = (&volume)[0];
                 entry->fxMix = (&fxMix)[0];
                 return;
             }
@@ -572,9 +573,9 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
         while (TRUE) {
             if (entry->point == NULL) {
                 entry->point = point;
+                entry->volume = (&volume)[0];
                 entry->pitch = pitch;
                 entry->pan = pan;
-                entry->volume = (&volume)[0];
                 entry->fxMix = (&fxMix)[0];
                 return;
             }
@@ -597,9 +598,9 @@ void func_8000380C(AudioPoint *point, s32 volume, f32 pitch, s32 pan, s32 fxMix)
             sound_stop(entry->point->soundHandle);
         }
         entry->point = point;
+        entry->volume = (&volume)[0];
         entry->pitch = pitch;
         entry->pan = pan;
-        entry->volume = (&volume)[0];
         entry->fxMix = (&fxMix)[0];
     }
 }
