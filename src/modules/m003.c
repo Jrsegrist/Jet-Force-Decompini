@@ -6055,7 +6055,7 @@ typedef struct M003RingEntry {
 extern M003RingEntry *troop_ring_take(s32 id);
 
 /* Spawns the troop's next member from the ring (or 0D810's way); counts the ones whose flag is set */
-Object *func_m003_14694(void) {
+static Object *func_m003_14694(void) {
     M003RingEntry *entry = troop_ring_take(sHomeData->unk64);
     Object *obj;
 
@@ -6111,16 +6111,10 @@ extern s32 func_m139_002F8(s32 zone);
  * its box), else sets it going (when `start`) and returns 1 or 2. The target is the closest player (kind 1)
  * or the nearest object of category 8 (kind 5); kind 6 asks module 139 about its zone instead.
  */
-#ifdef NON_MATCHING
 /*
- * 290/291 words, frame and slots right, 16 aligned diffs (8 are the measure's module-relative jal words), the
- * rest at 0x3E's spacing: the ROM keeps the spacing in
- * v0 and shifts a t-register copy of it (`or t4, v0, zero`), with arrived/count in v1/a0 (ours: v1, a0/a1, no
- * copy). The (s16) cast takes the copy's t-register, so the later t-registers are the ROM's. A u8 spacing
- * local with the cast gives the ROM's length, the copy and v0 (24 diffs, only arrived/count) but one frame
- * word more; no local we tried to drop or block-scope brings the frame back. The radius squared in place
- * (`inRange *= inRange`) gave the ROM's registers for target/inRange; the position sums are written offset
- * first with (*home). as in 0D810.
+ * The radius squared in place (`inRange *= inRange`) gives the ROM's registers for target/inRange; the position
+ * sums are written offset first with (*home). as in 0D810. `start` is dead once tested, and carries the spacing
+ * (read into it, then tested through the field) for the 0x3E store.
  */
 static s32 func_m003_148C0(Object *home, s32 start) {
     M003Home *h;
@@ -6188,10 +6182,11 @@ static s32 func_m003_148C0(Object *home, s32 start) {
         if (h->first == NULL) {
             h->first = func_m003_14694();
         }
+        start = h->spacing; /* start is dead here: it carries the spacing */
         if (h->spacing != 0) {
             if (h->arrived < h->count) {
                 h->unk3C = h->count - h->arrived;
-                h->unk3E = (s16) h->spacing << 1;
+                h->unk3E = (s16) start << 1;
                 h->unk30 = 1;
                 return 2;
             }
@@ -6226,14 +6221,8 @@ static s32 func_m003_148C0(Object *home, s32 start) {
     }
     return 2;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003", func_m003_148C0);
-extern s32 rl_m003_148C0(Object *home, s32 start); /* the static at 148C0 (still assembly) */
-#define func_m003_148C0 rl_m003_148C0
-#endif
 
 extern void rl_m003_1398C(void);
-extern Object *rl_m003_14694(void);
 extern void func_m143_02450(M003Home *home);
 extern void (*rl_m003_196E0[])(void); /* per D_800FE9EE (.data, still assembly) */
 
@@ -6318,7 +6307,7 @@ void func_m003_14D4C(Object *home, s32 rate) {
         sHomeData->unk3E--;
         if (sHomeData->unk3E < 0) {
             if (sHomeData->arrived < sHomeData->count) {
-                rl_m003_14694();
+                func_m003_14694();
                 sHomeData->unk3E = sHomeData->spacing << 1;
                 if (sHomeData->kind2 != 5) {
                     return;
