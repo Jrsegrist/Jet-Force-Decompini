@@ -1082,7 +1082,7 @@ typedef struct M018Image {
     /* 0xC */ s32 unkC;
 } M018Image;
 
-extern s8 rl_m018_067B4;       /* the "back" prompt is up */
+extern s8 rl_m018_067B4;       /* the go-back prompt is up */
 extern u8 rl_m018_0676C[8];    /* the items' texture ids */
 extern s8 rl_m018_067BC[3];    /* each character's arrow frame */
 extern s8 rl_m018_067C0[3];    /* the arrows' texture ids */
