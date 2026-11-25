@@ -566,6 +566,8 @@ typedef struct M067MissileSetup {
 /* One of the enemy's hit spheres (size 0x34) */
 typedef struct M067Sphere {
     /* 0x00 */ u8 pad0[0x30];
+    /* NOT PORTABLE: bitfields are laid out from the top bit, as IDO does; a compiler that allocates from bit 0
+       (MSVC, GCC on little-endian) puts hidden and active at other bits of the byte */
     /* 0x30 */ u8 unk30_80 : 1;
     /* 0x30 */ u8 hidden : 1; /* 0x40 */
     /* 0x30 */ u8 active : 1; /* 0x20 */
