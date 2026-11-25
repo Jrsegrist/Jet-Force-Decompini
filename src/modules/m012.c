@@ -191,15 +191,11 @@ extern void level_goto(s32 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg
 extern void set_game_paused(s32 paused);
 extern void music_volume_fade_scaled(f32 rate, u8 volume);
 extern s32 runlink_module_loaded(s32 module);
-void func_m012_008A8(void);
+static void func_m012_008A8(void);
 
-#ifdef NON_MATCHING
 /*
  * The frame's update: opening, it spins in, grows to its width and then its height and fades the background
  * in; closing, it frees the textures, starts the level change, shrinks and spins out.
- * ROM length and frame; 12 words differ in the closing arm (15 before the empty `if (updateRate)`, a used
- * parameter; the ROM loads the minimum width 10 into t1 once,
- * before the unk2B test, and compares against it with slt; the `width >= -4` test ends in an empty-else jump)
  */
 void func_m012_00164(s32 updateRate) {
     s32 pad1;
@@ -309,29 +305,27 @@ void func_m012_00164(s32 updateRate) {
             }
         }
         flags = frame->flags;
+        frame->targetWidth = 10; /* (one store before the tests: the ROM keeps the 10 in t1 for both arms) */
         if (updateRate * 8 < frame->unk28) {
             frame->unk28 -= updateRate * 8;
         } else {
             frame->unk28 = 0;
         }
         if (updateRate * 16 < frame->unk2B) {
-            frame->targetWidth = 10;
-            if (updateRate) {
-            }
             frame->unk2B -= updateRate * 16;
             speed = 0;
         } else {
             frame->unk2B = 0;
-            frame->targetWidth = 10;
             frame->width -= updateRate * 8;
             if (frame->width < frame->targetWidth) {
                 frame->width = frame->targetWidth;
             }
-            speed = 0;
             width = frame->targetWidth - frame->width;
             if (width >= -4) {
                 speed = -3;
                 frame->targetHeight = 0;
+            } else {
+                speed = 0;
             }
             if (frame->height == 0) {
                 frame->angle += updateRate * 800;
@@ -363,9 +357,6 @@ void func_m012_00164(s32 updateRate) {
         frame->height = frame->targetHeight;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m012/ro", func_m012_00164);
-#endif
 
 extern LevelModelTextures *func_8001B650(void); /* the level model */
 extern void *func_8004A57C(s32 size, u32 colour); /* DKR mempool_alloc_safe */
@@ -376,7 +367,7 @@ static void menuframe_modules_place(void);
 
 /* Keeps the level's textures (their ids) while the frame is open, and frees what the models no longer
    need (called from 00164) */
-void func_m012_008A8(void) {
+static void func_m012_008A8(void) {
     LevelModelTextures *model = func_8001B650();
     M012Texture *t;
     s32 i;
