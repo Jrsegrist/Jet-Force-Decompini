@@ -470,7 +470,7 @@ a NON_MATCHING body, such as m017 or m091, does not count as all C here):
 | enemy behaviours | 12 of 19 | 288/304 |
 | bosses | 3 of 4 | 115/124 |
 | weapons (character control) | 2 of 3 | 77/78 |
-| menus and screens | 7 of 14 | 117/136 |
+| menus and screens | 7 of 14 | 118/136 |
 | effect libraries | 2 of 4 | 24/26 |
 | fog and lighting | 2 of 2 | 11/11 |
 | copy-protection checks | 7 of 7 | 9/9 |
