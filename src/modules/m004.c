@@ -496,7 +496,7 @@ INCLUDE_ASM("asm/nonmatchings/modules/m004/ro", func_m004_0036C);
  * copy's 64x64 8-bit texture, and queues it (called from 0036C)
  */
 #ifdef NON_MATCHING
-/* 13 diffs: the ROM keeps the queue count in t9 and `attached` in t0 (here t1 and v1) */
+/* 4 diffs: the ROM keeps `attached` in t0 (here v1), which also swaps two stores */
 void func_m004_00CB8(Object *obj, M004Mtx **mtxs, s32 count) {
     Gfx *dl;
     u32 mtx;
@@ -516,9 +516,8 @@ void func_m004_00CB8(Object *obj, M004Mtx **mtxs, s32 count) {
 
     copy = ((M004Shadow *) obj->shadow)->copy;
     inst = (M004Inst *) copy->model;
-    index2 = rl_m004_01728;
     inst2 = (M004Inst *) copy->model2;
-    if (index2 < 15) {
+    if (rl_m004_01728 < 15) {
         attached = FALSE;
         if (obj->behaviorId == 0x33) {
             attached = TRUE;
@@ -526,7 +525,9 @@ void func_m004_00CB8(Object *obj, M004Mtx **mtxs, s32 count) {
             attachMtx = obj->unk68;
         }
         mtx = (u32) copy->unk2C;
-        debug_trace_add(dl = copy->unk28, rl_m004_01730, 0x25D);
+        other = (M004Inst *) copy->unk28; /* (other carries the list's start here: the ROM loads it straight into a0) */
+        dl = (Gfx *) other;
+        debug_trace_add((Gfx *) other, rl_m004_01730, 0x25D);
         func_80050E90(&dl, 0, 0);
         func_80050E90(&dl, 1, (s32) copy->unk20);
         gDPSetCycleType(dl++, G_CYC_FILL);
