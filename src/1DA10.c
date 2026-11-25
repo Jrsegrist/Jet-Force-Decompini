@@ -7,7 +7,58 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001CE10);
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D344);
 
+/* DKR include/structs.h */
+typedef struct LevelModelSegmentBoundingBox {
+    /* 0x00 */ s16 x1;
+    /* 0x02 */ s16 y1;
+    /* 0x04 */ s16 z1;
+    /* 0x06 */ s16 x2;
+    /* 0x08 */ s16 y2;
+    /* 0x0A */ s16 z2;
+} LevelModelSegmentBoundingBox;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly; this C gives the same results.
+ * JFG: clamp the height range to the segment's box, split the box's height into 8 cells and return a mask of the
+ * cells the range overlaps (12D50.c reads it as the segment's height mask). */
+u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2) {
+    s32 mask;
+    s32 bit;
+    s32 step;
+    s32 cellStart;
+    s32 cellEnd;
+
+    mask = 0;
+    if (bb == NULL) {
+        return mask;
+    }
+    if (y2 < bb->y1) {
+        y2 = bb->y1;
+    }
+    if (y1 < bb->y1) {
+        y1 = bb->y1;
+    }
+    if (bb->y2 < y2) {
+        y2 = bb->y2;
+    }
+    if (bb->y2 < y1) {
+        y1 = bb->y2;
+    }
+    step = ((bb->y2 - bb->y1) >> 3) + 1;
+    cellStart = bb->y1;
+    cellEnd = cellStart + step;
+    for (bit = 1; bit < 0x100; bit <<= 1) {
+        if (cellEnd >= y1 && cellStart <= y2) {
+            mask |= bit;
+        }
+        cellEnd += step;
+        cellStart += step;
+    }
+    return mask;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D464);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D500);
 
@@ -1470,10 +1521,148 @@ s32 func_800203C4(HitObj *obj, s16 *out, f32 *planes, f32 x1, f32 z1, f32 x2, f3
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_800203C4);
 #endif
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly; this C gives the same results.
+ * DKR: func_8002FD74: the points' x/z box against the given box (JFG returns 1, not -1, when they overlap).
+ * count must be at least 1 (the callers pass 3): like the assembly, the loop counts down to zero. */
+s32 func_80020890(f32 x1, f32 z1, f32 x2, f32 z2, s32 count, ShadowPoint *points) {
+    f32 minX;
+    f32 maxX;
+    f32 minZ;
+    f32 maxZ;
+
+    minX = maxX = points->x;
+    minZ = maxZ = points->z;
+    while (--count != 0) {
+        points++;
+        if (points->x < minX) {
+            minX = points->x;
+        } else if (!(points->x <= maxX)) {
+            maxX = points->x;
+        }
+        if (points->z < minZ) {
+            minZ = points->z;
+        } else if (!(points->z <= maxZ)) {
+            maxZ = points->z;
+        }
+    }
+    if (x1 <= maxX && z1 <= maxZ && !(x2 < minX) && !(z2 < minZ)) {
+        return 1;
+    }
+    return 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_80020890);
+#endif
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly; this C gives the same results.
+ * The points' x/z box (func_80020890's loop over the clip edge points). count must be at least 1 (the caller
+ * passes 4). */
+void func_80020954(s32 count, ShadowEdge *points, f32 *minX, f32 *minZ, f32 *maxX, f32 *maxZ) {
+    f32 loX;
+    f32 hiX;
+    f32 loZ;
+    f32 hiZ;
+
+    loX = hiX = points->x;
+    loZ = hiZ = points->z;
+    while (--count != 0) {
+        points++;
+        if (points->x < loX) {
+            loX = points->x;
+        } else if (!(points->x <= hiX)) {
+            hiX = points->x;
+        }
+        if (points->z < loZ) {
+            loZ = points->z;
+        } else if (!(points->z <= hiZ)) {
+            hiZ = points->z;
+        }
+    }
+    *minX = loX;
+    *minZ = loZ;
+    *maxX = hiX;
+    *maxZ = hiZ;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_80020954);
+#endif
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly; this C gives the same results.
+ * DKR: func_800304C8: if the shadow's centre is inside the triangle (x/z), raise the ground height to the
+ * triangle's plane there (JFG: the tests and the raise also take equal values). */
+void func_800209E4(ShadowBuild *shadow, ShadowPoint *points) {
+    f32 diff;
+    f32 shadowX;
+    f32 shadowZ;
+    s32 found1;
+    s32 found2;
+    s32 found3;
+    f32 *plane;
+
+    found1 = FALSE;
+    found2 = FALSE;
+    found3 = FALSE;
+
+    shadowX = shadow->obj->x;
+    shadowZ = shadow->obj->z;
+
+    diff = (shadowX - points[0].x) * (points[1].z - points[0].z) - (points[1].x - points[0].x) * (shadowZ - points[0].z);
+    if (!(diff < 0.0f)) {
+        found1 = TRUE;
+    }
+
+    diff = (shadowX - points[1].x) * (points[2].z - points[1].z) - (points[2].x - points[1].x) * (shadowZ - points[1].z);
+    if (!(diff < 0.0f)) {
+        found2 = TRUE;
+    }
+
+    if (found1 != found2) {
+        return;
+    }
+
+    diff = (shadowX - points[2].x) * (points[0].z - points[2].z) - (points[0].x - points[2].x) * (shadowZ - points[2].z);
+    if (!(diff < 0.0f)) {
+        found3 = TRUE;
+    }
+    if (found2 != found3) {
+        return;
+    }
+
+    plane = shadow->plane;
+    diff = -(plane[0] * shadowX + plane[2] * shadowZ + plane[3]) / plane[1];
+    if (!(diff < shadow->groundY)) {
+        shadow->groundY = diff;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_800209E4);
+#endif
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly; this C gives the same results.
+ * The height of each cached vertex and of each of the four groups of clip vertices on its plane:
+ * y = -(x * a + d + z * c) / b. */
+void func_80020AF8(s32 count, ShadowCacheVertex *verts, s32 *counts, ShadowClipVertex *clipVerts) {
+    s32 i;
+    s32 n;
+    ShadowClipVertex *v;
+
+    for (; count != 0; count--) {
+        verts->y = -(verts->x * verts->plane[0] + verts->plane[3] + verts->z * verts->plane[2]) / verts->plane[1];
+        verts++;
+    }
+    for (i = 4; i != 0; i--) {
+        n = *counts++;
+        for (v = clipVerts; n != 0; n--) {
+            v->y = -(v->x * v->plane[0] + v->plane[3] + v->z * v->plane[2]) / v->plane[1];
+            v++;
+        }
+        clipVerts += 32;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_80020AF8);
+#endif
