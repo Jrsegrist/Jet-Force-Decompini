@@ -113,7 +113,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 
 | DKR file | Functions |
 | --- | --- |
-| `src/audio.c` | music_sequence_init; initOsc's JFG form (NON_MATCHING, func_80003E40) |
+| `src/audio.c` | music_sequence_init; initOsc's JFG form (func_80003E40) |
 | `src/audio_spatial.c` | audspat_reset, audspat_point_stop_by_index |
 | `src/audiomgr.c` | amCreateAudioMgr (JFG's form); __amHandleDoneMsg (in the notes, not committed: needs a .data split) |
 | `src/camera.c` | camera_reset (the layout of cam_reset), copy_viewports_to_stack |
@@ -237,7 +237,7 @@ From the Diddy Kong Racing decompilation (CC0), adapted to JFG:
 | `src/tracks.c` | trackbg_render_flashy; func_8002FF6C (NON_MATCHING) (helper ma14h1) |
 | `src/thread3_main.c` | main_game_loop, structure only (helper ma14h1) |
 | `src/textures_sprites.c` | material_set (NON_MATCHING) (helper ma14h1) |
-| `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (NON_MATCHING, JFG's three output buffers and high quality mode) |
+| `src/audiomgr.c` | __amHandleDoneMsg; __amHandleFrameMsg (JFG's three output buffers and high quality mode) |
 | `src/game.c` | level_load, structure only (NON_MATCHING) |
 
 ### Round 15 (main15), main segment

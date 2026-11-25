@@ -241,11 +241,8 @@ OSMesgQueue *osScGetCmdQ(void *sc);
  * From the Diddy Kong Racing decompilation (CC0 1.0), src/audiomgr.c (__amHandleFrameMsg), JFG's form:
  * three output buffers, and no arguments.
  */
-#ifdef NON_MATCHING
-/* NON_MATCHING (11 words, ROM length and frame): the ROM keeps the `== 1` test of the mode in v0 (xori), and the
-   firstFree branch's `.next` address in a t-register (here v1), shifting the t-registers after it by one. Writing
-   &D_800A06C0[i] at each use (no buffer pointer local) gives the ROM's a1 element pointer for the unlink; the pad
-   is the word that local had */
+/* Writing &D_800A06C0[i] at each use (no buffer pointer local) gives the ROM's a1 element pointer for the unlink;
+   the pad is the word that local had. */
 void __amHandleFrameMsg(void) {
     s16 *audioPtr;
     Acmd *cmdp;
@@ -254,6 +251,7 @@ void __amHandleFrameMsg(void) {
     UNUSED s32 pad;
     u8 *out;
     s32 i;
+    s32 notHighQuality;
 
     __clearAudioDMA();
     samplesLeft = IO_READ(AI_LEN_REG) >> 2;
@@ -276,7 +274,6 @@ void __amHandleFrameMsg(void) {
                     dmaState.firstUsed = (AMDMABuffer *) D_800A06C0[i].node.next;
                 }
                 if (&D_800A06C0[i] == dmaState.firstFree) {
-                    if (samplesLeft) {}
                     dmaState.firstFree = (AMDMABuffer *) D_800A06C0[i].node.next;
                 }
                 alUnlink((ALLink *) &D_800A06C0[i]);
@@ -286,8 +283,9 @@ void __amHandleFrameMsg(void) {
         }
     }
     if (D_800A06DC != D_800A06E0) {
+        notHighQuality = D_800A06DC ^ 1;
         D_800A06E8 = 0;
-        if (!(D_800A06DC ^ 1) && D_800A06C0 == NULL) {
+        if (!notHighQuality && D_800A06C0 == NULL) {
             gAudioMgr.ACMDListHQ[0] = mempool_alloc_safe(0x29B80, -1);
             gAudioMgr.ACMDListHQ[1] = (Acmd *) ((u8 *) gAudioMgr.ACMDListHQ[0] + 0x14DC0);
             out = mempool_alloc_safe(D_800F2170 * 72, -1);
@@ -371,9 +369,6 @@ void __amHandleFrameMsg(void) {
     D_800A06C8 %= 3;
     audFrameCt++;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/2610", func_80001EF8);
-#endif
 
 extern s32 D_800A07FC; // DKR: firstTime (a static set to 1)
 u32 osAiGetLength(void);
