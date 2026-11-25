@@ -56,11 +56,9 @@ typedef struct OscState {
 f32 osc_depth_to_ratio(u8 depth);
 f32 alCents2Ratio(s32 cents);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: temporaries only: the target keeps the shared 127 in $v0 (mine $v1) and the cycle spans in
-   t-registers (mine $v0), so the t-register numbering in the cases is shifted */
 /* JFG: start an oscillator of the given type (1-4: tremolo shapes, 0x80-0x83: vibrato shapes); returns its delay
- * (in 1/0x4000 units), 0 when none is free. */
+ * (in 1/0x4000 units), 0 when none is free. The cases that start the count at the cycle span copy it from the
+ * stored field. */
 s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscDepth, u8 oscDelay) {
     OscState *osc;
     s32 retVal = 0;
@@ -82,7 +80,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
                 break;
             case 2:
                 osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
+                osc->curCount = osc->cycleSpan;
                 osc->stateFlags = 0;
                 osc->data.tsin.loVal = 127 - oscDepth;
                 osc->data.tsin.baseVol = 127;
@@ -111,7 +109,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
                 break;
             case 0x81:
                 osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
+                osc->curCount = osc->cycleSpan;
                 osc->stateFlags = 0;
                 cents = osc_depth_to_ratio(oscDepth);
                 osc->data.vsqr.loRatio = alCents2Ratio(-cents);
@@ -120,7 +118,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
                 break;
             case 0x82:
                 osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
+                osc->curCount = osc->cycleSpan;
                 cents = osc_depth_to_ratio(oscDepth);
                 osc->data.vsaw.hiCents = cents;
                 osc->data.vsaw.detuneScale = cents * 2;
@@ -128,7 +126,7 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
                 break;
             case 0x83:
                 osc->cycleSpan = 256 - oscRate;
-                osc->curCount = 256 - oscRate;
+                osc->curCount = osc->cycleSpan;
                 cents = osc_depth_to_ratio(oscDepth);
                 osc->data.vsaw.hiCents = -cents;
                 osc->data.vsaw.detuneScale = cents * 2;
@@ -138,9 +136,6 @@ s32 func_80003E40(void **oscState, f32 *initVal, u8 oscType, u8 oscRate, u8 oscD
     }
     return retVal;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/49B0", func_80003E40);
-#endif
 
 
 /* JFG: step an oscillator and write its new value (a volume for the tremolos, a pitch ratio for the vibratos);
