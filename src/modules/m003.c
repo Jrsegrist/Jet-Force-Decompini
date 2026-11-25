@@ -2344,7 +2344,12 @@ typedef struct M003Body24 {
 #define BODY24(b) ((M003Body24 *) &(b)->unk24)
 
 #ifdef NON_MATCHING
-/* ~90 diffs: the ROM keeps the index in a3 and the array pointer as an induction variable */
+/*
+ * ROM length and frame, 42 aligned diffs: the counter, the array pointer (computed from it at run time, no
+ * test replacement) and index in a3 are the ROM's; left are the s-registers of the three parameter copies
+ * (ROM: anim3 s0, anim2 s2, anim1 s3; here anim1 s0, anim3 s2, anim2 s3), t-registers one lower, and `last`
+ * kept in a1 and stored once after the loop where the ROM stores anim's s3 on each loop exit.
+ */
 /*
  * Starts the first of the member's animations anim1, anim2, anim3 (up to a 0) that its body has, for
  * animation kind `kind`; -1 if none can start now
@@ -2352,34 +2357,37 @@ typedef struct M003Body24 {
 s32 func_m003_04D08(s32 kind, s32 anim1, s32 anim2, s32 anim3) {
     s32 anims[3];
     s32 i;
-    s32 anim;
-    s32 last;
     s32 index; /* also the result: index is dead once passed */
+    s32 last;
 
     if (!troop_anim_kind_allowed(kind)) {
         return -1;
     }
-    index = -1;
     anims[0] = anim3;
     anims[1] = anim2;
     anims[2] = anim1;
+    index = -1;
     i = 2;
     if (anim1 != 0) {
-        do {
-            anim = anims[i];
-            if (BODY24(sBody)->unk5 && anim >= 0x16 && anim < 0x20 && sMember->unkA >= 0x16 &&
+        if (kind) {} /* no code: splits the guard from the loop's set-up, as in the ROM */
+        while (TRUE) {
+            anim1 = anims[i]; /* anim1 (stored and tested above) carries the animation being tried */
+            if (BODY24(sBody)->unk5 && anim1 >= 0x16 && anim1 < 0x20 && sMember->unkA >= 0x16 &&
                 sMember->unkA < 0x20) {
                 return -1;
             }
-            if (anim == sMember->unkA) {
+            if (anim1 == sMember->unkA) {
                 return -1;
             }
             if (sMember->unkA == 0x21 || sMember->unkA == 0x25) {
                 return -1;
             }
-            index = troop_anim_pick(anim, 0);
-            last = anim;
-        } while (i-- != 0 && index == -1 && anims[i] != 0);
+            index = troop_anim_pick(anims[i], 0);
+            last = anim1;
+            if (!(i-- && index == -1 && anims[i])) {
+                break;
+            }
+        }
     }
     index = troop_anim_start(index, last, 1);
     if (index != -1) {
