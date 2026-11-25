@@ -24,7 +24,8 @@ typedef struct M018MenuItem {
 typedef struct M018Character {
     /* 0x00 */ s16 unk0; /* in 1/256ths */
     /* 0x02 */ s16 unk2;
-    /* 0x04 */ u8 pad4[2];
+    /* 0x04 */ u16 unk4a : 11;
+    /* 0x04 */ u16 unk4b : 5;
     /* 0x06 */ u16 unk6;
     /* 0x08 */ u16 unk8;
     /* 0x0A */ u16 unkA; /* the weapons held, a bit each */
@@ -32,6 +33,9 @@ typedef struct M018Character {
     /* 0x12 */ s16 unk12;
     /* 0x14 */ u8 pad14[0x70 - 0x14];
     /* 0x70 */ u8 weapon;
+    /* 0x71 */ u8 pad71[0x74 - 0x71];
+    /* 0x74 */ u16 level : 11; /* the level the character is at */
+    /* 0x74 */ u16 unk74b : 5;
 } M018Character;
 
 extern void menu_assetgroup_load(void *images); /* loads a list of images */
@@ -152,12 +156,12 @@ static u8 sBss149;
 static s16 sBss14A;
 static s32 rl_m018_06CFC;
 static s32 rl_m018_06D00;
-static u8 rl_m018_06D04;
-static s8 rl_m018_06D05;
-static u8 sBss156;
-static s8 rl_m018_06D07;
-static u8 rl_m018_06D08;
-static u8 rl_m018_06D09;
+static s8 rl_m018_06D04; /* the character screen's cursor (0-7) */
+static s8 rl_m018_06D05; /* the item picked (-1: none) */
+static s8 sBss156;       /* the time until the picked item's screen opens (-100: opened) */
+static s8 rl_m018_06D07; /* the character to change to (-1: none) */
+static s8 rl_m018_06D08; /* the character's image has been freed */
+static s8 rl_m018_06D09;
 static s16 rl_m018_06D0A;
 static s16 rl_m018_06D0C;
 static s16 rl_m018_06D0E;
@@ -921,16 +925,28 @@ typedef struct M018ShownState {
     /* 0x4 */ s32 unk4;
 } M018ShownState;
 
-/* An entry of the list this screen allocates (40 of them) */
+/* An entry of the list this screen allocates (40 of them): a sparkle */
 typedef struct M018ListEntry {
-    /* 0x00 */ u8 pad0[0x10];
-    /* 0x10 */ s16 unk10;
-    /* 0x12 */ u8 pad12[0x1C - 0x12];
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ s16 vy;
+    /* 0x08 */ u32 colour; /* RGBA */
+    /* 0x0C */ f32 scale;
+    /* 0x10 */ s16 unk10; /* its age (-1: free) */
+    /* 0x12 */ s16 life;
+    /* 0x14 */ s16 rotation;
+    /* 0x16 */ s16 spin;
+    /* 0x18 */ s8 fade;
+    /* 0x19 */ u8 pad19[0x1C - 0x19];
 } M018ListEntry;
 
+/* An item of the character screen */
 typedef struct M018Pair {
-    /* 0x0 */ u8 pad0[6];
-    /* 0x6 */ s16 unk6;
+    /* 0x0 */ s32 text;  /* its name in gMenuText */
+    /* 0x4 */ u8 screen; /* the screen it opens */
+    /* 0x5 */ u8 pad5;
+    /* 0x6 */ s16 unk6;  /* its name's opacity */
 } M018Pair;
 
 extern Object *func_80005F14(void *entry, s32 arg1); /* DKR spawn_object */
@@ -1021,7 +1037,539 @@ void func_m018_023E8(void) {
     func_8004AA80(rl_m018_06D10);
 }
 
+/* The character screen's model instance, as used here */
+typedef struct M018Inst {
+    /* 0x00 */ void *model;
+    /* 0x04 */ u8 pad4[0xA - 0x4];
+    /* 0x0A */ s8 unkA;
+    /* 0x0B */ s8 unkB;
+    /* 0x0C */ u8 padC[0x10 - 0xC];
+    /* 0x10 */ void *unk10[2];
+    /* 0x18 */ u8 pad18[0x68 - 0x18];
+    /* 0x68 */ f32 *unk68;
+} M018Inst;
+
+/* The shown character's model, as used here */
+typedef struct M018CharModel {
+    /* 0x00 */ u8 pad0[0x2D];
+    /* 0x2D */ u8 unk2D;
+} M018CharModel;
+
+/* The shown character's state (obj->unk68), as used here */
+typedef struct M018Actor {
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ f32 unk30;
+    /* 0x34 */ f32 unk34;
+    /* 0x38 */ f32 unk38;
+    /* 0x3C */ u8 pad3C[0x40 - 0x3C];
+    /* 0x40 */ f32 unk40;
+    /* 0x44 */ f32 unk44;
+    /* 0x48 */ f32 unk48;
+} M018Actor;
+
+/* What obj->0x60 points at: the objects attached to it */
+typedef struct M018Attached {
+    /* 0x0 */ u8 pad0[4];
+    /* 0x4 */ Object *held; /* the weapon held */
+} M018Attached;
+
+/* An image drawn with func_8004EDBC */
+typedef struct M018Image {
+    /* 0x0 */ Object *image;
+    /* 0x4 */ s32 unk4;
+    /* 0x8 */ s16 unk8;
+    /* 0xA */ s16 unkA;
+    /* 0xC */ s32 unkC;
+} M018Image;
+
+extern s8 rl_m018_067B4;       /* the "back" prompt is up */
+extern u8 rl_m018_0676C[8];    /* the items' texture ids */
+extern s8 rl_m018_067BC[3];    /* each character's arrow frame */
+extern s8 rl_m018_067C0[3];    /* the arrows' texture ids */
+extern s16 rl_m018_067C4;      /* the prompt's opacity */
+extern u32 rl_m018_067C8[];    /* the sparkles' colours */
+extern f32 rl_m018_0672C[][3]; /* the animation speeds, per character and animation */
+
+extern void func_8003D21C(void *inst, void *model, Object *obj, f32 arg3, f32 arg4);
+extern void func_800221F0(Object *obj, void *inst, void *shading, void *arg3);
+extern s32 func_8000BC28(Object *obj, void *inst, void *model, s32 weapon, void *arg4, f32 *x, f32 *y, f32 *z);
+extern s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 updateRate);
+extern s32 leveltable_region(s32 level);
+extern void func_80046334(u32 *level, s32 *arg1, s32 *arg2);
+extern void music_stop(void);
+extern void force_mark_write_save_file(s32 file);
+extern s32 fb_mode(void);
+extern void draw_tint_pair_set(u8 r, u8 g, u8 b, u8 r2, u8 g2, u8 b2);
+extern void draw_tint_pair_off(void);
+extern void render_sprite_billboard(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprite *sprite, void *tex, s32 arg5,
+                                    u8 alpha);
+extern void func_8004EDBC(Gfx **dl, M018Image *image, s32 x, s32 y, s32 r, s32 g, s32 b, s32 alpha); /* draws */
+extern s32 func_m019_001F8(void);
+extern void func_m019_00324(s32 level, s32 character, s32 arg2, s32 arg3);
+extern void rl_m018_03BB4(s32 item, s32 updateRate);
+extern s8 D_800FF3DC[]; /* the stick's y moves this frame, per player */
+s32 func_m018_03B44(s32 i, s32 dir);
+
+#ifdef NON_MATCHING
+/*
+ * The character screen: changes the shown character (the stick picks one the player can play), moves the
+ * cursor over the screen's eight items, opens the one picked, draws the character, its sparkles, the items
+ * and the prompts, saves on request and leaves with the character picked.
+ * NON_MATCHING: ROM length and frame (1464 words), 26 aligned diffs: the order of three temporary words
+ * (the ROM puts the float updateRate first), the colouring of the arrow frames' table and values (v0/v1/a0)
+ * and the order of two stores.
+ */
+void func_m018_02464(s32 updateRate) {
+    UNUSED s32 pad0;
+    s8 *state;
+    s32 flag;
+    M018Inst *inst;
+    s32 old;
+    Object *obj;
+    s32 i;
+    s32 frame;
+    s32 left8;
+    s32 right8;
+    s32 x1;
+    s32 x2;
+    M018ListEntry *spark;
+    s16 *p;
+    s32 character;
+    s32 count;
+    M018Character *record;
+    s32 left;
+    s32 right;
+    s32 frames[3];
+    UNUSED u8 pad[0x90];
+    M018Sprite sprite;
+    M018Actor *actor;
+    M018CharModel *model;
+    s32 alpha;
+    M018Image image;
+    M018Pair *item;
+    Object *held;
+    M018Inst *heldInst;
+    u32 level;
+    s32 b;
+    s32 c;
+
+    state = func_8000E4D0(0)->unk68;
+    flag = state[1] & 4;
+    if (flag) {
+        character = rl_m018_06CF8 - 0x9A;
+    } else {
+        character = rl_m018_06CF8 - 0x5E;
+    }
+    left = func_m018_03B44(character, -1);
+    right = func_m018_03B44(character, 1);
+    if (rl_m018_06D07 != -1) {
+        rl_m018_06D0C -= updateRate * 8;
+        if (rl_m018_06D0C <= 0) {
+            rl_m018_06D0C = 0;
+            if (rl_m018_06D08 == 0) {
+                menu_item_free(rl_m018_06CF8);
+                rl_m018_06D08 = 1;
+            } else {
+                state[1] = rl_m018_06D07 | flag;
+                *get_settings() = state[1];
+                if (flag) {
+                    rl_m018_06CF8 = rl_m018_06D07 + 0x9A;
+                } else {
+                    rl_m018_06CF8 = rl_m018_06D07 + 0x5E;
+                }
+                menu_item_load(rl_m018_06CF8);
+                rl_m018_06D08 = 0;
+                D_800FF780[26].unk6 = rl_m018_06CF8;
+                D_800FF780[26].unk8 = rl_m018_0675C[rl_m018_06D07 & 3];
+                obj = D_800FF3F8[rl_m018_06CF8];
+                if (obj->shading != NULL) {
+                    dir_light_setup((u8 *) obj->shading + 0x10, ((M018LitHeader *) obj->header)->unk94 * 255.0f,
+                                    ((M018LitHeader *) obj->header)->unk90 * 255.0f,
+                                    ((M018LitHeader *) obj->header)->unk9C, ((M018LitHeader *) obj->header)->unk9E,
+                                    ((M018LitHeader *) obj->header)->unkA0);
+                    ((u8 *) obj)[0xA1] = 1;
+                }
+                OBJ_STATE(obj, M018ShownState)->unk4 = 0;
+                rl_m018_06D07 = -1;
+            }
+        }
+    } else {
+        rl_m018_06D0C += updateRate * 8;
+        if (rl_m018_06D0C >= 0x100) {
+            rl_m018_06D0C = 0xFF;
+        }
+        if (rl_m018_067B4 != 0) {
+            if (flag) {
+                character = rl_m018_06CF8 - 0x9A;
+            } else {
+                character = rl_m018_06CF8 - 0x5E;
+            }
+            if (D_800FF3D8[D_m019_013D8] < -0x20) {
+                character = left;
+                rl_m018_06D07 = left;
+                func_80001248(0x221, 0);
+            } else if (D_800FF3D8[D_m019_013D8] > 0x20) {
+                character = right;
+                rl_m018_06D07 = right;
+                func_80001248(0x221, 0);
+            }
+        }
+    }
+    if (rl_m018_067B4 != 0) {
+        obj = D_800FF3F8[0x5D];
+        if (obj->unk28 >= 0.98f) {
+            rl_m018_06D0A += updateRate * 4;
+            if (rl_m018_06D0A >= 0x100) {
+                rl_m018_06D0A = 0xFF;
+            }
+        }
+    } else {
+        rl_m018_06D0A -= updateRate * 4;
+        if (rl_m018_06D0A < 0) {
+            rl_m018_06D0A = 0;
+        }
+        if (rl_m018_06D05 == -1 && rl_m018_06D14 == 0) {
+            old = rl_m018_06D04;
+            if (D_800FF3DC[D_m019_013D8] < -0x20 && rl_m018_06680 == 0) {
+                if (rl_m018_06D04 == 6) {
+                    if (game_flag_get(0x64)) {
+                        rl_m018_06D04 = 3;
+                    } else {
+                        rl_m018_06D04 = 1;
+                    }
+                } else if (rl_m018_06D04 == 5 && !game_flag_get(0x5F)) {
+                    rl_m018_06D04 = 0;
+                } else {
+                    rl_m018_06D04 += 2;
+                }
+            }
+            if (D_800FF3DC[D_m019_013D8] > 0x20 && rl_m018_06680 == 0) {
+                if (rl_m018_06D04 == 1) {
+                    rl_m018_06D04 = 6;
+                } else if (rl_m018_06D04 == 3 && game_flag_get(0x64)) {
+                    rl_m018_06D04 = 6;
+                } else if (rl_m018_06D04 == 0 && !game_flag_get(0x5F)) {
+                    rl_m018_06D04 = 5;
+                } else {
+                    rl_m018_06D04 -= 2;
+                }
+            }
+            if (D_800FF3D8[D_m019_013D8] < -0x20 && rl_m018_06680 == 0) {
+                if (rl_m018_06D04 == 0 && !game_flag_get(0x5F)) {
+                    rl_m018_06D04 = 6;
+                } else if (rl_m018_06D04 == 2 && game_flag_get(0x64)) {
+                    rl_m018_06D04 = 0;
+                } else {
+                    rl_m018_06D04 -= 1;
+                }
+            }
+            if (D_800FF3D8[D_m019_013D8] > 0x20 && rl_m018_06680 == 0) {
+                if (rl_m018_06D04 == 6 && !game_flag_get(0x5F)) {
+                    rl_m018_06D04 = 0;
+                } else if (rl_m018_06D04 == 0 && game_flag_get(0x64)) {
+                    rl_m018_06D04 = 2;
+                } else {
+                    rl_m018_06D04 += 1;
+                }
+            }
+            if (rl_m018_06D04 < 0) {
+                rl_m018_06D04 = 7;
+            }
+            if (rl_m018_06D04 >= 8) {
+                rl_m018_06D04 = 0;
+            }
+            if (old != rl_m018_06D04) {
+                func_80001248(0x16B, 0);
+                rl_m018_06D00 = 0xFF;
+                rl_m018_06CFC = 0;
+            }
+        }
+    }
+    fe_screen_backdrop();
+    cam_fov_scale_set(1.0f, 1.0f);
+    func_8003F7F4(52.0f, 1);
+    func_80040E64(&D_800FF398, &D_800FF39C);
+    func_8005A0D0(0x1F);
+    func_8003F7F4(52.0f, 1);
+    func_80040E64(&D_800FF398, &D_800FF39C);
+    if (rl_m018_06CF8 == 0x60 || rl_m018_06CF8 == 0x9C) {
+        D_800FF780[26].unk0 = -0x8000;
+    } else {
+        D_800FF780[26].unk0 += updateRate << 7;
+        rl_m018_06D0E = D_800FF780[26].unk0;
+    }
+    obj = D_800FF3F8[0x5D];
+    inst = *(M018Inst **) obj->modelInstances;
+    inst->unkA = updateRate;
+    obj_anim_frame_advance(obj, rl_m018_06CF0, updateRate);
+    if (rl_m018_06D05 != -1) {
+        if ((func_80043510(D_m019_013D8) & 0x8000) && rl_m018_06680 == 0) {
+            sBss156 = 0;
+        }
+        if (updateRate < sBss156) {
+            sBss156 -= updateRate;
+        } else if (sBss156 != -100) {
+            func_m019_001B0(rl_m018_06774[rl_m018_06D05].screen);
+            sBss156 = -100;
+        }
+    }
+    if ((func_80043510(D_m019_013D8) & 0x8000) && rl_m018_06D05 == -1 && rl_m018_06D14 == 0 &&
+        rl_m018_06680 == 0) {
+        if (rl_m018_067B4 == 0) {
+            func_80001248(0x16D, 0);
+        }
+        if (rl_m018_06D04 == 0) {
+            rl_m018_067B4 = 1;
+        } else {
+            rl_m018_06CF0 = -rl_m018_06CF0;
+            rl_m018_06D05 = rl_m018_06D04;
+            sBss156 = 60;
+        }
+    }
+    if (rl_m018_06D05 != -1) {
+        for (i = 0; i < updateRate; i++) {
+            rl_m018_06CF4 += (22.0f - rl_m018_06CF4) * 0.125f;
+        }
+    }
+    item = rl_m018_06774;
+    for (i = 0; i < 8; i++) {
+        if (i == rl_m018_06D04) {
+            frame = 0x100;
+            if (obj->unk28 > 0.98f) {
+                item->unk6 += updateRate * 8;
+                if (item->unk6 >= 0x100) {
+                    item->unk6 = 0xFF;
+                }
+            }
+        } else {
+            frame = 0;
+            item->unk6 -= updateRate * 8;
+            if (item->unk6 < 0) {
+                item->unk6 = 0;
+            }
+        }
+        func_8003F1C8(inst, rl_m018_0676C[i], frame);
+        item++;
+    }
+    left8 = rl_m018_067BC[left] << 8;
+    right8 = rl_m018_067BC[right] << 8;
+    if (rl_m018_067B4 != 0) {
+        left8 += 0x100;
+        right8 += 0x100;
+        frames[2] = 0x100;
+        frames[1] = right8;
+        frames[0] = left8;
+    } else {
+        frames[1] = right8;
+        frames[0] = left8;
+        frames[2] = 0;
+    }
+    for (i = 0; i < 3; i++) {
+        func_8003F1C8(inst, rl_m018_067C0[i], frames[i]);
+    }
+    p = (s16 *) sBss0;
+    *p++ = 0x2008;
+    *p++ = rl_m018_06D0E;
+    *p++ = 0x200E;
+    *p++ = rl_m018_06D0E;
+    if (!game_flag_get(0x5F)) {
+        *p++ = 0x203E;
+        *p++ = 0x4000;
+    }
+    if (game_flag_get(0x64)) {
+        *p++ = 0x201A;
+        *p++ = 0x4000;
+    }
+    if (rl_m018_06D05 != -1) {
+        *p++ = (rl_m018_06D05 * 6 + 0x14) | 0x2000;
+        *p++ = 0;
+    }
+    *p = 0x1000;
+    func_8005A0D0(0x19);
+    if (rl_m018_06D08 == 0) {
+        obj = D_800FF3F8[rl_m018_06CF8];
+        inst = *(M018Inst **) obj->modelInstances;
+        inst->unkA = updateRate;
+        model = inst->model;
+        obj_anim_frame_advance(obj, rl_m018_0672C[character][obj->animationID], updateRate);
+        if (obj->unk28 == 1.0f) {
+            obj_anim_set(obj, func_80048E2C(0, 2), 0.0f);
+        }
+        inst->unkA = updateRate;
+        func_8003D21C(inst, model, obj, 1.0f, 0.0f);
+        func_800221F0(obj, inst, obj->shading, inst->unk10[inst->unkB]);
+        if (rl_m018_06CF8 != 0x60 && rl_m018_06CF8 != 0x9C) {
+            held = (*(M018Attached **) ((u8 *) obj + 0x60))->held;
+            heldInst = *(M018Inst **) held->modelInstances;
+            heldInst->unkA = updateRate;
+            actor = obj->unk68;
+            func_8000BC28(obj, inst, model, 0, actor, &actor->unk40, &actor->unk44, &actor->unk48);
+            if ((rl_m018_06CF8 == 0x5F || rl_m018_06CF8 == 0x9B) && model->unk2D != 0) {
+                actor->unk30 = inst->unk68[0];
+                actor->unk34 = inst->unk68[1];
+                actor->unk38 = inst->unk68[2];
+            }
+        }
+        inst->unkA = 0;
+        D_800A51CC = rl_m018_06D0C;
+        func_8005A0D0(0x1A);
+        D_800A51CC = 0xFF;
+    }
+    spark = rl_m018_06D10;
+    count = 0;
+    sprite.trans.rotation.y_rotation = 0;
+    sprite.trans.rotation.x_rotation = 0;
+    sprite.unk28 = 0.0f;
+    for (i = 0; i < 40; i++) {
+        if (count <= 0 && spark->unk10 < 0 && rl_m018_06D0C != 0xFF) {
+            spark->unk10 = 0;
+            spark->colour = rl_m018_067C8[func_80048E2C(0, 5)];
+            spark->x = func_80048E2C(-30, 30);
+            spark->y = 74;
+            spark->z = func_80048E2C(-40, 20);
+            spark->vy = func_80048E2C(-2, -1);
+            spark->scale = func_80048E2C(0, 100) * 0.01f + 0.4f;
+            spark->rotation = func_80048E2C(-0x8000, 0x8000);
+            spark->spin = func_80048E2C(-0x200, 0x200);
+            spark->life = func_80048E2C(0, 2) + 20;
+            spark->fade = func_80048E2C(5, 10);
+            count++;
+        }
+        if (spark->unk10 >= 0) {
+            spark->unk10 += updateRate;
+            spark->y += spark->vy * updateRate;
+            spark->rotation += spark->spin * updateRate;
+            if (spark->life < spark->unk10) {
+                alpha = spark->colour & 0xFF;
+                alpha -= spark->fade * updateRate;
+                if (alpha < 0) {
+                    spark->unk10 = -1;
+                    alpha = 0;
+                }
+                spark->colour &= ~0xFF;
+                spark->colour |= alpha;
+            }
+            sprite.trans.x_position = spark->x;
+            sprite.trans.y_position = spark->y;
+            sprite.trans.z_position = spark->z;
+            sprite.trans.rotation.z_rotation = spark->rotation;
+            sprite.trans.scale = spark->scale;
+            draw_tint_pair_set(0xFF, 0xFF, 0xFF, (spark->colour >> 24) & 0xFF, (spark->colour >> 16) & 0xFF,
+                               (spark->colour >> 8) & 0xFF);
+            render_sprite_billboard(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[0x9D], 6,
+                                    spark->colour & 0xFF);
+            draw_tint_pair_off();
+        }
+        spark++;
+    }
+    if (game_flag_get(0x5F)) {
+        rl_m018_03BB4(7, updateRate);
+    }
+    if (!game_flag_get(0x64)) {
+        rl_m018_03BB4(1, updateRate);
+    }
+    rl_m018_03BB4(0, updateRate);
+    for (i = 2; i < 7; i++) {
+        rl_m018_03BB4(i, updateRate);
+    }
+    func_8006FC54(2);
+    if (rl_m018_06D05 == -1) {
+        item = rl_m018_06774;
+        for (i = 0; i != 8; i++) {
+            if (item->unk6 > 0) {
+                func_8006FC68(0, 0, 0x80, 0xFF, item->unk6);
+                func_8006FCA8(&D_800FF398, 0xA0, 0xB0, gMenuText[item->text], 4);
+            }
+            item++;
+        }
+    }
+    if (rl_m018_06D0A > 0) {
+        func_8006FC68(0, 0, 0x80, 0xFF, rl_m018_06D0A);
+        if (fb_mode() & 1) {
+            x1 = 0x6D;
+            x2 = 0xD3;
+        } else {
+            x1 = 0x56;
+            x2 = 0xEA;
+        }
+        func_8006FCA8(&D_800FF398, x1, 0xBA, gMenuText[left + 394], 1);
+        func_8006FCA8(&D_800FF398, x2, 0xBA, gMenuText[right + 394], 0);
+    }
+    if (rl_m018_06D14 == -1) {
+        rl_m018_06D14 = 0;
+    }
+    if ((func_80043510(D_m019_013D8) & 0x2000) && rl_m018_06D14 == 0 && rl_m018_06D16 == 0 &&
+        rl_m018_067B4 == 0) {
+        rl_m018_06D14 = 20;
+        rl_m018_06D16 = 60;
+    }
+    if (rl_m018_06D14 > 0) {
+        rl_m018_06D14 -= updateRate;
+        if (rl_m018_06D14 <= 0) {
+            force_mark_write_save_file(((s8 *) get_settings())[3]);
+            rl_m018_06D14 = -1;
+        }
+    }
+    if (rl_m018_067B4 != 0) {
+        rl_m018_067C4 -= updateRate * 4;
+        if (rl_m018_067C4 < 0) {
+            rl_m018_067C4 = 0;
+        }
+    } else {
+        rl_m018_067C4 += updateRate * 4;
+        if (rl_m018_067C4 >= 0x100) {
+            rl_m018_067C4 = 0xFF;
+        }
+    }
+    if (rl_m018_06D16 == 0) {
+        func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, rl_m018_067C4);
+        func_8006FCA8(&D_800FF398, 0xAA, 0xC2, gMenuText[530], 4);
+        image.image = D_800FF3F8[0x9F];
+        image.unkC = 0;
+        image.unk4 = 0;
+        image.unk8 = -8;
+        image.unkA = -8;
+        func_8004EDBC(&D_800FF398, &image, 0x82, 0xC6, 0xFF, 0xFF, 0xFF, rl_m018_067C4);
+    } else {
+        rl_m018_06D16 -= updateRate;
+        if (rl_m018_06D16 <= 0) {
+            rl_m018_06D16 = 1;
+        }
+        func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, rl_m018_067C4);
+        func_8006FCA8(&D_800FF398, 0xA0, 0xC2, gMenuText[531], 4);
+    }
+    if (func_80043510(D_m019_013D8) & 0x5000) {
+        if (rl_m018_06680 == 0) {
+            if (rl_m018_067B4 != 0) {
+                rl_m018_067B4 = 0;
+            } else if (rl_m018_06D07 == -1) {
+                rl_m018_06680 = 1;
+                if (func_m019_001F8() != state[1]) {
+                    record = char_record_lookup(state[0], state[1]);
+                    music_stop();
+                    if (leveltable_region(record->level)) {
+                        record->unk4b = 0;
+                    }
+                    level = record->level;
+                    b = record->unk74b;
+                    c = record->unk4b;
+                    func_80046334(&level, &b, &c);
+                    record->level = level;
+                    record->unk74b = b;
+                    record->unk4b = c;
+                    func_m019_00324(record->level, state[1], record->unk74b, 0x10);
+                    rl_m018_06D09 = 1;
+                    state[1] = func_m019_001F8();
+                } else if (rl_m018_06D09 == 0) {
+                    func_m019_001B0(10);
+                }
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_02464);
+#endif
 
 /* Steps from character i in direction dir to the next one that can be picked */
 s32 func_m018_03B44(s32 i, s32 dir) {
