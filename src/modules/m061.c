@@ -269,9 +269,9 @@ void func_m061_02E84(s32 count, Object **objs);
 
 #ifdef NON_MATCHING
 /*
- * 23 aligned diffs (709/709 words, frame right): the player count's load (the ROM's is in v1 and above the mode test),
- * the mode & 1 temporary two words high, the fade's subtraction in v0 (ROM a2), the unrolled store loop's delay slot and
- * case 2's 0x20 kept in a register.
+ * 17 aligned diffs (709/709 words, frame right): the mode & 1 temporary one word high (0x4C, ROM 0x48), the record's
+ * reload one t-register low (t5, ROM t6), the fade's subtraction in v0 (ROM a2) and case 2's 0x20 kept in a register.
+ * (record->unk70 is a u8, so its & 0xFF changes nothing; it gives the ROM's temporaries after the reload.)
  */
 /*
  * The deathmatch screen each frame: the end of the round (by kills, by the last player standing (game type 0x30) or
@@ -302,6 +302,7 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
     M061Stats *stats;
     u16 *fade;
     M061Record *record;
+    s32 split;
 
     sound = FALSE;
     rl_m061_019E0(objs, updateRate);
@@ -361,8 +362,10 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
                     }
                 }
                 if (n != 0) {
-                    for (i = 0; i < count; i++) {
+                    i = 0;
+                    while (i < count) {
                         D_800FED50[i].unk15 = 1;
+                        i++;
                     }
                     func_m061_00F50();
                     func_m061_02E84(count, objs);
@@ -380,13 +383,14 @@ void func_m061_0043C(s32 count, Object **objs, s32 updateRate) {
             func_m006_012D4(player, updateRate);
             rl_m061_01218(player, updateRate);
             record = char_record_lookup(player->unk0, player->unk1);
-            if ((mode & 1) || (D_800A4FD0 == 2 && options_split_vertical_get())) {
+            split = D_800A4FD0;
+            if ((mode & 1) || (split == 2 && options_split_vertical_get())) {
             }
             func_8006FC54(2);
             func_8006FC68(0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
             func_80040D64(&D_800FF398, &D_800FF39C);
             func_80055B80(&D_800FF398);
-            D_800FF780[0].unk6 = record->unk70 + 10;
+            D_800FF780[0].unk6 = (record->unk70 & 0xFF) + 10;
             if ((((M061Flags *) &player->unk540)->turn & 2) || (((M061Flags *) &player->unk540)->turn & 1)) {
                 sound = TRUE;
             }
