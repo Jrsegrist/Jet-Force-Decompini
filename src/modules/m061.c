@@ -576,7 +576,195 @@ void func_m061_010D4(s32 mode) {
     } while (!sorted);
 }
 
+#ifdef NON_MATCHING
+/* A player's message queue (D_800FF1D0, one per player; m006's) */
+typedef struct M061Queue {
+    /* 0x00 */ s16 timer;
+    /* 0x02 */ s16 current; /* the message shown (an index into gMenuText), or -1 */
+    /* 0x04 */ u8 pad4[0x12 - 0x4];
+    /* 0x12 */ char text[0x4E - 0x12];
+    /* 0x4E */ s16 width; /* how much of the text the bar shows */
+} M061Queue;
+
+/* What render_ortho_triangle_image draws an image with */
+typedef struct M061Sprite {
+    /* 0x00 */ ObjectTransform trans;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 frame;
+} M061Sprite;
+
+extern u8 D_800A4FCC; /* the number of cameras */
+extern char **gMenuText;
+extern M061Queue D_800FF1D0[];
+extern Vertex *D_800FF3A0;
+extern Object *D_800FF3F8[]; /* the menu's images */
+extern s8 *func_m006_011C8(void);  /* each player's message bar position (75: hidden) */
+extern s16 *func_m006_011D4(void); /* each player's message bar width */
+extern void func_m006_0107C(s32 *x, s32 *y);
+extern void func_80042134(MtxF *mtx); /* identity */
+extern int func_800639E8(char *buf, char *fmt, ...); /* sprintf */
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* DKR material_set */
+extern void render_ortho_triangle_image(Gfx **dl, Mtx **mtx, Vertex **vtx, M061Sprite *sprite, void *tex, s32 arg5,
+                                        u8 alpha);
+extern s32 func_800706D4(char *text, s32 x, s32 font); /* DKR get_text_width */
+/* The dialogue boxes (as DKR's font.c) */
+extern void func_8007082C(s32 box, s32 font);                                 /* set_dialogue_font */
+extern void func_80070BF8(s32 box);                                           /* dialogue_clear */
+extern void func_8007078C(s32 box, s32 x1, s32 y1, s32 x2, s32 y2);           /* set_current_dialogue_box_coords */
+extern void func_80070848(s32 box, s32 r, s32 g, s32 b, s32 a);               /* set_current_dialogue_background_colour */
+extern void func_800708D0(s32 box, s32 r, s32 g, s32 b, s32 a);               /* set_current_text_background_colour */
+extern void func_80070888(s32 box, s32 r, s32 g, s32 b, s32 a, s32 opacity);  /* set_current_text_colour */
+extern void func_80070910(s32 box, s32 x, s32 y, char *text, s32 number, s32 flags); /* render_dialogue_text */
+extern void func_80070EAC(Gfx **dl, Mtx **mtx, Vertex **vtx, s32 box);      /* render_dialogue_box */
+
+/*
+ * Draws a player's message bar (the queue's current message, in a box that opens to the text's width) in the
+ * player's part of the screen, with its two end caps (called from 0043C).
+ * NON_MATCHING: a first body, 499/498 words with the ROM's frame and slots, 374 aligned diffs (mostly the code
+ * generator's temporaries one or two off); the default build uses the assembly.
+ */
+void func_m061_01218(M061Player *player, s32 updateRate) {
+    MtxF mtx;
+    s32 x;
+    s32 y;
+    s32 x1;
+    s32 x2;
+    s32 y1;
+    s32 y2;
+    s8 *barY;
+    Vertex *v;
+    UNUSED s32 pad;
+    s32 textX;
+    M061Queue *queue;
+    UNUSED u8 pad2[0x88];
+    M061Sprite sprite;
+    UNUSED s32 pad3[2];
+    s16 *widths;
+
+    barY = func_m006_011C8();
+    widths = func_m006_011D4();
+    queue = &D_800FF1D0[player->unk0];
+    if (queue->timer == 0 && barY[player->unk0] == 75) {
+        return;
+    }
+    func_80042134(&mtx);
+    /* (with one camera x and y are left unset, as in the original) */
+    switch (D_800A4FCC) {
+        case 2:
+            if ((fb_mode() & 1) || options_split_vertical_get()) {
+                /* split side by side: as for four (the ROM tests the player here, then goes on either way) */
+                if (player->unk0 != 0) {
+                    goto quad;
+                }
+                goto quad;
+            }
+            /* split top and bottom */
+            x = 0;
+            if (player->unk0 == 0) {
+                y = barY[player->unk0] + 60;
+            } else {
+                y = barY[player->unk0] - 60;
+            }
+            break;
+        case 3:
+        case 4:
+        quad:
+            if (player->unk0 == 0 || player->unk0 == 2) {
+                x = -94;
+            } else {
+                x = 66;
+            }
+            if (player->unk0 == 0 || player->unk0 == 1) {
+                y = barY[player->unk0] + 60;
+            } else {
+                y = barY[player->unk0] - 60;
+            }
+            break;
+    }
+    if (queue->current == -1) {
+        /* (no message: the bar shows what its text already holds) */
+    } else if (queue->current == 0x9F) {
+        func_800639E8(queue->text, "%s%d", gMenuText[0x9F], D_800FED50[player->unk0].kills);
+    } else {
+        func_800639E8(queue->text, "%s", gMenuText[queue->current]);
+    }
+    cam_set_layout(D_800A4FCC - 1);
+    set_active_camera(player->unk0);
+    func_800408C0(&D_800FF398);
+    func_80040D64(&D_800FF398, &D_800FF39C);
+    if (widths[player->unk0] >= 2) {
+        /* the bar: a quad as wide as the bar is open */
+        gSPVertexJFG(D_800FF398++, (u32) D_800FF3A0 + 0x80000000, 5, 0);
+        v = D_800FF3A0;
+        v[0].y = y + 6;
+        v[0].x = x - (widths[player->unk0] >> 1);
+        v[1].y = y + 6;
+        v[1].x = (widths[player->unk0] >> 1) + x;
+        v[2].y = y - 7;
+        v[2].x = x - (widths[player->unk0] >> 1);
+        v += 4;
+        v[-1].y = y - 7;
+        v[-1].x = (widths[player->unk0] >> 1) + x;
+        do {
+            D_800FF3A0->z = 0;
+            D_800FF3A0->r = 0xFF;
+            D_800FF3A0->g = 0xFF;
+            D_800FF3A0->b = 0xFF;
+            D_800FF3A0->a = 0xFF;
+        } while (++D_800FF3A0 < v);
+        func_80055C00(&D_800FF398, NULL, 0, 0);
+        gDPPipeSync(D_800FF398++);
+        gDPSetEnvColor(D_800FF398++, 0x00, 0x28, 0x32, 0x60);
+        gDPSetPrimColor(D_800FF398++, 0, 0, 0x00, 0x1E, 0x5A, 0x00);
+        /* a display list of two commands in .data */
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x07020010; _g->words.w1 = (u32) (rl_m061_02FA0 + 0x80000480); }
+        gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x800001E8, 2, 1);
+    }
+    /* the end caps */
+    sprite.trans.x_position = (widths[player->unk0] >> 1) + x + 2;
+    sprite.trans.y_position = y;
+    sprite.trans.rotation.z_rotation = 0;
+    sprite.trans.rotation.x_rotation = 0;
+    sprite.trans.rotation.y_rotation = 0;
+    sprite.trans.z_position = 0.0f;
+    sprite.frame = 0.0f;
+    sprite.trans.scale = 0.5f;
+    func_80055B80(&D_800FF398);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[4], 0, 255);
+    sprite.trans.rotation.y_rotation = -0x8000;
+    sprite.trans.x_position = x - (widths[player->unk0] >> 1) - 2;
+    render_ortho_triangle_image(&D_800FF398, &D_800FF39C, &D_800FF3A0, &sprite, D_800FF3F8[4], 0, 255);
+    /* the text, scrolling in as the bar opens */
+    x1 = x - (widths[player->unk0] >> 1);
+    x2 = widths[player->unk0] + x1;
+    y1 = y + 5;
+    y2 = y - 6;
+    func_m006_0107C(&x1, &y1);
+    func_m006_0107C(&x2, &y2);
+    func_8007082C(1, 2);
+    func_80070BF8(1);
+    func_8007078C(1, x1, y1, x2, y2);
+    func_80070848(1, 0, 0, 0, 0);
+    func_800708D0(1, 0, 0, 0, 0);
+    if (queue->width < func_800706D4(queue->text, 2, 1)) {
+        queue->width += updateRate;
+    }
+    textX = x2 - x1 - queue->width - 5;
+    func_80070BF8(1);
+    func_80070888(1, 0, 0xFF, 0xFF, 0xFF, 0xFF);
+    func_80070910(1, textX, 1, queue->text, 1, 0);
+    func_80070888(1, 0, 0, 0x80, 0xFF, 0xFF);
+    func_80070910(1, textX + 1, 2, queue->text, 1, 0);
+    func_80070EAC(&D_800FF398, &D_800FF39C, &D_800FF3A0, 1);
+    func_80070BF8(1);
+    cam_set_layout(0);
+    set_active_camera(0);
+    func_800408C0(&D_800FF398);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_01218);
+#endif
 
 /* A camera (func_80041E0C's array, 0x4C each), as used here */
 typedef struct M061Camera {
@@ -809,7 +997,135 @@ void func_m061_01F14(Object *obj, UNUSED Object **objs, UNUSED s32 updateRate) {
     gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
 }
 
+#ifdef NON_MATCHING
+extern s32 is_game_paused(void);
+extern s32 gMenuTimer; /* the timed round's frames so far */
+extern Vertex *D_800FF3A0;
+extern Triangle *D_800FF3A4;
+extern void colour_cycle_reset(M061ColourCycle *cycle);
+extern void update_colour_cycle(M061ColourCycle *cycle, s32 updateRate);
+extern void func_80055C00(Gfx **dl, void *tex, s32 flags, s32 texOffset); /* DKR material_set */
+
+/*
+ * The timed round's clock (game type 0x10; called from 0043C): the time counts up to `limit` unless the game is
+ * paused; the dial shows the time left as whole sectors of the inner ring and one part sector, its colour (two
+ * colour cycles) turning to the second cycle's in the last 1200 frames. TRUE once the time is up.
+ * NON_MATCHING: a first body, 690/691 words with the ROM's frame and slots, 392 aligned diffs (from the start, the
+ * 0.0f constant kept in f0 for the third argument where the ROM loads it again, which renumbers the float
+ * registers after it); the default build uses the assembly.
+ */
+s32 func_m061_023B8(s32 count, s32 limit, s32 updateRate) {
+    s32 done;
+    s32 angle;
+    s32 i;
+    s32 r;
+    UNUSED s32 pad;
+    s32 g;
+    s32 b;
+    UNUSED s32 pad2[4];
+    MtxF mtx;
+    f32 s;
+    f32 c;
+    UNUSED s32 pad3;
+    f32 x;
+    f32 y;
+
+    if (!is_game_paused()) {
+        gMenuTimer += updateRate;
+    }
+    if (gMenuTimer >= limit) {
+        gMenuTimer = limit;
+        done = TRUE;
+    } else {
+        done = FALSE;
+    }
+    func_80042134(&mtx);
+    x = 0.0f;
+    y = 0.0f;
+    if (count == 2) {
+        if (!(fb_mode() & 1) && !options_split_vertical_get()) {
+            x = 100.0f;
+        } else {
+            y = -85.0f;
+        }
+    }
+    func_800498E8(x, y, 0.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x01000040; _g->words.w1 = (u32) D_800FF39C + 0x80000000; }
+    D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+    angle = ((f32) (limit - gMenuTimer) * 65536.0f) / (f32) limit;
+    colour_cycle_reset(&sCycles[0]);
+    update_colour_cycle(&sCycles[0], ((0x10000 - angle) * 60) / 0x10000);
+    if (limit - gMenuTimer <= 1200) {
+        update_colour_cycle(&sCycles[1], updateRate);
+        for (i = 0; i < updateRate; i++) {
+            sBss180 += (1.0f - sBss180) * 0.02f;
+        }
+    }
+    r = sCycles[0].colour[0] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[0];
+    g = sCycles[0].colour[1] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[1];
+    b = sCycles[0].colour[2] * (1.0f - sBss180) + sBss180 * sCycles[1].colour[2];
+    /* the dial's face */
+    func_80055C00(&D_800FF398, D_800FF3F8[0x31], 0x205, 0);
+    gDPSetPrimColor(D_800FF398++, 0, 0, r, g, b, 45.0f + 100.0f * sBss180);
+    gSPVertexJFG(D_800FF398++, rl_m061_02FA0 + 0x80000208, 5, 0);
+    gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000230, 2, 1);
+    if (!done) {
+        /* the time left, one pixel down and right */
+        func_80042134(&mtx);
+        func_800498E8(x + 1.0f, y + 1.0f, 0.0f, &mtx);
+        func_80048D84(&mtx, D_800FF39C);
+        { Gfx *_g = D_800FF398++; _g->words.w0 = 0x01000040; _g->words.w1 = (u32) D_800FF39C + 0x80000000; }
+        D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+        func_80055C00(&D_800FF398, D_800FF3F8[0x2F], 5, 0);
+        gDPSetPrimColor(D_800FF398++, 0, 0, 0xFF, 0xFF, 0xFF, 0xC0);
+        gSPVertexJFG(D_800FF398++, (u8 *) sInner + 0x80000000, 18, 0);
+        if (angle / 0x1000 != 0) {
+            gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000250, angle / 0x1000, 1);
+        }
+        if (angle != (angle / 0x1000) * 0x1000) {
+            /* the part sector: one more vertex on the ring (loaded as vertices 17 and 18) */
+            s = func_80049C34(angle);
+            c = func_80049C30(angle);
+            gDma1p(D_800FF398++, G_VTX, (u32) D_800FF3A0 + 0x80000000, (17 << 9) | (2 * 10 - 2),
+                   ((2 - 1) << 3) | (((u32) D_800FF3A0 + 0x80000000) & 6));
+            D_800FF3A0->x = 15.0f * s;
+            D_800FF3A0->y = 15.0f * c;
+            D_800FF3A0->z = 0;
+            D_800FF3A0->r = 0xFF;
+            D_800FF3A0->g = 0xFF;
+            D_800FF3A0->b = 0xFF;
+            D_800FF3A0->a = 0xFF;
+            D_800FF3A0++;
+            D_800FF3A4->flags = 0x40;
+            D_800FF3A4->vi0 = 0;
+            D_800FF3A4->vi1 = angle / 0x1000 + 1;
+            D_800FF3A4->vi2 = 17;
+            D_800FF3A4->uv[0][0] = 0x220;
+            D_800FF3A4->uv[0][1] = 0x220;
+            D_800FF3A4->uv[1][0] = func_80049C34((angle / 0x1000) * 0x1000) * 512.0f + 544.0f;
+            D_800FF3A4->uv[1][1] = func_80049C30((angle / 0x1000) * 0x1000) * 512.0f + 544.0f;
+            D_800FF3A4->uv[2][0] = 512.0f * s + 544.0f;
+            D_800FF3A4->uv[2][1] = 512.0f * c + 544.0f;
+            gSPPolygon(D_800FF398++, (u32) D_800FF3A4 + 0x80000000, 1, 1);
+            D_800FF3A4++;
+        }
+    }
+    /* the dial's rim */
+    func_80042134(&mtx);
+    func_800498E8(x, y, 0.0f, &mtx);
+    func_80048D84(&mtx, D_800FF39C);
+    { Gfx *_g = D_800FF398++; _g->words.w0 = 0x01000040; _g->words.w1 = (u32) D_800FF39C + 0x80000000; }
+    D_800FF39C = (Mtx *) ((u8 *) D_800FF39C + 0x40);
+    gDPSetPrimColor(D_800FF398++, 0, 0, 255, 255, 255, 255);
+    func_80055C00(&D_800FF398, D_800FF3F8[0x30], 0, 0);
+    gSPVertexJFG(D_800FF398++, rl_m061_02FA0 + 0x80000208, 5, 0);
+    gSPPolygon(D_800FF398++, rl_m061_02FA0 + 0x80000230, 2, 1);
+    return done;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m061/ro", func_m061_023B8);
+#endif
 
 void func_m061_02E84(s32 count, Object **objs) {
     s32 i;
