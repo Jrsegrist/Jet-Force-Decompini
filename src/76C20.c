@@ -845,10 +845,12 @@ void audspat_point_set_pitch(void *audioPoint, u8 pitch);
 /* JFG: advance the running sequence by updateRate ticks: run its next command when its time has come (0x7B: wait,
    then set the sequence state), its clock, the paths and the positioned sounds of the paths' objects (pitch from the
    object's speed).
-   NON_MATCHING: ROM length; the command block's a0-a3/t0 rotated and the state store written before the command
-   pointer's (the ROM reads the command's low byte before that store but stores it after). 42 words (from 57: frames
+   NON_MATCHING: ROM length; the command pointer and its second halfword held in locals (cmd, word: the ROM
+   keeps both in registers, stores the pointer before the state, and reads the low byte from the register),
+   which gives the ROM's command block except that every temporary from the (s8) conversion on is one register
+   early (positional 17 -> 9 words, aligned 64 -> 56). Before that: 42 words (from 57: frames
    u32 (it holds a u16 or u16 * 6 / 10, so every value is the same), the clock advanced in place, empty ifs on
-   rate and frames, both set there); the frame keeps the old time variable's word. The int-cast read of
+   rate, set there; cmd takes the frame word an unused local used to hold). The int-cast read of
    D_800A74EC in the clock compare (keeps its address in a register) took the aligned distance 89 -> 64.
    The ROM divides signed (`div`): frames * 6 is at most 65535 * 6, so the (s32) cast gives the same quotient
    and the ROM's instruction; declaring frames s32 instead re-colours the whole command block (64 -> 115). */
@@ -857,7 +859,8 @@ void func_80077614(s32 updateRate) {
     AnimPath *path;
     s32 rate;
     u32 frames;
-    UNUSED u32 time;
+    u16 *cmd;
+    u16 word;
     AnimObject *obj;
     f32 speed;
     f32 frameTime;
@@ -872,20 +875,20 @@ void func_80077614(s32 updateRate) {
         if (D_800A74E0 > 0) {
             func_80054530(updateRate);
         }
-        if (D_800A74CC != 0 && D_800A74D4 == 1) {
-            if ((((u16 *) D_800A74CC)[1] >> 8) == 0x7B) {
-                if (((u16 *) D_800A74CC)[0] / 100.0f < (D_800A74D8 + updateRate) * frameTime) {
-                    frames = ((u16 *) D_800A74CC)[0];
+        cmd = (u16 *) D_800A74CC;
+        if (cmd != NULL && D_800A74D4 == 1) {
+            word = cmd[1];
+            if ((word >> 8) == 0x7B) {
+                if (cmd[0] / 100.0f < (D_800A74D8 + updateRate) * frameTime) {
+                    frames = cmd[0];
                     if (osTvType == 0) {
-                        frames = ((u16 *) D_800A74CC)[0] >> 1;
+                        frames = cmd[0] >> 1;
                     } else {
                         frames = (s32) (frames * 6) / 10;
-                        if (frames) {}
-
                     }
                     updateRate = frames - D_800A74D8;
-                    D_800A74D4 = (s8) ((u16 *) D_800A74CC)[1];
-                    D_800A74CC += 4;
+                    D_800A74CC = (s32) (cmd + 2);
+                    D_800A74D4 = (s8) word;
                     if (D_800A74D4 == 0) {
                         rate = updateRate;
                     }
