@@ -235,12 +235,9 @@ void rain_init(s32 density, s32 intensity, s32 opacity);
 void snow_init(void); // DKR: snow_init
 s32 rand_range(s32 min, s32 max);
 
-#ifdef NON_MATCHING
-/* NON_MATCHING (10 diffs, ROM length and frame; was 16): the preset read as D_800A5940[weatherType] after the copy
-   lets IDO load the texture before storing gSnowGfx.pos, as the target does; the empty if on gSnowTriangles makes
-   IDO materialise its address for the store (the target has it in a0, here a3), but the store still lands in the
-   loop test's delay slot and the triangle indices get a1/a2 (target v0/a1). numOfElements declared last and reused
-   for density * 4 (as DKR) gives the frame: its second value is spilled to its own word. */
+/* JFG: the preset is read as D_800A5940[weatherType] after the copy (IDO then loads the texture before storing
+   gSnowGfx.pos); the triangles are filled through a walking pointer, two per step, where DKR indexes gSnowTriangles.
+   numOfElements is declared last and reused for density * 4 (as DKR). */
 /**
  * Free all existing weather data.
  * If the weather type allows rain, then allocate and initialise rain.
@@ -331,35 +328,31 @@ void func_8005AD90(s32 weatherType, s32 density, s32 velX, s32 velY, s32 velZ, s
     }
     width = (((SnowTexture *) gSnowGfx.texture)->width << 5) - 1;
     height = (((SnowTexture *) gSnowGfx.texture)->height << 5) - 1;
-    gSnowTriangles = tris = mempool_alloc_safe(gSnowTriCount * sizeof(SnowTriangle), 0xAA55FFFF);
-    for (i = 0; i < gSnowTriCount; i += 2) {
-        tris[i].flags = 0;
-        tris[i].vi0 = (i << 1) + 3;
-        tris[i].u0 = 0;
-        tris[i].v0 = height;
-        tris[i].vi1 = (i << 1) + 1;
-        tris[i].u1 = width;
-        tris[i].v1 = 0;
-        tris[i].vi2 = (i << 1) + 0;
-        tris[i].u2 = 0;
-        tris[i].v2 = 0;
-        tris[i + 1].flags = 0;
-        tris[i + 1].vi0 = (i << 1) + 3;
-        tris[i + 1].u0 = 0;
-        tris[i + 1].v0 = height;
-        tris[i + 1].vi1 = (i << 1) + 2;
-        tris[i + 1].u1 = width;
-        tris[i + 1].v1 = height;
-        tris[i + 1].vi2 = (i << 1) + 1;
-        tris[i + 1].u2 = width;
-        tris[i + 1].v2 = 0;
+    tris = gSnowTriangles = mempool_alloc_safe(gSnowTriCount * sizeof(SnowTriangle), 0xAA55FFFF);
+    for (i = 0; i < gSnowTriCount; i += 2, tris += 2) {
+        tris[0].flags = 0;
+        tris[0].vi0 = (i << 1) + 3;
+        tris[0].u0 = 0;
+        tris[0].v0 = height;
+        tris[0].vi1 = (i << 1) + 1;
+        tris[0].u1 = width;
+        tris[0].v1 = 0;
+        tris[0].vi2 = (i << 1) + 0;
+        tris[0].u2 = 0;
+        tris[0].v2 = 0;
+        tris[1].flags = 0;
+        tris[1].vi0 = (i << 1) + 3;
+        tris[1].u0 = 0;
+        tris[1].v0 = height;
+        tris[1].vi1 = (i << 1) + 2;
+        tris[1].u1 = width;
+        tris[1].v1 = height;
+        tris[1].vi2 = (i << 1) + 1;
+        tris[1].u2 = width;
+        tris[1].v2 = 0;
     }
     gSnowVertexFlip = 0;
-    if (gSnowTriangles) {}
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/5B700", func_8005AD90);
-#endif
 
 /**
  * Change the current properties of the weather.

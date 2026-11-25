@@ -425,3 +425,9 @@ written from what the code does.
 | DKR file | Used for |
 | --- | --- |
 | `src/tracks.c` | func_8002FF6C (credited in round 14 as NON_MATCHING) now matches as JFG's func_8001F4BC in `src/1DA10.c` |
+
+### Round 56 (main56)
+
+| DKR file | Used for |
+| --- | --- |
+| `src/weather.c` | weather_reset (credited in round 14 as NON_MATCHING) now matches as JFG's func_8005AD90 in `src/5B700.c`; JFG fills the triangles through a walking pointer |
