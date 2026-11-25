@@ -3395,7 +3395,7 @@ f32 func_m003_079D8(s32 dist, f32 speed, f32 accel) {
     f32 pos = zero;
     f32 step = zero;
     s32 neg = dist < 0;
-    f32 result = zero;
+    f32 result = zero; /* never read: every path sets result first; kept for the ROM's registers */
 
     if (neg) {
         dist = -dist;
