@@ -2577,7 +2577,244 @@ void track_edges_build(void) {
     }
 }
 
+/* JFG: what func_80018808 fills in (0x2C bytes) */
+typedef struct TrackLineHit {
+    /* 0x00 */ void *obj;   // NULL for a level hit (func_800809F4 fills it in for an object)
+    /* 0x04 */ f32 pos[3];  // where the line meets the triangle
+    /* 0x10 */ Plane plane; // the triangle's plane
+    /* 0x20 */ f32 dist;    // the distance from `from` to pos (to `to` with no hit)
+    /* 0x24 */ u32 flags;   // the triangle's batch flags
+    /* 0x28 */ s32 surface; // the batch's surface type
+} TrackLineHit;
+
+#ifdef NON_MATCHING
+s32 line_clip_box(f32 *x0, f32 *y0, f32 *z0, f32 *x1, f32 *y1, f32 *z1, f32 *min, f32 *max, f32 *tEnterOut,
+                  f32 *tLeaveOut);
+u32 func_8001D344(LevelModelSegmentBoundingBox *bb, s32 x1, s32 z1, s32 x2, s32 z2);
+u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
+s32 func_800809F4(void *obj, f32 *from, f32 *to, TrackLineHit *hit, s32 flags);
+
+/**
+ * JFG: the first thing the line from `from` to `to` hits: the level segments whose boxes it passes through (up to
+ * 20, sorted by where it enters them) are searched in that order for the nearest triangle whose plane it crosses
+ * from the front, inside the triangle's edges; batches with any of flags | 0xCE000880 are skipped, and with
+ * `require` set so are batches with none of its bits. The search stops after the first segment with a hit. With
+ * `require` 0 the objects are tested too (func_800809F4, up to the level hit), and win. hit gets the point, the
+ * triangle's plane, the distance, the batch flags and surface (or for no hit only the distance to `to`).
+ * Returns 1 on a hit.
+ * NON_MATCHING: a first body written from the ROM; checked equal to the ROM by simulation.
+ */
+s32 func_80018808(void *obj, f32 *from, f32 *to, TrackLineHit *hit, s32 flags, s32 require) {
+    LevelModelSegment *segs[20];
+    Plane *planes;
+    Plane *plane;
+    TrianglePlaneRef *ref;
+    u32 batchFlags;
+    Plane *bestPlane;
+    f32 tEnters[20];
+    f32 best[3];
+    f32 min[3];
+    f32 max[3];
+    LevelModelSegmentBoundingBox *bb;
+    LevelModelSegment *seg;
+    s32 minX;
+    s32 maxX;
+    s32 minY;
+    s32 maxY;
+    s32 minZ;
+    s32 maxZ;
+    s32 ix1;
+    s32 iy1;
+    s32 iz1;
+    f32 x0;
+    f32 y0;
+    f32 z0;
+    f32 x1;
+    f32 y1;
+    f32 z1;
+    f32 tEnter;
+    f32 tLeave;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 distTo;
+    f32 distFrom;
+    f32 t;
+    f32 dist;
+    f32 side;
+    s32 edge;
+    s32 flip;
+    s32 inside;
+    s32 i;
+    s32 count;
+    s32 j;
+    s32 k;
+    s32 result;
+    s32 tri;
+    s32 end;
+    u32 bits;
+    s32 b;
+    u32 mask;
+    u32 masks[20];
+    UNUSED s32 pad[2];
+    u32 bestFlags;
+    u8 heights[20];
+    u8 hmask;
+    u8 hb;
+    u8 bestSurface;
+
+    count = 0;
+    for (i = 0; i < gCurrentLevelModel->numberOfSegments; i++) {
+        bb = &gCurrentLevelModel->segmentsBoundingBoxes[i];
+        min[0] = bb->x1;
+        min[1] = bb->y1;
+        min[2] = bb->z1;
+        max[0] = bb->x2;
+        max[1] = bb->y2;
+        max[2] = bb->z2;
+        x0 = from[0];
+        y0 = from[1];
+        z0 = from[2];
+        x1 = to[0];
+        y1 = to[1];
+        z1 = to[2];
+        if (line_clip_box(&x0, &y0, &z0, &x1, &y1, &z1, min, max, &tEnter, &tLeave)) {
+            minX = x0;
+            minY = y0;
+            minZ = z0;
+            ix1 = x1;
+            iy1 = y1;
+            iz1 = z1;
+            maxX = ix1;
+            if (ix1 < minX) {
+                maxX = minX;
+                minX = ix1;
+            }
+            maxY = iy1;
+            if (iy1 < minY) {
+                maxY = minY;
+                minY = iy1;
+            }
+            maxZ = iz1;
+            if (iz1 < minZ) {
+                maxZ = minZ;
+                minZ = iz1;
+            }
+            masks[count] = func_8001D344(bb, minX, minZ, maxX, maxZ);
+            heights[count] = func_8001D464(bb, minY, maxY);
+            tEnters[count] = tEnter;
+            segs[count] = &gCurrentLevelModel->segments[i];
+            for (j = count; j > 0 && tEnters[j] < tEnters[j - 1]; j--) {
+                seg = segs[j];
+                mask = masks[j];
+                hmask = heights[j];
+                tEnter = tEnters[j];
+                tEnters[j] = tEnters[j - 1];
+                tEnters[j - 1] = tEnter;
+                segs[j] = segs[j - 1];
+                segs[j - 1] = seg;
+                masks[j] = masks[j - 1];
+                masks[j - 1] = mask;
+                heights[j] = heights[j - 1];
+                heights[j - 1] = hmask;
+            }
+            count++;
+            if (count >= 20) {
+                i = gCurrentLevelModel->numberOfSegments;
+            }
+        }
+    }
+    dx = to[0] - from[0];
+    dy = to[1] - from[1];
+    dz = to[2] - from[2];
+    result = 0;
+    tLeave = 1.0f;
+    best[0] = to[0];
+    best[1] = to[1];
+    best[2] = to[2];
+    flags |= 0xCE000880;
+    for (i = 0; i < count && !result; i++) {
+        seg = segs[i];
+        mask = masks[i];
+        hmask = heights[i];
+        planes = seg->planes;
+        for (b = 0; b < seg->numberOfBatches; b++) {
+            batchFlags = seg->batches[b].flags;
+            tri = seg->batches[b].facesOffset;
+            end = seg->batches[b + 1].facesOffset;
+            if ((batchFlags & flags) || (require != 0 && !(batchFlags & require))) {
+                tri = end;
+            }
+            for (; tri < end; tri++) {
+                bits = seg->triangleMasks[tri] & mask;
+                hb = seg->triangleHeightMasks[tri] & hmask;
+                if ((bits & 0xFFFF) && (bits & 0xFFFF0000) && hb) {
+                    ref = &seg->trianglePlanes[tri];
+                    plane = &planes[ref->plane];
+                    distTo = plane->a * to[0] + plane->b * to[1] + to[2] * plane->c + plane->d;
+                    if (distTo < 0.0f) {
+                        distFrom = plane->a * from[0] + plane->b * from[1] + from[2] * plane->c + plane->d;
+                        if (distFrom >= 0.0f) {
+                            t = distFrom / (distFrom - distTo);
+                            inside = TRUE;
+                            x0 = from[0] + dx * t;
+                            y0 = from[1] + dy * t;
+                            z0 = from[2] + dz * t;
+                            for (k = 0; k < 3 && inside; k++) {
+                                edge = ref->edges[k];
+                                flip = edge & 0x8000;
+                                edge ^= flip;
+                                plane = &planes[edge];
+                                dist = plane->a * x0 + plane->b * y0 + plane->c * z0 + plane->d;
+                                side = dist;
+                                if (flip) {
+                                    side = -dist;
+                                }
+                                if (side > 0.0f) {
+                                    inside = FALSE;
+                                }
+                            }
+                            if (inside && t < tLeave) {
+                                tLeave = t;
+                                best[0] = x0;
+                                best[1] = y0;
+                                best[2] = z0;
+                                bestSurface = gCurrentLevelModel->textures[seg->batches[b].textureIndex].surfaceType;
+                                bestFlags = seg->batches[b].flags;
+                                bestPlane = &planes[ref->plane];
+                                result = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (require == 0 && func_800809F4(obj, from, best, hit, flags)) {
+        result = 1;
+    } else if (result) {
+        hit->obj = NULL;
+        hit->pos[0] = best[0];
+        hit->pos[1] = best[1];
+        hit->pos[2] = best[2];
+        hit->plane.a = bestPlane->a;
+        hit->plane.b = bestPlane->b;
+        hit->plane.c = bestPlane->c;
+        hit->plane.d = bestPlane->d;
+        dx *= tLeave;
+        dy *= tLeave;
+        dz *= tLeave;
+        hit->dist = sqrtf(dx * dx + dy * dy + dz * dz);
+        hit->flags = bestFlags;
+        hit->surface = bestSurface;
+    } else {
+        hit->dist = sqrtf(dx * dx + dy * dy + dz * dz);
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80018808);
+#endif
 
 s32 line_clip_plane(f32 denom, f32 num, f32 *tEnter, f32 *tLeave);
 
