@@ -84,7 +84,8 @@ struct ALSoundState; // audio.h's SoundHandle
 typedef struct Racer {
     /* 0x000 */ s8 player;
     /* 0x001 */ s8 character;
-    /* 0x002 */ u8 pad2[0x4 - 0x2];
+    /* 0x002 */ u8 unk2;
+    /* 0x003 */ u8 pad3;
     /* 0x004 */ f32 velX;
     /* 0x008 */ u8 pad8[0x10 - 0x8];
     /* 0x010 */ f32 velZ;
@@ -92,7 +93,8 @@ typedef struct Racer {
     /* 0x03C */ f32 pos[3];
     /* 0x048 */ u8 pad48[0x4C - 0x48];
     /* 0x04C */ f32 unk4C;
-    /* 0x050 */ u8 pad50[0x60 - 0x50];
+    /* 0x050 */ u8 pad50[0x5C - 0x50];
+    /* 0x05C */ f32 unk5C;
     /* 0x060 */ f32 unk60;
     /* 0x064 */ u8 pad64[0x6C - 0x64];
     /* 0x06C */ f32 pushX;
@@ -102,7 +104,9 @@ typedef struct Racer {
     /* 0x0BA */ u8 padBA[2];
     /* 0x0BC */ void *voice;
     /* 0x0C0 */ struct ALSoundState *sound; // audio.h's SoundHandle
-/* 0x0C4 */ u8 padC4[0xFC - 0xC4];
+/* 0x0C4 */ u8 padC4[0xF0 - 0xC4];
+    /* 0x0F0 */ void *unkF0; // a positional sound's handle
+    /* 0x0F4 */ u8 padF4[0xFC - 0xF4];
     /* 0x0FC */ s32 unkFC;
     /* 0x100 */ u8 pad100[0x104 - 0x100];
     /* 0x104 */ s16 unk104; // the chase camera's yaw
@@ -154,7 +158,7 @@ typedef struct Racer {
     /* 0x19D */ u8 unk19D;
     /* 0x19E */ u8 pad19E;
     /* 0x19F */ u8 unk19F;
-    /* 0x1A0 */ u8 pad1A0[0x1A4 - 0x1A0];
+    /* 0x1A0 */ u8 *unk1A0; // an object (weapon 12's)
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
 /* 0x1C0 */ u8 pad1C0[0x1C6 - 0x1C0];
@@ -176,7 +180,8 @@ typedef struct Racer {
     /* 0x1F0 */ f32 unk1F0; // JFG: and its rate
     /* 0x1F4 */ s8 unk1F4;
     /* 0x1F5 */ u8 unk1F5;
-    /* 0x1F6 */ u8 pad1F6[0x1F8 - 0x1F6];
+    /* 0x1F6 */ s8 unk1F6;
+    /* 0x1F7 */ u8 unk1F7;
     /* 0x1F8 */ s8 unk1F8;
     /* 0x1F9 */ u8 unk1F9;
     /* 0x1FA */ u8 unk1FA;
@@ -196,10 +201,11 @@ typedef struct Racer {
     /* 0x530 */ s8 numPoints;
     /* 0x531 */ u8 pointMask;
 /* 0x532 */ u8 pad532[0x538 - 0x532];
-    /* 0x538 */ u8 unk538;
+    /* 0x538 */ s8 unk538;
     /* 0x539 */ u8 pad539;
     /* 0x53A */ u16 soundId;
-/* 0x53C */ u8 pad53C[2];
+    /* 0x53C */ u8 pad53C;
+    /* 0x53D */ s8 unk53D;
     /* 0x53E */ s16 unk53E;
     /* 0x540 */ RacerFlags flags;
     /* 0x544 */ f32 overridePos[3];
@@ -218,11 +224,14 @@ typedef struct Racer {
     /* 0x578 */ s8 unk578;
     /* 0x579 */ s8 unk579;
     /* 0x57A */ u8 unk57A;
-    /* 0x57B */ u8 pad57B[0x5C0 - 0x57B];
+    /* 0x57B */ u8 pad57B[0x585 - 0x57B];
+    /* 0x585 */ u8 unk585;
+    /* 0x586 */ u8 pad586[0x5C0 - 0x586];
     /* 0x5C0 */ s32 unk5C0; // JFG: a module camera (run with the camera and this)
     /* 0x5C4 */ u8 pad5C4[0x5CC - 0x5C4];
     /* 0x5CC */ u8 *held;
     /* 0x5D0 */ struct ALSoundState *lockSound; // the aim lock's sound (func_80039FCC)
+    /* 0x5D4 */ struct ALSoundState *unk5D4;
 } Racer;
 
 s32 s16_apply_delta_or_decay(s32 value, s32 delta);
@@ -3832,7 +3841,337 @@ s32 weapon_has_ammo(u8 *racer, u8 *chr) {
     return 0;
 }
 
+s32 character_module_handler_call(u8 *obj, u8 *racer);
+s32 weapon_ammo_capacity(u8 *chr, s32 weapon);
+s32 weapon_switch_direction(u8 *chr, s32 weapon);
+s32 weapon_fire_current(u8 *obj, Racer *racer, u8 *info, f32 updateRate);
+void player_aim_origin_get(u8 *obj, Racer *racer, f32 *x, f32 *y, f32 *z);
+void light_colour_set(void *light, u8 red, u8 green, u8 blue);
+extern u8 D_800A2E10[][3]; /* the gun light's colour per weapon */
+extern s16 D_800A2E40[];   /* the weapon to switch to when one runs out (-1: none) */
+extern u8 gWeaponInfo[][0x30];
+extern u8 *D_800A18B0;     /* the button map: +0 the fire button */
+extern u8 D_800FD7A8[];
+
+#ifdef NON_MATCHING
+/* 887/885 words, frame and every declared slot the ROM's; left: the register choices (the ROM reloads chr and -1
+   after the ammo search loop, keeps the rate in a0 in the ready branch and never holds the constant 3)
+   JFG: a player's weapon for this frame: the gun light, the out-of-ammo switch, the fire button (charging,
+   bursts, the fire delay and repeat), weapon 12's object and the sounds of weapons 2, 4 and 6. Returns the
+   weapon fired this frame (or 3/11 for a started charge or throw), -1 if none. */
+s32 func_80037550(u8 *obj, Racer *racer, f32 updateRateF) {
+    f32 x;
+    f32 y;
+    f32 z;
+    s32 next;
+    s32 found;
+    s32 fire;
+    s32 rate;
+    s32 result;
+    s32 ready;
+    u8 *chr;
+    s32 hasAmmo;
+    UNUSED s32 pad;
+    s32 capacity;
+    s32 done;
+    u8 *att;
+    u8 *colour;
+    u8 *old;
+    u8 *info;
+    u8 weapon;
+
+    rate = updateRateF;
+    fire = 0;
+    result = -1;
+    ready = character_module_handler_call(obj, (u8 *) racer);
+    chr = char_record_lookup(racer->player, racer->character);
+    hasAmmo = weapon_has_ammo((u8 *) racer, chr);
+    weapon = chr[0x70];
+    capacity = weapon_ammo_capacity(chr, weapon);
+    att = NULL;
+    done = 0;
+    colour = D_800A2E10[chr[0x70]];
+    if (racer->light != NULL) {
+        light_colour_set(racer->light, colour[0], colour[1], colour[2]);
+    }
+    if (chr[0x70] != 2 && chr[0x70] != 4) {
+        racer->flags.unk25 = 0;
+    }
+    if (racer->attachment != NULL) {
+        att = *(u8 **) (racer->attachment + 0x68);
+    }
+    if (rate < racer->flags.unk8) {
+        racer->flags.unk8 -= rate;
+    } else {
+        racer->flags.unk8 = 0;
+    }
+    if ((old = racer->unk1A0) != NULL) {
+        if ((racer->unk568 & 0xF) == 10) {
+            racer->unk1A0 = NULL;
+        } else if (chr[0x70] == 12) {
+            if (!(*(s32 *) D_800A18B0 & gPlayerButtonsPressed)) {
+                gPlayerButtonsHeld &= ~*(s32 *) D_800A18B0;
+                gPlayerButtonsPressed &= ~*(s32 *) D_800A18B0;
+            } else {
+                racer->unk1A0 = NULL;
+            }
+        }
+        if (racer->unk1A0 == NULL) {
+            *(s32 *) (*(u8 **) (old + 0x68) + 0x9C) = 0;
+            racer->unk538 = 60;
+            return -1;
+        }
+    }
+    if ((*(s32 *) D_800A18B0 & gPlayerButtonsPressed) && !hasAmmo) {
+        found = 0;
+        next = D_800A2E40[chr[0x70]];
+        player_items_unlink(racer);
+        do {
+            if (next == -1 || ((*(u16 *) (chr + 0xA) & (1 << next)) && ((u16 *) (chr + 0x14))[next] != 0)) {
+                found = 1;
+            } else {
+                next = D_800A2E40[next];
+            }
+        } while (!found);
+        if (next != -1) {
+            racer->flags.weaponDir = weapon_switch_direction(chr, next);
+            racer->flags.unk7 = 1;
+            racer->unk585 = next;
+            chr[0x70] = next;
+        }
+    }
+    /* NOT PORTABLE: the (u32) cast (32-bit pointers) keeps the ROM's materialised base */
+    if (*(u16 *) ((u32) D_800FD7A8 + 0xC) != 0xE773) {
+        racer->flags.unk7 = 1;
+    }
+    if (racer->flags.unk7) {
+        if (*(s32 *) D_800A18B0 & gPlayerButtonsHeld) {
+            gPlayerButtonsHeld &= ~*(s32 *) D_800A18B0;
+            gPlayerButtonsPressed &= ~*(s32 *) D_800A18B0;
+        } else {
+            racer->flags.unk7 = 0;
+        }
+    }
+    if (!hasAmmo) {
+        gPlayerButtonsHeld &= ~*(s32 *) D_800A18B0;
+        gPlayerButtonsPressed &= ~*(s32 *) D_800A18B0;
+    }
+    if (racer->unk568 != 4 && racer->unk2 != 0 && !func_80033F4C(chr[0x70])) {
+        player_aim_origin_get(obj, racer, &x, &y, &z);
+        if (y <= racer->unk5C) {
+            if (chr[0x70] == 3) {
+                racer->unk53E = 0;
+                racer->flags.unk31 = 0;
+                racer->flags.unk30 = 0;
+                done = 1;
+            }
+            if ((*(s32 *) D_800A18B0 & gPlayerButtonsPressed) && racer->sound == NULL) {
+                sound_play(0x1C8, &racer->sound);
+                racer->soundId = 0x1C8;
+            }
+            gPlayerButtonsHeld &= ~*(s32 *) D_800A18B0;
+            gPlayerButtonsPressed &= ~*(s32 *) D_800A18B0;
+        }
+    }
+    if (racer->flags.unk31) {
+        if (racer->unk53D != 0) {
+            racer->unk53D -= rate;
+            if (racer->unk53D <= 0) {
+                racer->unk53D = 0;
+                fire = 1;
+            }
+        } else if (!ready || (*(s32 *) D_800A18B0 & gPlayerButtonsHeld)) {
+            done = 1;
+            if (racer->unk1F4 == 0) {
+                racer->unk1F4 = 15;
+            }
+            racer->unk53E += rate;
+            if (chr[0x70] == 3) {
+                racer->unk53E += rate;
+            }
+            if (capacity < racer->unk53E) {
+                racer->unk53E = capacity;
+            }
+        } else if (chr[0x70] == 11) {
+            if ((racer->unk568 & ~0x20) != 10) {
+                result = chr[0x70];
+                racer->unk53D = 0x1A;
+            } else {
+                racer->unk53D = 0;
+                racer->flags.unk31 = 0;
+            }
+        } else {
+            fire = 1;
+        }
+        if (fire) {
+            racer->flags.unk31 = 0;
+            racer->unk53D = 0;
+            racer->unk538 = 0;
+            if (racer->unk1F6 == 0) {
+                racer->unk1F6 = 7;
+                racer->unk1F7 = ((gWeaponInfo[weapon][2] * racer->unk53E) >> 9) + gWeaponInfo[weapon][2];
+            }
+            if (chr[0x70] == 3) {
+                result = 3;
+            }
+            done = weapon_fire_current(obj, racer, gWeaponInfo[weapon], updateRateF);
+            racer->unk53E = 0x20;
+        }
+    } else if (ready) {
+        if (racer->unk538 != 0) {
+            racer->unk538 -= rate;
+            if (racer->unk538 < 0) {
+                racer->unk538 = 0;
+            }
+        }
+        if (racer->unk53D != 0) {
+            racer->unk53D -= rate;
+            if (racer->unk53D <= 0) {
+                done = weapon_fire_current(obj, racer, gWeaponInfo[weapon], updateRateF);
+                racer->unk53D = 0;
+            }
+        } else if (*(s32 *) D_800A18B0 & gPlayerButtonsHeld) {
+            if (chr[0x70] == 0) {
+                if (racer->flags.unk8 < 0xD3 && racer->unk538 == 0) {
+                    racer->flags.unk8 += 0x2A;
+                    racer->flags.unk31 = 0;
+                    racer->flags.unk30 = 0;
+                    info = gWeaponInfo[weapon];
+                    racer->unk53D = (s8) info[6];
+                    if (racer->unk53D < racer->unk1F8 * rate) {
+                        racer->unk53D = racer->unk1F8 * rate;
+                    }
+                    done = 0;
+                    if (racer->unk1F6 == 0) {
+                        racer->unk1F6 = 7;
+                        racer->unk1F7 = info[2];
+                    }
+                    result = 0;
+                    if (racer->unk53D == 0) {
+                        done = weapon_fire_current(obj, racer, info, updateRateF);
+                    }
+                }
+            } else {
+                info = gWeaponInfo[weapon];
+                if ((s8) info[6] == -1) {
+                    racer->flags.unk31 = 1;
+                    racer->flags.unk30 = 0;
+                    done = 1;
+                    if (chr[0x70] == 3 && (*(s32 *) D_800A18B0 & gPlayerButtonsPressed)) {
+                        if (racer->unkF0 != NULL) {
+                            audspat_point_stop(racer->unkF0);
+                        }
+                        audspat_play_sound_at_position(0xFA, *(f32 *) (obj + 0xC), *(f32 *) (obj + 0x10),
+                                                       *(f32 *) (obj + 0x14), 4, &racer->unkF0);
+                    }
+                } else if (racer->unk538 == 0) {
+                    done = 0;
+                    racer->flags.unk31 = 0;
+                    if (!racer->flags.unk30) {
+                        if ((s8) info[6] == -2) {
+                            racer->flags.unk30 = 1;
+                            racer->unk53D = 0;
+                        } else {
+                            racer->flags.unk30 = 0;
+                            racer->unk53D = (s8) info[6];
+                        }
+                    }
+                    if (racer->flags.unk30) {
+                        racer->unk53E -= rate;
+                        if (racer->unk53E <= 0) {
+                            racer->unk53E = 0;
+                            done = 1;
+                        }
+                    }
+                    if (racer->unk53D < racer->unk1F8 * rate) {
+                        racer->unk53D = racer->unk1F8 * rate;
+                    }
+                    if (racer->unk1F6 == 0) {
+                        racer->unk1F6 = 7;
+                        racer->unk1F7 = info[2];
+                    }
+                    result = chr[0x70];
+                    if (chr[0x70] == 13 && racer->character != 2 && racer->character != 6) {
+                        if (racer->held == NULL) {
+                            racer->unk53D = 0;
+                            result = -1;
+                        } else if (*(s16 *) (racer->held + 0x48) == 0x59) {
+                            if (*(s16 *) (*(u8 **) (racer->held + 0x68) + 0x1E) < 60) {
+                                *(s16 *) (*(u8 **) (racer->held + 0x68) + 0x1E) = 60;
+                            }
+                        }
+                    }
+                    if (racer->unk53D == 0 && !done) {
+                        done = weapon_fire_current(obj, racer, info, updateRateF);
+                    }
+                }
+            }
+            if (chr[0x70] == 2 && racer->unk53D == 0) {
+                racer->flags.unk25 = !racer->flags.unk25;
+            }
+        } else {
+            racer->unk53D = 0;
+            racer->flags.unk30 = 0;
+            racer->flags.unk25 = 0;
+            done = 1;
+            if (chr[0x70] != 1 && chr[0x70] != 5 && chr[0x70] != 7) {
+                racer->unk538 = 0;
+            }
+            if ((s8) gWeaponInfo[weapon][6] == -2) {
+                racer->unk53E += rate;
+                if (capacity < racer->unk53E) {
+                    racer->unk53E = capacity;
+                }
+            } else {
+                racer->unk53E = 0x20;
+            }
+        }
+    } else {
+        done = 1;
+    }
+    if (done) {
+        switch (chr[0x70]) {
+            case 2:
+                if (racer->soundId == 8) {
+                    if (racer->sound != NULL) {
+                        sound_stop(racer->sound);
+                    }
+                    sound_play(0xE, &racer->sound);
+                    racer->soundId = 0xE;
+                    if (racer->unk5D4 != NULL) {
+                        sound_stop(racer->unk5D4);
+                    }
+                    sound_play(0x1E1, &racer->unk5D4);
+                }
+                break;
+            case 6:
+                if (racer->sound != NULL && racer->soundId == 1) {
+                    sound_stop(racer->sound);
+                    racer->soundId = 0;
+                }
+                break;
+            case 4:
+                if (att != NULL) {
+                    att[0xA7D] = 0;
+                    if (racer->sound != NULL && racer->soundId == 0x97) {
+                        racer->soundId = 0;
+                    }
+                }
+                break;
+        }
+        racer->flags.unk25 = 0;
+    }
+    if (att != NULL && chr[0x70] != 4) {
+        att[0xA7D] = 0;
+    }
+    if (att != NULL && chr[0x70] == 4 && 0.1f < *(f32 *) (att + 0xA58)) {
+        racer->flags.unk25 = 1;
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80037550);
+#endif
 
 /* JFG: switch to the next owned weapon (slots 0..15, wrapping) (0x80038324). */
 void weapon_advance_owned(u8 *obj, Racer *racer) {
@@ -3926,12 +4265,9 @@ void weapon_select_prev(u8 *obj, Racer *racer) {
     }
 }
 
-extern u8 D_800A2E10[3];
-void light_colour_set(void *light, u8 red, u8 green, u8 blue);
-
 void func_80038630(UNUSED s32 arg0, Racer *racer) {
     if (racer->light != NULL) {
-        light_colour_set(racer->light, D_800A2E10[0], D_800A2E10[1], D_800A2E10[2]);
+        light_colour_set(racer->light, D_800A2E10[0][0], D_800A2E10[0][1], D_800A2E10[0][2]);
     }
     if (racer->sound != 0) {
         sound_stop(racer->sound);

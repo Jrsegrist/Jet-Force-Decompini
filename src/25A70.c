@@ -485,7 +485,327 @@ void obj_loop_exit(Object *obj, UNUSED s32 updateRate) {
     }
 }
 
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80025A08);
+/* JFG: an object that opens when a player (or a queued object) comes near: behaviour 7, the group objects
+   obj_group_countdown and obj_group_flag_first count down and flag */
+typedef struct GroupMoverState {
+    /* 0x00 */ f32 baseY;
+    /* 0x04 */ u8 pad4[4];
+    /* 0x08 */ void *sound;     // the open/close sound's handle
+    /* 0x0C */ void *loopSound; // the moving sound's handle
+    /* 0x10 */ s32 pos;         // slide or turn position
+    /* 0x14 */ f32 openSpeed;   // animation speeds (kind 5)
+    /* 0x18 */ f32 closeSpeed;
+    /* 0x1C */ f32 openedSpeed;
+    /* 0x20 */ f32 closedSpeed;
+    /* 0x24 */ f32 animSpeed;
+    /* 0x28 */ u8 pad28[4];
+    /* 0x2C */ s16 limit;
+    /* 0x2E */ s16 baseYaw;
+    /* 0x30 */ s16 basePitch;
+    /* 0x32 */ s16 speed;
+    /* 0x34 */ s16 offset; // height offset (kinds 1 and 3)
+    /* 0x36 */ s16 maxOffset;
+    /* 0x38 */ s16 openSoundId;
+    /* 0x3A */ s16 loopSoundId;
+    /* 0x3C */ s16 closeSoundId;
+    /* 0x3E */ u16 flags; // 1 open, 2 moving, 4 opening, 8 locked, 0x20/0x40 sound kinds, 0x80 module told
+    /* 0x40 */ u16 radius;
+    /* 0x42 */ u8 kind; // 1/3 rise, 2 turn, 4 tilt, 5 animate
+    /* 0x43 */ u8 item; // the item that unlocks it (+2)
+    /* 0x44 */ u8 group;
+    /* 0x45 */ u8 rate;
+    /* 0x46 */ u8 openAnim;
+    /* 0x47 */ u8 closeAnim;
+    /* 0x48 */ u8 openedAnim;
+    /* 0x49 */ u8 closedAnim;
+    /* 0x4A */ u8 count;
+    /* 0x4B */ u8 players; // a bit per player, 0x80: ask the module, 0x40: game flag 0
+} GroupMoverState;
+
+typedef struct GroupMoverInteract {
+    /* 0x00 */ u8 pad0[0xA];
+    /* 0x0A */ u16 flags;
+} GroupMoverInteract;
+
+/* JFG: an object, the fields used here (DKR's Object layout) */
+typedef struct GroupMoverObject {
+    /* 0x00 */ s16 y_rotation;
+    /* 0x02 */ s16 x_rotation;
+    /* 0x04 */ u8 pad4[8];
+    /* 0x0C */ f32 x_position;
+    /* 0x10 */ f32 y_position;
+    /* 0x14 */ f32 z_position;
+    /* 0x18 */ u8 pad18[0x10];
+    /* 0x28 */ f32 animFrame;
+    /* 0x2C */ u8 pad2C[0xE];
+    /* 0x3A */ s8 modelIndex;
+    /* 0x3B */ s8 animationID;
+    /* 0x3C */ u8 pad3C[0xC];
+    /* 0x48 */ s16 behaviorId;
+    /* 0x4A */ u8 pad4A[2];
+    /* 0x4C */ GroupMoverInteract *interactObj;
+    /* 0x50 */ u8 pad50[0x18];
+    /* 0x68 */ void *state;
+} GroupMoverObject;
+
+/* JFG: a player's data, the fields used here */
+typedef struct GroupMoverRacer {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character;
+    /* 0x002 */ u8 pad2[0x50C - 2];
+    /* 0x50C */ s32 unk50C;
+} GroupMoverRacer;
+
+extern s16 D_800A1180[]; // sound per unlocking item
+
+void **obj_queue_get(s32 *count);
+s32 character_has_item(s32 player, s32 character, s32 item);
+s32 game_flag_get(s32 flag);
+void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
+void audspat_point_stop(void *handle);
+s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
+s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 rate);
+void func_80054530();
+
+/* JFG: loop: find the nearest player or queued object; open (or close) by the group's flags and distance,
+   with the sounds, unlocking item, module and game flag tests, then move: rise, turn, tilt or animate. */
+void func_80025A08(GroupMoverObject *obj, s32 updateRate) {
+    GroupMoverState *state;
+    UNUSED s32 pad;
+    GroupMoverObject **lists[2];
+    UNUSED s32 pad2;
+    GroupMoverObject *nearest;
+    GroupMoverRacer *data;
+    s32 counts[2];
+    UNUSED s32 pad3;
+    UNUSED s32 pad4;
+    s32 player;
+    s32 sound;
+    f32 frame;
+    f32 radius;
+    s32 i;
+    s32 j;
+    GroupMoverObject **list;
+    GroupMoverObject *other;
+    f32 best;
+
+    sound = -1;
+    state = obj->state;
+    best = -100.0f;
+    nearest = NULL;
+    lists[0] = (GroupMoverObject **) get_racer_objects(&counts[0]);
+    lists[1] = (GroupMoverObject **) obj_queue_get(&counts[1]);
+    radius = state->radius;
+    radius *= radius;
+    for (j = 0; j < 2; j++) {
+        list = lists[j];
+        for (i = 0; j < 2 && i < counts[j]; i++, list++) {
+            other = *list;
+            if ((other->x_position - obj->x_position) * (other->x_position - obj->x_position) +
+                        (other->y_position - state->baseY) * (other->y_position - state->baseY) +
+                        (other->z_position - obj->z_position) * (other->z_position - obj->z_position) <
+                    best ||
+                best < 0.0f) {
+                best = (other->x_position - obj->x_position) * (other->x_position - obj->x_position) +
+                       (other->y_position - state->baseY) * (other->y_position - state->baseY) +
+                       (other->z_position - obj->z_position) * (other->z_position - obj->z_position);
+                nearest = other;
+            }
+        }
+    }
+    if (nearest == NULL) {
+        return;
+    }
+    if (nearest->behaviorId == 0x33) {
+        /* data stays unset here; the ROM reads it too (players bit 0x80, the module calls) */
+        player = 0;
+    } else {
+        data = nearest->state;
+        player = data->character;
+        if (player >= 4) {
+            player -= 4;
+        }
+    }
+    if (nearest->behaviorId == 1 && state->item >= 2 && (state->flags & 8)) {
+        if (character_has_item(data->player, data->character, state->item - 2)) {
+            state->flags &= ~8;
+        }
+    }
+    if (state->players & (1 << player)) {
+        sound = player + 0x129;
+    } else if ((state->players & 0x80) && data->unk50C == 0) {
+        sound = player + 0x129;
+    } else if ((state->players & 0x40) && !game_flag_get(0)) {
+        sound = 0x206;
+    } else if (!(state->flags & 8)) {
+        if (best < radius) {
+            if (!(state->flags & 1)) {
+                if (!(state->flags & 4)) {
+                    if (state->openSoundId != 0) {
+                        if (state->sound != NULL) {
+                            audspat_point_stop(state->sound);
+                        }
+                        audspat_play_sound_at_position(state->openSoundId, obj->x_position, obj->y_position,
+                                                       obj->z_position, 4, &state->sound);
+                    }
+                    if (state->kind == 5) {
+                        obj_anim_set((Object *) obj, state->openAnim, state->openSpeed < 0.0f ? 1.0f : 0.0f);
+                        state->animSpeed = state->openSpeed;
+                    }
+                }
+                state->flags |= 6;
+            }
+        } else if (state->flags & 1) {
+            if (radius + 100.0f < best && state->kind != 4) {
+                if (!(state->flags & 2)) {
+                    if (state->openSoundId != 0) {
+                        if (state->sound != NULL) {
+                            audspat_point_stop(state->sound);
+                        }
+                        audspat_play_sound_at_position(state->openSoundId, obj->x_position, obj->y_position,
+                                                       obj->z_position, 4, &state->sound);
+                    }
+                    frame = state->closeSpeed < 0.0f ? 1.0f : 0.0f;
+                    obj_anim_set((Object *) obj, state->closeAnim, frame);
+                    state->animSpeed = state->closeSpeed;
+                }
+                state->flags &= ~1;
+                state->flags |= 2;
+            }
+        }
+    } else if (state->item >= 2) {
+        sound = D_800A1180[state->item];
+    } else if (state->flags & 0x20) {
+        sound = 0x96;
+    } else if (state->flags & 0x40) {
+        sound = 0x128;
+    }
+    if (best < 8000.0f) {
+        if (!(state->flags & 0x80) && sound != -1) {
+            func_80054530(data, sound);
+            state->flags |= 0x80;
+        }
+    } else if (best > 10000.0f) {
+        if (state->flags & 0x80) {
+            func_80054530(data, sound);
+            state->flags &= ~0x80;
+        }
+    }
+    if (state->flags & 2) {
+        if (state->loopSound == NULL && state->loopSoundId != 0) {
+            audspat_play_sound_at_position(state->loopSoundId, obj->x_position, obj->y_position, obj->z_position, 1,
+                                           &state->loopSound);
+        }
+        if (state->flags & 4) {
+            switch (state->kind) {
+                case 2:
+                    state->pos += state->speed * updateRate;
+                    if ((state->speed < 0 && state->pos < state->limit) ||
+                        (state->speed > 0 && state->limit < state->pos)) {
+                        state->pos = state->limit;
+                        state->flags &= ~6;
+                        state->flags |= 1;
+                    }
+                    obj->y_rotation = state->baseYaw + state->pos;
+                    break;
+                case 1:
+                case 3:
+                    state->offset += state->rate * updateRate;
+                    if (state->offset >= state->maxOffset) {
+                        state->offset = state->maxOffset;
+                        state->flags &= ~6;
+                        state->flags |= 1;
+                    }
+                    break;
+                case 4:
+                    state->pos += state->speed * updateRate;
+                    if ((state->speed < 0 && state->pos < state->limit) ||
+                        (state->speed > 0 && state->limit < state->pos)) {
+                        state->pos = state->limit;
+                        state->flags &= ~6;
+                        state->flags |= 1;
+                    }
+                    obj->x_rotation = state->basePitch + state->pos;
+                    break;
+                case 5:
+                    if ((state->openSpeed > 0.0f && 1.0f == obj->animFrame) ||
+                        (state->openSpeed < 0.0f && 0.0f == obj->animFrame)) {
+                        state->flags &= ~6;
+                        state->flags |= 1;
+                        if (state->openedAnim != 0xFF) {
+                            obj_anim_set((Object *) obj,state->openedAnim, 0.0f);
+                            state->animSpeed = state->openedSpeed;
+                        }
+                    }
+                    break;
+            }
+        } else {
+            switch (state->kind) {
+                case 2:
+                    state->pos -= state->speed * updateRate;
+                    if ((state->speed < 0 && state->pos > 0) || (state->speed > 0 && state->pos < 0)) {
+                        state->pos = 0;
+                        state->flags &= ~3;
+                    }
+                    obj->y_rotation = state->baseYaw + state->pos;
+                    break;
+                case 1:
+                case 3:
+                    state->offset -= state->rate * updateRate;
+                    if (state->offset < 0) {
+                        state->offset = 0;
+                        state->flags &= ~3;
+                    }
+                    break;
+                case 5:
+                    if ((state->closeSpeed > 0.0f && 1.0f == obj->animFrame) ||
+                        (state->closeSpeed < 0.0f && 0.0f == obj->animFrame)) {
+                        state->flags &= ~3;
+                        if (state->closedAnim != 0xFF && obj->animationID != state->closedAnim) {
+                            obj_anim_set((Object *) obj,state->closedAnim, 0.0f);
+                            state->animSpeed = state->closedSpeed;
+                        }
+                    }
+                    break;
+            }
+        }
+        if (!(state->flags & 2)) {
+            if (state->closeSoundId != 0) {
+                if (state->sound != NULL) {
+                    audspat_point_stop(state->sound);
+                }
+                audspat_play_sound_at_position(state->closeSoundId, obj->x_position, obj->y_position,
+                                               obj->z_position, 4, &state->sound);
+            }
+            if (state->loopSound != NULL) {
+                audspat_point_stop(state->loopSound);
+            }
+        }
+        obj->y_rotation &= ~0xF;
+    } else if (state->kind == 5 && state->closedAnim != 0xFF && (state->flags & 1) &&
+               obj->animationID != state->openedAnim) {
+        obj_anim_set((Object *) obj,state->openedAnim, 0.0f);
+        state->animSpeed = state->openedSpeed;
+    }
+    if (state->kind == 5) {
+        if (!(state->flags & 1) && !(state->flags & 2) && state->openedAnim == 0xFF) {
+            obj->modelIndex = 0;
+        } else {
+            obj->modelIndex = 1;
+        }
+        obj_anim_frame_advance((Object *) obj, state->animSpeed, updateRate);
+    }
+    if (state->kind == 3 || state->kind == 5) {
+        if (state->flags & 3) {
+            obj->interactObj->flags &= ~1;
+        } else {
+            obj->interactObj->flags |= 1;
+        }
+    }
+    if (state->kind == 1) {
+        obj->y_position = state->baseY + state->offset;
+    }
+}
 
 u8 **objGetObjList(s32 *start, s32 *end);
 
