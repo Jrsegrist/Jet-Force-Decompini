@@ -85,7 +85,7 @@ typedef struct M003Member {
     /* 0x4A */ u8 unk4A;
     /* 0x4B */ u8 unk4B;
     /* 0x4C */ s16 unk4C; /* how fast it turns (0A5EC) */
-    /* 0x4E */ s16 unk4E;
+    /* 0x4E */ u16 unk4E;
     /* 0x50 */ u8 node;
     /* 0x51 */ u8 unk51;
     /* 0x52 */ u8 unk52;
@@ -129,7 +129,7 @@ typedef struct M003Member {
 
 /* The member's word at 0x8 as bit fields */
 typedef struct M003Flags8 {
-    u32 unk28 : 4; /* (0C324) */
+    u8 unk28 : 4; /* (0C324; a u8 field: `++unk28 >= 6` in 10600 compares signed, as the ROM does) */
     u32 unk27 : 1;
     u32 shocked : 1;
     u32 unk24 : 2;
@@ -513,7 +513,9 @@ static f32 sBss10;              /* the speed for the member's next step (0BA20, 
 static f32 sBss14; /* a point the kind 0x112 troops head for (0B040) */
 static f32 sBss18;              /* the height the member steps towards (0A9E8, 0B468) */
 static f32 sBss1C;
-static u8 sBss20[0xA8 - 0x20]; /* (IDO aligns arrays to 8) */
+static s32 sHitPart;            /* the body part a hit took off (10600; read by 142F0) */
+static s32 sHitCount;           /* and how many pieces it throws */
+static u8 sBss28[0xA8 - 0x28]; /* (IDO aligns arrays to 8) */
 static f32 sUpdateRate;        /* this frame's, as a float */
 static Object *sObj;            /* the member being processed */
 static M003Member *sMember;     /* its data */
@@ -5860,7 +5862,7 @@ void func_m003_0E9F0(Object *obj) {
 }
 
 extern void func_m141_00280(Object *obj, s16 **cmd);
-#define sCmdList ((s16 *) &sBss20[0x28 - 0x20]) /* 0EB40's joint command list (s16 pairs, 0x1000 ends it) */
+#define sCmdList ((s16 *) sBss28) /* 0EB40's joint command list (s16 pairs, 0x1000 ends it) */
 #define GROUP(m) ((M003Group *) &(m)->group)
 #define SHOOTER_AT(i) (((M003Interact *) ((Object *) sMember->shotBy)->interactObj)->centre[i])
 
@@ -6263,13 +6265,9 @@ extern M003SlotSound rl_m003_19460[];
 /* The word at the member's 0x10 as bit fields (10600 reads unk13_0 through it; NOT PORTABLE: IDO's big-endian bit fields) */
 typedef struct M003Word10 {
     u32 pad4 : 28;
-    u32 unk13_0 : 4;
+    u8 unk13_0 : 4; /* (a u8 field: the ROM compares it signed) */
 } M003Word10;
 #define WORD10(m) ((M003Word10 *) &(m)->unk10)
-
-/* The body part a hit took off and how many pieces it throws (sBss20 0x20/0x24; read by 142F0) */
-#define sHitPart (*(s32 *) &sBss20[0x20 - 0x20])
-#define sHitCount (*(s32 *) &sBss20[0x24 - 0x20])
 
 /* Per body (sBodyIndex): an update run each frame, NULL: none (.data, still assembly) */
 extern void (*rl_m003_19350[])(Object *obj);
@@ -6319,8 +6317,8 @@ extern void rl_m003_09680(void);
  * The troop member's update: counters, the shooter it blames, the event it noticed, the body parts hit this
  * frame (thrown off as pieces), its hit points (hurt and death sounds, the death fall), then, alive, where it
  * heads, its turn, its animation and move, and its tilt from the change of speed.
- * NON_MATCHING: first body, written from the ROM (IDO output): the ROM's frame (0x168) and every declared stack
- * slot, 3300 of its 3299 words; registers differ throughout. Faithful to the ROM (NOT PORTABLE where noted): a
+ * NON_MATCHING: first body, written from the ROM (IDO output): the ROM's length (3299 words) and frame (0x168);
+ * registers differ (t-registers mostly one off). Faithful to the ROM (NOT PORTABLE where noted): a
  * body part's thrown-off pieces read the hit's shooter even when there is none.
  */
 void func_m003_10600(Object *obj, s32 updateRate) {
@@ -6367,16 +6365,17 @@ void func_m003_10600(Object *obj, s32 updateRate) {
         return;
     }
     yaw = sObj->trans.rotation.y_rotation;
-    if (sShotBy != 0) {
-        if (((Object *) sShotBy)->behaviorId == 2) {
-            u8 *data = ((Object *) sShotBy)->unk68;
-            Object *o = *(Object **) (data + 0x24);
+    by = (Object *) sShotBy;
+    if (by != NULL) {
+        if (by->behaviorId == 2) {
+            UNUSED u8 *data; /* (the ROM's frame word) */
+            Object *o = *(Object **) ((u8 *) ((Object *) sShotBy)->unk68 + 0x24);
 
             if (((u8 *) o->unk68)[0x10D] == 0) {
                 sShotBy = (s32) o;
                 sMember->shotBy = sShotBy;
             }
-        } else if (((Object *) sShotBy)->behaviorId == 1) {
+        } else if (by->behaviorId == 1) {
             u8 *data = ((Object *) sShotBy)->unk68;
             Object *o = *(Object **) (data + 0x50C);
 
@@ -6458,7 +6457,7 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                     if (by != NULL && by->behaviorId == 1 && sMember->headless && FLAGS4(sMember)->unk16) {
                         break;
                     }
-                    if ((s16) (e - sEvents) != sMember->event) {
+                    if (sMember->event != (s16) (e - sEvents)) {
                         if (++FLAGS8(sMember)->unk28 >= 6) {
                             e->unk7 = 4;
                             goto again;
@@ -6471,7 +6470,7 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                     if ((sHomeData->unk30 == 2 || sHomeData->unk30 == 3) &&
                         (sHomeData->unk32 == 0xE || sHomeData->unk32 == 0xF || sHomeData->unk32 == 9 ||
                          sHomeData->unk32 == 0xA || sHomeData->unk32 == 0xB)) {
-                        if ((s16) (e - sEvents) != sMember->event) {
+                        if (sMember->event != (s16) (e - sEvents)) {
                             if (++FLAGS8(sMember)->unk28 >= 6) {
                                 e->unk7 = 4;
                                 goto again;
@@ -6519,8 +6518,8 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                 piece.y = 0;
                 piece.z = 0;
                 piece.unkA = part->unk4;
-                piece.owner = obj;
                 piece.unkB = part->unk5;
+                piece.owner = obj;
                 piece.height = obj->trans.y_position;
                 {
                     Object *o = func_80005F14(&piece, 1);
@@ -6569,8 +6568,8 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                     chunk.y = 0;
                     chunk.z = 0;
                     chunk.unk10 = part->unk4;
-                    chunk.owner = sObj;
                     chunk.unk11 = part->unk5;
+                    chunk.owner = sObj;
                     chunk.unk12 = part->kind;
                     o = func_80005F14(&chunk, 1);
                     if (o != NULL && hitBy != NULL) {
@@ -6704,7 +6703,7 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                 angle = sObj->trans.rotation.y_rotation;
                 if ((sHomeData->unk34 & 3) == 2 ||
                     ((sHomeData->unk34 & 3) == 3 && !((M003Interact *) sObj->interactObj)->unk8_29)) {
-                    angle += 0x8000;
+                    angle -= 0x8000; /* (half a turn; the ROM adds -0x8000) */
                 }
                 rl_m003_03D44(angle, 10.0f);
                 sObj->velocity.y += 5.0f;
@@ -6749,8 +6748,8 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                     flash.objectID = 0x1B2;
                     flash.x = sObj->trans.x_position;
                     flash.y = sObj->trans.y_position + 50.0f;
-                    flash.unkB = 0x40;
                     flash.z = sObj->trans.z_position;
+                    flash.unkB = 0x40;
                     o = func_80005F14(&flash, 1);
                     if (o != NULL) {
                         o->level_entry = NULL;
@@ -6827,10 +6826,10 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                     sMember->unk55 = 1;
                 }
                 if (sMember->unk55 != 0) {
-                    if (0xFF - D_800FE9F8 * 2 < sMember->unk55) {
+                    if (0xFF - D_800FE9F8 * 2 < (sound = sMember->unk55)) {
                         func_m003_09FF0(sObj);
                     } else {
-                        sMember->unk55 += D_800FE9F8 * 2;
+                        sMember->unk55 = sound + D_800FE9F8 * 2;
                     }
                 }
                 if (((sHomeData->unk34 & 3) || sMember->unk0_26) && !sMember->unk0_25) {
@@ -6883,7 +6882,8 @@ void func_m003_10600(Object *obj, s32 updateRate) {
         sBssD4 = sObj->trans.rotation.y_rotation;
     }
     sBssD6 = sBssD4;
-    if (sShotBy != 0) {
+    by = (Object *) sShotBy;
+    if (by != NULL) {
         sBssD0 = func_m003_03E20(((Object *) sShotBy)->trans.x_position, ((Object *) sShotBy)->trans.z_position,
                                  sObj->trans.x_position, sObj->trans.z_position);
     } else {
@@ -6958,8 +6958,8 @@ void func_m003_10600(Object *obj, s32 updateRate) {
     } else if (sMember->unk10 < -0x6978) {
         sMember->unk10 = -0x6978;
     }
-    if (sMember->unk10 != sMember->unkC) {
-        sMember->unkE += func_m003_079D8(sMember->unk10 - sMember->unkC, 2.0f * sMember->unkE + sMember->unk4C,
+    if (sMember->unkC != sMember->unk10) {
+        sMember->unkE += func_m003_079D8(sMember->unk10 - sMember->unkC, sMember->unk4C + 2.0f * sMember->unkE,
                                          sBody->turnStep << sMember->unk9);
         sMember->unkC += sMember->unkE * sUpdateRate * 0.5f;
     }
@@ -7093,12 +7093,14 @@ void func_m003_10600(Object *obj, s32 updateRate) {
                     } else {
                         anim = 0xE;
                     }
+                    speed = sMember->unk20;
                 } else if (sMember->onFire || sHomeData->unk32 == 8) {
                     anim = 0xF;
+                    speed = sMember->unk20;
                 } else {
                     anim = 0xB;
+                    speed = sMember->unk20;
                 }
-                speed = sMember->unk20;
             }
             func_m003_0512C(0, speed, anim);
             break;
