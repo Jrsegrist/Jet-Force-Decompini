@@ -2602,7 +2602,8 @@ s32 func_800809F4(void *obj, f32 *from, f32 *to, TrackLineHit *hit, s32 flags);
  * `require` 0 the objects are tested too (func_800809F4, up to the level hit), and win. hit gets the point, the
  * triangle's plane, the distance, the batch flags and surface (or for no hit only the distance to `to`).
  * Returns 1 on a hit.
- * NON_MATCHING: a first body written from the ROM; checked equal to the ROM by simulation.
+ * NON_MATCHING: a first body written from the ROM (621 of 628 words, frame 0x2A0 of 0x2A8: every stack slot is the
+ * ROM's but the f30/f31 save, as the ROM keeps distTo and t in f20/f22); checked equal to the ROM by simulation.
  */
 s32 func_80018808(void *obj, f32 *from, f32 *to, TrackLineHit *hit, s32 flags, s32 require) {
     LevelModelSegment *segs[20];
@@ -3161,7 +3162,202 @@ s32 track_edge_find_next(TrackEdge *edge, TrackEdge *out) {
     return found;
 }
 
+/* JFG: a level height under a point: the plane's height there, its a/b/c, the batch flags and surface type */
+typedef struct TrackHeight {
+    /* 0x00 */ f32 y;
+    /* 0x04 */ f32 a;
+    /* 0x08 */ f32 b;
+    /* 0x0C */ f32 c;
+    /* 0x10 */ union {
+        u32 flags;
+        struct {
+            u8 pad[3];
+            s8 surfaceType;
+        } s;
+    } info;
+} TrackHeight;
+
+extern TrackHeight D_800F2FE8[20];
+extern TrackHeight *D_800F3178[20];
+
+#ifdef NON_MATCHING
+s32 func_8001AB84(f32 px, f32 pz, f32 x1, f32 z1, f32 x2, f32 z2, f32 radiusSq);
+
+/**
+ * JFG: func_8001B078 for a cylinder: the level triangles in the segments the box around (x, z) of the given radius
+ * and from yMin to yMax touches (no result if 8 or more segments do), facing up (or with `below` set, down), with a
+ * corner between yMin and yMax, that the point lies in or within the radius of an edge of, on the x/z plane (batches
+ * with any of flags are skipped). With heights NULL: 1 if one of them is between yMin and yMax at (x, z), else 0.
+ * Otherwise every one (up to 20) goes into the height list as func_8001B078 builds it, sorted from the highest down,
+ * and *heights gets the list; the count is returned.
+ * NON_MATCHING: a first body written from the ROM (607 of 603 words, the ROM's frame 0x1C8 and stack slots; the pads
+ * fill it); checked equal to the ROM by simulation. The ROM keeps `below` in a0 through the triangle loop.
+ */
+s32 func_8001A218(f32 x, f32 z, f32 yMin, f32 yMax, f32 radius, s32 flags, s32 below, TrackHeight ***heights) {
+    LevelModelSegment *segment;
+    s32 batchNum;
+    s32 faceNum;
+    s32 start;
+    s32 nextFace;
+    u32 bits;
+    s32 planeIndex;
+    Vertex *vert0;
+    Vertex *vert1;
+    Vertex *vert2;
+    s32 hit;
+    f32 x0;
+    f32 z0;
+    f32 z2;
+    f32 x1;
+    f32 z1;
+    f32 B;
+    f32 x2;
+    f32 radiusSq;
+    f32 A;
+    f32 C;
+    f32 D;
+    f32 h;
+    s32 verticesOffset;
+    s32 j;
+    s32 sorted;
+    TrackHeight *swap;
+    s32 segmentCount;
+    s32 i;
+    s32 ix;
+    s32 iz;
+    s32 segs[32];
+    s32 ir;
+    UNUSED s32 pad;
+    s32 count;
+    UNUSED s32 pad2;
+    u32 mask;
+    s16 min[3];
+    s16 max[3];
+    s8 surfaceType;
+
+    if (heights != NULL) {
+        *heights = NULL;
+    }
+    ix = x;
+    ir = radius;
+    iz = z;
+    min[0] = ix - ir;
+    min[1] = (s32) yMin;
+    min[2] = iz - ir;
+    max[0] = ix + ir;
+    max[1] = (s32) yMax;
+    max[2] = iz + ir;
+    segmentCount = get_inside_segment_count_xyz(segs, min[0], min[1], min[2], max[0], max[1], max[2]);
+    if (segmentCount == 0 || segmentCount >= 8) {
+        return 0;
+    }
+    count = 0;
+    for (i = 0; i < segmentCount; i++) {
+        segment = &gCurrentLevelModel->segments[segs[i]];
+        mask = func_8001D344(&gCurrentLevelModel->segmentsBoundingBoxes[segs[i]], min[0], min[2], max[0], max[2]);
+        for (batchNum = 0; batchNum < segment->numberOfBatches; batchNum++) {
+            verticesOffset = segment->batches[batchNum].verticesOffset;
+            start = segment->batches[batchNum].facesOffset;
+            nextFace = segment->batches[batchNum + 1].facesOffset;
+            if (segment->batches[batchNum].flags & 0x2000) {
+                surfaceType = 2;
+            } else {
+                surfaceType = gCurrentLevelModel->textures[segment->batches[batchNum].textureIndex].surfaceType;
+            }
+            if (segment->batches[batchNum].flags & flags) {
+                start = nextFace;
+            }
+            for (faceNum = start; faceNum < nextFace; faceNum++) {
+                bits = segment->triangleMasks[faceNum] & mask;
+                planeIndex = segment->trianglePlanes[faceNum].plane << 4;
+                B = ((Plane *) ((u8 *) segment->planes + planeIndex))->b;
+                if ((bits >> 16) && (bits & 0xFFFF) && ((!below && 0.0f < B) || (below && B < 0.0f))) {
+                    vert0 = &segment->vertices[segment->triangles[faceNum].vi0 + verticesOffset];
+                    vert1 = &segment->vertices[segment->triangles[faceNum].vi1 + verticesOffset];
+                    vert2 = &segment->vertices[segment->triangles[faceNum].vi2 + verticesOffset];
+                    if (vert0->y < min[1] && vert1->y < min[1] && vert2->y < min[1]) {
+                        continue;
+                    }
+                    if (max[1] < vert0->y && max[1] < vert1->y && max[1] < vert2->y) {
+                        continue;
+                    }
+                    if (below) {
+                        hit = func_800494AC(ix, iz, vert2, vert1, vert0);
+                    } else {
+                        hit = func_800494AC(ix, iz, vert0, vert1, vert2);
+                    }
+                    if (!hit) {
+                        x0 = vert0->x;
+                        z0 = vert0->z;
+                        x1 = vert1->x;
+                        z1 = vert1->z;
+                        x2 = vert2->x;
+                        z2 = vert2->z;
+                        radiusSq = radius * radius;
+                        if (func_8001AB84(x, z, x0, z0, x1, z1, radiusSq)) {
+                            hit = TRUE;
+                        } else if (func_8001AB84(x, z, x1, z1, x2, z2, radiusSq)) {
+                            hit = TRUE;
+                        } else if (func_8001AB84(x, z, x2, z2, x0, z0, radiusSq)) {
+                            hit = TRUE;
+                        }
+                    }
+                    if (hit) {
+                        A = ((Plane *) ((u8 *) segment->planes + planeIndex))->a;
+                        C = ((Plane *) ((u8 *) segment->planes + planeIndex))->c;
+                        D = ((Plane *) ((u8 *) segment->planes + planeIndex))->d;
+                        if (heights != NULL) {
+                            D_800F2FE8[count].y = -(((A * x) + (C * z) + D) / B);
+                            D_800F2FE8[count].a = A;
+                            D_800F2FE8[count].info.flags = segment->batches[batchNum].flags;
+                            D_800F2FE8[count].b = B;
+                            D_800F2FE8[count].c = C;
+                            // NOT PORTABLE: the surface type overlays the flags' low byte (big-endian), as in func_8001B078
+                            D_800F2FE8[count].info.s.surfaceType = surfaceType;
+                            count++;
+                            if (count >= 20) {
+                                i = segmentCount;
+                                batchNum = segment->numberOfBatches;
+                                faceNum = nextFace;
+                            }
+                        } else {
+                            h = -(((A * x) + (C * z) + D) / B);
+                            if (yMin <= h && h <= yMax) {
+                                count = 1;
+                                batchNum = segment->numberOfBatches;
+                                faceNum = nextFace;
+                                i = segmentCount;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (heights == NULL) {
+        return count;
+    }
+    for (j = 0; j < count; j++) {
+        D_800F3178[j] = &D_800F2FE8[j];
+    }
+    do {
+        j = 0;
+        sorted = TRUE;
+        for (; j < count - 1; j++) {
+            if (D_800F3178[j]->y < D_800F3178[j + 1]->y) {
+                swap = D_800F3178[j];
+                D_800F3178[j] = D_800F3178[j + 1];
+                D_800F3178[j + 1] = swap;
+                sorted = FALSE;
+            }
+        }
+    } while (!sorted);
+    *heights = D_800F3178;
+    return count;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_8001A218);
+#endif
 
 /**
  * JFG: TRUE if the point (px, pz) is within sqrt(radiusSq) of the segment (x1, z1)-(x2, z2) on the x/z plane: the
@@ -3285,24 +3481,6 @@ Triangle *track_nearest_triangle(f32 x, f32 y, f32 z, f32 *outY, Plane **outPlan
     }
     return result;
 }
-
-/* JFG: a level height under a point: the plane's height there, its a/b/c, the batch flags and surface type */
-typedef struct TrackHeight {
-    /* 0x00 */ f32 y;
-    /* 0x04 */ f32 a;
-    /* 0x08 */ f32 b;
-    /* 0x0C */ f32 c;
-    /* 0x10 */ union {
-        u32 flags;
-        struct {
-            u8 pad[3];
-            s8 surfaceType;
-        } s;
-    } info;
-} TrackHeight;
-
-extern TrackHeight D_800F2FE8[20];
-extern TrackHeight *D_800F3178[20];
 
 /**
  * JFG: every level height under (x, z) (up to 20; batches with any of flags count as having no triangles),
