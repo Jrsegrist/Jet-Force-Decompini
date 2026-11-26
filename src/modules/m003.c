@@ -2029,8 +2029,8 @@ s32 func_m003_03E90(s32 x1, s32 y1, s32 x2, s32 y2, s32 x3, s32 y3, s32 x4, s32 
     return 1;
 }
 
-/* Stretches the vector (x, y, z) to length `len` if it is shorter (and not zero) */
-void func_m003_040FC(s16 *x, s16 *y, s16 *z, f32 len) {
+/* Stretches the vector (x, y, z) to length `len` if it is shorter (and not zero) (called from 07E88) */
+static void func_m003_040FC(s16 *x, s16 *y, s16 *z, f32 len) {
     f32 cur = func_80097140(*x * *x + *y * *y + *z * *z);
     f32 nx;
     f32 ny;
@@ -3532,7 +3532,6 @@ s16 func_m003_07C18(f32 x, f32 y, f32 z, f32 tx, f32 ty, f32 tz, f32 speed, f32 
     return 0x2000;
 }
 
-#ifdef NON_MATCHING
 /* The level entries 07E88 spawns a member's shots from, by size; each starts with this (0xA bytes) */
 #define M003_SHOT_HEAD s16 objectID; u8 size; u8 unk3; s16 x; s16 y; s16 z
 typedef struct M003Shot0A { M003_SHOT_HEAD; } M003Shot0A;
@@ -3583,8 +3582,6 @@ extern u8 rl_m003_19448[4];
  * Fires a shot of kind `kind` from joint `joint` of the member at its shooter, aimed where the shooter will
  * be when it gets there (for the kinds with a speed), `lift` higher, spread by the home's unkF: spawns the
  * kind's object (or aims the one the member holds) and plays its sound.
- * NON_MATCHING: written from the ROM: its length (1534 words), frame (0x1F0) and stack slots; 13 rows differ,
- * one register choice (the ROM reloads the kind into a3 and the shooter for the lead into v1; ours v1 and v0).
  * Kinds 7-9, 11 and 20 up spawn from `entry` unset, as the ROM does (NOT PORTABLE: an unset read, kept
  * faithful).
  */
@@ -3668,9 +3665,9 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
     if (speed != 0.0f) {
         /* lead the shooter by the time the shot takes */
         t = dist / (speed * sUpdateRate);
-        tx += t * ((Object *) sShotBy)->velocity.x;
-        ty += t * ((Object *) sShotBy)->velocity.y;
-        tz += t * ((Object *) sShotBy)->velocity.z;
+        tx += t * (obj = (Object *) sShotBy)->velocity.x;
+        ty += t * obj->velocity.y;
+        tz += t * obj->velocity.z;
     }
     dx = tx - x;
     dy = (ty - y) + lift;
@@ -4087,9 +4084,6 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_07E88);
-#endif
 
 /* The member's word at 0x4 as four 3-bit part numbers (7: none) */
 typedef struct M003Parts {
