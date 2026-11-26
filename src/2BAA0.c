@@ -1303,10 +1303,11 @@ extern f32 D_800A2D5C[2][3]; /* and the other pair */
  * object turns towards it unless `keepFacing`, and the fire button (ignored in the followed player's state 10)
  * fires one 0x50 shot from each muzzle towards it.
  * NOT PORTABLE: the shot's owner is the object's address as an s32.
- * First body (not yet measured against the ROM's registers); equal to the ROM by simulation.
+ * First body: 591/588 words, the ROM's frame (the pad fills it); `aim` gets s3 where the ROM reloads it from its
+ * home slot each time. Equal to the ROM by simulation.
  */
 void func_80031090(u8 *obj, PlayerAim *aim, u8 keepFacing, s32 updateRate) {
-    UNUSED s32 pad;
+    UNUSED s32 pad[5];
     TrackHit2BAA0 hit;
     s32 y;
     s32 x;
@@ -2673,7 +2674,7 @@ typedef struct PointRacer {
     /* 0x568 */ u8 unk568;
 } PointRacer;
 
-s32 func_800163FC(u8 *obj, f32 *pos, f32 *prev, f32 *points, f32 *radii, f32 *offsets, s16 *flags, PointHit *hits,
+s32 func_800163FC(u8 *obj, f32 *pos, f32 *prev, f32 *points, f32 *radii, f32 *offsets, u16 *flags, PointHit *hits,
                   s32 count, s32 *nearest, f32 *push);
 s32 level_id(void);
 
@@ -2686,12 +2687,14 @@ s32 level_id(void);
  * of 0x6C/0x70). Fully blocked, the object goes back to 0x524. Returns bit 0: a wall point touched, bit 1:
  * blocked, bit 2: squashed by a moving platform.
  * NOT PORTABLE: the excluded object is passed to func_8001CE10 as an s32.
- * First body (not yet measured against the ROM's registers); equal to the ROM by simulation.
+ * (The fully-blocked test covers every 0xFFFF0000 case too, so the second branch never runs; as in the ROM.)
+ * First body: 624/601 words, the ROM's frame (the pad fills it); count/result/side get s2/ra/t5 where the ROM
+ * has s3/s2/ra, and the last copy loop computes its start from i. Equal to the ROM by simulation.
  */
 s32 func_80034BB0(u8 *obj, PointRacer *racer, f32 updateRate) {
     u8 *stoodObj;
     s32 nearest[4];
-    UNUSED s32 pad;
+    UNUSED s32 pad[5];
     PointHit hits[8];
     f32 points[8][3];
     f32 offsets[8][3];
@@ -2713,7 +2716,7 @@ s32 func_80034BB0(u8 *obj, PointRacer *racer, f32 updateRate) {
     u32 mask;
     s32 result;
     u8 bit;
-    s16 flags[8];
+    u16 flags[8];
 
     mask = racer->pointMask;
     count = racer->numPoints;
