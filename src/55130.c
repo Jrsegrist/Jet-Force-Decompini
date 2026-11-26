@@ -118,7 +118,88 @@ typedef struct PulsatingLightData {
     PulsatingLightDataFrame frames[1]; // Length varies based on numberFrames.
 } PulsatingLightData;
 
+#ifdef NON_MATCHING
+/* JFG: the runtime linker's tables (as in 51AD0.c) */
+typedef struct TrapModuleEntry {
+    /* 0x00 */ s32 unk0; // the module's code address (0 when not loaded)
+    /* 0x04 */ s32 unk4;
+    /* 0x08 */ s32 unk8; // the sizes of its code, data and bss; its relocations follow them
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ s32 unk10;
+    /* 0x14 */ u16 relocSize;
+    /* 0x16 */ u16 unk16;
+    /* 0x18 */ s32 initOffset;
+    /* 0x1C */ s32 runOffset;
+} TrapModuleEntry;
+
+/* NOT PORTABLE: the relocations are read from ROM as IDO lays out these bitfields (offset in the top 24 bits). */
+typedef struct TrapModuleReloc {
+    /* 0x00 */ s32 symbol;
+    /* 0x04 */ u32 offset : 24;
+    /* 0x07 */ u32 kind : 4;
+    /* 0x07 */ u32 type : 4;
+} TrapModuleReloc;
+
+extern TrapModuleEntry *gRunlinkModules;
+extern s32 gNumRunlinkModules;
+extern TrapModuleReloc *D_800FEAA4; // JFG: the main segment's relocations
+extern u32 *D_800FEAA8;             // JFG: the symbol table (module << 20 | offset)
+extern u32 D_800FEAB0;              // JFG: the number of the main segment's relocations
+s32 runlink_module_install(s32 module);
+
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
+ * NOT PORTABLE: in the ROM this is func_80054530, the dangling-jump trap: the runtime linker points every call into a
+ * module that isn't loaded at it (runlink_reloc_target), so it is entered with the caller's arguments. It saves
+ * a0-a3, f12-f15, v0, v1 and ra, does what this C does for the call site (the jal at ra - 8), and then either
+ * jumps to the target with all of those restored, so the call goes on as if it had been linked (loading the module
+ * re-links the call site for next time), or, when the module can't be loaded, returns 0 (v0 and v1) to the caller
+ * with the arguments restored. C can't read ra or pass on unknown arguments, so a port needs a small trampoline
+ * around this lookup. When no relocation names the call site (the linker never does that) the ROM returns with
+ * whatever the search left in v0; this C returns 0.
+ * JFG: search the main segment's relocations (its code starts at 0x80000450), then each loaded module's, for the
+ * one at the call site; load the module its symbol is in and return the symbol's address, or 0 if the module
+ * couldn't be loaded. */
+u32 runlink_trap_target(u32 callSite) {
+    TrapModuleEntry *entry;
+    TrapModuleReloc *reloc;
+    u32 base;
+    u32 symbol;
+    s32 count;
+    s32 i;
+    s32 n;
+
+    entry = gRunlinkModules;
+    count = gNumRunlinkModules;
+    do {
+        i = gNumRunlinkModules - count;
+        if (i == 0) {
+            base = 0x80000450;
+            n = D_800FEAB0;
+            reloc = D_800FEAA4;
+        } else if (entry->unk0 != 0) {
+            base = entry->unk0;
+            n = (s16) entry->relocSize >> 3;
+            reloc = (TrapModuleReloc *) ((u32) entry->unk0 + entry->unk8 + entry->unkC + entry->unk10);
+        } else {
+            n = 0;
+        }
+        for (; n > 0; n--, reloc++) {
+            if (reloc->offset + base == callSite) {
+                if (!runlink_module_install(D_800FEAA8[reloc->symbol] >> 20)) {
+                    return 0;
+                }
+                symbol = D_800FEAA8[reloc->symbol];
+                return gRunlinkModules[symbol >> 20].unk0 + (symbol & 0xFFFFF);
+            }
+        }
+        count--;
+        entry++;
+    } while (count > 0);
+    return 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/55130", func_80054530);
+#endif
 
 extern s32 gVideoRefreshRate; // Official Name: viFramesPerSecond
 extern f32 D_800FECC4;
