@@ -2641,7 +2641,236 @@ void falling_objects_hit_box(f32 *a, f32 *b, Obj7E *self) {
     }
 }
 
+#ifdef NON_MATCHING
+/**
+ * JFG: the highest point of a moving object's underside that a sphere touches from below (a ceiling over the
+ * sphere at pos with the given radius): every moving object other than ignore (type 0x37, or with unk12C set)
+ * whose box overlaps the sphere's box, each of its down-facing triangles (plane normal y < -0.707, in batches
+ * without flags 0x880) in the box cells the sphere covers: where the sphere's centre projects inside the
+ * triangle within the radius, the projected point, else the nearest point of each edge within the radius, taken
+ * back to world space; the lowest such y goes to *outY (which starts at pos[1] + radius) and that object is
+ * returned (NULL if none). The search stops at the first object that gave a point. An edge whose nearest point
+ * lies past its far end is tested at its first end (as the ROM does).
+ * NON_MATCHING: a first body written from the ROM (IDO -O2), verified against it by simulation: 679 of 682 words,
+ * frame 0x1E8 against 0x1F8 with every declared slot where the ROM has it (the ROM has four more words of compiler
+ * temporaries, r * r among them, keeps scale and found in memory, and its saved FPRs hold the edge terms). The edge
+ * parameter is written out three times: IDO computes the first test's division on its own, as the ROM does.
+ */
+Obj7E *func_800822D8(f32 *pos, f32 radius, Obj7E *ignore, f32 *outY) {
+    ModelBatch7E *batch;
+    u32 cell;
+    f32 d0;
+    f32 d1;
+    f32 d2;
+    Obj7E *result;
+    f32 m0;
+    Obj7EModel *model;
+    ModelHeader7E *header;
+    ModelEdges7E *edges;
+    f32 m2;
+    f32 *mtx;
+    Plane7E *planes;
+    f32 min[3];
+    f32 max[3];
+    f32 n[4];
+    f32 a[3];
+    f32 b[3];
+    f32 e[3];
+    f32 c0;
+    f32 y;
+    f32 c1;
+    f32 qx;
+    f32 qy;
+    f32 qz;
+    f32 px;
+    f32 py;
+    f32 pz;
+    Obj7E *obj;
+    Obj7EData *data;
+    s32 j;
+    s32 hit;
+    s32 k;
+    s32 k1;
+    EdgeRecord7E *rec;
+    Triangle7E *tri;
+    Vertex7E *verts;
+    Vertex7E *va;
+    Vertex7E *vb;
+    f32 r;
+    Plane7E *pl;
+    f32 scale;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 nd;
+    s32 i;
+    u32 ep;
+    u32 flip;
+    s32 bi;
+    s32 f;
+    f32 d;
+    f32 dist;
+    s32 end;
+    s32 found;
+    f32 t;
+    f32 len2;
+    u32 mask;
+    f32 c2;
+
+    min[0] = pos[0] - radius;
+    min[1] = pos[1] - radius;
+    min[2] = pos[2] - radius;
+    max[0] = pos[0] + radius;
+    max[1] = pos[1] + radius;
+    max[2] = pos[2] + radius;
+    found = FALSE;
+    result = NULL;
+    *outY = pos[1] + radius;
+    for (i = 0; i < D_801047E0 && !found; i++) {
+        obj = D_801047E4[i];
+        data = obj->data;
+        if (obj != ignore && (obj->flags->flags & 1) && (obj->type == 0x37 || data->unk12C)) {
+            j = 0;
+            hit = TRUE;
+            do {
+                if (min[j] < data->bboxMin[j] && max[j] < data->bboxMin[j]) {
+                    hit = FALSE;
+                } else if (data->bboxMax[j] < min[j] && data->bboxMax[j] < max[j]) {
+                    hit = FALSE;
+                }
+                j++;
+            } while (j < 3 && hit);
+            if (hit) {
+                model = obj->modelInstances[data->modelIndex];
+                header = model->header;
+                if (model->edges != NULL) {
+                    edges = model->edges;
+                } else {
+                    edges = header->edges;
+                }
+                planes = edges->planes;
+                scale = obj->scale;
+                mtx = data->mtx[data->mtxIndex][0];
+                func_80048B60(mtx, pos[0], pos[1], pos[2], &px, &py, &pz);
+                r = obj->scale * radius;
+                mask = box_range_cell_mask(model->bboxMin, (s16) px - (s16) r, (s16) py - (s16) r, (s16) pz - (s16) r,
+                                           (s16) px + (s16) r, (s16) py + (s16) r, (s16) pz + (s16) r);
+                for (bi = 0; bi < header->numBatches; bi++) {
+                    batch = &header->batches[bi];
+                    f = batch->facesOffset;
+                    end = batch[1].facesOffset;
+                    if (batch->flags & 0x880) {
+                        f = end;
+                    }
+                    for (; f < end; f++) {
+                        cell = edges->cellMasks[f] & mask;
+                        rec = &edges->records[f];
+                        hit = FALSE;
+                        if (obj->type == 0x37 && (cell & 0xFF) && (cell & 0xFF00)) {
+                            hit = TRUE;
+                        } else if ((cell & 0xFF) && (cell & 0xFF00) && (cell & 0xFF0000)) {
+                            hit = TRUE;
+                        }
+                        if (hit) {
+                            func_8004A2FC(mtx, (f32 *) &planes[rec->plane], n);
+                            nx = n[0] * scale;
+                            ny = n[1] * scale;
+                            nz = n[2] * scale;
+                            nd = n[3] * scale;
+                            if (ny < -0.707f) {
+                                dist = nx * pos[0] + ny * pos[1] + nz * pos[2] + nd;
+                                if (-radius < dist && dist < radius) {
+                                    hit = TRUE;
+                                    y = pos[1] - dist * ny;
+                                    func_80048B60(mtx, pos[0] - dist * nx, y, pos[2] - dist * nz, &qx, &qy, &qz);
+                                    k = 0;
+                                    do {
+                                        ep = rec->edgePlanes[k];
+                                        flip = ep & 0x8000;
+                                        pl = &planes[ep ^ flip];
+                                        d = pl->a * qx + pl->b * qy + pl->c * qz + pl->d;
+                                        if (flip) {
+                                            d = -d;
+                                        }
+                                        if (0.0f < d) {
+                                            hit = FALSE;
+                                        }
+                                        k++;
+                                    } while (k < 3 && hit);
+                                    if (hit && y < *outY) {
+                                        *outY = y;
+                                        result = obj;
+                                        found = TRUE;
+                                    }
+                                }
+                                verts = &model->vertices[header->batches[bi].verticesOffset];
+                                tri = &header->triangles[f];
+                                for (k = 0; k < 3; k++) {
+                                    k1 = k + 1;
+                                    if (k1 >= 3) {
+                                        k1 = 0;
+                                    }
+                                    va = &verts[tri->vi[k]];
+                                    vb = &verts[tri->vi[k1]];
+                                    a[0] = va->x;
+                                    a[1] = va->y;
+                                    a[2] = va->z;
+                                    b[0] = vb->x;
+                                    b[1] = vb->y;
+                                    b[2] = vb->z;
+                                    e[0] = b[0] - a[0];
+                                    e[1] = b[1] - a[1];
+                                    e[2] = b[2] - a[2];
+                                    len2 = e[0] * e[0] + e[1] * e[1] + e[2] * e[2];
+                                    d0 = px - a[0];
+                                    d1 = py - a[1];
+                                    d2 = pz - a[2];
+                                    m0 = e[0] * d0;
+                                    y = e[1] * d1;
+                                    m2 = e[2] * d2;
+                                    if ((m0 + y + m2) / len2 >= 0.0f && (m0 + y + m2) / len2 <= 1.0f) {
+                                        t = (m0 + y + m2) / len2;
+                                        c0 = e[0] * t + a[0];
+                                        c1 = e[1] * t + a[1];
+                                        c2 = e[2] * t + a[2];
+                                        qx = px - c0;
+                                        qy = py - c1;
+                                        qz = pz - c2;
+                                        if (qx * qx + qy * qy + qz * qz < r * r) {
+                                            func_80048B60(data->mtx2[data->mtxIndex][0], c0, c1, c2, &qx, &qy, &qz);
+                                            if (qy < *outY) {
+                                                *outY = qy;
+                                                result = obj;
+                                                found = TRUE;
+                                            }
+                                        }
+                                    } else {
+                                        qx = d0;
+                                        qy = d1;
+                                        qz = d2;
+                                        if (d0 * d0 + d1 * d1 + d2 * d2 < r * r) {
+                                            func_80048B60(data->mtx2[data->mtxIndex][0], a[0], a[1], a[2], &qx, &qy,
+                                                          &qz);
+                                            if (qy < *outY) {
+                                                *outY = qy;
+                                                result = obj;
+                                                found = TRUE;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800822D8);
+#endif
 
 /* JFG: an object height under a point: the plane's height there, its scaled a/b/c and the object */
 typedef struct ObjHeight {
