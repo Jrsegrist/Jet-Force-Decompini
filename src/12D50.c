@@ -2210,7 +2210,190 @@ s32 func_80017094(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80017094);
 #endif
 
+/* JFG: a collision edge of the level geometry (0x30 bytes) */
+typedef struct TrackEdge {
+    /* 0x00 */ f32 x0, y0, z0;
+    /* 0x0C */ f32 x1, y1, z1;
+    /* 0x18 */ f32 dirX, dirY, dirZ; // the unit vector from the first end to the second
+    /* 0x24 */ f32 length;
+    /* 0x28 */ LevelModelSegment *segment;
+    /* 0x2C */ s16 batch;
+    /* 0x2E */ s16 unk2E; // JFG: set from the triangle's flag bit (edge << 2)
+} TrackEdge;
+
+#ifdef NON_MATCHING
+extern TrackEdge *D_800F33B0;
+extern s32 D_800F33B4;
+s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *in, f32 *out);
+s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar);
+
+/**
+ * JFG: func_80017094 for the edge list (D_800F33B0, track_edges_build): sweep a sphere of the given radius from
+ * `from` to `to` against each edge, as a cylinder around it (func_80018024; the hit must fall within the edge) or
+ * else a sphere at either end (func_800183D4). The first edge hit within the move stops the sweep: the contact
+ * normal (from the edge to the sphere's centre at contact, over the radius) is the plane `to` is pushed out of,
+ * as in func_80017094 (flag 1 puts `to` at the contact centre instead). hit gets the squared distance to the
+ * contact, the normal, the kind (unk25), the edge's batch surface type and flags, and the edge's unk2E (unk26).
+ * Returns 1 on a hit.
+ * NON_MATCHING: a first body written from the ROM (552 of 548 words, the ROM's frame 0x108); checked equal to the
+ * ROM by simulation. The registers differ from the first statement on (the ROM's dx is f2, ours f16).
+ */
+s32 func_80017794(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags) {
+    s32 i;
+    f32 in;
+    f32 out;
+    f32 dir[3];
+    f32 len;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 t;
+    f32 d;
+    f32 wz;
+    f32 distTo;
+    f32 wx;
+    f32 wy;
+    f32 px;
+    f32 py;
+    f32 pz;
+    s16 angle;
+    f32 cs;
+    TrackEdge *edge;
+    s32 found;
+
+    dx = to[0] - from[0];
+    dy = to[1] - from[1];
+    dz = to[2] - from[2];
+    len = dx * dx + dy * dy + dz * dz;
+    if (len > 0.0f) {
+        len = sqrtf(len);
+        dir[0] = dx / len;
+        dir[1] = dy / len;
+        dir[2] = dz / len;
+    } else {
+        return 0;
+    }
+    found = 0;
+    for (i = 0; i < D_800F33B4; i++) {
+        edge = &D_800F33B0[i];
+        if (func_80018024(from, dir, &edge->x0, &edge->dirX, radius, &in, &out) && in >= 0.0f && in <= len) {
+            px = dir[0] * in + from[0];
+            py = dir[1] * in + from[1];
+            pz = dir[2] * in + from[2];
+            dx = px - edge->x0;
+            dy = py - edge->y0;
+            dz = pz - edge->z0;
+            t = (dx * edge->dirX + dy * edge->dirY + dz * edge->dirZ) /
+                (edge->dirX * edge->dirX + edge->dirY * edge->dirY + edge->dirZ * edge->dirZ);
+            if (t >= 0.0f && t <= edge->length) {
+                found = 1;
+                dx = edge->dirX * t + edge->x0;
+                dy = edge->dirY * t + edge->y0;
+                dz = edge->dirZ * t + edge->z0;
+                nx = px - dx;
+                nz = pz - dz;
+                ny = py - dy;
+            }
+        }
+        if (!found && func_800183D4(from, dir, &edge->x0, radius, &in, &out) && in >= 0.0f && in <= len) {
+            found = 1;
+            px = dir[0] * in + from[0];
+            py = dir[1] * in + from[1];
+            pz = dir[2] * in + from[2];
+            nx = px - edge->x0;
+            ny = py - edge->y0;
+            nz = pz - edge->z0;
+        }
+        if (!found && func_800183D4(from, dir, &edge->x1, radius, &in, &out) && in >= 0.0f && in <= len) {
+            found = 1;
+            px = dir[0] * in + from[0];
+            py = dir[1] * in + from[1];
+            pz = dir[2] * in + from[2];
+            nx = px - edge->x1;
+            ny = py - edge->y1;
+            nz = pz - edge->z1;
+        }
+        if (found) {
+            nz /= radius;
+            nx /= radius;
+            ny /= radius;
+            d = -(px * nx + py * ny + pz * nz);
+            distTo = nx * to[0] + ny * to[1] + nz * to[2] + d;
+            if ((u16) flags & 0x81) { // the ROM reads the argument's low half
+                if ((u16) flags & 1) {
+                    to[0] = px;
+                    to[1] = py;
+                    to[2] = pz;
+                } else {
+                    distTo = 0.01f - distTo;
+                    to[0] += distTo * nx;
+                    to[1] += distTo * ny;
+                    to[2] += distTo * nz;
+                }
+                hit->pos[1] = ny;
+                hit->pos[0] = nx;
+                hit->pos[2] = nz;
+                if (ny >= 0.707f) {
+                    hit->unk25 |= 2;
+                } else if (ny <= -0.866f) {
+                    hit->unk25 |= 8;
+                } else {
+                    hit->unk25 |= 4;
+                }
+            } else if (ny >= 0.707f) {
+                to[1] = -(to[2] * nz + nx * to[0] + d) / ny + 0.01f;
+                hit->pos[1] = ny;
+                hit->pos[0] = nx;
+                hit->unk25 |= 2;
+                hit->pos[2] = nz;
+            } else if (ny <= -0.866f) {
+                distTo = 0.01f - distTo;
+                to[0] += distTo * nx;
+                to[1] += distTo * ny;
+                to[2] += distTo * nz;
+                hit->unk25 |= 8;
+            } else {
+                d = -distTo;
+                wx = to[0] + d * nx;
+                wy = to[1] + d * ny;
+                wz = to[2] + d * nz;
+                dx = to[0] - wx;
+                dz = to[2] - wz;
+                dy = to[1] - wy;
+                angle = func_80049C84(dy, sqrtf(dx * dx + dz * dz));
+                cs = func_80049C30(angle);
+                if (cs != 0.0f) {
+                    distTo = (d + 0.01f) / cs;
+                    t = sqrtf(nx * nx + nz * nz);
+                    px = nx / t;
+                    pz = nz / t;
+                    to[0] += distTo * px;
+                    to[2] += distTo * pz;
+                } else {
+                    to[0] = wx;
+                    to[1] = wy;
+                    to[2] = wz;
+                }
+                hit->unk25 |= 4;
+            }
+            hit->unk1C = in * in;
+            hit->normal[1] = ny;
+            hit->normal[0] = nx;
+            hit->normal[2] = nz;
+            hit->unk24 = gCurrentLevelModel->textures[edge->segment->batches[edge->batch].textureIndex].surfaceType;
+            hit->unk20 = edge->segment->batches[edge->batch].flags;
+            hit->unk26 = edge->unk2E;
+            i = D_800F33B4;
+        }
+    }
+    return found;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80017794);
+#endif
 
 f32 sqrtf(f32 x);
 
@@ -2312,16 +2495,6 @@ s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f3
     return hit;
 }
 
-/* JFG: a collision edge of the level geometry (0x30 bytes) */
-typedef struct TrackEdge {
-    /* 0x00 */ f32 x0, y0, z0;
-    /* 0x0C */ f32 x1, y1, z1;
-    /* 0x18 */ f32 dirX, dirY, dirZ; // the unit vector from the first end to the second
-    /* 0x24 */ f32 length;
-    /* 0x28 */ LevelModelSegment *segment;
-    /* 0x2C */ s16 batch;
-    /* 0x2E */ s16 unk2E; // JFG: set from the triangle's flag bit (edge << 2)
-} TrackEdge;
 
 extern TrackEdge *D_800F33B0; // JFG: the edge list
 extern s32 D_800F33B4;        // JFG: the number of edges in it
