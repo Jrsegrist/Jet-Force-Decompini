@@ -3561,8 +3561,10 @@ typedef struct M003Shot28Homing {
 
 extern void func_80003614(s32 handle);
 extern void obj_list_insert_after(Object *obj, Object *target);
-#define sShotSounds ((s32 *) (rl_m003_17A10 + 0x1A28))  /* the four fire sounds' handles */
-#define sShotSoundOn ((s8 *) (rl_m003_17A10 + 0x1A38))  /* and whether each has started */
+extern s32 rl_m003_19438[];
+extern u8 rl_m003_19448[4];
+#define sShotSounds rl_m003_19438            /* the four fire sounds' handles (.data 0x1A28) */
+#define sShotSoundOn ((s8 *) rl_m003_19448)  /* and whether each has started (.data 0x1A38) */
 #define sShotPartJoints (rl_m003_17A10 + 0x1DE0)        /* kind 0x67's joints' body parts */
 
 /* 07E88's speed: the distance over `div`, kept within lo..hi */
@@ -3626,10 +3628,10 @@ extern void obj_list_insert_after(Object *obj, Object *target);
  * Fires a shot of kind `kind` from joint `joint` of the member at its shooter, aimed where the shooter will
  * be when it gets there (for the kinds with a speed), `lift` higher, spread by the home's unkF: spawns the
  * kind's object (or aims the one the member holds) and plays its sound.
- * NON_MATCHING: first body, written from the ROM: the ROM's frame (0x1F0) and stack slots, 1529 of its 1534
- * words; registers differ throughout (the ROM keeps sShotBy in v1 at the start, &sHomeData in t1, and the
- * sound slot's two addresses rather than its index). Kinds 7-9, 11 and 20 up spawn from `entry` unset, as
- * the ROM does (NOT PORTABLE: an unset read, kept faithful).
+ * NON_MATCHING: written from the ROM: its length (1534 words), frame (0x1F0) and stack slots; about 120 rows
+ * differ, mostly registers (the kind reloaded into a3, sShotBy into v1 for the lead) and the order of a few
+ * stores in kinds 4, 5 and 14/15. Kinds 7-9, 11 and 20 up spawn from `entry` unset, as the ROM does (NOT
+ * PORTABLE: an unset read, kept faithful).
  */
 void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
     void *entry;
@@ -3655,17 +3657,18 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
 
     spread = sHomeData->unkF << 4;
     parts = NULL;
-    if (sShotBy == 0) {
+    obj = (Object *) sShotBy;
+    if (obj == NULL) {
         return;
     }
-    if (sHomeData->kind == 0x8D && ((Object *) sShotBy)->behaviorId == 0x18) {
-        tx = ((f32 *) ((Object *) sShotBy)->unk68)[0x68 / 4];
-        ty = ((f32 *) ((Object *) sShotBy)->unk68)[0x6C / 4];
-        tz = ((f32 *) ((Object *) sShotBy)->unk68)[0x70 / 4];
+    if (sHomeData->kind == 0x8D && obj->behaviorId == 0x18) {
+        tx = ((f32 *) obj->unk68)[0x68 / 4];
+        ty = ((f32 *) obj->unk68)[0x6C / 4];
+        tz = ((f32 *) obj->unk68)[0x70 / 4];
     } else {
-        tx = ((f32 *) ((Object *) sShotBy)->interactObj)[0x18 / 4];
-        ty = ((f32 *) ((Object *) sShotBy)->interactObj)[0x1C / 4];
-        tz = ((f32 *) ((Object *) sShotBy)->interactObj)[0x20 / 4];
+        tx = ((f32 *) obj->interactObj)[0x18 / 4];
+        ty = ((f32 *) obj->interactObj)[0x1C / 4];
+        tz = ((f32 *) obj->interactObj)[0x20 / 4];
     }
     if (sHomeData->kind == 0x67) {
         parts = sShotPartJoints;
@@ -3689,7 +3692,7 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             SHOT_SPEED(90.0f, 3.0f, 5.0f);
             break;
         case 12:
-            speed = 10.0f;
+            speed = 10;
             break;
         case 14:
             speed = 60.0f;
