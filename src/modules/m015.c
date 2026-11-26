@@ -655,9 +655,9 @@ static void m015_state_12(Object *obj, Racer *racer, f32 speed, s16 angle, f32 u
 /* A weapon's entry in gWeaponInfo */
 typedef struct M015WeaponInfo {
     /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ s32 unkC;
+    /* 0x0C */ f32 unkC;  /* func_80039FCC's range */
     /* 0x10 */ u8 pad10[4];
-    /* 0x14 */ s32 unk14;
+    /* 0x14 */ f32 unk14; /* func_80039FCC's yaw range */
     /* 0x18 */ f32 unk18;
     /* 0x1C */ f32 unk1C;
     /* 0x20 */ f32 unk20;
@@ -712,7 +712,7 @@ extern void weapon_advance_owned(Object *obj, Racer *racer, s32 weapon);
 extern s32 weapon_select(Object *obj, Racer *racer, s32 weapon);
 extern void weapon_select_prev(Object *obj, Racer *racer, s32 weapon);
 extern void func_80038630(Object *obj, Racer *racer);
-extern void func_80039FCC(Object *obj, Racer *racer, s32 a, s32 b, f32 c, f32 d, f32 e, s32 updateRate);
+extern void func_80039FCC(Object *obj, Racer *racer, f32 a, f32 b, f32 c, f32 d, f32 e, s32 updateRate);
 extern void player_drop_held_object(Object *obj);
 extern void func_8003D21C(M015ModelInst *inst, M015Model *model, Object *obj, f32 a, f32 b);
 extern u8 *get_settings(void);

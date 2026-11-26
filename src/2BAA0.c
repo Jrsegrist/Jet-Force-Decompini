@@ -1760,7 +1760,8 @@ void player_respawn_at(u8 *obj, f32 x, f32 y, f32 z, s16 arg4, s16 arg5, s16 arg
     func_80032130(obj, &info);
 }
 
-void func_80032128(s32 arg0) {
+/* Empty in the ROM; its one caller (7A7D0.c func_8007D168) passes an object pointer */
+void func_80032128(void *obj) {
 }
 
 /* JFG: a player character's effect meshes (one entry per character, 0x10 bytes) */
