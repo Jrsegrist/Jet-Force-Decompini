@@ -12,7 +12,65 @@ typedef struct AnimModel {
 typedef struct AnimObjectHeader {
     /* 0x00 */ u8 pad0[0x1F];
     /* 0x1F */ s8 numVariants; // JFG: the number of values modelIndex can take
+    /* 0x20 */ u8 pad20[0x25 - 0x20];
+    /* 0x25 */ s8 unk25; // JFG: the number of unk74 entries (func_80077ABC)
+    /* 0x26 */ u8 unk26; // JFG: the number of unk78 entries (func_80077ABC)
+    /* 0x27 */ u8 pad27[0x5C - 0x27];
+    /* 0x5C */ f32 unk5C;
 } AnimObjectHeader;
+
+/* JFG: what an object's unk50 points to (func_80077ABC; unk1C points to another) */
+typedef struct AnimObjectSub50 {
+    /* 0x00 */ f32 unk0;
+    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x0C */ u8 unkC;
+    /* 0x0D */ u8 unkD;
+    /* 0x0E */ u8 padE[0x1C - 0xE];
+    /* 0x1C */ struct AnimObjectSub50 *unk1C;
+    /* 0x20 */ u8 pad20[0xAC - 0x20];
+    /* 0xAC */ f32 unkAC;
+    /* 0xB0 */ u8 padB0[0xBA - 0xB0];
+    /* 0xBA */ u8 unkBA;
+} AnimObjectSub50;
+
+/* JFG: an entry of an object's unk68 table (12 bytes; func_80077ABC) */
+typedef struct AnimObjectSub68 {
+    /* 0x00 */ s32 unk0;
+    /* 0x04 */ u8 unk4;
+    /* 0x05 */ u8 unk5;
+    /* 0x06 */ u8 unk6;
+    /* 0x07 */ u8 unk7;
+    /* 0x08 */ u8 unk8;
+    /* 0x09 */ u8 pad9[3];
+} AnimObjectSub68;
+
+/* JFG: a texture as func_80077ABC changes it */
+typedef struct AnimTexture {
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 flags;
+    /* 0x08 */ u8 pad8[0x14 - 0x8];
+    /* 0x14 */ s16 unk14;
+} AnimTexture;
+
+/* JFG: a texture list entry (8 bytes) */
+typedef struct AnimTextureEntry {
+    /* 0x00 */ AnimTexture *texture;
+    /* 0x04 */ u32 flags;
+} AnimTextureEntry;
+
+typedef struct AnimModelHeader {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ u8 numTextures;
+    /* 0x11 */ u8 pad11[0x18 - 0x11];
+    /* 0x18 */ AnimTextureEntry *textures;
+} AnimModelHeader;
+
+/* JFG: a model instance of an object (its model header and per-texture flags) */
+typedef struct AnimModelInstance {
+    /* 0x00 */ AnimModelHeader *header;
+    /* 0x04 */ u8 pad4[0x74 - 0x4];
+    /* 0x74 */ AnimTextureEntry *textures; // JFG: flags: the low byte is the header texture's index
+} AnimModelInstance;
 
 typedef struct AnimObject {
     /* 0x00 */ u8 pad0[0x6];
@@ -25,7 +83,8 @@ typedef struct AnimObject {
     /* 0x1C */ f32 vx; // JFG: velocity (its length sets a path sound's pitch)
     /* 0x20 */ f32 vy;
     /* 0x24 */ f32 vz;
-    /* 0x28 */ u8 pad28[0x3A - 0x28];
+    /* 0x28 */ u8 pad28[0x39 - 0x28];
+    /* 0x39 */ u8 unk39;
     /* 0x3A */ s8 modelIndex;
     /* 0x3B */ u8 pad3B;
     /* 0x3C */ s32 unk3C;
@@ -34,10 +93,21 @@ typedef struct AnimObject {
     /* 0x48 */ s16 behaviorId;
     /* 0x4A */ u8 pad4A[2];
     /* 0x4C */ AnimModel *model;
-    /* 0x50 */ u8 pad50[0xC];
+    /* 0x50 */ AnimObjectSub50 *unk50;
+    /* 0x54 */ u8 pad54[0x5C - 0x54];
     /* 0x5C */ s32 unk5C;
-    /* 0x60 */ u8 pad60[0x28];
+    /* 0x60 */ u8 pad60[0x68 - 0x60];
+    /* 0x68 */ AnimObjectSub68 *unk68;
+    /* 0x6C */ AnimModelInstance **models;
+    /* 0x70 */ u8 pad70[0x74 - 0x70];
+    /* 0x74 */ void **unk74;
+    /* 0x78 */ void **unk78;
+    /* 0x7C */ u8 pad7C[0x84 - 0x7C];
+    /* 0x84 */ u32 unk84;
     /* 0x88 */ void *audioPoint;
+    /* 0x8C */ s32 unk8C;
+    /* 0x90 */ u8 pad90[0x9F - 0x90];
+    /* 0x9F */ u8 unk9F;
 } AnimObject;
 
 /* Size: 0x2C bytes */
@@ -536,11 +606,12 @@ typedef struct CamPoint CamPoint;
 /* Size: 0x14 bytes */
 typedef struct AnimTrigger {
     /* 0x00 */ u8 unk0;
-    /* 0x01 */ u8 pad1[3];
+    /* 0x01 */ u8 pad1;
+    /* 0x02 */ s16 unk2; // JFG: ticks (func_80077ABC)
     /* 0x04 */ s32 unk4;
-    /* 0x08 */ u8 pad8[4];
+    /* 0x08 */ s32 unk8; // JFG: unk4's step per tick (func_80077ABC)
     /* 0x0C */ s32 unkC;
-    /* 0x10 */ u8 pad10[4];
+    /* 0x10 */ s32 unk10; // JFG: unkC's step per tick (func_80077ABC)
 } AnimTrigger;
 
 /* Size: 0x8 bytes */
@@ -944,7 +1015,852 @@ void func_80077614(s32 updateRate) {
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077614);
 #endif
 
+void sound_play(u16 soundID, struct ALSoundState **handlePtr);
+void music_play(u8 seqID);
+void music_volume_fade(f32 time, u8 volume);
+void music_volume_fade_stop(void);
+void music_volume_set(u8 volume);
+void music_jingle_play_safe(u8 jingleID);
+void music_jingle_volume_fade(f32 time, u8 volume);
+void music_jingle_volume_fade_stop(void);
+void music_jingle_volume_set(u8 volume);
+s32 transition_begin(void *transition); // DKR: transition_begin (a FadeTransition)
+void set_current_text(s32 textID);
+void free_message_box(void);
+void weather_set(s32 velX, s32 velY, s32 velZ, s32 intensity, s32 opacity, s32 time);
+void slowly_change_fog(s32 fogIdx, s32 red, s32 green, s32 blue, s32 near, s32 far, f32 seconds);
+void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+void cam_shake_start(s32 index, f32 phase1, f32 phase2, f32 phase3, s32 arg4);
+s32 obj_anim_set(void *obj, s32 anim, f32 frame);
+void func_80047570(void);
+void level_goto(s32 level, s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5);
+void func_80047608(s32 arg0, s32 level, s32 arg2);
+void func_8005AAE8(s32 arg0);
+u8 menu_mode_get(void);
+void func_80047EFC(s32 flag, s32 set);
+u8 *get_settings(void);
+void func_800468A4(s32 arg0);
+void input_player_disable(s32 player);
+void input_player_enable(s32 player);
+
+/* JFG: the level model's textures, as func_80077ABC reads them */
+typedef struct AnimLevelModel {
+    /* 0x00 */ AnimTextureEntry *textures;
+    /* 0x04 */ u8 pad4[0x18 - 0x4];
+    /* 0x18 */ s16 numTextures;
+} AnimLevelModel;
+AnimLevelModel *get_current_level_model(void);
+
+/* JFG: a fade as transition_begin takes it (69050.c FadeTransition) */
+typedef struct AnimFade {
+    /* 0x00 */ u8 type;
+    /* 0x01 */ u8 red;
+    /* 0x02 */ u8 green;
+    /* 0x03 */ u8 blue;
+    /* 0x04 */ u16 duration;
+    /* 0x06 */ u16 endTimer;
+} AnimFade;
+
+extern s16 D_801046FE;
+extern s16 D_80104700;
+
+#ifdef NON_MATCHING
+/**
+ * JFG: run the sequence's commands whose time has come (when a module function allows it). Each command is u16 words:
+ * its time (hundredths of a second, against the sequence clock D_800A74DC), op << 8 | arg, then the op's parameters;
+ * 0x7F00 ends the list. Ops 0x00-0x0A run, stop, restart, show, hide, lock and unlock paths and set their values;
+ * 0x20-0x2B play and stop sounds and music; 0x40-0x4D start fades, text, weather, fog, objects, camera shakes,
+ * level-model texture animations and triggers (D_80104608), and call module functions; 0x60-0x6F set a path object's
+ * animation, model, flags, textures and module values; 0x74-0x7E reach the game's flags and levels, input, the clock
+ * (0x7B: wait, then set the sequence state; 0x7E: rewind to the list's start).
+ * NON_MATCHING: a first body written from the ROM, checked equal to it by simulation (the ROM's frame is 0x1D8).
+ * NOT PORTABLE: D_800A74C8 and D_800A74CC hold the command pointers as s32.
+ */
+void func_80077ABC(void) {
+    AnimPath **paths;
+    u16 *cmd;
+    u16 word;
+    u16 ticks;
+    f32 time;
+    f32 now;
+    f32 late;
+    u8 index;
+    AnimPath **slot;
+    AnimPath *path;
+    AnimObject *obj;
+    struct ALSoundState **handle;
+    u16 value;
+    u16 value2;
+    s32 n;
+    f32 fa;
+    f32 fb;
+    AnimFade fade;
+    AnimLevelModel *level;
+    AnimTexture *tex;
+    AnimTrigger *trigger;
+    AnimObjectSub50 *sub;
+    AnimObjectSub50 *sub2;
+    AnimObjectSub68 *entry;
+    AnimModelInstance *model;
+    AnimTextureEntry *texEntry;
+    s32 kind;
+    s32 world;
+    s32 level2;
+    s32 character;
+    u8 flags;
+
+    paths = D_801045B0;
+    if (((s32 (*)(void *)) func_80054530)(osRomBase) == 0) {
+        return;
+    }
+    cmd = (u16 *) D_800A74CC;
+    if (cmd == NULL) {
+        return;
+    }
+    word = cmd[1];
+    if (word != 0x7F00) {
+        ticks = cmd[0];
+        time = ticks / 100.0f;
+        now = D_800A74DC;
+        if (time < now && D_800A74D4 == 1) {
+            do {
+                late = now - time;
+                switch (word >> 8) {
+                    case 0x00: // run a path from where it is
+                        index = word & 0xFF;
+                        cmd += 2;
+                        anim_path_enable_run(index);
+                        func_80054530_f32(paths[index], late, 0, 0);
+                        word = cmd[1];
+                        break;
+                    case 0x01:
+                        index = word & 0xFF;
+                        cmd += 2;
+                        anim_path_disable_run(index);
+                        word = cmd[1];
+                        break;
+                    case 0x02: // restart a path (and run it on if it was running)
+                        index = word & 0xFF;
+                        slot = &paths[index];
+                        path = *slot;
+                        cmd += 2;
+                        if (path != NULL) {
+                            if (path->flags & 1) {
+                                anim_path_restart(index);
+                                anim_path_enable_run(index);
+                                func_80054530_f32(*slot, late, 0, 0);
+                            } else {
+                                anim_path_restart(index);
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x03:
+                        path = paths[word & 0xFF];
+                        cmd += 2;
+                        if (path != NULL) {
+                            path->flags |= 2;
+                            if (path->obj != NULL && (path->flags & 5)) {
+                                D_801045B8[0] = (CamPoint *) path->obj;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x04:
+                        path = paths[word & 0xFF];
+                        cmd += 2;
+                        if (path != NULL) {
+                            path->flags &= ~2;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x05:
+                        index = word & 0xFF;
+                        cmd += 2;
+                        func_80076928(index);
+                        word = cmd[1];
+                        break;
+                    case 0x06:
+                        value = cmd[2];
+                        path = paths[word & 0xFF];
+                        cmd += 3;
+                        if (path != NULL) {
+                            path->unk15 = value >> 8;
+                            path->unk1 = value & 0xFF;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x07:
+                        fa = cmd[2] * 0.001f;
+                        path = paths[word & 0xFF];
+                        cmd += 3;
+                        if (path != NULL) {
+                            path->unk10 = fa;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x08:
+                        fa = cmd[2];
+                        fb = cmd[3];
+                        path = paths[word & 0xFF];
+                        cmd += 4;
+                        if (path != NULL) {
+                            fa *= 0.01f;
+                            path->unk2A = (s32) (fb * 60.0f * 0.01f);
+                            if (path->unk2A == 0) {
+                                path->unk2C = fa;
+                            } else {
+                                path->unk30 = (fa - path->unk2C) / path->unk2A;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x09:
+                        index = word & 0xFF;
+                        cmd += 2;
+                        anim_path_lock(index);
+                        word = cmd[1];
+                        break;
+                    case 0x0A:
+                        index = word & 0xFF;
+                        cmd += 2;
+                        anim_path_unlock(index);
+                        word = cmd[1];
+                        break;
+                    case 0x20:
+                        value = cmd[2];
+                        cmd += 3;
+                        sound_play(value, NULL);
+                        word = cmd[1];
+                        break;
+                    case 0x21:
+                        cmd += 2;
+                        music_play(word & 0xFF);
+                        music_volume_fade_stop();
+                        word = cmd[1];
+                        break;
+                    case 0x22:
+                        fa = cmd[2];
+                        cmd += 3;
+                        music_volume_fade(fa / 100.0f - late, word & 0xFF);
+                        word = cmd[1];
+                        break;
+                    case 0x23:
+                        cmd += 2;
+                        music_volume_set(word & 0xFF);
+                        music_volume_fade_stop();
+                        word = cmd[1];
+                        break;
+                    case 0x24:
+                        cmd += 2;
+                        music_jingle_play_safe(word & 0xFF);
+                        music_jingle_volume_fade_stop();
+                        word = cmd[1];
+                        break;
+                    case 0x25:
+                        fa = cmd[2];
+                        cmd += 3;
+                        music_jingle_volume_fade(fa / 100.0f - late, word & 0xFF);
+                        word = cmd[1];
+                        break;
+                    case 0x26:
+                        cmd += 2;
+                        music_jingle_volume_set(word & 0xFF);
+                        music_jingle_volume_fade_stop();
+                        word = cmd[1];
+                        break;
+                    case 0x27: // a sound in one of the sequence's sound slots
+                        handle = &D_801045C8[word & 0xFF];
+                        value = cmd[2];
+                        cmd += 3;
+                        if (*handle != NULL) {
+                            sound_stop(*handle);
+                            *handle = NULL;
+                        }
+                        sound_play(value, handle);
+                        word = cmd[1];
+                        break;
+                    case 0x28:
+                        handle = &D_801045C8[word & 0xFF];
+                        cmd += 2;
+                        if (*handle != NULL) {
+                            sound_stop(*handle);
+                            *handle = NULL;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x29: // a sound at a path's object
+                        path = paths[word & 0xFF];
+                        value = cmd[2];
+                        cmd += 3;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                if (obj->audioPoint != NULL) {
+                                    audspat_point_stop(obj->audioPoint);
+                                    obj->audioPoint = NULL;
+                                }
+                                audspat_play_sound_at_position(value, obj->x, obj->y, obj->z, 1, &obj->audioPoint);
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x2A:
+                        path = paths[word & 0xFF];
+                        cmd += 2;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                if (obj->audioPoint != NULL) {
+                                    audspat_point_stop(obj->audioPoint);
+                                    obj->audioPoint = NULL;
+                                }
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x2B:
+                        value = cmd[2];
+                        path = paths[word & 0xFF];
+                        cmd += 3;
+                        if (path != NULL) {
+                            path->pitchBase = value >> 8;
+                            path->pitchPerSpeed = value & 0xFF;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x40: // a screen fade (type 7: a module's)
+                        value = cmd[2];
+                        value2 = cmd[3];
+                        fa = cmd[4];
+                        fb = cmd[5];
+                        cmd += 6;
+                        if ((word & 0xF) == 7) {
+                            func_80054530((value >> 8) & 0xFF, (value2 >> 8) & 0xFF, value2 & 0xFF,
+                                          (value & 0xFF) ? 0 : 0xFF, (s32) (fa * 0.01f * 60.0f));
+                        } else {
+                            fade.type = word & 0xFF;
+                            if (value & 0xFF) {
+                                fade.type = (word & 0xFF) | 0x80;
+                            }
+                            fade.red = (value >> 8) & 0xFF;
+                            fade.green = (value2 >> 8) & 0xFF;
+                            fade.blue = value2 & 0xFF;
+                            fade.duration = (s32) (fa / 100.0f * 60.0f);
+                            if (0.0f < fb) {
+                                fade.endTimer = (s32) (fb / 100.0f * 60.0f);
+                            } else {
+                                fade.endTimer = 0xFFFF;
+                            }
+                            transition_begin(&fade);
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x41:
+                        cmd += 2;
+                        set_current_text(word & 0xFF);
+                        word = cmd[1];
+                        break;
+                    case 0x42:
+                        cmd += 2;
+                        free_message_box();
+                        word = cmd[1];
+                        break;
+                    case 0x43:
+                        fa = cmd[2];
+                        cmd += 3;
+                        weather_set(0, 0, 0, (s32) ((f32) (word & 0xFF) / 255.0f * 65535.0f), 0xFFFF,
+                                    (s32) (fa * 0.01f * 60.0f));
+                        word = cmd[1];
+                        break;
+                    case 0x44:
+                        fa = cmd[2];
+                        weather_set((s32) ((s16) cmd[3] / 256.0f), (s32) ((s16) cmd[4] / 256.0f),
+                                    (s32) ((s16) cmd[5] / 256.0f), 1, 1, (s32) fa);
+                        cmd += 6;
+                        word = cmd[1];
+                        break;
+                    case 0x45:
+                        fa = cmd[3];
+                        value = cmd[2];
+                        slowly_change_fog(0, word & 0xFF, (value >> 8) & 0xFF, value & 0xFF, cmd[4], cmd[5],
+                                          fa / 100.0f - late);
+                        cmd += 6;
+                        word = cmd[1];
+                        break;
+                    case 0x46: // an object at a path's object
+                        path = paths[word & 0xFF];
+                        value = cmd[2];
+                        cmd += 3;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                spawn_object_from_list(value, (s32) obj->x, (s32) obj->y, (s32) obj->z, 100, 0);
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x47:
+                        cam_shake_start(0, cmd[2] / 100.0f, cmd[3] / 100.0f, cmd[4] / 100.0f, word & 0xFF);
+                        cmd += 5;
+                        word = cmd[1];
+                        break;
+                    case 0x48: // a level-model texture's animation speed
+                        value = cmd[2];
+                        value2 = cmd[3];
+                        cmd += 4;
+                        level = get_current_level_model();
+                        if (level != NULL && value < level->numTextures) {
+                            tex = level->textures[value].texture;
+                            if (tex != NULL) {
+                                tex->unk14 = (value2 << 8) / 6000;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x49:
+                        fa = cmd[5];
+                        trigger = &D_80104608[(word & 0xFF) & 7];
+                        trigger->unk0 = cmd[2];
+                        n = ((s16) cmd[3] * 0x10000) / 6000;
+                        world = ((s16) cmd[4] * 0x10000) / 6000;
+                        cmd += 6;
+                        trigger->unk2 = (s32) (fa * (0.01f * 60.0f));
+                        trigger->unk8 = (n - trigger->unk4) / trigger->unk2;
+                        trigger->unk10 = (world - trigger->unkC) / trigger->unk2;
+                        word = cmd[1];
+                        break;
+                    case 0x4A:
+                        value = cmd[2];
+                        value2 = cmd[3];
+                        cmd += 4;
+                        if ((value >> 8) != 0) {
+                            func_80054530(word & 0xFF, value & 0xFF, value2 >> 8, value2 & 0xFF, value >> 8);
+                        } else {
+                            func_80054530(word & 0xFF);
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x4B:
+                        fa = cmd[2];
+                        cmd += 3;
+                        D_801046FE = (s32) (fa * 60.0f * 0.01f);
+                        D_801046FC = D_801046FE;
+                        D_80104700 = D_80104704;
+                        D_80104702 = word & 0xFF;
+                        word = cmd[1];
+                        break;
+                    case 0x4C:
+                        func_80054530(word & 0xFF, cmd[2] >> 8, cmd[2] & 0xFF, cmd[3] & 0xFF00, (cmd[3] & 0xFF) << 8,
+                                      cmd[4] & 0xFF00, (cmd[4] & 0xFF) << 8, cmd[5], cmd[6]);
+                        cmd += 7;
+                        word = cmd[1];
+                        break;
+                    case 0x4D:
+                        fa = cmd[3];
+                        value = cmd[6];
+                        func_80054530(cmd[2], (s32) fa, cmd[4], cmd[5], value >> 8, value & 0xFF, word & 0xFF);
+                        cmd += 7;
+                        word = cmd[1];
+                        break;
+                    case 0x60: // a path object's animation
+                        value = cmd[2];
+                        fa = cmd[3] / 16384.0f;
+                        fb = cmd[4] / 16384.0f;
+                        path = paths[word & 0xFF];
+                        cmd += 5;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj_anim_set(obj, (value >> 8) & 0xFF, fa);
+                                path->unk14 = value & 0xFF;
+                                path->unkC = fb;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x61:
+                        path = paths[word & 0xFF];
+                        value = cmd[2];
+                        cmd += 3;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL && value < obj->header->numVariants) {
+                                obj->modelIndex = value;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x62:
+                        n = ((u32) cmd[2] << 16) | cmd[3];
+                        path = paths[word & 0xFF];
+                        cmd += 4;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj->unk84 |= n;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x63:
+                        n = ((u32) cmd[2] << 16) | cmd[3];
+                        path = paths[word & 0xFF];
+                        cmd += 4;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj->unk84 &= ~n;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x64:
+                        path = paths[word & 0xFF];
+                        cmd += 2;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj->flags &= ~0x400;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x65:
+                        path = paths[word & 0xFF];
+                        cmd += 2;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj->flags |= 0x400;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x66:
+                        path = paths[word & 0xFF];
+                        value = cmd[2];
+                        cmd += 3;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj->unk8C = value;
+                            }
+                        } else {
+                            D_801046F8 = value;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x67:
+                        path = paths[word & 0xFF];
+                        value = cmd[2];
+                        cmd += 3;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                if (value != 0) {
+                                    obj->flags |= 4;
+                                } else {
+                                    obj->flags &= 0xFFFB;
+                                }
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x68:
+                        fa = cmd[3];
+                        value = cmd[2];
+                        path = paths[word & 0xFF];
+                        cmd += 4;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                flags = path->unk25;
+                                path->unk25 = value;
+                                path->unk27 = 0;
+                                path->unk24 = flags;
+                                path->unk26 = (s32) (fa / 100.0f * 60.0f);
+                                obj->unk39 = flags;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x69:
+                        fa = cmd[3];
+                        value = cmd[2];
+                        path = paths[word & 0xFF];
+                        cmd += 4;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL && (obj->behaviorId == 0x5F || obj->behaviorId == 0x96)) {
+                                entry = &obj->unk68[value >> 8];
+                                if (entry->unk0 != 0) {
+                                    entry->unk6 = value & 0xFF;
+                                    entry->unk7 = 0;
+                                    entry->unk5 = entry->unk4;
+                                    entry->unk8 = (s32) (fa / 100.0f * 60.0f);
+                                }
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x6A: // a module function on one of a path object's unk74 entries
+                        fa = cmd[5];
+                        value = cmd[2];
+                        value2 = cmd[3];
+                        kind = cmd[4];
+                        path = paths[word & 0xFF];
+                        cmd += 6;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL && obj->unk74 != NULL && (value >> 8) < obj->header->unk25) {
+                                ((void (*)(void *, s32, s32, s32, s32, f32, s32)) func_80054530)(
+                                    obj->unk74[value >> 8], value & 0xFF, value2 >> 8, value2 & 0xFF, kind, fa, 1);
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x6B: // the same on one of its unk78 entries
+                        fa = cmd[5];
+                        value = cmd[2];
+                        value2 = cmd[3];
+                        kind = cmd[4];
+                        path = paths[word & 0xFF];
+                        cmd += 6;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL && obj->unk78 != NULL && (value >> 8) < obj->header->unk26) {
+                                ((void (*)(void *, s32, s32, s32, s32, f32, s32)) func_80054530)(
+                                    obj->unk78[value >> 8], value & 0xFF, value2 >> 8, value2 & 0xFF, kind, fa, 0);
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x6C:
+                        path = paths[word & 0xFF];
+                        value = cmd[2] & 0xFF;
+                        cmd += 3;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                obj->unk9F = value;
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x6D:
+                        fa = (s16) cmd[3] / 256.0f;
+                        path = paths[word & 0xFF];
+                        kind = cmd[2] & 0xFF;
+                        value = cmd[5];
+                        fb = (s16) cmd[4] / 256.0f;
+                        cmd += 6;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                sub = obj->unk50;
+                                if (sub != NULL) {
+                                    switch (kind) {
+                                        case 0:
+                                            sub->unkC = 0;
+                                            break;
+                                        case 1:
+                                            sub->unkC = 5;
+                                            obj->unk50->unkD = 1;
+                                            break;
+                                        case 2:
+                                        case 3:
+                                        case 4:
+                                            sub->unkC = 1;
+                                            obj->unk50->unkD = kind - 1;
+                                            break;
+                                        case 5:
+                                        case 6:
+                                        case 7:
+                                        case 8:
+                                            if (kind == 5) {
+                                                sub->unkC = 0xD;
+                                            } else {
+                                                sub->unkC = 9;
+                                            }
+                                            sub2 = obj->unk50->unk1C;
+                                            if (sub2 != NULL && (sub2->unkC & 8)) {
+                                                sub2->unkBA = value;
+                                                if (kind == 5) {
+                                                    sub2->unkD = 1;
+                                                } else {
+                                                    sub2->unkD = kind - 5;
+                                                }
+                                                if (value == 0) {
+                                                    sub2->unk0 = obj->unk50->unk0;
+                                                    sub2->unkAC = obj->header->unk5C;
+                                                } else if (value == 2) {
+                                                    sub2->unk0 = fa;
+                                                    sub2->unkAC = fb;
+                                                }
+                                            }
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x6E:
+                        n = cmd[4];
+                        value = cmd[2];
+                        value2 = cmd[3];
+                        fa = cmd[6];
+                        kind = cmd[5];
+                        path = paths[word & 0xFF];
+                        cmd += 7;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                func_80054530(obj, value >> 8, value & 0xFF, value2, n, kind,
+                                              (s32) (fa * 0.01f * 60.0f));
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x6F: // a path object's model texture: its animation speed and flags 0x40000/0x80000
+                        value = cmd[2];
+                        path = paths[word & 0xFF];
+                        value2 = cmd[3];
+                        n = (value & 0xFF00) >> 8;
+                        cmd += 4;
+                        kind = value & 0xFF;
+                        if (path != NULL) {
+                            obj = path->obj;
+                            if (obj != NULL) {
+                                model = obj->models[obj->modelIndex];
+                                if (n < model->header->numTextures) {
+                                    texEntry = &model->textures[n];
+                                    tex = model->header->textures[texEntry->flags & 0xFF].texture;
+                                    texEntry->flags &= 0xFFF1FFFF;
+                                    tex->flags &= 0xFFF1FFFF;
+                                    tex->unk14 = (value2 << 8) / 6000;
+                                    switch (kind) {
+                                        case 1:
+                                            texEntry->flags |= 0x80000;
+                                            tex->flags |= 0x80000;
+                                            break;
+                                        case 2:
+                                            texEntry->flags |= 0x40000;
+                                            tex->flags |= 0x40000;
+                                            break;
+                                    }
+                                }
+                            }
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x74:
+                        cmd += 2;
+                        func_80054530(1);
+                        word = cmd[1];
+                        break;
+                    case 0x75:
+                        cmd += 2;
+                        func_80054530(0);
+                        word = cmd[1];
+                        break;
+                    case 0x76:
+                        cmd += 2;
+                        func_80047570();
+                        word = cmd[1];
+                        break;
+                    case 0x77:
+                        cmd += 2;
+                        if (game_flag_get(0x5A) && game_flag_get(0x5B) && game_flag_get(0x5C)) {
+                            character = pending_level_character();
+                            level_goto(0xD4, character, 0, menu_mode_get(), 1, 0);
+                        } else {
+                            func_80047608(5, 0x7F, 0);
+                            func_8005AAE8(0);
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x78:
+                        value = cmd[2];
+                        cmd += 3;
+                        func_80047EFC(value, word & 0xFF);
+                        word = cmd[1];
+                        break;
+                    case 0x79: // ease D_800A74E4 to the arg over the given time
+                        fb = word & 0xFF;
+                        fa = cmd[2];
+                        cmd += 3;
+                        D_800A74EC = (s32) (fa * 60.0f * 0.01f);
+                        if (D_800A74EC > 0) {
+                            D_800A74E8 = (fb - D_800A74E4) / D_800A74EC;
+                        } else {
+                            D_800A74E4 = fb;
+                        }
+                        word = cmd[1];
+                        break;
+                    case 0x7A: // go to a level: (level & 0xFFF, 0xFFF for the settings' one; entry >> 12), arg: the
+                               // character + 1 in bits 4-7 (0: the pending one), bits 0-3 for func_800468A4
+                        value = cmd[2];
+                        character = (word >> 4) & 0xF;
+                        level2 = value & 0xFFF;
+                        kind = word & 0xF;
+                        world = value >> 12;
+                        cmd += 3;
+                        if (level2 == 0xFFF) {
+                            level2 = get_settings()[1];
+                        }
+                        n = pending_level_character();
+                        if (character != 0) {
+                            character--;
+                            if ((n & 3) == 3 && (character & 3) != 3) {
+                                character = D_800A4FC0;
+                            }
+                        } else {
+                            character = n;
+                        }
+                        level_goto(level2, character, world, (level2 == 0x168) ? 0x17 : menu_mode_get(), 1, 0);
+                        func_800468A4(kind);
+                        word = cmd[1];
+                        break;
+                    case 0x7B: // set the clock to this command's time and the sequence state to the arg
+                        D_800A74D8 = (ticks * 60) / 100;
+                        D_800A74DC = cmd[0] * 0.01f;
+                        cmd += 2;
+                        D_800A74D4 = (s8) (cmd[-1] & 0xFF);
+                        word = cmd[1];
+                        break;
+                    case 0x7C:
+                        cmd += 2;
+                        input_player_disable(word & 3);
+                        word = cmd[1];
+                        break;
+                    case 0x7D:
+                        cmd += 2;
+                        input_player_enable(word & 3);
+                        word = cmd[1];
+                        break;
+                    case 0x7E: // back to the list's start, the clock set back by this command's time
+                        D_800A74D8 -= (ticks * 60) / 100;
+                        D_800A74DC = now - cmd[0] * 0.01f;
+                        cmd = (u16 *) D_800A74C8;
+                        word = cmd[1];
+                        break;
+                }
+                if (word == 0x7F00) {
+                    break;
+                }
+                ticks = cmd[0];
+                time = ticks / 100.0f;
+                now = D_800A74DC;
+            } while (time < now && D_800A74D4 == 1);
+        }
+    }
+    D_800A74CC = (s32) cmd;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/76C20", func_80077ABC);
+#endif
 
 struct CamPoint {
     /* 0x00 */ s16 yaw;

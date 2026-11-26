@@ -1319,20 +1319,21 @@ void cam_fov_zoom_set(s32 index, f32 zoom) {
 }
 
 typedef struct MatrixListEntry {
-    /* 0x00 */ s32 unk0;
-    /* 0x04 */ s16 unk4;
+    /* 0x00 */ MtxF *mtx;  // JFG: a model instance's bone matrices
+    /* 0x04 */ s16 count;  // JFG: how many (-1 ends the list)
 } MatrixListEntry;
 extern MatrixListEntry D_800FA658[];
 extern s32 D_800A2ED0;
 
-void func_80042470(s32 arg0, s32 arg1) {
-    D_800FA658[D_800A2ED0].unk0 = arg0;
-    D_800FA658[D_800A2ED0++].unk4 = arg1;
+/* JFG: add a set of bone matrices to the frame's matrix list (3C470's func_8003D21C) */
+void func_80042470(MtxF *mtx, s32 count) {
+    D_800FA658[D_800A2ED0].mtx = mtx;
+    D_800FA658[D_800A2ED0++].count = count;
 }
 
 extern u8 D_800A3178[4];
 extern MtxF gViewProjMatrixF;
-/* JFG: hand-written (74A80.s); reads the list's entries (unk0, unk4) up to the -1 end marker */
+/* JFG: hand-written (74A80.s); reads the list's entries (mtx, count) up to the -1 end marker */
 void func_80074E50(MtxF *mtx, MatrixListEntry *list);
 s32 rand_range(s32 min, s32 max);
 
@@ -1344,7 +1345,7 @@ void func_800424A0(s32 updateRate) {
     CameraShake *shake;
     s32 magnitude;
 
-    D_800FA658[D_800A2ED0].unk4 = -1;
+    D_800FA658[D_800A2ED0].count = -1;
     func_80074E50(&gViewProjMatrixF, D_800FA658);
     D_800A2ED0 = 0;
     cam = gCameras;
