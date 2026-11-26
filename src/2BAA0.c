@@ -71,7 +71,9 @@ typedef struct RacerFlags {
     u32 useOverride : 1; /* use overridePos as the position (player_aim_origin_get) */
     u32 unk25 : 1;
     u32 unk24 : 1;
-    u32 unk8 : 16;
+    u32 unk20 : 4;
+    u32 aimLock : 4; /* frames left of the aim lock (func_80039FCC) */
+    u32 unk8 : 8;
     u32 unk7 : 1;
     u32 unk0 : 7;
 } RacerFlags;
@@ -155,13 +157,17 @@ typedef struct Racer {
     /* 0x1A0 */ u8 pad1A0[0x1A4 - 0x1A0];
     /* 0x1A4 */ s32 unk1A4;
     /* 0x1A8 */ u8 *items[6];
-/* 0x1C0 */ u8 pad1C0[0x1CA - 0x1C0];
+/* 0x1C0 */ u8 pad1C0[0x1C6 - 0x1C0];
+    /* 0x1C6 */ s16 unk1C6; // JFG: yaw and pitch towards the aim target (func_80039FCC)
+    /* 0x1C8 */ s16 unk1C8;
     /* 0x1CA */ s16 unk1CA;
     /* 0x1CC */ s16 unk1CC;
     /* 0x1CE */ s16 unk1CE;
     /* 0x1D0 */ u8 pad1D0[0x1D4 - 0x1D0];
     /* 0x1D4 */ s32 unk1D4;
-    /* 0x1D8 */ u8 pad1D8[0x1E0 - 0x1D8];
+    /* 0x1D8 */ s16 unk1D8;
+    /* 0x1DA */ s16 unk1DA;
+    /* 0x1DC */ u8 pad1DC[0x1E0 - 0x1DC];
     /* 0x1E0 */ s16 unk1E0;
     /* 0x1E2 */ s16 unk1E2;
     /* 0x1E4 */ f32 unk1E4;
@@ -169,7 +175,9 @@ typedef struct Racer {
     /* 0x1EC */ f32 unk1EC; // JFG: aiming zoom (1..5)
     /* 0x1F0 */ f32 unk1F0; // JFG: and its rate
     /* 0x1F4 */ s8 unk1F4;
-    /* 0x1F5 */ u8 pad1F5[0x1F9 - 0x1F5];
+    /* 0x1F5 */ u8 unk1F5;
+    /* 0x1F6 */ u8 pad1F6[0x1F8 - 0x1F6];
+    /* 0x1F8 */ s8 unk1F8;
     /* 0x1F9 */ u8 unk1F9;
     /* 0x1FA */ u8 unk1FA;
     /* 0x1FB */ u8 pad1FB;
@@ -179,7 +187,8 @@ typedef struct Racer {
     /* 0x364 */ f32 points[8][3]; // the pose points (relative to the object)
     /* 0x3C4 */ u8 pad3C4[0x484 - 0x3C4];
     /* 0x484 */ f32 posePoints[8][3];
-    /* 0x4E4 */ u8 pad4E4[0x510 - 0x4E4];
+    /* 0x4E4 */ u8 pad4E4[0x50C - 0x4E4];
+    /* 0x50C */ s32 unk50C;
     /* 0x510 */ s16 *platform; // the platform object stood on
     /* 0x514 */ void *squashObj;
     /* 0x518 */ u8 pad518[0x524 - 0x518];
@@ -213,6 +222,7 @@ typedef struct Racer {
     /* 0x5C0 */ s32 unk5C0; // JFG: a module camera (run with the camera and this)
     /* 0x5C4 */ u8 pad5C4[0x5CC - 0x5C4];
     /* 0x5CC */ u8 *held;
+    /* 0x5D0 */ struct ALSoundState *lockSound; // the aim lock's sound (func_80039FCC)
 } Racer;
 
 s32 s16_apply_delta_or_decay(s32 value, s32 delta);
@@ -3457,7 +3467,7 @@ void func_800364D4(u8 *obj, Racer *racer, UNUSED f32 arg2, UNUSED f32 arg3, UNUS
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 #endif
 
-void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
+void *func_800822D8(f32 *point, f32 radius, void *ignore, f32 *outY);
 void falling_objects_hit_box(f32 *min, f32 *max, void *ignore);
 s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
@@ -3512,7 +3522,7 @@ void player_squash_precheck(u8 *obj, Racer *racer, UNUSED s32 updateRate) {
         lowest = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
         for (i = 0; i < racer->numPoints; i++) {
             if (!(mask & 1)) {
-                hit = func_800822D8(src, *(s32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
+                hit = func_800822D8(src, *(f32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
                 if (hit != NULL && y <= lowest) {
                     lowest = y;
                     squash = hit;
@@ -3593,7 +3603,7 @@ void player_squash_update(u8 *obj, Racer *racer, s32 updateRate) {
         lowest = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
         for (i = 0; i < racer->numPoints; i++) {
             if (!(mask & 1)) {
-                hit = func_800822D8(point, *(s32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
+                hit = func_800822D8(point, *(f32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
                 if (hit != NULL && y <= lowest) {
                     lowest = y;
                     squash = hit;
@@ -4684,7 +4694,285 @@ void func_80039ECC(s32 owner, UNUSED s32 arg1, f32 x, f32 y, f32 z, s16 arg5, s1
     }
 }
 
+/* A hit part of an aim target (0x34 bytes) */
+typedef struct AimPart {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x2E */ u8 weight; // the chance of aiming at this part
+    /* 0x2F */ u8 pad2F;
+    /* 0x30 */ u32 unk31 : 1;
+    /* 0x30 */ u32 disabled : 1;
+    /* 0x30 */ u32 unk0 : 30;
+} AimPart;
+
+/* An aim target's hit data (the object's 0x4C) */
+typedef struct AimHit {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 health;
+    /* 0x08 */ u8 pad8[4];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x32 - 0x18];
+    /* 0x32 */ s16 numParts;
+    /* 0x34 */ u8 pad34[0x40 - 0x34];
+    /* 0x40 */ AimPart *parts;
+} AimHit;
+
+typedef struct AimHeader {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; // 0x40: can be aimed at, 0x1000: not now
+} AimHeader;
+
+/* An object as func_80039FCC sees it (the player's and the targets) */
+typedef struct AimObject {
+    /* 0x00 */ s16 yaw;
+    /* 0x02 */ s16 pitch;
+    /* 0x04 */ u8 pad4[0x40 - 0x4];
+    /* 0x40 */ AimHeader *header;
+    /* 0x44 */ u8 pad44[4];
+    /* 0x48 */ s16 behaviourID;
+    /* 0x4A */ u8 pad4A[2];
+    /* 0x4C */ AimHit *hit;
+    /* 0x50 */ u8 pad50[0x68 - 0x50];
+    /* 0x68 */ void *unk68; // for behaviour 0x9B: its owner first; for 0x18: a state with 0x1A
+} AimObject;
+
+s32 character_has_item(s32 player, s32 character, s32 item);
+s32 character_module_handler_call(u8 *obj, u8 *racer);
+void player_items_unlink(Racer *racer);
+
+#ifdef NON_MATCHING
+/* JFG: the auto aim. The target kept from the last frame stays while it is alive, within range and within
+ * lockYawRange/lockPitchRange (degrees) of the player's facing; otherwise (or if one is better: nearer, with
+ * behaviour 0x9B first) the best object within range and yawRange/pitchRange becomes the target. The aim
+ * angles (0x1C6/0x1C8) point at the target and 0x1CA/0x1CC at one of its hit parts picked at random by weight.
+ * Nearing a target sets the aim lock (0x541), whose start plays a sound. */
+void func_80039FCC(AimObject *obj, Racer *racer, f32 range, f32 yawRange, f32 pitchRange, f32 lockYawRange,
+                   f32 lockPitchRange, UNUSED s32 updateRate) {
+    s32 a; // the object list's first index; a target's part count
+    s32 b; // the object list's end; the part index
+    u8 *chr;
+    s32 flag;
+    s32 lockLeft;
+    s32 total;
+    s16 yaw;
+    s16 pitch;
+    s16 bestYaw;
+    s16 bestPitch;
+    f32 d;
+    f32 dy;
+    f32 dist;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 dx;
+    f32 dz;
+    f32 bestScore;
+    f32 curScore;
+    f32 score;
+    AimObject *o;
+    AimObject **list;
+    AimObject *best;
+    AimPart *parts;
+    AimHit *hit;
+    s16 yawLimit;
+    s16 pitchLimit;
+
+    chr = char_record_lookup(racer->player, racer->character);
+    if (racer->unk1F4 != 0) {
+        racer->unk1F4--;
+        racer->unk1F8--;
+        if (racer->unk1F8 < 0) {
+            racer->unk1F8 = 0;
+        }
+    } else if ((racer->character & 3) != 2) {
+        racer->unk1F8 = 4;
+    }
+    if (racer->flags.aimLock != 0) {
+        racer->flags.aimLock--;
+    }
+    lockLeft = racer->flags.aimLock;
+    player_aim_origin_get((u8 *) obj, racer, &x, &y, &z);
+    flag = 0;
+    range *= range;
+    if (chr[0x70] == 0 && character_has_item(racer->player, racer->character, 0x12)) {
+        flag = 1;
+    }
+    o = (AimObject *) racer->unk1A4; // the target kept from the last frame
+    if (o != NULL) {
+        hit = o->hit;
+        racer->unk1A4 = 0;
+        yawLimit = lockYawRange * 182.0444f;
+        pitchLimit = lockPitchRange * 182.0444f;
+        if (o->behaviourID == 0x9B && flag) {
+            yawLimit = 0x2AAA;
+            pitchLimit = 0x3800;
+        }
+        if (hit->health > 0 && (o->behaviourID != 0x18 || ((u8 *) o->unk68)[0x1A] != 12)) {
+            dx = x - hit->x;
+            dz = z - hit->z;
+            dist = dx * dx + dz * dz;
+            if (dist < 129600.0f) {
+                racer->flags.aimLock = 10;
+            }
+            if (0.0f < dist && dist < range) {
+                yaw = func_80049C84(dx, dz) - obj->yaw;
+                if (-yawLimit < yaw && yaw < yawLimit) {
+                    d = sqrtf(dist);
+                    pitch = func_80049C84(hit->y - y, d) - obj->pitch;
+                    if (-pitchLimit < pitch && pitch < pitchLimit) {
+                        a = hit->numParts;
+                        racer->unk1A4 = (s32) o; // NOT PORTABLE: the target is kept in an s32
+                        racer->unk1C8 = pitch + obj->pitch;
+                        racer->unk1C6 = yaw + obj->yaw;
+                        curScore = -d;
+                        if (o->behaviourID == 0x9B) {
+                            curScore += 32768.0f;
+                        }
+                        total = 0;
+                        if (a == 0) {
+                            racer->unk1CC = racer->unk1C8;
+                            racer->unk1CA = racer->unk1C6;
+                        } else {
+                            parts = hit->parts;
+                            for (b = 0; b < a; b++) {
+                                if (!parts[b].disabled) {
+                                    total += parts[b].weight;
+                                }
+                            }
+                            if (total >= 2) {
+                                total = func_80048E2C(1, total);
+                            }
+                            for (b = 0; total > 0 && b < a; b++) {
+                                if (!parts[b].disabled) {
+                                    total -= parts[b].weight;
+                                }
+                            }
+                            if (b != 0) {
+                                b--;
+                            }
+                            dx = x - parts[b].x;
+                            dz = z - parts[b].z;
+                            dist = parts[b].y - y;
+                            racer->unk1CC = func_80049C84(dist, sqrtf(dx * dx + dz * dz));
+                            racer->unk1CA = func_80049C84(dx, dz);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    yawLimit = yawRange * 182.0444f;
+    pitchLimit = pitchRange * 182.0444f;
+    list = (AimObject **) objGetObjList(&a, &b);
+    best = NULL;
+    bestYaw = obj->yaw;
+    bestScore = -32768.0f;
+    bestPitch = obj->pitch;
+    for (; a < b; a++) {
+        o = list[a];
+        hit = o->hit;
+        if (o->behaviourID == 0x9B) {
+            if (*(AimObject **) o->unk68 == obj) {
+                o = obj;
+            } else if (flag) {
+                yawLimit = 0x2000;
+                pitchLimit = 0x3000;
+            }
+        }
+        if (o != obj && hit != NULL && hit->health > 0 && (o->header->flags & 0x40) &&
+            !(o->header->flags & 0x1000) && (o->behaviourID != 0x18 || ((u8 *) o->unk68)[0x1A] != 12)) {
+            dx = x - hit->x;
+            dz = z - hit->z;
+            dist = dx * dx + dz * dz;
+            if (0.0f < dist && dist < range) {
+                racer->flags.aimLock = 10;
+                yaw = func_80049C84(dx, dz) - obj->yaw;
+                if (-yawLimit < yaw && yaw < yawLimit) {
+                    dy = hit->y - y;
+                    d = sqrtf(dist);
+                    pitch = func_80049C84(dy, d) - obj->pitch;
+                    if (-pitchLimit < pitch && pitch < pitchLimit) {
+                        score = -d;
+                        if (o->behaviourID == 0x9B) {
+                            score += 32768.0f;
+                        }
+                        if (bestScore < score) {
+                            best = o;
+                            bestPitch = pitch + obj->pitch;
+                            bestYaw = yaw + obj->yaw;
+                            bestScore = score;
+                        }
+                    }
+                }
+            }
+        }
+        if (o->behaviourID == 0x9B && flag) {
+            yawLimit = yawRange * 182.0444f;
+            pitchLimit = pitchRange * 182.0444f;
+        }
+    }
+    if (best != NULL && (racer->unk1A4 == 0 || (racer->unk1A4 != 0 && curScore < bestScore))) {
+        hit = best->hit;
+        total = 0;
+        a = hit->numParts;
+        racer->unk1A4 = (s32) best; // NOT PORTABLE: the target is kept in an s32
+        racer->unk1C8 = bestPitch;
+        racer->unk1C6 = bestYaw;
+        if (a == 0) {
+            racer->unk1CC = racer->unk1C8;
+            racer->unk1CA = racer->unk1C6;
+        } else {
+            parts = hit->parts;
+            for (b = 0; b < a; b++) {
+                if (!parts[b].disabled) {
+                    total += parts[b].weight;
+                }
+            }
+            if (total >= 2) {
+                total = func_80048E2C(1, total);
+            }
+            for (b = 0; total > 0 && b < a; b++) {
+                if (!parts[b].disabled) {
+                    total -= parts[b].weight;
+                }
+            }
+            if (b != 0) {
+                b--;
+            }
+            dx = x - parts[b].x;
+            dz = z - parts[b].z;
+            dist = parts[b].y - y;
+            racer->unk1CC = func_80049C84(dist, sqrtf(dx * dx + dz * dz));
+            racer->unk1CA = func_80049C84(dx, dz);
+        }
+    }
+    if (racer->unk1A4 != 0) {
+        racer->unk1F4 = 15;
+        if (racer->unk568 != 5 && racer->unk568 != 11) {
+            racer->unk1F5 = 30;
+            racer->unk1DA = racer->unk1C8 - obj->pitch;
+            racer->unk1D8 = racer->unk1C6 - obj->yaw;
+        }
+    } else {
+        racer->unk1C8 = obj->pitch;
+        racer->unk1C6 = obj->yaw;
+        racer->unk1CC = obj->pitch;
+        racer->unk1CA = obj->yaw;
+    }
+    if (racer->unk50C != 0 && character_module_handler_call((u8 *) obj, (u8 *) racer) &&
+        racer->flags.aimLock != 0 && lockLeft == 0 && racer->lockSound == NULL) {
+        sound_play(func_80048E2C(0, 1) + 0x1E4, &racer->lockSound);
+    }
+    player_items_unlink(racer);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80039FCC);
+#endif
 
 extern u8 *D_800A18B0;
 extern f32 D_800A2E60[20];

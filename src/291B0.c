@@ -776,8 +776,8 @@ typedef struct Zone {
     /* 0x18 */ f32 unk18;
     /* 0x1C */ s16 unk1C; // frames left (0: unused)
     /* 0x1E */ u8 unk1E;
-    /* 0x1F */ u8 unk1F;
-    /* 0x20 */ s32 unk20;
+    /* 0x1F */ s8 unk1F; // weapon for the kill count (100: none)
+    /* 0x20 */ void *unk20; // the object that made the zone
 } Zone;
 extern Zone D_800F6B60[16];
 extern s32 D_800A11B4;
@@ -824,10 +824,339 @@ void zone_add(f32 x, f32 y, f32 z, f32 size, f32 value, f32 time, s32 arg6, s32 
     zone->unk18 = value / zone->unk1C;
     zone->unk1E = 1;
     zone->unk1F = arg6;
-    zone->unk20 = arg7;
+    zone->unk20 = (void *) arg7; // NOT PORTABLE: callers pass the owner object as an s32
 }
 
-INCLUDE_ASM("asm/nonmatchings/291B0", func_80029CFC);
+/* The parts of an object func_80029CFC reads */
+typedef struct ZoneObjHeader {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags; // 0x2000: zones act on the object
+} ZoneObjHeader;
+
+/* the object's hit data (0x4C) */
+typedef struct ZoneHitData {
+    /* 0x00 */ u8 pad0[6];
+    /* 0x06 */ s16 health;
+    /* 0x08 */ u8 flag7 : 1;
+    /* 0x08 */ u8 flag6 : 1;
+    /* 0x08 */ u8 behind : 1; // the zone is behind the object (more than 90 degrees off its yaw)
+    /* 0x08 */ u8 flags0 : 5;
+    /* 0x09 */ u8 pad9[3];
+    /* 0x0C */ f32 pos[3];
+    /* 0x18 */ u8 pad18[0xC];
+    /* 0x24 */ f32 radius;
+    /* 0x28 */ f32 height; // half height of the cylinder (mode 2)
+    /* 0x2C */ u8 pad2C[4];
+    /* 0x30 */ u8 mode;    // 1: sphere, 2: cylinder
+    /* 0x31 */ u8 pad31[0x3C - 0x31];
+    /* 0x3C */ s32 unk3C;
+} ZoneHitData;
+
+typedef struct ZoneCrate {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ s16 health;
+    /* 0x04 */ f32 radius;
+} ZoneCrate;
+
+typedef struct ZoneRacer {
+    /* 0x000 */ u8 pad0[0x536];
+    /* 0x536 */ s16 damage;
+} ZoneRacer;
+
+typedef struct ZoneOwner {
+    /* 0x00 */ u32 unk4 : 28;
+    /* 0x00 */ u32 noKill : 1; // no kill is counted
+    /* 0x00 */ u32 unk0 : 3;
+} ZoneOwner;
+
+typedef struct ZoneState {
+    /* 0x000 */ u8 pad0[0x12A];
+    /* 0x12A */ u8 hit;
+    /* 0x12B */ u8 pad12B[5];
+    /* 0x130 */ s16 damage;
+} ZoneState;
+
+typedef struct ZonePush {
+    /* 0x00 */ u8 flags7 : 6;
+    /* 0x00 */ u8 resting : 1;
+    /* 0x00 */ u8 flags0 : 1;
+} ZonePush;
+
+typedef struct ZoneObj {
+    /* 0x00 */ s16 yaw;
+    /* 0x02 */ u8 pad2[0xA];
+    /* 0x0C */ f32 pos[3];
+    /* 0x18 */ u8 pad18[4];
+    /* 0x1C */ f32 velX;
+    /* 0x20 */ f32 velY;
+    /* 0x24 */ f32 velZ;
+    /* 0x28 */ u8 pad28[0x18];
+    /* 0x40 */ ZoneObjHeader *header;
+    /* 0x44 */ u8 pad44[4];
+    /* 0x48 */ s16 behaviourID;
+    /* 0x4A */ u8 pad4A[2];
+    /* 0x4C */ ZoneHitData *hitData;
+    /* 0x50 */ u8 pad50[0xC];
+    /* 0x5C */ ZoneState *state;
+    /* 0x60 */ u8 pad60[8];
+    /* 0x68 */ void *unk68; // ZoneCrate, ZoneRacer or ZoneOwner by behaviour
+    /* 0x6C */ u8 pad6C[0x10];
+    /* 0x7C */ ZonePush *push;
+    /* 0x80 */ u8 pad80[8];
+    /* 0x88 */ s32 unk88;
+} ZoneObj;
+
+struct WaveObject;
+struct SphereObject;
+struct DamageObject;
+struct BoxObject;
+extern s32 D_800A333C;
+extern s32 D_800A3348;
+extern ZoneObj *D_800A3340;
+extern void *D_800A3344;
+ZoneObj **objGetObjList(s32 *start, s32 *end);
+f32 sqrtf(f32 x);
+s32 func_80049C84(f32 x, f32 z); // arctangent as a 16-bit angle
+s32 func_80049D80(s32 a, s32 b); // b - a wrapped to -0x8000..0x7FFF (hand-written asm: takes and returns full words)
+void stats_kill_add(s32 weapon);
+s32 multiplayer_score_kill(ZoneObj *killer, ZoneObj *victim);
+void func_80054530(ZoneObj *obj, Zone *zone, f32 strength); // a module function (patched in by the runtime linker)
+void wave_vector_scale(struct WaveObject *obj, f32 t, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
+f32 sphere_distance_min(f32 *pos, struct SphereObject *obj, f32 maxDist);
+s32 obj_apply_damage(struct DamageObject *obj, s32 damage);
+s32 func_8002AC3C(struct BoxObject *obj, f32 *sphere, f32 *distSq);
+
+/* JFG: the zones act on the objects that take them (header flag 0x2000): each object's sphere or cylinder (by
+ * behaviour) is tested against every zone in use, and a hit damages or pushes it by the zone's value scaled by
+ * the cosine of the distance; then every zone in use runs down its frames and value. */
+void func_80029CFC(s32 updateRate) {
+    ZoneObj *obj;
+    s32 first;
+    s32 count;
+    ZoneHitData *hitData;
+    ZonePush *push;
+    s32 mode;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 ox;
+    f32 oy;
+    f32 oz;
+    f32 dist;
+    f32 radius;
+    f32 halfHeight;
+    f32 range;
+    f32 height;
+    f32 strength;
+    f32 rate;
+    f32 *centre;
+    Zone *zone;
+    s32 i;
+    s32 hit;
+    s32 prev;
+    ZoneObj **list;
+    ZoneRacer *racer;
+    ZoneCrate *crate;
+    s16 diff;
+    ZoneOwner *owner;
+
+    if (D_800A11B4 > 0) {
+        list = objGetObjList(&first, &count);
+        rate = updateRate;
+        D_800A333C = 4;
+        D_800A3348 = 1;
+        D_800A3340 = NULL;
+        D_800A3344 = NULL;
+        while (first < count) {
+            obj = list[first++];
+            hitData = obj->hitData;
+            if (obj->header->flags & 0x2000) {
+                D_800A3340 = obj;
+                D_800A3344 = (u8 *) obj->header + 4;
+                D_800A3348 = 1;
+                mode = -1;
+                push = NULL;
+                switch (obj->behaviourID) {
+                    case 0xA6:
+                    case 0xA7:
+                        if (hitData != NULL) {
+                            radius = hitData->radius;
+                            centre = obj->pos;
+                            mode = 1;
+                        }
+                        break;
+                    case 0x14:
+                        crate = obj->unk68;
+                        if (crate != NULL) {
+                            radius = crate->radius;
+                            centre = obj->pos;
+                            mode = 1;
+                        }
+                        break;
+                    case 1:
+                    case 0x18:
+                        if (hitData != NULL) {
+                            radius = hitData->radius;
+                            halfHeight = hitData->height;
+                            mode = hitData->mode;
+                            centre = hitData->pos;
+                        }
+                        break;
+                    case 0x4E:
+                    case 0x5B:
+                    case 0x74:
+                    case 0x84:
+                        mode = 0xFF;
+                        break;
+                    case 0x6C:
+                        radius = hitData->radius;
+                        halfHeight = hitData->height;
+                        mode = hitData->mode;
+                        centre = hitData->pos;
+                        break;
+                    default:
+                        push = obj->push;
+                        if (push != NULL) {
+                            radius = 0;
+                            centre = obj->pos;
+                            mode = 1;
+                        }
+                        break;
+                }
+                if (mode != -1) {
+                    zone = D_800F6B60;
+                    i = 16;
+                    while (i--) {
+                        // a zone not in use (or not marked for a pushed object) is skipped without moving on to
+                        // the next one, as in the ROM
+                        if (zone->unk1C <= 0) {
+                            continue;
+                        }
+                        if (push != NULL && !(zone->unk1E & 1)) {
+                            continue;
+                        }
+                        if (mode == 0xFF) {
+                            radius = 0;
+                            hit = func_8002AC3C((struct BoxObject *) obj, (f32 *) zone, &dist);
+                        } else {
+                            dx = centre[0] - zone->x;
+                            dy = centre[1] - zone->y;
+                            hit = FALSE;
+                            range = zone->size + radius;
+                            dz = centre[2] - zone->z;
+                            if (mode == 2) {
+                                height = zone->size + halfHeight;
+                            }
+                            range *= range;
+                            dist = dx * dx + dz * dz;
+                            if (dist < range) {
+                                dist += dy * dy;
+                                if (mode != 2) {
+                                    if (dist < range) {
+                                        hit = TRUE;
+                                    }
+                                } else if (-height < dy && dy < height) {
+                                    hit = TRUE;
+                                }
+                            }
+                        }
+                        if (hit) {
+                            if (hitData != NULL) {
+                                hitData->unk3C = 0;
+                            }
+                            dist = sqrtf(dist) - radius;
+                            if (dist < 0.0f) {
+                                dist = 0.0f;
+                            }
+                            strength = zone->value * rate;
+                            switch (obj->behaviourID) {
+                                case 0xA6:
+                                case 0xA7:
+                                    strength *= func_80049C30(zone->unk10 * dist);
+                                    hitData->health -= (s32) strength;
+                                    break;
+                                case 0x14:
+                                    strength *= func_80049C30(zone->unk10 * dist);
+                                    crate->health -= (s32) strength;
+                                    if (crate->health < 0) {
+                                        crate->health = 0;
+                                    }
+                                    break;
+                                case 1:
+                                    dist = sphere_distance_min((f32 *) zone, (struct SphereObject *) hitData, dist);
+                                    strength *= func_80049C30(zone->unk10 * dist);
+                                    if (hitData->health >= 0x100) {
+                                        racer = obj->unk68;
+                                        racer->damage += obj_apply_damage((struct DamageObject *) hitData, (s32) strength);
+                                        if (hitData->health < 0x100 && zone->unk20 != 0) {
+                                            multiplayer_score_kill(zone->unk20, obj);
+                                        }
+                                    }
+                                    break;
+                                case 0x18:
+                                    dist = sphere_distance_min((f32 *) zone, (struct SphereObject *) hitData, dist);
+                                    strength *= func_80049C30(zone->unk10 * dist);
+                                    diff = func_80049D80(obj->yaw, func_80049C84(dx, dz));
+                                    hitData->behind = diff >= 0x4000 || diff < -0x3FFF;
+                                    prev = hitData->health;
+                                    obj_apply_damage((struct DamageObject *) hitData, (s32) strength);
+                                    if (hitData->health <= 0) {
+                                        owner = obj->unk68;
+                                        if (zone->unk1F != 100 && prev > 0 && !owner->noKill) {
+                                            stats_kill_add(zone->unk1F);
+                                        }
+                                    }
+                                    break;
+                                case 0x4E:
+                                case 0x74:
+                                    if (obj->state != NULL) {
+                                        strength *= func_80049C30(zone->unk10 * dist);
+                                        obj->state->hit = 1;
+                                        obj->state->damage += (s32) strength;
+                                    }
+                                    break;
+                                case 0x5B:
+                                case 0x84:
+                                    strength *= func_80049C30(zone->unk10 * dist);
+                                    obj->unk88 += (s32) strength;
+                                    break;
+                                case 0x6C:
+                                    func_80054530(obj, zone, strength);
+                                    break;
+                                default:
+                                    if (push != NULL) {
+                                        wave_vector_scale((struct WaveObject *) zone, dist, dx, dy, dz, &ox, &oy, &oz);
+                                        obj->velX += ox;
+                                        obj->velY += oy;
+                                        obj->velZ += oz;
+                                        push->resting = 0;
+                                    }
+                                    break;
+                            }
+                        }
+                        zone++;
+                    }
+                }
+                D_800A3348 = 4;
+            }
+        }
+        zone = D_800F6B60;
+        i = 16;
+        while (i--) {
+            if (zone->unk1C != 0) {
+                zone->unk1C -= updateRate;
+                zone->unk1E &= ~1;
+                if (zone->unk1C <= 0) {
+                    zone->unk1C = 0;
+                    D_800A11B4--;
+                } else {
+                    zone->value -= zone->unk18 * rate;
+                }
+            }
+            zone++;
+        }
+    }
+}
 
 /* JFG: TRUE if a sphere of the given radius at the point touches a zone in use (the zone's own size is left out with ignoreSize). */
 s32 zone_sphere_touches(f32 x, f32 y, f32 z, f32 radius, s32 ignoreSize) {
