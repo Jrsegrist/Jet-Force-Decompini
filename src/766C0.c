@@ -58,9 +58,11 @@ extern s32 D_800FEAD4[];   // JFG: the run lengths, in bytes: zero, non-zero, ze
     (*(u16 *) ((image) + ((s32) ((h) >> 11) - 16) * 2 + ((s32) (((h) >> 1) & 0x1F) - 16) * 640) + \
      (((h) & 0x7C0) >> 5) + ((h) & 0x7C0))
 
-/* NON_MATCHING: first body, 164 words against the ROM's 246, frame 0x10 against 0x48; verified against the ROM by
- * simulation. The ROM unrolls the zero scan and the copy 8 times with the remainder after, divides through $at
- * and saves ra in a 0x48 frame although it calls nothing: not the shape this file's -O2 gives.
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation. It is assembler output, not
+ * compiled C: IDO's as at -O2 -mips2 gives its `div` macro expansion (bgez; move at; addiu at, 3; sra), an unfolded
+ * `la` + addiu 4, branch-likely jumps that copy the target's first instruction and leave the original dead behind
+ * a `b`, and a 0x48 frame saving ra in a function that calls nothing; no cc flag set (-O2/-O3, -mips1/-mips2,
+ * -Wo,-loopunroll,N) gives its 8-way scan with an end test per exit or its 8-at-a-time copy before the remainder.
  * JFG: unless still waiting, replace every non-zero halfword of m002's current buffer with the previous frame's
  * pixel it points at (DISTORT_PIXEL), recording the lengths of the zero and non-zero runs, then copy the non-zero
  * runs into the previous frame's image. */
