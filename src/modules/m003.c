@@ -24,7 +24,7 @@ typedef struct M003Member {
     /* 0x00 */ u32 placed : 1; /* its level entry gave a place (0DF84) */
     /* 0x00 */ u32 unk0_18 : 1; /* (0E9F0: moved by 0E3CC) */
     /* 0x00 */ u32 unk0_17 : 1; /* (0A850: the member moves five times as fast) */
-    /* 0x00 */ u32 pad0_7 : 1;
+    /* 0x00 */ u32 unk0_16 : 1; /* (10600: kept up while the member's segment flag is set) */
     /* 0x00 */ u32 unk0_15 : 1; /* (14D4C: the troop counts as gone when every member has it) */
     /* 0x00 */ u32 unlinked : 1; /* not in its troop's list */
     /* 0x00 */ u32 wandering : 1; /* it has a wander point (069B0) */
@@ -32,9 +32,10 @@ typedef struct M003Member {
     /* 0x00 */ u32 unk0_11 : 1; /* (0B70C) */
     /* 0x00 */ u32 partsSet : 1; /* set when 10160 or 10354 picked a part (bit 10) */
     /* 0x00 */ u32 unk0_9 : 1; /* cleared when its troop's leader goes */
-    /* 0x00 */ u32 pad0_8b : 1;
+    /* 0x00 */ u32 unk0_8 : 1;
     /* 0x00 */ u32 unk0_7 : 1; /* (00384) */
-    /* 0x00 */ u32 pad0_5b : 2;
+    /* 0x00 */ u32 pad0_6 : 1;
+    /* 0x00 */ u32 unk0_5 : 1; /* (10600: its z rotation is kept) */
     /* 0x00 */ u32 unk0_4 : 1;
     /* 0x00 */ u32 headless : 1;
     /* 0x00 */ u32 unk0_2 : 1; /* (0B040) */
@@ -54,9 +55,11 @@ typedef struct M003Member {
     /* 0x0A */ u8 unkA;
     /* 0x0B */ u8 mission;
     /* 0x0C */ s16 unkC; /* turned by the way it faces (0BBC4), kept within 0x6978 */
-    /* 0x0E */ u8 padE[0x10 - 0xE];
+    /* 0x0E */ s16 unkE; /* how fast unkC turns (10600) */
     /* 0x10 */ s16 unk10;
-    /* 0x12 */ u8 pad12[0x14 - 0x12];
+    /* 0x12 */ u8 pad12;
+    /* 0x13 */ u8 unk13_4 : 4; /* a countdown (10600) */
+    /* 0x13 */ u8 unk13_0 : 4; /* (10600: counted up to 10; read through M003Word10) */
     /* 0x14 */ u8 troop; /* its troop's tag (0DF84) */
     /* 0x15 */ u8 unk15;
     /* 0x16 */ u8 pad16;
@@ -76,9 +79,9 @@ typedef struct M003Member {
     /* 0x38 */ f32 unk38;
     /* 0x3C */ f32 unk3C;
     /* 0x40 */ f32 unk40;
-    /* 0x44 */ u8 pad44[0x46 - 0x44];
+    /* 0x44 */ s16 unk44; /* how fast a falling body turns (10600) */
     /* 0x46 */ s16 unk46;
-    /* 0x48 */ u8 pad48[0x4A - 0x48];
+    /* 0x48 */ s16 unk48;
     /* 0x4A */ u8 unk4A;
     /* 0x4B */ u8 unk4B;
     /* 0x4C */ s16 unk4C; /* how fast it turns (0A5EC) */
@@ -91,7 +94,7 @@ typedef struct M003Member {
     /* 0x55 */ u8 unk55;
     /* 0x56 */ s8 unk56;
     /* 0x57 */ u8 unk57; /* from its entry, or its home's unk8C counted up (0DF84) */
-    /* 0x58 */ u8 pad58[0x5A - 0x58];
+    /* 0x58 */ u16 unk58; /* a countdown (10600) */
     /* 0x5A */ u16 lostParts; /* bit per body part */
     /* 0x5C */ u8 pad5C[0x60 - 0x5C];
     /* 0x60 */ f32 unk60; /* the body's animation frame */
@@ -111,7 +114,7 @@ typedef struct M003Member {
     /* 0x9E */ u8 pad9E[0xA0 - 0x9E];
     /* 0xA0 */ u16 unkA0; /* body parts hit (kind 15) */
     /* 0xA2 */ u16 unkA2; /* body parts hit (other kinds) */
-    /* 0xA4 */ u8 padA4[0xA6 - 0xA4];
+    /* 0xA4 */ u16 unkA4; /* body parts hit (10600) */
     /* 0xA6 */ s16 unkA6;
     /* 0xA8 */ Object *unkA8;
     /* 0xAC */ Object *unkAC; /* freed when body 0x20 starts an animation (04968) */
@@ -139,14 +142,18 @@ typedef struct M003Flags4 {
     u32 pad20 : 12;
     u32 landed : 3; /* 7 once it has hit the ground (0E3CC: the thud plays while 0) */
     u32 unk16 : 1;  /* bit 0 of unk4: set on every member of the troop once one sees its target (0C324) */
-    u32 pad13 : 3;
+    u32 pad15 : 1;
+    u32 unk14 : 1; /* (10600: the member keeps its turn) */
+    u32 pad13 : 1;
     u32 unk12 : 1; /* (00384: it picks places near its last one) */
     u32 pad7 : 5;
     u32 unk6 : 1;
     u32 unk5 : 1;
-    u32 pad3 : 2;
+    u32 unk4 : 1;
+    u32 unk3 : 1;
     u32 unk2 : 1;
-    u32 pad0 : 2;
+    u32 pad1 : 1;
+    u32 unk0 : 1; /* (10600) */
 } M003Flags4;
 #define FLAGS4(m) ((M003Flags4 *) &(m)->unk4)
 
@@ -167,7 +174,8 @@ typedef struct M003BodyFlags {
     u32 pad20 : 20;
     u32 unk11 : 1;
     u32 unk10 : 1; /* (0B70C) */
-    u32 pad6 : 4;
+    u32 unk9 : 1; /* (10600) */
+    u32 pad6 : 3;
     u32 unk5 : 1; /* animations 0x16-0x1F may not replace each other */
     u32 fireproof : 1;
     u32 rest : 4;
@@ -255,6 +263,7 @@ typedef struct M003Home {
     /* 0x8C */ s32 unk8C; /* a game flag, counted up (14694) */
     /* 0x90 */ u8 unk90;
     /* 0x91 */ u8 unk91; /* bit 0: members blame the closest player */
+    /* 0x92 */ u16 unk92; /* 0 or how far from the closest player its members give up (10600) */
 } M003Home;
 
 /* A way point (module 154's graph) */
@@ -328,7 +337,7 @@ typedef struct M003BodyPart {
     /* 0x04 */ u8 unk4;
     /* 0x05 */ u8 unk5;
     /* 0x06 */ u8 unk6;
-    /* 0x07 */ u8 pad7;
+    /* 0x07 */ u8 unk7; /* the bit of unkA4 a hit on it sets (10600) */
 } M003BodyPart;
 
 /* A member's body description (D_800A38E0, 0x80 bytes each) */
@@ -336,14 +345,16 @@ typedef struct M003Body {
     /* 0x00 */ u8 pad0[0x10];
     /* 0x10 */ f32 unk10; /* a distance (0AF34, 0AFC4) */
     /* 0x14 */ f32 unk14; /* within it the troop's state picks the heading (0B040) */
-    /* 0x18 */ u8 pad18[0x24 - 0x18];
+    /* 0x18 */ f32 unk18; /* how much a change of speed tilts its members (10600) */
+    /* 0x1C */ f32 unk1C; /* and the most it counts */
+    /* 0x20 */ f32 unk20; /* the tilt's scale */
     /* 0x24 */ s16 unk24; /* a height */
     /* 0x26 */ u8 pad26;
     /* 0x27 */ u8 bounce : 1; /* its members bounce off the level (0E3CC) */
     /* 0x27 */ u8 pad27 : 7;
     /* 0x28 */ u8 turnStep; /* how much faster or slower its members turn each step (0A5EC) */
     /* 0x29 */ u8 numParts;
-    /* 0x2A */ u8 pad2A;
+    /* 0x2A */ u8 unk2A; /* how its dead members fall (10600) */
     /* 0x2B */ u8 unk2B; /* 5: does not burn */
     /* 0x2C */ u8 unk2C; /* 1: its thrown members start level (0D810) */
     /* 0x2D */ u8 headPart; /* 0x1F: none */
@@ -2894,6 +2905,8 @@ void func_m003_058A4(Object *obj) {
 typedef struct M003Model {
     /* 0x00 */ u8 pad0[0x2D];
     /* 0x2D */ u8 numJoints;
+    /* 0x2E */ u8 pad2E;
+    /* 0x2F */ u8 unk2F; /* 0: its members' lost parts are not thrown off (10600) */
 } M003Model;
 
 typedef struct M003ModelInst {
@@ -3548,8 +3561,10 @@ typedef struct M003Shot28Homing {
 
 extern void func_80003614(s32 handle);
 extern void obj_list_insert_after(Object *obj, Object *target);
-#define sShotSounds ((s32 *) (rl_m003_17A10 + 0x1A28))  /* the four fire sounds' handles */
-#define sShotSoundOn ((s8 *) (rl_m003_17A10 + 0x1A38))  /* and whether each has started */
+extern s32 rl_m003_19438[];
+extern u8 rl_m003_19448[4];
+#define sShotSounds rl_m003_19438            /* the four fire sounds' handles (.data 0x1A28) */
+#define sShotSoundOn ((s8 *) rl_m003_19448)  /* and whether each has started (.data 0x1A38) */
 #define sShotPartJoints (rl_m003_17A10 + 0x1DE0)        /* kind 0x67's joints' body parts */
 
 /* 07E88's speed: the distance over `div`, kept within lo..hi */
@@ -3613,10 +3628,10 @@ extern void obj_list_insert_after(Object *obj, Object *target);
  * Fires a shot of kind `kind` from joint `joint` of the member at its shooter, aimed where the shooter will
  * be when it gets there (for the kinds with a speed), `lift` higher, spread by the home's unkF: spawns the
  * kind's object (or aims the one the member holds) and plays its sound.
- * NON_MATCHING: first body, written from the ROM: the ROM's frame (0x1F0) and stack slots, 1529 of its 1534
- * words; registers differ throughout (the ROM keeps sShotBy in v1 at the start, &sHomeData in t1, and the
- * sound slot's two addresses rather than its index). Kinds 7-9, 11 and 20 up spawn from `entry` unset, as
- * the ROM does (NOT PORTABLE: an unset read, kept faithful).
+ * NON_MATCHING: written from the ROM: its length (1534 words), frame (0x1F0) and stack slots; about 120 rows
+ * differ, mostly registers (the kind reloaded into a3, sShotBy into v1 for the lead) and the order of a few
+ * stores in kinds 4, 5 and 14/15. Kinds 7-9, 11 and 20 up spawn from `entry` unset, as the ROM does (NOT
+ * PORTABLE: an unset read, kept faithful).
  */
 void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
     void *entry;
@@ -3642,17 +3657,18 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
 
     spread = sHomeData->unkF << 4;
     parts = NULL;
-    if (sShotBy == 0) {
+    obj = (Object *) sShotBy;
+    if (obj == NULL) {
         return;
     }
-    if (sHomeData->kind == 0x8D && ((Object *) sShotBy)->behaviorId == 0x18) {
-        tx = ((f32 *) ((Object *) sShotBy)->unk68)[0x68 / 4];
-        ty = ((f32 *) ((Object *) sShotBy)->unk68)[0x6C / 4];
-        tz = ((f32 *) ((Object *) sShotBy)->unk68)[0x70 / 4];
+    if (sHomeData->kind == 0x8D && obj->behaviorId == 0x18) {
+        tx = ((f32 *) obj->unk68)[0x68 / 4];
+        ty = ((f32 *) obj->unk68)[0x6C / 4];
+        tz = ((f32 *) obj->unk68)[0x70 / 4];
     } else {
-        tx = ((f32 *) ((Object *) sShotBy)->interactObj)[0x18 / 4];
-        ty = ((f32 *) ((Object *) sShotBy)->interactObj)[0x1C / 4];
-        tz = ((f32 *) ((Object *) sShotBy)->interactObj)[0x20 / 4];
+        tx = ((f32 *) obj->interactObj)[0x18 / 4];
+        ty = ((f32 *) obj->interactObj)[0x1C / 4];
+        tz = ((f32 *) obj->interactObj)[0x20 / 4];
     }
     if (sHomeData->kind == 0x67) {
         parts = sShotPartJoints;
@@ -3676,7 +3692,7 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             SHOT_SPEED(90.0f, 3.0f, 5.0f);
             break;
         case 12:
-            speed = 10.0f;
+            speed = 10;
             break;
         case 14:
             speed = 60.0f;
@@ -6207,14 +6223,968 @@ static void troop_blame_all(Object *shotBy) {
     sHomeData->unk30 = 3;
 }
 
-INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_10600);
-
-/* Per troop slot (troop_slot_get): the sound its kind's members make, 0: none */
+/*
+ * Per troop slot (troop_slot_get, also sBodyIndex): its members' hurt and death sounds, each a base and a
+ * random range (10600), and the sound its kind's members make, 0: none (1398C)
+ */
 typedef struct M003SlotSound {
-    /* 0x0 */ u8 pad0[6];
+    /* 0x0 */ u16 hurt;
+    /* 0x2 */ u16 death;
+    /* 0x4 */ u8 hurtRange;
+    /* 0x5 */ u8 deathRange;
     /* 0x6 */ u16 sound;
 } M003SlotSound;
 extern M003SlotSound rl_m003_19460[];
+
+#ifdef NON_MATCHING
+/* The word at the member's 0x10 as bit fields (10600 reads unk13_0 through it; NOT PORTABLE: IDO's big-endian bit fields) */
+typedef struct M003Word10 {
+    u32 pad4 : 28;
+    u32 unk13_0 : 4;
+} M003Word10;
+#define WORD10(m) ((M003Word10 *) &(m)->unk10)
+
+/* The body part a hit took off and how many pieces it throws (sBss20 0x20/0x24; read by 142F0) */
+#define sHitPart (*(s32 *) &sBss20[0x20 - 0x20])
+#define sHitCount (*(s32 *) &sBss20[0x24 - 0x20])
+
+/* Per body (sBodyIndex): an update run each frame, NULL: none (.data, still assembly) */
+extern void (*rl_m003_19350[])(Object *obj);
+#define sBodyUpdates rl_m003_19350
+/* Per way state (unk1A): where the member heads for, NULL: its place in the troop (.data) */
+extern void (*rl_m003_19610[])(Object *obj, f32 *x, f32 *y, f32 *z);
+#define sWayTargets rl_m003_19610
+
+/* A piece thrown off a hit body part (0x14 bytes) */
+typedef struct M003Piece {
+    M003_SHOT_HEAD; u8 unkA, unkB; f32 height; Object *owner;
+} M003Piece;
+/* A piece of a lost body part that flies off (0x14 bytes) */
+typedef struct M003Chunk {
+    M003_SHOT_HEAD; u8 padA[2]; Object *owner; u8 unk10, unk11, unk12;
+} M003Chunk;
+/* The splash or dust a falling body makes (0x10 bytes) */
+typedef struct M003Splash {
+    M003_SHOT_HEAD; u8 unkA, unkB, unkC;
+} M003Splash;
+
+extern void obj_fire_emitter(Object *obj, f32 x, f32 y, f32 z, s32 kind);
+extern void zone_add(f32 x, f32 y, f32 z, f32 a, f32 b, f32 c, s32 d, s32 e);
+extern void objflag_set(u8 flag);
+extern s32 runlink_load_target_module(void *addr); /* loads the module a function pointer points into */
+extern void func_m003_167A0(u32 id, s16 x, s16 y, s16 z, u8 arg4, u8 arg5, u8 arg6);
+extern void func_m003_179B0(s32 arg0, s32 arg1);
+extern s32 func_m003_17910(f32 x, f32 z, s32 index);
+extern M003Event *rl_m003_062A0(void);
+extern void rl_m003_09CE4(Object *obj);
+extern void rl_m003_0E9F0(Object *obj);
+extern void rl_m003_0B9A0(void);
+extern void rl_m003_0BBC4(void);
+extern void rl_m003_0B9E0(void);
+extern void rl_m003_0BA94(void);
+extern void rl_m003_0BA20(void);
+extern void rl_m003_0BFC4(void);
+extern void rl_m003_0BB50(void);
+extern void rl_m003_0BAD4(void);
+extern s16 rl_m003_0B040(f32 dist, f32 arg1, f32 arg2);
+extern void rl_m003_10160(void);
+extern void rl_m003_10354(void);
+extern void rl_m003_142F0(s32 arg0, s32 count);
+extern void rl_m003_09680(void);
+
+/*
+ * The troop member's update: counters, the shooter it blames, the event it noticed, the body parts hit this
+ * frame (thrown off as pieces), its hit points (hurt and death sounds, the death fall), then, alive, where it
+ * heads, its turn, its animation and move, and its tilt from the change of speed.
+ * NON_MATCHING: first body, written from the ROM (IDO output): the ROM's frame (0x168) and every declared stack
+ * slot, 3300 of its 3299 words; registers differ throughout. Faithful to the ROM (NOT PORTABLE where noted): a
+ * body part's thrown-off pieces read the hit's shooter even when there is none.
+ */
+void func_m003_10600(Object *obj, s32 updateRate) {
+    s16 hi;
+    s16 lo;
+    s16 angle;
+    s16 turn;
+    s16 yaw;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 c;
+    f32 s;
+    f32 velX;
+    f32 velZ;
+    Object *by;
+    M003Event *e;
+    s32 anim;
+    s32 go;
+    f32 speed;
+    f32 radius;
+    s32 i;
+    HitResult hit;
+    M003BodyPart *part;
+    M003Splash splash;
+    M003SlotSound *snd;
+    s32 sound;
+
+    velX = obj->velocity.x;
+    velZ = obj->velocity.z;
+    if (!func_m003_05450(obj)) {
+        return;
+    }
+    D_800FE9F8 = updateRate;
+    sUpdateRate = updateRate;
+    sHitPart = -1;
+    sMember->unk0_0 = FALSE;
+    sMember->unk0_1 = FALSE;
+    if (sHomeData->unk30 == 9) {
+        if (!sMember->placed) {
+            sHomeData->unk8C--;
+        }
+        func_m003_09A14(sObj);
+        return;
+    }
+    yaw = sObj->trans.rotation.y_rotation;
+    if (sShotBy != 0) {
+        if (((Object *) sShotBy)->behaviorId == 2) {
+            u8 *data = ((Object *) sShotBy)->unk68;
+            Object *o = *(Object **) (data + 0x24);
+
+            if (((u8 *) o->unk68)[0x10D] == 0) {
+                sShotBy = (s32) o;
+                sMember->shotBy = sShotBy;
+            }
+        } else if (((Object *) sShotBy)->behaviorId == 1) {
+            u8 *data = ((Object *) sShotBy)->unk68;
+            Object *o = *(Object **) (data + 0x50C);
+
+            if (data[0x10D] != 0 && o != NULL) {
+                sShotBy = (s32) o;
+                sMember->shotBy = sShotBy;
+            }
+        }
+    }
+    sMember->unk4E++;
+    if (sMember->unk4A != 0) {
+        sMember->unk4A--;
+    }
+    if (FLAGS4(sMember)->landed) {
+        FLAGS4(sMember)->landed--;
+    }
+    if (sMember->unk13_4) {
+        sMember->unk13_4--;
+    }
+    if (sMember->onFire) {
+        sObj->particleEmittersEnabled = 1;
+        if (sObj->interactObj->hitPoints > 0) {
+            f32 rate = sHomeData->unk2A * 0.0025f;
+
+            if (rate < 1.0f) {
+                rate = 1.0f;
+            }
+            sObj->interactObj->hitPoints = sObj->interactObj->hitPoints - rate * sUpdateRate;
+            if (sObj->interactObj->hitPoints <= 0 && !sMember->headless) {
+                ((M003Interact *) sObj->interactObj)->sound = 6;
+                func_m003_0C038(sObj);
+            }
+        }
+    }
+    if (sMember->follower != NULL) {
+        func_800079B8(sMember->follower);
+        sMember->follower = NULL;
+    }
+    /* (the header's u16 at 0x14) */
+    if (sHomeData->unk30 == 3 && (*(u16 *) &sObj->header->pad4[0x14 - 0x4] & 0x80)) {
+        Object *o = (Object *) sMember->shotBy;
+
+        if (o != NULL && (o->behaviorId == 1 || o->behaviorId == 2)) {
+            func_m003_0C324(sObj);
+        }
+    }
+    if (sHomeData->kind == 0x8D) {
+        func_m003_167A0((u32) sObj + 1, sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position, 1,
+                        8, 0);
+        func_m003_167A0((u32) sObj, sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position, 4, 9,
+                        0);
+    }
+    if ((sHomeData->flags & 0x800) && !sHomeData->unk75 && !sMember->headless) {
+        if (D_800F31E0[sObj->segmentID + 1]) {
+            sMember->unk0_16 = TRUE;
+            sMember->unk0_15 = FALSE;
+            sMember->unk58 = 150;
+        } else if (sMember->unk0_16) {
+            sMember->unk58--;
+            if (sMember->unk58 == 0) {
+                sMember->unk0_15 = TRUE;
+            }
+        }
+    }
+    if (sMember->unk1A != 7) {
+        e = rl_m003_062A0();
+        if (e != NULL) {
+            by = (Object *) (e->id & ~3);
+        again:
+            switch (e->unk7) {
+                case 1:
+                    if (by != NULL && by->behaviorId == 1 && sHomeData->unk30 == 2 && (sHomeData->unk91 & 1)) {
+                        troop_blame_all(by);
+                        break;
+                    }
+                    if (sHomeData->unk30 != 2 || sHomeData->unk32 == 0x21 || sMember->unk1A == 0xF) {
+                        break;
+                    }
+                    if (by != NULL && by->behaviorId == 1 && sMember->headless && FLAGS4(sMember)->unk16) {
+                        break;
+                    }
+                    if ((s16) (e - sEvents) != sMember->event) {
+                        if (++FLAGS8(sMember)->unk28 >= 6) {
+                            e->unk7 = 4;
+                            goto again;
+                        }
+                    }
+                    func_m003_04260(0xE, 0xF, 0, 0, 0);
+                    break;
+                case 2:
+                case 8:
+                    if ((sHomeData->unk30 == 2 || sHomeData->unk30 == 3) &&
+                        (sHomeData->unk32 == 0xE || sHomeData->unk32 == 0xF || sHomeData->unk32 == 9 ||
+                         sHomeData->unk32 == 0xA || sHomeData->unk32 == 0xB)) {
+                        if ((s16) (e - sEvents) != sMember->event) {
+                            if (++FLAGS8(sMember)->unk28 >= 6) {
+                                e->unk7 = 4;
+                                goto again;
+                            }
+                        }
+                        sMember->unk4A = 0;
+                        func_m003_04260(0xE, 0xF, 0, 0, 0);
+                    }
+                    break;
+                case 4:
+                    if (sHomeData->unk30 == 2 && !FLAGS4(sMember)->unk16) {
+                        sHomeData->unk30 = 3;
+                    }
+                    break;
+                case 5:
+                    sHomeData->unk30 = 4;
+                    break;
+                case 7:
+                    sHomeData->unk33 = 0x21;
+                    sHomeData->unk2E = 50;
+                    break;
+                case 9:
+                    func_m003_044F4(sObj);
+                    sMember->shotBy = (s32) by;
+                    func_m003_04260(0xE, 0x18, 0, 0, 0);
+                    break;
+            }
+            sMember->event = e - sEvents;
+        } else {
+            sMember->event = -1;
+        }
+    }
+    func_m003_058A4(sObj);
+    if (sMember->unkA0 != 0) {
+        M003Piece piece;
+
+        i = sBody->numParts;
+        while (i--) {
+            part = &sBody->parts[i];
+            if (((1 << part->bit) & sMember->unkA0) && part != NULL) {
+                piece.objectID = 0x36;
+                piece.size = sizeof(M003Piece);
+                piece.unk3 = 0;
+                piece.x = 0;
+                piece.y = 0;
+                piece.z = 0;
+                piece.unkA = part->unk4;
+                piece.owner = obj;
+                piece.unkB = part->unk5;
+                piece.height = obj->trans.y_position;
+                {
+                    Object *o = func_80005F14(&piece, 1);
+
+                    if (o != NULL) {
+                        o->level_entry = NULL;
+                    }
+                }
+            }
+        }
+        sMember->lostParts |= sMember->unkA0;
+        sMember->unkA0 = 0;
+    }
+    if (sMember->unkA2 != 0) {
+        i = sBody->numParts;
+        while (gMainPoolFreeBytes > 0xC000 && i--) {
+            M003Chunk chunk;
+            Object *o;
+            Object *hitBy;
+            f32 scale;
+
+            if (!((1 << sBody->parts[i].bit) & sMember->unkA2)) {
+                continue;
+            }
+            if (((M003ModelInst *) sObj->modelInstances[0])->model->unk2F == 0) {
+                return;
+            }
+            hitBy = ((M003Interact *) sObj->interactObj)->hitBy;
+            if (hitBy != NULL) {
+                scale = 3.0f / func_80097140(hitBy->velocity.x * hitBy->velocity.x +
+                                             hitBy->velocity.y * hitBy->velocity.y +
+                                             hitBy->velocity.z * hitBy->velocity.z);
+                if (scale > 1000.0f) {
+                    scale = 1000.0f;
+                }
+            } else {
+                scale = 3.0f;
+            }
+            part = &sBody->parts[i];
+            if (part != NULL) {
+                if (part->unk6 == 0xE) {
+                    chunk.objectID = 0x89;
+                    chunk.size = sizeof(M003Chunk);
+                    chunk.unk3 = 0;
+                    chunk.x = 0;
+                    chunk.y = 0;
+                    chunk.z = 0;
+                    chunk.unk10 = part->unk4;
+                    chunk.owner = sObj;
+                    chunk.unk11 = part->unk5;
+                    chunk.unk12 = part->kind;
+                    o = func_80005F14(&chunk, 1);
+                    if (o != NULL && hitBy != NULL) {
+                        o->velocity.x = hitBy->velocity.x * scale;
+                        o->velocity.y = hitBy->velocity.y * scale;
+                        o->velocity.z = hitBy->velocity.z * scale;
+                    }
+                } else {
+                    /* NOT PORTABLE: hitBy may be NULL here; the ROM reads through it all the same */
+                    obj_fire_emitter(obj, hitBy->velocity.x * scale, hitBy->velocity.y * scale,
+                                  hitBy->velocity.z * scale, part->unk6);
+                }
+            }
+            sHitPart = i;
+            sHitCount = func_80048E2C(2, 4);
+        }
+        sMember->lostParts |= sMember->unkA2;
+        sMember->unkA2 = 0;
+    }
+    if (sMember->unkA6 < sObj->interactObj->hitPoints) {
+        sObj->interactObj->hitPoints = sMember->unkA6;
+    }
+    if (sObj->interactObj->hitPoints != sMember->unkA6) {
+        FLAGS8(sMember)->unk28 = 5;
+        if (sHomeData->kind == 0xE6) {
+            sMember->unkA4 |= 1 << ((M003Interact *) obj->interactObj)->part;
+        } else {
+            i = sBody->numParts;
+            while (i--) {
+                if (((M003Interact *) obj->interactObj)->part == sBody->parts[i].part) {
+                    sMember->unkA4 |= 1 << sBody->parts[i].unk7;
+                    break;
+                }
+            }
+        }
+        if (sHomeData->unk30 == 2) {
+            sHomeData->unk30 = 3;
+            sMember->unk10 = 0;
+        }
+        sMember->unkA6 = sObj->interactObj->hitPoints;
+        if (sMember->unkA6 <= 0) {
+            snd = &rl_m003_19460[sBodyIndex];
+            sound = snd->death;
+            if (sound != 0) {
+                s32 range;
+
+                range = snd->deathRange;
+
+                if (sMember->sound != 0) {
+                    func_80003614(sMember->sound);
+                }
+                func_80003410((u16) (func_80048E2C(0, range - 1) + sound), sObj->trans.x_position,
+                              sObj->trans.y_position, sObj->trans.z_position, 4, &sMember->sound);
+            }
+            if (sMember->headless) {
+                region_mark_set(sHomeData->unk64, 2);
+                func_m014_019E4();
+            }
+            if (!(sHomeData->flags & 4) && sHomeData->kind != 0x2CE) {
+                objflag_set(sMember->unk57);
+            }
+        } else if (!sMember->onFire) {
+            snd = &rl_m003_19460[sBodyIndex];
+            sound = snd->hurt;
+            if (sound != 0) {
+                s32 range;
+
+                range = snd->hurtRange;
+
+                if (sMember->sound != 0) {
+                    func_80003614(sMember->sound);
+                }
+                func_80003410((u16) (func_80048E2C(0, range - 1) + sound), sObj->trans.x_position,
+                              sObj->trans.y_position, sObj->trans.z_position, 4, &sMember->sound);
+            }
+        }
+        hi = sHomeData->unk2A >> 3;
+        if (hi > 0xA00) {
+            hi = 0xA00;
+        }
+        if (hi < 0x100) {
+            if (sHomeData->unk2A == 0x100) {
+                hi = -0x8000;
+            } else {
+                hi = 0x100;
+            }
+        }
+        lo = -(sHomeData->unk2A >> 3);
+        if (lo < -0xA00) {
+            lo = -0xA00;
+        }
+        if (lo > -0x200) {
+            lo = -0x200;
+        }
+        if (lo < sMember->unkA6 && sMember->unkA6 <= hi &&
+            (((M003BodyFlags *) &sBody->unk24)->fireproof || sHomeData->kind == 0x112) && !sMember->onFire) {
+            sMember->unkA6 = hi + 1;
+            sObj->interactObj->hitPoints = sMember->unkA6;
+        }
+        if (sMember->unkA6 <= 0) {
+            s32 sound = 0;
+
+            switch (sHomeData->kind) {
+                case 0x144:
+                    sound = 0x178;
+                    break;
+                case 0x67:
+                    sound = 0x172;
+                    break;
+            }
+            if (sound != 0) {
+                func_m003_179B0(sound, func_80005064(30));
+            }
+        }
+        if (sMember->unkA6 <= lo && sHomeData->kind != 0x144) {
+            rl_m003_09CE4(sObj);
+            func_m003_09FF0(sObj);
+            return;
+        }
+        if (sMember->unkA6 <= 0) {
+            sObj->state[0x9F - 0x88] = 3;
+            if (!sMember->onFire && !FLAGS8(sMember)->shocked) {
+                func_m003_0C0A0(sObj);
+            }
+            if (sMember->busy) {
+                sMember->busy = FALSE;
+                sMember->unk0_18 = TRUE;
+                sMember->unk0_26 = TRUE;
+            }
+            if (sHomeData->unk34 & 3) {
+                angle = sObj->trans.rotation.y_rotation;
+                if ((sHomeData->unk34 & 3) == 2 ||
+                    ((sHomeData->unk34 & 3) == 3 && !((M003Interact *) sObj->interactObj)->unk8_29)) {
+                    angle += 0x8000;
+                }
+                rl_m003_03D44(angle, 10.0f);
+                sObj->velocity.y += 5.0f;
+                rl_m003_03CAC(sObj);
+                sMember->unk0_18 = TRUE;
+                sMember->unk0_26 = TRUE;
+            }
+            sMember->unk1B = 0;
+            func_m003_04D08(0xC, 0x21, 0, 0);
+            if (sMember->unk4B == 0xD) {
+                sMember->unk4B = 0xC;
+            }
+            switch (sBody->unk2A) {
+                case 1:
+                    sObj->velocity.y += 14.0f;
+                    if (sHomeData->kind == 0x150) {
+                        sMember->unk44 = func_80048E2C(-3000, 3000);
+                        sMember->unk46 = func_80048E2C(-350, 350);
+                        sMember->unk48 = 0;
+                    } else {
+                        sMember->unk44 = func_80048E2C(-3000, 3000);
+                        sMember->unk46 = func_80048E2C(-3000, 3000);
+                        sMember->unk48 = func_80048E2C(-3000, 3000);
+                    }
+                    sObj->particleEmittersEnabled |= 2;
+                    break;
+                case 5:
+                    func_m003_0D134(sObj);
+                    sMember->unk52 = func_80005064(func_80048E2C(60, 90));
+                    break;
+            }
+        } else if (sMember->unkA6 <= hi && troop_anim_pick(0x25, 1) != -1) {
+            sObj->state[0x9F - 0x88] = 3;
+            if (!sMember->onFire && !FLAGS8(sMember)->shocked) {
+                func_m003_0C0A0(sObj);
+            }
+            if (func_m003_04260(0xA, 0xC, 0, 0, 0)) {
+                if (updateRate < 4) {
+                    M003Shot0C flash;
+                    Object *o;
+
+                    flash.objectID = 0x1B2;
+                    flash.x = sObj->trans.x_position;
+                    flash.y = sObj->trans.y_position + 50.0f;
+                    flash.unkB = 0x40;
+                    flash.z = sObj->trans.z_position;
+                    o = func_80005F14(&flash, 1);
+                    if (o != NULL) {
+                        o->level_entry = NULL;
+                        ((Object **) o)[0x8C / 4] = sObj;
+                    }
+                }
+                func_m003_04D08(0xD, 0x25, 0, 0);
+                sMember->unk0_8 = TRUE;
+            }
+        } else {
+            for (i = 0; i < sBody->numParts; i++) {
+                if (((M003Interact *) obj->interactObj)->part == sBody->parts[i].part) {
+                    sHitPart = i;
+                    sHitCount = 1;
+                    break;
+                }
+            }
+            if (((M003Interact *) sObj->interactObj)->unk8_3 || !sMember->headless) {
+                if (((M003Interact *) sObj->interactObj)->part < 10) {
+                    func_m003_04D08(0xA, ((M003Interact *) sObj->interactObj)->part + 0x16, 0x16, 0);
+                }
+            }
+        }
+    }
+    if (FLAGS8(sMember)->shocked) {
+        sObj->state[0x9F - 0x88] = 2;
+    }
+    if (sMember->unkA6 <= 0) {
+        func_m003_04F88(0xC, 1.0f);
+        switch (sBody->unk2A) {
+            case 0:
+                func_m003_09FF0(sObj);
+                break;
+            case 1:
+                sObj->velocity.x *= 0.99f;
+                sObj->velocity.y -= 1.0f;
+                sObj->velocity.z *= 0.99f;
+                sObj->trans.rotation.y_rotation += sMember->unk44;
+                sObj->trans.rotation.x_rotation += sMember->unk46;
+                sObj->trans.rotation.z_rotation += sMember->unk48;
+                sObj->particleEmittersEnabled |= 2;
+                rl_m003_0E9F0(sObj);
+                radius = obj->header->unk50->radius;
+                func_8001CE10(1, (Vec3f *) &sMember->lastX, (Vec3f *) &sObj->trans.x_position, &radius, 0xCE000000,
+                              0, 0);
+                if (func_80016208(obj, (Vec3f *) &sMember->lastX, (Vec3f *) &sObj->trans.x_position, radius,
+                                  obj->header->unk50->unk10, &hit)) {
+                    splash.size = 0xE;
+                    splash.unk3 = 0;
+                    splash.x = sObj->trans.x_position;
+                    splash.y = sObj->trans.y_position;
+                    splash.z = sObj->trans.z_position;
+                    splash.unkC = 0;
+                    if (hit.pos.y > 0.9f) {
+                        splash.objectID = 0x10B;
+                    } else {
+                        splash.objectID = 0x17F;
+                    }
+                    splash.unkA = 0xF;
+                    splash.unkB = 0x80;
+                    by = func_80005F14(&splash, 1);
+                    if (by != NULL) {
+                        by->level_entry = NULL;
+                    }
+                    zone_add(obj->trans.x_position, obj->trans.y_position, obj->trans.z_position, 60.0f, 80.0f,
+                                  0.5f, 100, 0);
+                    func_m003_09FF0(sObj);
+                    func_80003410(0x22, sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position, 4,
+                                  NULL);
+                }
+                break;
+            case 4:
+                if (sMember->unkA6 <= 0 && sMember->unk55 == 0 && func_m003_04428(sObj)->anim == 0x35) {
+                    sMember->unk55 = 1;
+                }
+                if (sMember->unk55 != 0) {
+                    if (0xFF - D_800FE9F8 * 2 < sMember->unk55) {
+                        func_m003_09FF0(sObj);
+                    } else {
+                        sMember->unk55 += D_800FE9F8 * 2;
+                    }
+                }
+                if (((sHomeData->unk34 & 3) || sMember->unk0_26) && !sMember->unk0_25) {
+                    rl_m003_0E9F0(sObj);
+                }
+                break;
+            case 5:
+                if (sMember->unk52 < D_800FE9F8) {
+                    sObj->interactObj->hitPoints = -1000;
+                    spawn_object_from_list(2, sObj->trans.x_position, sObj->trans.y_position, sObj->trans.z_position, 100, 0);
+                } else {
+                    sMember->unk52 -= D_800FE9F8;
+                }
+                break;
+        }
+        rl_m003_10354();
+        return;
+    }
+    if (sHomeData->unk30 == 8 ||
+        (sHomeData->unk92 != 0 &&
+         sHomeData->unk92 < func_m003_03E20(((Object *) sClosestPlayer)->trans.x_position,
+                                            ((Object *) sClosestPlayer)->trans.z_position, sObj->trans.x_position,
+                                            sObj->trans.z_position))) {
+        func_m003_0512C(0, 1.0f, 1);
+        return;
+    }
+    if (sHomeData->unk33 == 0x19) {
+        sBss14 = sObj->trans.x_position;
+        sBss18 = sObj->trans.y_position;
+        sBss1C = sObj->trans.z_position;
+    } else if (sMember->unk1A != 0 && sWayTargets[sMember->unk1A] != NULL) {
+        sWayTargets[sMember->unk1A](sObj, &sBss14, &sBss18, &sBss1C);
+        troop_member_colours_get(sHome, &sBss8[0], &sBss8[1], &D_800FE9EE);
+    } else {
+        func_m003_06D28(sHome, sMember->unk15, &sBss14, &sBss18, &sBss1C);
+    }
+    sMember->unk0_2 = FALSE;
+    if (sHomeData->unk32 == 6 &&
+        !func_m003_17910(((Object *) sShotBy)->trans.x_position, ((Object *) sShotBy)->trans.z_position,
+                         sHomeData->unk7A)) {
+        sBss14 = sObj->trans.x_position;
+        sBss18 = sObj->trans.y_position;
+        sBss1C = sObj->trans.z_position;
+        sMember->unk0_2 = TRUE;
+    }
+    sBssCC = func_m003_03E68(sBss14, sBss1C, sObj->trans.x_position, sObj->trans.z_position);
+    if (sBssCC >= 50.0f || FLAGS4(sMember)->unk0) {
+        sBssD4 = func_80049C84(sBss14 - sObj->trans.x_position, sBss1C - sObj->trans.z_position) - 0x8000;
+    } else {
+        sBssD4 = sObj->trans.rotation.y_rotation;
+    }
+    sBssD6 = sBssD4;
+    if (sShotBy != 0) {
+        sBssD0 = func_m003_03E20(((Object *) sShotBy)->trans.x_position, ((Object *) sShotBy)->trans.z_position,
+                                 sObj->trans.x_position, sObj->trans.z_position);
+    } else {
+        sBssD0 = 0.0f;
+    }
+    if (sMember->unk1A == 0x13) {
+        sBssD6 = sMember->unk1C - 0x8000;
+        sObj->trans.rotation.y_rotation = sBssD6;
+    } else {
+        s16 target;
+
+        sMember->turning = FALSE;
+        sBssD6 = rl_m003_0B040(sBssCC * 0.0001f, sBss14, sBss1C);
+        if (!FLAGS4(sMember)->unk14) {
+            if ((sHomeData->unk30 == 3 && func_m003_0C324(sObj)) || (sHomeData->unk32 == 0x11 && !sMember->headless) ||
+                (sMember->unkA >= 5 && sMember->unkA < 8)) {
+                func_m003_0C1A0(sObj, (Object *) sMember->shotBy, &target, NULL, NULL, NULL, NULL, NULL);
+            } else {
+                target = sBssD6;
+            }
+            sMember->unk10 = func_80049D80(sObj->trans.rotation.y_rotation, target);
+        }
+    }
+    sBssCC = func_80097140(sBssCC);
+    runlink_load_target_module(&sBodyUpdates[sBodyIndex]);
+    if (sHomeData->unk32 != 0xB && sBodyUpdates[sBodyIndex] != NULL) {
+        sBodyUpdates[sBodyIndex](sObj);
+    }
+    if (sMember->unk0_11) {
+        rl_m003_0A5EC();
+        rl_m003_0B70C();
+    } else if ((sMember->unk0_26 && (!((M003BodyFlags *) &sBody->unk24)->unk9 || sMember->unkA6 <= 0)) ||
+               sMember->unk0_28) {
+        rl_m003_0B70C();
+    } else {
+        switch (sBody->unk2B) {
+            case 0:
+                rl_m003_0B9A0();
+                break;
+            case 1:
+                rl_m003_0BBC4();
+                break;
+            case 4:
+                rl_m003_0B9E0();
+                break;
+            case 5:
+                rl_m003_0BA94();
+                break;
+            case 6:
+                switch (sBodyIndex) {
+                    case 0x32:
+                        rl_m003_0BA20();
+                        break;
+                    case 0x17:
+                        rl_m003_0BFC4();
+                        break;
+                    case 0x26:
+                        rl_m003_0BB50();
+                        break;
+                    case 0x35:
+                        rl_m003_0BAD4();
+                        break;
+                }
+                break;
+        }
+    }
+    if (sMember->unkA6 <= 0 || sMember->unk1A == 0xC) {
+        sMember->unk10 = 0;
+    }
+    if (sMember->unk10 > 0x6978) {
+        sMember->unk10 = 0x6978;
+    } else if (sMember->unk10 < -0x6978) {
+        sMember->unk10 = -0x6978;
+    }
+    if (sMember->unk10 != sMember->unkC) {
+        sMember->unkE += func_m003_079D8(sMember->unk10 - sMember->unkC, 2.0f * sMember->unkE + sMember->unk4C,
+                                         sBody->turnStep << sMember->unk9);
+        sMember->unkC += sMember->unkE * sUpdateRate * 0.5f;
+    }
+    if (sMember->shotBy != 0) {
+        Object *o = (Object *) sMember->shotBy;
+
+        turn = func_80049D80(sObj->trans.rotation.y_rotation,
+                             (s16) func_80049C84(sObj->trans.x_position - o->trans.x_position,
+                                                 sObj->trans.z_position - o->trans.z_position));
+    } else {
+        turn = 0;
+    }
+    switch (sMember->unk4B) {
+        case 1: {
+            f32 f = func_80049D80(sObj->trans.rotation.y_rotation, yaw) * -0.005f;
+
+            if (f < 7.0f) {
+                f = 7.0f;
+            }
+            if (func_m003_04F88(1, f) && turn > -0x1900 && turn < 0x1900) {
+                sMember->unk4B = 0;
+                FLAGS8(sMember)->unk27 = FALSE;
+            }
+            break;
+        }
+        case 8:
+            func_m003_04F88(8, sMember->unk20 > 1.0f ? sMember->unk20 : 1.0f);
+            break;
+        case 11:
+            func_m003_04F88(0xB, func_80048E2C(0, 200) * 0.01f);
+            break;
+        case 10:
+            if (func_m003_04F88(0xA, 1.0f)) {
+                sMember->unk4B = 0;
+                if (!sMember->onFire && ((M003BodyFlags *) &sBody->unk24)->unk5) {
+                    func_m003_04398(1, 0);
+                    sMember->unk0_29 = FALSE;
+                    FLAGS4(sMember)->unk16 = TRUE;
+                }
+            }
+            break;
+        case 13:
+            func_m003_04F88(0xD, 1.0f);
+            break;
+        case 5:
+            if (func_m003_04F88(5, 1.0f)) {
+                sMember->unk4B = 0;
+            }
+            break;
+        case 6:
+            if (func_m003_04F88(6, 1.0f)) {
+                sMember->unk4B = 0;
+                if (sMember->unk1A == 5) {
+                    func_m003_04398(1, func_80048E2C(sHomeData->unk60, sHomeData->unk61));
+                    if (!(sHomeData->flags & 0x4000) && func_80048E2C(1, 3) == 1 && (turn < -0x1900 || turn > 0x1900)) {
+                        FLAGS8(sMember)->unk27 = TRUE;
+                    }
+                }
+            }
+            break;
+        case 0:
+            speed = 1.0f;
+            if (sMember->unk0_26 && !((M003BodyFlags *) &sBody->unk24)->unk9) {
+                if (WORD10(sMember)->unk13_0 < 10) {
+                    WORD10(sMember)->unk13_0 = WORD10(sMember)->unk13_0 + 1;
+                }
+            } else {
+                WORD10(sMember)->unk13_0 = 0;
+            }
+            if (sMember->busy) {
+                anim = 0x11;
+            } else if (sMember->unk0_26 && WORD10(sMember)->unk13_0 == 10 &&
+                       !((M003BodyFlags *) &sBody->unk24)->unk9) {
+                anim = 0x14;
+            } else if (sMember->unk0_9 && !sMember->unk0_4) {
+                anim = 1;
+            } else if (sMember->unk0_2) {
+                anim = 0x26;
+            } else if (sHomeData->unk32 == 0xA) {
+                anim = 0x22;
+            } else if (sHomeData->unk32 == 0xE) {
+                anim = 0x28;
+            } else if (sHomeData->unk32 == 0xF) {
+                anim = 0x27;
+            } else if (sMember->unk1A == 0xF) {
+                anim = 3;
+            } else if (sHomeData->unk32 == 0xB) {
+                anim = 0x20;
+            } else if (sMember->unk20 < 1.0f) {
+                if (sHomeData->kind == 0x97) {
+                    anim = 0xB;
+                } else if (sMember->headless && sHomeData->unk91 == 2 && func_m003_0C324(sObj)) {
+                    if (sHomeData->kind != 0x70) {
+                        func_m003_044F4(sObj);
+                    }
+                    anim = 8;
+                } else {
+                    anim = 1;
+                }
+                if (sHomeData->unk30 == 3 && troop_anim_pick(0x2A, 1) != -1 && sHomeData->unk32 == 0x11 &&
+                    sMember->unk1A != 0xD) {
+                    anim = 0x2A;
+                    sObj->velocity.x = 0.0f;
+                    sObj->velocity.z = 0.0f;
+                    rl_m003_03CAC(sObj);
+                }
+                if (!(sHomeData->flags & 0x4000) && sMember->shotBy != 0 && FLAGS4(sMember)->unk16) {
+                    go = FALSE;
+                    if (sHomeData->unk32 != 0x11) {
+                        if (((M003BodyFlags *) &sBody->unk24)->unk11) {
+                            if ((FLAGS4(sMember)->unk2 && !FLAGS4(sMember)->unk4 && !FLAGS4(sMember)->unk3) ||
+                                FLAGS8(sMember)->unk27) {
+                                go = TRUE;
+                            }
+                        } else if (turn < -0x1900 || turn > 0x1900) {
+                            go = TRUE;
+                        }
+                    }
+                    if (go && func_m003_04428(sObj)->unk4_25) {
+                        func_m003_04D08(1, turn > 0 ? 9 : 10, 0xB, 0xD);
+                        FLAGS8(sMember)->unk27 = FALSE;
+                    }
+                }
+            } else {
+                if (sHomeData->unk30 == 3 || sHomeData->unk30 == 4 ||
+                    (sHomeData->unk30 == 1 && (sHomeData->flags & 0x40))) {
+                    if (sHomeData->kind == 0x121) {
+                        anim = 0xB;
+                    } else if (troop_anim_pick(0xE, 1) == -1) {
+                        anim = 0xD;
+                    } else {
+                        anim = 0xE;
+                    }
+                } else if (sMember->onFire || sHomeData->unk32 == 8) {
+                    anim = 0xF;
+                } else {
+                    anim = 0xB;
+                }
+                speed = sMember->unk20;
+            }
+            func_m003_0512C(0, speed, anim);
+            break;
+    }
+    rl_m003_10160();
+    dx = sObj->trans.x_position;
+    dy = sObj->trans.y_position;
+    dz = sObj->trans.z_position;
+    rl_m003_0E9F0(sObj);
+    dx -= sObj->trans.x_position;
+    dy -= sObj->trans.y_position;
+    dz -= sObj->trans.z_position;
+    if (D_800FE9EE == 8) {
+        if (dx < 0.0001f && dx > -0.0001f && dy < 1.0f && dy > -1.0f && dz < 0.0001f && dz > -0.0001f) {
+            sMember->unk17++;
+            if (sMember->unk17 == 50) {
+                sMember->unk0_22 = TRUE;
+            }
+        } else {
+            sMember->unk17 = 0;
+        }
+    }
+    turn = sObj->trans.rotation.z_rotation;
+    if (!sMember->unk0_9 || sMember->unk0_4) {
+        switch (sBody->unk2C) {
+            case 0:
+                dx = (velX - sObj->velocity.x) * (velX - sObj->velocity.x) * sBody->unk18;
+                dz = (velZ - sObj->velocity.z) * (velZ - sObj->velocity.z) * sBody->unk18;
+                if (velX < sObj->velocity.x) {
+                    dx = -dx;
+                }
+                if (velZ < sObj->velocity.z) {
+                    dz = -dz;
+                }
+                if (sBody->unk1C < dx) {
+                    dx = sBody->unk1C;
+                } else if (dx < -sBody->unk1C) {
+                    dx = -sBody->unk1C;
+                }
+                if (sBody->unk1C < dz) {
+                    dz = sBody->unk1C;
+                } else if (dz < -sBody->unk1C) {
+                    dz = -sBody->unk1C;
+                }
+                s = func_80049C34(sObj->trans.rotation.y_rotation);
+                c = func_80049C30(sObj->trans.rotation.y_rotation);
+                sObj->trans.rotation.x_rotation +=
+                    ((s16) ((-s * dx - c * dz) * sBody->unk20) - sObj->trans.rotation.x_rotation) >> 3;
+                sObj->trans.rotation.z_rotation +=
+                    ((s16) ((c * dx - s * dz) * sBody->unk20) - sObj->trans.rotation.z_rotation) >> 3;
+                break;
+            case 1:
+                if (sMember->unkA6 != 0) {
+                    sObj->trans.rotation.x_rotation = sMember->unk20 * sBody->unk20;
+                    sObj->trans.rotation.z_rotation = 0;
+                }
+                break;
+        }
+    }
+    if (sMember->unk0_5) {
+        sObj->trans.rotation.z_rotation = turn;
+    }
+    {
+        s32 slow = sMember->unk0_28;
+
+        if ((slow && sMember->unk17 != 0) || sMember->unk0_11) {
+        if (slow) {
+            sMember->unk17--;
+            if (sMember->unk17 == 0) {
+                sMember->unk0_28 = FALSE;
+            }
+        }
+        if (sBody->unk2C != 1) {
+            sObj->trans.rotation.x_rotation =
+                func_80049C84(sObj->velocity.y, func_80097140(sObj->velocity.x * sObj->velocity.x +
+                                                              sObj->velocity.z * sObj->velocity.z));
+        }
+        }
+    }
+    if (sHitPart != -1 && !sMember->onFire && !(sMember->flags8 & 3)) {
+        rl_m003_142F0(sHitPart, sHitCount);
+    }
+    if (!FLAGS8(sMember)->shocked) {
+        s32 n = sMember->flags8 & 3;
+
+        if (n != 0) {
+            FLAGS8(sMember)->unk24 = n - 1;
+        }
+    }
+    rl_m003_10354();
+    if (sHomeData->kind == 0xBD) {
+        Object **held = &sMember->unkA8;
+
+        if (*held != NULL) {
+            func_m003_0609C(0, &dx, &dy, &dz);
+            (*held)->trans.x_position = dx;
+            (*held)->trans.y_position = dy;
+            (*held)->trans.z_position = dz;
+        }
+    }
+    if (sMember->partsSet) {
+        rl_m003_09680();
+        sMember->partsSet = FALSE;
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_10600);
+#endif
+
 extern void func_800035E8(s32 handle, f32 x, f32 y, f32 z); /* moves a positioned sound */
 extern void audspat_point_set_pitch(s32 handle, u8 pitch);
 extern f32 func_8008B200(s32 cents); /* alCents2Ratio */
