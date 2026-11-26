@@ -42,17 +42,19 @@ typedef struct M080State {
 /* .data (asm): the triangles, then the six corner positions */
 extern Triangle rl_m080_01490[8];
 extern s16 rl_m080_01510[6][3];
-/* .rodata (asm): 0.01f, the scale unit */
-extern f32 rl_m080_01540[];
 
 #ifdef NON_MATCHING
-/* 36 diffs: pos/dest pointer registers in the corner loop, and the scale multiply's load order (0.01f read from the asm .rodata) */
+/*
+ * 25 diffs, all one register swap: in the corner loop the ROM has the corner pointer in a2 and the vertex pointer
+ * in a1, ours the other way round. (The counter's copy in uMask, which is reset before its own use, is what keeps
+ * setup homed and the 0xFF in a3 as in the ROM. The 0.01f is a literal, so the match will bring m080's .rodata
+ * literal for this function into C.)
+ */
 void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
     M080State *s = obj->unk68;
     s32 i;
     s32 uMask;
     s32 vMask;
-    f32 scale;
     s16 *pos;
 
     if (!reinit) {
@@ -86,16 +88,16 @@ void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
             s->verts[1][i].g = 0xFF;
             s->verts[1][i].b = 0xFF;
             s->verts[1][i].a = 0xFF;
+            uMask = ++i;
             pos += 3;
-            if (++i == 6) {
+            if (uMask == 6) {
                 break;
             }
         }
         s->unkFC = 1;
     }
+    obj->trans.scale = setup->scale * 0.01f;
     uMask = 0;
-    scale = setup->scale;
-    obj->trans.scale = scale * rl_m080_01540[0];
     if (setup->textureIndex < obj->header->numberOfModelIds) {
         s->texture = obj->modelInstances[setup->textureIndex];
     } else {

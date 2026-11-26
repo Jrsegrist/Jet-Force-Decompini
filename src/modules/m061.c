@@ -620,9 +620,10 @@ extern void func_80070EAC(Gfx **dl, Mtx **mtx, Vertex **vtx, s32 box);      /* r
 /*
  * Draws a player's message bar (the queue's current message, in a box that opens to the text's width) in the
  * player's part of the screen, with its two end caps (called from 0043C).
- * NON_MATCHING: 498/498 words with the ROM's frame and slots, 39 differing rows: the bar's vertex block (the ROM has
- * y - 7 in v0 and 0x80000000 in a2, ours a2 and a3) and the end caps' 0.0f, which the ROM loads twice (z_position = 0
- * as an int gives that, but one word too many until the vertex block is right). The default build uses the assembly.
+ * NON_MATCHING: 498/498 words with the ROM's frame, every register right, 18 differing rows, all in the bar's vertex
+ * block: x is loaded after the empty if (ROM: at the block's top, with y), y - 7 is computed earlier than the ROM's,
+ * and func_80055C00's zero arguments a2/a3 are set before the loop (ROM: after it, only a1 before). The default
+ * build uses the assembly.
  */
 void func_m061_01218(M061Player *player, s32 updateRate) {
     MtxF mtx;
@@ -702,6 +703,7 @@ void func_m061_01218(M061Player *player, s32 updateRate) {
         gSPVertexJFG(D_800FF398++, (u32) D_800FF3A0 + 0x80000000, 5, 0);
         v = D_800FF3A0;
         v[0].y = y + 6;
+        if (player) {} /* (player is set: no code; it gives y - 7 and 0x80000000 the ROM's registers) */
         v[0].x = x - (widths[player->unk0] >> 1);
         v[1].y = y + 6;
         v[1].x = (widths[player->unk0] >> 1) + x;
@@ -731,7 +733,7 @@ void func_m061_01218(M061Player *player, s32 updateRate) {
     sprite.trans.rotation.z_rotation = 0;
     sprite.trans.rotation.x_rotation = 0;
     sprite.trans.rotation.y_rotation = 0;
-    sprite.trans.z_position = 0.0f;
+    sprite.trans.z_position = 0; /* (an int 0: the ROM loads this 0.0f on its own) */
     sprite.frame = 0.0f;
     sprite.trans.scale = 0.5f;
     func_80055B80(&D_800FF398);
