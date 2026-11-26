@@ -169,7 +169,8 @@ typedef struct ObjectSegment ObjectSegment;
 typedef struct TextureHeader TextureHeader;
 /* JFG layout (55130.c has more) */
 struct TextureHeader {
-    /* 0x00 */ u8 pad0[0x12];
+    /* 0x00 */ u8 width;
+    /* 0x01 */ u8 pad1[0x12 - 1];
     /* 0x12 */ u16 numOfTextures;
 };
 
@@ -332,13 +333,20 @@ typedef struct WeatherParticle {
 } WeatherParticle;
 
 struct WeatherParticleList {
-    /* 0x00 */ u8 pad0[0x14];
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ s32 vertsPer;  // JFG: vertices per textured particle (func_8005D93C)
+    /* 0x08 */ s32 trisPer;   // JFG: triangles per textured particle
+    /* 0x0C */ s16 *shape;    // JFG: the particle shape, vertsPer (x, y) pairs
+    /* 0x10 */ u8 pad10[4];
     /* 0x14 */ WeatherParticle *particles;
     /* 0x18 */ s32 count;
     /* 0x1C */ s32 activeCount;
     /* 0x20 */ u32 *freeMask; // one bit per free particle slot
     /* 0x24 */ s32 lastMaskWord;
     /* 0x28 */ s32 full;      // set when an allocation found the list full
+    /* 0x2C */ Triangle *tris64;    // JFG: the triangles (texture coordinates) for 64-wide textures
+    /* 0x30 */ Triangle *tris32;    // for 32-wide textures
+    /* 0x34 */ Triangle *trisOther; // for any other width
 };
 
 void free_3d_model(void *model);
@@ -585,7 +593,266 @@ void model_particles_render(Gfx **dList, Mtx **mtx, Vertex **vtx, WeatherParticl
     mtx_pop(dList);
 }
 
+/* A textured particle (kinds 0 and 1) as func_8005D93C reads it */
+typedef struct TexParticle {
+    /* 0x00 */ Vec3s rotation;
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x, y, z;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 frame; // texture frame (passed as 16.16)
+    /* 0x2C */ s16 kind;
+    /* 0x2E */ u8 pad2E[0x4C - 0x2E];
+    /* 0x4C */ TextureHeader *tex;
+    /* 0x50 */ s32 flags;    // 0x800: colour scaled by brightness
+    /* 0x54 */ s32 rotFlags; // 1: z then y turn, 2: x then y, 4: y only, else all three (func_800496B0)
+    /* 0x58 */ u8 pad58[0x64 - 0x58];
+    /* 0x64 */ s16 alpha; // 8.8 fixed point
+    /* 0x66 */ u8 pad66[0x6F - 0x66];
+    /* 0x6F */ u8 brightness;
+    /* 0x70 */ u8 pad70;
+    /* 0x71 */ u8 r, g, b;
+    /* 0x74 */ u8 pad74[4];
+} TexParticle;
+
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle); // sine of a 16-bit angle
+void func_800496B0(s32 arg0, Vec3s *rotation, Vec3f *in, Vec3f *out); // DKR: vec3f_rotate
+
+#ifdef NON_MATCHING
+/* First body, from the ROM: the ROM's length, frame and stack slots, but t1/t2 swap from the first vertex command
+   on and one store is scheduled differently (107 rows); verified against the ROM by simulation.
+   JFG: draw a list's textured particles (kinds 0 and 1). Each one is the list's shape (vertsPer points),
+   scaled, turned by its angles (as rotFlags says) and moved to its position, as vertices in its colour.
+   Particles in a row with the same texture, frame and alpha are drawn as one batch of at most 24 vertices,
+   with the triangles for the texture's width; kind 0x80 marks a free slot. */
+void func_8005D93C(Gfx **dList, Vertex **vtxList, WeatherParticleList *list) {
+    s32 numVerts;
+    s32 numTris;
+    s32 j;
+    TexParticle *p;
+    Vertex *vtx;
+    s16 *v;
+    s32 i;
+    s32 k;
+    s32 vertsPer;
+    f32 c2;
+    s32 trisPer;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 a;
+    s32 f;
+    f32 s2;
+    f32 pt[3];
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 c1;
+    f32 lastFrame;
+    f32 frame;
+    f32 s1;
+    s16 alpha;
+    s16 lastAlpha;
+    Gfx *gfx;
+    TextureHeader *tex;
+    TextureHeader *lastTex;
+    Vertex *start;
+    Triangle *tris;
+
+    lastAlpha = 0xFF;
+    lastTex = NULL;
+    lastFrame = 0.0f;
+    if (list == NULL || list->activeCount == 0) {
+        return;
+    }
+    gfx = *dList;
+    i = 0;
+    vtx = *vtxList;
+    p = (TexParticle *) list->particles;
+    while (i < list->count && p->kind == 0x80) {
+        i++;
+        p++;
+    }
+    trisPer = list->trisPer;
+    vertsPer = list->vertsPer;
+    func_80055C00(&gfx, NULL, 0x12, 0);
+    tris = list->tris64;
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    j = i;
+    if (j < list->count) {
+        tex = p->tex;
+        frame = p->frame;
+        alpha = (p->alpha >> 8) & 0xFF;
+        start = vtx;
+        numVerts = 0;
+        numTris = 0;
+        while (j < list->count) {
+            if (p->kind == 0x80 || p->tex != tex || p->frame != frame || numVerts + vertsPer >= 24 ||
+                ((p->alpha >> 8) & 0xFF) != alpha) {
+                if (alpha != lastAlpha) {
+                    gDPPipeSync(gfx++);
+                    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, alpha);
+                    lastAlpha = alpha;
+                }
+                if (tex != lastTex || frame != lastFrame) {
+                    lastTex = tex;
+                    lastFrame = frame;
+                    func_80055C00(&gfx, tex, 0x12, frame * 65536.0f);
+                }
+                if (tex != NULL) {
+                    switch (tex->width) {
+                        default:
+                            tris = list->trisOther;
+                            break;
+                        case 0x40:
+                            tris = list->tris64;
+                            break;
+                        case 0x20:
+                            tris = list->tris32;
+                            break;
+                    }
+                }
+                gSPVertexN1(gfx++, (u8 *) start + 0x80000000, numVerts);
+                gSPPolygon(gfx++, (u8 *) tris + 0x80000000, numTris, 1);
+                numVerts = 0;
+                numTris = 0;
+                while (j < list->count && p->kind == 0x80) {
+                    j++;
+                    p++;
+                }
+                if (j < list->count) {
+                    tex = p->tex;
+                    frame = p->frame;
+                    alpha = (p->alpha >> 8) & 0xFF;
+                    start = vtx;
+                }
+            } else {
+                v = list->shape;
+                k = 0;
+                if (p->flags & 0x800) {
+                    f = p->brightness;
+                    r = (p->r * f) >> 8;
+                    g = (p->g * f) >> 8;
+                    b = (p->b * f) >> 8;
+                } else {
+                    r = p->r;
+                    g = p->g;
+                    b = p->b;
+                }
+                numVerts += vertsPer;
+                a = p->alpha >> 8;
+                if (p->rotFlags & 1) {
+                    c1 = func_80049C30(p->rotation.z_rotation);
+                    s1 = func_80049C34(p->rotation.z_rotation);
+                    c2 = func_80049C30(p->rotation.y_rotation);
+                    s2 = func_80049C34(p->rotation.y_rotation);
+                    for (k = 0; k < vertsPer; k++) {
+                        x = v[0] * p->scale;
+                        y = v[1] * p->scale;
+                        z = -x * s2;
+                        x = x * c2;
+                        vtx->x = x * c1 - y * s1 + p->x;
+                        vtx->y = y * c1 + x * s1 + p->y;
+                        vtx->z = z + p->z;
+                        vtx->r = r;
+                        vtx->g = g;
+                        vtx->b = b;
+                        vtx->a = a;
+                        v += 2;
+                        vtx++;
+                    }
+                } else if (p->rotFlags & 2) {
+                    c1 = func_80049C30(p->rotation.x_rotation);
+                    s1 = func_80049C34(p->rotation.x_rotation);
+                    c2 = func_80049C30(p->rotation.y_rotation);
+                    s2 = func_80049C34(p->rotation.y_rotation);
+                    for (k = 0; k < vertsPer; k++) {
+                        x = v[0] * p->scale;
+                        y = v[1] * p->scale;
+                        z = -x * s2;
+                        x = x * c2;
+                        vtx->x = x + p->x;
+                        vtx->y = y * c1 - z * s1 + p->y;
+                        vtx->z = z * c1 + y * s1 + p->z;
+                        vtx->r = r;
+                        vtx->g = g;
+                        vtx->b = b;
+                        vtx->a = a;
+                        v += 2;
+                        vtx++;
+                    }
+                } else if (p->rotFlags & 4) {
+                    c1 = func_80049C30(p->rotation.y_rotation);
+                    s1 = func_80049C34(p->rotation.y_rotation);
+                    for (k = 0; k < vertsPer; k++) {
+                        x = v[0] * p->scale;
+                        vtx->x = x * c1 + p->x;
+                        vtx->y = v[1] * p->scale + p->y;
+                        vtx->z = -x * s1 + p->z;
+                        vtx->r = r;
+                        vtx->g = g;
+                        vtx->b = b;
+                        vtx->a = a;
+                        v += 2;
+                        vtx++;
+                    }
+                } else {
+                    for (k = 0; k < vertsPer; k++) {
+                        pt[0] = *v++ * p->scale;
+                        pt[1] = *v++ * p->scale;
+                        pt[2] = 0.0f;
+                        func_800496B0(1, &p->rotation, (Vec3f *) pt, (Vec3f *) pt);
+                        vtx->x = pt[0] + p->x;
+                        vtx->y = pt[1] + p->y;
+                        vtx->z = pt[2] + p->z;
+                        vtx->r = r;
+                        vtx->g = g;
+                        vtx->b = b;
+                        vtx->a = a;
+                        vtx++;
+                    }
+                }
+                numTris += trisPer;
+                p++;
+                j++;
+            }
+        }
+        if (numTris != 0) {
+            if (alpha != lastAlpha) {
+                gDPPipeSync(gfx++);
+                gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, alpha);
+                lastAlpha = alpha;
+            }
+            if (tex != lastTex || frame != lastFrame) {
+                lastFrame = frame;
+                lastTex = tex;
+                func_80055C00(&gfx, tex, 0x12, frame * 65536.0f);
+            }
+            if (tex != NULL) {
+                switch (tex->width) {
+                    default:
+                        tris = list->trisOther;
+                        break;
+                    case 0x40:
+                        tris = list->tris64;
+                        break;
+                    case 0x20:
+                        tris = list->tris32;
+                        break;
+                }
+            }
+            gSPVertexN1(gfx++, (u8 *) start + 0x80000000, numVerts);
+            gSPPolygon(gfx++, (u8 *) tris + 0x80000000, numTris, 1);
+        }
+        gDPPipeSync(gfx++);
+    }
+    *dList = gfx;
+    *vtxList = vtx;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/5DA60", func_8005D93C);
+#endif
 
 /**
  * Initializes the emitter with the specified particle type and behaviour.

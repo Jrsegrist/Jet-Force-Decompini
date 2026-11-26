@@ -204,10 +204,13 @@ typedef struct CollisionSphere {
     /* 0x18 */ Vec3f prevPos;
     /* 0x24 */ f32 radius;
     /* 0x28 */ f32 radius2;
-    /* 0x2C */ u8 pad2C[0x30 - 0x2C];
+    /* 0x2C */ s16 unk2C; // JFG: the damage it took (func_8007A534)
+    /* 0x2E */ u8 unk2E;
+    /* 0x2F */ u8 unk2F;  // JFG: the damage it passes on, in percent (100: all of it; 255: all its set's)
     /* 0x30 */ u32 reset : 1;
     /* 0x30 */ u32 noLineHits : 1; // JFG: func_8007C2E8 skips the sphere
-    /* 0x30 */ u32 pad30 : 30;
+    /* 0x30 */ u32 shield : 1;     // JFG: a hit on it stops the shot (func_8007A534)
+    /* 0x30 */ u32 pad30 : 29;
 } CollisionSphere;
 
 typedef struct SphereSet {
@@ -215,7 +218,9 @@ typedef struct SphereSet {
     /* 0x06 */ s16 unk6;
     /* 0x08 */ u8 active : 1;
     /* 0x08 */ u8 unk8_6 : 1;
-    /* 0x08 */ u8 unk8_rest : 6;
+    /* 0x08 */ u8 hitBehind : 1;   // JFG: the last shot came from behind (func_8007A534)
+    /* 0x08 */ u8 hitByPlayer : 1; // JFG: the last shot was a player's
+    /* 0x08 */ u8 hitKind : 4;     // JFG: the last shot's weapon
     /* 0x09 */ u8 unk9;
     /* 0x0A */ u16 unkA;
     /* 0x0C */ Vec3f pos;
@@ -470,7 +475,663 @@ void obj_update_collision_spheres(Obj7E *obj, SphereSet *set) {
     }
 }
 
+/* JFG: an object as func_8007A534 sees it (only the fields used there) */
+typedef struct CollHeader7A {
+    /* 0x00 */ u8 pad0[0x2F];
+    /* 0x2F */ u8 unk2F;
+} CollHeader7A;
+
+typedef struct ObjColl7A {
+    /* 0x00 */ s16 rotation[3]; // yaw, pitch, roll
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ f32 unk1C; // JFG: a velocity; a fifth of a shot's is passed on to what it hits
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ u8 pad28[0x2C - 0x28];
+    /* 0x2C */ s16 unk2C;
+    /* 0x2E */ u8 pad2E[0x40 - 0x2E];
+    /* 0x40 */ CollHeader7A *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 type;
+    /* 0x4A */ u8 pad4A[0x4C - 0x4A];
+    /* 0x4C */ SphereSet *set;
+    /* 0x50 */ u8 pad50[0x54 - 0x50];
+    /* 0x54 */ f32 *unk54;
+    /* 0x58 */ u8 pad58[0x5C - 0x58];
+    /* 0x5C */ Obj7EData *data;
+    /* 0x60 */ u8 pad60[0x68 - 0x60];
+    /* 0x68 */ void *state;
+    /* 0x6C */ u8 pad6C[0x7C - 0x6C];
+    /* 0x7C */ u8 *unk7C; // JFG: bit 1 cleared when a shot pushes the object
+    /* 0x80 */ u8 pad80[0x8C - 0x80];
+    /* 0x8C */ struct ObjColl7A *unk8C; // JFG: the owner (types 0xA4 and 0xA5)
+} ObjColl7A;
+
+/* JFG: what func_8007C2E8 reports per hit (as LineObjHit) */
+typedef struct HitRec7A {
+    /* 0x00 */ ObjColl7A *obj;
+    /* 0x04 */ SphereSet *set;
+    /* 0x08 */ CollisionSphere *part; // the sphere hit, or the set itself
+    /* 0x0C */ f32 dist2;
+    /* 0x10 */ f32 x;
+    /* 0x14 */ f32 y;
+    /* 0x18 */ f32 z;
+} HitRec7A;
+
+/* JFG: the states func_8007A534 reads, by object type (only the fields used there) */
+typedef struct CollState18 {
+    /* 0x00 */ u32 pad0 : 28;
+    /* 0x00 */ u32 noStats : 1; // JFG: hits on it count for no stats
+    /* 0x00 */ u32 pad0b : 3;
+    /* 0x04 */ u8 pad4[0x24 - 0x4];
+    /* 0x24 */ ObjColl7A *unk24;
+    /* 0x28 */ u8 pad28[0x55 - 0x28];
+    /* 0x55 */ u8 unk55;
+    /* 0x56 */ u8 pad56[0x64 - 0x56];
+    /* 0x64 */ ObjColl7A *lastOwner; // JFG: a shot's owner, three times in ten
+    /* 0x68 */ u8 pad68[0xA6 - 0x68];
+    /* 0xA6 */ s16 unkA6; // JFG: no collisions unless > 0
+} CollState18;
+
+typedef struct CollState24 {
+    /* 0x00 */ u8 pad0[0x28];
+    /* 0x28 */ u16 flags;
+} CollState24;
+
+typedef struct CollState98 {
+    /* 0x000 */ u8 pad0[0xA38];
+    /* 0xA38 */ ObjColl7A *owner;
+    /* 0xA3C */ u8 padA3C[0xA48 - 0xA3C];
+    /* 0xA48 */ f32 x;
+    /* 0xA4C */ f32 y;
+    /* 0xA50 */ f32 z;
+    /* 0xA54 */ u8 padA54[0xA78 - 0xA54];
+    /* 0xA78 */ s16 unkA78; // JFG: no hits while 0
+} CollState98;
+
+typedef struct CollStateAE {
+    /* 0x000 */ u8 pad0[0x6C4];
+    /* 0x6C4 */ ObjColl7A *owner;
+    /* 0x6C8 */ f32 x;
+    /* 0x6CC */ f32 y;
+    /* 0x6D0 */ f32 z;
+} CollStateAE;
+
+typedef struct CollStateA2 {
+    /* 0x00 */ u8 pad0[0x5C];
+    /* 0x5C */ s32 unk5C;
+    /* 0x60 */ u8 unk60;
+    /* 0x61 */ u8 pad61[0x70 - 0x61];
+    /* 0x70 */ ObjColl7A *owner;
+    /* 0x74 */ u8 pad74[0x7C - 0x74];
+    /* 0x7C */ s8 weapon;
+} CollStateA2;
+
+typedef struct CollStateA3 {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ s32 unkC;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 pad11[0x18 - 0x11];
+    /* 0x18 */ ObjColl7A *owner;
+} CollStateA3;
+
+typedef struct CollState9E {
+    /* 0x00 */ u8 pad0[0x20];
+    /* 0x20 */ ObjColl7A *owner;
+    /* 0x24 */ u8 pad24[0x39 - 0x24];
+    /* 0x39 */ s8 weapon;
+} CollState9E;
+
+typedef struct CollStateA8 {
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ s8 weapon;
+    /* 0x09 */ u8 pad9[0xC - 0x9];
+    /* 0x0C */ ObjColl7A *owner;
+} CollStateA8;
+
+typedef struct CollStateOwn0 {
+    /* 0x00 */ ObjColl7A *owner;
+} CollStateOwn0;
+
+typedef struct CollStateOwn10 {
+    /* 0x00 */ u8 pad0[0x10];
+    /* 0x10 */ ObjColl7A *owner;
+} CollStateOwn10;
+
+typedef struct CollState40 {
+    /* 0x00 */ u8 pad0[0x18];
+    /* 0x18 */ s16 spin[3];
+} CollState40;
+
+typedef struct CollState99 {
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ s32 unk30;
+    /* 0x34 */ u8 pad34[0x7A - 0x34];
+    /* 0x7A */ s16 spin[3];
+} CollState99;
+
+typedef struct CollState9B {
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ s16 unk8;
+} CollState9B;
+
+typedef struct CollPlayer7A {
+    /* 0x00 */ u8 pad0[0x13];
+    /* 0x13 */ u8 unk13; // JFG: top four bits: a knock-back timer (func_8007A534 starts it at 15)
+} CollPlayer7A;
+
+typedef struct CollPlayerState7A {
+    /* 0x000 */ u8 pad0[0x6C];
+    /* 0x06C */ f32 unk6C; // JFG: a push (x, z)
+    /* 0x070 */ f32 unk70;
+    /* 0x074 */ u8 pad74[0x149 - 0x74];
+    /* 0x149 */ u8 unk149;
+} CollPlayerState7A;
+
+struct PairObj7D;
+struct CollQuery;
+struct CollObj;
+struct PlayerObject;
+ObjColl7A **func_80005E98(s32 *first, s32 *last);
+void func_800496B0(s32 n, s16 *rotation, f32 *in, f32 *out); // DKR: vec3f_rotate
+void func_8007D168(struct PairObj7D *a, SphereSet *sa, struct PairObj7D *b, SphereSet *sb);
+s32 func_8007C2E8(s32 owner, struct CollQuery *query, s32 count, struct CollObj **objs, struct CollObj **hitObj,
+                  struct CollObj *self);
+s32 func_80048E2C(s32 min, s32 max);
+s32 func_80049C84(f32 x, f32 z);
+s32 func_80049D80(s32 a, s32 b); // b - a wrapped to -0x8000..0x7FFF (hand-written asm: takes and returns full words)
+f32 func_80049C30(s32 angle);    // cosine of a 16-bit angle
+f32 func_80049C34(s32 angle);    // sine of a 16-bit angle
+void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
+void stats_kill_add(s32 weapon);
+void stats_hit_add(s32 weapon);
+s32 multiplayer_score_kill(struct PlayerObject *killer, struct PlayerObject *victim);
+ObjColl7A *func_8000E4D0(s32 index);
+void func_8003B590(u8 *obj, s32 index);
+void *func_80054530(); // a module function (patched in by the runtime linker)
+extern u8 D_800A4FC4;  // JFG: a multiplayer game
+
+#ifdef NON_MATCHING
+/**
+ * JFG: the frame's object collisions. Over the object list's active range: each object's hit set follows the object
+ * (types 0x98 and 0xAE from their state, type 2 from its state point, the set's offset turned with the object),
+ * flagged sets go into the moved-object list (their previous transform kept, at most 0x50) and enabled ones into
+ * the shot list (unk9 & 4) and the solid list (unk9 & 0x13; their spheres updated), at most 0x100 each. Solid sets
+ * that test pairs (unk9 & 2) meet every other solid set they touch (vertical cylinders; two type 0x18 objects only
+ * if a module function lets them) through func_8007D168. Each shot (with its owner by type) is swept against the
+ * solid sets (func_8007C2E8; type 0x98 only while its state allows) and its hits taken nearest first while it has
+ * damage left: a hit it passes through (a sphere marked noLineHits or passing no damage, or a set out of health)
+ * ends shots 0xA2 and 0xA3 there; otherwise the set records the shot (its sphere, whether from behind, the weapon),
+ * a pushed object gets a fifth of the shot's velocity (a spin for types 0x40 and 0x99), a type 0x18 target notes
+ * its owner, plays the hit sound and counts hit stats, the damage (the sphere's percentage of the shot's) is taken
+ * from the set and the shot (a shield sphere stops it), a shot out of damage stops at the hit, a kill counts score
+ * or kill stats, type 0x2C knocks the player back, and module functions see the hit.
+ * NON_MATCHING: a first body written from the ROM (1312 words for the ROM's 1306, the ROM's frame and declared stack
+ * slots; 415 aligned rows: loop 3's hit offset starts as k * 28, the float-argument module call goes through a cast
+ * (jalr), t-register numbering), checked equal to the ROM by simulation.
+ * NOT PORTABLE: func_8007C2E8 takes the shot object as an s32 (its owner word); the sphere index is a pointer
+ * difference also taken when the set itself was hit; CollState18.noStats and the CollisionSphere/SphereSet flags are
+ * IDO bit-field positions (bit 3 of the big-endian word at 0, and so on).
+ */
+void func_8007A534(void) {
+    s32 i;
+    s32 j;
+    ObjColl7A *obj;
+    SphereSet *set;
+    s32 first;
+    s32 last;
+    s32 countA;
+    s32 countB;
+    s32 prevHp;
+    ObjColl7A *other;
+    SphereSet *oset;
+    CollisionSphere *sphere;
+    ObjColl7A *owner;
+    ObjColl7A **listA;
+    ObjColl7A **listB;
+    f32 pt[3];
+    CollStateA2 *stA2;
+    ObjColl7A **list;
+    s32 k;
+    s32 kind;
+    CollState98 *st98;
+    CollStateAE *stAE;
+    s32 killed; // the target's health before the hit, then whether the hit killed it
+    s16 d;
+    UNUSED s32 pad2;
+    s16 angle;
+    s32 dmg;
+    Obj7EData *data;
+    CollPlayer7A *pl;
+    CollPlayerState7A *ps;
+    f32 r;
+    f32 dx;
+    HitRec7A *hits;
+    CollState18 *st18;
+    f32 dz;
+    s32 a;
+    s32 fl;
+    f32 *pos;
+    ObjColl7A *target;
+    CollState18 *ownSt;
+    CollState24 *targetSt;
+    UNUSED s32 pad[3];
+
+    list = func_80005E98(&first, &last);
+    listA = D_801047E8;
+    listB = D_801047EC;
+    countA = 0;
+    countB = 0;
+    D_801047E0 = 0;
+    for (i = first; i < last; i++) {
+        obj = list[i];
+        if (obj->type == 0x18) {
+            st18 = obj->state;
+            if (st18->unkA6 <= 0 || st18->unk55 != 0) {
+                continue;
+            }
+        }
+        set = obj->set;
+        if (set != NULL) {
+            if (obj->type == 0x98) {
+                st98 = obj->state;
+                set->prevPos.x = obj->x;
+                set->prevPos.y = obj->y;
+                set->prevPos.z = obj->z;
+                set->pos.x = st98->x;
+                set->pos.y = st98->y;
+                set->pos.z = st98->z;
+            } else if (obj->type == 0xAE) {
+                stAE = obj->state;
+                set->prevPos.x = obj->x;
+                set->prevPos.y = obj->y;
+                set->prevPos.z = obj->z;
+                set->pos.x = stAE->x;
+                set->pos.y = stAE->y;
+                set->pos.z = stAE->z;
+            } else {
+                set->prevPos.x = set->pos.x;
+                set->prevPos.y = set->pos.y;
+                set->prevPos.z = set->pos.z;
+                if (obj->type == 2) {
+                    pos = obj->state;
+                    set->pos.x = pos[0];
+                    set->pos.y = pos[1];
+                    set->pos.z = pos[2];
+                } else {
+                    set->pos.x = obj->x;
+                    set->pos.y = obj->y;
+                    set->pos.z = obj->z;
+                }
+            }
+            if (set->rotation[0] | set->rotation[1] | set->rotation[2]) {
+                pt[0] = set->rotation[0];
+                pt[1] = set->rotation[1];
+                pt[2] = set->rotation[2];
+                func_800496B0(1, obj->rotation, pt, pt);
+                set->pos.x += pt[0] * obj->scale;
+                set->pos.y += pt[1] * obj->scale;
+                set->pos.z += pt[2] * obj->scale;
+            }
+            if ((set->unk9 & 8) && D_801047E0 < 0x50) {
+                data = obj->data;
+                if (data->unk12E == 0) {
+                    data->prevX = obj->x;
+                    data->prevY = obj->y;
+                    data->prevZ = obj->z;
+                    data->prevYaw = obj->rotation[0];
+                    data->prevPitch = obj->rotation[1];
+                    data->prevRoll = obj->rotation[2];
+                    data->unk12E = 1;
+                }
+                D_801047E4[D_801047E0] = (Obj7E *) obj;
+                D_801047E0++;
+            }
+            if ((set->unkA & 1) && (set->unk9 & 4) && countB < 0x100) {
+                *listB++ = obj;
+                countB++;
+            }
+            if ((set->unkA & 1) && (set->unk9 & 0x13) && countA < 0x100) {
+                *listA++ = obj;
+                countA++;
+                set->unk3C = 0;
+                set->unkA &= ~0x60;
+                obj_update_collision_spheres((Obj7E *) obj, set);
+            }
+        }
+    }
+    for (i = 0; i < countA; i++) {
+        obj = ((ObjColl7A **) D_801047E8)[i];
+        set = obj->set;
+        if (set->unk9 & 2) {
+            for (j = 0; j < countA; j++) {
+                if (i != j) {
+                    other = ((ObjColl7A **) D_801047E8)[j];
+                    if (obj->type == 0x18 && other->type == 0x18 && func_80054530(obj, other) == NULL) {
+                        continue;
+                    }
+                    oset = other->set;
+                    r = set->radius + oset->radius;
+                    r *= r;
+                    dx = set->pos.x - oset->pos.x;
+                    dz = set->pos.z - oset->pos.z;
+                    if (dx * dx + dz * dz < r &&set->pos.y - set->radius2 <= oset->pos.y + oset->radius2 &&
+                        oset->pos.y - oset->radius2 <= set->pos.y + set->radius2) {
+                        func_8007D168((struct PairObj7D *) obj, set, (struct PairObj7D *) other, oset);
+                    }
+                }
+            }
+        }
+    }
+    for (i = 0; i < countB; i++) {
+        obj = ((ObjColl7A **) D_801047EC)[i];
+        set = obj->set;
+        switch (obj->type) {
+            case 0xA3:
+                owner = ((CollStateA3 *) obj->state)->owner;
+                break;
+            case 0xA2:
+                stA2 = obj->state;
+                owner = stA2->owner;
+                break;
+            case 0x9E:
+                owner = ((CollState9E *) obj->state)->owner;
+                break;
+            case 0x9F:
+                owner = ((CollStateOwn10 *) obj->state)->owner;
+                break;
+            case 0xA0:
+                owner = ((CollStateOwn10 *) obj->state)->owner;
+                break;
+            case 0x98:
+                st98 = obj->state;
+                owner = st98->owner;
+                break;
+            case 0x2C:
+                owner = ((CollStateOwn0 *) obj->state)->owner;
+                break;
+            case 0x99:
+                owner = ((CollStateOwn0 *) obj->state)->owner;
+                break;
+            case 0xA4:
+                owner = obj->unk8C;
+                break;
+            case 0xA5:
+                owner = obj->unk8C;
+                break;
+            case 0x97:
+                owner = obj;
+                break;
+            case 0xAC:
+                owner = ((CollStateOwn0 *) obj->state)->owner;
+                break;
+            case 0xAA:
+                owner = ((CollStateOwn0 *) obj->state)->owner;
+                break;
+            case 0xAB:
+                owner = ((CollStateOwn10 *) obj->state)->owner;
+                break;
+            case 0xAD:
+                owner = ((CollStateOwn0 *) obj->state)->owner;
+                break;
+            case 0xAE:
+                stAE = obj->state;
+                owner = stAE->owner;
+                break;
+            case 0xA8:
+                owner = ((CollStateA8 *) obj->state)->owner;
+                break;
+            default:
+                owner = NULL;
+                break;
+        }
+        if (obj->type == 0x98 && st98->unkA78 == 0) {
+            continue;
+        }
+        j = func_8007C2E8((s32) obj, (struct CollQuery *) set, countA, D_801047E8, (struct CollObj **) &hits,
+                          (struct CollObj *) owner);
+        for (k = 0; k < j && set->unk6 > 0; k++) {
+            other = hits[k].obj;
+            oset = hits[k].set;
+            sphere = hits[k].part;
+            prevHp = oset->unk6;
+            if (other->type == 0x18 && obj->type == 0x98) {
+                func_80054530(other);
+            }
+            if (sphere->noLineHits || sphere->unk2F == 0 || oset->unk6 < 0) {
+                if (obj->type == 0xA2) {
+                    if (oset->unk6 >= 0) {
+                        stA2->unk60 = 1;
+                        stA2->unk5C = 0;
+                        obj->x = hits[k].x;
+                        obj->y = hits[k].y;
+                        obj->z = hits[k].z;
+                        break;
+                    }
+                    continue;
+                }
+                if (obj->type == 0xA3) {
+                    if (oset->unk6 >= 0) {
+                        ((CollStateA3 *) obj->state)->unk10 = 1;
+                        ((CollStateA3 *) obj->state)->unkC = 0;
+                        obj->x = hits[k].x;
+                        obj->y = hits[k].y;
+                        obj->z = hits[k].z;
+                        break;
+                    }
+                    continue;
+                }
+            }
+            oset->unk31 = sphere - oset->spheres;
+            oset->hitByPlayer = FALSE;
+            kind = 15;
+            if (other->unk7C != NULL && obj->type != 0x98) {
+                other->unk1C += obj->unk1C * 0.2f;
+                other->unk20 += obj->unk20 * 0.2f;
+                other->unk24 += obj->unk24 * 0.2f;
+                if (other->type == 0x40) {
+                    ((CollState40 *) other->state)->spin[0] = func_80048E2C(-5000, 5000);
+                    ((CollState40 *) other->state)->spin[1] = func_80048E2C(-5000, 5000);
+                    ((CollState40 *) other->state)->spin[2] = func_80048E2C(-5000, 5000);
+                } else if (other->type == 0x99) {
+                    ((CollState99 *) other->state)->spin[0] = func_80048E2C(-5000, 5000);
+                    ((CollState99 *) other->state)->spin[1] = func_80048E2C(-5000, 5000);
+                    ((CollState99 *) other->state)->spin[2] = func_80048E2C(-5000, 5000);
+                    ((CollState99 *) other->state)->unk30 = 0;
+                }
+                *other->unk7C &= ~2;
+            }
+            d = func_80049D80(other->rotation[0],
+                              func_80049C84(obj->x - obj->set->prevPos.x, obj->z - obj->set->prevPos.z));
+            oset->hitBehind = d >= 0x4000 || d < -0x3FFF;
+            switch (obj->type) {
+                case 0xA3:
+                    kind = 3;
+                    break;
+                case 0xA2:
+                    kind = ((CollStateA2 *) obj->state)->weapon;
+                    break;
+                case 0xA4:
+                    kind = 14;
+                    break;
+                case 0x9E:
+                    kind = ((CollState9E *) obj->state)->weapon;
+                    break;
+                case 0x98:
+                    kind = 4;
+                    break;
+                case 0xA8:
+                    kind = ((CollStateA8 *) obj->state)->weapon;
+                    break;
+            }
+            oset->hitKind = kind;
+            if (other != NULL && other->type == 0x18) {
+                st18 = other->state;
+                if (owner != NULL) {
+                    target = st18->unk24;
+                    ownSt = owner->state;
+                    targetSt = target->state;
+                    if (owner->type == 0x18) {
+                        if (ownSt->unk24 == target && !(targetSt->flags & 0x2000)) {
+                            continue;
+                        }
+                        if (func_80048E2C(1, 10) < 4) {
+                            st18->lastOwner = owner;
+                        }
+                    }
+                    if (owner->type == 1) {
+                        func_80054530(other, owner);
+                        oset->hitByPlayer = TRUE;
+                    }
+                }
+                if (obj->type == 0xA3 || obj->type == 0xA2 || obj->type == 0x99) {
+                    audspat_play_sound_at_position(0x98, other->x, other->y, other->z, 4, NULL);
+                }
+                if (oset->unk6 > 0 && !st18->noStats) {
+                    switch (obj->type) {
+                        case 0xA3:
+                            stats_hit_add(3);
+                            break;
+                        case 0xA2:
+                            if (owner != NULL && owner->type == 1) {
+                                stats_hit_add(((CollStateA2 *) obj->state)->weapon);
+                            }
+                            break;
+                        case 0x99:
+                            stats_hit_add(9);
+                            break;
+                        case 0x9E:
+                            stats_hit_add(((CollState9E *) obj->state)->weapon);
+                            break;
+                    }
+                }
+            }
+            killed = oset->unk6;
+            if (other->type == 0x9B && killed > 0) {
+                ((CollState9B *) other->state)->unk8 = 0;
+            } else if (sphere != (CollisionSphere *) oset && sphere->shield) {
+                set->unk6 = 0;
+            } else {
+                dmg = sphere->unk2F;
+                if (dmg == 100) {
+                    dmg = set->unk6;
+                } else if (dmg == 0xFF) {
+                    dmg = killed;
+                } else {
+                    dmg = set->unk6 * 0.01f * sphere->unk2F;
+                }
+                sphere->unk2C += dmg;
+                if (oset->unk6 >= set->unk6) {
+                    set->unk6 = 0;
+                } else if (oset->unk6 > 0) {
+                    set->unk6 -= oset->unk6;
+                }
+                oset->unk6 -= dmg;
+            }
+            if (set->unk6 <= 0) {
+                if (obj->type == 0x98) {
+                    st98->x = hits[k].x;
+                    st98->y = hits[k].y;
+                    st98->z = hits[k].z;
+                } else if (obj->type == 0xAE) {
+                    stAE->x = hits[k].x;
+                    stAE->y = hits[k].y;
+                    stAE->z = hits[k].z;
+                } else {
+                    obj->x = hits[k].x;
+                    obj->y = hits[k].y;
+                    obj->z = hits[k].z;
+                }
+            }
+            if (other->type == 1 && killed >= 0x100 && oset->unk6 < 0x100) {
+                killed = TRUE;
+            } else if (other->type != 1 && killed > 0 && oset->unk6 <= 0) {
+                killed = TRUE;
+            } else {
+                killed = FALSE;
+            }
+            if (killed) {
+                if (D_800A4FC4) {
+                    if (owner != NULL) {
+                        multiplayer_score_kill((struct PlayerObject *) owner, (struct PlayerObject *) other);
+                    }
+                } else if (other->type == 0x18 && !st18->noStats) {
+                    switch (obj->type) {
+                        case 0xA3:
+                            stats_kill_add(3);
+                            break;
+                        case 0xA2:
+                            if (owner != NULL && owner->type == 1) {
+                                stats_kill_add(((CollStateA2 *) obj->state)->weapon);
+                            }
+                            break;
+                        case 0xA4:
+                            stats_kill_add(14);
+                            break;
+                        case 0x9E:
+                            stats_kill_add(((CollState9E *) obj->state)->weapon);
+                            break;
+                        case 0x98:
+                            stats_kill_add(4);
+                            break;
+                        case 0xA8:
+                            stats_kill_add(((CollStateA8 *) obj->state)->weapon);
+                            break;
+                    }
+                }
+            }
+            if (other->type == 1 && obj->type == 0x2C) {
+                pl = owner->state;
+                if ((pl->unk13 >> 4) == 0) {
+                    pl->unk13 |= 0xF0;
+                    angle = func_80049C84(set->pos.x - set->prevPos.x, set->pos.z - set->prevPos.z);
+                    ps = func_8000E4D0(0)->state;
+                    ps->unk149 = 40;
+                    ps->unk6C = func_80049C34(angle) * 10.0f;
+                    ps->unk70 = func_80049C30(angle) * 10.0f;
+                }
+            }
+            if (other->type == 0x18 && prevHp != oset->unk6 && obj->type != 0x98) {
+                fl = other->header->unk2F;
+                a = 255;
+                if (other->unk54 != NULL) {
+                    a = *other->unk54 * 255.0f;
+                }
+                ((void (*)(f32, f32, f32, s32, s32)) func_80054530)(hits[k].x, hits[k].y, hits[k].z, a, fl);
+            }
+            if (owner != NULL && other->set != NULL && (obj->type == 0xA2 || obj->type == 0x9E) &&
+                other->type == 0x18 && owner->type == 1) {
+                if (other->unk2C == 0xB7) {
+                    if (!killed) {
+                        func_8003B590((u8 *) owner, 10);
+                    } else {
+                        func_8003B590((u8 *) owner, 11);
+                    }
+                } else {
+                    if (!killed) {
+                        func_8003B590((u8 *) owner, 6);
+                    } else {
+                        func_8003B590((u8 *) owner, 8);
+                    }
+                }
+            }
+            if (obj->type == 0x97) {
+                func_80054530(other, obj, &hits[k]);
+            }
+            if (other->type == 0x6C) {
+                func_80054530(other, obj, &hits[k]);
+            }
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007A534);
+#endif
 
 typedef struct CollObjHeader {
     /* 0x00 */ u8 pad0[0x14];
@@ -1359,7 +2020,7 @@ void stats_kill_add(s32 weapon);
 void stats_hit_add(s32 weapon);
 void func_8003B590(u8 *obj, s32 index);
 void func_80032128(s32 arg0);
-void func_80054530(); // a module function (patched in by the runtime linker)
+void *func_80054530(); // a module function (patched in by the runtime linker)
 
 #ifdef NON_MATCHING
 /**
@@ -1846,7 +2507,7 @@ typedef struct PlayerObject {
     /* 0x68 */ PlayerState *state;
 } PlayerObject;
 
-void func_80054530(); // a module function (patched in by the runtime linker)
+void *func_80054530(); // a module function (patched in by the runtime linker)
 
 /* JFG: in a multiplayer game, score killer's kill of victim (both players); TRUE if it was scored. */
 s32 multiplayer_score_kill(PlayerObject *killer, PlayerObject *victim) {
