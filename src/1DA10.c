@@ -125,7 +125,182 @@ u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2) {
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D464);
 #endif
 
+#ifdef NON_MATCHING
+/* DKR include/structs.h */
+typedef struct Vertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} Vertex;
+
+/* JFG: 12D50.c's segment vertex colours */
+typedef struct SegmentColours {
+    /* 0x00 */ u8 *colours; // three bytes per vertex
+    /* 0x04 */ u16 *changed; // a bit per vertex, 16 per halfword
+} SegmentColours;
+
+/* JFG: 12D50.c's level segment, reduced further. Size: 0x48 bytes */
+typedef struct LevelModelSegment {
+    /* 0x00 */ Vertex *vertices;
+    /* 0x04 */ u8 pad4[0x24 - 0x4];
+    /* 0x24 */ s16 numberOfVertices;
+    /* 0x26 */ u8 pad26[0x32 - 0x26];
+    /* 0x32 */ s8 colourFlags;
+    /* 0x33 */ u8 pad33;
+    /* 0x34 */ SegmentColours *colours;
+    /* 0x38 */ u8 pad38[0x48 - 0x38];
+} LevelModelSegment;
+
+/* DKR include/structs.h, reduced */
+typedef struct LevelModel {
+    /* 0x00 */ void *textures;
+    /* 0x04 */ LevelModelSegment *segments;
+    /* 0x08 */ LevelModelSegmentBoundingBox *segmentsBoundingBoxes;
+    /* 0x0C */ u8 pad0C[0x1A - 0xC];
+    /* 0x1A */ s16 numberOfSegments;
+} LevelModel;
+
+/* JFG: 12D50.c's track light (Size: 0x80 bytes) */
+typedef struct TrackLight {
+    /* 0x00 */ f32 x;
+    /* 0x04 */ f32 y;
+    /* 0x08 */ f32 z;
+    /* 0x0C */ f32 outerRadius; // 0 when the slot is free
+    /* 0x10 */ f32 innerRadius;
+    /* 0x14 */ f32 outerRadiusSquare;
+    /* 0x18 */ f32 innerRadiusSquare;
+    /* 0x1C */ f32 falloff;
+    /* 0x20 */ u8 ramp[0x60]; // filled by track_light_set_colour
+} TrackLight;
+
+f32 sqrtf(f32 x);
+
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
+ * JFG: apply one track light to the level's vertex colours. Unless the ramp's brightest entry (its last, used inside
+ * innerRadius) is black: list the visible segments whose boxes meet the light's cube (at most 56, as the
+ * assembly's stack list holds), then raise each channel of every vertex within outerRadius to the ramp entry for
+ * its distance, (outerRadius - distance) * falloff. Each lit vertex's bit is set in the segment's changed bits and
+ * a segment with any lit vertex gets colourFlags bit 0. */
+void func_8001D500(LevelModel *model, TrackLight *light, u8 *visible) {
+    LevelModelSegment *list[56];
+    LevelModelSegment *segment;
+    LevelModelSegmentBoundingBox *box;
+    Vertex *v;
+    u8 *entry;
+    u16 *changed;
+    s32 radius;
+    s32 minX;
+    s32 minY;
+    s32 minZ;
+    s32 maxX;
+    s32 maxY;
+    s32 maxZ;
+    s32 i;
+    s32 count;
+    s32 k;
+    s32 lit;
+    u32 bit;
+    u32 bits;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 distSq;
+
+    entry = &light->ramp[0x5D];
+    if (entry[0] == 0 && entry[1] == 0 && entry[2] == 0) {
+        return;
+    }
+    radius = light->outerRadius;
+    minX = light->x;
+    minY = light->y;
+    minZ = light->z;
+    maxX = minX + radius;
+    maxY = minY + radius;
+    maxZ = minZ + radius;
+    minX -= radius;
+    minY -= radius;
+    minZ -= radius;
+    i = model->numberOfSegments;
+    if (i == 0) {
+        return;
+    }
+    segment = model->segments;
+    box = model->segmentsBoundingBoxes;
+    count = 0;
+    do {
+        i--;
+        if (*(s8 *) visible != 0 && box->x2 >= minX && box->y2 >= minY && box->z2 >= minZ && box->x1 <= maxX &&
+            box->y1 <= maxY && box->z1 <= maxZ) {
+            list[count++] = segment;
+        }
+        box++;
+        segment++;
+        visible++;
+    } while (i != 0);
+    if (count == 0) {
+        return;
+    }
+    radius *= 2;
+    k = 0;
+    do {
+        segment = list[k++];
+        count--;
+        lit = FALSE;
+        bit = 1;
+        changed = segment->colours->changed;
+        v = segment->vertices;
+        i = segment->numberOfVertices;
+        if (i == 0) {
+            continue;
+        }
+        bits = *changed;
+        do {
+            i--;
+            /* The assembly's unsigned compares: inside the cube on all three axes. */
+            if ((u32) v->x - (u32) minX <= (u32) radius && (u32) v->y - (u32) minY <= (u32) radius &&
+                (u32) v->z - (u32) minZ <= (u32) radius) {
+                dx = (f32) v->x - light->x;
+                dy = (f32) v->y - light->y;
+                dz = (f32) v->z - light->z;
+                distSq = dx * dx + dy * dy + dz * dz;
+                if (distSq < light->outerRadiusSquare) {
+                    lit = TRUE;
+                    bits |= bit;
+                    if (distSq < light->innerRadiusSquare) {
+                        entry = &light->ramp[0x5D];
+                    } else {
+                        entry = &light->ramp[(s32) ((light->outerRadius - sqrtf(distSq)) * light->falloff) * 3];
+                    }
+                    if (v->r < entry[0]) {
+                        v->r = entry[0];
+                    }
+                    if (v->g < entry[1]) {
+                        v->g = entry[1];
+                    }
+                    if (v->b < entry[2]) {
+                        v->b = entry[2];
+                    }
+                }
+            }
+            bit = (bit << 1) & 0xFFFF;
+            if (bit == 0) {
+                *changed++ = bits;
+                bits = *changed;
+                bit = 1;
+            }
+            v++;
+        } while (i != 0);
+        *changed = bits;
+        segment->colourFlags |= lit;
+    } while (count != 0);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D500);
+#endif
 
 extern s32 D_800A0E80[4];
 extern s32 D_800A0E90[4];

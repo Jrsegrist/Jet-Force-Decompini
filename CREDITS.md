@@ -446,3 +446,9 @@ written from what the code does.
 | `src/tracks.c` | func_8002FD74's shape (the points' min/max box, then the overlap test) for the NON_MATCHING body of JFG's func_80020890 in `src/1DA10.c`, and its loop for func_80020954; JFG's count-down loop, compare forms and return value are written from the ROM's hand-written assembly |
 | `src/tracks.c` | func_800304C8 (the three edge tests and the plane height) for the NON_MATCHING body of JFG's func_800209E4 in `src/1DA10.c`; JFG's ShadowBuild fields and compare forms are written from the ROM's hand-written assembly |
 | `include/structs.h` | LevelModelSegmentBoundingBox, for the NON_MATCHING body of JFG's func_8001D464 in `src/1DA10.c` (written from the ROM's hand-written assembly) |
+
+### Round 64 (main64)
+
+| DKR file | Used for |
+| --- | --- |
+| `include/structs.h` | LevelModelSegmentBoundingBox, Vertex and LevelModel (reduced), for the NON_MATCHING bodies of JFG's func_8001D344 and func_8001D500 in `src/1DA10.c`; the code itself is written from the ROM's hand-written assembly |
