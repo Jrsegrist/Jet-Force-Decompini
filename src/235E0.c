@@ -140,9 +140,222 @@ void func_800229E0(void *arg0, void *arg1, DirLight *light, void *buf, void *arg
 INCLUDE_ASM("asm/nonmatchings/235E0", func_800229E0);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/235E0", func_80022BC4);
+#ifdef NON_MATCHING
+/* JFG: a light's level for a dot product with a normal: min below 0, max from unkC up, else scaled by unk10 */
+static s32 dir_light_level(DirLight *light, s32 dot) {
+    if (dot < 0) {
+        return light->min;
+    }
+    if (dot >= light->unkC) {
+        return light->max;
+    }
+    return ((dot * light->unk10) >> 14) + light->min;
+}
+#endif
 
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
+ * JFG: func_800229E0's command stream lit by two lights: buf holds the directions for n matrices per light (light
+ * 1's at buf + 3 * n after light 0's). Light 1's level picks an entry of its shade table (4 bytes at
+ * (level & 0xFE) * 2); each colour channel is that entry's byte, at least light 0's level, times the base colour's
+ * byte, >> 8. Only the vertices' r, g, b bytes (6-8) are written. */
+void func_80022BC4(void *arg0, void *arg1, void *buf, s32 n, DirLight *light, void *arg5, void *arg6) {
+    u8 *vertices;
+    u8 *cmd;
+    s8 *dir;
+    DirLight *light1;
+    u8 *normals;
+    s8 *normal;
+    u8 *entry;
+    u8 *vertex;
+    s32 stride;
+    s32 left;
+    s32 x0;
+    s32 y0;
+    s32 z0;
+    s32 x1;
+    s32 y1;
+    s32 z1;
+    s32 level0;
+    s32 level1;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 extra;
+    u32 word;
+    u32 packedHi;
+    u32 packedLo;
+
+    vertices = arg0;
+    cmd = arg1;
+    light1 = arg5;
+    normals = arg6;
+    stride = n * 3;
+    left = -1; // read a group header first
+    while (TRUE) {
+        if (left <= 0) {
+            left = cmd[0];
+            if (left == 0) {
+                return;
+            }
+            dir = (s8 *) buf + cmd[1] * 3;
+            cmd += 2;
+            x0 = dir[0];
+            y0 = dir[1];
+            z0 = dir[2];
+            dir += stride;
+            x1 = dir[0];
+            y1 = dir[1];
+            z1 = dir[2];
+        }
+        word = read_be32(cmd);
+        left--;
+        normal = (s8 *) &normals[word >> 16];
+        level0 = dir_light_level(light, x0 * normal[0] + y0 * normal[1] + z0 * normal[2]);
+        level1 = dir_light_level(light1, x1 * normal[0] + y1 * normal[1] + z1 * normal[2]);
+        entry = &light1->table[(level1 & 0xFE) * 2];
+        r = entry[0];
+        if (r < level0) {
+            r = level0;
+        }
+        g = entry[1];
+        if (g < level0) {
+            g = level0;
+        }
+        b = entry[2];
+        if (b < level0) {
+            b = level0;
+        }
+        r = (u32) (r * ((u8 *) normal)[3]) >> 8;
+        g = (u32) (g * ((u8 *) normal)[4]) >> 8;
+        b = (u32) (b * ((u8 *) normal)[5]) >> 8;
+        vertex = &vertices[(word & 0xFFF) * 10];
+        vertex[6] = r;
+        vertex[7] = g;
+        vertex[8] = b;
+        extra = (word >> 12) & 0xF;
+        if (extra == 0) {
+            cmd += 4;
+            continue;
+        }
+        /* As in func_800229E0: only the first 64 bits of packed indices are read. */
+        packedHi = read_be32(cmd + 4);
+        packedLo = read_be32(cmd + 8);
+        cmd += (extra * 12 + 39) >> 3;
+        do {
+            vertex = &vertices[(packedHi >> 20) * 10];
+            vertex[6] = r;
+            vertex[7] = g;
+            vertex[8] = b;
+            packedHi = (packedHi << 12) | (packedLo >> 20);
+            packedLo <<= 12;
+        } while (--extra != 0);
+    }
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/235E0", func_80022BC4);
+#endif
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
+ * JFG: func_800229E0's command stream lit by count lights (count at least 2): buf holds the directions for n
+ * matrices per light. Each channel starts at light 0's level and is raised to the matching byte of every other
+ * light's shade-table entry (4 bytes at (level & 0xFE) * 2), then times the base colour's byte, >> 8. Only the
+ * vertices' r, g, b bytes (6-8) are written. */
+void func_80022E98(void *arg0, void *arg1, DirLight *light, void *arg3, void *buf, s32 n, s32 count) {
+    u8 *vertices;
+    u8 *cmd;
+    u8 *normals;
+    s8 *dirs;
+    s8 *dir;
+    s8 *normal;
+    DirLight *end;
+    DirLight *l;
+    u8 *entry;
+    u8 *vertex;
+    s32 stride;
+    s32 left;
+    s32 nx;
+    s32 ny;
+    s32 nz;
+    s32 level;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 extra;
+    u32 word;
+    u32 packedHi;
+    u32 packedLo;
+
+    vertices = arg0;
+    cmd = arg1;
+    normals = arg3;
+    end = light + count;
+    stride = n * 3;
+    left = 0; // read a group header first
+    while (TRUE) {
+        if (left <= 0) {
+            left = cmd[0];
+            if (left == 0) {
+                return;
+            }
+            dirs = (s8 *) buf + cmd[1] * 3;
+            cmd += 2;
+        }
+        word = read_be32(cmd);
+        left--;
+        normal = (s8 *) &normals[word >> 16];
+        nx = normal[0];
+        ny = normal[1];
+        nz = normal[2];
+        dir = dirs;
+        l = light;
+        level = dir_light_level(l, dir[0] * nx + dir[1] * ny + dir[2] * nz);
+        r = g = b = level;
+        do {
+            l++;
+            dir += stride;
+            level = dir_light_level(l, dir[0] * nx + dir[1] * ny + dir[2] * nz);
+            entry = &l->table[(level & 0xFE) * 2];
+            if (r < entry[0]) {
+                r = entry[0];
+            }
+            if (g < entry[1]) {
+                g = entry[1];
+            }
+            if (b < entry[2]) {
+                b = entry[2];
+            }
+        } while (l + 1 != end);
+        r = (u32) (((u8 *) normal)[3] * r) >> 8;
+        g = (u32) (((u8 *) normal)[4] * g) >> 8;
+        b = (u32) (((u8 *) normal)[5] * b) >> 8;
+        vertex = &vertices[(word & 0xFFF) * 10];
+        vertex[6] = r;
+        vertex[7] = g;
+        vertex[8] = b;
+        extra = (word >> 12) & 0xF;
+        if (extra == 0) {
+            cmd += 4;
+            continue;
+        }
+        /* As in func_800229E0: only the first 64 bits of packed indices are read. */
+        packedHi = read_be32(cmd + 4);
+        packedLo = read_be32(cmd + 8);
+        cmd += (extra * 12 + 39) >> 3;
+        do {
+            vertex = &vertices[(packedHi >> 20) * 10];
+            vertex[6] = r;
+            vertex[7] = g;
+            vertex[8] = b;
+            packedHi = (packedHi << 12) | (packedLo >> 20);
+            packedLo <<= 12;
+        } while (--extra != 0);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/235E0", func_80022E98);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: hand-written assembly; this C gives the same results.
