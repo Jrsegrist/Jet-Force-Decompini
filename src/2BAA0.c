@@ -655,7 +655,9 @@ typedef struct TrackHit2BAA0 {
         s16 behaviorId;
     } *obj;
     /* 0x04 */ f32 pos[3];
-    /* 0x10 */ u8 pad10[0x28 - 0x10];
+    /* 0x10 */ u8 pad10[0x20 - 0x10];
+    /* 0x20 */ f32 dist; /* how far along the line (func_80031090 reads it) */
+    /* 0x24 */ u8 pad24[0x28 - 0x24];
 } TrackHit2BAA0;
 
 s32 func_80018808(s32 arg0, f32 *from, f32 *to, TrackHit2BAA0 *result, s32 flags, s32 arg5);
@@ -1241,7 +1243,257 @@ void func_8002F5F0(u8 *obj, u8 *arg1) {
 
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_8002F728);
 
+typedef struct Spawn50 {
+    /* 0x00 */ s16 objectID;
+    /* 0x02 */ u8 size;
+    /* 0x03 */ u8 unk3;
+    /* 0x04 */ s16 x, y, z;
+    /* 0x0A */ u8 unkA;
+    /* 0x0B */ u8 unkB;
+    /* 0x0C */ s16 unkC;
+    /* 0x0E */ s16 unkE;
+    /* 0x10 */ u8 unk10;
+    /* 0x11 */ u8 unk11;
+    /* 0x12 */ u8 weapon;
+    /* 0x13 */ s8 unk13;
+    /* 0x14 */ f32 unk14;
+    /* 0x18 */ s32 owner;
+    /* 0x1C */ u8 *unk1C;
+    /* 0x20 */ u8 *unk20;
+} Spawn50;
+
+extern u8 D_800A1790[][12];
+extern u8 D_800A1850[][6];
+
+/* JFG: flag word at 0x94 of the aiming block */
+typedef struct AimFlags {
+    u32 unk31 : 1; /* fire from the second muzzle pair (D_800A2D5C) */
+    u32 unk30 : 1; /* set while the aim line hits a lockable object, or a lock is kept */
+    u32 unk0 : 30;
+} AimFlags;
+
+/* JFG: the aiming block of a player state (the object's 0x68; line_aim_lock_test's AimLock is the same block) */
+typedef struct PlayerAim {
+    /* 0x00 */ u8 pad0[0x24];
+    /* 0x24 */ u8 *target; /* the player object followed */
+    /* 0x28 */ u8 pad28[0x48 - 0x28];
+    /* 0x48 */ f32 cursorX; /* the cursor, off the screen centre */
+    /* 0x4C */ f32 cursorY;
+    /* 0x50 */ s32 unk50; /* the lock (line_aim_lock_test's target[0..2]) */
+    /* 0x54 */ u8 *unk54;
+    /* 0x58 */ u8 *unk58;
+    /* 0x5C */ u8 pad5C[0x94 - 0x5C];
+    /* 0x94 */ AimFlags flags;
+} PlayerAim;
+
+u8 *func_80041DE0(void);                     /* the camera (angles at 0, position at 0xC) */
+void func_80054EA0(u32 *width, u32 *height); /* the frame buffer size */
+s32 func_80041E58(f32 x, f32 y, f32 z, f32 *outX, f32 *outY, u8 toView);
+void screen_to_view(f32 x, f32 y, f32 *outX, f32 *outY, f32 *outZ, u8 toWorld);
+s32 line_aim_lock_test(u8 *obj, f32 *start, f32 *end, f32 *dist, s32 updateRate);
+s16 angle_lerp(s16 from, s16 to, f32 t);
+extern f32 D_800A2D44[2][3]; /* the two muzzle offsets */
+extern f32 D_800A2D5C[2][3]; /* and the other pair */
+
+#ifdef NON_MATCHING
+/*
+ * JFG: aiming with a cursor (as m069's crosshair): the cursor follows the stick (up to 80 from the centre at
+ * +-65, eased), the line through it from the camera (from the near plane to 2048 deep) is tested against the
+ * level and the lockable objects, and the point aimed at is where it hits (or the object a lock is kept on). The
+ * object turns towards it unless `keepFacing`, and the fire button (ignored in the followed player's state 10)
+ * fires one 0x50 shot from each muzzle towards it.
+ * NOT PORTABLE: the shot's owner is the object's address as an s32.
+ * First body: 591/588 words, the ROM's frame (the pad fills it); `aim` gets s3 where the ROM reloads it from its
+ * home slot each time. Equal to the ROM by simulation.
+ */
+void func_80031090(u8 *obj, PlayerAim *aim, u8 keepFacing, s32 updateRate) {
+    UNUSED s32 pad[5];
+    TrackHit2BAA0 hit;
+    s32 y;
+    s32 x;
+    s32 hitLevel;
+    s32 hitObj;
+    s32 i;
+    u32 width;
+    u32 height;
+    s16 angles[3];
+    s16 yaw;
+    s16 pitch;
+    s16 target;
+    f32 k;
+    f32 hw;
+    f32 hh;
+    f32 sx1;
+    f32 sy1;
+    f32 sx2;
+    f32 sy2;
+    f32 kx;
+    f32 ky;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    f32 pts[4][3];
+    f32 near[3];
+    f32 far[3];
+    f32 at[3];
+    u8 *cam;
+    u8 *o;
+    Spawn50 shot;
+    f32 *p;
+    UNUSED s32 pad2;
+    f32 muzzles[2][3];
+
+    cam = func_80041DE0();
+    func_80054EA0(&width, &height);
+    hw = width >> 1;
+    hh = height >> 1;
+    x = D_800F6DB4;
+    if (x > 65) {
+        x = 65;
+    }
+    if (x < -65) {
+        x = -65;
+    }
+    y = -D_800F6DB8;
+    if (y > 65) {
+        y = 65;
+    }
+    if (y < -65) {
+        y = -65;
+    }
+    k = 1.0f - func_80049BEC(0.7f, updateRate);
+    aim->cursorX += ((f32) (x * 80) / 65.0f - aim->cursorX) * k;
+    aim->cursorY += ((f32) (y * 80) / 65.0f - aim->cursorY) * k;
+    pts[0][0] = -16.0f;
+    pts[0][1] = 16.0f;
+    pts[0][2] = -16.0f;
+    pts[1][0] = 16.0f;
+    pts[1][1] = -16.0f;
+    pts[1][2] = -16.0f;
+    pts[2][2] = -2048.0f;
+    pts[3][2] = -2048.0f;
+    aim->flags.unk30 = 0;
+    if (!func_80041E58(pts[0][0], pts[0][1], pts[0][2], &sx1, &sy1, 0)) {
+        return;
+    }
+    if (!func_80041E58(pts[1][0], pts[1][1], pts[1][2], &sx2, &sy2, 0)) {
+        return;
+    }
+    screen_to_view(sx1, sy1, &pts[2][0], &pts[2][1], &pts[2][2], 0);
+    screen_to_view(sx2, sy2, &pts[3][0], &pts[3][1], &pts[3][2], 0);
+    kx = (pts[1][0] - pts[0][0]) / (sx2 - sx1);
+    ky = (pts[0][1] - pts[1][1]) / (sy1 - sy2);
+    near[0] = pts[0][0] + (hw + aim->cursorX - sx1) * kx;
+    near[1] = pts[0][1] + (hh - aim->cursorY - sy1) * ky;
+    near[2] = pts[0][2];
+    kx = (pts[3][0] - pts[2][0]) / (sx2 - sx1);
+    ky = (pts[2][1] - pts[3][1]) / (sy1 - sy2);
+    far[0] = pts[2][0] + (hw + aim->cursorX - sx1) * kx;
+    far[1] = pts[2][1] + (hh - aim->cursorY - sy1) * ky;
+    far[2] = pts[2][2];
+    angles[0] = -0x8000 - *(s16 *) cam;
+    angles[1] = -*(s16 *) (cam + 2);
+    angles[2] = -*(s16 *) (cam + 4);
+    func_800496B0(1, angles, near, (u8 *) near);
+    near[0] += *(f32 *) (cam + 0xC);
+    near[1] += *(f32 *) (cam + 0x10);
+    near[2] += *(f32 *) (cam + 0x14);
+    func_800496B0(1, angles, far, (u8 *) far);
+    far[0] += *(f32 *) (cam + 0xC);
+    far[1] += *(f32 *) (cam + 0x10);
+    far[2] += *(f32 *) (cam + 0x14);
+    hitLevel = func_80018808(0, near, far, &hit, 0, 0);
+    hitObj = line_aim_lock_test(obj, near, far, &dist, updateRate);
+    if (hitObj || aim->unk50) {
+        aim->flags.unk30 = 1;
+    }
+    if (hitObj || !aim->unk50) {
+        at[0] = far[0];
+        at[1] = far[1];
+        at[2] = far[2];
+        if (hitLevel | hitObj) {
+            dx = near[0] - far[0];
+            dy = near[1] - far[1];
+            dz = near[2] - far[2];
+            dist = 1.0f - hit.dist / sqrtf(dx * dx + dy * dy + dz * dz);
+            at[0] += dx * dist;
+            at[1] += dy * dist;
+            at[2] += dz * dist;
+        }
+    } else if (aim->unk58 != NULL) {
+        at[0] = *(f32 *) (aim->unk58 + 0xC);
+        at[1] = *(f32 *) (aim->unk58 + 0x10);
+        at[2] = *(f32 *) (aim->unk58 + 0x14);
+    } else {
+        at[0] = *(f32 *) (aim->unk54 + 0xC);
+        at[1] = *(f32 *) (aim->unk54 + 0x10);
+        at[2] = *(f32 *) (aim->unk54 + 0x14);
+    }
+    dx = *(f32 *) (obj + 0xC) - at[0];
+    dz = *(f32 *) (obj + 0x14) - at[2];
+    dy = at[1] - *(f32 *) (obj + 0x10);
+    yaw = func_80049C84(dx, dz);
+    pitch = func_80049C84(dy, sqrtf(dx * dx + dz * dz));
+    if (!keepFacing) {
+        k = 1.0f - func_80049BEC(0.9f, updateRate);
+        *(s16 *) obj = angle_lerp(*(s16 *) obj, yaw + 0x8000, k);
+        if (pitch < -0x2000) {
+            target = 0x2000;
+        } else if (pitch > 0x2000) {
+            target = -0x2000;
+        } else {
+            target = -pitch;
+        }
+        *(s16 *) (obj + 2) = angle_lerp(*(s16 *) (obj + 2), target, k);
+        *(s16 *) (obj + 4) = angle_lerp(*(s16 *) (obj + 4), 0, k);
+    }
+    if (aim->target != NULL && *(u8 **) (aim->target + 0x68) != NULL &&
+        ((*(u8 **) (aim->target + 0x68))[0x568] & 0xF) == 10) {
+        gPlayerButtonsPressed &= ~0x2000;
+    }
+    if (gPlayerButtonsPressed & 0x2000) {
+        shot.objectID = 0x50;
+        shot.unkA = 1;
+        shot.unkB = 30;
+        shot.unk10 = 0;
+        shot.unk11 = 0;
+        shot.owner = (s32) obj;
+        shot.unk1C = D_800A1790[0];
+        shot.unk20 = D_800A1850[0];
+        shot.unk13 = -1;
+        shot.unk14 = 35.0f;
+        if (aim->flags.unk31) {
+            func_800496B0(2, (s16 *) obj, D_800A2D5C, (u8 *) muzzles);
+        } else {
+            func_800496B0(2, (s16 *) obj, D_800A2D44, (u8 *) muzzles);
+        }
+        muzzles[0][0] += *(f32 *) (obj + 0xC);
+        muzzles[0][1] += *(f32 *) (obj + 0x10);
+        muzzles[0][2] += *(f32 *) (obj + 0x14);
+        muzzles[1][0] += *(f32 *) (obj + 0xC);
+        muzzles[1][1] += *(f32 *) (obj + 0x10);
+        muzzles[1][2] += *(f32 *) (obj + 0x14);
+        for (i = 0, p = muzzles[0]; i < 2; i++, p += 3) {
+            dx = p[0] - at[0];
+            dy = at[1] - p[1];
+            dz = p[2] - at[2];
+            shot.x = p[0];
+            shot.y = p[1];
+            shot.z = p[2];
+            shot.unkC = func_80049C84(dx, dz);
+            shot.unkE = func_80049C84(dy, sqrtf(dx * dx + dz * dz));
+            o = spawn_object(&shot, 1);
+            if (o != NULL) {
+                *(s32 *) (o + 0x3C) = 0;
+            }
+        }
+        sound_play(0xDA, NULL);
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80031090);
+#endif
 
 typedef struct ModelEntry {
     /* 0x0 */ s16 unk0;
@@ -2363,7 +2615,288 @@ void player_breath_update(Racer *racer, f32 updateRate) {
     }
 }
 
+/* JFG: a pose point's record (the pose's points[i]) */
+typedef struct PosePointInfo {
+    /* 0x00 */ f32 pos[3];
+    /* 0x0C */ f32 radius; /* its collision radius */
+    /* 0x10 */ u8 flags;   /* its collision flags */
+    /* 0x11 */ u8 rotate;  /* turned with the object (pose_points_update) */
+} PosePointInfo;
+
+/* JFG: what func_800163FC reports for one collision point (0x28 bytes) */
+typedef struct PointHit {
+    /* 0x00 */ u8 *obj; /* the object touched, if any */
+    /* 0x04 */ f32 normal[3];
+    /* 0x10 */ u8 pad10[0x20 - 0x10];
+    /* 0x20 */ u32 surfaceFlags;
+    /* 0x24 */ u8 surface;
+    /* 0x25 */ u8 kind;
+    /* 0x26 */ u8 unk26;
+    /* 0x27 */ s8 unk27;
+} PointHit;
+
+/* JFG: the collision fields of the racer data (the object's 0x68 block) */
+typedef struct PointRacer {
+    /* 0x000 */ u8 pad0[0x6C];
+    /* 0x06C */ f32 pushX;
+    /* 0x070 */ f32 pushZ;
+    /* 0x074 */ u8 pad74[0x149 - 0x74];
+    /* 0x149 */ u8 unk149; /* frames of push */
+    /* 0x14A */ u8 pad14A[0x16C - 0x14A];
+    /* 0x16C */ s32 unk16C;
+    /* 0x170 */ u8 pad170[0x184 - 0x170];
+    /* 0x184 */ s8 unk184;
+    /* 0x185 */ u8 pad185[0x187 - 0x185];
+    /* 0x187 */ u8 squashEvent;
+    /* 0x188 */ u8 pad188[0x360 - 0x188];
+    /* 0x360 */ struct {
+        PosePointInfo **points;
+    } *pose;
+    /* 0x364 */ f32 points[8][3];
+    /* 0x3C4 */ f32 world[8][3]; /* the pose points in the world (pose_points_update) */
+    /* 0x424 */ u8 pad424[0x484 - 0x424];
+    /* 0x484 */ f32 prevWorld[8][3]; /* and where they were */
+    /* 0x4E4 */ u8 surface[8];
+    /* 0x4EC */ u32 surfaceFlags[8];
+    /* 0x50C */ u8 pad50C[0x510 - 0x50C];
+    /* 0x510 */ u8 *platform; /* the platform object stood on */
+    /* 0x514 */ u8 *squashObj;
+    /* 0x518 */ s32 skipFlags;
+    /* 0x51C */ s32 keepFlags;
+    /* 0x520 */ u32 touchFlags; /* every point's surface flags or-ed */
+    /* 0x524 */ f32 prevPos[3];
+    /* 0x530 */ s8 numPoints;
+    /* 0x531 */ u8 pointMask;
+    /* 0x532 */ u8 groundMask;
+    /* 0x533 */ u8 unk533;
+    /* 0x534 */ u8 unk534;
+    /* 0x535 */ u8 pad535[0x568 - 0x535];
+    /* 0x568 */ u8 unk568;
+} PointRacer;
+
+s32 func_800163FC(u8 *obj, f32 *pos, f32 *prev, f32 *points, f32 *radii, f32 *offsets, u16 *flags, PointHit *hits,
+                  s32 count, s32 *nearest, f32 *push);
+s32 level_id(void);
+
+#ifdef NON_MATCHING
+/*
+ * JFG: the player's collision. The pose points (placed by pose_points_update) are swept from where they were
+ * (0x484) against the level and the objects (func_8001CE10, func_800163FC). Then it keeps per point the touch masks
+ * (0x532-0x534), the surface records (0x4E4, 0x4EC, 0x520) and the platform stood on (0x510), turns the aim
+ * towards the ground normal (player_aim_angles_ease), and sets a push away from a wall or an edge (0x149 frames
+ * of 0x6C/0x70). Fully blocked, the object goes back to 0x524. Returns bit 0: a wall point touched, bit 1:
+ * blocked, bit 2: squashed by a moving platform.
+ * NOT PORTABLE: the excluded object is passed to func_8001CE10 as an s32.
+ * (The fully-blocked test covers every 0xFFFF0000 case too, so the second branch never runs; as in the ROM.)
+ * First body: 624/601 words, the ROM's frame (the pad fills it); count/result/side get s2/ra/t5 where the ROM
+ * has s3/s2/ra, and the last copy loop computes its start from i. Equal to the ROM by simulation.
+ */
+s32 func_80034BB0(u8 *obj, PointRacer *racer, f32 updateRate) {
+    u8 *stoodObj;
+    s32 nearest[4];
+    UNUSED s32 pad[5];
+    PointHit hits[8];
+    f32 points[8][3];
+    f32 offsets[8][3];
+    f32 radii[8];
+    f32 dir[3];
+    f32 push[3];
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 len;
+    f32 scale;
+    s32 i;
+    u32 bits;
+    s32 side;
+    s32 blocked;
+    u32 touched;
+    s32 edge;
+    s32 count;
+    u32 mask;
+    s32 result;
+    u8 bit;
+    u16 flags[8];
+
+    mask = racer->pointMask;
+    count = racer->numPoints;
+    pose_points_update(obj, (struct PoseRacer *) racer, updateRate);
+    for (i = 0; i < racer->numPoints; i++) {
+        points[i][0] = racer->world[i][0];
+        points[i][1] = racer->world[i][1];
+        points[i][2] = racer->world[i][2];
+        radii[i] = racer->pose->points[i]->radius;
+        flags[i] = racer->pose->points[i]->flags;
+        if (mask & 1) {
+            flags[i] |= 0x40;
+        }
+        offsets[i][0] = points[i][0] - *(f32 *) (obj + 0xC);
+        offsets[i][1] = points[i][1] - *(f32 *) (obj + 0x10);
+        offsets[i][2] = points[i][2] - *(f32 *) (obj + 0x14);
+        mask >>= 1;
+    }
+    func_8001CE10(count, racer->prevWorld[0], points[0], radii, racer->skipFlags, racer->keepFlags,
+                  (s32) racer->squashObj);
+    touched = func_800163FC(obj, (f32 *) (obj + 0xC), racer->prevWorld[0], points[0], radii, offsets[0], flags, hits,
+                            count, nearest, push);
+    result = 0;
+    side = 0;
+    blocked = 0;
+    if ((touched & 0x11110000) == 0x11110000) {
+        *(f32 *) (obj + 0xC) = racer->prevPos[0];
+        *(f32 *) (obj + 0x10) = racer->prevPos[1];
+        *(f32 *) (obj + 0x14) = racer->prevPos[2];
+        result = 2;
+        blocked = 1;
+    } else if ((touched & 0xFFFF0000) == 0xFFFF0000) {
+        *(f32 *) (obj + 0xC) = racer->prevPos[0];
+        *(f32 *) (obj + 0x10) = racer->prevPos[1];
+        *(f32 *) (obj + 0x14) = racer->prevPos[2];
+        result = 2;
+        side = 1;
+    }
+    edge = -1;
+    racer->groundMask = 0;
+    racer->unk533 = 0;
+    racer->unk534 = 0;
+    racer->unk184 = 1;
+    stoodObj = NULL;
+    racer->squashEvent = 0;
+    racer->platform = NULL;
+    racer->touchFlags = 0;
+    x = y = z = 0.0f;
+    bits = touched;
+    bit = 1;
+    for (i = 0; i < count; i++) {
+        if ((bits & 1) && (hits[i].kind & 1)) {
+            if (hits[i].kind & 0x12) {
+                if (hits[i].unk26 != 0 && (hits[i].surfaceFlags & 0xCE000000)) {
+                    edge = i;
+                } else {
+                    racer->groundMask |= bit;
+                    if ((hits[i].kind & 0x10) && (flags[i] & 0x22) && hits[i].obj != NULL) {
+                        racer->platform = hits[i].obj;
+                    }
+                    if (((hits[i].kind & 2) && (hits[i].kind & 0x10)) || hits[i].unk27 >= 2) {
+                        if (flags[i] & 0x22) {
+                            racer->unk184 = 0;
+                        }
+                    }
+                }
+            }
+            if (hits[i].kind & 0x48) {
+                racer->unk534 |= bit;
+                if (hits[i].kind & 0x40) {
+                    stoodObj = hits[i].obj;
+                }
+            }
+            if (hits[i].kind & 0x24) {
+                racer->unk533 |= bit;
+                result |= 1;
+                if (racer->unk16C == 0 && (hits[i].kind & 0x20)) {
+                    racer->unk184 = 0;
+                }
+            }
+            if (hits[i].kind & 0x80) {
+                if (flags[i] & 0x22) {
+                    racer->groundMask |= bit;
+                }
+                side |= 2;
+            }
+        }
+        if ((bits & 1) && (hits[i].kind & 0x12)) {
+            x += hits[i].normal[0];
+            y += hits[i].normal[1];
+            z += hits[i].normal[2];
+        }
+        racer->surface[i] = hits[i].surface;
+        racer->surfaceFlags[i] = hits[i].surfaceFlags;
+        racer->touchFlags |= hits[i].surfaceFlags;
+        bit <<= 1;
+        bits >>= 1;
+    }
+    dir[0] = 0.0f;
+    dir[1] = 0.0f;
+    dir[2] = 0.0f;
+    if (touched != 0) {
+        len = sqrtf(x * x + y * y + z * z);
+        if (len > 0.0f) {
+            dir[0] = x / len;
+            dir[1] = y / len;
+            dir[2] = z / len;
+        }
+    }
+    player_aim_angles_ease((s16 *) obj, (u8 *) racer, dir, (s32) updateRate);
+    if (blocked) {
+        if (stoodObj != NULL && *(s16 *) (*(u8 **) (stoodObj + 0x5C) + 0x12C) != 0) {
+            racer->squashEvent = 1;
+            result |= 4;
+        } else if (racer->platform != NULL && *(s16 *) (*(u8 **) (racer->platform + 0x5C) + 0x12C) != 0) {
+            racer->squashEvent = 2;
+        }
+    } else if (side) {
+        x = push[0];
+        z = push[2];
+        if (x * x + z * z > 0.0f) {
+            len = sqrtf(x * x + z * z);
+            x /= len;
+            z /= len;
+            racer->unk149 = 10;
+            racer->pushX = x * 5.0f;
+            racer->pushZ = z * 5.0f;
+        }
+    } else if ((racer->touchFlags & 0x8000) && racer->unk568 != 10) {
+        x = push[0];
+        z = push[2];
+        y = push[1];
+        if (x * x + z * z > 0.0f) {
+            len = sqrtf(x * x + z * z);
+            if (y < len) {
+                x /= len;
+                z /= len;
+                racer->unk149 = 20;
+                racer->pushX = x * 5.0f;
+                racer->pushZ = z * 5.0f;
+            }
+        }
+    } else if (nearest[0] >= 0) {
+        x = hits[nearest[0]].normal[0];
+        z = hits[nearest[0]].normal[2];
+        if (x * x + z * z > 0.0f) {
+            if (level_id() == 0x81) {
+                scale = 8.0f;
+            } else {
+                scale = 20.0f;
+            }
+            len = sqrtf(x * x + z * z);
+            x /= len;
+            z /= len;
+            racer->unk149 = 10;
+            racer->pushX = x * scale;
+            racer->pushZ = z * scale;
+        }
+    } else if (edge != -1 && *(f32 *) (obj + 0x20) < 0.0f) {
+        x = hits[edge].normal[0];
+        z = hits[edge].normal[2];
+        if (x * x + z * z > 0.0f) {
+            len = sqrtf(x * x + z * z);
+            x /= len;
+            z /= len;
+            racer->unk149 = 5;
+            racer->pushX = x * 5.0f;
+            racer->pushZ = z * 5.0f;
+        }
+    }
+    for (i = 0; i < count; i++) {
+        racer->prevWorld[i][0] = points[i][0];
+        racer->prevWorld[i][1] = points[i][1];
+        racer->prevWorld[i][2] = points[i][2];
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_80034BB0);
+#endif
 
 typedef struct PoseTarget {
     /* 0x00 */ f32 **points;
@@ -3633,27 +4166,7 @@ void func_80038F7C(s32 owner, Racer *racer, f32 x, f32 y, f32 z, s16 arg5, s16 a
     racer->soundId = 0xE1;
 }
 
-typedef struct Spawn50 {
-    /* 0x00 */ s16 objectID;
-    /* 0x02 */ u8 size;
-    /* 0x03 */ u8 unk3;
-    /* 0x04 */ s16 x, y, z;
-    /* 0x0A */ u8 unkA;
-    /* 0x0B */ u8 unkB;
-    /* 0x0C */ s16 unkC;
-    /* 0x0E */ s16 unkE;
-    /* 0x10 */ u8 unk10;
-    /* 0x11 */ u8 unk11;
-    /* 0x12 */ u8 weapon;
-    /* 0x13 */ s8 unk13;
-    /* 0x14 */ f32 unk14;
-    /* 0x18 */ s32 owner;
-    /* 0x1C */ u8 *unk1C;
-    /* 0x20 */ u8 *unk20;
-} Spawn50;
-
-extern u8 D_800A1790[][12];
-extern u8 D_800A1850[][6];
+/* (Spawn50, D_800A1790 and D_800A1850 are declared above func_80031090.) */
 
 /* JFG: fire object 0x50 for the character's current weapon (its two weapon table entries), with the weapon's
  * sound: 8 for weapon 2 (kept if already playing), 3 for weapon 7 in state 11 or when arg8 is set, else 0xE */
