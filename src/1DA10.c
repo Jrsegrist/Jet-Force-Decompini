@@ -5,8 +5,6 @@
 
 INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001CE10);
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D344);
-
 /* DKR include/structs.h */
 typedef struct LevelModelSegmentBoundingBox {
     /* 0x00 */ s16 x1;
@@ -16,6 +14,73 @@ typedef struct LevelModelSegmentBoundingBox {
     /* 0x08 */ s16 y2;
     /* 0x0A */ s16 z2;
 } LevelModelSegmentBoundingBox;
+
+#ifdef NON_MATCHING
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
+ * JFG: func_8001D464's x/z form: clamp the ranges [x1, x2] and [z1, z2] to the segment's box, split each axis of the
+ * box into 16 cells and return a mask of the cells the ranges overlap (x in bits 0-15, z in bits 16-31). */
+u32 func_8001D344(void *box, s32 x1, s32 z1, s32 x2, s32 z2) {
+    LevelModelSegmentBoundingBox *bb;
+    u32 mask;
+    u32 bit;
+    s32 step;
+    s32 cellStart;
+    s32 cellEnd;
+
+    bb = box; // this file's callers pass their own box type (the same six s16s)
+    mask = 0;
+    if (bb == NULL) {
+        return mask;
+    }
+    if (x2 < bb->x1) {
+        x2 = bb->x1;
+    }
+    if (x1 < bb->x1) {
+        x1 = bb->x1;
+    }
+    if (z2 < bb->z1) {
+        z2 = bb->z1;
+    }
+    if (z1 < bb->z1) {
+        z1 = bb->z1;
+    }
+    if (bb->x2 < x2) {
+        x2 = bb->x2;
+    }
+    if (bb->x2 < x1) {
+        x1 = bb->x2;
+    }
+    if (bb->z2 < z2) {
+        z2 = bb->z2;
+    }
+    if (bb->z2 < z1) {
+        z1 = bb->z2;
+    }
+    step = ((bb->x2 - bb->x1) >> 4) + 1;
+    cellStart = bb->x1;
+    cellEnd = cellStart + step;
+    for (bit = 1; bit < 0x10000; bit <<= 1) {
+        if (cellEnd >= x1 && cellStart <= x2) {
+            mask |= bit;
+        }
+        cellEnd += step;
+        cellStart += step;
+    }
+    step = ((bb->z2 - bb->z1) >> 4) + 1;
+    cellStart = bb->z1;
+    cellEnd = cellStart + step;
+    for (; bit != 0; bit <<= 1) {
+        if (cellEnd >= z1 && cellStart <= z2) {
+            mask |= bit;
+        }
+        cellEnd += step;
+        cellStart += step;
+    }
+    return mask;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D344);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: hand-written assembly; this C gives the same results.
