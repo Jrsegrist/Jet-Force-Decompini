@@ -182,7 +182,8 @@ typedef struct M003Home {
     /* 0x04 */ u8 pad4[0xC - 0x4];
     /* 0x0C */ u8 unkC; /* (0C324: against the sum of two random 0-50s) */
     /* 0x0D */ u8 unkD;
-    /* 0x0E */ u8 padE[0x10 - 0xE];
+    /* 0x0E */ u8 padE;
+    /* 0x0F */ u8 unkF; /* how widely its members' shots spread, in 16s (07E88) */
     /* 0x10 */ s8 offset[3];
     /* 0x13 */ u8 unk13; /* how far it looks round (028D4), in 16s */
     /* 0x14 */ u8 unk14; /* and up and down, in 8s */
@@ -203,7 +204,7 @@ typedef struct M003Home {
     /* 0x24 */ s8 maxSpeed; /* its members' (0AD38) */
     /* 0x25 */ s8 minSpeed;
     /* 0x26 */ u8 speed; /* its members' walking speed (0BA20, 0BAD4) */
-    /* 0x27 */ u8 pad27;
+    /* 0x27 */ u8 unk27; /* given to its members' shots, plus 1 or 10 (07E88) */
     /* 0x28 */ u16 flags; /* 0x2000: its members may touch */
     /* 0x2A */ s16 unk2A; /* how fast the troop's members burn (01764) */
     /* 0x2C */ u16 kind;
@@ -3518,7 +3519,532 @@ s16 func_m003_07C18(f32 x, f32 y, f32 z, f32 tx, f32 ty, f32 tz, f32 speed, f32 
     return 0x2000;
 }
 
+#ifdef NON_MATCHING
+/* The level entries 07E88 spawns a member's shots from, by size; each starts with this (0xA bytes) */
+#define M003_SHOT_HEAD s16 objectID; u8 size; u8 unk3; s16 x; s16 y; s16 z
+typedef struct M003Shot0A { M003_SHOT_HEAD; } M003Shot0A;
+typedef struct M003Shot0C { M003_SHOT_HEAD; s8 joint; u8 unkB; } M003Shot0C;
+typedef struct M003Shot10 { M003_SHOT_HEAD; u8 padA[2]; Object *owner; } M003Shot10;
+/* 0x18 bytes, aimed: the way it flies and how fast */
+typedef struct M003Shot18 { M003_SHOT_HEAD; u8 unkA, unkB; s16 yaw, pitch; f32 speed; Object *owner; } M003Shot18;
+/* 0x18 bytes, with a step towards the target, in tenths of the way */
+typedef struct M003Shot18Step { M003_SHOT_HEAD; u8 unkA, unkB; s16 dx, dy, dz; Object *owner; } M003Shot18Step;
+typedef struct M003Shot1C {
+    M003_SHOT_HEAD; u8 unkA, unkB; s16 yaw, pitch; f32 speed; Object *owner; u8 unk18; s8 joint;
+} M003Shot1C;
+typedef struct M003Shot24 {
+    M003_SHOT_HEAD; u8 unkA, unkB; s16 yaw, pitch; u8 unk10, unk11, unk12; s8 unk13; f32 speed; Object *owner;
+    s32 unk1C, unk20;
+} M003Shot24;
+/* 0x28 bytes, aimed at a point */
+typedef struct M003Shot28 {
+    M003_SHOT_HEAD; u8 padA[2]; f32 tx, ty, tz; u8 unk18; Object *owner; s32 unk20, unk24;
+} M003Shot28;
+/* 0x28 bytes, homing on a target */
+typedef struct M003Shot28Homing {
+    M003_SHOT_HEAD; u8 unkA, unkB; f32 speed; Object *owner, *target; u8 pad18[6]; s16 yaw, unk20; u8 pad22[2];
+    u8 unk24, unk25, unk26;
+} M003Shot28Homing;
+
+extern void func_80003614(s32 handle);
+extern void obj_list_insert_after(Object *obj, Object *target);
+#define sShotSounds ((s32 *) (rl_m003_17A10 + 0x1A28))  /* the four fire sounds' handles */
+#define sShotSoundOn ((s8 *) (rl_m003_17A10 + 0x1A38))  /* and whether each has started */
+#define sShotPartJoints (rl_m003_17A10 + 0x1DE0)        /* kind 0x67's joints' body parts */
+
+/* 07E88's speed: the distance over `div`, kept within lo..hi */
+#define SHOT_SPEED(div, lo, hi) \
+    do { \
+        speed = dist / div; \
+        if (speed < lo) { \
+            speed = lo; \
+        } \
+        if (speed > hi) { \
+            speed = hi; \
+        } \
+    } while (0)
+
+/* 07E88's kinds 1 and 16: aim and launch the shot the member holds; `flag`: the byte of its data cleared */
+#define SHOT_HELD(flag) \
+    { \
+        Object *held = sMember->unkA8; \
+        u8 *data; \
+        if (held == NULL) { \
+            return; \
+        } \
+        data = held->unk68; \
+        data[flag] = 0; \
+        held->velocity.x = 0.0f; \
+        held->velocity.y = 0.0f; \
+        held->velocity.z = -speed; \
+        held->trans.rotation.y_rotation = yaw; \
+        held->trans.rotation.x_rotation = func_m003_07C18(x, y, z, tx, ty, tz, speed, -0.12f, 0); \
+        held->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF); \
+        func_8004944C(&held->trans.rotation, &held->velocity); \
+        func_80003410(0x2F, held->trans.x_position, held->trans.y_position, held->trans.z_position, 4, NULL); \
+        return; \
+    }
+
+/* 07E88's kinds 14 and 15: a shot stepping towards the target, `len` units a step */
+#define SHOT_STEP(id, len) \
+    { \
+        M003Shot18Step shot; \
+        if (gMainPoolFreeBytes < 0xC000) { \
+            return; \
+        } \
+        entry = &shot; \
+        shot.objectID = id; \
+        shot.size = sizeof(M003Shot18Step); \
+        shot.unk3 = 0; \
+        shot.x = x; \
+        shot.y = y; \
+        shot.z = z; \
+        shot.dx = (tx - x) / 10.0f; \
+        shot.dy = (ty - y) / 10.0f; \
+        shot.dz = (tz - z) / 10.0f; \
+        shot.unkA = sHomeData->unk27 + 1; \
+        shot.owner = sObj; \
+        shot.unkB = 100; \
+        func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL); \
+        func_m003_040FC(&shot.dx, &shot.dy, &shot.dz, len); \
+    }
+
+/*
+ * Fires a shot of kind `kind` from joint `joint` of the member at its shooter, aimed where the shooter will
+ * be when it gets there (for the kinds with a speed), `lift` higher, spread by the home's unkF: spawns the
+ * kind's object (or aims the one the member holds) and plays its sound.
+ * NON_MATCHING: first body, written from the ROM: the ROM's frame (0x1F0) and stack slots, 1529 of its 1534
+ * words; registers differ throughout (the ROM keeps sShotBy in v1 at the start, &sHomeData in t1, and the
+ * sound slot's two addresses rather than its index). Kinds 7-9, 11 and 20 up spawn from `entry` unset, as
+ * the ROM does (NOT PORTABLE: an unset read, kept faithful).
+ */
+void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
+    void *entry;
+    Object *obj;
+    s16 spread;
+    s16 yaw;
+    s16 pitch;
+    f32 x;
+    f32 y;
+    f32 z;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 dist;
+    u16 sound;
+    f32 tx;
+    f32 ty;
+    f32 tz;
+    f32 speed;
+    f32 t;
+    u8 *parts;
+    s32 i;
+
+    spread = sHomeData->unkF << 4;
+    parts = NULL;
+    if (sShotBy == 0) {
+        return;
+    }
+    if (sHomeData->kind == 0x8D && ((Object *) sShotBy)->behaviorId == 0x18) {
+        tx = ((f32 *) ((Object *) sShotBy)->unk68)[0x68 / 4];
+        ty = ((f32 *) ((Object *) sShotBy)->unk68)[0x6C / 4];
+        tz = ((f32 *) ((Object *) sShotBy)->unk68)[0x70 / 4];
+    } else {
+        tx = ((f32 *) ((Object *) sShotBy)->interactObj)[0x18 / 4];
+        ty = ((f32 *) ((Object *) sShotBy)->interactObj)[0x1C / 4];
+        tz = ((f32 *) ((Object *) sShotBy)->interactObj)[0x20 / 4];
+    }
+    if (sHomeData->kind == 0x67) {
+        parts = sShotPartJoints;
+    }
+    if (parts != NULL && ((1 << parts[joint]) & sMember->lostParts)) {
+        return;
+    }
+    func_m003_0609C(joint, &x, &y, &z);
+    dist = point_distance(x, y, z, tx, ty, tz);
+    switch (kind) {
+        case 0:
+            speed = 35.0f;
+            break;
+        case 13:
+            speed = 70.0f;
+            break;
+        case 1:
+            SHOT_SPEED(60.0f, 4.0f, 12.0f);
+            break;
+        case 6:
+            SHOT_SPEED(90.0f, 3.0f, 5.0f);
+            break;
+        case 12:
+            speed = 10.0f;
+            break;
+        case 14:
+            speed = 60.0f;
+            break;
+        case 15:
+            speed = 40.0f;
+            break;
+        case 16:
+            SHOT_SPEED(60.0f, 9.0f, 12.0f);
+            break;
+        case 17:
+            SHOT_SPEED(60.0f, 9.0f, 12.0f);
+            break;
+        default:
+            speed = 0.0f;
+            break;
+    }
+    if (speed != 0.0f) {
+        /* lead the shooter by the time the shot takes */
+        t = dist / (speed * sUpdateRate);
+        tx += t * ((Object *) sShotBy)->velocity.x;
+        ty += t * ((Object *) sShotBy)->velocity.y;
+        tz += t * ((Object *) sShotBy)->velocity.z;
+    }
+    dx = tx - x;
+    dy = (ty - y) + lift;
+    dz = tz - z;
+    yaw = func_80049C84(dx, dz) + 0x8000;
+    yaw += func_80048E2C(-spread, spread);
+    pitch = func_80048E2C(-spread >> 1, spread >> 1);
+    switch (kind) {
+        case 0:
+        case 13: {
+            M003Shot24 shot;
+            M003Shot0C fol;
+
+            entry = &shot;
+            shot.objectID = 0x50;
+            shot.size = sizeof(M003Shot24);
+            shot.unk3 = 0;
+            shot.yaw = yaw;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.pitch = func_80049C84(dy, func_80097140(dx * dx + dz * dz)) + pitch;
+            shot.speed = speed;
+            shot.unkA = sHomeData->unk27 + 1;
+            shot.unkB = 60;
+            shot.unk10 = 0;
+            shot.unk11 = 0;
+            shot.unk1C = 0;
+            shot.unk20 = 0;
+            shot.unk12 = 100;
+            shot.unk13 = -1;
+            shot.owner = sObj;
+            switch (sHomeData->kind) {
+                case 0x29:
+                case 0x2A:
+                case 0x83:
+                case 0x8D:
+                case 0xBE:
+                case 0xDF:
+                case 0xF2:
+                case 0x153:
+                case 0x166:
+                case 0x2CE:
+                    sound = 0xC4;
+                    i = 0;
+                    break;
+                case 0x2D:
+                case 0x12F:
+                case 0x150:
+                case 0x151:
+                case 0x152:
+                case 0x1E5:
+                    sound = 0xC5;
+                    i = 1;
+                    break;
+                case 0x99:
+                case 0x9C:
+                case 0xBD:
+                case 0xEE:
+                case 0xEF:
+                case 0xF5:
+                case 0xF6:
+                case 0x122:
+                case 0x269:
+                    sound = 0x115;
+                    i = 2;
+                    break;
+                case 0x54:
+                case 0x5F:
+                case 0x6D:
+                case 0x8C:
+                    sound = 0x1D7;
+                    i = 2;
+                    break;
+                default:
+                    sound = 0xC;
+                    i = 3;
+                    break;
+            }
+            if (!sShotSoundOn[i]) {
+                if (sShotSounds[i] != 0) {
+                    func_80003614(sShotSounds[i]);
+                }
+                func_80003410(sound, shot.x, shot.y, shot.z, 4, &sShotSounds[i]);
+                sShotSoundOn[i] = 1;
+            }
+            if (sMember->follower == NULL) {
+                fol.objectID = 0xAC;
+                fol.x = 0;
+                fol.y = 0;
+                fol.z = 0;
+                fol.size = sizeof(M003Shot0C);
+                fol.unkB = 0;
+                fol.joint = joint;
+                sMember->follower = func_80005F14(&fol, 1);
+                *(Object **) sMember->follower->state = sObj;
+                sMember->follower->level_entry = NULL;
+                sMember->follower->trans.x_position = sObj->trans.x_position;
+                sMember->follower->trans.y_position = sObj->trans.y_position;
+                sMember->follower->trans.z_position = sObj->trans.z_position;
+                sMember->follower->segmentID = sObj->segmentID;
+            }
+            break;
+        }
+        case 18: {
+            M003Shot1C shot;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            entry = &shot;
+            shot.objectID = 0x72;
+            shot.size = sizeof(M003Shot1C);
+            shot.unk3 = 0;
+            shot.yaw = 0;
+            shot.pitch = 0;
+            shot.speed = 0.0f;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.unkA = sHomeData->unk27 + 10;
+            shot.unkB = 30;
+            shot.unk18 = 1;
+            shot.owner = sObj;
+            shot.joint = joint;
+            break;
+        }
+        case 1:
+            SHOT_HELD(0xD);
+        case 2: {
+            M003Shot0A shot;
+            Object **slot;
+
+            slot = &sMember->unkA8;
+            sObj->particleEmittersEnabled |= joint + 4;
+            shot.objectID = 0x15;
+            shot.size = sizeof(M003Shot0A);
+            shot.unk3 = 0;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            obj = func_80005F14(&shot, 1);
+            if (obj == NULL) {
+                return;
+            }
+            obj->level_entry = NULL;
+            obj->trans.flags |= 0x400;
+            *(Object **) obj->unk68 = sObj;
+            if (*slot != NULL) {
+                func_800079B8(*slot);
+            }
+            *slot = obj;
+            obj_collision_spheres_init(obj, 4, 1, 4, 0, 0, 0, 32.0f, 32.0f, -1.0f, 1.0f, 0x11);
+            return;
+        }
+        case 3: {
+            Object **slot = &sMember->unkA8;
+
+            if (*slot != NULL) {
+                func_800079B8(*slot);
+                *slot = NULL;
+            }
+            sObj->particleEmittersEnabled &= ~(joint + 4);
+            return;
+        }
+        case 5: {
+            Object *held = sMember->unkA8;
+
+            if (*(u8 *) held == 0) {
+                return;
+            }
+        }
+            /* fallthrough */
+        case 4: {
+            M003Shot10 shot;
+
+            shot.objectID = 0x38;
+            shot.size = sizeof(M003Shot10);
+            entry = &shot;
+            shot.unk3 = 0;
+            shot.z = z;
+            shot.y = y;
+            shot.x = x;
+            shot.owner = sObj;
+            func_80003410(0x20F, shot.x, shot.y, shot.z, 4, NULL);
+            break;
+        }
+        case 6: {
+            M003Shot18 shot;
+
+            entry = &shot;
+            shot.objectID = 0xE2;
+            shot.size = sizeof(M003Shot18);
+            shot.unk3 = 0;
+            shot.yaw = yaw;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.pitch = func_m003_07C18(x, y, z, tx, ty, tz, speed, -0.06f, 0);
+            shot.speed = speed;
+            shot.unkA = sHomeData->unk27 + 1;
+            shot.unkB = 30;
+            shot.owner = sObj;
+            func_80003410(0x2F, shot.x, shot.y, shot.z, 4, NULL);
+            break;
+        }
+        case 10: {
+            M003Shot28 shot;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            if (sMember->unkAC != NULL) {
+                return;
+            }
+            shot.objectID = 0xF4;
+            shot.size = sizeof(M003Shot28);
+            shot.x = x;
+            shot.tx = tx;
+            shot.y = y;
+            shot.ty = ty;
+            shot.tz = tz;
+            shot.z = z;
+            shot.unk18 = sHomeData->unk27 + 1;
+            shot.unk20 = 0;
+            shot.unk24 = 0;
+            shot.owner = sObj;
+            obj = func_80005F14(&shot, 1);
+            if (obj != NULL) {
+                obj->level_entry = NULL;
+                sMember->unkAC = obj;
+            }
+            return;
+        }
+        case 12: {
+            M003Shot28Homing shot;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            entry = &shot;
+            shot.objectID = 0xA4;
+            shot.size = sizeof(M003Shot28Homing);
+            shot.unk3 = 0;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.unkA = sHomeData->unk27 + 1;
+            shot.unkB = 100;
+            shot.speed = speed;
+            shot.owner = sObj;
+            shot.target = (Object *) sShotBy;
+            shot.yaw = sObj->trans.rotation.y_rotation;
+            shot.unk20 = 0;
+            shot.unk24 = 1;
+            shot.unk25 = 0xFF;
+            shot.unk26 = 1;
+            shot.yaw = sObj->trans.rotation.y_rotation; /* stored twice, as in the ROM */
+            func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL);
+            break;
+        }
+        case 14:
+            SHOT_STEP(0x233, 60.0f);
+            break;
+        case 15:
+            SHOT_STEP(0x234, 40.0f);
+            break;
+        case 19: {
+            M003Shot1C shot;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            entry = &shot;
+            shot.objectID = 0x235;
+            shot.size = sizeof(M003Shot1C);
+            shot.unk3 = 0;
+            shot.yaw = 0;
+            shot.pitch = 0;
+            shot.speed = 0.0f;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.unkA = sHomeData->unk27 + 10;
+            shot.unkB = 30;
+            shot.owner = sObj;
+            shot.unk18 = joint;
+            break;
+        }
+        case 16:
+            SHOT_HELD(0xC);
+        case 17: {
+            M003Shot1C shot;
+            u8 *data;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            if (kind == 16) {
+                shot.objectID = 0x235;
+            } else {
+                shot.objectID = 0x236;
+            }
+            shot.size = sizeof(M003Shot1C);
+            shot.unk3 = 0;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.unkA = sHomeData->unk27 + 1;
+            shot.unkB = 30;
+            shot.yaw = yaw;
+            shot.pitch = func_m003_07C18(x, y, z, tx, ty + 20.0f, tz, speed, -0.12f, 0);
+            shot.speed = speed;
+            shot.owner = sObj;
+            shot.unk18 = joint;
+            func_80003410(0x2F, shot.x, shot.y, shot.z, 4, NULL);
+            obj = func_80005F14(&shot, 1);
+            if (obj == NULL) {
+                return;
+            }
+            obj->level_entry = NULL;
+            data = obj->unk68;
+            data[0xC] = 0;
+            obj->velocity.x = 0.0f;
+            obj->velocity.y = 0.0f;
+            obj->velocity.z = -speed;
+            obj->trans.rotation.y_rotation = yaw;
+            obj->trans.rotation.x_rotation = func_m003_07C18(x, y, z, tx, ty, tz, speed, -0.12f, 0);
+            obj->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF);
+            func_8004944C(&obj->trans.rotation, &obj->velocity);
+            return;
+        }
+    }
+    obj = func_80005F14(entry, 1);
+    if (obj != NULL) {
+        obj->level_entry = NULL;
+        if (obj->behaviorId == 0x9B || obj->behaviorId == 0xA1) {
+            sMember->unkA8 = obj;
+            obj_list_insert_after(obj, sObj);
+        }
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/modules/m003/ro", func_m003_07E88);
+#endif
 
 /* The member's word at 0x4 as four 3-bit part numbers (7: none) */
 typedef struct M003Parts {
