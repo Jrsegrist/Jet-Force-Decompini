@@ -149,6 +149,8 @@ typedef struct Obj7EState {
     /* 0x00 */ s16 unk0;
     /* 0x02 */ u8 pad2[0x1C - 0x2];
     /* 0x1C */ s32 unk1C;
+    /* 0x20 */ u8 pad20[0x70 - 0x20];
+    /* 0x70 */ struct Obj7E *unk70; // JFG: for object type 0xA2, an object of type 0x76 (func_800809F4)
 } Obj7EState;
 
 extern s32 D_801047E0;
@@ -2371,7 +2373,313 @@ void func_800805F4(void) {
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800805F4);
 #endif
 
+/* JFG: what func_800809F4 fills in (12D50.c's TrackLineHit, 0x2C bytes) */
+typedef struct ObjLineHit7E {
+    /* 0x00 */ Obj7E *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ f32 plane[4];
+    /* 0x20 */ f32 dist;
+    /* 0x24 */ u32 flags;
+    /* 0x28 */ s32 surface;
+} ObjLineHit7E;
+
+/* JFG: the line-hit counts of an object of type 0x76 (its state) */
+typedef struct ObjHitCounts7E {
+    /* 0x00 */ u8 pad0[4];
+    /* 0x04 */ u16 unk4;
+    /* 0x06 */ u16 unk6;
+    /* 0x08 */ s32 unk8; // unk6 - unk4
+} ObjHitCounts7E;
+
+s32 line_clip_box(f32 *x0, f32 *y0, f32 *z0, f32 *x1, f32 *y1, f32 *z1, f32 *min, f32 *max, f32 *tEnterOut,
+                  f32 *tLeaveOut);
+
+#ifdef NON_MATCHING
+/**
+ * JFG: the object part of func_80018808's line test: the line from `from` to `to` against the entries' objects (flag
+ * bit 0 set). Each object's box the line passes through (up to 16, sorted by where the line enters them; `from` is
+ * first moved with the object if it moved, or by a module function for type 0x37) is searched in that order for the
+ * nearest triangle (in the object's space) whose plane the line crosses from the front, inside the triangle's edge
+ * planes, skipping batches with any of `flags`; the search stops after the first object with a hit. hit gets the
+ * object, the point and plane back in world space (the plane scaled by the object's scale), the distance and the
+ * batch flags (surface 0xFF). With self set, the object is marked touched and, for self types 0xA2/0x9E/0xA3/0xA8,
+ * gets self's unk6 added to its unk130 (in a multiplayer game, a 0xA2 hitting a 0x78 first counts the hit in its
+ * owner's 0x76 object). Returns 1 on a hit.
+ * NON_MATCHING: a first body written from the ROM (781 of 793 words, frame 0x360 of 0x378; every declared slot sits
+ * at the ROM's offset from the frame top), checked equal to the ROM by simulation. The ROM keeps the edge-plane
+ * values a..d in registers in the edge loop, so t and 0.0f go to f20/f22 (here f12/f20), and the box pointer `next`
+ * in t1 spilled around the calls (here s4), which shifts the s-registers of the first loop.
+ */
+s32 func_800809F4(Obj7E *self, f32 *from, f32 *to, ObjLineHit7E *hit, s32 flags) {
+    Obj7E *objs[16];
+    Obj7E *obj;
+    Obj7EData *data;
+    Obj7EModel *model;
+    ModelHeader7E *header;
+    ModelEdges7E *edges;
+    Plane7E *planes;
+    Plane7E *plane;
+    f32 *mtx;
+    Plane7E *bestPlane;
+    Vec3f *next;
+    EdgeRecord7E *record;
+    Vec3f froms[16];
+    Vec3f *fromPtrs[16];
+    f32 tEnters[16];
+    f32 best[3];
+    f32 p[3];
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    s32 minX;
+    s32 maxX;
+    s32 minY;
+    s32 maxY;
+    s32 minZ;
+    s32 maxZ;
+    s32 ix1;
+    s32 iy1;
+    f32 x0;
+    f32 y0;
+    f32 z0;
+    f32 x1;
+    f32 y1;
+    f32 z1;
+    f32 tEnter;
+    f32 tLeave;
+    f32 px;
+    f32 py;
+    f32 pz;
+    f32 qx;
+    f32 qy;
+    f32 qz;
+    s32 iz1;
+    f32 distTo;
+    f32 distFrom;
+    f32 t;
+    f32 dist;
+    f32 side;
+    s32 edge;
+    s32 flip;
+    s32 inside;
+    s32 i;
+    s32 j;
+    s32 k;
+    s32 count;
+    s32 tri;
+    s32 end;
+    s32 result;
+    u32 bits;
+    u32 mask;
+    Vec3f *fromP;
+    s32 b;
+    ObjHitCounts7E *counts;
+    u32 masks[16];
+    Obj7E *owner;
+    s32 diff;
+    u32 bestFlags;
+
+    count = 0;
+    next = froms;
+    for (i = 0; i < D_801047E0; i++) {
+        obj = D_801047E4[i];
+        if (obj->flags->flags & 1) {
+            data = obj->data;
+            if (obj->type == 0x37) {
+                p[0] = from[0];
+                p[1] = from[1];
+                p[2] = from[2];
+                func_80054530(obj, &p[0], &p[1], &p[2]);
+            } else if (data->unk12C != 0) {
+                func_80048B60(data->mtx[data->mtxIndex ^ 1][0], from[0], from[1], from[2], &dx, &dy, &dz);
+                func_80048B60(data->mtx2[data->mtxIndex][0], dx, dy, dz, &p[0], &p[1], &p[2]);
+            } else {
+                p[0] = from[0];
+                p[1] = from[1];
+                p[2] = from[2];
+            }
+            x0 = p[0];
+            y0 = p[1];
+            z0 = p[2];
+            x1 = to[0];
+            y1 = to[1];
+            z1 = to[2];
+            if (line_clip_box(&x0, &y0, &z0, &x1, &y1, &z1, data->bboxMin, data->bboxMax, &tEnter, &tLeave)) {
+                model = obj->modelInstances[data->modelIndex];
+                mtx = data->mtx[data->mtxIndex][0];
+                func_80048B60(mtx, x0, y0, z0, &px, &py, &pz);
+                func_80048B60(mtx, x1, y1, z1, &qx, &qy, &qz);
+                minX = px;
+                minY = py;
+                minZ = pz;
+                ix1 = qx;
+                iy1 = qy;
+                iz1 = qz;
+                maxX = ix1;
+                if (ix1 < minX) {
+                    maxX = minX;
+                    minX = ix1;
+                }
+                maxY = iy1;
+                if (iy1 < minY) {
+                    maxY = minY;
+                    minY = iy1;
+                }
+                maxZ = iz1;
+                if (iz1 < minZ) {
+                    maxZ = minZ;
+                    minZ = iz1;
+                }
+                masks[count] = box_range_cell_mask(model->bboxMin, minX, minY, minZ, maxX, maxY, maxZ);
+                tEnters[count] = tEnter;
+                objs[count] = obj;
+                fromPtrs[count] = next;
+                next->x = p[0];
+                next->y = p[1];
+                next->z = p[2];
+                next++;
+                for (j = count; j > 0 && tEnters[j] < tEnters[j - 1]; j--) {
+                    obj = objs[j];
+                    mask = masks[j];
+                    fromP = fromPtrs[j];
+                    tEnter = tEnters[j];
+                    tEnters[j] = tEnters[j - 1];
+                    tEnters[j - 1] = tEnter;
+                    objs[j] = objs[j - 1];
+                    objs[j - 1] = obj;
+                    masks[j] = masks[j - 1];
+                    masks[j - 1] = mask;
+                    fromPtrs[j] = fromPtrs[j - 1];
+                    fromPtrs[j - 1] = fromP;
+                }
+                count++;
+                if (count >= 16) {
+                    i = D_801047E0;
+                }
+            }
+        }
+    }
+    result = 0;
+    if (count == 0) {
+        return 0;
+    }
+    for (i = 0; i < count && !result; i++) {
+        obj = objs[i];
+        data = obj->data;
+        mask = masks[i];
+        fromP = fromPtrs[i];
+        model = obj->modelInstances[data->modelIndex];
+        header = model->header;
+        if (model->edges != NULL) {
+            edges = model->edges;
+        } else {
+            edges = header->edges;
+        }
+        planes = edges->planes;
+        mtx = data->mtx[data->mtxIndex][0];
+        func_80048B60(mtx, fromP->x, fromP->y, fromP->z, &px, &py, &pz);
+        func_80048B60(mtx, to[0], to[1], to[2], &qx, &qy, &qz);
+        dx = qx - px;
+        dy = qy - py;
+        dz = qz - pz;
+        tLeave = 1.0f;
+        for (b = 0; b < header->numBatches; b++) {
+            tri = header->batches[b].facesOffset;
+            end = header->batches[b + 1].facesOffset;
+            if (header->batches[b].flags & flags) {
+                tri = end;
+            }
+            for (; tri < end; tri++) {
+                bits = edges->cellMasks[tri] & mask;
+                record = &edges->records[tri];
+                inside = FALSE;
+                if (obj->type == 0x37 && (bits & 0xFF) && (bits & 0xFF00)) {
+                    inside = TRUE;
+                } else if ((bits & 0xFF) && (bits & 0xFF00) && (bits & 0xFF0000)) {
+                    inside = TRUE;
+                }
+                if (inside) {
+                    plane = &planes[record->plane];
+                    distTo = plane->a * qx + plane->b * qy + plane->c * qz + plane->d;
+                    if (distTo < 0.0f) {
+                        distFrom = plane->a * px + plane->b * py + plane->c * pz + plane->d;
+                        if (0.0f <= distFrom) {
+                            t = distFrom / (distFrom - distTo);
+                            inside = TRUE;
+                            x0 = dx * t + px;
+                            y0 = dy * t + py;
+                            z0 = dz * t + pz;
+                            for (k = 0; k < 3 && inside; k++) {
+                                edge = record->edgePlanes[k];
+                                flip = edge & 0x8000;
+                                edge ^= flip;
+                                plane = &planes[edge];
+                                dist = plane->a * x0 + plane->b * y0 + plane->c * z0 + plane->d;
+                                side = dist;
+                                if (flip) {
+                                    side = -dist;
+                                }
+                                if (0.0f < side) {
+                                    inside = FALSE;
+                                }
+                            }
+                            if (inside && t < tLeave) {
+                                tLeave = t;
+                                best[0] = x0;
+                                best[1] = y0;
+                                best[2] = z0;
+                                bestFlags = header->batches[b].flags;
+                                bestPlane = &planes[record->plane];
+                                result = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (result) {
+        hit->obj = obj;
+        func_80048B60(data->mtx2[data->mtxIndex][0], best[0], best[1], best[2], &hit->pos[0], &hit->pos[1],
+                      &hit->pos[2]);
+        func_8004A2FC(data->mtx[data->mtxIndex][0], &bestPlane->a, hit->plane);
+        hit->plane[0] *= obj->scale;
+        hit->plane[1] *= obj->scale;
+        hit->plane[2] *= obj->scale;
+        hit->plane[3] *= obj->scale;
+        dx = hit->pos[0] - from[0];
+        dy = hit->pos[1] - from[1];
+        dz = hit->pos[2] - from[2];
+        hit->dist = sqrtf(dx * dx + dy * dy + dz * dz);
+        hit->flags = bestFlags;
+        hit->surface = 0xFF;
+        if (self != NULL) {
+            data->unk12A = 1;
+            if (self->type == 0xA2 || self->type == 0x9E || self->type == 0xA3 || self->type == 0xA8) {
+                if (D_800A4FC4 && self->type == 0xA2 && obj->type == 0x78) {
+                    owner = self->state->unk70;
+                    if (owner != NULL && owner->type == 0x76) {
+                        diff = obj->flags->unk6 - data->unk130;
+                        counts = (ObjHitCounts7E *) owner->state;
+                        if (diff > 0 && diff <= self->flags->unk6) {
+                            if (obj->unk4A == 0x245) {
+                                counts->unk4++;
+                            } else {
+                                counts->unk6++;
+                            }
+                            counts->unk8 = counts->unk6 - counts->unk4;
+                        }
+                    }
+                }
+                data->unk130 += self->flags->unk6;
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_800809F4);
+#endif
 
 /* JFG: an object edge crossed by a line (func_80081658) */
 typedef struct EdgeHit7E {
