@@ -1122,23 +1122,18 @@ extern void render_sprite_billboard(Gfx **dl, Mtx **mtx, Vertex **vtx, M018Sprit
 extern void func_8004EDBC(Gfx **dl, M018Image *image, s32 x, s32 y, s32 r, s32 g, s32 b, s32 alpha); /* draws */
 extern s32 func_m019_001F8(void);
 extern void func_m019_00324(s32 level, s32 character, s32 arg2, s32 arg3);
-#ifdef NON_MATCHING
 static void func_m018_03BB4(s32 item, s32 updateRate);
-#endif
 extern s8 D_800FF3DC[]; /* the stick's y moves this frame, per player */
 s32 func_m018_03B44(s32 i, s32 dir);
 
-#ifdef NON_MATCHING
 /*
  * The character screen: changes the shown character (the stick picks one the player can play), moves the
  * cursor over the screen's eight items, opens the one picked, draws the character, its sparkles, the items
  * and the prompts, saves on request and leaves with the character picked.
- * NON_MATCHING: ROM length and frame (1464 words), 16 aligned diffs: the order of three temporary words
- * (the ROM puts the float updateRate first), the right arrow's frame in a2 (ROM a0) and the order of two
- * stores.
+ * The joined store lines give the ROM's store schedule (IDO schedules by source line).
  */
 void func_m018_02464(s32 updateRate) {
-    UNUSED s32 pad0;
+    f32 rate = updateRate;
     s8 *state;
     s32 flag;
     M018Inst *inst;
@@ -1147,7 +1142,7 @@ void func_m018_02464(s32 updateRate) {
     s32 i;
     s32 frame;
     UNUSED s32 pad1;
-    UNUSED s32 pad2;
+    s32 tmp; /* the right arrow's frame, later the save file */
     s32 x1;
     s32 x2;
     M018ListEntry *spark;
@@ -1319,7 +1314,7 @@ void func_m018_02464(s32 updateRate) {
     obj = D_800FF3F8[0x5D];
     inst = *(M018Inst **) obj->modelInstances;
     inst->unkA = updateRate;
-    obj_anim_frame_advance(obj, rl_m018_06CF0, updateRate);
+    obj_anim_frame_advance(obj, rl_m018_06CF0, rate);
     if (rl_m018_06D05 != -1) {
         if ((func_80043510(D_m019_013D8) & 0x8000) && rl_m018_06680 == 0) {
             sBss156 = 0;
@@ -1369,17 +1364,17 @@ void func_m018_02464(s32 updateRate) {
         func_8003F1C8(inst, rl_m018_0676C[i], frame);
         item++;
     }
-    /* alpha and frame (free here) hold the left and right arrows' frames */
+    /* alpha (free here) and tmp hold the left and right arrows' frames */
     alpha = rl_m018_067BC[left] << 8;
-    frame = rl_m018_067BC[right] << 8;
+    tmp = rl_m018_067BC[right] << 8;
     if (rl_m018_067B4 != 0) {
         alpha += 0x100;
-        frame += 0x100;
+        tmp += 0x100;
         frames[2] = 0x100;
-        frames[1] = frame;
+        frames[1] = tmp;
         frames[0] = alpha;
     } else {
-        frames[1] = frame;
+        frames[1] = tmp;
         frames[0] = alpha;
         frames[2] = 0;
     }
@@ -1389,15 +1384,13 @@ void func_m018_02464(s32 updateRate) {
     p = (s16 *) sBss0;
     *p++ = 0x2008;
     *p++ = rl_m018_06D0E;
-    *p++ = 0x200E;
-    *p++ = rl_m018_06D0E;
+    *p++ = 0x200E; *p++ = rl_m018_06D0E;
     if (!game_flag_get(0x5F)) {
         *p++ = 0x203E;
         *p++ = 0x4000;
     }
     if (game_flag_get(0x64)) {
-        *p++ = 0x201A;
-        *p++ = 0x4000;
+        *p++ = 0x201A; *p++ = 0x4000;
     }
     if (rl_m018_06D05 != -1) {
         *p++ = (rl_m018_06D05 * 6 + 0x14) | 0x2000;
@@ -1410,7 +1403,7 @@ void func_m018_02464(s32 updateRate) {
         inst = *(M018Inst **) obj->modelInstances;
         inst->unkA = updateRate;
         model = inst->model;
-        obj_anim_frame_advance(obj, rl_m018_0672C[character][obj->animationID], updateRate);
+        obj_anim_frame_advance(obj, rl_m018_0672C[character][obj->animationID], rate);
         if (obj->unk28 == 1.0f) {
             obj_anim_set(obj, func_80048E2C(0, 2), 0.0f);
         }
@@ -1525,7 +1518,8 @@ void func_m018_02464(s32 updateRate) {
     if (rl_m018_06D14 > 0) {
         rl_m018_06D14 -= updateRate;
         if (rl_m018_06D14 <= 0) {
-            force_mark_write_save_file(((s8 *) get_settings())[3]);
+            tmp = ((s8 *) get_settings())[3];
+            force_mark_write_save_file(tmp);
             rl_m018_06D14 = -1;
         }
     }
@@ -1586,9 +1580,6 @@ void func_m018_02464(s32 updateRate) {
         }
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_02464);
-#endif
 
 /* Steps from character i in direction dir to the next one that can be picked */
 s32 func_m018_03B44(s32 i, s32 dir) {
@@ -1618,20 +1609,16 @@ extern s16 D_800A0838[]; /* the frame list for a model without animated textures
         _g->words.w1 = word1;         \
     }
 
-#ifdef NON_MATCHING
 /*
  * Draws item `item`'s icon on the character screen: eases its depth offset towards 30 (the cursor's item) or
  * 15 (the item picked), builds its matrix from the screen model's joint for the item (scaled by 0.9; the
  * picked item also slides sideways), lights its vertices (full for the cursor's item, else dim) and draws
  * its model.
- * NON_MATCHING: ROM length, frame and stack slots (314 words), 9 aligned diffs, all in the first block: the ROM
- * holds the screen model in v0 and reloads `item` for the second compare before the first branch. Staged: only
- * func_m018_02464 (still NON_MATCHING) calls it, and IDO would drop a static that only assembly calls.
  */
 static void func_m018_03BB4(s32 item, s32 updateRate) {
     Object *obj;
     Object *icon;
-    UNUSED s32 pad0;
+    M018CharModel *base; /* the screen model */
     M018Inst *inst;
     M018CharModel *model;
     s32 i;
@@ -1646,7 +1633,9 @@ static void func_m018_03BB4(s32 item, s32 updateRate) {
 
     obj = D_800FF3F8[0x5D];
     inst = *(M018Inst **) obj->modelInstances;
-    src = (f32 *) ((MtxF *) inst->unk10[inst->unkB] + ((M018CharModel *) inst->model)->joints[item].matrix);
+    base = inst->model;
+    /* the joint's matrix (an MtxF of 16 floats) in the instance's matrices */
+    src = (f32 *) inst->unk10[inst->unkB] + (base->joints[item].matrix << 4);
     if (item == rl_m018_06D05) {
         target = 15.0f;
     } else if (item == rl_m018_06D04) {
@@ -1720,9 +1709,6 @@ static void func_m018_03BB4(s32 item, s32 updateRate) {
         func_80055B80(&D_800FF398);
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m018/ro", func_m018_03BB4);
-#endif
 
 void *func_m018_0409C(void) {
     return sBss0;
