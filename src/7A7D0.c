@@ -235,7 +235,7 @@ typedef struct SphereSet {
     /* 0x32 */ s16 count;
     /* 0x34 */ f32 unk34;
     /* 0x38 */ f32 unk38;
-    /* 0x3C */ s32 unk3C; // JFG: func_8007C2E8's first argument, when a line hits the set
+    /* 0x3C */ void *unk3C; // JFG: the object that last hit the set (func_8007C2E8's first argument, func_8007D168)
     /* 0x40 */ CollisionSphere *spheres;
 } SphereSet;
 
@@ -640,7 +640,7 @@ struct PlayerObject;
 ObjColl7A **func_80005E98(s32 *first, s32 *last);
 void func_800496B0(s32 n, s16 *rotation, f32 *in, f32 *out); // DKR: vec3f_rotate
 void func_8007D168(struct PairObj7D *a, SphereSet *sa, struct PairObj7D *b, SphereSet *sb);
-s32 func_8007C2E8(s32 owner, struct CollQuery *query, s32 count, struct CollObj **objs, struct CollObj **hitObj,
+s32 func_8007C2E8(void *owner, struct CollQuery *query, s32 count, struct CollObj **objs, struct CollObj **hitObj,
                   struct CollObj *self);
 s32 func_80048E2C(s32 min, s32 max);
 s32 func_80049C84(f32 x, f32 z);
@@ -674,8 +674,7 @@ extern u8 D_800A4FC4;  // JFG: a multiplayer game
  * NON_MATCHING: a first body written from the ROM (1312 words for the ROM's 1306, the ROM's frame and declared stack
  * slots; 415 aligned rows: loop 3's hit offset starts as k * 28, the float-argument module call goes through a cast
  * (jalr), t-register numbering), checked equal to the ROM by simulation.
- * NOT PORTABLE: func_8007C2E8 takes the shot object as an s32 (its owner word); the sphere index is a pointer
- * difference also taken when the set itself was hit; CollState18.noStats and the CollisionSphere/SphereSet flags are
+ * NOT PORTABLE: the sphere index is a pointer difference also taken when the set itself was hit; CollState18.noStats and the CollisionSphere/SphereSet flags are
  * IDO bit-field positions (bit 3 of the big-endian word at 0, and so on).
  */
 void func_8007A534(void) {
@@ -893,7 +892,7 @@ void func_8007A534(void) {
         if (obj->type == 0x98 && st98->unkA78 == 0) {
             continue;
         }
-        j = func_8007C2E8((s32) obj, (struct CollQuery *) set, countA, D_801047E8, (struct CollObj **) &hits,
+        j = func_8007C2E8(obj, (struct CollQuery *) set, countA, D_801047E8, (struct CollObj **) &hits,
                           (struct CollObj *) owner);
         for (k = 0; k < j && set->unk6 > 0; k++) {
             other = hits[k].obj;
@@ -1179,7 +1178,7 @@ typedef struct CollQuery {
     /* 0x2C */ u8 pad2C[0x54 - 0x2C];
 } CollQuery;
 
-s32 func_8007C2E8(s32 owner, CollQuery *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self);
+s32 func_8007C2E8(void *owner, CollQuery *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self);
 
 /* JFG: whether the line from (x1, y1, z1) to (x2, y2, z2) hits the level (1) or how many solid objects other
  * than self and other it hits. */
@@ -1550,7 +1549,7 @@ s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f3
  * noLineHits) is recorded; with owner, the set records it (unk3C) and the set and sphere are flagged. Up to 40
  * hits go into D_80104808 (*hitObj), sorted nearest first; returns how many.
  */
-s32 func_8007C2E8(s32 owner, CollQuery *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self) {
+s32 func_8007C2E8(void *owner, CollQuery *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self) {
     s32 n;
     CollObj *obj;
     SphereSet *set;
@@ -2019,7 +2018,7 @@ void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
 void stats_kill_add(s32 weapon);
 void stats_hit_add(s32 weapon);
 void func_8003B590(u8 *obj, s32 index);
-void func_80032128(s32 arg0);
+void func_80032128(void *obj);
 void *func_80054530(); // a module function (patched in by the runtime linker)
 
 #ifdef NON_MATCHING
@@ -2036,8 +2035,7 @@ void *func_80054530(); // a module function (patched in by the runtime linker)
  * NON_MATCHING: a first body written from the ROM (852 words for the ROM's 844, the ROM's frame 0x90 and stack
  * slots; 496 aligned rows, mostly t-register numbering), checked equal to it by simulation.
  * NOT PORTABLE: the bit tests of PairPlayer7D/PairInfo7D unk3 and PairModResult7D unk27 stand for bit 3 of a
- * big-endian word (the ROM reads the words); SphereSet.unk3C and func_80032128's parameter are s32 holding an object
- * pointer.
+ * big-endian word (the ROM reads the words).
  */
 void func_8007D168(PairObj7D *a, SphereSet *sa, PairObj7D *b, SphereSet *sb) {
     f32 dx;
@@ -2237,8 +2235,8 @@ void func_8007D168(PairObj7D *a, SphereSet *sa, PairObj7D *b, SphereSet *sb) {
                 audspat_play_sound_at_position(0x9A, obj->x, obj->y, obj->z, 4, NULL);
                 st->flags |= 4;
                 st->prevOwner = st->owner;
-                other->set->unk3C = (s32) obj;
-                func_80032128((s32) other);
+                other->set->unk3C = obj;
+                func_80032128(other);
                 stats_kill_add(9);
                 stats_hit_add(9);
                 return;
@@ -2328,9 +2326,9 @@ void func_8007D168(PairObj7D *a, SphereSet *sa, PairObj7D *b, SphereSet *sb) {
                 }
             }
             sa->unkA |= 0x20;
-            sa->unk3C = (s32) b;
+            sa->unk3C = b;
             sb->unkA |= 0x20;
-            sb->unk3C = (s32) a;
+            sb->unk3C = a;
             break;
     }
 }
