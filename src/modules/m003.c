@@ -3579,59 +3579,14 @@ extern u8 rl_m003_19448[4];
         } \
     } while (0)
 
-/* 07E88's kinds 1 and 16: aim and launch the shot the member holds; `flag`: the byte of its data cleared */
-#define SHOT_HELD(flag) \
-    { \
-        Object *held = sMember->unkA8; \
-        u8 *data; \
-        if (held == NULL) { \
-            return; \
-        } \
-        data = held->unk68; \
-        data[flag] = 0; \
-        held->velocity.x = 0.0f; \
-        held->velocity.y = 0.0f; \
-        held->velocity.z = -speed; \
-        held->trans.rotation.y_rotation = yaw; \
-        held->trans.rotation.x_rotation = func_m003_07C18(x, y, z, tx, ty, tz, speed, -0.12f, 0); \
-        held->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF); \
-        func_8004944C(&held->trans.rotation, &held->velocity); \
-        func_80003410(0x2F, held->trans.x_position, held->trans.y_position, held->trans.z_position, 4, NULL); \
-        return; \
-    }
-
-/* 07E88's kinds 14 and 15: a shot stepping towards the target, `len` units a step */
-#define SHOT_STEP(id, len) \
-    { \
-        M003Shot18Step shot; \
-        if (gMainPoolFreeBytes < 0xC000) { \
-            return; \
-        } \
-        entry = &shot; \
-        shot.objectID = id; \
-        shot.size = sizeof(M003Shot18Step); \
-        shot.unk3 = 0; \
-        shot.x = x; \
-        shot.y = y; \
-        shot.z = z; \
-        shot.dx = (tx - x) / 10.0f; \
-        shot.dy = (ty - y) / 10.0f; \
-        shot.dz = (tz - z) / 10.0f; \
-        shot.unkA = sHomeData->unk27 + 1; \
-        shot.owner = sObj; \
-        shot.unkB = 100; \
-        func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL); \
-        func_m003_040FC(&shot.dx, &shot.dy, &shot.dz, len); \
-    }
-
 /*
  * Fires a shot of kind `kind` from joint `joint` of the member at its shooter, aimed where the shooter will
  * be when it gets there (for the kinds with a speed), `lift` higher, spread by the home's unkF: spawns the
  * kind's object (or aims the one the member holds) and plays its sound.
- * NON_MATCHING: written from the ROM: its length (1534 words), frame (0x1F0) and stack slots; about 120 rows
- * differ, mostly registers (the kind reloaded into a3, sShotBy into v1 for the lead) and the order of a few
- * stores in kinds 4, 5 and 14/15. Kinds 7-9, 11 and 20 up spawn from `entry` unset, as the ROM does (NOT
- * PORTABLE: an unset read, kept faithful).
+ * NON_MATCHING: written from the ROM: its length (1534 words), frame (0x1F0) and stack slots; 13 rows differ,
+ * one register choice (the ROM reloads the kind into a3 and the shooter for the lead into v1; ours v1 and v0).
+ * Kinds 7-9, 11 and 20 up spawn from `entry` unset, as the ROM does (NOT PORTABLE: an unset read, kept
+ * faithful).
  */
 void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
     void *entry;
@@ -3741,13 +3696,13 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             shot.speed = speed;
             shot.unkA = sHomeData->unk27 + 1;
             shot.unkB = 60;
+            shot.owner = sObj;
             shot.unk10 = 0;
             shot.unk11 = 0;
             shot.unk1C = 0;
             shot.unk20 = 0;
             shot.unk12 = 100;
             shot.unk13 = -1;
-            shot.owner = sObj;
             switch (sHomeData->kind) {
                 case 0x29:
                 case 0x2A:
@@ -3838,13 +3793,30 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             shot.z = z;
             shot.unkA = sHomeData->unk27 + 10;
             shot.unkB = 30;
-            shot.unk18 = 1;
             shot.owner = sObj;
+            shot.unk18 = 1;
             shot.joint = joint;
             break;
         }
-        case 1:
-            SHOT_HELD(0xD);
+        case 1: {
+            Object *held = sMember->unkA8;
+            u8 *data;
+
+            if (held == NULL) {
+                return;
+            }
+            data = held->unk68;
+            data[0xD] = 0;
+            held->velocity.x = 0.0f;
+            held->velocity.y = 0.0f;
+            held->velocity.z = -speed;
+            held->trans.rotation.y_rotation = yaw;
+            held->trans.rotation.x_rotation = func_m003_07C18(x, y, z, tx, ty, tz, speed, -0.12f, 0);
+            held->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF);
+            func_8004944C(&held->trans.rotation, &held->velocity);
+            func_80003410(0x2F, held->trans.x_position, held->trans.y_position, held->trans.z_position, 4, NULL);
+            return;
+        }
         case 2: {
             M003Shot0A shot;
             Object **slot;
@@ -3892,13 +3864,13 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
         case 4: {
             M003Shot10 shot;
 
+            entry = &shot;
             shot.objectID = 0x38;
             shot.size = sizeof(M003Shot10);
-            entry = &shot;
             shot.unk3 = 0;
-            shot.z = z;
-            shot.y = y;
             shot.x = x;
+            shot.y = y;
+            shot.z = z;
             shot.owner = sObj;
             func_80003410(0x20F, shot.x, shot.y, shot.z, 4, NULL);
             break;
@@ -3934,11 +3906,11 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             shot.objectID = 0xF4;
             shot.size = sizeof(M003Shot28);
             shot.x = x;
-            shot.tx = tx;
             shot.y = y;
+            shot.z = z;
+            shot.tx = tx;
             shot.ty = ty;
             shot.tz = tz;
-            shot.z = z;
             shot.unk18 = sHomeData->unk27 + 1;
             shot.unk20 = 0;
             shot.unk24 = 0;
@@ -3977,12 +3949,52 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL);
             break;
         }
-        case 14:
-            SHOT_STEP(0x233, 60.0f);
+        case 14: {
+            M003Shot18Step shot;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            entry = &shot;
+            shot.objectID = 0x233;
+            shot.size = sizeof(M003Shot18Step);
+            shot.unk3 = 0;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.dx = (tx - x) / 10.0f;
+            shot.dy = (ty - y) / 10.0f;
+            shot.dz = (tz - z) / 10.0f;
+            shot.unkA = sHomeData->unk27 + 1;
+            shot.unkB = 100;
+            shot.owner = sObj;
+            func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL);
+            func_m003_040FC(&shot.dx, &shot.dy, &shot.dz, 60.0f);
             break;
-        case 15:
-            SHOT_STEP(0x234, 40.0f);
+        }
+        case 15: {
+            M003Shot18Step shot;
+
+            if (gMainPoolFreeBytes < 0xC000) {
+                return;
+            }
+            entry = &shot;
+            shot.objectID = 0x234;
+            shot.size = sizeof(M003Shot18Step);
+            shot.unk3 = 0;
+            shot.x = x;
+            shot.y = y;
+            shot.z = z;
+            shot.dx = (tx - x) / 10.0f;
+            shot.dy = (ty - y) / 10.0f;
+            shot.dz = (tz - z) / 10.0f;
+            shot.unkA = sHomeData->unk27 + 1;
+            shot.unkB = 100;
+            shot.owner = sObj;
+            func_80003410(0x95, shot.x, shot.y, shot.z, 4, NULL);
+            func_m003_040FC(&shot.dx, &shot.dy, &shot.dz, 40.0f);
             break;
+        }
         case 19: {
             M003Shot1C shot;
 
@@ -4005,8 +4017,25 @@ void func_m003_07E88(s32 joint, s32 kind, s16 lift) {
             shot.unk18 = joint;
             break;
         }
-        case 16:
-            SHOT_HELD(0xC);
+        case 16: {
+            Object *held = sMember->unkA8;
+            u8 *data;
+
+            if (held == NULL) {
+                return;
+            }
+            data = held->unk68;
+            data[0xC] = 0;
+            held->velocity.x = 0.0f;
+            held->velocity.y = 0.0f;
+            held->velocity.z = -speed;
+            held->trans.rotation.y_rotation = yaw;
+            held->trans.rotation.x_rotation = func_m003_07C18(x, y, z, tx, ty, tz, speed, -0.12f, 0);
+            held->trans.rotation.z_rotation = func_80048E2C(0, 0xFFFF);
+            func_8004944C(&held->trans.rotation, &held->velocity);
+            func_80003410(0x2F, held->trans.x_position, held->trans.y_position, held->trans.z_position, 4, NULL);
+            return;
+        }
         case 17: {
             M003Shot1C shot;
             u8 *data;
