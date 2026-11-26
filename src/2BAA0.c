@@ -3457,7 +3457,7 @@ void func_800364D4(u8 *obj, Racer *racer, UNUSED f32 arg2, UNUSED f32 arg3, UNUS
 INCLUDE_ASM("asm/nonmatchings/2BAA0", func_800364D4);
 #endif
 
-void *func_800822D8(f32 *point, s32 radius, void *ignore, f32 *outY);
+void *func_800822D8(f32 *point, f32 radius, void *ignore, f32 *outY);
 void falling_objects_hit_box(f32 *min, f32 *max, void *ignore);
 s32 func_8001A218(f32 x, f32 z, f32 bottom, f32 top, f32 radius, s32 arg5, s32 arg6, f32 ***heights);
 
@@ -3512,7 +3512,7 @@ void player_squash_precheck(u8 *obj, Racer *racer, UNUSED s32 updateRate) {
         lowest = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
         for (i = 0; i < racer->numPoints; i++) {
             if (!(mask & 1)) {
-                hit = func_800822D8(src, *(s32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
+                hit = func_800822D8(src, *(f32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
                 if (hit != NULL && y <= lowest) {
                     lowest = y;
                     squash = hit;
@@ -3593,7 +3593,7 @@ void player_squash_update(u8 *obj, Racer *racer, s32 updateRate) {
         lowest = *(f32 *) (racer->pose + 0xC) + *(f32 *) (obj + 0x10);
         for (i = 0; i < racer->numPoints; i++) {
             if (!(mask & 1)) {
-                hit = func_800822D8(point, *(s32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
+                hit = func_800822D8(point, *(f32 *) ((*(u8 ***) racer->pose)[i] + 0xC), racer->platform, &y);
                 if (hit != NULL && y <= lowest) {
                     lowest = y;
                     squash = hit;
