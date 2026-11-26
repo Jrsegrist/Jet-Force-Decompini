@@ -2376,7 +2376,334 @@ void screen_line_add_raw(s32 x, s32 u, s32 y, s32 v, s32 flag) {
     }
 }
 
+#ifdef NON_MATCHING
+extern s8 D_800A6968[]; // JFG: marker shapes for line types 4-7: (dx, dy) pixel pairs
+extern s8 D_800A698C[];
+extern s8 D_800A69AC[];
+extern s8 D_800A69CC[];
+extern u8 D_800A69EC[];  // JFG: the debug font's pixels: per pixel, how far the colour is shifted down (0: none)
+extern u8 D_800A6B2C[];  // JFG: the debug font's glyph widths
+extern u16 D_800A6B40[]; // JFG: the debug font's glyphs, as offsets into D_800A69EC
+
+/**
+ * JFG: draw the frame's queued screen lines and debug texts into the previous frame's image (D_800FECB0) by
+ * brightening its pixels, then empty both queues; the queues are double-buffered (D_80103B90 flips first).
+ * By line type: 0 a horizontal or vertical line, 1 a horizontal line 3 pixels high, 2 a 45-degree line (stopping
+ * at the image's start), 3 and 8-11/15 a stepped (fixed-point) line, drawn as a 3x3 block per step (3) or as a
+ * shaded block (8-11, 15), 4-7 a marker shape from a table (mirrored by flag 0x40), 12/13 a thick line
+ * (func_8006DB6C), 14 a number (frame_number_draw). Flag 0x10 draws in red, 0x20 doubles the green, 0x80 dims it.
+ * The texts use the last line's colour doubled, in a 6-row font of digits and a few letters.
+ * NON_MATCHING: a first body written from the ROM (IDO -O2), verified against it by simulation: 793 of 794 words,
+ * frame 0xF0 against 0xE0 (the declared slots down to start in the ROM's order; more temporaries below). The
+ * marker offset casts stride to s32 for the port, where the ROM multiplies unsigned (the same 32-bit address).
+ */
+void func_8006E188(void) {
+    s32 rows;
+    s32 acc;
+    s32 prev;
+    s32 slope;
+    s32 n;
+    s32 dy;
+    s32 minor;
+    u32 stride;
+    u32 width;
+    u32 height;
+    s32 count;
+    s32 dx;
+    s32 adx;
+    s32 ady;
+    s32 step;
+    ScreenLine *entry;
+    DebugText *text;
+    u16 *q;
+    s8 *pat;
+    u8 *p;
+    u8 ch;
+    u8 gw;
+    s32 flags;
+    s32 type;
+    s32 x;
+    s32 u;
+    u16 *start;
+    u16 *pixel;
+    s8 red;
+    s8 green;
+    u8 *glyph;
+    s32 cols;
+    s32 shift;
+
+    fb_size(&width, &height);
+    D_80103B90 ^= 1;
+    count = D_80103B80[D_80103B90];
+    entry = D_80102DC0[D_80103B90];
+    red = 0;
+    green = 8;
+    stride = width;
+    for (; count != 0; count--, entry++) {
+        flags = entry->flags;
+        type = flags & 0xF;
+        if (type == 14) {
+            frame_number_draw(entry->x, entry->u, entry->y, entry->v, flags & 0x10);
+            continue;
+        }
+        if (type == 13 || type == 12) {
+            func_8006DB6C(D_800FECB0, entry->x, entry->u, entry->y, entry->v, type == 13);
+            continue;
+        }
+        u = entry->u;
+        x = entry->x;
+        pat = NULL;
+        red = 0;
+        green = 8;
+        pixel = D_800FECB0 + u * stride + x;
+        if (flags & 0x10) {
+            red = 0x18;
+            green = 0;
+        }
+        if (flags & 0x20) {
+            green <<= 1;
+        } else if (flags & 0x80) {
+            green = 6;
+        }
+        switch (type) {
+            case 3:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 15:
+                dx = x - entry->y;
+                dy = u - entry->v;
+                prev = -1;
+                if (dx < 0) {
+                    adx = -dx;
+                } else {
+                    adx = dx;
+                }
+                if (dy < 0) {
+                    ady = -dy;
+                } else {
+                    ady = dy;
+                }
+                if (ady < adx) {
+                    slope = (dy << 16) / adx;
+                    n = adx;
+                    acc = u << 16;
+                    step = -1;
+                    if (dx < 0) {
+                        step = 1;
+                    }
+                    if (dy < 0) {
+                        minor = stride;
+                    } else {
+                        minor = -stride;
+                    }
+                } else {
+                    slope = (dx << 16) / ady;
+                    n = ady;
+                    acc = x << 16;
+                    step = -stride;
+                    if (dy < 0) {
+                        step = stride;
+                    }
+                    if (dx < 0) {
+                        minor = 1;
+                    } else {
+                        minor = -1;
+                    }
+                }
+                while (n--) {
+                    switch (entry->flags & 0xF) {
+                        case 3:
+                            q = pixel - stride;
+                            rgba5551_brighten_rg(q - 1, red, green);
+                            rgba5551_brighten_rg(q, red * 2, green * 2);
+                            rgba5551_brighten_rg(q + 1, red, green);
+                            rgba5551_brighten_rg(pixel - 1, red * 2, green * 2);
+                            rgba5551_brighten_rg(pixel, red * 4, green * 4);
+                            rgba5551_brighten_rg(pixel + 1, red * 2, green * 2);
+                            q = pixel + stride;
+                            rgba5551_brighten_rg(q - 1, red, green);
+                            rgba5551_brighten_rg(q, red * 2, green * 2);
+                            rgba5551_brighten_rg(q + 1, red, green);
+                            break;
+                        case 8:
+                            rgba5551_brighten_rg(pixel - stride, 0, 16);
+                            rgba5551_brighten_rg(pixel - 1, 0, 16);
+                            rgba5551_brighten_rg(pixel, 0, 16);
+                            rgba5551_brighten_rg(pixel + 1, 0, 16);
+                            rgba5551_add_clamped(pixel + stride, 16, 16, 16);
+                            break;
+                        case 9:
+                            rgba5551_brighten_rg(pixel - stride, 0, 16);
+                            rgba5551_brighten_rg(pixel - 1, 0, 16);
+                            rgba5551_brighten_rg(pixel, 0, 16);
+                            rgba5551_brighten_rg(pixel + 1, 0, 16);
+                            rgba5551_add_clamped(pixel + stride, -16, -16, -16);
+                            break;
+                        case 10:
+                            rgba5551_brighten_rg(pixel - stride, 16, 0);
+                            rgba5551_brighten_rg(pixel - 1, 16, 0);
+                            rgba5551_brighten_rg(pixel, 16, 0);
+                            rgba5551_brighten_rg(pixel + 1, 16, 0);
+                            rgba5551_add_clamped(pixel + stride, 16, 16, 16);
+                            break;
+                        case 11:
+                            rgba5551_brighten_rg(pixel - stride, 16, 0);
+                            rgba5551_brighten_rg(pixel - 1, 16, 0);
+                            rgba5551_brighten_rg(pixel, 16, 0);
+                            rgba5551_brighten_rg(pixel + 1, 16, 0);
+                            rgba5551_add_clamped(pixel + stride, -16, -16, -16);
+                            break;
+                        case 15:
+                            rgba5551_add_clamped(pixel - stride, 0, 0, 16);
+                            rgba5551_add_clamped(pixel - 1, 0, 0, 16);
+                            rgba5551_add_clamped(pixel, 0, 0, 16);
+                            rgba5551_add_clamped(pixel + 1, 0, 0, 16);
+                            rgba5551_add_clamped(pixel + stride, 16, 16, 16);
+                            break;
+                    }
+                    acc += slope;
+                    pixel += step;
+                    if (prev != acc >> 16) {
+                        prev = acc >> 16;
+                        pixel += minor;
+                    }
+                }
+                break;
+            case 2:
+                if (x < entry->y) {
+                    n = entry->y - x;
+                    step = 1;
+                } else {
+                    n = x - entry->y;
+                    step = -1;
+                }
+                step += (u < entry->v) ? (s32) stride : -(s32) stride;
+                while (n--) {
+                    if (pixel < D_800FECB0) {
+                        break;
+                    }
+                    rgba5551_brighten_rg(pixel, red, green);
+                    pixel += step;
+                }
+                break;
+            case 1:
+                n = entry->y - x + 1;
+                while (n--) {
+                    rgba5551_brighten_rg(pixel - stride, red, green);
+                    rgba5551_brighten_rg(pixel, red, green);
+                    rgba5551_brighten_rg(pixel + stride, red, green);
+                    pixel++;
+                }
+                break;
+            case 4:
+                n = 18;
+                pat = D_800A6968;
+                break;
+            case 5:
+                n = 16;
+                pat = D_800A698C;
+                break;
+            case 6:
+                n = 15;
+                pat = D_800A69AC;
+                break;
+            case 7:
+                n = 15;
+                pat = D_800A69CC;
+                break;
+            case 0:
+                if (entry->v == u) {
+                    n = entry->y - x + 1;
+                    while (n--) {
+                        rgba5551_brighten_rg(pixel++, red, green);
+                    }
+                } else if (entry->y == x) {
+                    n = entry->v - u + 1;
+                    while (n--) {
+                        rgba5551_brighten_rg(pixel, red, green);
+                        pixel += stride;
+                    }
+                }
+                break;
+        }
+        if (pat != NULL) {
+            while (n--) {
+                dx = pat[0];
+                dy = pat[1];
+                if (entry->flags & 0x40) {
+                    dx = -dx;
+                }
+                pat += 2;
+                rgba5551_brighten_rg(pixel + dy * (s32) stride + dx, red, green);
+            }
+        }
+    }
+    red <<= 1;
+    green <<= 1;
+    D_80103B80[D_80103B90] = 0;
+    count = D_80103B88[D_80103B90];
+    text = D_80103700[D_80103B90];
+    for (; count != 0; count--, text++) {
+        pixel = D_800FECB0 + text->x + text->y * stride;
+        n = 31;
+        p = (u8 *) &text->text[1];
+        if ((ch = text->text[0]) != 0) {
+            do {
+                start = pixel;
+                switch (ch) {
+                    case '.':
+                        ch = 10;
+                        break;
+                    case 'L':
+                        ch = 11;
+                        break;
+                    case 'O':
+                        ch = 12;
+                        break;
+                    case 'C':
+                        ch = 13;
+                        break;
+                    case 'K':
+                        ch = 14;
+                        break;
+                    case '-':
+                        ch = 15;
+                        break;
+                    case '#':
+                        ch = 16;
+                        break;
+                    default:
+                        ch -= '0';
+                        break;
+                }
+                gw = D_800A6B2C[ch];
+                glyph = &D_800A69EC[D_800A6B40[ch]];
+                rows = 6;
+                while (rows--) {
+                    cols = gw;
+                    while (cols--) {
+                        shift = *glyph++;
+                        if (shift) {
+                            rgba5551_brighten_rg(pixel, red >> shift, green >> shift);
+                        }
+                        pixel++;
+                    }
+                    pixel += stride - gw;
+                }
+                pixel = start + gw + 1;
+                if (ch == 16) {
+                    pixel--;
+                }
+            } while (n-- != 0 && (ch = *p++) != 0);
+        }
+    }
+    D_80103B88[D_80103B90] = 0;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/69050", func_8006E188);
+#endif
 
 extern s32 D_800A6D00;
 extern u8 D_800A6D08;
