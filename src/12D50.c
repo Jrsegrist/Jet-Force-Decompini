@@ -2033,7 +2033,202 @@ s32 func_80016208(void *obj, f32 *from, f32 *to, f32 radius, u16 flags, SweepHit
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80016208);
 #endif
 
+#ifdef NON_MATCHING
+void track_edges_build(void);
+void func_800805F4(void);
+s32 func_8007F280(void *obj, f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
+s32 func_80017094(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
+s32 func_8007FC0C(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags);
+s32 func_80017794(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags);
+
+/*
+ * JFG: func_80016208 for `count` points at once: sweep each point from prev to points (its radius and flags; flag
+ * 0x40 skips it) against the objects and the level, repeating while something is hit (up to 11 times; then the
+ * point goes back to prev), summing the hit normals into push and noting in *nearest the last point whose hit had
+ * surface 3. With offsets, the point that touched first (the smallest hit distance) places pos (its point less its
+ * offset) and every point is put back at pos plus its offset. All of it repeats while something was touched: after
+ * 11 rounds (or when one hit was both a floor/wall and a slope/ceiling kind) every point goes back to prev.
+ * Returns the touch masks of every round or-ed, with 0xFFFF0000 (gave up) or 0x11110000 (stuck) added.
+ * As in the ROM, best keeps its last value when no touched point's distance is below the start value.
+ * NON_MATCHING: first body (written from the ROM; checked equal to it by simulation).
+ */
+s32 func_800163FC(void *obj, f32 *pos, f32 *prev, f32 *points, f32 *radii, f32 *offsets, u16 *flags, SweepHit *hits,
+                  s32 count, s32 *nearest, f32 *push) {
+    s32 j;
+    s32 a;
+    s32 b;
+    f32 min;
+    s32 bit;
+    s32 touched;
+    s32 found;
+    s32 n;
+    s32 i;
+    SweepHit *hit;
+    f32 *from;
+    s32 result;
+    f32 *to;
+    s32 tries;
+    s32 best;
+    s32 done;
+    f32 radius;
+    s32 f;
+    UNUSED s32 pad0; // the frame has four more words here
+    UNUSED s32 pad1;
+    UNUSED s32 pad2;
+    UNUSED s32 pad3;
+
+    push[0] = 0.0f;
+    push[1] = 0.0f;
+    push[2] = 0.0f;
+    *nearest = -1;
+    for (j = 0; j < count; j++) {
+        hits[j].obj = NULL;
+        hits[j].unk25 = 0;
+        hits[j].pos[0] = 0.0f;
+        hits[j].pos[1] = 0.0f;
+        hits[j].pos[2] = 0.0f;
+        hits[j].normal[0] = 0.0f;
+        hits[j].normal[1] = 0.0f;
+        hits[j].normal[2] = 0.0f;
+        hits[j].unk1C = 1024000000.0f;
+        hits[j].unk24 = 0;
+        hits[j].unk20 = 0;
+        hits[j].unk26 = 0;
+        hits[j].unk27 = 0;
+    }
+    min = 1024000000.0f;
+    track_edges_build();
+    func_800805F4();
+    result = 0;
+    tries = 0;
+    done = 0;
+    do {
+        i = 0;
+        touched = 0;
+        bit = 1;
+        do {
+            f = flags[i];
+            radius = radii[i];
+            n = 0;
+            if (!(f & 0x40)) {
+                hit = &hits[i];
+                from = &prev[i * 3];
+                to = &points[i * 3];
+                do {
+                    found = FALSE;
+                    if (func_8007F280(obj, from, to, hit, radius, f, 0.0f)) {
+                        push[0] += hit->normal[0];
+                        push[1] += hit->normal[1];
+                        push[2] += hit->normal[2];
+                        touched |= bit;
+                        found = TRUE;
+                    }
+                    if (func_80017094(from, to, hit, radius, f, 0.0f)) {
+                        push[0] += hit->normal[0];
+                        push[1] += hit->normal[1];
+                        push[2] += hit->normal[2];
+                        touched |= bit;
+                        found = TRUE;
+                    }
+                    if (func_8007FC0C(from, to, hit, radius, f)) {
+                        push[0] += hit->normal[0];
+                        push[1] += hit->normal[1];
+                        push[2] += hit->normal[2];
+                        touched |= bit;
+                        found = TRUE;
+                    }
+                    if (func_80017794(from, to, hit, radius, f)) {
+                        push[0] += hit->normal[0];
+                        push[1] += hit->normal[1];
+                        push[2] += hit->normal[2];
+                        touched |= bit;
+                        found = TRUE;
+                    }
+                    if (found) {
+                        n++;
+                        if (hit->unk24 == 3) {
+                            *nearest = i;
+                        }
+                        if (n >= 11) {
+                            found = FALSE;
+                            to[0] = from[0];
+                            to[1] = from[1];
+                            to[2] = from[2];
+                            hit->unk1C = 0.0f;
+                            hit->unk25 |= 0x80;
+                        } else if ((hit->unk25 & 0x12) && (hit->unk25 & 0x48)) {
+                            found = FALSE;
+                            to[0] = from[0];
+                            to[1] = from[1];
+                            to[2] = from[2];
+                            hit->unk1C = 0.0f;
+                        }
+                    }
+                } while (found && !(f & 0x40));
+            }
+            i++;
+            bit <<= 1;
+        } while (i < count);
+        if (touched && offsets != NULL) {
+            bit = 1;
+            radius = min;
+            for (j = 0; j < count; j++) {
+                if ((touched & bit) && hits[j].unk1C < radius) {
+                    best = j;
+                    radius = hits[j].unk1C;
+                }
+                bit <<= 1;
+            }
+            hits[best].unk25 |= 1;
+            pos[0] = points[best * 3 + 0] - offsets[best * 3 + 0];
+            pos[1] = points[best * 3 + 1] - offsets[best * 3 + 1];
+            pos[2] = points[best * 3 + 2] - offsets[best * 3 + 2];
+            for (j = 0; j < count; j++) {
+                points[j * 3 + 0] = offsets[j * 3 + 0] + pos[0];
+                points[j * 3 + 1] = offsets[j * 3 + 1] + pos[1];
+                points[j * 3 + 2] = offsets[j * 3 + 2] + pos[2];
+            }
+        }
+        tries++;
+        result |= touched;
+        if (tries >= 11) {
+            touched = 0;
+            for (j = 0; j < count; j++) {
+                points[j * 3 + 0] = prev[j * 3 + 0];
+                points[j * 3 + 1] = prev[j * 3 + 1];
+                points[j * 3 + 2] = prev[j * 3 + 2];
+            }
+            result |= 0xFFFF0000;
+        } else {
+            a = 0;
+            b = 0;
+            for (j = 0; j < count; j++) {
+                if (hits[j].unk25 & 0x48) {
+                    a = 1;
+                }
+                if (hits[j].unk25 & 0x12) {
+                    b = 1;
+                }
+            }
+            if (a && b) {
+                done = 1;
+                for (j = 0; j < count; j++) {
+                    if (hits[j].unk25) {
+                        hits[j].unk25 |= 1;
+                    }
+                    points[j * 3 + 0] = prev[j * 3 + 0];
+                    points[j * 3 + 1] = prev[j * 3 + 1];
+                    points[j * 3 + 2] = prev[j * 3 + 2];
+                }
+                result |= 0x11110000;
+            }
+        }
+    } while (touched && !done);
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800163FC);
+#endif
 
 /* JFG: a triangle's entry in the segment's plane index (8 bytes; DKR's CollisionFacetPlanes) */
 typedef struct TrianglePlaneRef {

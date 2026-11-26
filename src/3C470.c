@@ -1010,7 +1010,376 @@ void asset_cache_release(s8 *asset) {
     }
 }
 
+/* JFG: a bone of a posed model (16 bytes) */
+typedef struct PoseBone3D {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ s8 frame[2]; // this frame's value for each of the two animations
+    /* 0x04 */ u8 pad4[0x10 - 0x4];
+} PoseBone3D;
+
+/* JFG: a model point: a vertex carried by a bone */
+typedef struct PosePoint3D {
+    /* 0x00 */ u16 vertex;
+    /* 0x02 */ u16 bone;
+} PosePoint3D;
+
+typedef struct PosePoint3D12 {
+    /* 0x00 */ u16 vertex;
+    /* 0x02 */ s8 bone;
+    /* 0x03 */ u8 pad3[0xC - 0x3];
+} PosePoint3D12;
+
+/* JFG: the model func_8003D21C poses (the fields used here) */
+typedef struct PoseModel3D {
+    /* 0x00 */ u8 pad0[0x1C];
+    /* 0x1C */ VertexC1 *vertices;
+    /* 0x20 */ u8 pad20[0x2D - 0x20];
+    /* 0x2D */ u8 numPoints;
+    /* 0x2E */ u8 numPoints2;
+    /* 0x2F */ u8 numPoints3;
+    /* 0x30 */ PosePoint3D *points;
+    /* 0x34 */ PosePoint3D12 *points2;
+    /* 0x38 */ PosePoint3D12 *points3;
+    /* 0x3C */ u8 pad3C[0x4F - 0x3C];
+    /* 0x4F */ s8 numBones;
+    /* 0x50 */ s8 **anims;     // the animations (when they are not shared)
+    /* 0x54 */ PoseBone3D *bones;
+    /* 0x58 */ s8 *boneFrames; // numBones values per animation
+    /* 0x5C */ s16 *animIds;   // the shared animations' cache ids
+    /* 0x60 */ u8 pad60[4];
+    /* 0x64 */ u8 sharedAnims; // the animations come from the asset cache
+} PoseModel3D;
+
+/* JFG: an instance of a posed model: two animations blended, double-buffered bone matrices */
+typedef struct PoseInst3D {
+    /* 0x00 */ PoseModel3D *model;
+    /* 0x04 */ VertexC1 *vertices;
+    /* 0x08 */ s8 animFlags[2];
+    /* 0x0A */ u8 padA;
+    /* 0x0B */ s8 buffer; // which of the two matrix and vertex buffers is current
+    /* 0x0C */ u8 padC[4];
+    /* 0x10 */ MtxF *matrices[2];
+    /* 0x18 */ VertexC1 *vertexBuffers[2];
+    /* 0x20 */ s32 unk20;
+    /* 0x24 */ u16 animIndex[2];
+    /* 0x28 */ f32 frame[2];
+    /* 0x30 */ u8 pad30[0x38 - 0x30];
+    /* 0x38 */ f32 animLength[2];
+    /* 0x40 */ u8 pad40[0x50 - 0x40];
+    /* 0x50 */ s8 *frameData[2];
+    /* 0x58 */ s16 frameStep[2];
+    /* 0x5C */ s16 blendStep;
+    /* 0x5E */ s16 blend;
+    /* 0x60 */ u8 *anim[2];
+    /* 0x68 */ Vec3fC1 *points[3];
+    /* 0x74 */ u8 pad74[0x80 - 0x74];
+    /* 0x80 */ s8 *assets[2]; // the shared animations, from the asset cache
+    /* 0x88 */ s16 assetIds[2];
+} PoseInst3D;
+
+/* JFG: an object as func_8003D21C sees it */
+typedef struct PoseObject3D {
+    /* 0x00 */ s16 yaw;
+    /* 0x02 */ s16 pitch;
+    /* 0x04 */ s16 roll;
+    /* 0x06 */ u8 pad6[2];
+    /* 0x08 */ f32 scale;
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x28 - 0x18];
+    /* 0x28 */ f32 animProgress; // 0 to 1 through the first animation
+    /* 0x2C */ u8 pad2C[0x48 - 0x2C];
+    /* 0x48 */ s16 behaviour;
+    /* 0x4A */ u8 pad4A[0x68 - 0x4A];
+    /* 0x68 */ void *data;
+} PoseObject3D;
+
+/* JFG: the data of a behaviour 0x18 object (the player's), as used here */
+typedef struct PoseData3D {
+    /* 0x00 */ u32 pad0 : 22;
+    /* 0x00 */ u32 attached : 1; // posed by the holder's angles
+    /* 0x00 */ u32 pad0b : 9;
+    /* 0x04 */ u32 pad4 : 22;
+    /* 0x04 */ u32 frames : 2; // counts the frames posed, up to 2
+    /* 0x04 */ u32 pad4b : 8;
+    /* 0x08 */ u8 pad8[0x24 - 0x8];
+    /* 0x24 */ PoseObject3D *holder;
+    /* 0x28 */ u8 pad28[0x68 - 0x28];
+    /* 0x68 */ f32 pos[3];
+    /* 0x74 */ f32 posA[3];
+    /* 0x80 */ f32 posB[3];
+    /* 0x8C */ u8 pad8C[0x9C - 0x8C];
+    /* 0x9C */ s16 yaw;
+} PoseData3D;
+
+/* JFG: the holder's data: its angles */
+typedef struct PoseHolder3D {
+    /* 0x00 */ u8 pad0[0x54];
+    /* 0x54 */ s16 *angles;
+} PoseHolder3D;
+
+/* JFG: the data of a behaviour 0xA7 object: a ready matrix */
+typedef struct PoseMtxData3D {
+    /* 0x00 */ u8 pad0[0x48];
+    /* 0x48 */ MtxF mtx;
+} PoseMtxData3D;
+
+/* JFG: the points a behaviour 0x18 object's module gives (bone and offset) */
+typedef struct PosePoints3D {
+    /* 0x00 */ u8 pad0[0x30];
+    /* 0x30 */ u8 bone;
+    /* 0x31 */ s8 x;
+    /* 0x32 */ s8 y;
+    /* 0x33 */ s8 z;
+    /* 0x34 */ u8 pad34[0x3A - 0x34];
+    /* 0x3A */ u8 boneA;
+    /* 0x3B */ u8 pad3B[0x3D - 0x3B];
+    /* 0x3D */ u8 boneB;
+} PosePoints3D;
+
+void func_8004959C(MtxF *mtx, f32 x, f32 y, f32 z); // translation
+void func_80049AE8(s32 angle, MtxF *mtx);           // rotations
+void func_80049978(s16 angle, MtxF *mtx);
+void func_80049A30(s16 angle, MtxF *mtx);
+void func_80049874(f32 x, f32 y, f32 z, MtxF *mtx); // scale
+void func_80049DC0(void *trans, MtxF *out);         // the transform's matrix
+void func_80048F4C(MtxF *mtx, f32 offsetY);
+void func_80048F20(MtxF *mtx, f32 scaleY);
+s32 is_game_paused(void);
+u8 *func_8003B4D8(void *obj);
+u8 *func_8003B4E4(void *obj);
+void *func_80054530(); // a module function (patched in by the runtime linker)
+void func_80073E80(MtxF **out, MtxF *base, s32 *arg2, PoseBone3D *bones, s32 numBones, u8 *flags);
+s32 func_80049C84(f32 x, f32 z); // arctangent as a 16-bit angle
+/* NOT PORTABLE: 40240.c defines it with an s32 for the matrices' address */
+void func_80042470(s32 arg0, s32 arg1);
+extern s32 D_800F6F54;
+extern u8 D_800A2EC4[];
+
+#ifdef NON_MATCHING
+/* JFG: pose a model instance for this frame: the object's matrix (from its holder's angles, a ready matrix, or its
+ * transform), the next matrix buffer, the two animations' frames (fetching shared ones from the asset cache), the
+ * bone matrices, the model points and, for the player's object, the points its module names.
+ * NON_MATCHING: first body (written from the ROM; checked equal to it by simulation); the jump table needs
+ * 3C470's .rodata in C. */
+void func_8003D21C(PoseInst3D *inst, PoseModel3D *model, PoseObject3D *obj, f32 scaleY, f32 offsetY) {
+    s32 i;
+    s32 j;
+    s8 *anim;
+    s32 n;
+    s8 *asset;
+    s32 frame;
+    u32 step;
+    MtxF *verts;
+    MtxF mtx;
+    s16 *angles;
+    MtxF *m;
+    s8 *src;
+    u8 *flags;
+    PosePoint3D12 *point;
+    Vec3fC1 *out;
+    PoseData3D *data;
+    PoseObject3D *holder;
+    PosePoints3D *p;
+    VertexC1 *v;
+    f32 x;
+    f32 y;
+    f32 z;
+
+    data = obj->data;
+    if (obj->behaviour == 0x18 && (holder = data->holder) != NULL &&
+        (angles = ((PoseHolder3D *) holder->data)->angles) != NULL && data->attached) {
+        func_8004959C(&mtx, obj->x, obj->y, obj->z);
+        func_80049AE8(angles[0], &mtx);
+        func_80049978(angles[2], &mtx);
+        func_80049A30(angles[1], &mtx);
+        func_80049AE8((s16) (obj->yaw - angles[0]), &mtx);
+        func_80049874(obj->scale, obj->scale, obj->scale, &mtx);
+    } else if (obj->behaviour == 0xA7) {
+        verts = &((PoseMtxData3D *) data)->mtx;
+        for (i = 0; i < 4; i++) {
+            for (j = 0; j < 4; j++) {
+                mtx[i][j] = (*verts)[i][j];
+            }
+        }
+    } else {
+        func_80049DC0(obj, &mtx);
+        if (offsetY != 0.0f) {
+            func_80048F4C(&mtx, offsetY);
+        }
+        if (scaleY != 1.0f) {
+            func_80048F20(&mtx, scaleY);
+        }
+    }
+    inst->buffer ^= 1;
+    verts = inst->matrices[inst->buffer];
+    inst->vertices = inst->vertexBuffers[inst->buffer];
+    inst->frame[0] = inst->animLength[0] * obj->animProgress;
+    n = 1;
+    if (inst->blend != 0) {
+        n = 2;
+    }
+    if (model->sharedAnims != 0) {
+        for (i = 0; i < n; i++) {
+            asset = inst->assets[i];
+            if (asset != NULL && inst->assetIds[i] != inst->animIndex[i]) {
+                asset_cache_release(asset);
+                asset = NULL;
+                inst->assets[i] = NULL;
+            }
+            if (asset == NULL) {
+                inst->assets[i] = asset_cache_get(model->animIds[inst->animIndex[i]]);
+                inst->assetIds[i] = inst->animIndex[i];
+                anim = inst->assets[i];
+                inst->anim[i] = (u8 *) anim + 8;
+                inst->animFlags[i] = anim[1] & 0xF0;
+                inst->animLength[i] = inst->anim[i][3];
+                if (inst->animFlags[i] == 0) {
+                    inst->animLength[i] -= 1.0f;
+                }
+                if ((frame = anim[1] & 0xF) != 0) {
+                    inst->blend = 0x3FF;
+                    inst->blendStep = 0x3FF / frame;
+                    n = 2;
+                }
+            }
+        }
+    }
+    for (i = 0; i < n; i++) {
+        src = model->boneFrames + inst->animIndex[i] * model->numBones;
+        for (j = 0; j < model->numBones; j++) {
+            model->bones[j].frame[i] = src[j];
+        }
+        if (model->sharedAnims != 0) {
+            anim = inst->assets[i];
+        } else {
+            anim = model->anims[inst->animIndex[i]];
+        }
+        frame = inst->frame[i];
+        step = inst->anim[i][5];
+        if (frame != inst->frame[i]) {
+            inst->frameStep[i] = step;
+        } else {
+            inst->frameStep[i] = 0;
+        }
+        if (inst->animFlags[i] != 0 && frame == inst->animLength[i] - 1.0f) {
+            inst->frameStep[i] = -step * frame;
+        }
+        inst->frameData[i] = anim + *(s16 *) (anim + 2) + step * frame;
+    }
+    if (inst->blend != 0) {
+        if (obj->behaviour != 1) {
+            if (D_800F6F54 != 0) {
+                inst->blend -= inst->blendStep;
+            }
+        } else if (!is_game_paused()) {
+            inst->blend -= inst->blendStep;
+        }
+        if (inst->blend < 0) {
+            inst->blend = 0;
+        }
+    }
+    switch (obj->behaviour) {
+        case 1:
+            flags = func_8003B4D8(obj);
+            break;
+        case 0x33:
+            flags = (u8 *) obj->data + 0x4E;
+            break;
+        case 0x93:
+            flags = (u8 *) obj->data + 4;
+            break;
+        case 2:
+            flags = func_8003B4E4(obj);
+            break;
+        case 0x18:
+            flags = func_80054530(obj);
+            break;
+        case 0x6C:
+            flags = func_80054530(obj);
+            break;
+        case 0x5C:
+            flags = func_80054530(obj);
+            break;
+        case 0x65:
+            flags = func_80054530();
+            break;
+        case 0x83:
+            flags = func_80054530();
+            break;
+        case 0x82:
+            flags = (u8 *) obj->data + 0x42;
+            break;
+        case 0x90:
+            flags = func_80054530();
+            break;
+        default:
+            flags = D_800A2EC4;
+            break;
+    }
+    func_80073E80(&verts, &mtx, &inst->unk20, model->bones, model->numBones, flags);
+    out = inst->points[0];
+    for (i = 0; i < model->numPoints; i++) {
+        v = &model->vertices[model->points[i].vertex];
+        guMtxXFMF(inst->matrices[inst->buffer][model->points[i].bone], v->x, v->y, v->z, &out->x, &out->y, &out->z);
+        out++;
+    }
+    out = inst->points[1];
+    for (i = 0; i < model->numPoints2; i++) {
+        point = &model->points2[i];
+        v = &model->vertices[point->vertex];
+        guMtxXFMF(inst->matrices[inst->buffer][point->bone], v->x, v->y, v->z, &out->x, &out->y, &out->z);
+        out++;
+    }
+    out = inst->points[2];
+    for (i = 0; i < model->numPoints3; i++) {
+        point = &model->points3[i];
+        v = &model->vertices[point->vertex];
+        guMtxXFMF(inst->matrices[inst->buffer][point->bone], v->x, v->y, v->z, &out->x, &out->y, &out->z);
+        out++;
+    }
+    if (obj->behaviour == 0x18 && holder != NULL) {
+        data->posA[0] = obj->x;
+        data->posA[1] = obj->y;
+        data->posA[2] = obj->z;
+        data->posB[0] = obj->x;
+        data->posB[1] = obj->y;
+        data->posB[2] = obj->z;
+        if (data->frames < 2) {
+            data->frames++;
+        }
+        p = func_80054530(obj);
+        if (p != NULL) {
+            m = &inst->matrices[inst->buffer][p->bone];
+            guMtxXFMF(*m, p->x, p->y, p->z, &data->pos[0], &data->pos[1], &data->pos[2]);
+            guMtxXFMF(*m, p->x, p->y, p->z - 64.0f, &x, &y, &z);
+            data->yaw = func_80049C84(data->pos[0] - x, data->pos[2] - z);
+            if (p->boneA != 0) {
+                m = &inst->matrices[inst->buffer][p->boneA];
+                data->posA[0] = (*m)[3][0];
+                data->posA[1] = (*m)[3][1];
+                data->posA[2] = (*m)[3][2];
+            }
+            if (p->boneB != 0) {
+                m = &inst->matrices[inst->buffer][p->boneB];
+                data->posB[0] = (*m)[3][0];
+                data->posB[1] = (*m)[3][1];
+                data->posB[2] = (*m)[3][2];
+            }
+        } else {
+            data->pos[0] = obj->x;
+            data->pos[1] = obj->y;
+            data->pos[2] = obj->z;
+            data->yaw = obj->yaw;
+        }
+    }
+    verts = inst->matrices[inst->buffer];
+    func_80042470((s32) verts, model->numBones);
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/3C470", func_8003D21C);
+#endif
 
 extern s32 D_800A2EC0;
 
