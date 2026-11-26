@@ -1956,6 +1956,7 @@ typedef struct SweepHit {
    from that copy, which also moves the hit-field stores after the float stores; IDO propagates my copies away */
 void track_edges_build(void);
 void func_800805F4(void);
+// the callee reads flags as u16 (lhu), but a u16 parameter here makes this caller mask the argument (126 words)
 s32 func_8007F280(void *obj, f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
 s32 func_80017094(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2);
 s32 func_8007FC0C(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags);
