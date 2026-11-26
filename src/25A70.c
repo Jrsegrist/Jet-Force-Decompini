@@ -567,9 +567,7 @@ s32 obj_anim_set(Object *obj, s32 anim, f32 frame);
 s32 obj_anim_frame_advance(Object *obj, f32 speed, f32 rate);
 void func_80054530();
 
-#ifdef NON_MATCHING
-/* ROM length and frame; one scheduling pair left (in the closing branch the ROM sets a0 after the speed compare)
-   JFG: loop: find the nearest player or queued object; open (or close) by the group's flags and distance,
+/* JFG: loop: find the nearest player or queued object; open (or close) by the group's flags and distance,
    with the sounds, unlocking item, module and game flag tests, then move: rise, turn, tilt or animate. */
 void func_80025A08(GroupMoverObject *obj, s32 updateRate) {
     GroupMoverState *state;
@@ -583,7 +581,7 @@ void func_80025A08(GroupMoverObject *obj, s32 updateRate) {
     UNUSED s32 pad4;
     s32 player;
     s32 sound;
-    UNUSED s32 pad5;
+    f32 frame;
     f32 radius;
     s32 i;
     s32 j;
@@ -651,7 +649,7 @@ void func_80025A08(GroupMoverObject *obj, s32 updateRate) {
                                                        obj->z_position, 4, &state->sound);
                     }
                     if (state->kind == 5) {
-                        obj_anim_set((Object *) obj,state->openAnim, state->openSpeed < 0.0f ? 1.0f : 0.0f);
+                        obj_anim_set((Object *) obj, state->openAnim, state->openSpeed < 0.0f ? 1.0f : 0.0f);
                         state->animSpeed = state->openSpeed;
                     }
                 }
@@ -667,7 +665,8 @@ void func_80025A08(GroupMoverObject *obj, s32 updateRate) {
                         audspat_play_sound_at_position(state->openSoundId, obj->x_position, obj->y_position,
                                                        obj->z_position, 4, &state->sound);
                     }
-                    obj_anim_set((Object *) obj, state->closeAnim, state->closeSpeed < 0.0f ? 1.0f : 0.0f);
+                    frame = state->closeSpeed < 0.0f ? 1.0f : 0.0f;
+                    obj_anim_set((Object *) obj, state->closeAnim, frame);
                     state->animSpeed = state->closeSpeed;
                 }
                 state->flags &= ~1;
@@ -807,9 +806,6 @@ void func_80025A08(GroupMoverObject *obj, s32 updateRate) {
         obj->y_position = state->baseY + state->offset;
     }
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/25A70", func_80025A08);
-#endif
 
 u8 **objGetObjList(s32 *start, s32 *end);
 
