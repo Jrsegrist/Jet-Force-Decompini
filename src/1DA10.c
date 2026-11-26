@@ -3,8 +3,6 @@
  */
 #include "common.h"
 
-INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001CE10);
-
 /* DKR include/structs.h */
 typedef struct LevelModelSegmentBoundingBox {
     /* 0x00 */ s16 x1;
@@ -14,6 +12,270 @@ typedef struct LevelModelSegmentBoundingBox {
     /* 0x08 */ s16 y2;
     /* 0x0A */ s16 z2;
 } LevelModelSegmentBoundingBox;
+
+#ifdef NON_MATCHING
+/* DKR include/structs.h */
+typedef struct Vertex {
+    /* 0x00 */ s16 x;
+    /* 0x02 */ s16 y;
+    /* 0x04 */ s16 z;
+    /* 0x06 */ u8 r;
+    /* 0x07 */ u8 g;
+    /* 0x08 */ u8 b;
+    /* 0x09 */ u8 a;
+} Vertex;
+
+/* JFG: 12D50.c's segment vertex colours */
+typedef struct SegmentColours {
+    /* 0x00 */ u8 *colours; // three bytes per vertex
+    /* 0x04 */ u16 *changed; // a bit per vertex, 16 per halfword
+} SegmentColours;
+
+/* DKR include/structs.h (TriangleBatchInfo), reduced */
+typedef struct TriangleBatchInfo {
+    /* 0x00 */ u8 pad0[0x8];
+    /* 0x08 */ u16 facesOffset; // the batch's first triangle; the next batch's is its end
+    /* 0x0A */ u16 pad0A;
+    /* 0x0C */ u32 flags;
+} TriangleBatchInfo;
+
+/* JFG: 12D50.c's level segment, reduced. Size: 0x48 bytes */
+typedef struct LevelModelSegment {
+    /* 0x00 */ Vertex *vertices;
+    /* 0x04 */ u8 pad4[0xC - 0x4];
+    /* 0x0C */ TriangleBatchInfo *batches;
+    /* 0x10 */ u32 *triangleMasks;      // per triangle, the bounding box cells it covers (x 0-15, z 16-31)
+    /* 0x14 */ u8 *triangleHeightMasks; // per triangle, the height cells it covers
+    /* 0x18 */ u8 (*trianglePlanes)[8]; // per triangle, its plane record
+    /* 0x1C */ u8 pad1C[0x24 - 0x1C];
+    /* 0x24 */ s16 numberOfVertices;
+    /* 0x26 */ u8 pad26[0x28 - 0x26];
+    /* 0x28 */ u16 numberOfBatches;
+    /* 0x2A */ u8 pad2A[0x32 - 0x2A];
+    /* 0x32 */ s8 colourFlags;
+    /* 0x33 */ u8 pad33;
+    /* 0x34 */ SegmentColours *colours;
+    /* 0x38 */ u8 pad38[0x48 - 0x38];
+} LevelModelSegment;
+
+/* DKR include/structs.h, reduced */
+typedef struct LevelModel {
+    /* 0x00 */ void *textures;
+    /* 0x04 */ LevelModelSegment *segments;
+    /* 0x08 */ LevelModelSegmentBoundingBox *segmentsBoundingBoxes;
+    /* 0x0C */ u8 pad0C[0x1A - 0xC];
+    /* 0x1A */ s16 numberOfSegments;
+} LevelModel;
+
+/* JFG: the level header (12D50.c's LevelHeader12), reduced */
+typedef struct CollisionLevelHeader {
+    /* 0x00 */ u8 pad0[0xEA];
+    /* 0xEA */ s16 maxEntries; // the size of the D_800F33B8 lists (m024 allocates them)
+} CollisionLevelHeader;
+
+extern LevelModel *D_800A0D60;           // DKR: gCurrentLevelModel
+extern CollisionLevelHeader *D_800A0D64; // DKR: gCurrentLevelHeader2
+extern s32 *D_800F33B8; // per entry, a segment (its address with bit 31 clear) or a triangle's plane record (address)
+extern s16 *D_800F33BC; // per triangle entry, its batch
+extern s16 *D_800F33C0; // per triangle entry, the triangle
+extern s32 D_800F33C4;  // the number of entries
+
+u32 func_8001D344(void *box, s32 x1, s32 z1, s32 x2, s32 z2);
+u8 func_8001D464(LevelModelSegmentBoundingBox *bb, s32 y1, s32 y2);
+void func_8007EB6C(f32 *min, f32 *max, s32 mask1, s32 mask2, void *exclude); // JFG: collects the objects in a box
+
+/* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
+ * JFG: the collision candidates for count moving spheres (from[i] to to[i], radius[i]; DKR's
+ * generate_collision_candidates does the same job in another form). The box around every start and end, each
+ * widened by its radius (all truncated to integers), is padded by 5; func_8007EB6C collects the objects in it.
+ * Then up to 10 segments whose boxes (padded by 5) meet it get their x/z and height cell masks, and each one adds
+ * an entry for itself, then one for every triangle of its batches whose cell masks meet the box's in x, z and
+ * height. A batch is skipped when its flags have none of keepFlags but some of skipFlags | 0x880. Returns 1 when
+ * the entry list fills up (D_800A0D64->maxEntries), else 0; D_800F33C4 gets the number of entries. */
+s32 func_8001CE10(s32 count, f32 *from, f32 *to, f32 *radius, s32 skipFlags, s32 keepFlags, s32 exclude) {
+    u32 masks[10];
+    LevelModelSegment *segments[10];
+    u8 heights[10];
+    f32 min[3];
+    f32 max[3];
+    s32 minX, minY, minZ;
+    s32 maxX, maxY, maxZ;
+    s32 i;
+    s32 r;
+    s32 v;
+    s32 n;
+    s32 found;
+    s32 entries;
+    s32 limit;
+    s32 batchIndex;
+    s32 tri;
+    s32 end;
+    u32 cells;
+    s32 *out;
+    s16 *batchOut;
+    s16 *triOut;
+    LevelModelSegmentBoundingBox *box;
+    LevelModelSegment *segment;
+    TriangleBatchInfo *batch;
+
+    skipFlags |= 0x800;
+    skipFlags |= 0x80;
+    minX = minY = minZ = 100000;
+    maxX = maxY = maxZ = -100000;
+    if (count != 0) {
+        i = 0;
+        do {
+            r = radius[i];
+            v = (s32) from[i * 3 + 0] + r;
+            if (maxX < v) {
+                maxX = v;
+            }
+            v = (s32) from[i * 3 + 0] - r;
+            if (v < minX) {
+                minX = v;
+            }
+            v = (s32) from[i * 3 + 1] + r;
+            if (maxY < v) {
+                maxY = v;
+            }
+            v = (s32) from[i * 3 + 1] - r;
+            if (v < minY) {
+                minY = v;
+            }
+            v = (s32) from[i * 3 + 2] + r;
+            if (maxZ < v) {
+                maxZ = v;
+            }
+            v = (s32) from[i * 3 + 2] - r;
+            if (v < minZ) {
+                minZ = v;
+            }
+            v = (s32) to[i * 3 + 0] + r;
+            if (maxX < v) {
+                maxX = v;
+            }
+            v = (s32) to[i * 3 + 0] - r;
+            if (v < minX) {
+                minX = v;
+            }
+            v = (s32) to[i * 3 + 1] + r;
+            if (maxY < v) {
+                maxY = v;
+            }
+            v = (s32) to[i * 3 + 1] - r;
+            if (v < minY) {
+                minY = v;
+            }
+            v = (s32) to[i * 3 + 2] + r;
+            if (maxZ < v) {
+                maxZ = v;
+            }
+            v = (s32) to[i * 3 + 2] - r;
+            if (v < minZ) {
+                minZ = v;
+            }
+            i++;
+        } while (i < count);
+        if (maxX < minX) {
+            v = minX;
+            minX = maxX;
+            maxX = v;
+        }
+        if (maxY < minY) {
+            v = minY;
+            minY = maxY;
+            maxY = v;
+        }
+        if (maxZ < minZ) {
+            v = minZ;
+            minZ = maxZ;
+            maxZ = v;
+        }
+        minX -= 5;
+        minY -= 5;
+        minZ -= 5;
+        maxX += 5;
+        maxY += 5;
+        maxZ += 5;
+    }
+    min[0] = minX;
+    min[1] = minY;
+    min[2] = minZ;
+    max[0] = maxX;
+    max[1] = maxY;
+    max[2] = maxZ;
+    /* NOT PORTABLE: the seventh argument is a pointer passed as an s32 (every caller passes 0). */
+    func_8007EB6C(min, max, skipFlags, keepFlags, (void *) exclude);
+
+    found = 0;
+    n = D_800A0D60->numberOfSegments;
+    box = D_800A0D60->segmentsBoundingBoxes;
+    segment = D_800A0D60->segments;
+    if (n != 0) {
+        do {
+            if (box->x2 + 5 >= minX && box->x1 - 5 <= maxX && box->y2 + 5 >= minY && box->y1 - 5 <= maxY &&
+                box->z2 + 5 >= minZ && box->z1 - 5 <= maxZ) {
+                masks[found] = func_8001D344(box, minX, minZ, maxX, maxZ);
+                heights[found] = func_8001D464(box, minY, maxY);
+                segments[found] = segment;
+                found++;
+                if (found == 10) {
+                    break;
+                }
+            }
+            box++;
+            segment++;
+        } while (--n != 0);
+    }
+
+    entries = 0;
+    if (found != 0) {
+        limit = D_800A0D64->maxEntries;
+        out = D_800F33B8;
+        batchOut = D_800F33BC;
+        triOut = D_800F33C0;
+        i = 0;
+        do {
+            segment = segments[i];
+            cells = masks[i];
+            /* NOT PORTABLE: the lists hold 32-bit addresses; a segment's has bit 31 cleared to tell it apart. */
+            *out++ = (s32) ((u32) segment & 0x7FFFFFFF);
+            entries++;
+            batchOut++;
+            triOut++;
+            batch = segment->batches;
+            batchIndex = 0;
+            do {
+                if ((batch->flags & keepFlags) || !(batch->flags & skipFlags)) {
+                    tri = batch->facesOffset;
+                    end = batch[1].facesOffset;
+                    do {
+                        v = segment->triangleMasks[tri] & cells;
+                        if ((v & 0xFFFF) && (v & 0xFFFF0000) && (segment->triangleHeightMasks[tri] & heights[i])) {
+                            *out++ = (s32) segment->trianglePlanes[tri]; // NOT PORTABLE: as above
+                            entries++;
+                            *batchOut++ = batchIndex;
+                            *triOut++ = tri;
+                            if (entries >= limit) {
+                                D_800F33C4 = entries;
+                                return 1;
+                            }
+                        }
+                        tri++;
+                    } while (tri != end);
+                }
+                batchIndex++;
+                batch++;
+            } while (batchIndex != segment->numberOfBatches);
+            i++;
+        } while (--found != 0);
+    }
+    D_800F33C4 = entries;
+    return 0;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001CE10);
+#endif
 
 #ifdef NON_MATCHING
 /* NON_MATCHING: hand-written assembly in the ROM; verified against it by simulation.
@@ -126,43 +388,7 @@ INCLUDE_ASM("asm/nonmatchings/1DA10", func_8001D464);
 #endif
 
 #ifdef NON_MATCHING
-/* DKR include/structs.h */
-typedef struct Vertex {
-    /* 0x00 */ s16 x;
-    /* 0x02 */ s16 y;
-    /* 0x04 */ s16 z;
-    /* 0x06 */ u8 r;
-    /* 0x07 */ u8 g;
-    /* 0x08 */ u8 b;
-    /* 0x09 */ u8 a;
-} Vertex;
-
-/* JFG: 12D50.c's segment vertex colours */
-typedef struct SegmentColours {
-    /* 0x00 */ u8 *colours; // three bytes per vertex
-    /* 0x04 */ u16 *changed; // a bit per vertex, 16 per halfword
-} SegmentColours;
-
-/* JFG: 12D50.c's level segment, reduced further. Size: 0x48 bytes */
-typedef struct LevelModelSegment {
-    /* 0x00 */ Vertex *vertices;
-    /* 0x04 */ u8 pad4[0x24 - 0x4];
-    /* 0x24 */ s16 numberOfVertices;
-    /* 0x26 */ u8 pad26[0x32 - 0x26];
-    /* 0x32 */ s8 colourFlags;
-    /* 0x33 */ u8 pad33;
-    /* 0x34 */ SegmentColours *colours;
-    /* 0x38 */ u8 pad38[0x48 - 0x38];
-} LevelModelSegment;
-
-/* DKR include/structs.h, reduced */
-typedef struct LevelModel {
-    /* 0x00 */ void *textures;
-    /* 0x04 */ LevelModelSegment *segments;
-    /* 0x08 */ LevelModelSegmentBoundingBox *segmentsBoundingBoxes;
-    /* 0x0C */ u8 pad0C[0x1A - 0xC];
-    /* 0x1A */ s16 numberOfSegments;
-} LevelModel;
+/* (Vertex, SegmentColours, LevelModelSegment and LevelModel are defined with func_8001CE10's body above.) */
 
 /* JFG: 12D50.c's track light (Size: 0x80 bytes) */
 typedef struct TrackLight {
