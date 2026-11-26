@@ -306,9 +306,9 @@ typedef struct M016LevelHeader {
 /* A weapon's entry in gWeaponInfo */
 typedef struct M016WeaponInfo {
     /* 0x00 */ u8 pad0[0xC];
-    /* 0x0C */ s32 unkC;
+    /* 0x0C */ f32 unkC;  /* func_80039FCC's range */
     /* 0x10 */ u8 pad10[4];
-    /* 0x14 */ s32 unk14;
+    /* 0x14 */ f32 unk14; /* func_80039FCC's yaw range */
     /* 0x18 */ f32 unk18;
     /* 0x1C */ f32 unk1C;
     /* 0x20 */ f32 unk20;
@@ -365,7 +365,7 @@ extern void func_80034164(Object *obj, Racer *racer);
 extern void func_80049394(Vec3s *rotation, Vec3f *vec);
 extern f32 func_80097140(f32 x); /* sqrtf */
 extern s32 func_80049C84(f32 x, f32 z);
-extern void func_80039FCC(Object *obj, Racer *racer, s32 a, s32 b, f32 c, f32 d, f32 e, s32 updateRate);
+extern void func_80039FCC(Object *obj, Racer *racer, f32 a, f32 b, f32 c, f32 d, f32 e, s32 updateRate);
 extern void player_charge_meter_update(Racer *racer, s32 arg1, s32 updateRate);
 extern s32 track_height_at(f32 x, f32 z, f32 *height, s32 mask);
 extern void func_80000510(u8 arg0);
