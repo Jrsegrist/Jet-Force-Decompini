@@ -30,6 +30,7 @@ typedef struct Obj7EData {
     /* 0x130 */ s16 unk130;
     /* 0x132 */ u8 unk132;
     /* 0x133 */ u8 modelIndex;
+    /* 0x134 */ struct ObjContact7E *contacts; // JFG: up to 10 records of what touched the object (unk132 used)
 } Obj7EData;
 
 typedef struct Obj7E {
@@ -41,7 +42,11 @@ typedef struct Obj7E {
     /* 0x0C */ f32 x;
     /* 0x10 */ f32 y;
     /* 0x14 */ f32 z;
-    /* 0x18 */ u8 pad18[0x2E - 0x18];
+    /* 0x18 */ u8 pad18[0x1C - 0x18];
+    /* 0x1C */ f32 unk1C; // JFG: copied into an object's contact record (func_8007F280)
+    /* 0x20 */ f32 unk20;
+    /* 0x24 */ f32 unk24;
+    /* 0x28 */ u8 pad28[0x2E - 0x28];
     /* 0x2E */ s16 segmentID;
     /* 0x30 */ u8 pad30[0x3A - 0x30];
     /* 0x3A */ s8 modelIndex;
@@ -81,10 +86,11 @@ typedef struct ModelBatch7E {
     /* 0x0C */ u32 flags;
 } ModelBatch7E;
 
-/* JFG: a 14-byte record per triangle of a model's collision edge info (only the plane index is used here) */
+/* JFG: a 14-byte record per triangle of a model's collision edge info */
 typedef struct EdgeRecord7E {
-    /* 0x00 */ u16 plane; // the triangle's plane in ModelEdges7E.planes
-    /* 0x02 */ u8 pad2[12];
+    /* 0x00 */ u16 plane;         // the triangle's plane in ModelEdges7E.planes
+    /* 0x02 */ u16 edgePlanes[3]; // JFG: a plane per edge (bit 15: facing the other way)
+    /* 0x08 */ u8 pad8[6];
 } EdgeRecord7E;
 
 /* JFG: a plane a*x + b*y + c*z + d = 0 */
@@ -133,7 +139,9 @@ typedef struct Obj7EModel {
 } Obj7EModel;
 
 typedef struct Obj7EFlags {
-    /* 0x00 */ u8 pad0[0xA];
+    /* 0x00 */ u8 pad0[0x6];
+    /* 0x06 */ s16 unk6; // JFG: what objects of types 0xAA and 0xAC add to what they touch's unk130
+    /* 0x08 */ u8 pad8[0x2];
     /* 0x0A */ u16 flags;
 } Obj7EFlags;
 
@@ -1532,7 +1540,246 @@ void func_8007EB6C(f32 *a, f32 *b, s32 mask1, s32 mask2, Obj7E *exclude) {
     }
 }
 
+/* JFG: what the sweep tests fill in (12D50.c's SweepHit) */
+typedef struct SweepHit7E {
+    /* 0x00 */ Obj7E *obj;
+    /* 0x04 */ f32 pos[3];
+    /* 0x10 */ f32 normal[3];
+    /* 0x1C */ f32 unk1C; // JFG: the squared length of the move up to the contact
+    /* 0x20 */ u32 unk20; // JFG: the batch flags of the triangle hit
+    /* 0x24 */ u8 unk24;
+    /* 0x25 */ u8 unk25; // JFG: 0x10 floor, 0x20 wall, 0x40 ceiling
+    /* 0x26 */ u8 unk26;
+    /* 0x27 */ s8 unk27; // JFG: counts changes of the object hit
+} SweepHit7E;
+
+/* JFG: an object's record of something that touched it (0x1C bytes) */
+typedef struct ObjContact7E {
+    /* 0x00 */ f32 x, y, z; // JFG: where, in the object's space
+    /* 0x0C */ f32 unkC, unk10, unk14; // JFG: the toucher's unk1C..unk24
+    /* 0x18 */ u8 flags;
+    /* 0x19 */ u8 pad19[3];
+} ObjContact7E;
+
+s32 func_80049C84(f32 x, f32 z);
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
+void func_8004A2FC(f32 *mtx, f32 *in, f32 *out);
+
+#ifdef NON_MATCHING
+/**
+ * NON_MATCHING: a first body written from the ROM, at the ROM's length and frame (611 words, 0x150) with its stack
+ * slots but for nd (spilled here, kept in f28 there), 450 aligned diffs: s-register numbering (to/hit/j get s2/s3/s4,
+ * the ROM s1/s2/s3) and the FP temporaries throughout.
+ * JFG: sweep a sphere (radius, the pushed-out distance radius2) moving from `from` to `to` against the entries'
+ * object triangles (each object other than self, in its own space and scale): for the first triangle whose plane
+ * the move crosses at a point inside the triangle's edge planes, fill in hit, push `to` out of the plane (flags 1
+ * and 0x80: slide; else stand on floors, push off walls and ceilings), record the contact in the object (self
+ * only, floors only) and count self's push on it. Type 0x37 objects transform `from` through a module function
+ * instead of their matrices. As in the ROM, radius2 is divided by every object's scale in turn, and the object
+ * values a triangle entry uses are those of the last object entry (func_8007EB6C always lists an object before
+ * its triangles).
+ */
+s32 func_8007F280(Obj7E *self, f32 *from, f32 *to, SweepHit7E *hit, f32 radius, u16 flags, f32 radius2) {
+    Obj7E *obj;
+    Obj7EData *data;
+    Obj7EModel *model;
+    s32 i;
+    ModelHeader7E *header;
+    ModelEdges7E *edges;
+    EdgeRecord7E *record;
+    s32 entry;
+    f32 *mtx;
+    f32 plane[4];
+    f32 p[3];
+    s32 j;
+    s32 inside;
+    u32 edge;
+    u32 flip;
+    Plane7E *edgePlane;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 nd;
+    f32 d1;
+    f32 d0;
+    f32 hitX;
+    f32 dist;
+    f32 hitY;
+    f32 hitZ;
+    f32 q0;
+    f32 q1;
+    f32 q2;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 scale;
+    f32 len;
+    ObjContact7E *contact;
+    s32 result;
+    f32 t;
+
+    result = 0;
+    for (i = 0; i < D_801047F0; i++) {
+        entry = D_801047F4[i];
+        if (entry > 0) {
+            obj = (Obj7E *) (entry | 0x80000000);
+            data = obj->data;
+            model = obj->modelInstances[data->modelIndex];
+            header = model->header;
+            if (model->edges != NULL) {
+                edges = model->edges;
+            } else {
+                edges = header->edges;
+            }
+            mtx = data->mtx[data->mtxIndex][0];
+            scale = obj->scale;
+            radius2 /= scale;
+            if (obj->type == 0x37) {
+                p[0] = from[0];
+                p[1] = from[1];
+                p[2] = from[2];
+                func_80054530(obj, &p[0], &p[1], &p[2]);
+            } else if (data->unk12C != 0) {
+                func_80048B60(data->mtx[data->mtxIndex ^ 1][0], from[0], from[1], from[2], &dx, &dy, &dz);
+                func_80048B60(data->mtx2[data->mtxIndex][0], dx, dy, dz, &p[0], &p[1], &p[2]);
+            } else {
+                p[0] = from[0];
+                p[1] = from[1];
+                p[2] = from[2];
+            }
+        } else if (obj != self) {
+            record = (EdgeRecord7E *) entry;
+            func_8004A2FC(mtx, &edges->planes[record->plane].a, plane);
+            nx = plane[0] * scale;
+            ny = plane[1] * scale;
+            nz = plane[2] * scale;
+            nd = plane[3] * scale - radius;
+            d1 = nx * to[0] + ny * to[1] + to[2] * nz + nd;
+            if (d1 < 0.0f) {
+                d0 = nx * p[0] + ny * p[1] + p[2] * nz + nd;
+                if (0.0f <= d0) {
+                    t = d0 / (d0 - d1);
+                    dx = (to[0] - p[0]) * t;
+                    dy = (to[1] - p[1]) * t;
+                    dz = (to[2] - p[2]) * t;
+                    hitX = p[0] + dx - radius * nx;
+                    hitY = p[1] + dy - radius * ny;
+                    hitZ = p[2] + dz - radius * nz;
+                    inside = TRUE;
+                    j = 0;
+                    func_80048B60(mtx, hitX, hitY, hitZ, &q0, &q1, &q2);
+                    for (; j < 3 && inside; j++) {
+                        edge = record->edgePlanes[j];
+                        flip = edge & 0x8000;
+                        edgePlane = &edges->planes[edge ^ flip];
+                        dist = edgePlane->a * q0 + edgePlane->b * q1 + edgePlane->c * q2 + edgePlane->d;
+                        if (flip) {
+                            dist = -dist;
+                        }
+                        if (radius2 < dist) {
+                            inside = FALSE;
+                        }
+                    }
+                    if (inside) {
+                        hit->unk1C = dx * dx + dy * dy + dz * dz;
+                        result = 1;
+                        if (flags & 0x81) {
+                            if (flags & 1) {
+                                radius += 0.1f;
+                                to[0] = radius * nx + hitX;
+                                to[1] = radius * ny + hitY;
+                                to[2] = radius * nz + hitZ;
+                            } else {
+                                d1 = 0.1f - d1;
+                                to[0] += d1 * nx;
+                                to[1] += d1 * ny;
+                                to[2] += d1 * nz;
+                            }
+                            hit->pos[0] = nx;
+                            hit->pos[1] = ny;
+                            hit->pos[2] = nz;
+                            if (ny >= 0.707f) {
+                                hit->unk25 |= 0x10;
+                            } else if (ny <= -0.866f) {
+                                hit->unk25 |= 0x40;
+                            } else {
+                                hit->unk25 |= 0x20;
+                            }
+                        } else if (ny >= 0.707f) {
+                            to[1] = -(to[2] * nz + nx * to[0] + nd) / ny + 0.1f;
+                            hit->pos[0] = nx;
+                            hit->pos[1] = ny;
+                            hit->pos[2] = nz;
+                            hit->unk25 |= 0x10;
+                        } else if (ny <= -0.866f) {
+                            d1 = 0.1f - d1;
+                            to[0] += d1 * nx;
+                            to[1] += d1 * ny;
+                            to[2] += d1 * nz;
+                            hit->unk25 |= 0x40;
+                        } else {
+                            /* a wall: push out horizontally, by the plane distance over the cosine of the
+                             * slope of the push */
+                            nd = -d1;
+                            hitX = to[0] + nd * nx;
+                            hitY = to[1] + nd * ny;
+                            hitZ = to[2] + nd * nz;
+                            dx = to[0] - hitX;
+                            dy = to[1] - hitY;
+                            dz = to[2] - hitZ;
+                            dx = func_80049C30((s16) func_80049C84(dy, sqrtf(dx * dx + dz * dz)));
+                            if (dx != 0.0f) {
+                                d1 = (nd + 0.1f) / dx;
+                                len = sqrtf(nx * nx + nz * nz);
+                                to[0] += d1 * (nx / len);
+                                to[2] += d1 * (nz / len);
+                            } else {
+                                to[0] = hitX;
+                                to[1] = hitY;
+                                to[2] = hitZ;
+                            }
+                            hit->unk25 |= 0x20;
+                        }
+                        hit->normal[0] = nx;
+                        hit->normal[1] = ny;
+                        hit->normal[2] = nz;
+                        hit->unk24 = 0;
+                        hit->unk20 = header->batches[D_801047F8[i]].flags;
+                        if (obj != hit->obj) {
+                            hit->obj = obj;
+                            hit->unk27++;
+                        }
+                        if (self != NULL) {
+                            if (data->contacts != NULL && (hit->unk25 & 0x10) && data->unk132 < 10) {
+                                contact = &data->contacts[data->unk132];
+                                func_80048B60(mtx, to[0], to[1], to[2], &contact->x, &contact->y, &contact->z);
+                                contact->unkC = self->unk1C;
+                                contact->unk10 = self->unk20;
+                                contact->unk14 = self->unk24;
+                                contact->flags = flags;
+                                data->unk132++;
+                            }
+                            if (self->type == 0xA4) {
+                                data->unk130 += 0x2D00;
+                            } else if (self->type == 0xA5) {
+                                data->unk130 += 0xF00;
+                            } else if (self->type == 0xAC || self->type == 0xAA) {
+                                data->unk130 += self->flags->unk6;
+                            }
+                            data->unk12A = 1;
+                        }
+                        i = D_801047F0;
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007F280);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007FC0C);
 
