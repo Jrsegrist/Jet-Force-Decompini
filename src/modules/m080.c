@@ -43,11 +43,83 @@ typedef struct M080State {
 extern Triangle rl_m080_01490[8];
 extern s16 rl_m080_01510[6][3];
 
+#ifdef NON_MATCHING
 /*
- * Init. The corner pointer is carried in `reinit` (dead after its test), which is how the ROM has it in a2 with
- * the vertex pointer in a1; the counter's copy in uMask, which is reset before its own use, keeps setup homed and
- * the 0xFF in a3 as in the ROM.
- * NOT PORTABLE: a pointer held in an s32 parameter (needs 32-bit pointers).
+ * Init, portable form: the same behaviour as the matching body below, with the corner pointer in a real
+ * `s16 *` local (checked equal to the ROM by simulation, round 70). Not byte-identical to the ROM.
+ */
+void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
+    M080State *s = obj->unk68;
+    s16 *corner;
+    s32 i;
+    s32 uMask;
+    s32 vMask;
+
+    if (!reinit) {
+        obj->velocity.y = 0.0f;
+        s->unkFE = 0;
+        s->target = NULL;
+        s->unk104 = 0;
+        s->unkFD = 0;
+        s->unk106 = 0x180;
+        s->unk108 = 0.0f;
+        for (i = 0; i < 8; i++) {
+            s->tris[i].flags = rl_m080_01490[i].flags;
+            s->tris[i].vi0 = rl_m080_01490[i].vi0;
+            s->tris[i].vi1 = rl_m080_01490[i].vi1;
+            s->tris[i].vi2 = rl_m080_01490[i].vi2;
+        }
+        corner = rl_m080_01510[0];
+        for (i = 0; i < 6; i++) {
+            s->verts[0][i].x = corner[0];
+            s->verts[0][i].y = corner[1];
+            s->verts[0][i].z = corner[2];
+            s->verts[0][i].r = 0xFF;
+            s->verts[0][i].g = 0xFF;
+            s->verts[0][i].b = 0xFF;
+            s->verts[0][i].a = 0xFF;
+            s->verts[1][i].x = corner[0];
+            s->verts[1][i].y = corner[1];
+            s->verts[1][i].z = corner[2];
+            s->verts[1][i].r = 0xFF;
+            s->verts[1][i].g = 0xFF;
+            s->verts[1][i].b = 0xFF;
+            s->verts[1][i].a = 0xFF;
+            corner += 3;
+        }
+        s->unkFC = 1;
+    }
+    obj->trans.scale = setup->scale * 0.01f;
+    uMask = 0;
+    if (setup->textureIndex < obj->header->numberOfModelIds) {
+        s->texture = obj->modelInstances[setup->textureIndex];
+    } else {
+        s->texture = obj->modelInstances[0];
+    }
+    if (s->texture != NULL) {
+        uMask = (s->texture->width - 1) << 5;
+        vMask = (s->texture->height - 1) << 5;
+    } else {
+        vMask = 0;
+    }
+    for (i = 0; i < 8; i++) {
+        s->tris[i].uv[0][0] = rl_m080_01490[i].uv[0][0] & uMask;
+        s->tris[i].uv[0][1] = rl_m080_01490[i].uv[0][1] & vMask;
+        s->tris[i].uv[1][0] = rl_m080_01490[i].uv[1][0] & uMask;
+        s->tris[i].uv[1][1] = rl_m080_01490[i].uv[1][1] & vMask;
+        s->tris[i].uv[2][0] = rl_m080_01490[i].uv[2][0] & uMask;
+        s->tris[i].uv[2][1] = rl_m080_01490[i].uv[2][1] & vMask;
+    }
+    s->unk10C = 1.0f;
+    s->unk110 = 0x100;
+    s->unk114 = 0x100;
+}
+#else
+/*
+ * Init (the matching body; the portable form is the NON_MATCHING one above). The corner pointer is carried in
+ * `reinit` (dead after its test), which is how the ROM has it in a2 with the vertex pointer in a1; the counter's
+ * copy in uMask, which is reset before its own use, keeps setup homed and the 0xFF in a3 as in the ROM.
+ * NOT PORTABLE: a pointer held in an s32 parameter (needs 32-bit pointers); see the portable body above.
  */
 void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
     M080State *s = obj->unk68;
@@ -119,6 +191,7 @@ void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
     s->unk110 = 0x100;
     s->unk114 = 0x100;
 }
+#endif
 
 #ifdef NON_MATCHING
 /*
