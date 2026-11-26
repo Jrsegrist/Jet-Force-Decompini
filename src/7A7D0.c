@@ -204,7 +204,8 @@ typedef struct CollisionSphere {
     /* 0x28 */ f32 radius2;
     /* 0x2C */ u8 pad2C[0x30 - 0x2C];
     /* 0x30 */ u32 reset : 1;
-    /* 0x30 */ u32 pad30 : 31;
+    /* 0x30 */ u32 noLineHits : 1; // JFG: func_8007C2E8 skips the sphere
+    /* 0x30 */ u32 pad30 : 30;
 } CollisionSphere;
 
 typedef struct SphereSet {
@@ -227,7 +228,7 @@ typedef struct SphereSet {
     /* 0x32 */ s16 count;
     /* 0x34 */ f32 unk34;
     /* 0x38 */ f32 unk38;
-    /* 0x3C */ u8 pad3C[0x40 - 0x3C];
+    /* 0x3C */ s32 unk3C; // JFG: func_8007C2E8's first argument, when a line hits the set
     /* 0x40 */ CollisionSphere *spheres;
 } SphereSet;
 
@@ -515,7 +516,7 @@ typedef struct CollQuery {
     /* 0x2C */ u8 pad2C[0x54 - 0x2C];
 } CollQuery;
 
-s32 func_8007C2E8(s32 arg0, void *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self);
+s32 func_8007C2E8(s32 owner, CollQuery *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self);
 
 /* JFG: whether the line from (x1, y1, z1) to (x2, y2, z2) hits the level (1) or how many solid objects other
  * than self and other it hits. */
@@ -553,7 +554,7 @@ s32 collision_line_test_objects(CollObj *self, CollObj *other, f32 x1, f32 y1, f
         }
     }
     if (count > 0) {
-        count = func_8007C2E8(0, &result, count, list, &index, self);
+        count = func_8007C2E8(0, (CollQuery *) &result, count, list, &index, self);
     }
     return count;
 }
@@ -749,7 +750,7 @@ s32 func_8007BCD0(AimSelf *self, f32 range, f32 *dist) {
         }
     }
     if (count > 0) {
-        count = func_8007C2E8(0, &query, count, (CollObj **) list, (CollObj **) &hit, (CollObj *) self);
+        count = func_8007C2E8(0, (CollQuery *) &query, count, (CollObj **) list, (CollObj **) &hit, (CollObj *) self);
         if (count > 0 && dist != NULL) {
             vec[0] = query.start.x - hit->pos.x;
             vec[1] = query.start.y - hit->pos.y;
@@ -859,7 +860,288 @@ s32 func_8007BCD0(AimSelf *self, f32 range, f32 *dist) {
     return count != 0;
 }
 
+/* JFG: a hit func_8007C2E8 reports (0x1C bytes; *hitObj points at the nearest) */
+typedef struct LineObjHit {
+    /* 0x00 */ CollObj *obj;
+    /* 0x04 */ SphereSet *set;
+    /* 0x08 */ void *part; // the set itself, or the collision sphere hit
+    /* 0x0C */ f32 dist2;  // the squared distance along the line
+    /* 0x10 */ Vec3f pos;
+} LineObjHit;
+
+#ifdef NON_MATCHING
+extern LineObjHit D_80104808[40];
+s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *in, f32 *out);
+s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar);
+
+/**
+ * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x158), 641 of 642 words, 253 aligned rows
+ * differ (registers: n/obj in s5/s4, the ROM s4/s5; FP temporaries; skipType's word). The sort's inner loop is written
+ * `while (TRUE) { ...; if (j == last) break; }`: as a for or do/while IDO unrolls it (817 words).
+ * NOT PORTABLE: noLineHits is the second bit from the top of the sphere's flag word (IDO's bitfield order).
+ * JFG: the swept sphere (query->unk24; query->unk28 as its half height) from query->start to query->end against
+ * the hit sets of count objects from objs (not self; and not type 1 objects when self is of type 2): a set whose
+ * box (its radius and half height around its centre) overlaps the move's box is hit as a vertical cylinder (set
+ * kind 2: the start inside it, crossing its top or bottom, or its side, func_80018024) or a sphere (kind 1). A set
+ * hit with no collision spheres is recorded as it is, else each of its spheres the line reaches (not marked
+ * noLineHits) is recorded; with owner, the set records it (unk3C) and the set and sphere are flagged. Up to 40
+ * hits go into D_80104808 (*hitObj), sorted nearest first; returns how many.
+ */
+s32 func_8007C2E8(s32 owner, CollQuery *query, s32 count, CollObj **objs, CollObj **hitObj, CollObj *self) {
+    s32 n;
+    CollObj *obj;
+    SphereSet *set;
+    f32 len;
+    f32 dir[3];
+    f32 dist;
+    f32 boxMin[3];
+    f32 boxMax[3];
+    f32 base[3];
+    f32 axis[3];
+    f32 setMin[3];
+    f32 setMax[3];
+    f32 ny;
+    f32 d;
+    f32 hitX;
+    f32 hitY;
+    f32 hitZ;
+    f32 r;
+    f32 top;
+    f32 d0;
+    f32 d1;
+    f32 dx;
+    f32 t;
+    f32 t2;
+    f32 dz;
+    CollisionSphere *sphere;
+    s32 k;
+    s32 found;
+    s32 plane;
+    s32 skipType;
+    s32 j;
+    s32 last;
+    s32 sorted;
+    LineObjHit *rec;
+
+    if (count <= 0) {
+        return 0;
+    }
+    dir[0] = query->end.x - query->start.x;
+    dir[1] = query->end.y - query->start.y;
+    dir[2] = query->end.z - query->start.z;
+    len = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
+    if (0.0f < len) {
+        len = sqrtf(len);
+        dir[0] /= len;
+        dir[1] /= len;
+        dir[2] /= len;
+    } else {
+        return 0;
+    }
+    n = 0;
+    boxMin[0] = query->start.x;
+    boxMin[1] = query->start.y;
+    boxMin[2] = query->start.z;
+    boxMax[0] = query->end.x;
+    boxMax[1] = query->end.y;
+    boxMax[2] = query->end.z;
+    if (boxMax[0] < boxMin[0]) {
+        dist = boxMin[0];
+        boxMin[0] = boxMax[0];
+        boxMax[0] = dist;
+    }
+    if (boxMax[1] < boxMin[1]) {
+        dist = boxMin[1];
+        boxMin[1] = boxMax[1];
+        boxMax[1] = dist;
+    }
+    if (boxMax[2] < boxMin[2]) {
+        dist = boxMin[2];
+        boxMin[2] = boxMax[2];
+        boxMax[2] = dist;
+    }
+    boxMin[0] -= query->unk24;
+    boxMin[1] -= query->unk28;
+    boxMin[2] -= query->unk24;
+    boxMax[0] += query->unk24;
+    boxMax[1] += query->unk28;
+    boxMax[2] += query->unk24;
+    axis[0] = 0.0f;
+    axis[2] = 0.0f;
+    skipType = -1;
+    axis[1] = 1.0f;
+    if (self != NULL && self->type == 2) {
+        skipType = 1;
+    }
+    *hitObj = (CollObj *) D_80104808;
+    do {
+        obj = *objs++;
+        set = (SphereSet *) obj->interactObj;
+        if (obj != self && skipType != obj->type) {
+            found = TRUE;
+            setMin[0] = set->pos.x - set->radius;
+            setMin[1] = set->pos.y - set->radius2;
+            setMin[2] = set->pos.z - set->radius;
+            setMax[0] = set->pos.x + set->radius;
+            setMax[1] = set->pos.y + set->radius2;
+            setMax[2] = set->pos.z + set->radius;
+            for (k = 0; k < 3 && found; k++) {
+                if (boxMin[k] < setMin[k] && boxMax[k] < setMin[k]) {
+                    found = FALSE;
+                } else if (setMax[k] < boxMin[k] && setMax[k] < boxMax[k]) {
+                    found = FALSE;
+                }
+            }
+            if (found) {
+                r = query->unk24 + set->radius;
+                found = FALSE;
+                if (set->unk30 == 2) {
+                    base[0] = set->pos.x;
+                    base[1] = set->pos.y - set->radius2 - query->unk28;
+                    base[2] = set->pos.z;
+                    top = set->pos.y + set->radius2 + query->unk28;
+                    if (base[1] <= query->start.y && query->start.y <= top) {
+                        dx = query->start.x - base[0];
+                        dz = query->start.z - base[2];
+                        if (dx * dx + dz * dz <= r * r) {
+                            hitX = query->start.x;
+                            hitY = query->start.y;
+                            hitZ = query->start.z;
+                            t = 0.0f;
+                            found = TRUE;
+                        }
+                    } else {
+                        plane = FALSE;
+                        if (query->start.y <= base[1] && base[1] < query->end.y) {
+                            d = base[1];
+                            plane = TRUE;
+                            ny = -1.0f;
+                        } else if (top <= query->start.y && query->end.y < top) {
+                            d = -top;
+                            plane = TRUE;
+                            ny = 1.0f;
+                        }
+                        if (plane) {
+                            d0 = query->start.y * ny + d;
+                            d1 = query->end.y * ny + d;
+                            t = d0 / (d0 - d1) * len;
+                            hitX = dir[0] * t + query->start.x;
+                            hitY = dir[1] * t + query->start.y;
+                            hitZ = dir[2] * t + query->start.z;
+                            dx = hitX - set->pos.x;
+                            dz = hitZ - set->pos.z;
+                            if (dx * dx + dz * dz <= r * r) {
+                                found = TRUE;
+                            }
+                        }
+                    }
+                    if (!found && func_80018024(&query->start.x, dir, base, axis, r, &t, &t2)) {
+                        hitX = dir[0] * t + query->start.x;
+                        hitY = dir[1] * t + query->start.y;
+                        hitZ = dir[2] * t + query->start.z;
+                        if (base[1] <= hitY && hitY <= top && 0.0f <= t && t <= len) {
+                            found = TRUE;
+                        }
+                    }
+                } else if (set->unk30 == 1 && func_800183D4(&query->start.x, dir, &set->pos.x, r, &t, &t2)) {
+                    hitX = dir[0] * t + query->start.x;
+                    hitY = dir[1] * t + query->start.y;
+                    hitZ = dir[2] * t + query->start.z;
+                    if ((0.0f <= t && t <= len) || (t < 0.0f && 0.0f < t2)) {
+                        found = TRUE;
+                    }
+                }
+                if (found && set->count == 0) {
+                    D_80104808[n].obj = obj;
+                    D_80104808[n].set = set;
+                    D_80104808[n].part = set;
+                    D_80104808[n].pos.x = hitX;
+                    D_80104808[n].dist2 = t * t;
+                    D_80104808[n].pos.y = hitY;
+                    D_80104808[n].pos.z = hitZ;
+                    n++;
+                    if (owner) {
+                        set->unk3C = owner;
+                        set->unkA |= 0x40;
+                    }
+                } else if (found && set->count != 0) {
+                    sphere = set->spheres;
+                    k = 0;
+                    do {
+                        if (!sphere->noLineHits &&
+                            func_800183D4(&query->start.x, dir, &sphere->pos.x, query->unk24 + sphere->radius, &t,
+                                          &t2) &&
+                            ((0.0f <= t && t <= len) || (t < 0.0f && 0.0f < t2))) {
+                            hitX = dir[0] * t + query->start.x;
+                            hitY = dir[1] * t + query->start.y;
+                            hitZ = dir[2] * t + query->start.z;
+                            D_80104808[n].obj = obj;
+                            D_80104808[n].set = set;
+                            D_80104808[n].part = sphere;
+                            D_80104808[n].pos.x = hitX;
+                            D_80104808[n].dist2 = t * t;
+                            D_80104808[n].pos.y = hitY;
+                            D_80104808[n].pos.z = hitZ;
+                            n++;
+                            if (owner) {
+                                sphere->flags |= 0x40;
+                                set->unk3C = owner;
+                                set->unkA |= 0x20;
+                            }
+                        }
+                        k++;
+                        sphere++;
+                    } while (k < set->count && n < 40);
+                }
+            }
+        }
+    } while (--count > 0 && n < 40);
+    /* bubble sort, nearest first */
+    last = n - 1;
+    j = 0;
+    do {
+        sorted = TRUE;
+        if (last > 0) {
+            rec = D_80104808;
+            while (TRUE) {
+                j++;
+                dist = rec[0].dist2;
+                if (rec[1].dist2 < dist) {
+                    obj = rec[0].obj;
+                    set = rec[0].set;
+                    sphere = rec[0].part;
+                    hitX = rec[0].pos.x;
+                    hitY = rec[0].pos.y;
+                    hitZ = rec[0].pos.z;
+                    sorted = FALSE;
+                    rec[0].obj = rec[1].obj;
+                    rec[0].set = rec[1].set;
+                    rec[0].part = rec[1].part;
+                    rec[0].dist2 = rec[1].dist2;
+                    rec[0].pos.x = rec[1].pos.x;
+                    rec[0].pos.y = rec[1].pos.y;
+                    rec[0].pos.z = rec[1].pos.z;
+                    rec[1].dist2 = dist;
+                    rec[1].obj = obj;
+                    rec[1].set = set;
+                    rec[1].part = sphere;
+                    rec[1].pos.x = hitX;
+                    rec[1].pos.y = hitY;
+                    rec[1].pos.z = hitZ;
+                }
+                rec++;
+                if (j == last) {
+                    break;
+                }
+            }
+        }
+        j = 0;
+    } while (!sorted);
+    return n;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007C2E8);
+#endif
 
 f32 sqrtf(f32 x);
 
@@ -1781,8 +2063,6 @@ s32 func_8007F280(Obj7E *self, f32 *from, f32 *to, SweepHit7E *hit, f32 radius, 
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007F280);
 #endif
 
-INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007FC0C);
-
 /* JFG: a collision edge of an object's model (0x30 bytes, as 12D50's TrackEdge) */
 typedef struct ObjEdge {
     /* 0x00 */ f32 x0, y0, z0;
@@ -1796,6 +2076,209 @@ typedef struct ObjEdge {
 
 extern s32 D_801047F0; // JFG: the number of entries
 extern s32 D_80104804; // JFG: the number of object edges
+
+#ifdef NON_MATCHING
+s32 func_80018024(f32 *start, f32 *dir, f32 *base, f32 *axis, f32 radius, f32 *in, f32 *out);
+s32 func_800183D4(f32 *origin, f32 *dir, f32 *centre, f32 radius, f32 *tNear, f32 *tFar);
+
+/**
+ * NON_MATCHING: a first body written from the ROM: the ROM's frame (0x120) and declared slots, 633 of 634 words,
+ * 307 aligned rows differ (the ROM reads data->mtxIndex once, keeping it across the first func_80048B60 call in a
+ * byte temp; s-registers obj/i/found/&p are s5/s6/s7/fp in the ROM; FP temporaries).
+ * JFG: 12D50's func_80017794 for the object edge list (D_80104800, func_800805F4): sweep a sphere of the given
+ * radius from `from` to `to` against each object edge, in the edge's object's space (as func_8007F280 puts `from`
+ * there: type 0x37 through a module function, data->unk12C through last frame's inverse then this frame's
+ * transform, else as is; worked out again only when the object changes), as a cylinder around the edge
+ * (func_80018024; the hit must fall within the edge) or else a sphere at either end (func_800183D4). The first
+ * edge hit within the move stops the sweep: the contact normal (from the edge to the sphere's centre at contact,
+ * over the radius) is the plane `to` is pushed out of (flag 1 puts `to` at the contact centre instead; flags 0x81
+ * slide, else floors, ceilings and walls as func_8007F280). hit gets the squared distance to the contact, the
+ * normal, the kind (unk25 0x10/0x20/0x40), the edge's batch flags and unk2E, and the object (unk27 counts
+ * changes). Returns 1 on a hit. As in the ROM, `from`'s move (dir, len) is the one worked out for the last object
+ * change, and is used unset if the first edge's object is NULL.
+ */
+s32 func_8007FC0C(f32 *from, f32 *to, SweepHit7E *hit, f32 radius, u16 flags) {
+    s32 i;
+    Obj7E *obj;
+    Obj7EData *data;
+    ModelHeader7E *header;
+    Obj7EModel *model;
+    f32 in;
+    f32 out;
+    f32 p[3];
+    f32 dir[3];
+    f32 len;
+    f32 nx;
+    f32 ny;
+    f32 nz;
+    f32 d;
+    f32 distTo;
+    f32 wx;
+    f32 wy;
+    f32 wz;
+    f32 t;
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 px;
+    f32 py;
+    f32 pz;
+    ObjEdge *edge;
+    s32 found;
+
+    obj = NULL;
+    found = 0;
+    for (i = 0; i < D_80104804; i++) {
+        if (obj != D_80104800[i].obj) {
+            data = D_80104800[i].obj->data;
+            model = D_80104800[i].obj->modelInstances[data->modelIndex];
+            obj = D_80104800[i].obj;
+            header = model->header;
+            if (obj->type == 0x37) {
+                p[0] = from[0];
+                p[1] = from[1];
+                p[2] = from[2];
+                func_80054530(obj, &p[0], &p[1], &p[2]);
+            } else if (data->unk12C != 0) {
+                func_80048B60(data->mtx[data->mtxIndex ^ 1][0], from[0], from[1], from[2], &dx, &dy, &dz);
+                func_80048B60(data->mtx2[data->mtxIndex][0], dx, dy, dz, &p[0], &p[1], &p[2]);
+            } else {
+                p[0] = from[0];
+                p[1] = from[1];
+                p[2] = from[2];
+            }
+            dx = to[0] - p[0];
+            dy = to[1] - p[1];
+            dz = to[2] - p[2];
+            len = dx * dx + dy * dy + dz * dz;
+            if (0.0f < len) {
+                len = sqrtf(len);
+                dir[0] = dx / len;
+                dir[1] = dy / len;
+                dir[2] = dz / len;
+            }
+        }
+        if (0.0f < len) {
+            edge = &D_80104800[i];
+            if (func_80018024(p, dir, &edge->x0, &edge->dirX, radius, &in, &out) && 0.0f <= in && in <= len) {
+                px = dir[0] * in + p[0];
+                py = dir[1] * in + p[1];
+                pz = dir[2] * in + p[2];
+                dx = px - edge->x0;
+                dy = py - edge->y0;
+                dz = pz - edge->z0;
+                t = (dx * edge->dirX + dy * edge->dirY + dz * edge->dirZ) /
+                    (edge->dirZ * edge->dirZ + (edge->dirX * edge->dirX + edge->dirY * edge->dirY));
+                if (0.0f <= t && t <= edge->length) {
+                    found = 1;
+                    dx = edge->dirX * t + edge->x0;
+                    dy = edge->dirY * t + edge->y0;
+                    ny = py - dy;
+                    dz = edge->dirZ * t + edge->z0;
+                    nx = px - dx;
+                    nz = pz - dz;
+                }
+            }
+            if (!found && func_800183D4(p, dir, &edge->x0, radius, &in, &out) && 0.0f <= in && in <= len) {
+                found = 1;
+                px = dir[0] * in + p[0];
+                py = dir[1] * in + p[1];
+                pz = dir[2] * in + p[2];
+                nx = px - edge->x0;
+                ny = py - edge->y0;
+                nz = pz - edge->z0;
+            }
+            if (!found && func_800183D4(p, dir, &edge->x1, radius, &in, &out) && 0.0f <= in && in <= len) {
+                found = 1;
+                px = dir[0] * in + p[0];
+                py = dir[1] * in + p[1];
+                pz = dir[2] * in + p[2];
+                nx = px - edge->x1;
+                ny = py - edge->y1;
+                nz = pz - edge->z1;
+            }
+            if (found) {
+                nz /= radius;
+                nx /= radius;
+                ny /= radius;
+                d = -(px * nx + py * ny + pz * nz);
+                distTo = to[2] * nz + (nx * to[0] + ny * to[1]) + d;
+                if (flags & 0x81) {
+                    if (flags & 1) {
+                        to[0] = px;
+                        to[1] = py;
+                        to[2] = pz;
+                    } else {
+                        distTo = 0.1f - distTo;
+                        to[0] += distTo * nx;
+                        to[1] += distTo * ny;
+                        to[2] += distTo * nz;
+                    }
+                    hit->pos[1] = ny;
+                    hit->pos[0] = nx;
+                    hit->pos[2] = nz;
+                    if (ny >= 0.707f) {
+                        hit->unk25 |= 0x10;
+                    } else if (ny <= -0.866f) {
+                        hit->unk25 |= 0x40;
+                    } else {
+                        hit->unk25 |= 0x20;
+                    }
+                } else if (ny >= 0.707f) {
+                    to[1] = -(to[2] * nz + nx * to[0] + d) / ny + 0.1f;
+                    hit->pos[1] = ny;
+                    hit->pos[0] = nx;
+                    hit->unk25 |= 0x10;
+                    hit->pos[2] = nz;
+                } else if (ny <= -0.866f) {
+                    distTo = 0.1f - distTo;
+                    to[0] += distTo * nx;
+                    to[1] += distTo * ny;
+                    to[2] += distTo * nz;
+                    hit->unk25 |= 0x40;
+                } else {
+                    d = -distTo;
+                    wx = to[0] + d * nx;
+                    wy = to[1] + d * ny;
+                    wz = to[2] + d * nz;
+                    dx = to[0] - wx;
+                    dy = to[1] - wy;
+                    dz = to[2] - wz;
+                    dx = func_80049C30((s16) func_80049C84(dy, sqrtf(dx * dx + dz * dz)));
+                    if (dx != 0.0f) {
+                        distTo = (d + 0.1f) / dx;
+                        t = sqrtf(nx * nx + nz * nz);
+                        px = nx / t;
+                        pz = nz / t;
+                        to[0] += distTo * px;
+                        to[2] += distTo * pz;
+                    } else {
+                        to[0] = wx;
+                        to[1] = wy;
+                        to[2] = wz;
+                    }
+                    hit->unk25 |= 0x20;
+                }
+                hit->unk1C = in * in;
+                hit->normal[1] = ny;
+                hit->normal[0] = nx;
+                hit->unk24 = 0;
+                hit->normal[2] = nz;
+                hit->unk20 = header->batches[edge->batch].flags;
+                hit->unk26 = edge->unk2E;
+                if (obj != hit->obj) {
+                    hit->obj = obj;
+                    hit->unk27++;
+                }
+                i = D_80104804;
+            }
+        }
+    }
+    return found;
+}
+#else
+INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007FC0C);
+#endif
 void func_80048B60(f32 *mf, f32 x, f32 y, f32 z, f32 *ox, f32 *oy, f32 *oz);
 
 #ifdef NON_MATCHING
