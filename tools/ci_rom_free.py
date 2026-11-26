@@ -9,7 +9,8 @@ tables of numbers lifted from it. This script looks at every file git tracks
   - lies where extracted or built files go (asm/, assets/, build/, ...) or
     has a ROM, binary or object file extension (.z64, .bin, .o, .ld, ...);
   - is binary (has a NUL byte or is not UTF-8 text), or is larger than
-    --max-size bytes;
+    --max-size bytes (--max-src-size for C sources and headers under src/
+    and include/: some runlink modules are one large C file);
   - is a .s file (the hand-written assembly the build needs comes from the
     ROM at extract time; only the include/*.inc macro files are tracked);
   - contains disassembly as splat or tools/runlink_split.py write it: lines
@@ -19,7 +20,7 @@ tables of numbers lifted from it. This script looks at every file git tracks
     tables written out as numbers; the longest legitimate ones in src/ are
     far shorter).
 
-No ROM is needed. Usage: tools/ci_rom_free.py [--max-size N] [--max-table N]
+No ROM is needed. Usage: tools/ci_rom_free.py [--max-size N] [--max-src-size N] [--max-table N]
 Exit status 1 when something is found.
 """
 import argparse
@@ -68,6 +69,7 @@ def longest_run(text):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-size", type=int, default=256 * 1024)
+    ap.add_argument("--max-src-size", type=int, default=512 * 1024)
     ap.add_argument("--max-table", type=int, default=256)
     ap.add_argument("--verbose", "-v", action="store_true", help="print the longest table per file")
     args = ap.parse_args()
@@ -84,8 +86,10 @@ def main():
         if not os.path.isfile(f):
             continue  # deleted in the work tree
         size = os.path.getsize(f)
-        if size > args.max_size:
-            problems.append("%s: %d bytes (more than %d)" % (f, size, args.max_size))
+        is_src = low.startswith(("src/", "include/")) and low.endswith((".c", ".h"))
+        limit = args.max_src_size if is_src else args.max_size
+        if size > limit:
+            problems.append("%s: %d bytes (more than %d)" % (f, size, limit))
             continue
         data = open(f, "rb").read()
         if b"\0" in data:
