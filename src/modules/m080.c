@@ -43,19 +43,17 @@ typedef struct M080State {
 extern Triangle rl_m080_01490[8];
 extern s16 rl_m080_01510[6][3];
 
-#ifdef NON_MATCHING
 /*
- * 25 diffs, all one register swap: in the corner loop the ROM has the corner pointer in a2 and the vertex pointer
- * in a1, ours the other way round. (The counter's copy in uMask, which is reset before its own use, is what keeps
- * setup homed and the 0xFF in a3 as in the ROM. The 0.01f is a literal, so the match will bring m080's .rodata
- * literal for this function into C.)
+ * Init. The corner pointer is carried in `reinit` (dead after its test), which is how the ROM has it in a2 with
+ * the vertex pointer in a1; the counter's copy in uMask, which is reset before its own use, keeps setup homed and
+ * the 0xFF in a3 as in the ROM.
+ * NOT PORTABLE: a pointer held in an s32 parameter (needs 32-bit pointers).
  */
 void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
     M080State *s = obj->unk68;
     s32 i;
     s32 uMask;
     s32 vMask;
-    s16 *pos;
 
     if (!reinit) {
         obj->velocity.y = 0.0f;
@@ -71,25 +69,25 @@ void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
             s->tris[i].vi1 = rl_m080_01490[i].vi1;
             s->tris[i].vi2 = rl_m080_01490[i].vi2;
         }
-        pos = rl_m080_01510[0];
+        reinit = (s32) rl_m080_01510[0];
         i = 0;
         while (TRUE) {
-            s->verts[0][i].x = pos[0];
-            s->verts[0][i].y = pos[1];
-            s->verts[0][i].z = pos[2];
+            s->verts[0][i].x = ((s16 *) reinit)[0];
+            s->verts[0][i].y = ((s16 *) reinit)[1];
+            s->verts[0][i].z = ((s16 *) reinit)[2];
             s->verts[0][i].r = 0xFF;
             s->verts[0][i].g = 0xFF;
             s->verts[0][i].b = 0xFF;
             s->verts[0][i].a = 0xFF;
-            s->verts[1][i].x = pos[0];
-            s->verts[1][i].y = pos[1];
-            s->verts[1][i].z = pos[2];
+            s->verts[1][i].x = ((s16 *) reinit)[0];
+            s->verts[1][i].y = ((s16 *) reinit)[1];
+            s->verts[1][i].z = ((s16 *) reinit)[2];
             s->verts[1][i].r = 0xFF;
             s->verts[1][i].g = 0xFF;
             s->verts[1][i].b = 0xFF;
             s->verts[1][i].a = 0xFF;
             uMask = ++i;
-            pos += 3;
+            reinit += 3 * sizeof(s16);
             if (uMask == 6) {
                 break;
             }
@@ -121,9 +119,6 @@ void func_m080_00000(Object *obj, M080Setup *setup, s32 reinit) {
     s->unk110 = 0x100;
     s->unk114 = 0x100;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/modules/m080/ro", func_m080_00000);
-#endif
 
 #ifdef NON_MATCHING
 /*
