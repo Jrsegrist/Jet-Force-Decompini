@@ -507,9 +507,6 @@ typedef struct TexturedRect {
 RectTexture *set_animated_texture_header(RectTexture *texHead, s32 offset);
 extern Gfx D_800A37A8[];
 
-#ifdef NON_MATCHING
-/* NON_MATCHING: 7 words (ROM length and frame): the command count is in v1 and the DMA command's pointer copy in
-   a0 (target: count a0, pointer v1). DKR's indexed loop with the texture read in the test gives the rest. */
 /*
  * JFG: draws a list of textured rectangles at (x, y) plus each one's offset, in a primitive colour,
  * clipped at the screen's top and left edges.
@@ -524,6 +521,7 @@ void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 gr
     s32 s;
     s32 t;
     s32 count;
+    Gfx *cmd;
     s32 i;
 
     gfx = *dList;
@@ -550,8 +548,8 @@ void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 gr
             gfx->words.w0 = tex->cmd->words.w0;
             gfx->words.w1 = (u32) set_animated_texture_header(tex, rects[i].frame) + 0x80000000;
             gfx++;
-            count = tex->numberOfCommands - 1;
-            gDkrDmaDisplayList(gfx++, (u32) (tex->cmd + 1) + 0x80000000, count);
+            /* One line: IDO schedules by source line, and the original's copy of the command pointer sits here. */
+            cmd = gfx++; count = tex->numberOfCommands - 1; gDkrDmaDisplayList(cmd, (u32) (tex->cmd + 1) + 0x80000000, count);
             gSPTextureRectangleOld(gfx++, xl, yl, xh, yh, 0, s, t, 0x400, 0x400);
         }
     }
@@ -559,9 +557,6 @@ void func_8004EDBC(Gfx **dList, TexturedRect *rects, s32 x, s32 y, u8 red, u8 gr
     gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
     *dList = gfx;
 }
-#else
-INCLUDE_ASM("asm/nonmatchings/4E610", func_8004EDBC);
-#endif
 
 /* DKR include/macros.h */
 #define gDPSetPrimColorRGBA(pkt, rgba)                                                                \
