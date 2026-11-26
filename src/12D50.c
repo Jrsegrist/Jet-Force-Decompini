@@ -2034,7 +2034,181 @@ INCLUDE_ASM("asm/nonmatchings/12D50", func_80016208);
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_800163FC);
 
+/* JFG: a triangle's entry in the segment's plane index (8 bytes; DKR's CollisionFacetPlanes) */
+typedef struct TrianglePlaneRef {
+    /* 0x00 */ u16 plane;    // the triangle's own plane
+    /* 0x02 */ u16 edges[3]; // its edges' planes; bit 15: the inside is the plane's positive side
+} TrianglePlaneRef;
+
+/* JFG: a plane a*x + b*y + c*z + d = 0 */
+typedef struct Plane {
+    /* 0x00 */ f32 a, b, c, d;
+} Plane;
+
+#ifdef NON_MATCHING
+f32 func_80049C30(s32 angle); // cosine of a 16-bit angle
+s32 func_80049C84(f32 x, f32 z);
+f32 sqrtf(f32 x);
+extern s32 *D_800F33B8;
+extern s16 *D_800F33BC;
+extern s32 D_800F33C4;
+
+/**
+ * JFG: sweep a sphere of the given radius from `from` to `to` against the candidate triangles (D_800F33B8): the
+ * first triangle whose plane `to` ends up behind (and `from` in front of, by the radius) with the crossing point
+ * inside its edges (within radius2) stops the sweep. `to` is pushed back out of it: along the normal with flag 1
+ * or 0x80 (flag 1 by the radius plus 0.01), else up onto a floor (normal y >= 0.707), out along the normal under a
+ * ceiling (y <= -0.866), or for a wall horizontally by the depth over the slope's cosine. hit gets the squared
+ * length of the move to the crossing, the plane's normal (also in pos with flag 0x81 or a floor), the kind (unk25:
+ * 2 floor, 4 wall, 8 ceiling), the batch's surface type and flags. Returns 1 on a hit. As in the ROM, segment is
+ * only set by an earlier entry.
+ * NON_MATCHING: a first body written from the ROM (443 of 448 words, frame 0xC8 of 0x110); checked equal to the
+ * ROM by simulation. The ROM keeps from[] and the plane values in more spill slots (0x68-0x84) and its frame has
+ * 18 more words between mz and them; the registers differ from the first block on.
+ */
+s32 func_80017094(f32 *from, f32 *to, SweepHit *hit, f32 radius, s32 flags, f32 radius2) {
+    s32 result;
+    LevelModelSegment *segment;
+    TrianglePlaneRef *ref;
+    f32 a;
+    f32 b;
+    f32 c;
+    f32 d;
+    Plane *planes;
+    Plane *plane;
+    f32 distTo;
+    f32 distFrom;
+    f32 t;
+    f32 px;
+    f32 py;
+    f32 pz;
+    s32 j;
+    s32 inside;
+    f32 mx;
+    f32 my;
+    f32 mz;
+    s32 edge;
+    s32 flip;
+    f32 dist;
+    f32 side;
+    s16 angle;
+    f32 cs;
+    f32 len;
+    s32 i;
+
+    result = 0;
+    for (i = 0; i < D_800F33C4; i++) {
+        if (D_800F33B8[i] > 0) {
+            segment = (LevelModelSegment *) (D_800F33B8[i] | 0x80000000);
+        } else {
+            ref = (TrianglePlaneRef *) (u32) D_800F33B8[i]; // NOT PORTABLE: the list holds 32-bit addresses
+            planes = segment->planes;
+            plane = &planes[ref->plane];
+            a = plane->a;
+            b = plane->b;
+            c = plane->c;
+            d = plane->d - radius;
+            distTo = a * to[0] + b * to[1] + c * to[2] + d;
+            if (distTo < 0.0f) {
+                distFrom = a * from[0] + b * from[1] + c * from[2] + d;
+                if (distFrom >= 0.0f) {
+                    t = distFrom / (distFrom - distTo);
+                    mx = (to[0] - from[0]) * t;
+                    my = (to[1] - from[1]) * t;
+                    mz = (to[2] - from[2]) * t;
+                    px = from[0] + mx - radius * a;
+                    py = from[1] + my - radius * b;
+                    pz = from[2] + mz - radius * c;
+                    inside = TRUE;
+                    for (j = 0; j < 3 && inside; j++) {
+                        edge = ref->edges[j];
+                        flip = edge & 0x8000;
+                        edge ^= flip;
+                        plane = &planes[edge];
+                        dist = plane->a * px + plane->b * py + plane->c * pz + plane->d;
+                        side = dist;
+                        if (flip) {
+                            side = -dist;
+                        }
+                        if (radius2 < side) {
+                            inside = FALSE;
+                        }
+                    }
+                    if (inside) {
+                        result = 1;
+                        hit->unk1C = mx * mx + my * my + mz * mz;
+                        if ((u16) flags & 0x81) { // the ROM reads the argument's low half
+                            if ((u16) flags & 1) {
+                                radius += 0.01f;
+                                to[0] = radius * a + px;
+                                to[1] = radius * b + py;
+                                to[2] = radius * c + pz;
+                            } else {
+                                distTo = 0.01f - distTo;
+                                to[0] += distTo * a;
+                                to[1] += distTo * b;
+                                to[2] += distTo * c;
+                            }
+                            hit->pos[1] = b;
+                            hit->pos[0] = a;
+                            hit->pos[2] = c;
+                            if (b >= 0.707f) {
+                                hit->unk25 |= 2;
+                            } else if (b <= -0.866f) {
+                                hit->unk25 |= 8;
+                            } else {
+                                hit->unk25 |= 4;
+                            }
+                        } else if (b >= 0.707f) {
+                            to[1] = -(to[2] * c + a * to[0] + d) / b + 0.01f;
+                            hit->pos[1] = b;
+                            hit->unk25 |= 2;
+                            hit->pos[2] = c;
+                            hit->pos[0] = a;
+                        } else if (b <= -0.866f) {
+                            distTo = 0.01f - distTo;
+                            to[0] += distTo * a;
+                            to[1] += distTo * b;
+                            to[2] += distTo * c;
+                            hit->unk25 |= 8;
+                        } else {
+                            distFrom = -distTo;
+                            px = to[0] + distFrom * a;
+                            py = to[1] + distFrom * b;
+                            pz = to[2] + distFrom * c;
+                            mx = to[0] - px;
+                            mz = to[2] - pz;
+                            my = to[1] - py;
+                            angle = func_80049C84(my, sqrtf(mx * mx + mz * mz));
+                            cs = func_80049C30(angle);
+                            if (cs != 0.0f) {
+                                distTo = (distFrom + 0.01f) / cs;
+                                len = sqrtf(a * a + c * c);
+                                to[0] += distTo * (a / len);
+                                to[2] += distTo * (c / len);
+                            } else {
+                                to[0] = px;
+                                to[1] = py;
+                                to[2] = pz;
+                            }
+                            hit->unk25 |= 4;
+                        }
+                        hit->normal[1] = b;
+                        hit->normal[0] = a;
+                        hit->normal[2] = c;
+                        hit->unk24 = gCurrentLevelModel->textures[segment->batches[D_800F33BC[i]].textureIndex].surfaceType;
+                        hit->unk20 = segment->batches[D_800F33BC[i]].flags;
+                        i = D_800F33C4;
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80017094);
+#endif
 
 INCLUDE_ASM("asm/nonmatchings/12D50", func_80017794);
 
@@ -2368,17 +2542,6 @@ s32 track_height_at(f32 xIn, f32 zIn, f32 *outY, s32 flags) {
     }
     return 0;
 }
-
-/* JFG: a triangle's entry in the segment's plane index (8 bytes) */
-typedef struct TrianglePlaneRef {
-    /* 0x00 */ u16 plane;
-    /* 0x02 */ u8 pad2[6];
-} TrianglePlaneRef;
-
-/* JFG: a plane a*x + b*y + c*z + d = 0 */
-typedef struct Plane {
-    /* 0x00 */ f32 a, b, c, d;
-} Plane;
 
 /* JFG: a level edge crossed by a line (func_80019888) */
 typedef struct EdgeHit {
