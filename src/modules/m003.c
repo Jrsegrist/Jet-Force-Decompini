@@ -6958,8 +6958,8 @@ void func_m003_10600(Object *obj, s32 updateRate) {
     } else if (sMember->unk10 < -0x6978) {
         sMember->unk10 = -0x6978;
     }
-    if (sMember->unk10 != sMember->unkC) {
-        sMember->unkE += func_m003_079D8(sMember->unk10 - sMember->unkC, 2.0f * sMember->unkE + sMember->unk4C,
+    if (sMember->unkC != sMember->unk10) {
+        sMember->unkE += func_m003_079D8(sMember->unk10 - sMember->unkC, sMember->unk4C + 2.0f * sMember->unkE,
                                          sBody->turnStep << sMember->unk9);
         sMember->unkC += sMember->unkE * sUpdateRate * 0.5f;
     }
