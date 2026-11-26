@@ -1133,9 +1133,9 @@ s32 func_m018_03B44(s32 i, s32 dir);
  * The character screen: changes the shown character (the stick picks one the player can play), moves the
  * cursor over the screen's eight items, opens the one picked, draws the character, its sparkles, the items
  * and the prompts, saves on request and leaves with the character picked.
- * NON_MATCHING: ROM length and frame (1464 words), 16 aligned diffs: the order of three temporary words
- * (the ROM puts the float updateRate first), the right arrow's frame in a2 (ROM a0) and the order of two
- * stores.
+ * NON_MATCHING: ROM length and frame (1464 words), 12 aligned diffs: the order of three temporary words
+ * (the ROM puts the float updateRate first) and the right arrow's frame in a2 (ROM a0). The joined store
+ * lines give the ROM's store schedule.
  */
 void func_m018_02464(s32 updateRate) {
     UNUSED s32 pad0;
@@ -1389,15 +1389,13 @@ void func_m018_02464(s32 updateRate) {
     p = (s16 *) sBss0;
     *p++ = 0x2008;
     *p++ = rl_m018_06D0E;
-    *p++ = 0x200E;
-    *p++ = rl_m018_06D0E;
+    *p++ = 0x200E; *p++ = rl_m018_06D0E;
     if (!game_flag_get(0x5F)) {
         *p++ = 0x203E;
         *p++ = 0x4000;
     }
     if (game_flag_get(0x64)) {
-        *p++ = 0x201A;
-        *p++ = 0x4000;
+        *p++ = 0x201A; *p++ = 0x4000;
     }
     if (rl_m018_06D05 != -1) {
         *p++ = (rl_m018_06D05 * 6 + 0x14) | 0x2000;
@@ -1624,14 +1622,13 @@ extern s16 D_800A0838[]; /* the frame list for a model without animated textures
  * 15 (the item picked), builds its matrix from the screen model's joint for the item (scaled by 0.9; the
  * picked item also slides sideways), lights its vertices (full for the cursor's item, else dim) and draws
  * its model.
- * NON_MATCHING: ROM length, frame and stack slots (314 words), 9 aligned diffs, all in the first block: the ROM
- * holds the screen model in v0 and reloads `item` for the second compare before the first branch. Staged: only
- * func_m018_02464 (still NON_MATCHING) calls it, and IDO would drop a static that only assembly calls.
+ * Matches (measured with -DNON_MATCHING). Staged under NON_MATCHING only because func_m018_02464 (still
+ * NON_MATCHING) is its one caller, and IDO would drop a static that only assembly calls.
  */
 static void func_m018_03BB4(s32 item, s32 updateRate) {
     Object *obj;
     Object *icon;
-    UNUSED s32 pad0;
+    M018CharModel *base; /* the screen model */
     M018Inst *inst;
     M018CharModel *model;
     s32 i;
@@ -1646,7 +1643,9 @@ static void func_m018_03BB4(s32 item, s32 updateRate) {
 
     obj = D_800FF3F8[0x5D];
     inst = *(M018Inst **) obj->modelInstances;
-    src = (f32 *) ((MtxF *) inst->unk10[inst->unkB] + ((M018CharModel *) inst->model)->joints[item].matrix);
+    base = inst->model;
+    /* the joint's matrix (an MtxF of 16 floats) in the instance's matrices */
+    src = (f32 *) inst->unk10[inst->unkB] + (base->joints[item].matrix << 4);
     if (item == rl_m018_06D05) {
         target = 15.0f;
     } else if (item == rl_m018_06D04) {
