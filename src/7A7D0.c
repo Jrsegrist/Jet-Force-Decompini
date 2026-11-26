@@ -1270,7 +1270,412 @@ s32 sphere_overlaps_set(CollisionSphere *sphere, SphereSet *set) {
     return FALSE;
 }
 
+/* JFG: an object as func_8007D168 sees it (only the fields used there) */
+typedef struct PairHeader7D {
+    /* 0x00 */ u8 pad0[0x14];
+    /* 0x14 */ u16 flags;
+    /* 0x16 */ u8 pad16[0x2F - 0x16];
+    /* 0x2F */ u8 unk2F;
+} PairHeader7D;
+
+typedef struct PairObj7D {
+    /* 0x00 */ u8 pad0[0xC];
+    /* 0x0C */ f32 x;
+    /* 0x10 */ f32 y;
+    /* 0x14 */ f32 z;
+    /* 0x18 */ u8 pad18[0x39 - 0x18];
+    /* 0x39 */ u8 unk39;
+    /* 0x3A */ u8 pad3A[0x40 - 0x3A];
+    /* 0x40 */ PairHeader7D *header;
+    /* 0x44 */ u8 pad44[0x48 - 0x44];
+    /* 0x48 */ s16 type;
+    /* 0x4A */ s16 unk4A;
+    /* 0x4C */ SphereSet *set;
+    /* 0x50 */ u8 pad50[0x54 - 0x50];
+    /* 0x54 */ f32 *unk54;
+    /* 0x58 */ u8 pad58[0x68 - 0x58];
+    /* 0x68 */ void *state;
+    /* 0x6C */ u8 pad6C[0xA0 - 0x6C];
+    /* 0xA0 */ u8 unkA0; // JFG: set: no pair collisions
+} PairObj7D;
+
+/* JFG: a player's state (type 1), the fields used here */
+typedef struct PairPlayer7D {
+    /* 0x000 */ s8 player;
+    /* 0x001 */ s8 character; // JFG: bits 0-1 both set: func_8007D168 hands a player pair to a module
+    /* 0x002 */ u8 unk2;
+    /* 0x003 */ u8 unk3;      // JFG: bit 3 (bit 3 of the big-endian word at 0)
+    /* 0x004 */ u8 pad4[0x190 - 0x4];
+    /* 0x190 */ u8 flags190;
+    /* 0x191 */ u8 pad191[0x50C - 0x191];
+    /* 0x50C */ PairObj7D *unk50C;
+} PairPlayer7D;
+
+/* JFG: the state of a shot-like object (types 0x40, 0x99-0x9C, 0xA1), the fields used here */
+typedef struct PairShot7D {
+    /* 0x00 */ PairObj7D *owner;
+    /* 0x04 */ PairObj7D *prevOwner;
+    /* 0x08 */ s16 unk8;
+    /* 0x0A */ u8 padA[0x82 - 0xA];
+    /* 0x82 */ u8 flags;
+} PairShot7D;
+
+/* JFG: the state of objects of types 0xA6 and 0xA7, the fields used here */
+typedef struct PairBeam7D {
+    /* 0x00 */ u8 unk0;
+    /* 0x01 */ u8 unk1;
+    /* 0x02 */ u8 pad2[0xA0 - 0x2];
+    /* 0xA0 */ PairObj7D *owner;
+} PairBeam7D;
+
+/* JFG: the state of an object of type 0x18, the fields used here */
+typedef struct PairInfo7D {
+    /* 0x00 */ u8 pad0[2];
+    /* 0x02 */ u8 unk2;
+    /* 0x03 */ u8 unk3; // JFG: bit 3 (bit 3 of the big-endian word at 0)
+} PairInfo7D;
+
+/* JFG: a character record, the fields used here */
+typedef struct PairChar7D {
+    /* 0x00 */ u8 pad0[0x26];
+    /* 0x26 */ u16 unk26;
+    /* 0x28 */ u8 pad28[0x46 - 0x28];
+    /* 0x46 */ u16 unk46; // JFG: unk26's limit
+} PairChar7D;
+
+/* JFG: what a module function returns for an object of type 0x18, the field used here */
+typedef struct PairModResult7D {
+    /* 0x00 */ u8 pad0[0x27];
+    /* 0x27 */ u8 unk27; // JFG: bit 3 (bit 3 of the big-endian word at 0x24)
+} PairModResult7D;
+
+struct PointPair;
+void obj_move_with_points(Obj7E *obj, struct PointPair *pair, f32 x2, f32 y2, f32 z2, f32 x, f32 y, f32 z);
+void music_jingle_play(u8 seqID);
+void free_object(void *object);
+void audspat_play_sound_at_position(u16 soundId, f32 x, f32 y, f32 z, u8 flags, void **handlePtr);
+void spawn_object_from_list(s16 index, s16 x, s16 y, s16 z, s32 arg4, s32 arg5);
+void stats_kill_add(s32 weapon);
+void stats_hit_add(s32 weapon);
+void func_8003B590(u8 *obj, s32 index);
+void func_80032128(s32 arg0);
+void func_80054530(); // a module function (patched in by the runtime linker)
+
+#ifdef NON_MATCHING
+/**
+ * JFG: two objects whose hit sets (sa, sb) touch. Two players go to a module function (when both have bits 0-1 of
+ * their second state byte set). Otherwise the higher-typed object (obj) meets the other: objects marked unkA0 are
+ * skipped, and shots skip their owners. A type 0x99 shot hitting a player counts a hit in the player's character
+ * record (up to its limit) and is freed. With a player: type 2 objects are pushed out of the player's spheres (as
+ * their state point), a type 0x18 object either goes to a module function or flags the player, 0x3D and 0x86 are
+ * ignored. Then by obj's type: shots (0x99) play a sound, go to module functions and add kills and hits, 0x9A
+ * explodes (a sound and object 0x10), 0xA1 spawns object 0xE, 0x9B, 0xA6 and 0xA7 set state values; any other pair
+ * is pushed apart, horizontally if either set is of kind 2, the push shared by the sets' weights (a negative weight
+ * does not move; a player against a fixed object takes all of it), and both sets record the hit.
+ * NON_MATCHING: a first body written from the ROM (852 words for the ROM's 844, the ROM's frame 0x90 and stack
+ * slots; 496 aligned rows, mostly t-register numbering), checked equal to it by simulation.
+ * NOT PORTABLE: the bit tests of PairPlayer7D/PairInfo7D unk3 and PairModResult7D unk27 stand for bit 3 of a
+ * big-endian word (the ROM reads the words); SphereSet.unk3C and func_80032128's parameter are s32 holding an object
+ * pointer.
+ */
+void func_8007D168(PairObj7D *a, SphereSet *sa, PairObj7D *b, SphereSet *sb) {
+    f32 dx;
+    f32 dy;
+    f32 dz;
+    f32 d;
+    f32 r;
+    f32 f;
+    f32 wA;
+    f32 wB;
+    PairObj7D *other;
+    PairObj7D *obj;
+    PairObj7D *owner;
+    PairShot7D *shot;
+    PairPlayer7D *player;
+    PairChar7D *chr;
+    PairInfo7D *info;
+    f32 sum;
+    UNUSED s32 pad;
+    f32 *pts;
+    f32 x0;
+    f32 y0;
+    f32 z0;
+    PairShot7D *st;
+    PairInfo7D *ost;
+    PairModResult7D *res;
+
+    if (a->type == 1 && b->type == 1) {
+        if ((((PairPlayer7D *) a->state)->character & 3) == 3 && (((PairPlayer7D *) b->state)->character & 3) == 3) {
+            func_80054530(a, b);
+        }
+        return;
+    }
+    if (a->type < b->type) {
+        obj = b;
+        other = a;
+    } else {
+        obj = a;
+        other = b;
+    }
+    if (obj->unkA0 != 0 || other->unkA0 != 0) {
+        return;
+    }
+    switch (obj->type) {
+        case 0x9B:
+            owner = ((PairShot7D *) obj->state)->owner;
+            if (owner != NULL) {
+                if (owner == other) {
+                    return;
+                }
+                if (owner->type == 1 && ((PairPlayer7D *) owner->state)->unk50C == other) {
+                    return;
+                }
+            }
+            break;
+        case 0x40:
+        case 0x9A:
+        case 0x9C:
+        case 0xA1:
+            if (((PairShot7D *) obj->state)->owner == other) {
+                return;
+            }
+            break;
+        case 0xA6:
+        case 0xA7:
+            owner = ((PairBeam7D *) obj->state)->owner;
+            if (owner != NULL) {
+                if (owner == other) {
+                    return;
+                }
+                if (owner->type == 1 && ((PairPlayer7D *) owner->state)->unk50C == other) {
+                    return;
+                }
+            }
+            break;
+        case 0x99:
+            shot = obj->state;
+            if (shot->owner != other && (shot->flags & 0x20)) {
+                return;
+            }
+            break;
+    }
+    if (other->type == 1 && obj->type == 0x99) {
+        player = other->state;
+        chr = (PairChar7D *) char_record_lookup(player->player, player->character);
+        shot = obj->state;
+        if (shot->owner == other) {
+            if (!(shot->flags & 0x25)) {
+                return;
+            }
+            chr->unk26++;
+            if (chr->unk46 < chr->unk26) {
+                chr->unk26 = chr->unk46;
+            }
+            music_jingle_play(0xD);
+            free_object(obj);
+            return;
+        }
+        if (shot->flags & 0x21) {
+            chr->unk26++;
+            if (chr->unk46 < chr->unk26) {
+                chr->unk26 = chr->unk46;
+            }
+            music_jingle_play(0xD);
+            free_object(obj);
+            return;
+        }
+    }
+    if (obj->set->spheres == NULL && other->set->spheres != NULL &&
+        !sphere_overlaps_set((CollisionSphere *) obj->set, other->set)) {
+        return;
+    }
+    if (other->type == 1) {
+        switch (obj->type) {
+            case 0x18:
+                info = obj->state;
+                if (info->unk3 & 8) {
+                    func_8003B590((u8 *) other, 9);
+                    func_80054530(obj);
+                    return;
+                }
+                if (obj->unk4A == 0x2CE) {
+                    obj->set->unk6 = -0x400;
+                    return;
+                }
+                if (obj->set->spheres == NULL) {
+                    if (!(info->unk2 & 1)) {
+                        ((PairPlayer7D *) other->state)->flags190 |= 0x80;
+                    }
+                    return;
+                }
+                break;
+            case 2:
+                pts = obj->state;
+                x0 = pts[0];
+                y0 = pts[1];
+                z0 = pts[2];
+                spheres_push_out(&pts[0], &pts[1], &pts[2], 12.0f, other->set);
+                dx = pts[0] - x0;
+                dy = pts[1] - y0;
+                dz = pts[2] - z0;
+                obj->x += dx;
+                obj->y += dy;
+                obj->z += dz;
+                obj->set->pos.x += dx;
+                obj->set->pos.y += dy;
+                obj->set->pos.z += dz;
+                return;
+            case 0x3D:
+            case 0x86:
+                return;
+        }
+    }
+    if (other->type == 0x18 && obj->type == 0x3D) {
+        return;
+    }
+    switch (obj->type) {
+        case 0x97:
+            break;
+        case 0x99:
+            st = obj->state;
+            if (other->header->flags & 0x8000) {
+                func_80054530(obj, st);
+                return;
+            }
+            if (other->type == 0x57) {
+                other->set->unk6 = 0;
+                st->flags |= 4;
+                st->prevOwner = st->owner;
+                break;
+            }
+            if (other->type == 0x18) {
+                ost = other->state;
+                res = ((PairModResult7D * (*) ()) func_80054530)(other);
+                if (!(st->flags & 4)) {
+                    audspat_play_sound_at_position(0x9A, obj->x, obj->y, obj->z, 4, NULL);
+                }
+                if (res != NULL && (res->unk27 & 8)) {
+                    func_80054530(other, obj);
+                    st->flags |= 4;
+                    st->prevOwner = st->owner;
+                    if (ost->unk3 & 8) {
+                        return;
+                    }
+                    stats_kill_add(9);
+                    stats_hit_add(9);
+                    return;
+                }
+                func_80054530(obj, st);
+                if (ost->unk3 & 8) {
+                    return;
+                }
+                stats_hit_add(9);
+                return;
+            }
+            if (other->type == 1) {
+                audspat_play_sound_at_position(0x9A, obj->x, obj->y, obj->z, 4, NULL);
+                st->flags |= 4;
+                st->prevOwner = st->owner;
+                other->set->unk3C = (s32) obj;
+                func_80032128((s32) other);
+                stats_kill_add(9);
+                stats_hit_add(9);
+                return;
+            }
+            break;
+        case 0x9A:
+            audspat_play_sound_at_position(0x22, obj->x, obj->y, obj->z, 4, NULL);
+            spawn_object_from_list(0x10, obj->x, obj->y, obj->z, 100, 0);
+            free_object(obj);
+            return;
+        case 0x9B:
+            ((PairShot7D *) obj->state)->unk8 = 0;
+            break;
+        case 0xA1:
+            if (other->type == 0x18 || other->type == 1) {
+                ((void (*)(f32, f32, f32, s32, s32)) func_80054530)(obj->x, obj->y, obj->z,
+                                                                    *obj->unk54 * 255.0f, other->header->unk2F);
+            }
+            spawn_object_from_list(0xE, obj->x, obj->y, obj->z, 100, 0);
+            ((PairShot7D *) obj->state)->unk8 = 0;
+            obj->unk39 = 0;
+            break;
+        case 0xA6:
+        case 0xA7:
+            ((PairBeam7D *) obj->state)->unk1 = 5;
+            break;
+        default:
+            if (sa->unk34 < 0.0f) {
+                if (a->type == 1 && sb->unk34 < 0.0f) {
+                    wB = 0.0f;
+                    wA = 1.0f;
+                } else {
+                    wB = 1.0f;
+                    wA = 0.0f;
+                }
+            } else if (sb->unk34 < 0.0f) {
+                if (b->type == 1 && sa->unk34 < 0.0f) {
+                    wB = 1.0f;
+                    wA = 0.0f;
+                } else {
+                    wB = 0.0f;
+                    wA = 1.0f;
+                }
+            } else {
+                sum = sa->unk34 + sb->unk34;
+                wB = sb->unk34 / sum;
+                wA = sa->unk34 / sum;
+            }
+            dx = sb->pos.x - sa->pos.x;
+            dy = sb->pos.y - sa->pos.y;
+            dz = sb->pos.z - sa->pos.z;
+            r = sa->radius + sb->radius;
+            if (a->type == 1 && sb->spheres != NULL) {
+                player_spheres_push_out((PushObj *) a, sa, (PushObj *) b, sb);
+            } else if (b->type == 1 && sa->spheres != NULL) {
+                player_spheres_push_out((PushObj *) b, sb, (PushObj *) a, sa);
+            } else if (sa->unk30 == 2 || sb->unk30 == 2) {
+                d = sqrtf(dx * dx + dz * dz);
+                if (d != 0.0f) {
+                    f = r / d - 1.0f;
+                    dx *= f;
+                    dz *= f;
+                }
+                if (0.0f < wA) {
+                    obj_move_with_points((Obj7E *) a, (struct PointPair *) sa, sa->pos.x, sa->prevPos.y, sa->pos.z,
+                                         sa->pos.x - dx * wA, sa->pos.y, sa->pos.z - dz * wA);
+                }
+                if (0.0f < wB) {
+                    obj_move_with_points((Obj7E *) b, (struct PointPair *) sb, sb->pos.x, sb->prevPos.y, sb->pos.z,
+                                         sb->pos.x + dx * wB, sb->pos.y, sb->pos.z + dz * wB);
+                }
+            } else {
+                d = sqrtf(dx * dx + dy * dy + dz * dz);
+                if (d != 0.0f) {
+                    f = r / d - 1.0f;
+                    dx *= f;
+                    dy *= f;
+                    dz *= f;
+                }
+                if (0.0f < wA) {
+                    obj_move_with_points((Obj7E *) a, (struct PointPair *) sa, sa->pos.x, sa->pos.y, sa->pos.z,
+                                         sa->pos.x - dx * wA, sa->pos.y - dy * wA, sa->pos.z - dz * wA);
+                }
+                if (0.0f < wB) {
+                    obj_move_with_points((Obj7E *) b, (struct PointPair *) sb, sb->pos.x, sb->pos.y, sb->pos.z,
+                                         sb->pos.x + dx * wB, sb->pos.y + dy * wB, sb->pos.z + dz * wB);
+                }
+            }
+            sa->unkA |= 0x20;
+            sa->unk3C = (s32) b;
+            sb->unkA |= 0x20;
+            sb->unk3C = (s32) a;
+            break;
+    }
+}
+#else
 INCLUDE_ASM("asm/nonmatchings/7A7D0", func_8007D168);
+#endif
 
 /* JFG: a pair of points moved together with an object (only the fields used here) */
 typedef struct PointPair {
